@@ -14,9 +14,6 @@ from app.api.memory.budget_packing_router import (
 from app.api.memory.conversation_lineage_defense_router import (
     router as conversation_lineage_defense_router,
 )
-from app.api.memory.cross_agent_router import (
-    router as cross_agent_router,
-)
 from app.api.memory.decay_lifecycle_router import (
     router as decay_lifecycle_router,
 )
@@ -132,7 +129,6 @@ router.include_router(hindsight_reflection_router, tags=["memory-hindsight-refle
 router.include_router(experience_gene_router, tags=["memory-experience-genes"])
 router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
-router.include_router(cross_agent_router, tags=["memory-cross-agent"])
 router.include_router(kg_screening_router, tags=["memory-kg-screening"])
 
 router.include_router(radar.router, tags=["memory-radar"])

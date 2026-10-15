@@ -25,7 +25,6 @@ hindsight_reflection_router
 experience_gene_router
 memory_drift_router
 memory_migration_router
-cross_agent_router
 kg_screening_router
 radar.router
 follow_ups_router

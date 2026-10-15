@@ -38,8 +38,6 @@
 | `DriftReferenceAuditView.tsx`           | 辅助 | 真实性漂移防御卡片子组件：呈现物理不一致证据列表、漂移类型徽标与装配效果预览 | ✅    |
 | `SovereignMigrationInspectorCard.tsx`   | 核心 | 全量数字资产主权打包、跨机无损还原与多源迁入卡片：.myrmpkg 加密便携导出、路径解绑重映射与竞品智能体迁入 | ✅    |
 | `CompetitorAssetDetectionView.tsx`      | 辅助 | 主权迁移卡片子组件：呈现本机第三方智能体资产（Hermes/Claude Code/Codex）嗅探结果与一键迁入 | ✅    |
-| `CrossAgentConflictArbitrationCard.tsx` | 核心 | 跨智能体可组合上下文隔离与分歧仲裁套件卡片：4层物理上下文隔离投影 (80%+ KV Cache 保护) • 3级梯队分歧确定性仲裁探针 • 跨智能体移交包防篡改验签 | ✅    |
-| `ComposableContextProjectionView.tsx`   | 辅助 | 跨智能体可组合上下文子组件：4层虚拟引用投影 HUD、KV-Cache 指标与各层明细展示 | ✅    |
 | `KnowledgeGraphPoisoningShieldCard.tsx` | 核心 | 知识图谱抽取前合规前筛与防投毒哨兵卡片：隐藏 HTML 注释指令扫描、零宽隐写字符剥离与系统指令越权熔断阻断 | ✅    |
 | `IntegrationRetainedContextPurgeCard.tsx` | 核心 | 集成断连上下文治理与溯源撤销卡片：对标并超越 OpenAI Dots 隐私规范、已摄入上下文透明盘点、双模断连选择性 Purge 与来源撤销账本 | ✅    |
 | `ProjectLivingFactLedgerCard.tsx` | 核心 | 长期项目动态事实状态账本与四层上下文投影卡片：决议/否决/约束全景账本、4-Tier 动态投影仿真器与基于验证结果的能力沉淀飞轮 | ✅    |

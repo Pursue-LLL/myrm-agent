@@ -18,7 +18,6 @@ export * from './memory/hindsight';
 export * from './memory/experienceGene';
 export * from './memory/driftDefense';
 export * from './memory/sovereignMigration';
-export * from './memory/crossAgent';
 export * from './memory/kgScreening';
 export * from './memory/retainedContext';
 export * from './memory/onboardingInsight';

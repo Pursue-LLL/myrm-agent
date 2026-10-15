@@ -26,7 +26,6 @@ import { GraphRRFRetrievalCard } from './GraphRRFRetrievalCard';
 import { HindsightReflectionCard } from './HindsightReflectionCard';
 import { GeneEvolutionInspectorCard } from './GeneEvolutionInspectorCard';
 import { GroundTruthDriftDefenseCard } from './GroundTruthDriftDefenseCard';
-import { CrossAgentConflictArbitrationCard } from './CrossAgentConflictArbitrationCard';
 import { KnowledgeGraphPoisoningShieldCard } from './KnowledgeGraphPoisoningShieldCard';
 import { IntegrationRetainedContextPurgeCard } from './IntegrationRetainedContextPurgeCard';
 import { ProjectLivingFactLedgerCard } from './ProjectLivingFactLedgerCard';
@@ -67,7 +66,6 @@ export const UnderstandSection = ({
     <HindsightReflectionCard />
     <GeneEvolutionInspectorCard />
     <GroundTruthDriftDefenseCard />
-    <CrossAgentConflictArbitrationCard />
     <KnowledgeGraphPoisoningShieldCard />
     <IntegrationRetainedContextPurgeCard />
     <ProjectLivingFactLedgerCard />

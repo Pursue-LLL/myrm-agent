@@ -424,10 +424,6 @@ myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
-myrm_agent_harness.toolkits.memory.cross_agent.arbitrator
-myrm_agent_harness.toolkits.memory.cross_agent.integrity
-myrm_agent_harness.toolkits.memory.cross_agent.projector
-myrm_agent_harness.toolkits.memory.cross_agent.types
 myrm_agent_harness.toolkits.memory.decay
 myrm_agent_harness.toolkits.memory.drift_defense
 myrm_agent_harness.toolkits.memory.ephemeral_delta
