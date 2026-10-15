@@ -40,6 +40,7 @@ const RESULT: WikiMaintainResponse = {
   raw_security_removed: 0,
   raw_security_removed_paths: [],
   issues: [],
+  ai_unavailable: false,
 };
 
 function status(overrides: Partial<WikiMaintainStatus> = {}): WikiMaintainStatus {

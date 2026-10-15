@@ -348,6 +348,7 @@ describe('WikiSection maintenance flow', () => {
     raw_security_removed: 0,
     raw_security_removed_paths: [],
     issues: [],
+    ai_unavailable: false,
   };
 
   function buttonWithText(text: string): Promise<HTMLButtonElement> {

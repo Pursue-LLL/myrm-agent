@@ -45,13 +45,14 @@ export function resolveHealthIssueNavigationTarget(location: string): HealthIssu
 
 export type MaintainToastKey =
   | 'success.maintainRemovedSensitive'
+  | 'errors.maintainAiUnavailable'
   | 'healthReport.maintainToastOpen'
   | 'success.maintainSummaryWithLinks'
   | 'success.maintainSummary'
   | 'success.maintainComplete';
 
 export interface MaintainToast {
-  variant: 'success' | 'message';
+  variant: 'success' | 'message' | 'warning';
   /** Key under the `settings.wiki` translation namespace. */
   key: MaintainToastKey;
   values?: Record<string, string | number>;
@@ -67,6 +68,9 @@ export function resolveMaintainToast(result: WikiMaintainResponse): MaintainToas
     const paths =
       joined.length > REMOVED_PATHS_MAX_CHARS ? `${joined.slice(0, REMOVED_PATHS_MAX_CHARS - 3)}...` : joined;
     return { variant: 'success', key: 'success.maintainRemovedSensitive', values: { count: removed, paths } };
+  }
+  if (result.ai_unavailable) {
+    return { variant: 'warning', key: 'errors.maintainAiUnavailable' };
   }
 
   const fixed = result.issues_fixed ?? 0;

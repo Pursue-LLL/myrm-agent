@@ -152,9 +152,6 @@ function maintainSkippedBadgeLabel(reason: string, translate: (key: string) => s
   if (reason === 'compile_in_progress') {
     return translate('stats.lastMaintainSkippedCompile');
   }
-  if (reason === 'no_llm_configured') {
-    return translate('stats.lastMaintainSkippedNoModel');
-  }
   return translate('stats.lastMaintainSkipped');
 }
 

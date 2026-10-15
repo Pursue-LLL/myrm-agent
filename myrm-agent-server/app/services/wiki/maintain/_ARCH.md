@@ -15,7 +15,7 @@ Wiki maintain 域子包 — 编排、schemas 与状态持久化。
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 门面 | 聚合导出 runner/run_registry/schemas/state_store 公开符号 | ✅ |
-| `runner.py` | SSOT | 维护管线与两个入口：`schedule_wiki_maintain`（REST，后台运行，已有进行中的一轮则返回它；compile 进行中返回 `compile_in_progress`）、`run_wiki_maintain_job`（Cron，阻塞到结束；已有一轮在跑则静默跳过 `maintain_in_progress`，不写状态；`list_only` 只读不占单飞）；单轮 45 分钟硬上限（提供商卡死时释放知识库）；失败只对外暴露错误码；返回最多 200 条 lint issues + vault `reports/last-health.json` 快照 | ✅ |
+| `runner.py` | SSOT | 维护管线与两个入口：`schedule_wiki_maintain`（REST，后台运行，已有进行中的一轮则返回它；compile 进行中返回 `compile_in_progress`）、`run_wiki_maintain_job`（Cron，阻塞到结束；已有一轮在跑则静默跳过 `maintain_in_progress`，不写状态；`list_only` 只读不占单飞）；单轮 45 分钟硬上限（提供商卡死时释放知识库）；失败只对外暴露错误码；模型一次也没应答（未配置提供商、Key 失效、提供商不可用）时结果带 `ai_unavailable`，结构性修复照常完成，cron 摘要不再静默；返回最多 200 条 lint issues + vault `reports/last-health.json` 快照 | ✅ |
 | `run_registry.py` | 核心 | 每个知识库范围最近一轮的实时状态（阶段、done/total、结果、错误码）与单飞：检查与占位之间没有 `await`，不需要锁；结束的一轮保留到下一轮替换 | ✅ |
 | `schemas.py` | 类型 | `WikiMaintainState` / `WikiMaintainRunResult` / `WikiMaintainModeLiteral` | ✅ |
 | `stale_archiver.py` | 核心 | `StaleFileArchiver` — 探测与归档过期草稿与失效 deprecated 文档 | ✅ |

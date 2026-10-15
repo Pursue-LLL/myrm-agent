@@ -54,7 +54,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _COMPILE_BUSY_REASON = "compile_in_progress"
-_NO_LLM_REASON = "no_llm_configured"
 _MAINTAIN_BUSY_REASON = "maintain_in_progress"
 
 # A full run is up to 25 sequential model calls of 12-60s each; the cap only frees the vault when a provider hangs.
@@ -165,12 +164,10 @@ def _build_summary_text(*, result: WikiMaintainRunResult) -> str:
     if result.skipped:
         if result.skipped_reason == _COMPILE_BUSY_REASON:
             return "[SILENT]"
-        if result.skipped_reason == _NO_LLM_REASON:
-            return "[SILENT]"
         return f"Wiki maintain skipped: {result.skipped_reason}"
 
     changed = result.issues_fixed > 0 or result.connections_discovered > 0 or result.raw_security_removed > 0
-    if not changed:
+    if not changed and not result.ai_unavailable:
         return "[SILENT]"
 
     parts = [
@@ -181,6 +178,8 @@ def _build_summary_text(*, result: WikiMaintainRunResult) -> str:
         parts.append(f"{result.connections_discovered} new link(s)")
     if result.raw_security_removed > 0:
         parts.append(f"{result.raw_security_removed} raw file(s) removed")
+    if result.ai_unavailable:
+        parts.append("the AI model did not respond, so page review and link discovery were skipped")
     return ", ".join(parts)
 
 
@@ -192,17 +191,6 @@ async def _run_maintain_pipeline(
     on_progress: MaintainProgressCallback | None = None,
 ) -> WikiMaintainRunResult:
     mode_literal = _mode_literal(mode)
-
-    if llm is None and mode_literal != "list_only":
-        skipped = WikiMaintainRunResult(
-            skipped=True,
-            skipped_reason=_NO_LLM_REASON,
-            mode=mode_literal,
-            summary_text="[SILENT]",
-        )
-        async with get_session() as db:
-            await save_wiki_maintain_state(db, state_from_run_result(skipped), agent_id=agent_id)
-        return skipped
 
     from app.services.wiki.asset_index_service import run_wiki_asset_index
     from app.services.wiki.vault import after_wiki_vault_mutation, get_wiki_archiver
@@ -290,6 +278,7 @@ async def _run_maintain_pipeline(
             raw_security_removed=lint_result.raw_security_removed,
             raw_security_removed_paths=list(lint_result.raw_security_removed_paths),
             lint_issues=_lint_issue_payloads(lint_result.issues),
+            ai_unavailable=lint_result.ai_unavailable,
         )
         result.summary_text = _build_summary_text(result=result)
         async with get_session() as db:

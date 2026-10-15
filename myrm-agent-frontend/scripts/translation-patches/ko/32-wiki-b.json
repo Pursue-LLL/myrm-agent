@@ -28,7 +28,6 @@
         "lastMaintainSummary": "수정 {fixed} · 발견 {found}",
         "lastMaintainSkipped": "마지막 실행 건너뜀",
         "lastMaintainSkippedCompile": "마지막 실행 건너뜀 (컴파일 진행 중)",
-        "lastMaintainSkippedNoModel": "마지막 실행 건너뜀 (AI 모델 미구성)",
         "indexedAssets": "{count, plural, one {#개 이미지 인덱싱됨} other {#개 이미지 인덱싱됨}}",
         "failedAssets": "{count, plural, one {#개 이미지 인덱싱 실패} other {#개 이미지 인덱싱 실패}}",
         "assetsVisionHint": "이미지가 가져와졌지만 아직 검색할 수 없습니다. 설정 → 모델에서 비전 폴백 모델을 구성하여 인덱싱하세요.",

@@ -29,8 +29,7 @@
         "structuralHint": "Verwenden Sie „Pflegen\" oder „Seitentypen reparieren\" unter Wiki-Aktionen unten, um strukturelle Probleme zu beheben.",
         "lastMaintainNever": "Noch kein Wartungslauf",
         "lastMaintainSkipped": "Letzter Lauf übersprungen",
-        "lastMaintainSkippedCompile": "Letzter Lauf übersprungen (Kompilierung läuft)",
-        "lastMaintainSkippedNoModel": "Letzter Lauf übersprungen (KI-Modell nicht konfiguriert)"
+        "lastMaintainSkippedCompile": "Letzter Lauf übersprungen (Kompilierung läuft)"
       },
       "healthReport": {
         "title": "Wissenszustand",

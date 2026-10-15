@@ -61,6 +61,24 @@ def test_build_summary_silent_when_only_unfixed_issues() -> None:
     assert _build_summary_text(result=result) == "[SILENT]"
 
 
+def test_build_summary_is_not_silent_when_the_model_answered_nothing() -> None:
+    result = WikiMaintainRunResult(mode="full", issues_found=3, issues_fixed=0, ai_unavailable=True)
+
+    summary = _build_summary_text(result=result)
+
+    assert summary != "[SILENT]"
+    assert "AI model did not respond" in summary
+
+
+def test_build_summary_names_the_unavailable_model_next_to_the_structural_fixes() -> None:
+    result = WikiMaintainRunResult(mode="full", issues_found=3, issues_fixed=2, ai_unavailable=True)
+
+    summary = _build_summary_text(result=result)
+
+    assert "2 fixed" in summary
+    assert "AI model did not respond" in summary
+
+
 @pytest.mark.asyncio
 async def test_skip_when_compile_processing() -> None:
     mock_archiver = MagicMock()
@@ -128,6 +146,32 @@ async def test_structural_maintain_persists_state() -> None:
     assert [issue["location"] for issue in result.lint_issues] == ["concepts/a.md"]
     assert "fixed" in result.summary_text.lower()
     save_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_pipeline_reports_that_the_model_answered_nothing() -> None:
+    mock_archiver = MagicMock()
+    mock_archiver._queue.get_stats.return_value = {"processing": 0}
+    mock_archiver._linter.lint_and_maintain = AsyncMock(
+        return_value=LintResult(
+            issues_found=1, issues_fixed=0, connections_discovered=0, duration_ms=1, issues=[_issue()], ai_unavailable=True
+        )
+    )
+
+    with patch("app.services.wiki.vault.get_wiki_archiver", return_value=mock_archiver):
+        with patch("app.services.wiki.asset_index_service.run_wiki_asset_index", new=AsyncMock()):
+            with patch("app.services.wiki.vault.after_wiki_vault_mutation", new=AsyncMock()):
+                with patch("app.services.wiki.maintain.runner.get_session", _fake_session):
+                    with patch(
+                        "app.services.wiki.dedup_runner.get_wiki_dedup_stats",
+                        return_value=MagicMock(duplicate_groups_pending=0),
+                    ):
+                        with patch("app.services.wiki.maintain.runner.save_wiki_maintain_state", new=AsyncMock()):
+                            result = await _run_maintain_pipeline(llm=MagicMock(), agent_id="a", mode=MaintainMode.FULL)
+
+    assert result.ai_unavailable is True
+    assert result.skipped is False
+    assert result.summary_text != "[SILENT]"
 
 
 @pytest.mark.asyncio

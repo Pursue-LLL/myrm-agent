@@ -24,6 +24,7 @@ function maintainResponse(overrides: Partial<WikiMaintainResponse> = {}): WikiMa
     raw_security_removed: 0,
     raw_security_removed_paths: [],
     issues: [],
+    ai_unavailable: false,
     ...overrides,
   };
 }
@@ -48,6 +49,7 @@ function icuArguments(message: string): string[] {
 describe('resolveMaintainToast locale contract', () => {
   const outcomes: WikiMaintainResponse[] = [
     maintainResponse({ raw_security_removed: 1, raw_security_removed_paths: ['a.md'] }),
+    maintainResponse({ ai_unavailable: true }),
     maintainResponse({ open_actions_count: 1 }),
     maintainResponse({ connections_discovered: 1 }),
     maintainResponse({ issues_fixed: 1 }),
@@ -91,6 +93,20 @@ describe('resolveMaintainToast', () => {
     );
 
     expect(toast.values?.paths).toBe(`${'x'.repeat(117)}...`);
+  });
+
+  it('warns that the model never answered instead of reporting a success, whatever else the run did', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ ai_unavailable: true, open_actions_count: 2, issues_fixed: 1 })),
+    ).toEqual({ variant: 'warning', key: 'errors.maintainAiUnavailable' });
+  });
+
+  it('still reports removed sensitive raw files when the model never answered', () => {
+    expect(
+      resolveMaintainToast(
+        maintainResponse({ ai_unavailable: true, raw_security_removed: 1, raw_security_removed_paths: ['a.md'] }),
+      ).key,
+    ).toBe('success.maintainRemovedSensitive');
   });
 
   it('points to the health panel when open actions remain, even if links were found', () => {
@@ -239,6 +255,7 @@ describe('healthReportFromMaintainResponse', () => {
             action_kind: 'navigate',
           },
         ],
+        ai_unavailable: false,
       },
       'full',
       { duplicate_groups_pending: 3, synthesis_pending: 1 },
@@ -263,6 +280,7 @@ describe('healthReportFromMaintainResponse', () => {
         raw_security_removed: 0,
         raw_security_removed_paths: [],
         issues: [],
+        ai_unavailable: false,
       },
       'structural',
       { duplicate_groups_pending: 0, synthesis_pending: 0 },

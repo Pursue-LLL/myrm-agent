@@ -383,11 +383,6 @@ class MemoryToWikiArchiver:
             return await self._query_engine.query(question, query_config=effective_config)
         return await self._query_engine.query(question)
 
-    async def maintain_wiki(self) -> None:
-        """Run wiki maintenance (health checks + auto-repair)."""
-        await self._linter.lint_and_maintain()
-        logger.info("Wiki maintenance complete")
-
     def commit_vault_git(self, reason: str):
         """Commit vault snapshot when local version control is enabled."""
         from myrm_agent_harness.toolkits.wiki.portability.vault_git import (

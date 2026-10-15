@@ -43,6 +43,7 @@ class WikiMaintenanceResponse(BaseModel):
     raw_security_removed: int = 0
     raw_security_removed_paths: list[str] = Field(default_factory=list)
     issues: list[WikiHealthIssueResponse] = Field(default_factory=list)
+    ai_unavailable: bool = False
 
 
 class WikiMaintainStatusResponse(BaseModel):
@@ -64,6 +65,7 @@ def _maintenance_response(result: WikiMaintainRunResult) -> WikiMaintenanceRespo
         open_actions_count=result.open_actions_count,
         raw_security_removed=result.raw_security_removed,
         raw_security_removed_paths=list(result.raw_security_removed_paths),
+        ai_unavailable=result.ai_unavailable,
         issues=[
             WikiHealthIssueResponse(
                 issue_type=str(item["issue_type"]),

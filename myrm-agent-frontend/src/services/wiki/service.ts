@@ -186,6 +186,8 @@ export interface WikiMaintainResponse {
   raw_security_removed: number;
   raw_security_removed_paths: string[];
   issues: WikiHealthIssue[];
+  /** The model was asked and answered nothing: only the structural checks and repairs ran. */
+  ai_unavailable: boolean;
 }
 
 export type WikiQueryMode = 'auto' | 'raw_claim';

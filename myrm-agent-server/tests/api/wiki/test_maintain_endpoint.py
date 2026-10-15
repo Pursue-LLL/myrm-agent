@@ -169,6 +169,24 @@ def test_status_of_a_finished_run_carries_the_maintenance_result(client: TestCli
     assert body["result"]["issues"][0]["suggested_fix"] is None
 
 
+def test_status_of_a_run_the_model_never_answered_says_so(client: TestClient) -> None:
+    run = _run("full")
+    run.succeed(WikiMaintainRunResult(mode="full", issues_found=2, issues_fixed=1, ai_unavailable=True))
+
+    body = client.get("/api/v1/wiki/maintain/status").json()
+
+    assert body["state"] == "succeeded"
+    assert body["result"]["ai_unavailable"] is True
+    assert body["result"]["issues_fixed"] == 1
+
+
+def test_status_of_a_finished_run_is_available_unless_the_model_never_answered(client: TestClient) -> None:
+    run = _run("full")
+    run.succeed(WikiMaintainRunResult(mode="full"))
+
+    assert client.get("/api/v1/wiki/maintain/status").json()["result"]["ai_unavailable"] is False
+
+
 def test_status_of_a_failed_run_is_an_error_code_without_exception_text(client: TestClient) -> None:
     run = _run("full")
     run.fail("maintain_failed")
