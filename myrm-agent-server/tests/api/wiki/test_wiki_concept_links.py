@@ -119,6 +119,21 @@ def test_get_concept_links_reports_which_direction_was_cut(client: TestClient):
     assert response.json()["backlinks_has_more"] is True
 
 
+def test_concept_links_response_models_require_every_key():
+    """The models state the contract of the indexer payload and the panel's types: no key is optional."""
+    from app.api.wiki.router import ConceptBacklinkItem, ConceptLinkItem, ConceptLinksResponse
+
+    assert set(ConceptLinkItem.model_json_schema()["required"]) == {"name", "exists"}
+    assert set(ConceptBacklinkItem.model_json_schema()["required"]) == {"name", "exists", "context_snippet", "heading"}
+    assert set(ConceptLinksResponse.model_json_schema()["required"]) == {
+        "concept_name",
+        "outlinks",
+        "backlinks",
+        "outlinks_has_more",
+        "backlinks_has_more",
+    }
+
+
 def test_get_concept_links_empty_and_cjk(client: TestClient):
     """Test edge cases with CJK characters and completely isolated concepts."""
     mock_archiver = MagicMock()

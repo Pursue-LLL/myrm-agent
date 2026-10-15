@@ -299,20 +299,20 @@ class WikiGraphResponse(BaseModel):
 
 class ConceptLinkItem(BaseModel):
     name: str
-    exists: bool = True
+    exists: bool
 
 
 class ConceptBacklinkItem(ConceptLinkItem):
-    context_snippet: str | None = None
-    heading: str | None = None
+    context_snippet: str | None
+    heading: str | None
 
 
 class ConceptLinksResponse(BaseModel):
     concept_name: str
-    outlinks: list[ConceptLinkItem] = Field(default_factory=list)
-    backlinks: list[ConceptBacklinkItem] = Field(default_factory=list)
-    outlinks_has_more: bool = False
-    backlinks_has_more: bool = False
+    outlinks: list[ConceptLinkItem]
+    backlinks: list[ConceptBacklinkItem]
+    outlinks_has_more: bool
+    backlinks_has_more: bool
 
 
 class WikiEditorSectionsResponse(BaseModel):
