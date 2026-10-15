@@ -20665,6 +20665,95 @@
         "exportCopied": "已複製!",
         "exportCopyFailed": "複製失敗，請檢查剪貼簿許可權",
         "desktopOpenSettings": "開啟系統設定",
+        "status": {
+          "pass": "正常",
+          "warn": "警告",
+          "fail": "錯誤"
+        },
+        "technical": {
+          "toggle": "技術詳情",
+          "component": "元件",
+          "message": "訊息",
+          "detail": "詳情",
+          "measured": "實測值",
+          "expected": "預期值",
+          "cause": "原因",
+          "fix": "建議修復"
+        },
+        "components": {
+          "generic": "系統檢查",
+          "AgentColdStart": "智能體預熱",
+          "AgentEngine": "智能體引擎",
+          "AgentPromptCacheAlignment": "提示詞快取對齊",
+          "AgentStepBudget": "智能體步數預算",
+          "AnthropicPolicyDoctor": "Anthropic 政策檢查",
+          "Database": "本機資料庫",
+          "DesktopControl": "桌面控制",
+          "DesktopLockedUse": "鎖定畫面使用與隱私布幕",
+          "DLQ": "訊息投遞",
+          "ExecutionCache": "執行快取",
+          "GatewayRuntime": "應用引擎",
+          "GraphEmbedding": "知識圖譜嵌入",
+          "HookSystem": "自動化掛鉤",
+          "Network": "網際網路連線",
+          "OllamaContext": "Ollama 上下文",
+          "OrphanSession": "殘留工作階段",
+          "SkillEcosystem": "技能生態",
+          "SupplyChainSecurity": "相依套件安全",
+          "SystemExhaustion": "交換空間與檔案控制代碼",
+          "SystemResources": "系統資源",
+          "Tokenizer": "文字分詞器",
+          "TraceExportAudit": "追蹤匯出稽核",
+          "TraceExportSecurity": "追蹤匯出安全",
+          "VectorDB": "記憶檢索儲存",
+          "WorkspaceStorage": "工作區儲存"
+        },
+        "hints": {
+          "generic": {
+            "warn": "值得留意，但應用程式仍可正常使用。展開技術詳情查看具體資訊。",
+            "fail": "此項檢查未通過。展開技術詳情查看原因，處理後重新檢查。"
+          },
+          "AgentEngine": {
+            "fail": "智能體引擎遇到嚴重錯誤，請重新啟動應用程式。"
+          },
+          "Database": {
+            "fail": "本機資料庫出現問題。請重新啟動應用程式；若反覆出現，請匯出診斷報告聯絡支援。"
+          },
+          "DLQ": {
+            "warn": "部分訊息未能送達或正在積壓，請檢查各管道的連線狀態。"
+          },
+          "GatewayRuntime": {
+            "warn": "應用引擎目前回應較慢，通常會自行恢復。",
+            "fail": "應用引擎負載過高或沒有回應；若未恢復，請重新啟動應用程式。"
+          },
+          "Network": {
+            "fail": "無法連上網際網路。請檢查網路、代理或防火牆設定，然後重新檢查。"
+          },
+          "SupplyChainSecurity": {
+            "warn": "某個相依套件存在已知的高風險漏洞，有新版本時請及時更新應用程式。",
+            "fail": "某個相依套件可能遭植入惡意程式碼。請更新或重新安裝應用程式，在此之前請勿輸入敏感資訊。"
+          },
+          "SystemExhaustion": {
+            "warn": "交換空間或檔案控制代碼使用量偏高；除非應用程式變慢，通常無需處理。",
+            "fail": "記憶體或檔案控制代碼已接近上限。請關閉不用的應用程式；若應用程式變慢，請重新啟動。"
+          },
+          "SystemResources": {
+            "warn": "記憶體、CPU 或行程數偏高，或暫時無法監測。",
+            "fail": "記憶體、CPU 或行程數過高，或檢查本身失敗。請關閉不用的應用程式後重新檢查。"
+          },
+          "Tokenizer": {
+            "warn": "中日韓文字檢索正在使用簡化方案，結果精準度可能下降。",
+            "fail": "中日韓文字檢索可能無法正常運作。請重新啟動應用程式；若仍然如此，請匯出診斷報告聯絡支援。"
+          },
+          "VectorDB": {
+            "warn": "缺少選用元件，進階記憶檢索暫時無法使用。",
+            "fail": "記憶檢索儲存出現問題。請重新啟動應用程式；若仍然如此，請匯出診斷報告聯絡支援。"
+          },
+          "WorkspaceStorage": {
+            "warn": "儲存可用，但未安裝更快的搜尋工具（ripgrep），檔案搜尋會較慢。",
+            "fail": "資料夾出現問題（沒有寫入權限、發生錯誤或磁碟空間不足）。請檢查權限並釋出空間。"
+          }
+        },
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "訊息投遞佇列出現嚴重故障（{failed_count} 條失敗）。"

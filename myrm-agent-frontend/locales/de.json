@@ -20665,6 +20665,95 @@
         "exportCopied": "Kopiert!",
         "exportCopyFailed": "Kopieren fehlgeschlagen. Bitte Zwischenablage-Berechtigung prüfen.",
         "desktopOpenSettings": "Öffnen Sie die Systemeinstellungen",
+        "status": {
+          "pass": "OK",
+          "warn": "Warnung",
+          "fail": "Fehler"
+        },
+        "technical": {
+          "toggle": "Technische Details",
+          "component": "Komponente",
+          "message": "Meldung",
+          "detail": "Einzelheiten",
+          "measured": "Gemessen",
+          "expected": "Erwartet",
+          "cause": "Ursache",
+          "fix": "Empfohlene Behebung"
+        },
+        "components": {
+          "generic": "Systemprüfung",
+          "AgentColdStart": "Agent-Aufwärmen",
+          "AgentEngine": "Agent-Engine",
+          "AgentPromptCacheAlignment": "Prompt-Cache-Ausrichtung",
+          "AgentStepBudget": "Agent-Schrittbudget",
+          "AnthropicPolicyDoctor": "Anthropic-Richtlinienprüfung",
+          "Database": "Lokale Datenbank",
+          "DesktopControl": "Desktop-Steuerung",
+          "DesktopLockedUse": "Nutzung im gesperrten Zustand und Datenschutzvorhang",
+          "DLQ": "Nachrichtenzustellung",
+          "ExecutionCache": "Ausführungs-Cache",
+          "GatewayRuntime": "App-Engine",
+          "GraphEmbedding": "Wissensgraph-Einbettung",
+          "HookSystem": "Automatisierungs-Hooks",
+          "Network": "Internetverbindung",
+          "OllamaContext": "Ollama-Kontext",
+          "OrphanSession": "Verwaiste Sitzungen",
+          "SkillEcosystem": "Skill-Ökosystem",
+          "SupplyChainSecurity": "Abhängigkeitssicherheit",
+          "SystemExhaustion": "Auslagerung und Dateihandles",
+          "SystemResources": "Systemressourcen",
+          "Tokenizer": "Text-Tokenizer",
+          "TraceExportAudit": "Trace-Export-Prüfung",
+          "TraceExportSecurity": "Trace-Export-Sicherheit",
+          "VectorDB": "Speicher der Gedächtnissuche",
+          "WorkspaceStorage": "Arbeitsbereichsspeicher"
+        },
+        "hints": {
+          "generic": {
+            "warn": "Einen Blick wert, die App funktioniert aber weiter. Einzelheiten finden Sie in den technischen Details.",
+            "fail": "Diese Prüfung ist fehlgeschlagen. Die Ursache steht in den technischen Details; danach die Prüfung erneut ausführen."
+          },
+          "AgentEngine": {
+            "fail": "Die Agent-Engine hat einen kritischen Fehler gemeldet. Starten Sie die App neu."
+          },
+          "Database": {
+            "fail": "Die lokale Datenbank hat ein Problem. Starten Sie die App neu; tritt es erneut auf, exportieren Sie den Bericht für den Support."
+          },
+          "DLQ": {
+            "warn": "Einige Nachrichten konnten nicht zugestellt werden oder stauen sich. Prüfen Sie die Verbindung Ihrer Kanäle."
+          },
+          "GatewayRuntime": {
+            "warn": "Die App-Engine reagiert gerade langsam. Das erholt sich meist von selbst.",
+            "fail": "Die App-Engine ist überlastet oder reagiert nicht. Starten Sie die App neu, falls sie sich nicht erholt."
+          },
+          "Network": {
+            "fail": "Keine Verbindung zum Internet. Prüfen Sie Verbindung, Proxy oder Firewall und führen Sie die Prüfung erneut aus."
+          },
+          "SupplyChainSecurity": {
+            "warn": "Eine Abhängigkeit hat eine bekannte Schwachstelle mit hohem Schweregrad. Aktualisieren Sie die App, sobald eine neue Version verfügbar ist.",
+            "fail": "Eine Abhängigkeit könnte schädlich oder kompromittiert sein. Aktualisieren oder installieren Sie die App neu und geben Sie bis dahin keine sensiblen Daten ein."
+          },
+          "SystemExhaustion": {
+            "warn": "Auslagerungsspeicher oder Dateihandles sind stark belegt. Meist harmlos, solange die App nicht langsamer wird.",
+            "fail": "Arbeitsspeicher oder Dateihandles nähern sich ihren Grenzen. Schließen Sie ungenutzte Apps und starten Sie die App neu, wenn sie langsam wird."
+          },
+          "SystemResources": {
+            "warn": "Arbeitsspeicher, CPU oder Prozessanzahl sind hoch oder lassen sich gerade nicht überwachen.",
+            "fail": "Arbeitsspeicher, CPU oder Prozessanzahl sind kritisch hoch, oder die Prüfung selbst ist fehlgeschlagen. Schließen Sie ungenutzte Apps und prüfen Sie erneut."
+          },
+          "Tokenizer": {
+            "warn": "Die Suche in chinesischen, japanischen und koreanischen Texten nutzt ein einfacheres Verfahren, die Treffer sind womöglich ungenauer.",
+            "fail": "Die Suche in chinesischen, japanischen und koreanischen Texten funktioniert möglicherweise nicht richtig. Starten Sie die App neu; bleibt es so, exportieren Sie den Bericht für den Support."
+          },
+          "VectorDB": {
+            "warn": "Die erweiterte Gedächtnissuche ist nicht verfügbar, weil eine optionale Komponente fehlt.",
+            "fail": "Der Speicher der Gedächtnissuche hat ein Problem. Starten Sie die App neu; bleibt es so, exportieren Sie den Bericht für den Support."
+          },
+          "WorkspaceStorage": {
+            "warn": "Der Speicher funktioniert, aber das schnellere Suchwerkzeug (ripgrep) fehlt, daher ist die Dateisuche langsamer.",
+            "fail": "Der Datenordner hat ein Problem (kein Schreibzugriff, ein Fehler oder wenig Speicherplatz). Prüfen Sie die Berechtigungen und schaffen Sie Platz."
+          }
+        },
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "In der Nachrichtenübermittlungswarteschlange sind kritische Fehler aufgetreten ({failed_count} fehlgeschlagen)."

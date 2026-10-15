@@ -65,6 +65,15 @@ function formatReportGroup(reports: HealthReport[], layerName: string): string {
     if (r.detail) {
       lines.push(`  - \`${r.detail}\``);
     }
+    if (r.measured) {
+      lines.push(`  - Measured: ${r.measured}`);
+    }
+    if (r.expected) {
+      lines.push(`  - Expected: ${r.expected}`);
+    }
+    if (r.cause) {
+      lines.push(`  - Cause: ${r.cause}`);
+    }
     if (r.fix_suggestion) {
       lines.push(`  - Fix: ${r.fix_suggestion}`);
     }

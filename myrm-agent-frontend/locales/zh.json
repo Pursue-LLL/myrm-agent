@@ -21363,6 +21363,95 @@
         "exportCopied": "已复制!",
         "exportCopyFailed": "复制失败，请检查剪贴板权限",
         "desktopOpenSettings": "打开系统设置",
+        "status": {
+          "pass": "正常",
+          "warn": "警告",
+          "fail": "错误"
+        },
+        "technical": {
+          "toggle": "技术详情",
+          "component": "组件",
+          "message": "消息",
+          "detail": "详情",
+          "measured": "实测值",
+          "expected": "期望值",
+          "cause": "原因",
+          "fix": "建议修复"
+        },
+        "components": {
+          "generic": "系统检查",
+          "AgentColdStart": "智能体预热",
+          "AgentEngine": "智能体引擎",
+          "AgentPromptCacheAlignment": "提示词缓存对齐",
+          "AgentStepBudget": "智能体步数预算",
+          "AnthropicPolicyDoctor": "Anthropic 策略检查",
+          "Database": "本地数据库",
+          "DesktopControl": "桌面控制",
+          "DesktopLockedUse": "锁屏使用与隐私幕布",
+          "DLQ": "消息投递",
+          "ExecutionCache": "执行缓存",
+          "GatewayRuntime": "应用引擎",
+          "GraphEmbedding": "知识图谱嵌入",
+          "HookSystem": "自动化钩子",
+          "Network": "网络连接",
+          "OllamaContext": "Ollama 上下文",
+          "OrphanSession": "遗留会话",
+          "SkillEcosystem": "技能生态",
+          "SupplyChainSecurity": "依赖安全",
+          "SystemExhaustion": "交换区与文件句柄",
+          "SystemResources": "系统资源",
+          "Tokenizer": "文本分词器",
+          "TraceExportAudit": "追踪导出审计",
+          "TraceExportSecurity": "追踪导出安全",
+          "VectorDB": "记忆检索存储",
+          "WorkspaceStorage": "工作区存储"
+        },
+        "hints": {
+          "generic": {
+            "warn": "值得留意，但应用仍可正常使用。展开技术详情查看具体信息。",
+            "fail": "该项检查未通过。展开技术详情查看原因，处理后重新检查。"
+          },
+          "AgentEngine": {
+            "fail": "智能体引擎遇到严重错误，请重启应用。"
+          },
+          "Database": {
+            "fail": "本地数据库出现问题。请重启应用；若反复出现，请导出诊断报告联系支持。"
+          },
+          "DLQ": {
+            "warn": "部分消息未能送达或正在积压，请检查各渠道的连接状态。"
+          },
+          "GatewayRuntime": {
+            "warn": "应用引擎当前响应较慢，通常会自行恢复。",
+            "fail": "应用引擎负载过高或无响应；若未恢复，请重启应用。"
+          },
+          "Network": {
+            "fail": "无法连接互联网。请检查网络、代理或防火墙设置，然后重新检查。"
+          },
+          "SupplyChainSecurity": {
+            "warn": "某个依赖存在已知的高危漏洞，有新版本时请及时更新应用。",
+            "fail": "某个依赖可能被植入恶意代码。请更新或重装应用，在此之前不要输入敏感信息。"
+          },
+          "SystemExhaustion": {
+            "warn": "交换区或文件句柄占用偏高；除非应用变慢，通常无需处理。",
+            "fail": "内存或文件句柄已接近上限。请关闭不用的应用；若应用变慢，请重启应用。"
+          },
+          "SystemResources": {
+            "warn": "内存、CPU 或进程数偏高，或暂时无法监测。",
+            "fail": "内存、CPU 或进程数过高，或检查本身失败。请关闭不用的应用后重新检查。"
+          },
+          "Tokenizer": {
+            "warn": "中日韩文字检索正在使用简化方案，结果精度可能下降。",
+            "fail": "中日韩文字检索可能无法正常工作。请重启应用；若仍然如此，请导出诊断报告联系支持。"
+          },
+          "VectorDB": {
+            "warn": "缺少可选组件，高级记忆检索暂不可用。",
+            "fail": "记忆检索存储出现问题。请重启应用；若仍然如此，请导出诊断报告联系支持。"
+          },
+          "WorkspaceStorage": {
+            "warn": "存储可用，但未安装更快的搜索工具（ripgrep），文件搜索会较慢。",
+            "fail": "数据目录存在问题（无写入权限、出错或磁盘空间不足）。请检查权限并释放空间。"
+          }
+        },
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "消息投递队列出现严重故障（{failed_count} 条失败）。"

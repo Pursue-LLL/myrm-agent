@@ -20665,6 +20665,95 @@
         "exportCopied": "복사됨!",
         "exportCopyFailed": "복사 실패. 클립보드 권한을 확인하세요.",
         "desktopOpenSettings": "시스템 설정 열기",
+        "status": {
+          "pass": "정상",
+          "warn": "경고",
+          "fail": "오류"
+        },
+        "technical": {
+          "toggle": "기술 세부 정보",
+          "component": "구성 요소",
+          "message": "메시지",
+          "detail": "세부 정보",
+          "measured": "측정값",
+          "expected": "기대값",
+          "cause": "원인",
+          "fix": "권장 해결 방법"
+        },
+        "components": {
+          "generic": "시스템 점검",
+          "AgentColdStart": "에이전트 워밍업",
+          "AgentEngine": "에이전트 엔진",
+          "AgentPromptCacheAlignment": "프롬프트 캐시 정렬",
+          "AgentStepBudget": "에이전트 단계 예산",
+          "AnthropicPolicyDoctor": "Anthropic 정책 점검",
+          "Database": "로컬 데이터베이스",
+          "DesktopControl": "데스크톱 제어",
+          "DesktopLockedUse": "잠금 상태 사용 및 개인정보 커튼",
+          "DLQ": "메시지 전달",
+          "ExecutionCache": "실행 캐시",
+          "GatewayRuntime": "앱 엔진",
+          "GraphEmbedding": "지식 그래프 임베딩",
+          "HookSystem": "자동화 훅",
+          "Network": "인터넷 연결",
+          "OllamaContext": "Ollama 컨텍스트",
+          "OrphanSession": "남은 세션",
+          "SkillEcosystem": "스킬 생태계",
+          "SupplyChainSecurity": "의존성 보안",
+          "SystemExhaustion": "스왑 및 파일 핸들",
+          "SystemResources": "시스템 리소스",
+          "Tokenizer": "텍스트 토크나이저",
+          "TraceExportAudit": "트레이스 내보내기 감사",
+          "TraceExportSecurity": "트레이스 내보내기 보안",
+          "VectorDB": "메모리 검색 저장소",
+          "WorkspaceStorage": "작업 공간 저장소"
+        },
+        "hints": {
+          "generic": {
+            "warn": "확인해 보시길 권장하지만 앱은 계속 사용할 수 있습니다. 자세한 내용은 '기술 세부 정보'를 확인하세요.",
+            "fail": "이 점검에 실패했습니다. '기술 세부 정보'에서 원인을 확인한 뒤 다시 점검하세요."
+          },
+          "AgentEngine": {
+            "fail": "에이전트 엔진에 심각한 오류가 발생했습니다. 앱을 다시 시작하세요."
+          },
+          "Database": {
+            "fail": "로컬 데이터베이스에 문제가 있습니다. 앱을 다시 시작하세요. 계속되면 진단 보고서를 내보내 지원팀에 문의하세요."
+          },
+          "DLQ": {
+            "warn": "전달하지 못했거나 쌓여 있는 메시지가 있습니다. 각 채널의 연결 상태를 확인하세요."
+          },
+          "GatewayRuntime": {
+            "warn": "앱 엔진의 응답이 느려졌습니다. 보통 저절로 회복됩니다.",
+            "fail": "앱 엔진에 과부하가 걸렸거나 응답하지 않습니다. 회복되지 않으면 앱을 다시 시작하세요."
+          },
+          "Network": {
+            "fail": "인터넷에 연결할 수 없습니다. 네트워크, 프록시, 방화벽 설정을 확인한 뒤 다시 점검하세요."
+          },
+          "SupplyChainSecurity": {
+            "warn": "의존성에 알려진 고위험 취약점이 있습니다. 새 버전이 나오면 앱을 업데이트하세요.",
+            "fail": "의존성이 악성 코드에 감염되었을 수 있습니다. 앱을 업데이트하거나 다시 설치하고, 그때까지 민감한 정보를 입력하지 마세요."
+          },
+          "SystemExhaustion": {
+            "warn": "스왑 또는 파일 핸들 사용량이 높습니다. 앱이 느려지지 않는 한 보통 조치가 필요하지 않습니다.",
+            "fail": "메모리 또는 파일 핸들이 한도에 가까워졌습니다. 사용하지 않는 앱을 닫고, 앱이 느려지면 다시 시작하세요."
+          },
+          "SystemResources": {
+            "warn": "메모리, CPU 또는 프로세스 수가 높거나 지금은 모니터링할 수 없습니다.",
+            "fail": "메모리, CPU 또는 프로세스 수가 매우 높거나 점검 자체가 실패했습니다. 사용하지 않는 앱을 닫고 다시 점검하세요."
+          },
+          "Tokenizer": {
+            "warn": "한중일 문자 검색이 간단한 방식으로 동작 중이라 정확도가 낮아질 수 있습니다.",
+            "fail": "한중일 문자 검색이 제대로 동작하지 않을 수 있습니다. 앱을 다시 시작하세요. 계속되면 진단 보고서를 내보내 지원팀에 문의하세요."
+          },
+          "VectorDB": {
+            "warn": "선택 구성 요소가 설치되지 않아 고급 메모리 검색을 사용할 수 없습니다.",
+            "fail": "메모리 검색 저장소에 문제가 있습니다. 앱을 다시 시작하세요. 계속되면 진단 보고서를 내보내 지원팀에 문의하세요."
+          },
+          "WorkspaceStorage": {
+            "warn": "저장소는 사용할 수 있지만 더 빠른 검색 도구(ripgrep)가 설치되지 않아 파일 검색이 느립니다.",
+            "fail": "데이터 폴더에 문제가 있습니다(쓰기 권한 없음, 오류 또는 디스크 공간 부족). 권한을 확인하고 공간을 확보하세요."
+          }
+        },
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "메시지 전달 큐에 심각한 오류가 있습니다 ({failed_count}건 실패)."

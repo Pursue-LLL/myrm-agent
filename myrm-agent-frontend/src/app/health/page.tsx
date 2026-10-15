@@ -24,11 +24,11 @@ export default async function HealthPage(props: { params: Promise<{ locale: stri
   const t = await getTranslations({ locale, namespace: 'health' });
 
   return (
-    <div className="flex h-full w-full flex-col p-4 md:p-8 bg-zinc-950/50">
+    <div className="flex h-full w-full flex-col bg-background p-4 md:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <header className="mb-6 flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -37,13 +37,13 @@ export default async function HealthPage(props: { params: Promise<{ locale: stri
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-6 h-6 text-indigo-400"
+                className="h-6 w-6 text-primary"
               >
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
               </svg>
               {t('title')}
             </h1>
-            <p className="text-sm text-zinc-400">{t('overview')}</p>
+            <p className="text-sm text-muted-foreground">{t('overview')}</p>
           </div>
         </header>
 

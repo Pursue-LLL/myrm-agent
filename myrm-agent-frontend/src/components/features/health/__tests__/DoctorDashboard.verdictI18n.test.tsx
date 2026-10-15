@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 'use client';
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -83,14 +83,18 @@ describe('DoctorDashboard verdict localization', () => {
     ['en', en],
     ['zh', zh],
   ])(
-    '%s shows the locale text for a code that has one and the backend message for one that has not',
+    '%s shows the locale text for a code that has one and a localized hint for one that has not',
     async (locale, messages) => {
       const intlErrors = renderDoctor(locale, messages);
 
-      const localized = messages.settings.systemHealth.doctor.errors.ERR_VECTOR_STORE_ON_MEMORY_FALLBACK.message;
+      const doctor = messages.settings.systemHealth.doctor;
       await waitFor(() => {
-        expect(screen.getByText(localized)).toBeInTheDocument();
+        expect(screen.getByText(doctor.errors.ERR_VECTOR_STORE_ON_MEMORY_FALLBACK.message)).toBeInTheDocument();
       });
+      expect(screen.getByText(doctor.hints.generic.warn)).toBeInTheDocument();
+      // The backend wording of an unmapped code is kept, but only behind the technical details.
+      expect(screen.queryByText(BACKEND_MESSAGE)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: doctor.technical.toggle }));
       expect(screen.getByText(BACKEND_MESSAGE)).toBeInTheDocument();
       expect(screen.queryByText(/settings\.systemHealth\.doctor\.errors/)).not.toBeInTheDocument();
       expect(intlErrors).toEqual([]);

@@ -116,9 +116,9 @@ interface GuidedRepairCardProps {
 }
 
 const riskStyle: Record<RepairAction['risk_level'], string> = {
-  low: 'bg-emerald-500/10 text-emerald-500',
-  medium: 'bg-yellow-500/10 text-yellow-500',
-  high: 'bg-red-500/10 text-red-500',
+  low: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+  high: 'bg-red-500/10 text-red-600 dark:text-red-400',
 };
 
 export function GuidedRepairCard({ action, onExecuted }: GuidedRepairCardProps) {
@@ -151,23 +151,23 @@ export function GuidedRepairCard({ action, onExecuted }: GuidedRepairCardProps) 
   };
 
   return (
-    <Card className="border-zinc-800 bg-zinc-900/80">
+    <Card className="bg-muted/30">
       <CardHeader className="space-y-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-base">
               {action.executable ? (
-                <WrenchIcon className="h-4 w-4 text-indigo-400" />
+                <WrenchIcon className="h-4 w-4 text-primary" />
               ) : (
-                <InfoIcon className="h-4 w-4 text-zinc-400" />
+                <InfoIcon className="h-4 w-4 text-muted-foreground" />
               )}
               {action.title}
             </CardTitle>
-            <CardDescription className="text-zinc-400">{action.description}</CardDescription>
+            <CardDescription>{action.description}</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge className={cn('text-xs', riskStyle[action.risk_level])}>{t(`risk.${action.risk_level}`)}</Badge>
-            <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+            <Badge variant="outline" className="text-muted-foreground">
               {action.scope.replaceAll('_', ' ')}
             </Badge>
           </div>
@@ -176,29 +176,31 @@ export function GuidedRepairCard({ action, onExecuted }: GuidedRepairCardProps) 
 
       <CardContent className="space-y-4">
         <div className="grid gap-3 text-sm md:grid-cols-2">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-            <div className="mb-1 flex items-center gap-2 font-medium text-zinc-200">
-              <AlertTriangleIcon className="h-4 w-4 text-yellow-500" />
+          <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+            <div className="mb-1 flex items-center gap-2 font-medium text-foreground">
+              <AlertTriangleIcon className="h-4 w-4 text-amber-700 dark:text-amber-400" />
               {t('whyAppears')}
             </div>
-            <p className="text-zinc-400">{action.reason}</p>
+            <p className="text-muted-foreground">{action.reason}</p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
-            <div className="mb-1 flex items-center gap-2 font-medium text-zinc-200">
-              <ShieldCheckIcon className="h-4 w-4 text-emerald-500" />
+          <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+            <div className="mb-1 flex items-center gap-2 font-medium text-foreground">
+              <ShieldCheckIcon className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
               {t('expectedEffect')}
             </div>
-            <p className="text-zinc-400">{action.expected_effect}</p>
+            <p className="text-muted-foreground">{action.expected_effect}</p>
           </div>
         </div>
 
         {action.does_not_do.length > 0 && (
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">{t('safetyBoundary')}</p>
-            <ul className="space-y-1 text-sm text-zinc-400">
+          <div className="rounded-lg border border-border/60 bg-muted/40 p-3">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('safetyBoundary')}
+            </p>
+            <ul className="space-y-1 text-sm text-muted-foreground">
               {action.does_not_do.map((item) => (
                 <li key={item} className="flex gap-2">
-                  <span className="text-zinc-600">-</span>
+                  <span className="text-muted-foreground/60">-</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -207,14 +209,16 @@ export function GuidedRepairCard({ action, onExecuted }: GuidedRepairCardProps) 
         )}
 
         {result && (
-          <div className="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3 text-sm text-zinc-300">
-            <CheckCircleIcon className="mt-0.5 h-4 w-4 text-emerald-500" />
+          <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/50 p-3 text-sm text-foreground/80">
+            <CheckCircleIcon className="mt-0.5 h-4 w-4 text-emerald-700 dark:text-emerald-400" />
             <span>{result.message}</span>
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </div>
         )}
 
         <div className="flex flex-wrap gap-2">
@@ -236,7 +240,7 @@ export function GuidedRepairCard({ action, onExecuted }: GuidedRepairCardProps) 
               </Button>
             </>
           ) : (
-            <Badge variant="outline" className="border-zinc-700 text-zinc-400">
+            <Badge variant="outline" className="text-muted-foreground">
               {t('advisoryOnly')}
             </Badge>
           )}

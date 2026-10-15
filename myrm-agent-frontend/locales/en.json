@@ -21363,6 +21363,95 @@
         "exportCopied": "Copied!",
         "exportCopyFailed": "Copy failed. Check clipboard permissions.",
         "desktopOpenSettings": "Open System Settings",
+        "status": {
+          "pass": "OK",
+          "warn": "Warning",
+          "fail": "Error"
+        },
+        "technical": {
+          "toggle": "Technical details",
+          "component": "Component",
+          "message": "Message",
+          "detail": "Detail",
+          "measured": "Measured",
+          "expected": "Expected",
+          "cause": "Cause",
+          "fix": "Suggested fix"
+        },
+        "components": {
+          "generic": "System check",
+          "AgentColdStart": "Agent warm-up",
+          "AgentEngine": "Agent engine",
+          "AgentPromptCacheAlignment": "Prompt cache alignment",
+          "AgentStepBudget": "Agent step budget",
+          "AnthropicPolicyDoctor": "Anthropic policy check",
+          "Database": "Local database",
+          "DesktopControl": "Desktop control",
+          "DesktopLockedUse": "Locked use and privacy curtain",
+          "DLQ": "Message delivery",
+          "ExecutionCache": "Execution cache",
+          "GatewayRuntime": "App engine",
+          "GraphEmbedding": "Knowledge graph embedding",
+          "HookSystem": "Automation hooks",
+          "Network": "Internet connection",
+          "OllamaContext": "Ollama context",
+          "OrphanSession": "Leftover sessions",
+          "SkillEcosystem": "Skill ecosystem",
+          "SupplyChainSecurity": "Dependency security",
+          "SystemExhaustion": "Swap and file handles",
+          "SystemResources": "System resources",
+          "Tokenizer": "Text tokenizer",
+          "TraceExportAudit": "Trace export audit",
+          "TraceExportSecurity": "Trace export security",
+          "VectorDB": "Memory search storage",
+          "WorkspaceStorage": "Workspace storage"
+        },
+        "hints": {
+          "generic": {
+            "warn": "Worth a look, but the app keeps working. Open technical details for specifics.",
+            "fail": "This check failed. Open technical details for the cause, then run the check again."
+          },
+          "AgentEngine": {
+            "fail": "The agent engine hit a critical error. Restart the app."
+          },
+          "Database": {
+            "fail": "The local database has a problem. Restart the app; if it keeps happening, export the report for support."
+          },
+          "DLQ": {
+            "warn": "Some messages could not be delivered or are piling up. Check your channel connections."
+          },
+          "GatewayRuntime": {
+            "warn": "The app engine is responding slowly right now. It usually recovers on its own.",
+            "fail": "The app engine is overloaded or not responding. Restart the app if it does not recover."
+          },
+          "Network": {
+            "fail": "Cannot reach the internet. Check your connection, proxy or firewall, then run the check again."
+          },
+          "SupplyChainSecurity": {
+            "warn": "A dependency has a known high-severity vulnerability. Update the app when a new version is available.",
+            "fail": "A dependency may be malicious or compromised. Update or reinstall the app and avoid entering sensitive data until then."
+          },
+          "SystemExhaustion": {
+            "warn": "Swap space or file handles are running high. Usually harmless unless the app slows down.",
+            "fail": "Memory or file handles are close to their limits. Close unused apps and restart the app if it slows down."
+          },
+          "SystemResources": {
+            "warn": "Memory, CPU or process count is running high, or cannot be monitored right now.",
+            "fail": "Memory, CPU or process count is critically high, or the check itself failed. Close unused apps and run it again."
+          },
+          "Tokenizer": {
+            "warn": "CJK (Chinese, Japanese, Korean) search is using a simpler fallback, so results may be less precise.",
+            "fail": "CJK (Chinese, Japanese, Korean) search may not work properly. Restart the app; if it continues, export the report for support."
+          },
+          "VectorDB": {
+            "warn": "Advanced memory search is unavailable because an optional component is not installed.",
+            "fail": "The memory search storage has a problem. Restart the app; if it continues, export the report for support."
+          },
+          "WorkspaceStorage": {
+            "warn": "Storage works, but the faster search tool (ripgrep) is not installed, so file search is slower.",
+            "fail": "The data folder has a problem (no write access, an error, or low disk space). Check permissions and free up space."
+          }
+        },
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "Message delivery queue has critical failures ({failed_count} failed)."
