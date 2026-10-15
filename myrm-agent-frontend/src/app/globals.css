@@ -38,6 +38,9 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
 
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -355,6 +358,10 @@
   --destructive: #ee4343;
   --destructive-foreground: #fbfbf8;
 
+  /* 警示琥珀：作文字色时在页面底 5.5:1、在 10% 着色底 4.8:1，作实心底时配 --warning-foreground 5.5:1 */
+  --warning: #915c00;
+  --warning-foreground: #fffdf5;
+
   --border: #eceae4;
   --input: #efefe9;
   --ring: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
@@ -441,6 +448,10 @@
 
   --destructive: #801d1d;
   --destructive-foreground: #fbfbf8;
+
+  /* 深色下琥珀提亮：文字色 9.3:1（页面底）/ 8.2:1（10% 着色底），实心底配 --warning-foreground 8.7:1 */
+  --warning: #e3a82b;
+  --warning-foreground: #1a1208;
 
   --border: #252320;
   --input: #1c1c1c;
