@@ -129,6 +129,26 @@ describe('useKanbanSelection', () => {
     expect(result.current.selectedStatuses).toEqual(['ready']);
   });
 
+  it('drops selected tasks that a filter hides from the columns, so bulk actions never reach unseen cards', () => {
+    const { result, rerender } = renderHook(
+      (props: { visible: KanbanTask[] }) =>
+        useKanbanSelection({
+          boardId: 'board-1',
+          tasks: TASKS,
+          columnTasks: columnsOf(props.visible),
+          laneByProfile: false,
+        }),
+      { initialProps: { visible: TASKS } },
+    );
+    act(() => result.current.handleTaskSelect('ready-1', CMD));
+    act(() => result.current.handleTaskSelect('backlog-1', CMD));
+
+    rerender({ visible: TASKS.filter((task) => task.task_id !== 'backlog-1') });
+
+    expect(result.current.selectedTaskIds).toEqual(['ready-1']);
+    expect(result.current.selectedStatuses).toEqual(['ready']);
+  });
+
   it('keeps the same array between renders while nothing changes', () => {
     const { result, rerender } = setup();
     act(() => result.current.handleTaskSelect('ready-1', CMD));

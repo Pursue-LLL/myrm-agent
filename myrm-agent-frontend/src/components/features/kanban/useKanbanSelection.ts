@@ -1,18 +1,20 @@
 /**
  * [INPUT]
  * - ./kanban-selection::applyTaskClick (POS: 看板多选与泳道规则的纯逻辑)
+ * - ./kanban-styles::STATUS_COLUMNS (POS: 看板列顺序，用来确定哪些卡片在屏幕上)
  * - @/services/kanban::KanbanTask, TaskStatus (POS: 看板 API 类型定义)
  *
  * [OUTPUT]
- * - useKanbanSelection: 看板卡片多选状态（点选 / Shift 区间 / Esc 清除 / 随任务列表剔除已不存在的项）
+ * - useKanbanSelection: 看板卡片多选状态（点选 / Shift 区间 / Esc 清除 / 自动剔除已看不见的任务）
  *
  * [POS]
- * 看板多选的状态层。选中集合永远只含当前看板里仍存在的任务：任务被删除、归档或被筛选隐藏后自动退出选择，
+ * 看板多选的状态层。选中集合永远只含列里看得见的任务：任务被删除、归档或被责任筛选藏起来后自动退出选择，
  * 批量操作不会作用到看不见的任务。
  */
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import { applyTaskClick, type TaskClickContext } from './kanban-selection';
+import { STATUS_COLUMNS } from './kanban-styles';
 
 const NO_IDS: string[] = [];
 
@@ -37,11 +39,14 @@ export function useKanbanSelection({
     setOwnIds(NO_IDS);
   }
 
+  // 以列里实际渲染出来的卡片为准：被删除、归档，或被责任筛选藏起来的任务都不在其中。
+  const visibleTasks = useMemo(() => STATUS_COLUMNS.flatMap((status) => columnTasks[status]), [columnTasks]);
+
   const selectedTaskIds = useMemo(() => {
-    const existing = new Set(tasks.map((task) => task.task_id));
-    const kept = ownIds.filter((id) => existing.has(id));
+    const visible = new Set(visibleTasks.map((task) => task.task_id));
+    const kept = ownIds.filter((id) => visible.has(id));
     return kept.length === ownIds.length ? ownIds : kept;
-  }, [ownIds, tasks]);
+  }, [ownIds, visibleTasks]);
 
   const selectedStatuses = useMemo<TaskStatus[]>(() => {
     const selected = new Set(selectedTaskIds);

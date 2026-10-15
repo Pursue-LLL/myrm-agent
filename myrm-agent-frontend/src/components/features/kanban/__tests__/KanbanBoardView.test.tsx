@@ -281,4 +281,20 @@ describe('KanbanBoardView bulk selection', () => {
 
     await waitFor(() => expect(bar()).toHaveTextContent('1 selected'));
   });
+
+  it('a selected task that the responsibility filter hides leaves the selection', async () => {
+    const charlie = makeTask('t-charlie', 'Charlie broken', 'failed');
+    vi.mocked(listTasks).mockResolvedValue({ items: [ALPHA, charlie], total: 2 });
+    const user = userEvent.setup();
+    render(<KanbanBoardView board={BOARD} onBack={vi.fn()} />);
+    await screen.findByText('Alpha ready');
+    ctrlClick('Alpha ready');
+    ctrlClick('Charlie broken');
+    expect(bar()).toHaveTextContent('2 selected');
+
+    await user.click(screen.getByRole('button', { name: 'Needs Action' }));
+
+    await waitFor(() => expect(bar()).toHaveTextContent('1 selected'));
+    expect(screen.queryByText('Alpha ready')).toBeNull();
+  });
 });
