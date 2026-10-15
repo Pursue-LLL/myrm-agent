@@ -118,6 +118,8 @@ CREDENTIALS = {
     "openai project key": "key is sk-proj-" + _token(150, _URLSAFE),
     "openai key without a project prefix": "my key sk-" + _token(48),
     "openai-compatible relay key": "key: sk-" + _token(32),
+    "key after an escaped line break": "first line\\n" + "sk-" + _token(48),
+    "key after a percent-encoded equals sign": "?token%3Dsk-" + _token(48),
     "anthropic key": "sk-ant-api03-" + _token(93, _URLSAFE),
     "github token": "token ghp_" + _token(36),
     "github fine-grained token": "github_pat_" + _token(40, _URLSAFE),

@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.core.security.detection.leak_detector::DISTINCTIVE_KEY_PATTERNS (POS: The vendor-prefix shapes that identify a key on their own; the gate reads them instead of keeping a list of its own.)
+- myrm_agent_harness.core.security.detection.token_start::TOKEN_START (POS: Where a token starts; the detector and the gate agree on it by reading the same fragment.)
 
 [OUTPUT]
 - detector_pattern / keyword_pattern: a privacy detector or a keyword list as a rule pattern
@@ -19,6 +20,7 @@ from __future__ import annotations
 import re
 
 from myrm_agent_harness.core.security.detection.leak_detector import DISTINCTIVE_KEY_PATTERNS
+from myrm_agent_harness.core.security.detection.token_start import TOKEN_START
 
 # A key starts after anything but a letter or digit, so ``_`` and ``-`` are allowed before it: ``DB_PASSWORD``,
 # ``GROQ_API_KEY`` and ``aws_secret_access_key`` hold the key ``password``, ``api_key`` and ``secret_access_key``, which
@@ -30,12 +32,12 @@ KEY_START = r"(?<![A-Za-z0-9])"
 ASSIGNMENT_OPERATOR = r"""["']?\s*[:=]\s*["']?"""
 ASSIGNED_VALUE = r"""(?P<value>[^\s"']+)"""
 
-# Vendor-prefixed credentials, matched case-sensitively and only at the start of a token, so a word that merely ends in
-# a prefix (``task-``, ``disk-``) or a long slug is not a key. ``sk-`` is the gate's own and covers the keys of
+# Vendor-prefixed credentials, matched case-sensitively and only where a token starts (``TOKEN_START``), so a word that
+# merely ends in a prefix (``task-``, ``disk-``) or a long slug is not a key. ``sk-`` is the gate's own and covers the keys of
 # OpenAI-compatible relays, which the table's ``sk-`` shapes (48 and 32 characters) do not; the rest is the harness's
 # table of shapes a prefix identifies on its own.
 API_KEY_PATTERN = (
-    r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{20,}" + "".join(f"|{pattern.pattern}" for _, pattern in DISTINCTIVE_KEY_PATTERNS) + ")"
+    TOKEN_START + "(?:sk-[A-Za-z0-9_-]{20,}" + "".join(f"|{pattern.pattern}" for _, pattern in DISTINCTIVE_KEY_PATTERNS) + ")"
 )
 
 

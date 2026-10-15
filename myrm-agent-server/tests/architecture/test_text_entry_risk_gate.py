@@ -4,9 +4,10 @@ A secret that gets past one entry is stored (a cron prompt, a task card) or deli
 Each entry below must call the gate that fits it, and every gate must end in ``screen_user_text``, the single place
 that decides, records and fails closed. An endpoint that accepts task-instruction text of a user belongs in this table:
 a scan of the write endpoints finds the ones whose request carries an instruction-like field, and each of them is either
-an entry or an exemption with the reason its text is not one an agent is going to follow. A route that nothing calls (no
-frontend source, no registered external consumer) has no user typing into it: the route-consumer gate demands that it be
-deleted or given a caller, and the endpoint is scanned from the moment it has one.
+an entry or an exemption with the reason its text is not one an agent is going to follow. A route that nothing can call
+(no frontend path literal, even one with a dynamic segment such as ``/agents/chats/${id}/${kind}``, and no registered
+external consumer) has no user typing into it: the route-consumer gate demands that it be deleted or given a caller, and
+the endpoint is scanned from the moment it has one.
 """
 
 from __future__ import annotations
@@ -19,8 +20,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.frontend_api_paths import normalize_path, segments
 from tests.support.public_api_app import ApiHandler, public_api_handlers
-from tests.support.route_consumers import Operation, operations_without_caller
+from tests.support.route_consumers import Operation, group_by_length, has_frontend_caller, operations_without_caller
 
 _APP = Path(__file__).resolve().parents[2] / "app"
 
@@ -267,16 +269,43 @@ def test_only_a_handler_whose_every_route_has_no_caller_is_skipped() -> None:
     assert handlers_without_caller(handlers, no_caller) == {("a.py", "dead")}
 
 
+def test_a_dynamic_path_segment_can_reach_any_route_of_its_shape_but_is_no_evidence_of_one() -> None:
+    literal = group_by_length({segments(normalize_path("/agents/chats/${chatId}/${kind}"))})
+    route = segments("/agents/chats/{chat_id}/steer")
+
+    assert has_frontend_caller(route, literal) is False
+    assert has_frontend_caller(route, literal, dynamic_matches_any=True) is True
+    assert has_frontend_caller(segments("/agents/chats/{chat_id}"), literal, dynamic_matches_any=True) is False
+
+
 @pytest.mark.architecture
 def test_every_instruction_text_endpoint_is_an_entry_or_an_exemption() -> None:
     entries = {(path, function) for path, function, _ in _ENTRIES}
-    callerless = handlers_without_caller(public_api_handlers(), operations_without_caller())
+    callerless = handlers_without_caller(public_api_handlers(), operations_without_caller(dynamic_matches_any=True))
     unregistered = sorted(h for h in _repository_handlers() - callerless if h not in entries and h not in _EXEMPT)
 
     assert not unregistered, (
         "These write endpoints take instruction-like text a model will follow but do not screen it. Call the gate "
         "(services/risk/refusal.py::reject_if_risky) and add the endpoint to _ENTRIES, or add it to _EXEMPT with the "
         f"reason its text is not for an agent to follow: {unregistered}"
+    )
+
+
+@pytest.mark.architecture
+def test_the_caller_judgement_still_finds_callers_of_the_entries() -> None:
+    """An entry takes text a user types, so the judgement that skips callerless endpoints must find callers of most.
+
+    If the frontend stops writing path literals the judgement stops finding callers and every endpoint reads as
+    callerless, which the completeness test above would take as nothing left to scan; this test fails first.
+    """
+    entries = {(path, function) for path, function, _ in _ENTRIES}
+    callerless = sorted(
+        entries & handlers_without_caller(public_api_handlers(), operations_without_caller(dynamic_matches_any=True))
+    )
+
+    assert len(callerless) * 2 < len(entries), (
+        "route_consumers finds no caller of half the gated endpoints, so its reading of the frontend's path literals "
+        f"has stopped working and every endpoint would be skipped as callerless: {callerless}"
     )
 
 
