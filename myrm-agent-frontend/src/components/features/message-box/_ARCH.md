@@ -68,8 +68,6 @@
 | `__tests__/userMessageResend.test.ts` | 测试 | 失败重试携带自身附件且不继承输入框文件、未送达时还原文本/附件/技能 chip、输入框被占用或已切换聊天时按所属聊天的 Agent 与隐身状态记入输入历史、busy 与意外失败提示 | ✅ |
 | `__tests__/userMessageResend.edit.test.ts` | 测试 | 编辑重发先截断历史再按普通发送并保留技能激活；截断失败（断网 / 服务端错误）时转录不变、文本还原到输入框，服务端不存在的聊天或消息无可截断则继续发送；截断期间按 id 重新定位气泡、新一轮已开始或气泡已消失则放弃、同一聊天的第二次编辑被拒绝且守卫在发送与放弃后释放、其他聊天的编辑在截断或轮次进行中照常发送、运行中拒绝编辑、离开聊天不发送且文本记入输入历史 | ✅ |
 | `__tests__/userMessageResendTestKit.ts` | 测试 | 重发测试共享夹具：含一轮已答复对话与失败气泡 `r-2` 的聊天、桩 `sendMessage`、转录与输入框读取器、`resetResendWorld` | ✅ |
-| `TtsrInterventionBadge.tsx` | 组件 | 时间旅行流规则（TTSR）介入微徽章：流光琥珀色微胶囊、动态防御（Active Defense）标签、自动纠偏指示、可折叠安全指引、同规则聚合折叠（`groupTtsrInterventions`）与时序时间线，WAI-ARIA status 支持 | ✅ |
-| `__tests__/TtsrInterventionBadge.test.tsx` | 测试 | TTSR 介入徽章渲染、展开指引、`groupTtsrInterventions` 纯函数与多轮时序时间线及 WAI-ARIA 单测 | ✅ |
 | `useContextWatermarkMetrics.ts` | 辅助 | 上下文水位与轮级 Token 序列推导 Hook/纯函数：提取近 12 轮用量切片、较上轮增量 delta、双主题 4 档分级语义色阶（<25% 清朗 / 25-75% 多云 / 75-90% 预警 / ≥90% 即将压缩） | ✅ |
 | `TurnGrowthSparkline.tsx` | 组件 | 对话框轮级增长迷你 SVG Sparkline 折线图微组件：动态折线与渐变面积填充、较上轮 Delta 徽章（`+N tokens` / `已压缩`）、双主题语义色阶胶囊、悬停节点数值提示 | ✅ |
 | `ReasoningProcessAccordion.tsx` | 组件 | 推理思维链流式展示折叠追踪卡片：呼吸打字态动画、秒级耗时追踪、字数 Token 估算、一键复制代码、双模式展开与 Markdown 正文渲染 | ✅ |

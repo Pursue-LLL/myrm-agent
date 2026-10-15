@@ -90,7 +90,6 @@ import type {
   PtcNotifyStreamEvent,
   ToolImageOutputStreamEvent,
   ToolProgressStreamEvent,
-  TtsrTriggeredStreamEvent,
 } from './part3';
 
 export type AgentStreamEvent =
@@ -169,5 +168,4 @@ export type AgentStreamEvent =
   | FissionTopologyUpdateStreamEvent
   | VerificationVerdictStreamEvent
   | WorkingMemoryStreamEvent
-  | DesktopEnvelopeProgressStreamEvent
-  | TtsrTriggeredStreamEvent;
+  | DesktopEnvelopeProgressStreamEvent;

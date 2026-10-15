@@ -5,7 +5,7 @@
  * @/components/features/message-box/memoryLifecyclePhases::resolveMessageCreatedAtMs (POS: message timestamp)
  *
  * [OUTPUT]
- * parseMessages: Normalize persisted API messages into store Message objects (metadata, TTSR, cited memory refs,
+ * parseMessages: Normalize persisted API messages into store Message objects (metadata, cited memory refs,
  *   system notice marker).
  *
  * [POS]
@@ -82,11 +82,6 @@ export function parseMessages(raw: Message[]): Message[] {
       parsed.stagedArtifacts = rawStagedArtifacts as Message['stagedArtifacts'];
     }
 
-    const rawTtsrInterventions = metadata.ttsrInterventions ?? metadata.ttsr_interventions;
-    if (Array.isArray(rawTtsrInterventions)) {
-      parsed.ttsrInterventions = normalizeTtsrInterventions(rawTtsrInterventions);
-    }
-
     const rawAsyncUserMessages = metadata.asyncUserMessages ?? metadata.async_user_messages;
     if (Array.isArray(rawAsyncUserMessages) && !parsed.asyncUserMessages) {
       parsed.asyncUserMessages = rawAsyncUserMessages.map((item: Record<string, unknown>) => {
@@ -128,44 +123,4 @@ function normalizeCitedMemoryRefs(value: unknown): Message['citedMemoryRefs'] {
       typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string',
   );
   return refs.length > 0 ? refs : undefined;
-}
-
-function normalizeTtsrInterventions(value: unknown): Message['ttsrInterventions'] {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const result: NonNullable<Message['ttsrInterventions']> = [];
-  for (const item of value) {
-    if (typeof item !== 'object' || item === null) {
-      continue;
-    }
-    const record = item as Record<string, unknown>;
-    const rawId = record.ruleId ?? record.rule_id;
-    if (typeof rawId !== 'string' || !rawId.trim()) {
-      continue;
-    }
-    const rawName = record.ruleName ?? record.rule_name;
-    const ruleName = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : rawId.trim();
-    const reminder = typeof record.reminder === 'string' ? record.reminder : '';
-    const rawTarget = record.target;
-    const target =
-      rawTarget === 'assistant' || rawTarget === 'thinking' || rawTarget === 'tool_args' || rawTarget === 'all'
-        ? rawTarget
-        : undefined;
-    const rawRetry = record.retryCount ?? record.retry_count;
-    const retryCount = typeof rawRetry === 'number' && rawRetry >= 0 ? rawRetry : 1;
-    const rawMax = record.maxRetries ?? record.max_retries;
-    const maxRetries = typeof rawMax === 'number' && rawMax >= 0 ? rawMax : 2;
-
-    result.push({
-      ruleId: rawId.trim(),
-      ruleName,
-      reminder,
-      target,
-      retryCount,
-      maxRetries,
-      timestamp: record.timestamp ? (record.timestamp as string | number | Date) : undefined,
-    });
-  }
-  return result.length > 0 ? result : undefined;
 }
