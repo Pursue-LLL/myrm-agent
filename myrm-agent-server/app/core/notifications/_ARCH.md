@@ -85,6 +85,6 @@ Notification targets are stored in `personalSettings.notificationDeliveries` (ar
 ## Extensibility
 
 New event types only need:
-1. Add to `AppEventType` enum in `event_bus.py`
+1. Add to `AppEventType` enum in `app/services/event/app_event_bus.py`
 2. Add template to `_EVENT_TEMPLATES` in `adaptive_cards.py`
 3. (Optional) Add to `_PUSH_TEMPLATES` in `core/web_push/dispatcher.py` and map click URL in `core/web_push/push_deep_links.py`
