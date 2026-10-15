@@ -2988,3 +2988,68 @@ except Exception:
 3. 一个正则要“看到整行”时，向前查看的捕获不消费字符，遇到重复关键词就是二次方；要么消费、要么限长，并在重复 5 万次的病态输入上量一次。
 4. 判断一个值是不是令牌，先排除“读得懂”的（可读单词与数字、模板、指针、占位），再看长度与随机性；只看“含数字”会把 `session-1` 当成密钥。
 5. 在只含 HEAD 的导出目录里跑新测试，才能证明它们在修复前失败；工作区里混着他人未提交的改动时，失败可能来自别人。
+
+---
+
+## BUG-AGENT-2026-10-15-005: 看板卡片没有可见、可聚焦的选择入口，触屏与键盘无法多选；批量拖拽逐张走单卡路径，强制晋升确认被后一张覆盖，批量接口还接受 `force` 越过未完成依赖；回收站、引用来源、记忆引用三个面板在 375px 手机上被裁；`KanbanTaskCard.tsx` 772 行且模块文档失实
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（批量接口的 `force` 是 API 层真实的依赖守卫绕过路径，界面从不发这个参数；其余为触屏、键盘、窄屏与可维护性缺陷，不丢数据） |
+| 影响范围 | server：`app/api/kanban/routes/bulk.py`、`tests/api/kanban/test_bulk_action_api.py`、`app/api/kanban/_ARCH.md`；frontend：`components/features/kanban/` 下卡片、批量栏、拖拽、移动 hook、新增 `kanban-card-gestures.ts`、`kanban-bulk.ts`、`KanbanTaskCardDetails.tsx`、`useKanbanTaskCardDetails.ts` 与 `_ARCH.md`，三个 `SheetContent`（`ChatSidebarContent.tsx`、`MemoryCitationsButton.tsx`、`SourcesButton.tsx`），6 个语言包新增 `selectTask`，`scripts/ci/file_line_budget_baseline.txt` |
+| 出现次数 | 1（复审看板时逐项核对代码与真实 Chromium 走查发现；浏览器里的接口是拦截返回的假数据，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-15-001` 的局限 4（`KanbanTaskCard.tsx` 未拆）、局限 7（三个固定宽度面板）在本条处理；本地提交 `1550b8ada3`、`ef2888d299`、`104e223aec`、`89aeeb7899`，未 push |
+
+### 现象
+
+1. 卡片多选只能「按住 Cmd/Ctrl 点卡片」（Shift 连选）：触屏没有修饰键，键盘用户没有入口。选中后卡片左上角只有一个 16px 的装饰圆点（`w-4 h-4 rounded-full bg-primary`），既不能点也不能聚焦，批量栏的计数也不会被读屏播报。
+2. 批量拖拽对每张卡 `await handleMoveTask(id)` 串行执行。父任务未完成的卡会弹出单卡的「强制晋升」确认，但确认状态只有一个槽位，后一张覆盖前一张；被拒的卡乐观更新回滚了，却没有任何说明。批量栏另有一套结果处理（汇总提示、失败项留在选择里），两条批量路径语义不同。
+3. 批量接口 `bulk.py` 读取 `params.force`：任何 API 调用方传 `force=true` 都能把依赖未完成的任务晋升到就绪。界面的批量栏与 `bulkAction` 都不发这个参数，所以平时不会被触发。
+4. 回收站、引用来源、记忆引用三个 `SheetContent` 写死 `w-[400px]`，小屏没有上限：375px 手机上比视口宽 25px，右侧面板丢掉左边，回收站面板伸出右边。它们写的 `sm:w-[540px]` 从没生效过（面板基础类在 `sm` 以上封顶 `max-w-sm`，即 384px）。
+5. `KanbanTaskCard.tsx` 772 行，超过 500 行硬线；`_ARCH.md` 与 L4 头对卡片、批量路径的描述与代码不符。
+
+### 根因
+
+1. 选择入口只有修饰键点击这一条隐式路径，没有一个可见、可聚焦、有名字的控件。
+2. 批量拖拽复用了单卡移动函数，单卡的「确认」状态模型（一个槽位）不适用于一次移动多张卡；批量栏与拖拽各自实现了结果处理。
+3. 批量接口把单任务接口的 `force` 开关原样照搬，却没有单任务接口配套的确认步骤。
+4. 固定像素宽度没有给小屏写 `w-full`；`sm:w-[540px]` 被面板基础类的 `sm:max-w-sm` 盖住，无人量过。
+5. 展开区的数据加载、依赖编辑、评论提交都内联在卡片组件里，文件随功能累积；文档没有跟着改。
+
+### 修复
+
+1. 卡片选择（`1550b8ada3`）：每张卡左上角加一个共享 `Checkbox`（名字为 `selectTask`，6 个语言包同步）。桌面悬停或聚焦时出现，有任何一张卡被选中后所有卡常显，触屏（`pointer-coarse`）常显并放大到 24px，命中区向四周各外扩 6px；点击、双击、按下都不会冒泡到卡片（拖拽、抽屉、双击打开），Shift 连选沿用原规则。隔离手势的常量抽到 `kanban-card-gestures.ts`，卡片操作菜单复用同一份；批量栏的计数改为 `<output>`，选择数量会被读屏播报。
+2. 批量拖拽（`ef2888d299`）：`handleBulkMove` 改为一次 `bulk-action` 请求，卡片乐观移动，只回滚被拒的几张，部分成功只给一条汇总提示，被拒的卡继续保持选中以便重试；整个请求失败则全部回滚。发请求与汇总提示收敛到 `kanban-bulk.ts` 的 `runBulkAction`，批量栏与批量拖拽共用，服务端的逐条错误原文不展示。
+3. 批量接口（同一提交）：`bulk.py` 不再读取 `params.force`，强制晋升只留给单任务移动接口及其确认步骤。新增 `test_bulk_move_never_forces_past_unmet_dependencies`。
+4. 面板宽度（`104e223aec`）：三处改为 `w-full max-w-[400px]`：低于 400px 的屏幕铺满，400px 及以上与之前完全相同。
+5. 拆分与文档（`89aeeb7899`）：`KanbanTaskCard.tsx` 772 → 354 行，展开区渲染拆到 `KanbanTaskCardDetails.tsx`（346 行）、状态与请求拆到 `useKanbanTaskCardDetails.ts`（156 行）；从行数基线里去掉该文件；`_ARCH.md`、服务端 `_ARCH.md` 与 L4 头改为描述当前行为。
+
+### 验证
+
+1. frontend：`vitest run src/components/features/kanban` 27 个文件 392 例通过；新增用例：`KanbanDndComponents.select.test.tsx` 8 例（显隐规则、点击与双击不冒泡、Space 切换、Enter 无副作用、Shift 范围），`useKanbanMoveTask.test.ts` 7 例（单卡成功、`deps_unmet` 进入确认、其他失败；批量全成功、部分成功、整体失败的回滚与选择），批量栏新增读屏计数一例。`oxlint` 与 `prettier --check` 对改动文件无问题；`tsc --noEmit` 14 个错误全部在他人未提交的文件里，没有一个来自本条改动文件。
+2. server：`pytest tests/api/kanban` 448 通过、1 失败、1 跳过；`ruff check` 与 `ruff format --check` 通过。新增用例在旧代码下 `succeeded=2`（强制越过依赖），修复后 `succeeded=1, failed=1` 且子任务状态不变。唯一失败的 `test_move_with_result_and_metadata` 来自他人尚未提交的 `move_orchestrator.py`（新增了 `handoff["timestamp"]`），与本条无关，未处理。
+3. 真实 Chromium（patchright + `next build` 生产构建，接口用请求拦截返回假数据，没有接真实后端），最终一次全部通过：桌面 1280×800 的 27 项（悬停显隐、点击选中、读屏计数、不开抽屉、双击净无变化、Space 选中与取消、Enter 不触发任何东西、Shift 连选、从复选框起拖不发请求、批量拖拽只发一次 `bulk-action` 且不发单卡移动、被拒的卡留在原列并保持选中、无强制晋升弹窗与服务端原文、全部成功后选择被清空、已在目标列的卡不会被发送）与触屏 375×812 的 9 项（复选框常显且不小于 24px、可命中、轻点选中且不开抽屉、批量栏不超出视口、再点一张累加、无横向溢出），均无未捕获的页面错误。
+4. 面板宽度：用项目的 Tailwind 产物与真实面板类在 Chromium 里量，修复前后：320 / 375 / 390px 视口由 `x=-80 / -25 / -10`、宽 400（被裁）变为 `x=0`、宽等于视口；400 / 500 / 639px 前后都是 400px；640 / 1280px 前后都是 384px。
+5. 卡片拆分：与原文件做归一化逐行比较，只有拆分处的胶水代码不同。
+6. 门禁脚本自己的问题（不是产品缺陷，如实记录）：最终前的几次走查出现过失败，逐个查明都在脚本里：批量拖拽时全局的调度器健康轮询（30 秒一次）在假接口下弹出红色横幅，把布局下推；`scroll_into_view_if_needed` 触发看板平滑滚动，紧接着量到的坐标是过期的（触屏「命中」「轻点」两项因此失败，等滚动结束再量即通过，`tap()` 本身是成功的）；放置目标贴近容器右缘会触发 dnd-kit 自动滚动；第二次拖拽的场景把「只有一张卡真正需要移动」当成批量，那条路径一直走单卡接口（见局限 2）。脚本改为每次拖拽前把目标列滚到最左并立即生效，并拦截调度器健康接口后，全部通过。
+
+### 局限
+
+1. 触屏拖拽（`TouchSensor` 的 250ms 长按）没有在浏览器里验证；触屏只验证了复选框的轻点选择。验证用的是 Chromium 的触屏模拟，不是真机。
+2. 多选拖拽时，若真正需要移动的只有一张卡（其余已在目标列），`useKanbanDnD.dispatchMove` 仍走单卡接口：该卡遇到未完成依赖时弹单卡确认，选择保持不变。真实 Chromium 里复现过（选 Bravo + Delta 拖到 Ready，只发了一次 `POST .../tasks/t2/move`）。这是原有行为，没有改；重试与归档的单卡确认流程依赖它。
+3. 卡片的展开按钮 `aria-label={details.expanded ? 'collapse' : 'expand'}` 是写死的英文（原文件就有），语言包里没有对应键；没有在本条里处理。
+4. `KanbanTaskCard.tsx` 之外，`KanbanBoardView.tsx` 仍有约 438 行（在行数基线内，未超 500）。
+5. 浏览器走查用的是假接口，没有验证真实后端在浏览器里的行为；服务端行为由 pytest 覆盖。
+6. 最后一次重跑时，工作区里他人未提交的改动仍使若干门禁失败，与本条无关，没有处理也没有隐藏：`verify:stable-mocks`（`channels/pairing` 的两个测试）、`verify:a11y`（`handoff-brief`、`workspace/quick-switcher`、`extension-widgets` 等）、`verify:hardcoded-copy`（`KanbanTaskHandoffSection.tsx` 3 处写死中文）、行数基线（25 个他人文件超线）与孤儿模块检查；失败清单里没有本条改动的文件。`verify:theme-colors` 与 `verify:icu-syntax` 通过。`ja.json` 此前一度含非法 UTF-8，最后一次检查时 6 个语言包都能正常解析，本条只对它做过字节级插入 `selectTask`。
+7. 未改动任何提示词。
+
+### 踩坑经验
+
+1. 一个动作要同时作用于多个对象时，不要复用单对象的流程：单卡的确认状态是一个槽位，循环调用会互相覆盖；多对象应该一次请求、逐项返回结果。
+2. 接口里的「强制」开关必须和它的确认步骤放在一起；只搬开关不搬确认，就是一条绕过守卫的路径，测试里用旧代码跑出 `succeeded=2` 才证明它真实存在。
+3. 同一个工具库里有两条共享同一语义的路径（批量栏、批量拖拽）时，把结果处理收敛到一个函数，两边的行为才不会漂移。
+4. 平滑滚动、入场动画、全局轮询弹出的横幅，都会让「刚量到的坐标」过期。真实浏览器门禁里，量坐标前要把滚动位置固定下来、等动画结束、拦住会改变布局的后台请求。
+5. 门禁失败先区分脚本问题与产品问题：用单独的调试脚本打出 `elementsFromPoint`、滚动位置、请求列表，再下结论；本条的 5 项失败里没有一项是产品缺陷，但每一项都是靠打印出来的事实而不是猜测排除的。
+6. 具名 `group/x` 的悬停显隐不能复用共享的 `REVEAL_ON_HOVER`，需要把 `group-hover/x`、`group-focus-within/x` 与 `pointer-coarse:opacity-100` 写全，门禁脚本才认。
