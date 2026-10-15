@@ -17220,8 +17220,9 @@
       "success": {
         "queryComplete": "查询完成",
         "compileComplete": "Wiki 编译完成",
-        "compileSummary": "编译完成：{published} 篇已发布，{pending} 篇待审核，{blocked} 篇未生成。待审核内容请在「待审草稿」标签查看。",
-        "compileSummaryWithSynthesis": "编译完成：{published} 篇已发布，{pending} 篇待审核，{synthesis} 篇演变合成，{blocked} 篇未生成。请在「待审草稿 → 演变合成」查看演变页。",
+        "compileStarted": "已开始在后台编译，队列中有 {count} 个文件。",
+        "compileNothingNew": "没有需要编译的新内容。",
+        "compileFinished": "编译完成。待审核内容请在「待审草稿」标签查看。",
         "maintainCancelled": "维护已停止，已完成的部分会保留。",
         "maintainComplete": "Wiki 维护完成",
         "maintainSummary": "维护完成：发现 {found} 项，修复 {fixed} 项",

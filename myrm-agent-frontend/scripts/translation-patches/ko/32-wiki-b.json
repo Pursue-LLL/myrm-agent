@@ -119,8 +119,6 @@
       "success": {
         "queryComplete": "쿼리 성공적으로 완료됨",
         "compileComplete": "위키가 성공적으로 컴파일됨",
-        "compileSummary": "컴파일 완료: {published}개 게시, {pending}개 검토 대기, {blocked}개 생성 안 됨. 보류 편집 탭에서 보류 초안을 검토하세요.",
-        "compileSummaryWithSynthesis": "컴파일 완료: {published}개 게시, {pending}개 검토 대기, {synthesis}개 진화 합성, {blocked}개 생성 안 됨. 보류 편집 → 진화 합성에서 진화 페이지를 검토하세요.",
         "maintainComplete": "위키 유지보수 완료",
         "maintainSummary": "유지보수 완료: {found}개 발견, {fixed}개 수정",
         "maintainSummaryWithLinks": "유지보수 완료: {found}개 발견, {fixed}개 수정, {connections}개 새 링크",

@@ -17220,8 +17220,9 @@
       "success": {
         "queryComplete": "Query completed successfully",
         "compileComplete": "Wiki compiled successfully",
-        "compileSummary": "Compile complete: {published} published, {pending} pending review, {blocked} not generated. Review pending drafts in the Pending Edits tab.",
-        "compileSummaryWithSynthesis": "Compile complete: {published} published, {pending} pending review, {synthesis} evolution synthesis, {blocked} not generated. Review evolution pages in Pending Edits → Evolution synthesis.",
+        "compileStarted": "Compiling in the background: {count, plural, one {# file} other {# files}} queued.",
+        "compileNothingNew": "Nothing new to compile.",
+        "compileFinished": "Compile complete. Review pending drafts in the Pending Edits tab.",
         "maintainCancelled": "Maintenance stopped. What was already done is kept.",
         "maintainComplete": "Wiki maintenance completed",
         "maintainSummary": "Maintenance complete: {found} found, {fixed} fixed",

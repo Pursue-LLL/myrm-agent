@@ -857,6 +857,8 @@ export function WikiSection() {
   };
 
   const ingestActivityRef = useRef(false);
+  // Set when this page handed a compile to the background worker; the first idle snapshot after it reports the end.
+  const compileRequestedRef = useRef(false);
   const refreshIngestTreesSilently = useCallback(async () => {
     try {
       const rawTree = await wikiService.getRawTree(agentScopeId);
@@ -882,13 +884,17 @@ export function WikiSection() {
       const active = snap.stats.processing > 0 || snap.stats.pending > 0 || snap.compile_run?.state === 'paused';
       if (ingestActivityRef.current && !active) {
         void loadStats();
+        if (compileRequestedRef.current) {
+          compileRequestedRef.current = false;
+          toast.success(t('success.compileFinished'));
+        }
       }
       ingestActivityRef.current = active;
     },
   });
 
-  const isWikiCompileBusy =
-    isCompiling || compileRun?.state === 'running' || (ingestSnapshot?.stats.processing ?? 0) > 0;
+  // `compileRun.state` is the circuit (running unless paused), not whether a compile is in flight: the queue says that.
+  const isWikiCompileBusy = isCompiling || (ingestSnapshot?.stats.processing ?? 0) > 0;
 
   const handleOpenSynthesisPending = () => {
     setPendingEditsInitialFilter('synthesis');
@@ -949,29 +955,14 @@ export function WikiSection() {
     try {
       const result = await wikiService.compileWiki(agentScopeId);
       setCompileRun(result.compile_run ?? null);
+      compileRequestedRef.current = result.pending > 0;
       if (result.compile_run?.state === 'paused') {
         toast.warning(result.compile_run.pause_reason || t('compileRun.pausedDefaultReason'));
         handleWikiTabChange('queue');
+      } else if (result.pending > 0) {
+        toast.message(t('success.compileStarted', { count: result.pending }));
       } else {
-        const synthesisCount = result.synthesis_pending ?? 0;
-        toast.success(
-          synthesisCount > 0
-            ? t('success.compileSummaryWithSynthesis', {
-                published: result.articles_published,
-                pending: result.articles_pending,
-                blocked: result.articles_blocked,
-                synthesis: synthesisCount,
-              })
-            : t('success.compileSummary', {
-                published: result.articles_published,
-                pending: result.articles_pending,
-                blocked: result.articles_blocked,
-              }),
-        );
-        if (result.articles_pending > 0 || synthesisCount > 0) {
-          setPendingEditsInitialFilter(synthesisCount > 0 ? 'synthesis' : 'all');
-          handleWikiTabChange('pendingEdits');
-        }
+        toast.message(t('success.compileNothingNew'));
       }
       await loadStats();
     } catch (error) {
@@ -1800,7 +1791,7 @@ export function WikiSection() {
                     className="flex-1"
                   >
                     <IconGlow className="w-4 h-4 mr-2" />
-                    {isCompiling ? t('compiling') : t('actions.compile')}
+                    {isWikiCompileBusy ? t('compiling') : t('actions.compile')}
                   </Button>
                   <div className="flex flex-1 gap-2">
                     <Button

@@ -1,7 +1,6 @@
 /**
  * [INPUT]
  * @/lib/api::apiRequest,getApiUrl,fetchWithTimeout (POS: frontend API request helper)
- * @/lib/constants/requestTimeouts::LONG_RUNNING_REQUEST_TIMEOUT_MS (POS: 长耗时请求的客户端/代理超时上限 SSOT)
  * @/lib/wiki/claimStatusDisplay::WikiClaimStatus (POS: Wiki claim 状态展示纯函数)
  *
  * [OUTPUT]
@@ -13,7 +12,6 @@
  */
 
 import { getApiUrl, fetchWithTimeout, apiRequest } from '@/lib/api';
-import { LONG_RUNNING_REQUEST_TIMEOUT_MS } from '@/lib/constants/requestTimeouts';
 import type { WikiClaimStatus } from '@/lib/wiki/claimStatusDisplay';
 
 export function buildWikiApiPath(path: string, agentId?: string | null): string {
@@ -427,15 +425,9 @@ export interface RepairTypesResponse {
   message: string;
 }
 
+/** The compile runs in the background; `pending` is what the worker still has in its queue. */
 export interface WikiCompileResponse {
-  concepts_count: number;
-  articles_generated: number;
-  backlinks_created: number;
-  duration_ms: number;
-  articles_pending: number;
-  articles_published: number;
-  articles_blocked: number;
-  synthesis_pending: number;
+  pending: number;
   compile_run?: CompileRunStatus | null;
 }
 
@@ -853,7 +845,6 @@ export const wikiService = {
   compileWiki: async (agentId?: string | null): Promise<WikiCompileResponse> => {
     return apiRequest<WikiCompileResponse>(buildWikiApiPath('/wiki/compile', agentId), {
       method: 'POST',
-      timeout: LONG_RUNNING_REQUEST_TIMEOUT_MS,
     });
   },
 

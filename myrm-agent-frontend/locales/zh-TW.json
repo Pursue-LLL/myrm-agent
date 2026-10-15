@@ -16545,8 +16545,9 @@
       "success": {
         "queryComplete": "查詢完成",
         "compileComplete": "Wiki 編譯完成",
-        "compileSummary": "編譯完成：{published} 篇已發布，{pending} 篇待審核，{blocked} 篇未生成。待審核內容請在「待審草稿」標籤查看。",
-        "compileSummaryWithSynthesis": "編譯完成：{published} 篇已發布，{pending} 篇待審核，{synthesis} 篇演變合成，{blocked} 篇未生成。請在「待審草稿 → 演變合成」查看演變頁。",
+        "compileStarted": "已開始在背景編譯，佇列中有 {count} 個檔案。",
+        "compileNothingNew": "沒有需要編譯的新內容。",
+        "compileFinished": "編譯完成。待審核內容請在「待審草稿」標籤查看。",
         "maintainCancelled": "維護已停止，已完成的部分會保留。",
         "maintainComplete": "Wiki 維護完成",
         "maintainSummary": "維護完成：發現 {found} 項，修復 {fixed} 項",

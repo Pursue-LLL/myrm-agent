@@ -1,7 +1,6 @@
 // Dev-only: enforce shared pause stamp before other config side effects.
 import { enforceFrontendDevNotPaused } from './scripts/frontend-dev-pause-gate';
 import { computeLocaleContentVersion } from './scripts/locale-content-version';
-import { LONG_RUNNING_REQUEST_TIMEOUT_MS } from './src/lib/constants/requestTimeouts';
 
 if (process.env.NODE_ENV === 'development') {
   enforceFrontendDevNotPaused({ context: 'next dev (next.config load)' });
@@ -140,8 +139,6 @@ const nextConfig: NextConfig = {
     // Next.js 16 Turbopack 持久缓存已知 bug：缓存损坏（.sst 文件丢失）会触发
     // restore panic 导致 dev server 崩溃（Aborting）。禁用持久缓存换取稳定性。
     turbopackFileSystemCacheForDev: false,
-    // Rewrites to the backend are cut after 30s by default; long calls (wiki full maintenance) must outlive that.
-    proxyTimeout: LONG_RUNNING_REQUEST_TIMEOUT_MS,
   },
 
   // Webpack优化配置（当使用Webpack时生效）

@@ -16545,8 +16545,9 @@
       "success": {
         "queryComplete": "쿼리 성공적으로 완료됨",
         "compileComplete": "위키가 성공적으로 컴파일됨",
-        "compileSummary": "컴파일 완료: {published}개 게시, {pending}개 검토 대기, {blocked}개 생성 안 됨. 보류 편집 탭에서 보류 초안을 검토하세요.",
-        "compileSummaryWithSynthesis": "컴파일 완료: {published}개 게시, {pending}개 검토 대기, {synthesis}개 진화 합성, {blocked}개 생성 안 됨. 보류 편집 → 진화 합성에서 진화 페이지를 검토하세요.",
+        "compileStarted": "백그라운드에서 컴파일을 시작했습니다. 대기열에 파일 {count}개가 있습니다.",
+        "compileNothingNew": "컴파일할 새 콘텐츠가 없습니다.",
+        "compileFinished": "컴파일 완료. 보류 편집 탭에서 보류 초안을 검토하세요.",
         "maintainCancelled": "유지보수를 중지했습니다. 이미 완료된 작업은 그대로 유지됩니다.",
         "maintainComplete": "위키 유지보수 완료",
         "maintainSummary": "유지보수 완료: {found}개 발견, {fixed}개 수정",

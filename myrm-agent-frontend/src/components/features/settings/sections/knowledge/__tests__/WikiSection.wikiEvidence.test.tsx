@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +12,13 @@ const recordEvidenceSurfaceMock = vi.fn();
 const startWikiMaintainMock = vi.fn();
 const getWikiMaintainStatusMock = vi.fn();
 const cancelWikiMaintainMock = vi.fn();
+const compileWikiMock = vi.fn();
+
+// What the live ingest stream last said; the page reads it through useWikiIngestSubscription.
+const ingestStream = vi.hoisted(() => ({
+  snapshot: null as object | null,
+  listeners: new Set<(snapshot: object) => void>(),
+}));
 
 const stableT = (key: string) => key;
 
@@ -62,6 +69,7 @@ vi.mock('@/services/wikiService', () => ({
   cancelWikiMaintain: (...args: unknown[]) => cancelWikiMaintainMock(...args),
   wikiService: {
     queryWiki: (...args: unknown[]) => queryWikiMock(...args),
+    compileWiki: (...args: unknown[]) => compileWikiMock(...args),
     getHealthReport: vi.fn().mockResolvedValue({
       mode: 'structural',
       generated_at: new Date().toISOString(),
@@ -82,9 +90,27 @@ vi.mock('@/services/wikiService', () => ({
   },
 }));
 
-vi.mock('../useWikiIngestSubscription', () => ({
-  useWikiIngestSubscription: () => ({ connected: false, snapshot: null }),
-}));
+vi.mock('../useWikiIngestSubscription', async () => {
+  const { useEffect, useRef, useState } = await import('react');
+  return {
+    useWikiIngestSubscription: (_scope: unknown, options?: { onSnapshot?: (snapshot: object) => void }) => {
+      const [snapshot, setSnapshot] = useState<object | null>(ingestStream.snapshot);
+      const onSnapshot = useRef(options?.onSnapshot);
+      onSnapshot.current = options?.onSnapshot;
+      useEffect(() => {
+        const listener = (next: object) => {
+          setSnapshot(next);
+          onSnapshot.current?.(next);
+        };
+        ingestStream.listeners.add(listener);
+        return () => {
+          ingestStream.listeners.delete(listener);
+        };
+      }, []);
+      return { connected: snapshot !== null, snapshot };
+    },
+  };
+});
 
 vi.mock('@/services/agent', () => ({
   listAgents: (...args: unknown[]) => listAgentsMock(...args),
@@ -270,6 +296,9 @@ function resetWikiMocks() {
   getWikiMaintainStatusMock.mockReset();
   getWikiMaintainStatusMock.mockResolvedValue(maintainStatus());
   cancelWikiMaintainMock.mockReset();
+  compileWikiMock.mockReset();
+  ingestStream.snapshot = null;
+  ingestStream.listeners.clear();
   listAgentsMock.mockReset();
   apiRequestMock.mockReset();
   recordWikiQueryAttemptMock.mockReset();
@@ -506,5 +535,128 @@ describe('WikiSection maintenance flow', () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('errors.maintainFailed');
     });
+  });
+});
+
+describe('WikiSection compile flow', () => {
+  beforeEach(resetWikiMocks);
+
+  const RUNNING_CIRCUIT = { state: 'running', pause_reason: '', primary_error_kind: '', phase: 'idle' } as const;
+
+  function emitIngestSnapshot(stats: { pending?: number; processing?: number }, compileRun: object = RUNNING_CIRCUIT) {
+    const snapshot = {
+      stats: { pending: 0, processing: 0, completed: 0, failed: 0, ...stats },
+      compile_run: compileRun,
+    };
+    ingestStream.snapshot = snapshot;
+    act(() => {
+      ingestStream.listeners.forEach((listener) => listener(snapshot));
+    });
+  }
+
+  function buttonWithText(text: string): Promise<HTMLButtonElement> {
+    return screen.findByText(text).then((node) => node.closest('button') as HTMLButtonElement);
+  }
+
+  it('hands the compile to the background and says how much is queued, without waiting for it', async () => {
+    compileWikiMock.mockResolvedValue({ pending: 3, compile_run: RUNNING_CIRCUIT });
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.message).toHaveBeenCalledWith('success.compileStarted');
+    });
+    expect(compileWikiMock).toHaveBeenCalledWith(null);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect((await buttonWithText('actions.compile')).disabled).toBe(false);
+  });
+
+  it('says so when there is nothing new to compile', async () => {
+    compileWikiMock.mockResolvedValue({ pending: 0, compile_run: RUNNING_CIRCUIT });
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.message).toHaveBeenCalledWith('success.compileNothingNew');
+    });
+  });
+
+  it('explains why nothing runs when the compile circuit is paused', async () => {
+    compileWikiMock.mockResolvedValue({
+      pending: 2,
+      compile_run: { ...RUNNING_CIRCUIT, state: 'paused', pause_reason: 'Provider key was rejected' },
+    });
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith('Provider key was rejected');
+    });
+    expect(toast.message).not.toHaveBeenCalled();
+  });
+
+  it('sends a dedup block to the duplicate review instead of reporting a failure', async () => {
+    compileWikiMock.mockRejectedValue(new ApiError('conflict', 409));
+    render(<WikiSection />);
+
+    fireEvent.click(await screen.findByText('actions.compile'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.compileBlockedByDedup');
+    });
+  });
+
+  it('reports the end of the compile once, when the queue drains after this page started it', async () => {
+    compileWikiMock.mockResolvedValue({ pending: 2, compile_run: RUNNING_CIRCUIT });
+    render(<WikiSection />);
+    fireEvent.click(await screen.findByText('actions.compile'));
+    await waitFor(() => expect(toast.message).toHaveBeenCalledWith('success.compileStarted'));
+
+    emitIngestSnapshot({ pending: 2 });
+    emitIngestSnapshot({ processing: 2 });
+    expect(toast.success).not.toHaveBeenCalled();
+    emitIngestSnapshot({});
+    emitIngestSnapshot({});
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('success.compileFinished');
+    });
+
+    emitIngestSnapshot({ processing: 1 });
+    emitIngestSnapshot({});
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays quiet when a queue that this page did not start drains', async () => {
+    render(<WikiSection />);
+    await screen.findByText('actions.compile');
+
+    emitIngestSnapshot({ processing: 1 });
+    emitIngestSnapshot({});
+
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an idle compile circuit as a compile in flight: maintenance stays available', async () => {
+    render(<WikiSection />);
+    await screen.findByText('actions.compile');
+
+    emitIngestSnapshot({}, { ...RUNNING_CIRCUIT, phase: 'idle' });
+
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+    expect((await buttonWithText('actions.compile')).disabled).toBe(false);
+  });
+
+  it('locks maintenance and shows the compile as running while the worker has files in flight', async () => {
+    render(<WikiSection />);
+    await screen.findByText('actions.compile');
+
+    emitIngestSnapshot({ processing: 2 });
+
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(true);
+    expect((await buttonWithText('compiling')).disabled).toBe(false);
   });
 });

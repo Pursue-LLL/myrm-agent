@@ -99,8 +99,6 @@
         "fileListTitle": "古いソース"
       },
       "success": {
-        "compileSummary": "コンパイル完了: 公開 {published}、レビュー待ち {pending}、未生成 {blocked}。保留中の草稿は「保留中の編集」タブでレビューしてください。",
-        "compileSummaryWithSynthesis": "コンパイル完了: 公開 {published}、レビュー待ち {pending}、進化合成 {synthesis}、未生成 {blocked}。進化ページは「保留中の編集 → 進化合成」でレビューしてください。",
         "maintainSummary": "メンテナンス完了: 検出 {found}、修正 {fixed}",
         "maintainSummaryWithLinks": "メンテナンス完了: 検出 {found}、修正 {fixed}、新規リンク {connections}",
         "maintainRemovedSensitive": "メンテナンスは {count} 件の機密rawファイルを削除しました: {paths}",

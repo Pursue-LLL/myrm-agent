@@ -16545,8 +16545,9 @@
       "success": {
         "queryComplete": "Abfrage erfolgreich abgeschlossen",
         "compileComplete": "Wiki erfolgreich kompiliert",
-        "compileSummary": "Kompilierung abgeschlossen: {published} veröffentlicht, {pending} zur Überprüfung, {blocked} nicht generiert. Überprüfen Sie ausstehende Entwürfe auf der Registerkarte „Ausstehende Änderungen“.",
-        "compileSummaryWithSynthesis": "Kompilierung abgeschlossen: {published} veröffentlicht, {pending} zur Überprüfung, {synthesis} Evolutionssynthese, {blocked} nicht generiert. Prüfen Sie Evolutionsseiten unter Ausstehende Bearbeitungen → Evolutionssynthese.",
+        "compileStarted": "Die Kompilierung läuft im Hintergrund: {count, plural, one {# Datei} other {# Dateien}} in der Warteschlange.",
+        "compileNothingNew": "Es gibt nichts Neues zu kompilieren.",
+        "compileFinished": "Kompilierung abgeschlossen. Überprüfen Sie ausstehende Entwürfe auf der Registerkarte „Ausstehende Änderungen“.",
         "maintainCancelled": "Wartung gestoppt. Bereits erledigte Änderungen bleiben erhalten.",
         "maintainComplete": "Wiki-Wartung abgeschlossen",
         "maintainSummary": "Wartung abgeschlossen: {found} gefunden, {fixed} behoben",

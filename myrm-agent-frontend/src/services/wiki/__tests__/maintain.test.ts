@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as api from '@/lib/api';
-import { LONG_RUNNING_REQUEST_TIMEOUT_MS } from '@/lib/constants/requestTimeouts';
 import { cancelWikiMaintain, getWikiMaintainStatus, startWikiMaintain } from '../maintain';
 import { wikiService } from '../service';
 
@@ -88,15 +87,12 @@ describe('wikiService.compileWiki', () => {
     vi.clearAllMocks();
   });
 
-  it('outlasts the default 30s request timeout: compile runs sequential model stages and answers when done', async () => {
-    vi.mocked(api.apiRequest).mockResolvedValueOnce({ concepts_count: 0 });
+  it('only asks the server to queue the compile: it answers at once, so the request keeps the default timeout', async () => {
+    vi.mocked(api.apiRequest).mockResolvedValueOnce({ pending: 3, compile_run: null });
 
-    await wikiService.compileWiki('agent_dev');
+    const result = await wikiService.compileWiki('agent_dev');
 
-    expect(api.apiRequest).toHaveBeenCalledWith(
-      '/wiki/compile?agent_id=agent_dev',
-      expect.objectContaining({ method: 'POST', timeout: LONG_RUNNING_REQUEST_TIMEOUT_MS }),
-    );
-    expect(LONG_RUNNING_REQUEST_TIMEOUT_MS).toBeGreaterThan(10 * 60 * 1000);
+    expect(api.apiRequest).toHaveBeenCalledWith('/wiki/compile?agent_id=agent_dev', { method: 'POST' });
+    expect(result.pending).toBe(3);
   });
 });
