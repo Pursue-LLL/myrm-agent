@@ -70,6 +70,7 @@
 | `fleet_router.py` | 跨机分布式舰队 Profile Rail 全景导航轨、多网关拓扑自愈、离线缓冲与跨机工件中继中枢 DTO（`GatewayTelemetryDTO`、`RegisterGatewayRequest`、`GatewayNodeResponse`、`HeartbeatRequest`、`RegisterProfileRequest`、`FleetProfileResponse`、`InjectedContextResponse`、`BufferCommandRequest`、`BufferedCommandResponse`、`FlushResponse`、`RelayArtifactRequest`、`RelayedArtifactResponse`、`FleetTopologyResponse`） |
 | `graph_triage.py` | 图工程自适应适用性评估门禁与并发 Token 预算熔断套件 DTO（`SubtaskSpec`、`TriageAssessmentRequest`、`TriageFeaturesDTO`、`TriageAssessmentResponse`、`BudgetEstimateRequest`、`BudgetEstimateResponse`、`ConfigureGuardRequest`、`SpendUpdateRequest`、`ExecutionSpendResponse`、`NodeExecutionOutputItem`、`PartialReduceRequest`、`PartialReduceResponse`） |
 | `orthogonal_reviewer.py` | 正交双视角审查门禁与零偏见盲审子代理 DTO（`ReviewFindingDTO`、`ReviewerReportDTO`、`ArbitrationVerdictDTO`、`IntentReviewRequest`、`BlindReviewRequest`、`ArbitrateRequest`、`FullReviewRequest`、`FullReviewResponse`、`AutoFixRequest`、`AutoFixResponse`） |
+| `delegation_transcript.py` | 子 Agent 实时透明 Live Transcript 轨迹流、后台委派任务持久化恢复账本、Smart Approvals 单次命令动态审核与 /deny 交互反馈、以及 MoA 动态推理强度分配 DTO（`SubagentTranscriptEventDTO`、`DelegationTaskRecordDTO`、`CreateDelegationTaskRequest`、`UpdateDelegationStatusRequest`、`SaveCheckpointRequest`、`EmitTranscriptEventRequest`、`SmartApprovalRequestDTO`、`EvaluateCommandApprovalRequest`、`ResolveApprovalRequest`、`SmartApprovalResolutionDTO`、`ConsumeApprovalResponse`、`RecoverOrphansResponse`、`MoAReasoningAllocationRequest`、`MoAReasoningAllocationResponse`） |
 
 
 

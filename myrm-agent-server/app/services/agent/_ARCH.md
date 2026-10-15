@@ -160,6 +160,7 @@ Design notes:
 | `fleet_router_service.py` | ✅ 核心 | 跨机分布式舰队 Profile Rail 全景导航轨、多网关拓扑自愈、离线缓冲与跨机工件中继服务 — 聚合 Harness MultiGatewayConnectionPool、HostGatewayContextInjector 与 CrossGatewayArtifactRelayService，管理 Darwin/Linux/Cloud 多机分布式网关节点注册、心跳遥测与健康自感知、断网离线指令 FIFO 排队缓冲与自愈排空 Auto-Healing Flush、Agent 宿主拓扑上下文自动注入、以及 SHA-256 跨网关安全工件中继校验 | ✅ |
 | `graph_triage_service.py` | ✅ 核心 | 图工程自适应适用性评估门禁与并发 Token 预算熔断服务 — 聚合 Harness GraphApplicabilityTriageGate、PredictiveBudgetGuard 与 ElasticConcurrencyReducer，提供任务模式准入/拦截评估、扇出前置 Token 与花费预算核算、硬上限门禁校验、实时多档位弹性自适应并发节流（Healthy/Warning/Critical/Exhausted）以及危急状态提前局部优雅归约报告生成 | ✅ |
 | `orthogonal_reviewer_service.py` | ✅ 核心 | 正交双视角审查门禁与零偏见盲审子代理服务 — 聚合 Harness OrthogonalReviewArbiter、IntentAlignmentReviewer 与 BlindCleanContextReviewer，提供意图一致性单项审查、全新盲态上下文代码审查、双审报告语义去重与缺陷综合仲裁、准入阻断判定与一键自动修复闭环 | ✅ |
+| `delegation_transcript_service.py` | ✅ 核心 | 子 Agent 实时透明 Live Transcript 与后台委派任务持久化恢复服务 — 聚合 Harness SubagentLiveTranscriptEmitter、PersistentDelegationLedger、SmartApprovalGate 与 MoAReasoningEffortGovernor，提供后台任务生命周期与检查点管理、实时事件流订阅与推送、单次命令绑定 Smart Approvals 与 /deny 交互反馈、进程重启孤儿任务自愈恢复、以及 MoA 动态角色推理强度与 Token 预算分配 | ✅ |
 
 
 

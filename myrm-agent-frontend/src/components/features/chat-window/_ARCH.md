@@ -289,6 +289,9 @@
 | `DualOrthogonalReviewerCard.tsx` | 组件 | 正交双视角审查门禁与零偏见盲审子代理控制台卡片：呈现 Reviewer A 意图一致性（共享需求上下文）与 Reviewer B 盲态无偏审查（零先验物理隔离子智能体）双列分栏、综合仲裁裁决（准入/阻断）、严重度大盘、Blocker 告警与自动修复指令一键派发 | ✅ |
 | `orthogonal-reviewer/` | 辅助 | 正交双审门禁轻量模块化子组件集与前端类型定义（DualReviewerSplitView, ArbiterVerdictSummaryView, types） | ✅ |
 | `__tests__/DualOrthogonalReviewerCard.test.tsx` | 测试 | 正交双视角审查卡片单元测试套件：覆盖头部元数据与双重视角渲染、意图偏离拦截与 Blocker 告警、盲审类型漏洞与边界异常拦截、双重阻断与自愈修复指令派发回调、以及无障碍实时播报 | ✅ |
+| `SubagentLiveTranscriptCard.tsx` | 组件 | 子 Agent 实时 Live Transcript 轨迹流与后台委派持久账本控制台卡片：呈现透明人类可读实时轨迹流、MoA 动态推理强度徽章（LOW/MEDIUM/MAX/ULTRA）、Smart Approvals 单次命令动态审核与 /deny 拒绝反馈自省重构、以及宿主重启孤儿任务断点自愈恢复（对标 Hermes v0.19 委托透明度） | ✅ |
+| `subagent-live-transcript/` | 辅助 | 实时轨迹流与智能审批轻量模块化子组件集与前端类型定义（LiveTranscriptTimeline, SmartApprovalBanner, types） | ✅ |
+| `__tests__/SubagentLiveTranscriptCard.test.tsx` | 测试 | 子 Agent 实时 Live Transcript 卡片单元测试套件：覆盖头部元数据渲染、实时轨迹事件流新增、Smart Approvals 单次审核批准、交互式 /deny 反馈指导自省、进程崩溃与持久账本断点自愈模拟、以及无障碍实时播报 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                       | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                  | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                   | ✅    |

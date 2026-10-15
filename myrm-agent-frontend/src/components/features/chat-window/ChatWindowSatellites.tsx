@@ -1693,6 +1693,11 @@ export const ExportedDualOrthogonalReviewerCard = dynamic(
   { ssr: false },
 );
 
+export const ExportedSubagentLiveTranscriptCard = dynamic(
+  () => import('./SubagentLiveTranscriptCard').then((module) => ({ default: module.SubagentLiveTranscriptCard })),
+  { ssr: false },
+);
+
 
 
 
