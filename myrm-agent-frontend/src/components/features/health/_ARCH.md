@@ -6,13 +6,13 @@ System Doctor 健康检查仪表盘与修复引导，含诊断导出能力。健
 
 ## 文件清单
 
-| 文件                                                    | 地位     | 职责                                                                                               |
-| ------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| `DoctorDashboard.tsx`                                   | 核心组件 | 系统诊断看板：健康评分、状态过滤、修复卡片、诊断导出；`DesktopControl` WARN 时展示系统设置深链按钮 |
-| `GuidedRepairCard.tsx`                                  | 子组件   | 引导式修复卡片，支持 dry_run 和 confirm                                                            |
-| `doctor-icons.tsx`                                      | 图标集   | DoctorDashboard 专用 SVG 图标组件集                                                                |
-| `__tests__/DoctorDashboard.desktopControlWarn.test.tsx` | 测试     | WARN + `settings_deeplinks` 深链按钮渲染与 click fallback（vitest）                                |
-| `__tests__/DoctorDashboard.vectorFallback.test.tsx`     | 测试     | 按 code 取文案：`ERR_VECTOR_STORE_ON_MEMORY_FALLBACK` 渲染与六个语言文件的译文（vitest）           |
+| 文件                                                    | 地位     | 职责                                                                                                                                                                            |
+| ------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DoctorDashboard.tsx`                                   | 核心组件 | 系统诊断看板：健康评分、状态过滤、修复卡片、诊断导出；`DesktopControl` WARN 时展示系统设置深链按钮；按 `code` 取 locale 文案，缺 key 时回退后端 `message`                       |
+| `GuidedRepairCard.tsx`                                  | 子组件   | 引导式修复卡片，支持 dry_run 和 confirm                                                                                                                                         |
+| `doctor-icons.tsx`                                      | 图标集   | DoctorDashboard 专用 SVG 图标组件集                                                                                                                                             |
+| `__tests__/DoctorDashboard.desktopControlWarn.test.tsx` | 测试     | WARN + `settings_deeplinks` 深链按钮渲染与 click fallback（vitest）                                                                                                             |
+| `__tests__/DoctorDashboard.verdictI18n.test.tsx`        | 测试     | 真实 next-intl 渲染：有 locale 文案的 code 显示译文，无 locale 文案的 code 回退后端 `message` 且不泄漏 key 路径；`ERR_VECTOR_STORE_ON_MEMORY_FALLBACK` 六语言译文非空（vitest） |
 
 ## 依赖
 

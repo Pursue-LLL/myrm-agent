@@ -142,6 +142,15 @@ export function DoctorDashboard() {
 
   const healthStatus = getHealthStatus(healthScore);
 
+  // A code without a locale entry falls back to the backend message instead of leaking the key path.
+  const reportMessage = (report: HealthReport): string => {
+    if (!report.code) {
+      return report.message;
+    }
+    const key = `errors.${report.code}.message`;
+    return t.has(key) ? t(key, report.meta_data as Parameters<typeof t>[1]) : report.message;
+  };
+
   const renderReportGroup = (reports: HealthReport[], title: string, icon: React.ReactNode) => {
     if (reports.length === 0) {
       return null;
@@ -173,12 +182,7 @@ export function DoctorDashboard() {
                 {report.status === 'fail' && <XCircleIcon className="h-4 w-4 text-red-500" />}
                 <div>
                   <h4 className="font-medium text-sm">{report.component_name}</h4>
-                  <p className="text-xs text-zinc-400">
-                    {report.code
-                      ? t(`errors.${report.code}.message`, report.meta_data as Parameters<typeof t>[1]) ||
-                        report.message
-                      : report.message}
-                  </p>
+                  <p className="text-xs text-zinc-400">{reportMessage(report)}</p>
                   {report.detail && <p className="text-xs text-zinc-500 mt-0.5 font-mono">{report.detail}</p>}
                 </div>
               </div>
