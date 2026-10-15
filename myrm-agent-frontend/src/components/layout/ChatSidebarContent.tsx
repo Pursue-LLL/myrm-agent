@@ -114,7 +114,7 @@ const TrashButton = memo(function TrashButton() {
             {count > 0 && <span className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded-full">{count}</span>}
           </button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-[400px] sm:w-[540px] overflow-y-auto">
+        <SheetContent side="left" className="w-full max-w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{t('title')}</SheetTitle>
           </SheetHeader>

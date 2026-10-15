@@ -145,7 +145,7 @@ const SourcesButton: React.FC<SourcesButtonProps> = ({ sources }) => {
         </button>
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
+      <SheetContent side="right" className="w-full max-w-[400px] overflow-y-auto">
         <SheetHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0 pr-8">
           <SheetTitle className="text-left">{t('title')}</SheetTitle>
           <button
