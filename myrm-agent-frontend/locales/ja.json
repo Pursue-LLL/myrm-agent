@@ -15133,7 +15133,7 @@
           },
           "cookie_session_like": {
             "name": "セッション / アクセストークン",
-            "desc": "値を伴うセッション ID、アクセス／リフレッシュトークン、Authorization ヘッダーを検出します。"
+            "desc": "値を伴うセッション ID、セッション Cookie、アクセス／リフレッシュトークン、Authorization ヘッダーを検出します。"
           },
           "db_connection_string": {
             "name": "データベース接続文字列",

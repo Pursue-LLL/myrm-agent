@@ -15808,7 +15808,7 @@
           },
           "cookie_session_like": {
             "name": "Session / access token",
-            "desc": "Detect session IDs, access or refresh tokens, and authorization headers that carry a value."
+            "desc": "Detect session IDs, session cookies, access or refresh tokens, and authorization headers that carry a value."
           },
           "db_connection_string": {
             "name": "Database connection string",

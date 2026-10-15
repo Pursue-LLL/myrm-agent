@@ -15133,7 +15133,7 @@
           },
           "cookie_session_like": {
             "name": "세션 / 액세스 토큰",
-            "desc": "값이 있는 세션 ID, 액세스·리프레시 토큰, Authorization 헤더 감지."
+            "desc": "값이 있는 세션 ID, 세션 쿠키, 액세스·리프레시 토큰, Authorization 헤더 감지."
           },
           "db_connection_string": {
             "name": "데이터베이스 연결 문자열",

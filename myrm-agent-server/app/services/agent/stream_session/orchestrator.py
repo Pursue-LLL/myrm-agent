@@ -137,6 +137,13 @@ async def run_agent_stream(
 
     text_content = stream_text_content(request)
 
+    # The risk gate reads what the user typed: the spill below replaces a long paste with a stub that hides its contents.
+    if request.resume_value is None:
+        risk_block = await check_stream_risk(text_content, request.chat_id)
+        if risk_block is not None:
+            await _record_terminal_failure_if_needed("server_error")
+            return risk_block
+
     # Context Guard Ingress defense: transparently spill oversized prompts to sandbox workspace
     try:
         from app.services.agent.context_guard_service import ContextGuardService
@@ -172,10 +179,6 @@ async def run_agent_stream(
         )
 
     if request.resume_value is None:
-        risk_block = await check_stream_risk(text_content, request.chat_id)
-        if risk_block is not None:
-            await _record_terminal_failure_if_needed("server_error")
-            return risk_block
         try:
             await prevalidate_archive_restore_actions(request)
         except ArchiveRestoreRequestError as exc:

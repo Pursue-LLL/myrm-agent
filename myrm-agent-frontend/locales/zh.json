@@ -15808,7 +15808,7 @@
           },
           "cookie_session_like": {
             "name": "会话 / 访问令牌",
-            "desc": "检测带有取值的会话 ID、访问或刷新令牌和 Authorization 请求头"
+            "desc": "检测带有取值的会话 ID、会话 Cookie、访问或刷新令牌和 Authorization 请求头"
           },
           "db_connection_string": {
             "name": "数据库连接串",

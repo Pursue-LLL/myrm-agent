@@ -2928,3 +2928,62 @@ except Exception:
 2. 保存入口的可见性要绑定在「有没有改动」上，不能绑定在随开关显隐的区块里；
 3. 把某个类的测试放在无关的测试文件里，删除那个文件会连带丢掉唯一的覆盖；删除前先逐条查清被删文件里每条测试各自测的是什么；
 4. 同一文件上混用编辑器工具与 shell 追加，后落盘的编辑器缓冲会覆盖 shell 的追加；同一文件只用一种写入方式，写完先等一下再读盘核对。
+
+---
+
+## BUG-AGENT-2026-10-15-004: 风控闸门读到的是被「溢出落盘」缩短后的占位文本，超长粘贴里的密钥先被写进磁盘文件；被拦下的 IM 消息原文留在待重放的收件日志里；转向、重定向、目标文案、IM 忙时转向与委派根本没有过闸；会话令牌与 Cookie 规则漏拦 `PHPSESSID` / `Set-Cookie` / `connect.sid`，又误拦 `session-1`、`env:KEY`、`sk-YOUR_API_KEY`
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-14（逐入口走查闸门时发现；没有真实用户聊天数据） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P1（密钥写盘与留在待重放日志里是静态泄露；转向、重定向、目标与委派入口完全没有闸门，闸门只管“聊天消息”这一个入口） |
+| 影响范围 | server：`app/services/risk/{ingress,match_checks,builtin_rules}.py`、`app/services/agent/stream_session/{risk_gate,orchestrator}.py`、`app/channels/routing/{router,inbound_risk_gate}.py`、`app/channels/routing/commands/router_commands_modes.py`、`app/api/agents/general_agent/streaming.py`、`app/api/goals/constraints.py`；frontend：6 个语言包里 `cookie_session_like` 的说明；各目录 `_ARCH.md` |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-016`、`-019`、`-024`（同一道闸门）；harness 提交 `573a16ef0`、`3a3982b71`；本地提交，未 push，未发布 harness 版本 |
+
+### 现象
+
+1. 网页：`orchestrator.run_agent_stream` 先让 `ContextGuardService` 把超过约 16K 字符的粘贴写成文件、换成一段占位，之后才调用 `check_stream_risk`。闸门读到的是占位，密钥已经在磁盘文件里。IM：路由器在消费循环里先溢出，再进 `_handle_merged`，同样先落盘后过闸。
+2. IM：`_handle_merged` 里被闸门拦下的消息在进入 `try:` 之前就 `return`，而确认收件日志的 `acknowledge` 在 `finally` 里。被拦消息的原文因此留在日志里，`scan_pending()` 为 1，下次启动会被重放（实测复现：被拦消息的原文留在日志里，`scan_pending()` 为 1）。话题绑定命令的提前返回有同样的问题。
+3. 没有闸门的入口：网页 `steer` / `redirect` 接口、目标的 objective 热编辑与约束写入、IM 的忙时 steer / redirect、`/steer` 命令、`/delegate` 的提示词、对进行中委派的转向。这些都是用户亲手输入、直接进入模型的文本。
+4. 规则探测（本机逐条试）：漏拦 `Cookie: PHPSESSID=<32 位十六进制>; theme=dark`、`Set-Cookie: session=<签名值>`、`cookie: connect.sid=s%3A…`；误拦 `{"sessionId": "session-1"}`、`Authorization: Bearer test-token-123`、`api_token="env:GEMINI_API_KEY"`、`password: vault:secret/data/db#password`、`OPENAI_API_KEY="sk-YOUR_API_KEY"`。
+
+### 根因
+
+1. 闸门最初写在“已经被缩短的提示词”这个前提上，溢出与闸门的先后顺序没有被当成需求：两处各自内联了一份检测加记录代码，位置在溢出之后。
+2. 检测加记录的代码在路由器与 `check_stream_risk` 里各一份，其余入口没有人调用它；没有“用户亲手输入的文本一律经同一个入口”这一条。
+3. `_handle_merged` 只有 `finally` 里确认收件日志，闸门的提前返回在 `try` 之外。
+4. 会话令牌规则的键只有 `\w*sessionid`，值只交给 `secret_value_span`（任何 8 位以上、含数字的串都算）；没有 `Cookie` 请求头分支；占位词只认值开头；密钥库指针不是引用。
+
+### 修复
+
+1. 新增 `services/risk/ingress.py::screen_user_text(text, *, session_id)`：检测、写只含位置的命中记录、记录失败只记 WARNING 且文本照拦，返回命中结果；各入口只决定怎样告知发送者。`check_stream_risk` 与 IM 的 `hold_risky_inbound`（新文件 `inbound_risk_gate.py`，固定的 `risk_inbound_blocked` 提示）都经它。
+2. 顺序：网页编排器在溢出之前过闸；IM 删掉消费循环里多余的提前溢出，`_handle_merged` 里闸门先于溢出。被拦与话题绑定的提前返回都先 `_acknowledge_inbound(journal_entry_id)`，`finally` 也用同一个方法。
+3. 补入口：网页 steer / redirect 命中时返回 `success:false`（前端本来就把它当作“保留 / 排队”，排队的文本会在作为消息发送时再过一次闸门并给出标准提示）；目标 objective 与约束命中时返回 400；IM 忙时 steer / redirect、`/steer`、委派提示词与对委派的转向命中时回固定提示并丢弃。
+4. 规则：`cookie_session_like` 的键加 `sessid`；新增 `Cookie` / `Set-Cookie` 请求头分支，`value` 取到行尾，只检查名字里带 `sess` / `sid` / `auth` / `token` / `jwt` / `login` / `remember` / `secret` / `passw` 的 cookie；令牌要求至少 16 个字符且不是只由可读单词与数字构成（harness `is_reference_token`）；`env:` / `vault:` 指针不算密钥；占位词前可有最多 6 个字母加分隔符的厂商前缀。说明文字加上“会话 Cookie”（6 种语言）。
+
+### 验证
+
+1. 新增测试在原 HEAD 代码上失败、在修复后通过（把测试文件放进只含 HEAD 的导出目录运行）：IM 顺序与入口 8 例、网页编排器顺序 1 例、精度 10 例，共 19 例失败；修复后同一批通过。`test_ingress.py` 在 HEAD 上因缺少模块无法导入。网页 steer / 目标两组接口测试在 HEAD 导出目录里因他人未提交的 harness 改动（`AssetCategory` 导入）无法装配，没有在那里对照，它们在工作区通过。
+2. 工作区：风控、渠道路由、5 个新入口测试文件、忙时转向与转向队列共 684 例通过；`tests/channels`、风控、流式会话、目标接口与重试夹具的更大集合 7295 通过、11 失败、55 跳过。这 11 例（群路由 6、前缀触发 1、`btw` 命令 2、日志脱敏 1、译文孤键 1）在只含 HEAD 的导出目录里同样失败，与 `BUG-AGENT-2026-10-14-024` 记录的是同一批，不由本条引起。`tests/architecture` 15 例失败，均与他人的路由、领域词表、导入基线以及 `BUGFIX_LOG.md` 里他人加入的私有开发壳链接有关，没有涉及风控文件。
+3. 同一个真实规则引擎、HEAD 规则与新规则对照，语料是本仓库 `git ls-files` 里按排序等距取的 2995 个文本与源码文件（每个取前 40 万字符）：HEAD 命中 37 个，新规则 29 个；判定变化的 8 个全部由“拦”变“放”（6 个前端测试里的 `sessionId: 'sess_test_1'` / `'session-123'`，2 个 `Bearer {{secret:…}}` 模板），没有新增命中。超过 16K 的 205 个文件里 HEAD 命中 9 个（4.4%），新规则 8 个（3.9%）。更早的一次抽样量到超长粘贴先过闸后命中率由 1.1% 升到 5.0%，语料不同，两组数字不可直接比较，只说明先过闸会拦下更多超长文本里的真密钥与示例。
+4. 耗时（8 条默认规则全跑，取 5 次最小值，同一台机器同一批文本，HEAD 规则 → 新规则）：2 千字符聊天 0.39 → 0.39 毫秒；36 万字符含大量 `cookie` / `token` 字样的日志 69.5 → 95.8 毫秒；36 万字符带 `Cookie:` 请求头的 HTTP 日志 80.7 → 74.5 毫秒；36 万字符 `a.a.` 串 92.8 → 105.1 毫秒。病态输入（42 万字符的 `cookie=` 重复、`Cookie:` 重复、10 万个 `a=b;`、4 万行 `cookie: a=b`）都在 0.04 到 0.16 秒内、没有触发单条规则的 0.25 秒时限。第一版把请求头的值写成向前查看的捕获，重复 5.7 万次 `cookie=` 时耗时超过 2 秒（每次出现都扫到行尾，二次方），改成消费整行、再在确认里按 `;` 或空白切成 `name=value` 后是线性的。
+5. 静态检查：`ruff check` 与 `ruff format --check` 对 19 个触及的 Python 文件通过；`mypy` 对本条新增与改写的 5 个模块没有报错（项目其余模块的既有错误不在本条范围）。
+
+### 局限
+
+1. 长度超过 64 个字符的赋值值不被任何赋值规则拦下：本机探测 `Authorization: Bearer <随机串>`、`api_key = '<随机串>'`、`"access_token": "<随机串>"`，40 与 64 个字符被拦，65、100、200 个字符都放行（`jwt_token_like` 只认 `eyJ…` 形状的 JWT）。原因在 harness 的 `secret_value` 判定里长度上限 64，且 harness 测试把超长值钉为“不是密钥”；本条没有改，这是需要产品侧定的取舍（拦下更多长令牌的代价是更多超长文本被拦）。
+2. 会话令牌规则不再拦短于 16 个字符的值（`sessionid=abc12345xyz`）；`access_token` / `refresh_token` 同时被 `credential_assignment` 覆盖（8 个字符起），`sessionid` / `Authorization` 没有第二条规则兜底。
+3. 请求头分支只检查名字里带上述词的 cookie；名字不带这些词却承载会话的 cookie 不被拦。`access_token = 'valid123'` 这类 8 位带数字的夹具值仍被 `credential_assignment` 拦下，与一个真实的短密码无法区分。
+4. 闸门现在读完整文本，`detect` 在事件循环上同步运行，36 万字符约 75 到 105 毫秒（上面的实测）。
+5. 没有在真实 IM 平台与浏览器里端到端验证；被拦的网页消息是否已被 `launch_early_buffered_stream` 内部写进用户消息表，没有读到那一段；目标 objective 被拒时界面只显示通用的失败提示；没有真实用户粘贴频率的遥测。
+6. 服务端引用了 harness 里尚未发布的 `secret_value_span` 与 `is_reference_token`，服务端仍钉 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行。提示词没有改动。
+
+### 踩坑经验
+
+1. 一道拦截的位置本身就是需求：凡是会改写文本的步骤（缩短、截断、脱敏）都要排在拦截之后，否则拦截读到的是被改写过的文本。新增入口时先问“它读到的是用户输入的原样吗”。
+2. 提前返回绕过 `try/finally` 的清理：凡是 `finally` 里做了确认或释放，`try` 之前的每个 `return` 都要逐个核对；用一个具名方法在每个出口调用，并为每个出口写测试。
+3. 一个正则要“看到整行”时，向前查看的捕获不消费字符，遇到重复关键词就是二次方；要么消费、要么限长，并在重复 5 万次的病态输入上量一次。
+4. 判断一个值是不是令牌，先排除“读得懂”的（可读单词与数字、模板、指针、占位），再看长度与随机性；只看“含数字”会把 `session-1` 当成密钥。
+5. 在只含 HEAD 的导出目录里跑新测试，才能证明它们在修复前失败；工作区里混着他人未提交的改动时，失败可能来自别人。

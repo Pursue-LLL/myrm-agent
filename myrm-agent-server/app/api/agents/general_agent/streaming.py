@@ -15,6 +15,7 @@ from app.core.infra.limiter import limiter
 from app.services.agent.params import AgentRequest
 from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session import run_agent_stream
+from app.services.risk.ingress import screen_user_text
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,19 @@ def _record_dedup_call_id(call_id: str) -> None:
         _PROCESSED_STEER_CALL_IDS[call_id] = 1.0
         while len(_PROCESSED_STEER_CALL_IDS) > _MAX_DEDUP_CALL_IDS:
             _PROCESSED_STEER_CALL_IDS.popitem(last=False)
+
+
+async def _hold_by_risk_rule(message: str, chat_id: str) -> JSONResponse | None:
+    """A refusal when a risk rule holds what the user typed into a running turn, else None.
+
+    The client keeps a refused instruction (queues it), and the queued text is screened again, with the usual notice,
+    when it is sent as a message.
+    """
+    if await screen_user_text(message, session_id=chat_id) is None:
+        return None
+    from app.core.utils.response_utils import error_response
+
+    return error_response(message="Message held by a risk rule", code=403)
 
 
 @router.post("/agent-stream", response_model=None)
@@ -109,15 +123,17 @@ async def steer_agent(
     if not body.message.strip():
         return error_response(message="Steering message cannot be empty", code=400)
 
+    held = await _hold_by_risk_rule(body.message, chat_id)
+    if held is not None:
+        return held
+
     if body.in_reply_to_call_id and _is_call_id_deduped(body.in_reply_to_call_id):
         logger.info(
             "Steering request for chat_id=%s call_id=%s deduped",
             chat_id,
             body.in_reply_to_call_id,
         )
-        return success_response(
-            data={"steered": True, "chat_id": chat_id, "deduped": True}
-        )
+        return success_response(data={"steered": True, "chat_id": chat_id, "deduped": True})
 
     steer_payload = body.message.strip()
     if body.question_context and body.question_context.strip():
@@ -208,6 +224,10 @@ async def redirect_agent(
     require_mobile_pair_chat_access(http_request, chat_id)
     if not body.message.strip():
         return error_response(message="Redirect message cannot be empty", code=400)
+
+    held = await _hold_by_risk_rule(body.message, chat_id)
+    if held is not None:
+        return held
 
     success = SteeringRegistry.redirect(chat_id, body.message)
 

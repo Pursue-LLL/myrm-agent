@@ -98,6 +98,20 @@ CODE_THAT_NAMES_SECRETS = [
     # An identifier that happens to begin with the prefix of a vendor key.
     "const vercel_deployment_inspector_url_builder = 1",
     "fal_ai_client_request_handler_configuration_object = make()",
+    # A session or bearer value a reader recognises as an example: short, or made of readable words.
+    '{"sessionId": "session-1"}',
+    "headers = {'Authorization': 'Bearer test-token-123'}",
+    "Authorization: Bearer my-example-access-token-value",
+    "Cookie: sessionid=<your-session-id>",
+    "Set-Cookie: sessionid=session-for-the-demo-user; Path=/",
+    # A cookie header that carries nothing a session depends on.
+    "Cookie: theme=dark; lang=en; _ga=GA1.2.1234567890.1234567890",
+    "Set-Cookie: id=a3fWa; Expires=Thu, 21 Oct 2021 07:28:00 GMT; Secure; HttpOnly",
+    # A pointer into a secret store names the secret and does not carry it.
+    'api_token="env:GEMINI_API_KEY"',
+    "password: vault:secret/data/db#password",
+    # A placeholder word behind the prefix of a vendor key.
+    'OPENAI_API_KEY="sk-YOUR_API_KEY"',
 ]
 
 CREDENTIALS = {
@@ -122,6 +136,13 @@ CREDENTIALS = {
     "session id": "sessionid=9f8e7d6c5b4a3210fedcba",
     "java session cookie": "Cookie: JSESSIONID=9f8e7d6c5b4a3210fedcba",
     "bearer header": "Authorization: Bearer " + _token(40, _URLSAFE),
+    "basic header": "Authorization: Basic dXNlcjpaazkjbWFuZ280Mnh4",
+    "php session id": "PHPSESSID=8f3a9c1e5b7d2046a1c8e9f0b3d5a7c2",
+    "cookie header in a curl command": "curl https://x.io/api -H 'Cookie: PHPSESSID=8f3a9c1e5b7d2046a1c8e9f0b3d5a7c2; theme=dark'",
+    "session behind other cookies": "Cookie: theme=dark; lang=en; session=" + _token(32),
+    "set-cookie header": "Set-Cookie: session=eyJ1c2VyIjoiYWxpY2UifQ.Zk9mango42xYpq7; Path=/; HttpOnly",
+    "express session cookie": "cookie: connect.sid=s%3A" + _token(32, _URLSAFE) + ".x7Yz3Qw9",
+    "session id after a cookie header on the line": "cookie: a=b then sessionid=9f8e7d6c5b4a3210fedcba",
     "password with dots inside": "password: Zk9.mango.42x",
     "refresh token json": '{"refresh_token": "' + _token(40, _URLSAFE) + '"}',
     "postgres url": "DATABASE_URL=postgres://admin:S3cret!pw@db.internal:5432/app",

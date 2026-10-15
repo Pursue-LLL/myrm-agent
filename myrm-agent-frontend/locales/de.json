@@ -15133,7 +15133,7 @@
           },
           "cookie_session_like": {
             "name": "Sitzungs-/Zugriffstoken",
-            "desc": "Sitzungs-IDs, Zugriffs- oder Refresh-Token und Authorization-Header mit Wert erkennen."
+            "desc": "Sitzungs-IDs, Sitzungs-Cookies, Zugriffs- oder Refresh-Token und Authorization-Header mit Wert erkennen."
           },
           "db_connection_string": {
             "name": "Datenbank-Verbindungsstring",

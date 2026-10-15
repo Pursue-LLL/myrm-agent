@@ -2,6 +2,7 @@
 
 [INPUT]
 - channels.routing.router_host::RouterCommandsHost (POS: typing protocol for mixin host attributes.)
+- channels.routing.inbound_risk_gate::hold_risky_inbound (POS: risk screening of a sender's text before any agent reads it.)
 - channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format.)
 - channels.types::InboundMessage, OutboundMessage (POS: channel message types.)
 - ai_agents.personality_templates::PERSONALITY_TEMPLATES (POS: built-in personality style catalog.)
@@ -22,6 +23,7 @@ import time
 
 from app.ai_agents.personality_templates import PERSONALITY_TEMPLATES
 from app.channels.i18n import get_text
+from app.channels.routing.inbound_risk_gate import hold_risky_inbound
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_session_key
 from app.channels.types import InboundMessage, OutboundMessage
@@ -212,6 +214,8 @@ class RouterCommandsModesMixin:
 
         active = self._active_tasks.get(session_key)
         if active and active.steering_token:
+            if await hold_risky_inbound(self._bus, msg, instruction):
+                return
             active.steering_token.steer(instruction)
             preview = instruction[:80] + "..." if len(instruction) > 80 else instruction
             reply = OutboundMessage(

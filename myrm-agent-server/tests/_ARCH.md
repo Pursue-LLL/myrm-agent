@@ -12,6 +12,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
+| `support/risk_gate.py` | 辅助 | 风险闸门测试的共享常量与构建器：`SECRET`、`API_KEY_RULE`、`PHONE_RULE`、`build_service_with_rules(...)`（按给定规则构造检测引擎，供各入口的闸门测试 patch `get_detection_service`） |
 | `support/session_mock_guard.py` | 辅助 | `restore_leaked_session_mocks(mock_get_session, mock_get_session_factory)`：列在 DB 会话 `patch` 之前的上下文守卫，退出时把「补丁生效期间首次 import 而捕获了 mock」的模块全局重绑回真实可调用对象（`patch` 只还原它点名的属性）；`tests/api/{agent,skills,companion,notifications,approvals}/conftest.py` 的会话夹具共用 |
 | `support/test_session_mock_guard.py` | 单元 | 守卫回归：补丁期间首次 import 的模块在无守卫时保留 mock（复现后续用例 `no such table: user_configs`），有守卫时重绑为真实函数 |
 | `support/fake_secrets.py` | 辅助 | 厂商格式假凭据夹具 SSOT：`stripe_live_key(body)`、`slack_bot_token(body)` 在调用时才拼出厂商前缀，源码里不出现完整 token（GitHub push protection 会拒绝含完整厂商 token 的推送，假值也不例外）；脱敏与泄漏检测类测试共用，由 `architecture/test_no_provider_shaped_secrets_in_tests.py` 守卫 |
@@ -60,6 +61,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
 | `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定 |
+| `channels/routing/risk_gate_testkit.py` | 辅助 | 入站风险闸门测试的共享构建器：`make_bus()`（桩消息总线，出站消息可断言）与 `make_router()`（接在该总线上、配对仓库与执行器皆为桩的 `AgentRouter`） |
+| `channels/routing/test_inbound_risk_gate_integration.py` | 单元 | 入站风险闸门对真实检测引擎：命中规则的消息不进入 Agent 回合，发送者收到固定提示（群聊发到群里，私聊发给发送者）；干净消息、没有规则、续跑消息与空内容照常放行；多条规则时第一条命中即拦下 |
+| `channels/routing/test_inbound_risk_gate_order.py` | 单元 | 入站风险闸门的位置与收尾：被拦消息和话题绑定的提前返回都会把收件日志条目标为已处理（原文不留在待重放的日志里）；超长粘贴先过闸门再溢出落盘；忙时 steer / redirect、`/steer`、委派提示词与进行中委派的转向都被拦，干净转向照常送达 |
 | `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由 |
 | `channels/routing/test_draft_command.py` | 单元 | IM `/draft approve\|reject <编号>`：参数解析（过短、非十六进制、多余词一律给用法）；对真实审批表裁决，与 WebUI/按钮走同一收口（批准发出、拒绝丢弃）；6 位以上短码即可且回复报完整短码、按 owner 语言作答并回到提问的会话；未知编号、已处理、非扣留回复的审批、两条同码（都不裁决）、畸形请求、查询失败均不改动任何审批且不抛出 |
 | `services/approvals/draft_testkit.py` | 辅助 | 被扣留回复测试的共享构建器：`held_reply()`（带附件、按钮与线程的整条回复）、`draft_payload()`（路由器存储的 payload 形态：正文在 `draft_content`，其余冻结在 `outbound`）；`test_outbound_draft.py`、`test_registry_lifecycle.py` 与 `channels/routing/test_draft_command.py` 共用 |
@@ -107,6 +111,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/chrome_skill_hooks_approval.py` | 辅助 | 技能钩子 Chrome E2E 的 HITL 审批卡：等待审批卡出现、点真实 Approve 键，`approve_cards_until_reply` 逐张批准直到回复落库（模型重试被执行器拒绝的命令会再停一张卡），`describe_unanswered_resume` 给出批准后无回复的失败现场 |
 | `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、`completed_assistant_replies` 列出服务端标记为 complete 的助手回复、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
+| `api/agent/test_steer_risk_gate.py` | 模块 | steer / redirect 接口的风险闸门：命中规则的指令返回 `success:false` 且不送达回合，干净指令照常送达，对 Agent 提问的回复同样过闸 |
+| `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案与约束的风险闸门：命中规则的目标更新与约束写入返回 400 且不落库，干净文案照常保存 |
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
@@ -114,7 +120,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |
 | `services/risk/conftest.py` | 辅助 | 风控测试夹具：真实 SQLite、从库里已存规则加载的检测引擎（播种的内置规则，可全开） |
-| `services/risk/test_builtin_rule_precision.py` | 模块 | 内置规则的精度：默认只启用安全凭证 8 条；日常聊天与引用凭据的代码不被默认规则拦下，清单里的每条凭据被拦下（清单是挑选的写法，不代表全部凭据）；省略号截短的示例、文档里的占位、`&k=` 与全角标点之后的内容、TypeScript 非空断言、引用或词作密码的连接串不算；环境变量前缀的键与以占位词开头的真实密码（含全大写写法）照样被拦；harness 表里每种厂商前缀形状都有样本且被拦下（表新增形状而没有样本时失败）；关键词按整词匹配；命中摘要只记位置 |
+| `services/risk/test_ingress.py` | 模块 | 统一过闸入口 `screen_user_text` 对真实 SQLite：命中时返回结果并写入只含位置的记录，干净 / 空 / `None` 放行，没有规则时放行，记录写入失败时文本仍被拦 |
+| `services/risk/test_builtin_rule_precision.py` | 模块 | 内置规则的精度：默认只启用安全凭证 8 条；日常聊天与引用凭据的代码不被默认规则拦下，清单里的每条凭据被拦下（清单是挑选的写法，不代表全部凭据）；省略号截短的示例、文档里的占位（含 `sk-YOUR_API_KEY` 这类带厂商前缀的）、密钥库指针（`env:` / `vault:`）、`&k=` 与全角标点之后的内容、TypeScript 非空断言、引用或词作密码的连接串不算；`session-1`、`Bearer test-token-123` 这类测试夹具与不带凭证的 `Cookie` 头（`theme=dark`、`_ga=…`）不被拦，`PHPSESSID`、`Set-Cookie: session=…`、`connect.sid`、Basic 与不透明 Bearer 令牌被拦；环境变量前缀的键与以占位词开头的真实密码（含全大写写法）照样被拦；harness 表里每种厂商前缀形状都有样本且被拦下（表新增形状而没有样本时失败）；关键词按整词匹配；命中摘要只记位置 |
 | `services/risk/test_risk_rules_api.py` | 模块 | 风险规则 HTTP API 对真实 SQLite：创建与读取的规则、命中列表都不带 `action`；仍带 `action` 的旧客户端请求（创建与批量导入）不被拒绝 |
 | `services/risk/test_risk_rules_engine.py` | 模块 | 内置个人信息规则与检测引擎对真实 SQLite：身份证校验位、示例邮箱、订单号里的手机号形状、关键词后的日期不算命中；40K 点号串在时间预算内完成；回溯型自定义规则在时间预算内按命中处理；过大的计数重复被拒并在加载时跳过；规则测试报告的是整段命中文本；播种刷新已存内置规则的 pattern 而不动用户所设 |
 | `integration/test_repo_call_graph_integration.py` | 模块 | 代码调用图谱与改动影响面分析集成任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |
@@ -296,6 +303,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_orchestrator_turn_launch_e1.py` | 模块 | E1 受理阶段：early buffered stream 形状（SSE/JSON）+ `_background_turn` 绑定 harness `session_lock` chat_id（快照以真实 chat_id 落盘的关键前置） |
 | `services/agent/stream_session/test_orchestrator_turn_body_e1.py` | 模块 | E1 turn setup：user message 先落库且与 history load 分离（新 chat 延迟到首个 assistant 输出）+ 真实 `_background_turn` 路径下 setup 期间 Stop 命中本回合、setup 失败后注销取消令牌 |
 | `services/agent/stream_session/test_orchestrator_launch_handoff.py` | 模块 | `run_agent_stream` 把已预占的回合交给 E1 启动器（lazy import 与参数接线）；启动器失败时预占仍被释放 |
+| `services/agent/stream_session/test_orchestrator_risk_gate_order.py` | 模块 | 流式回合的风险闸门先于上下文守卫的大文本溢出落盘：含密钥的超长粘贴只得到 `risk_blocked`（响应里没有原文、命中只记一次），上下文守卫从未被调用 |
 | `services/agent/params/test_routing_memory.py` | 模块 | Smart Routing 记忆：持久化 `routingTier` 历史按枚举分流（reasoning 双归属、未知值丢弃）· `load_retry_baseline` 把被重试回合记录的值映射为 complexity 档位（specialty 命中 / 未知 / 未记录为 None；无 chat 不查库；查库失败降级为 None 并告警）· HITL resume 沿用被中断回合的路由结果（模型/fallback/档位/原因；主模型变化、槽位不可解析、记忆缺失时退回重新路由；LRU 淘汰）· 槽位映射枚举全覆盖 · `complaint_floor` 重试下限（逐档爬升、跳过与上一答案同配置的档位、无更强档位时停在上一档、同模型不同 reasoning_effort / model_kwargs / temperature 算不同档位、密钥与上下文窗口不算） |
 | `services/agent/params/test_converter_routing_resume.py` | 模块 | converter 经真实 `convert_to_general_agent_params` 验证 resume 路由连续性（code specialty / reasoning 档位沿用、空 query 不重新路由、非 resume 回合不读写记忆）与历史动量接线（specialty 历史不再吞掉档位动量；代码回合后的短追问留在代码模型）；`test_converter_deep_research_routing.py` 验证深度研究回合丢弃 SIMPLE / STANDARD 判定（默认模型与 fallback 保持、不记档位与原因；同一问题在 agent 模式仍走轻模型，推理类问题仍升到 reasoning 槽位） |
 | `services/agent/params/test_converter_retry_ladder.py` | 模块 | converter 经真实路由验证重试（complaint-up）每次爬升都换一个不同模型：廉价主模型跳过与自身相同的 light 档、昂贵主模型首次重试仍从 light 升到主模型、无更强档位时不谎称升级（`retry_floor_held`）且不降档、同模型更高 reasoning_effort 算真实升级、非重试回合的动量与档位记录不受影响、被重试的回答未记档位（fast 模式 / 固定模型）时以主模型为基线而非更早的路由回合 |

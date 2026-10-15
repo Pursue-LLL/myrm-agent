@@ -15133,7 +15133,7 @@
           },
           "cookie_session_like": {
             "name": "工作階段 / 存取權杖",
-            "desc": "檢測帶有取值的工作階段 ID、存取或更新權杖和 Authorization 標頭"
+            "desc": "檢測帶有取值的工作階段 ID、工作階段 Cookie、存取或更新權杖和 Authorization 標頭"
           },
           "db_connection_string": {
             "name": "資料庫連線串",

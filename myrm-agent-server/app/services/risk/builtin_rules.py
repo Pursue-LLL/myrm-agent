@@ -148,12 +148,16 @@ def builtin_risk_rules() -> list[RuleSeed]:
         {
             "rule_id": "cookie_session_like",
             "display_name": "Session or access token",
-            "description": "Detect session IDs, access or refresh tokens, and authorization headers that carry a value.",
+            "description": "Detect session IDs, session cookies, access or refresh tokens, and authorization headers that carry a value.",
             "pattern": (
-                r"(?i)\b(?P<key>\w*sessionid|refresh_token|access_token|authorization)\b"
+                r"(?i)\b(?:(?P<key>\w*sess(?:ion)?id|refresh_token|access_token|authorization)\b"
                 + ASSIGNMENT_OPERATOR
                 + r"(?:(?:bearer|basic|token)\s+)?"
                 + ASSIGNED_VALUE
+                # A cookie header: ``value`` is the rest of the line, and ``match_checks`` picks out its credential cookies.
+                + r"|(?P<key>(?:set-)?cookie)\b"
+                + ASSIGNMENT_OPERATOR
+                + r"""(?P<value>[^\r\n"']+))"""
             ),
             "severity": RiskSeverity.HIGH,
             "category": RiskCategory.SECURITY,
