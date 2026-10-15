@@ -9,5 +9,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `status_mapper.py` | 核心 | MascotStateMapper、MascotStatus 枚举 | — |
-| `cleanup_service.py` | 辅助 | MascotLRUCacheCleanupService | — |
 | `__init__.py` | 入口 | 公开导出 | — |

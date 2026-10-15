@@ -5,10 +5,24 @@ import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { IconLoader } from '@/components/features/icons/PremiumIcons';
 import { apiRequest } from '@/lib/api';
-import { SEVERITY_COLORS, ACTION_COLORS, type RiskHit } from './risk-rules-types';
+import { SEVERITY_COLORS, type RiskHit } from './risk-rules-types';
+
+const POSITION_SUMMARY = /^chars:(\d+)-(\d+)$/;
 
 function RiskRulesHitsPanel() {
   const t = useTranslations('settings.securityPolicy.riskRules');
+
+  /** A hit records where the match lies (never the matched text) or that matching timed out. */
+  const describeHit = useCallback(
+    (summary: string) => {
+      const position = POSITION_SUMMARY.exec(summary);
+      if (position) {
+        return t('hitPosition', { start: Number(position[1]) + 1, end: Number(position[2]) });
+      }
+      return summary ? t('hitTimedOut') : '';
+    },
+    [t],
+  );
   const [hits, setHits] = useState<RiskHit[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -53,10 +67,7 @@ function RiskRulesHitsPanel() {
                     'severityLow' | 'severityMedium' | 'severityHigh',
                 )}
               </span>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${ACTION_COLORS[h.action] || ''}`}>
-                {t(`action${h.action.charAt(0).toUpperCase() + h.action.slice(1)}` as 'actionAllow' | 'actionBlock')}
-              </span>
-              <code className="text-muted-foreground truncate flex-1">{h.match_summary}</code>
+              <span className="text-muted-foreground truncate flex-1">{describeHit(h.match_summary)}</span>
               <span className="text-muted-foreground flex-shrink-0">
                 {h.created_at ? new Date(h.created_at).toLocaleString() : '-'}
               </span>

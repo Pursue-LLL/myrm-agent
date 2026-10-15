@@ -23,6 +23,7 @@ from myrm_agent_harness.agent.sub_agents.types import SubAgentResult
 
 from app.core.security.privacy_settings import privacy_agent_params
 from app.core.utils.chat_utils import convert_chat_history
+from app.services.chat.chat_helpers import WAKEUP_MESSAGE_ID_PREFIX
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
@@ -80,7 +81,7 @@ class ServerWakeupHandler:
                 content=system_notification,
                 sent_at=datetime.now(tz=timezone.utc),
                 sent_timezone="UTC",
-                message_id=f"wakeup_{result.task_id}",
+                message_id=f"{WAKEUP_MESSAGE_ID_PREFIX}{result.task_id}",
                 action_mode="general",
             )
 

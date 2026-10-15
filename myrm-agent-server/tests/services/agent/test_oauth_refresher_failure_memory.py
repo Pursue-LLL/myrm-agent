@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from app.services.agent import oauth_refresher
-from app.services.agent.oauth_refresher import refresh_oauth_token
+from app.services.agent.oauth_refresher import is_refresh_rejected, refresh_oauth_token
 from tests.support.jwt_tokens import make_jwt
 
 _ISSUER = "test_issuer"
@@ -164,6 +164,34 @@ class TestTransientFailure:
 
         assert post.await_count == 1
         merge.assert_not_awaited()
+
+
+class TestRejectionIsVisibleWithoutRefreshing:
+    @pytest.mark.asyncio
+    async def test_reports_only_the_rejected_refresh_token(self) -> None:
+        post = AsyncMock(return_value=_response(400, {"error": "invalid_grant"}))
+
+        assert is_refresh_rejected(_ISSUER, _expired("rt_dead")) is False
+
+        with _refresh_env(_expired("rt_dead"), post):
+            await refresh_oauth_token(_ISSUER)
+
+        assert is_refresh_rejected(_ISSUER, _expired("rt_dead")) is True
+        assert is_refresh_rejected(_ISSUER, _expired("rt_after_relogin")) is False
+        assert is_refresh_rejected("another_issuer", _expired("rt_dead")) is False
+        assert is_refresh_rejected(_ISSUER, {"token": "t"}) is False
+        assert post.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_a_tier_gate_is_not_reported_as_a_rejection(self) -> None:
+        gate = {"code": "forbidden", "error": "This account is not authorized for API access."}
+        post = AsyncMock(return_value=_response(403, gate))
+
+        with _refresh_env(_expired("rt_valid"), post) as (bus, _):
+            assert await refresh_oauth_token(_ISSUER) is None
+
+        assert is_refresh_rejected(_ISSUER, _expired("rt_valid")) is False
+        bus.publish.assert_not_called()
 
 
 class TestSuccessfulRefresh:

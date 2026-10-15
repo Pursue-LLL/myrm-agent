@@ -1,13 +1,14 @@
 """Skill growth lifecycle orchestration.
 
 [INPUT]
-- app.api.skills.config_version::bump_skill_config_version (POS: Skill config version bumper)
+- app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper)
 - app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
 - app.core.skills.providers.local::compute_local_skill_id (POS: Local skill ID computation)
 - app.core.skills.store.service::skills_service (POS: Skill store service)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
-- ..auto_extractor::auto_extract_or_patch_skill (POS: 技能物化辅助器)
+- ..auto_extractor::auto_extract_skill, render_skill_draft_markdown (POS: 技能物化辅助器)
 - ..draft_notification (POS: 技能成长记录持久化)
+- ..scan_risk_policy::assess_scan_risk (POS: 后台学习的高危新增复核策略)
 - myrm_agent_harness.backends.skills.similarity::SkillSimilarityChecker (POS: Skill similarity checking protocol)
 
 [OUTPUT]
@@ -33,12 +34,18 @@ from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.store.service import skills_service
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 
-from ..auto_extractor import auto_extract_or_patch_skill
+from ..auto_extractor import auto_extract_skill, render_skill_draft_markdown
 from ..draft_notification import (
+    REASON_APPLY_FAILED,
+    REASON_EVOLUTION_LOCKED,
+    REASON_RISK_PREFIX,
+    REASON_SCAN_FAILED,
+    REASON_SIMILAR_PREFIX,
     evaluate_growth_scan,
     notify_skill_draft_created,
     persist_skill_draft_record,
 )
+from ..scan_risk_policy import assess_scan_risk
 
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.similarity import SkillSimilarityChecker
@@ -56,19 +63,16 @@ def set_similarity_checker(checker: SkillSimilarityChecker | None) -> None:
     _similarity_checker = checker
 
 
-async def _check_semantic_duplicate(skill_name: str, description: str) -> str | None:
-    """Return a human-readable warning if a semantically similar skill already exists, else None."""
+async def _find_similar_skill_names(skill_name: str, description: str) -> list[str]:
+    """Names of existing skills semantically close to the draft; empty when none or the check is unavailable."""
     if _similarity_checker is None:
-        return None
+        return []
     try:
         similar = await _similarity_checker.find_similar(skill_name, description, top_k=3, threshold=SIMILARITY_THRESHOLD)
-        if not similar:
-            return None
-        names = ", ".join(f"'{s.name}' ({s.similarity_score:.0%})" for s in similar)
-        return f"Semantically similar skill(s) detected: {names}. Downgraded to manual review to prevent skill entropy."
     except Exception as e:
         logger.warning("Semantic dedup check failed (non-blocking): %s", e)
-        return None
+        return []
+    return [match.name for match in similar]
 
 
 async def _get_existing_local_skill(skill_name: str) -> object | None:
@@ -79,22 +83,6 @@ async def _get_existing_local_skill(skill_name: str) -> object | None:
 
     skill_id = compute_local_skill_id(skill_dir)
     return await skills_service.get_skill(skill_id)
-
-
-def _locked_description(skill_name: str, base_description: str) -> str:
-    message = (
-        f'Skill "{skill_name}" is locked against automatic evolution. Review the proposed change manually before applying it.'
-    )
-    if base_description.strip():
-        return f"{base_description.strip()}\n\n{message}"
-    return message
-
-
-def _materialization_failure_description(base_description: str, error: str | None) -> str:
-    failure = f"Auto-apply failed and has been downgraded to manual review: {error or 'unknown error'}"
-    if base_description.strip():
-        return f"{base_description.strip()}\n\n{failure}"
-    return failure
 
 
 async def process_skill_review_result(result: dict[str, object]) -> object | None:
@@ -135,8 +123,8 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
             await persist_skill_draft_record(
                 result,
                 status="BLOCKED_LOCKED",
-                description=_locked_description(skill_name, description),
                 dedupe_statuses=("BLOCKED_LOCKED",),
+                reason_code=REASON_EVOLUTION_LOCKED,
             ),
         )
 
@@ -148,38 +136,50 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
     if existing_skill is not None:
         return cast(object | None, await notify_skill_draft_created(result))
 
-    dedup_warning = await _check_semantic_duplicate(skill_name, description)
-    if dedup_warning:
-        logger.info("Skill draft '%s' flagged by semantic dedup: %s", skill_name, dedup_warning)
-        desc_with_warning = f"{description}\n\n⚠️ {dedup_warning}" if description.strip() else dedup_warning
+    similar_names = await _find_similar_skill_names(skill_name, description)
+    if similar_names:
+        logger.info("Skill draft '%s' flagged by semantic dedup: %s", skill_name, similar_names)
         return cast(
             object | None,
             await persist_skill_draft_record(
                 result,
                 status="PENDING_REVIEW",
-                description=desc_with_warning,
                 dedupe_statuses=("PENDING_REVIEW",),
+                reason_code=REASON_SIMILAR_PREFIX + ",".join(similar_names),
             ),
         )
 
-    scan_status, scan_description = await evaluate_growth_scan(
-        result,
-        skill_name=skill_name,
-        description=description,
-    )
+    scan_status, scan_summary = await evaluate_growth_scan(result, skill_name=skill_name)
     if scan_status != "PENDING_REVIEW":
         return cast(
             object | None,
             await persist_skill_draft_record(
                 result,
                 status=scan_status,
-                description=scan_description,
                 dedupe_statuses=("FAILED_SCAN",),
+                reason_code=REASON_SCAN_FAILED,
+                security_scan_summary=scan_summary,
+            ),
+        )
+
+    # CRITICAL is a hard stop above; HIGH-level behavior (outbound uploads, privilege changes,
+    # persistence) is allowed in a skill but must be seen by the user before it runs unattended.
+    risk = await assess_scan_risk(skill_name, render_skill_draft_markdown(result))
+    if risk.requires_review:
+        logger.info("Skill draft '%s' held for review by the scan risk policy: %s", skill_name, risk.signals)
+        return cast(
+            object | None,
+            await persist_skill_draft_record(
+                result,
+                status="PENDING_REVIEW",
+                dedupe_statuses=("PENDING_REVIEW",),
+                reason_code=REASON_RISK_PREFIX + ",".join(risk.signals),
+                security_scan_summary=risk.scan_summary,
             ),
         )
 
     eval_cases = result.get("eval_cases")
-    materialized = await auto_extract_or_patch_skill(
+    materialized = await auto_extract_skill(
         result,
         eval_cases=eval_cases if isinstance(eval_cases, list) else None,
     )
@@ -189,8 +189,9 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
             await persist_skill_draft_record(
                 result,
                 status="PENDING_REVIEW",
-                description=_materialization_failure_description(scan_description, materialized.error),
                 dedupe_statuses=("PENDING_REVIEW",),
+                reason_code=REASON_APPLY_FAILED,
+                apply_error=materialized.error or "unknown error",
             ),
         )
 
@@ -200,7 +201,7 @@ async def process_skill_review_result(result: dict[str, object]) -> object | Non
         await persist_skill_draft_record(
             result,
             status="AUTO_APPLIED",
-            description=materialized.description or scan_description,
+            description=materialized.description,
             reviewed_at=datetime.now(timezone.utc),
             dedupe_statuses=(),
         ),

@@ -268,6 +268,42 @@ async def test_clean_proposal_allows_auto_approve_path() -> None:
     # but the risk_signals gate should not block it
 
 
+_SKILL_BODY = "1. Open the weekly report.\n2. Summarize the findings in three bullets.\n3. Reply with the summary.\n" * 4
+_SUDO_STEP = "4. Install the helper: sudo apt-get install -y ripgrep\n"
+
+
+@pytest.mark.asyncio
+async def test_a_proposal_that_adds_a_high_risk_line_is_held_despite_a_high_score() -> None:
+    proposal = _make_proposal(
+        skill_id="test_skill_adds_sudo",
+        original=_SKILL_BODY,
+        proposed=_SKILL_BODY + _SUDO_STEP,
+        score=0.95,
+        is_general=True,
+    )
+
+    result = await ConfidenceApprovalFlow(auto_approve_threshold=0.8).process_evolution(proposal)
+
+    assert not result.approved
+    assert result.requires_manual_review
+    assert "new_high_finding:privilege_escalation" in result.risk_signals
+
+
+@pytest.mark.asyncio
+async def test_a_risk_the_skill_already_had_is_not_a_new_signal() -> None:
+    original = _SKILL_BODY + _SUDO_STEP
+    proposal = _make_proposal(original=original, proposed=original.replace("three bullets", "two bullets"))
+
+    assert await ConfidenceApprovalFlow._scan_risk_signals(proposal, "test_skill") == []
+
+
+@pytest.mark.asyncio
+async def test_a_captured_proposal_is_scanned_as_a_brand_new_skill() -> None:
+    proposal = _make_proposal(original="", proposed=_SKILL_BODY + _SUDO_STEP, evolution_type=EvolutionType.CAPTURED)
+
+    assert await ConfidenceApprovalFlow._scan_risk_signals(proposal, "test_skill") == ["new_high_finding:privilege_escalation"]
+
+
 @pytest.mark.asyncio
 async def test_approval_result_has_risk_signals_field() -> None:
     """ApprovalResult always includes risk_signals field."""
@@ -282,7 +318,8 @@ async def test_approval_result_has_risk_signals_field() -> None:
 
 @pytest.mark.asyncio
 async def test_test_passed_records_the_security_scan_outcome() -> None:
-    """test_passed is True when a security scan ran and passed, None when no scan ran."""
+    """test_passed is True for a clean scan, False when the scan reported findings, None when no scan ran."""
+    from myrm_agent_harness.backends.skills.types import SecurityScanSummary
     from sqlalchemy import select
 
     from app.database.connection import get_session
@@ -300,26 +337,23 @@ async def test_test_passed_records_the_security_scan_outcome() -> None:
                     return record, review
         raise AssertionError(f"No evolution review for skill_id={skill_id}")
 
-    unscanned_proposal = _make_proposal(skill_id="test_skill_unscanned", score=0.9, is_general=False)
+    clean = SecurityScanSummary(score=100, trust_recommendation="trusted").to_dict()
+    with_findings = SecurityScanSummary(
+        score=60, trust_recommendation="untrusted", finding_counts={"high": 1}, total_findings=1
+    ).to_dict()
+    cases: list[tuple[str, dict[str, object] | None, bool | None]] = [
+        ("test_skill_unscanned", None, None),
+        ("test_skill_scan_clean", clean, True),
+        ("test_skill_scan_findings", with_findings, False),
+    ]
+
     flow = ConfidenceApprovalFlow()
-    await flow.process_evolution(unscanned_proposal)
-
-    record, review = await _review_for_skill("test_skill_unscanned")
-    assert review.test_passed is None
-    async with get_session() as db:
-        await db.delete(record)
-        await db.commit()
-
-    scanned_proposal = _make_proposal(
-        skill_id="test_skill_scanned",
-        score=0.1,
-        is_general=False,
-        security_scan_summary={"trust_recommendation": "install", "finding_count": 0},
-    )
-    await flow.process_evolution(scanned_proposal)
-
-    record, review = await _review_for_skill("test_skill_scanned")
-    assert review.test_passed is True
-    async with get_session() as db:
-        await db.delete(record)
-        await db.commit()
+    for skill_id, summary, expected in cases:
+        await flow.process_evolution(
+            _make_proposal(skill_id=skill_id, score=0.1, is_general=False, security_scan_summary=summary)
+        )
+        record, review = await _review_for_skill(skill_id)
+        assert review.test_passed is expected, skill_id
+        async with get_session() as db:
+            await db.delete(record)
+            await db.commit()

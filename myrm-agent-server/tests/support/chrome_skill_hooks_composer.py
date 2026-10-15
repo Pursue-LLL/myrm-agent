@@ -35,7 +35,11 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat
-from tests.support.chrome_skill_hooks_observe import backend_log_offset, backend_log_since, wait_user_message_persisted
+from tests.support.chrome_skill_hooks_observe import (
+    backend_log_offset,
+    backend_log_since,
+    wait_user_message_persisted,
+)
 
 # A busy host can take a while to store the picked file; the pill stops spinning once the upload answered.
 _ATTACHMENT_UPLOAD_TIMEOUT_SEC = 150.0
@@ -66,10 +70,22 @@ _ATTACH_CHAT_PROBE = """(() => {{
       window.__MYRM_E2E_ATTACHING__ = false;
     }});
   }}
-  return {{ ready: false, chatId: store?.chatId ?? null, err: !bridge ? 'no-bridge' : null }};
+  return {{
+    ready: false, chatId: store?.chatId ?? null, err: !bridge ? 'no-bridge' : null,
+    loaded: Boolean(store?.isMessagesLoaded), notFound: Boolean(store?.notFound),
+    loadError: Boolean(store?.loadError), loading: Boolean(store?.loading),
+    attaching: Boolean(window.__MYRM_E2E_ATTACHING__),
+  }};
 }})()"""
 
-_COMPOSER_READY_JS = """(() => ({ ready: !!document.querySelector('[data-chat-input]') }))()"""
+# The server renders the textarea before React owns it: text typed into that markup is wiped when hydration applies
+# the controlled value and never reaches the store. React marks a node it has attached to with ``__reactProps$...``.
+_HYDRATED_INPUT_JS = "Object.keys(el).some((key) => key.startsWith('__reactProps$'))"
+
+_COMPOSER_READY_JS = f"""(() => {{
+  const el = document.querySelector('[data-chat-input]');
+  return {{ ready: Boolean(el) && {_HYDRATED_INPUT_JS}, hasInput: Boolean(el) }};
+}})()"""
 
 # Adopted local skills live in the user's skill catalog (the agent's own skill list stays empty), so the
 # slash palette needs the catalog fetched, exactly like opening the skill picker does.
@@ -78,18 +94,19 @@ _PREFETCH_SKILL_CATALOG_JS = """(async () => {
   return { ok: true };
 })()"""
 
-_TYPE_JS = """((text) => {
+_TYPE_JS = f"""((text) => {{
   const el = document.querySelector('[data-chat-input]');
-  if (!el) return { ok: false, err: 'input-not-found' };
+  if (!el) return {{ ok: false, err: 'input-not-found' }};
+  const hydrated = {_HYDRATED_INPUT_JS};
   el.focus();
   // React-controlled textarea: native value setter + input event, as a real keystroke would.
   const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
   setter.call(el, text);
   el.setSelectionRange(el.value.length, el.value.length);
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-  el.dispatchEvent(new Event('change', { bubbles: true }));
-  return { ok: true, value: el.value };
-})"""
+  el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+  el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+  return {{ ok: true, value: el.value, hydrated, timeOrigin: performance.timeOrigin }};
+}})"""
 
 # One poll step = "chip present? done : click the palette entry if it is on screen right now". The palette
 # list re-renders while the skill catalog refreshes, so finding the entry and clicking it in two separate
@@ -139,6 +156,24 @@ _USE_AGENT_MODE_JS = """(() => {
   return { ok: true };
 })()"""
 
+# Every change of the composer text in the chat store, with the call stack of whoever emptied it: a composer that
+# is typed into and then found empty was cleared by the page, and the stack says by which code.
+_TRACE_INPUT_JS = """(() => {
+  const store = window.__myrmChatStore;
+  if (!store) return { ok: false, err: 'no-store' };
+  if (window.__MYRM_INPUT_CHANGES__) return { ok: true };
+  const changes = (window.__MYRM_INPUT_CHANGES__ = []);
+  store.subscribe((state, previous) => {
+    if (state.inputMessage === previous.inputMessage) return;
+    const entry = { at: Math.round(performance.now()), length: (state.inputMessage ?? '').length, chatId: state.chatId ?? null };
+    if (!state.inputMessage) {
+      entry.stack = String(new Error().stack).split('\\n').slice(2, 10).map((line) => line.trim().slice(0, 150));
+    }
+    changes.push(entry);
+  });
+  return { ok: true };
+})()"""
+
 # A typed URL makes the composer ask whether to attach it with an @ mention; "No" keeps it as plain text.
 _DISMISS_LINK_PROMPT_JS = """(() => {
   const checkbox = document.querySelector('#dontRemindAgain');
@@ -169,11 +204,20 @@ _CLICK_SEND_JS = """(() => {
     const original = window.fetch;
     window.fetch = async (...args) => {
       const target = args[0];
-      const record = { url: String(target?.url ?? target).slice(-140), method: String(args[1]?.method ?? target?.method ?? 'GET') };
+      const record = {
+        url: String(target?.url ?? target).slice(-140),
+        method: String(args[1]?.method ?? target?.method ?? 'GET'),
+        at: Math.round(performance.now()),
+      };
       trace.push(record);
       try {
         const response = await original.apply(window, args);
         record.status = response.status;
+        record.ms = Math.round(performance.now()) - record.at;
+        if (/agents\\/suggestions/.test(record.url)) {
+          // Whether the lite model filed any question decides if a chip can appear at all.
+          response.clone().text().then((text) => { record.body = text.slice(0, 300); }).catch(() => {});
+        }
         if (/agent-stream/.test(record.url) && response.body) {
           // The first chunk of a stream says whether it was accepted or answered with a terminal error envelope.
           response.clone().body.getReader().read()
@@ -183,12 +227,13 @@ _CLICK_SEND_JS = """(() => {
         return response;
       } catch (error) {
         record.error = String(error).slice(0, 160);
+        record.ms = Math.round(performance.now()) - record.at;
         throw error;
       }
     };
     const consoleError = console.error;
     console.error = (...logged) => {
-      trace.push({ console: logged.map((part) => String(part)).join(' ').slice(0, 200) });
+      trace.push({ console: logged.map((part) => String(part)).join(' ').slice(0, 200), at: Math.round(performance.now()) });
       consoleError.apply(console, logged);
     };
     window.addEventListener('unhandledrejection', (event) => trace.push({ rejection: String(event.reason).slice(0, 200) }));
@@ -206,6 +251,11 @@ _SEND_DIAGNOSTICS_JS = """(() => {
     .map((el) => (el.textContent || '').trim().slice(0, 160))
     .slice(0, 4);
   return {
+    // A changed timeOrigin means the document reloaded after the composer was typed into.
+    timeOrigin: performance.timeOrigin,
+    hasBridge: Boolean(window.__MYRM_E2E_CHAT__),
+    domInput: document.querySelector('[data-chat-input]')?.value ?? null,
+    storeInput: window.__MYRM_E2E_CHAT__?.getInputMessage?.() ?? null,
     apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
     runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
     directSse: Boolean(window.__MYRM_E2E_DIRECT_SSE__),
@@ -216,7 +266,11 @@ _SEND_DIAGNOSTICS_JS = """(() => {
     notices,
     approvalQueueLen: window.__MYRM_E2E_CHAT__?.toolApprovalSnapshot?.().queueLen ?? null,
     sseTail: (window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? []).slice(-40),
-    requests: (window.__MYRM_SEND_TRACE__ ?? []).slice(-25),
+    // Without the pollers, the send's own requests are still in the tail after a minute of waiting.
+    requests: (window.__MYRM_SEND_TRACE__ ?? [])
+      .filter((entry) => !entry.url || !/health\\/liveness|_rsc=|browser\\/spaces|dev-ports|loop\\/status|cron\\/push-messages|\\/tasks\\?/.test(entry.url))
+      .slice(-40),
+    composerChanges: (window.__MYRM_INPUT_CHANGES__ ?? []).slice(-12),
   };
 })()"""
 
@@ -240,12 +294,15 @@ def drive_chat_turn(
     invoke_skill: bool = True,
     attachment: TextAttachment | None = None,
     spilled: bool = False,
+    before_send: Callable[[ChromeMcpClient, McpPage], None] | None = None,
     while_open: Callable[[ChromeMcpClient, McpPage], None] | None = None,
 ) -> str:
     """Act like a user: slash-pick the skill chip, attach a file, type the request, press send; returns the wire.
 
     ``invoke_skill=False`` sends a plain message (a follow-up turn that does not invoke the skill).
     ``spilled`` for a request over the Context Guard's cap: the server stores a file reference behind the tag.
+    ``before_send`` runs once the chat is attached and the composer is ready, for example to wait until the
+    agent's own configuration (its tools) has reached the page: a message sent earlier runs on the defaults.
     ``while_open`` runs after sending, with the page still open (approval cards live there).
     """
     chat_id, skill_name = probe.chat_id, probe.skill_name
@@ -264,6 +321,8 @@ def drive_chat_turn(
         )
         assert attached.get("ready") is True, attached
         wait_for_state(client, page, _COMPOSER_READY_JS, timeout_sec=120.0)
+        if before_send is not None:
+            before_send(client, page)
         prefetched = client.evaluate(page, _PREFETCH_SKILL_CATALOG_JS, timeout_sec=60.0)
         assert isinstance(prefetched, dict) and prefetched.get("ok") is True, prefetched
 
@@ -283,7 +342,10 @@ def drive_chat_turn(
             assert isinstance(attached_file, dict) and attached_file.get("ok") is True, attached_file
             try:
                 wait_for_state(
-                    client, page, _call(_ATTACHMENT_READY_JS, attachment.name), timeout_sec=_ATTACHMENT_UPLOAD_TIMEOUT_SEC
+                    client,
+                    page,
+                    _call(_ATTACHMENT_READY_JS, attachment.name),
+                    timeout_sec=_ATTACHMENT_UPLOAD_TIMEOUT_SEC,
                 )
             except AssertionError as failure:
                 pytest.fail(
@@ -293,11 +355,15 @@ def drive_chat_turn(
 
         # Type the request and press the real send button: the composer, not a test shortcut, builds the wire.
         client.evaluate(page, _USE_AGENT_MODE_JS, timeout_sec=15.0)
+        client.evaluate(page, _TRACE_INPUT_JS, timeout_sec=15.0)
         typed = client.evaluate(page, _call(_TYPE_JS, user_text), timeout_sec=15.0)
         assert isinstance(typed, dict) and typed.get("ok") is True, typed
         if "://" in user_text:
             wait_for_state(client, page, _DISMISS_LINK_PROMPT_JS, timeout_sec=15.0)
-        ready = wait_for_state(client, page, _call(_SEND_READY_JS, user_text), timeout_sec=30.0)
+        try:
+            ready = wait_for_state(client, page, _call(_SEND_READY_JS, user_text), timeout_sec=30.0)
+        except AssertionError as failure:
+            pytest.fail(f"{failure}\ncomposer was typed into: {typed}\n{describe_page(client, page)}")
         wire = str(ready.get("wire", ""))
         if invoke_skill:
             assert wire.startswith(f"[use {skill_name}]"), ready
@@ -309,7 +375,13 @@ def drive_chat_turn(
         if len(wire) > 400:
             print(f"E2E_WIRE_MESSAGE_LENGTH: {len(wire)} chars", flush=True)
         try:
-            wait_user_message_persisted(chat_id, get_e2e_api_url(), wire, exact=attachment is None, spilled=spilled)
+            wait_user_message_persisted(
+                chat_id,
+                get_e2e_api_url(),
+                wire,
+                exact=attachment is None,
+                spilled=spilled,
+            )
         except pytest.fail.Exception as failure:
             pytest.fail(f"{failure}\n{describe_page(client, page)}")
         if while_open is not None:

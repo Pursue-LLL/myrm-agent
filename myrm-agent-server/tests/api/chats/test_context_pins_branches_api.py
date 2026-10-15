@@ -47,9 +47,9 @@ async def test_context_pins_roundtrip(
     tmp_path: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import myrm_agent_harness.runtime.context.session.session_context_pins as pins_module
+    from myrm_agent_harness.runtime.paths import execution_paths
 
-    monkeypatch.setattr(pins_module, "PERSISTENT_ROOT", str(tmp_path))
+    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(tmp_path / ".context"))
 
     chat_id = f"test-pins-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)
@@ -73,9 +73,9 @@ async def test_context_branches_append_and_list(
     tmp_path: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import myrm_agent_harness.runtime.context.context_branches as branches_module
+    from myrm_agent_harness.runtime.paths import execution_paths
 
-    monkeypatch.setattr(branches_module, "PERSISTENT_ROOT", str(tmp_path))
+    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(tmp_path / ".context"))
 
     chat_id = f"test-branches-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)

@@ -1888,7 +1888,12 @@
       "copyFailed": "Copy failed. Check clipboard permissions.",
       "readBlocked": "Clipboard access was denied. Change this in settings.",
       "readRefused": "Clipboard access denied",
-      "readFailed": "Failed to read the clipboard. Check permissions."
+      "readFailed": "Failed to read the clipboard. Check permissions.",
+      "readPermissionTitle": "Clipboard access request",
+      "readPermissionPrompt": "This app wants to read your clipboard. Allow it?",
+      "readPermissionRemember": "You will not be asked again once you allow it.",
+      "readPermissionAllow": "Allow",
+      "readPermissionDeny": "Deny"
     }
   },
   "chat": {
@@ -4762,9 +4767,9 @@
       },
       "runtimeTitle": "Runtime",
       "deployMode": "Deploy mode",
-      "storageMode": "Storage",
       "vectorStatus": "Vector index",
       "vectorPersistence": "Vector persistence",
+      "vectorPersistenceHint": "Memory is running in temporary mode. Make sure no other Myrm window or process is using the same data folder and that the folder is writable, then restart.",
       "embeddingStatus": "Embedding",
       "controlPlaneStatus": "Control plane",
       "eventLedgerStatus": "Event ledger",
@@ -5400,6 +5405,9 @@
         "files": "files",
         "noCommits": "No recent commit history detected",
         "gitUnavailable": "No Git repository detected in workspace"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "Delete conclusion \"{id}\"?"
       }
     },
     "createDialog": {
@@ -7877,17 +7885,21 @@
     "taskDeleted": "Task deleted",
     "addError": "Failed to add task",
     "moveError": "Failed to move task",
+    "moveBlocked": "This task cannot be moved to that status",
     "promoteSuccess": "Task promoted to Ready",
     "promoteError": "Failed to promote task",
     "promoteUnmetDeps": "Unmet dependencies — force promote?",
     "promoteForce": "Force Promote",
     "deleteError": "Failed to delete task",
+    "archiveConfirmTitle": "Archive this task?",
+    "archiveConfirmDesc": "\"{title}\"\nThe task leaves the board and cannot be restored.",
     "bulkSelected": "{count} selected",
     "bulkArchive": "Archive",
     "bulkMove": "Move to",
     "bulkReassign": "Reassign",
     "bulkDelete": "Delete",
     "bulkDeleteConfirm": "Delete {count} tasks?",
+    "bulkArchiveConfirm": "Archive {count} tasks?",
     "bulkSuccess": "{count} tasks updated",
     "bulkPartialSuccess": "{succeeded} succeeded, {failed} failed",
     "bulkClearSelection": "Clear selection",
@@ -7905,6 +7917,11 @@
     "reclaimReassignLabel": "Reassign to agent (optional)",
     "reclaimSuccess": "Task reclaimed successfully",
     "reclaimFailed": "Failed to reclaim task",
+    "retryAction": "Retry",
+    "retryTitle": "Retry this task?",
+    "retryDesc": "The task returns to Ready and runs again. Earlier attempts stay in its history and the agent can see them. Tasks that already moved on after its failure are not re-run. Another run uses model quota.",
+    "retrySuccess": "Task queued to run again",
+    "retryError": "Failed to retry task",
     "replanTitle": "DAG Plan Revision Review",
     "replanDescription": "Review proposed modifications to the task graph. All changes will be validated for acyclicity and applied atomically.",
     "replanAdded": "Tasks to Add",
@@ -9765,18 +9782,17 @@
     "newSkillDraft": "A new skill growth case is ready: {name}",
     "reviewDraft": "Open review",
     "messageDeadLettered": "Message delivery to {channel} failed permanently. Reason: {reason}",
-    "skillGrowthAutoApplied": "\"{name}\" was auto-applied",
     "skillGrowthFailedScan": "\"{name}\" failed the pre-flight security scan",
     "skillGrowthBlockedLocked": "\"{name}\" is protected by evolution lock and requires manual review",
     "openSkillGrowth": "Open Skill Growth",
     "skillEvolvedNew": "Agent learned a new skill: {name}",
     "skillEvolvedPatch": "Agent improved a skill: {name}",
-    "skillCapacityReached": "Skill library is full ({max} skills)",
-    "skillCapacityReachedHint": "The agent has paused learning new skills. Archive or delete skills you no longer use to resume.",
-    "manageSkills": "Manage skills",
     "undoEvolve": "Undo",
     "rollbackSuccess": "Successfully rolled back: {name}",
     "rollbackFailed": "Rollback failed, please try again",
+    "skillGrowthUndone": "Archived \"{name}\". Restore it anytime from the skill list.",
+    "skillGrowthUndoBlocked": "\"{name}\" is pinned or in use by an agent or scheduled task, so it can't be archived. Unpin or unbind it first.",
+    "skillGrowthUndoFailed": "Couldn't archive \"{name}\". Please try again.",
     "forcePushReceived": "Agent profile updated by organization",
     "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
     "subagentRebindRequired": "Subagent bindings changed. Start a new chat to use updated delegation tools.",
@@ -11816,15 +11832,24 @@
   },
   "Catchup": {
     "inboxTitle": "Catchup Inbox",
-    "loading": "Loading...",
+    "openInbox": "Catchup inbox, {count} waiting",
+    "close": "Close",
     "allCaughtUp": "You are all caught up!",
+    "untitledChat": "Untitled conversation",
     "statusCompleted": "Completed",
     "statusWaiting": "Waiting for Approval",
     "statusError": "Error",
     "statusRunning": "Running in Background",
+    "statusStopped": "Stopped",
     "youAsked": "You asked:",
+    "latestReply": "Latest reply",
+    "needsApproval": "Waiting for your approval to continue.",
+    "needsError": "Stopped because of an error.",
+    "needsQuestion": "Asked you a question.",
     "filesChanged": "Files Changed",
+    "moreFiles": "+{count} more",
     "toolsUsed": "Tools Used",
+    "toolCalls": "{count, plural, one {# tool call} other {# tool calls}}",
     "markAsRead": "Dismiss",
     "viewChat": "View Chat"
   },
@@ -15212,7 +15237,7 @@
         "refresh": "Refresh",
         "loading": "Loading system health…",
         "loadFailed": "Failed to load system health",
-        "meta": "Deploy: {deploy} · Storage: {storage} · Bundle: {bundle}",
+        "meta": "Deploy: {deploy} · Bundle: {bundle}",
         "warnings": "Warnings",
         "migrationPending": "Layout migration pending",
         "migrationCount": "{count} action(s) required",
@@ -15242,8 +15267,7 @@
         "scenes": {
           "memory": "Memory",
           "workspace": "Workspace",
-          "offload": "Offload",
-          "archive": "Archive"
+          "offload": "Offload"
         }
       },
       "telemetry": {
@@ -15342,7 +15366,18 @@
         "rightsExporting": "Preparing export…",
         "rightsExportSuccess": "Compliance export downloaded",
         "rightsExportFailed": "Export failed — try again from Memory settings",
-        "rightsManageMemory": "Manage memory & deletion"
+        "rightsManageMemory": "Manage memory & deletion",
+        "eraseTitle": "Clear all conversations",
+        "eraseDesc": "Deletes every conversation and the files they produced. Saved memories, agents, API keys and channel settings are kept; Pending Memories and Recent Memory Activity are cleared. Export your data first if you want a copy.",
+        "eraseButton": "Clear conversations",
+        "eraseConfirmTitle": "Clear all conversations?",
+        "eraseConfirmDesc": "This permanently deletes every conversation and the files they produced, and clears Pending Memories and Recent Memory Activity. It cannot be undone.\nSaved memories, agents, API keys and channel settings are not affected. Workspaces with unsaved changes are kept.",
+        "eraseConfirmAction": "Clear conversations",
+        "erasing": "Clearing…",
+        "eraseSuccess": "{count, plural, one {Cleared # conversation} other {Cleared # conversations}}",
+        "eraseKept": "{count, plural, one {# workspace with unsaved changes was kept in your project folder} other {# workspaces with unsaved changes were kept in your project folder}}",
+        "eraseBusy": "A conversation is still running. Stop it or wait for it to finish, then try again.",
+        "eraseFailed": "Could not finish clearing conversations. Try again."
       },
       "profile": {
         "title": "Security Profile",
@@ -15669,14 +15704,11 @@
         "displayName": "Display Name",
         "pattern": "Regex Pattern",
         "severity": "Severity",
-        "action": "Action",
         "category": "Category",
         "sortOrder": "Sort Order",
         "severityLow": "Low",
         "severityMedium": "Medium",
         "severityHigh": "High",
-        "actionAllow": "Allow",
-        "actionBlock": "Block",
         "categoryPersonal": "Personal Info",
         "categoryCompany": "Company Internal",
         "categorySecurity": "Security Credentials",
@@ -15711,10 +15743,12 @@
         "hits": "Audit Log",
         "hitsTitle": "Risk Hit Records",
         "hitsEmpty": "No risk hits recorded",
+        "hitPosition": "Characters {start}–{end}",
+        "hitTimedOut": "Matching timed out; treated as a hit",
+        "blockedTitle": "Message blocked by risk rules",
+        "blockedDescription": "Matched: {rules}. To let it through, turn the rule off in Settings → Security Policy → Risk Rules.",
         "hitsRuleName": "Rule",
         "hitsSeverity": "Severity",
-        "hitsAction": "Action",
-        "hitsMatch": "Match Content",
         "hitsTime": "Time",
         "hitsUser": "User",
         "hitsTotal": "{count} records total",
@@ -15727,6 +15761,8 @@
         "importSuccess": "Successfully imported {count} rules",
         "importError": "Import failed, please check file format",
         "duplicateRule": "Duplicate rule",
+        "duplicatedName": "{name} (copy)",
+        "actionError": "That did not work. Try again.",
         "rules": {
           "email_address": {
             "name": "Email address",
@@ -15773,12 +15809,12 @@
             "desc": "Detect JWT-like bearer tokens."
           },
           "cookie_session_like": {
-            "name": "Cookie / session secret",
-            "desc": "Detect session, cookie, and authorization wording."
+            "name": "Session / access token",
+            "desc": "Detect session IDs, access or refresh tokens, and authorization headers that carry a value."
           },
           "db_connection_string": {
             "name": "Database connection string",
-            "desc": "Detect connection strings for databases, caches, and queues."
+            "desc": "Detect connection strings for databases, caches, and queues that embed a password."
           },
           "kubeconfig_content": {
             "name": "Kubeconfig content",
@@ -15786,7 +15822,7 @@
           },
           "env_file_secret": {
             "name": "Environment secret variable",
-            "desc": "Detect common secret variable names in env-style content."
+            "desc": "Detect secret variables such as SECRET_KEY that are set to a value in env-style content."
           },
           "private_ip": {
             "name": "Private network address",
@@ -18179,6 +18215,66 @@
         "forceEnableFailed": "Force enable failed",
         "securityReviewNote": "Security review: {recommendation}"
       },
+      "scanRisk": {
+        "severity": {
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low",
+          "info": "Info"
+        },
+        "threat": {
+          "prompt_injection": "Prompt injection",
+          "command_injection": "Command injection",
+          "credential_exposure": "Credential exposure",
+          "data_exfiltration": "Data exfiltration",
+          "filesystem_access": "File system access",
+          "process_operation": "Process control",
+          "network_access": "Network access",
+          "screen_input": "Screen and input control",
+          "memory_config_snooping": "Agent memory or config snooping",
+          "code_injection": "Code injection",
+          "privilege_escalation": "Privilege escalation",
+          "environment_manipulation": "Environment tampering",
+          "reflection": "Dynamic code reflection",
+          "deserialization": "Unsafe deserialization",
+          "log_audit_tampering": "Log or audit tampering",
+          "scheduled_task_injection": "Scheduled task injection",
+          "container_escape": "Container escape",
+          "memory_manipulation": "Low-level memory access",
+          "dns_tunneling": "DNS tunneling",
+          "supply_chain": "Supply chain risk",
+          "obfuscation": "Obfuscated content",
+          "destructive": "Destructive action",
+          "persistence": "Persistence mechanism",
+          "path_traversal": "Path traversal",
+          "crypto_mining": "Crypto mining",
+          "reverse_shell": "Reverse shell",
+          "prompt_secret_exfiltration": "Prompt or secret leakage",
+          "invisible_unicode": "Hidden characters",
+          "dangerous_import": "Dangerous module import",
+          "ast_parse_error": "Unparseable code",
+          "llm_audit": "AI audit finding",
+          "invalid_manifest": "Invalid package manifest",
+          "integrity": "Package integrity",
+          "missing_artifact": "Missing package file",
+          "empty_artifact": "Empty package file",
+          "unknown": "Other risk"
+        },
+        "signal": {
+          "newHighFinding": "New high-risk behavior: {threat}",
+          "scanUnavailable": "Security check could not run",
+          "diffRange": "Large rewrite ({percent} changed)",
+          "lowEffectiveRate": "Low past success rate ({rate} over {runs} runs)",
+          "unknown": "Needs review"
+        },
+        "remediation": {
+          "newHighFinding": "This change adds high-risk behavior. Check the flagged lines before approving.",
+          "scanUnavailable": "The security check could not run. Review the change carefully before approving.",
+          "diffRange": "Much of the content changed. Compare the changes to make sure nothing important was lost.",
+          "lowEffectiveRate": "This skill often fails in practice. Check that the change really fixes the problem."
+        }
+      },
       "growth": {
         "title": "Skill Growth",
         "description": "Review pending learnings, auto-applied captures, and blocked changes in one unified queue.",
@@ -18227,8 +18323,6 @@
           "memoryExtraction": "Memory Extraction"
         },
         "confidence": "Confidence {value}%",
-        "scanPassed": "Security scan passed",
-        "scanFailed": "Security scan failed",
         "verifiedBadge": "Verified",
         "hollowBlockedBadge": "Hollow Test Blocked",
         "targetLayer": "Layer: {layer}",
@@ -18255,6 +18349,18 @@
         "reviseFailedScan": "\"{name}\" revised but failed security scan. Please fix the flagged issues.",
         "riskInterceptionTitle": "Risk Interception",
         "applyFailureTitle": "Apply Failure",
+        "applyFailureBody": "It couldn't be applied automatically. Check the technical details, then try approving again.",
+        "heldReason": {
+          "title": "Why it needs your review",
+          "similar": "It looks similar to skills you already have: {names}. Approve it only if it adds something new.",
+          "evolutionLocked": "The skill it would change is protected from automatic updates, so it waits for your decision.",
+          "scanFailed": "It didn't pass the automatic safety check. Review the findings above before deciding."
+        },
+        "technical": {
+          "toggle": "Technical details",
+          "findings": "Scanner findings",
+          "advice": "Suggested action"
+        },
         "rejectReasonLabel": "Reason for rejection",
         "rejectReasonPlaceholder": "Describe what should change before this growth case can be applied.",
         "triggerCondition": "Trigger Condition",
@@ -18266,13 +18372,19 @@
           "title": "Runtime Failure Evidence",
           "tool": "Tool: {value}",
           "count": "Failures: {value}",
-          "confidence": "Attribution {value}%",
-          "loopKind": "Loop: {value}"
+          "confidence": "Attribution {value}%"
         },
         "securityScan": {
           "title": "Skill Security Static Inspection Details ({count} findings)",
           "score": "Score: {score}/100",
-          "line": "Line: {line}"
+          "line": "Line: {line}",
+          "badgeTitle": "Security score {score}/100",
+          "risk": {
+            "trusted": "Low risk",
+            "installed": "Moderate risk",
+            "untrusted": "High risk",
+            "reject": "Blocked"
+          }
         },
         "empty": {
           "title": "No cases in this view",

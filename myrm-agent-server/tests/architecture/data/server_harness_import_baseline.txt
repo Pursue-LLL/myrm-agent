@@ -45,7 +45,6 @@ myrm_agent_harness.agent.dynamic_workflow.template_store
 myrm_agent_harness.agent.dynamic_workflow.template_validation
 myrm_agent_harness.agent.errors
 myrm_agent_harness.agent.event_log
-myrm_agent_harness.agent.event_log.analytics_queries
 myrm_agent_harness.agent.event_log.backends.file_backend
 myrm_agent_harness.agent.event_log.dataset_export
 myrm_agent_harness.agent.event_log.dataset_export.protocols
@@ -119,7 +118,6 @@ myrm_agent_harness.agent.security.guards.taint_tracker
 myrm_agent_harness.agent.security.guards.untrusted_ingress_fence
 myrm_agent_harness.agent.security.jit_gate
 myrm_agent_harness.agent.security.jit_gate.models
-myrm_agent_harness.agent.security.lease
 myrm_agent_harness.agent.security.message_filtering
 myrm_agent_harness.agent.security.path_security
 myrm_agent_harness.agent.security.policy_generator
@@ -140,14 +138,12 @@ myrm_agent_harness.agent.skill_agent.skill_reference
 myrm_agent_harness.agent.skills.curator
 myrm_agent_harness.agent.skills.curator.consolidation
 myrm_agent_harness.agent.skills.evolution
-myrm_agent_harness.agent.skills.evolution.core.engine
 myrm_agent_harness.agent.skills.evolution.core.types
 myrm_agent_harness.agent.skills.evolution.db.store
 myrm_agent_harness.agent.skills.evolution.execution.sandbox_validator
 myrm_agent_harness.agent.skills.evolution.infra.integration
 myrm_agent_harness.agent.skills.evolution.infra.queue
 myrm_agent_harness.agent.skills.evolution.pipeline.frustration_detector
-myrm_agent_harness.agent.skills.evolution.pipeline.patch
 myrm_agent_harness.agent.skills.evolution.pipeline.screener
 myrm_agent_harness.agent.skills.market.autoupdate
 myrm_agent_harness.agent.skills.market.helpers
@@ -171,7 +167,6 @@ myrm_agent_harness.agent.skills.runtime.catalog_display
 myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate
 myrm_agent_harness.agent.skills.security.content_sanitizer
 myrm_agent_harness.agent.skills.sync.idle_integration
-myrm_agent_harness.agent.streaming.broadcast.catchup
 myrm_agent_harness.agent.streaming.citation_audit
 myrm_agent_harness.agent.streaming.rules.types
 myrm_agent_harness.agent.streaming.run_digest
@@ -198,10 +193,6 @@ myrm_agent_harness.api.config
 myrm_agent_harness.api.hooks
 myrm_agent_harness.api.security
 myrm_agent_harness.api.skills
-myrm_agent_harness.backends.commerce.exceptions
-myrm_agent_harness.backends.commerce.gates
-myrm_agent_harness.backends.commerce.protocols
-myrm_agent_harness.backends.commerce.types
 myrm_agent_harness.backends.profiles.types
 myrm_agent_harness.backends.skills
 myrm_agent_harness.backends.skills.config_version
@@ -240,7 +231,11 @@ myrm_agent_harness.core.events.types
 myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
 myrm_agent_harness.core.security.credential_vault
+myrm_agent_harness.core.security.detection.card_context
+myrm_agent_harness.core.security.detection.custom_rules
 myrm_agent_harness.core.security.detection.leak_detector
+myrm_agent_harness.core.security.detection.pii_patterns
+myrm_agent_harness.core.security.detection.secret_value
 myrm_agent_harness.core.security.guards.ssrf
 myrm_agent_harness.core.security.http.secure_fetch
 myrm_agent_harness.core.security.inbound_quarantine
@@ -258,7 +253,6 @@ myrm_agent_harness.infra.health
 myrm_agent_harness.infra.health.health_checker
 myrm_agent_harness.infra.incremental.types
 myrm_agent_harness.infra.pubsub.event_bus
-myrm_agent_harness.infra.security
 myrm_agent_harness.infra.sqlite_backup
 myrm_agent_harness.infra.sqlite_salvage
 myrm_agent_harness.infra.tls_compat
@@ -315,7 +309,6 @@ myrm_agent_harness.toolkits.browser
 myrm_agent_harness.toolkits.browser.action_capture
 myrm_agent_harness.toolkits.browser.captcha
 myrm_agent_harness.toolkits.browser.captcha.protocols
-myrm_agent_harness.toolkits.browser.checkpoint
 myrm_agent_harness.toolkits.browser.doctor
 myrm_agent_harness.toolkits.browser.doctor.orphans
 myrm_agent_harness.toolkits.browser.domain_skills
@@ -389,6 +382,7 @@ myrm_agent_harness.toolkits.kanban.diagnostics
 myrm_agent_harness.toolkits.kanban.dispatcher
 myrm_agent_harness.toolkits.kanban.kanban_agent_tools
 myrm_agent_harness.toolkits.kanban.protocols
+myrm_agent_harness.toolkits.kanban.retry
 myrm_agent_harness.toolkits.kanban.types
 myrm_agent_harness.toolkits.llms
 myrm_agent_harness.toolkits.llms.consensus.moa_overlay_types
@@ -501,9 +495,7 @@ myrm_agent_harness.toolkits.retriever.embedding.factory
 myrm_agent_harness.toolkits.retriever.reranker.factory
 myrm_agent_harness.toolkits.retriever.sufficiency
 myrm_agent_harness.toolkits.storage.base
-myrm_agent_harness.toolkits.storage.cached
 myrm_agent_harness.toolkits.storage.factory
-myrm_agent_harness.toolkits.storage.local
 myrm_agent_harness.toolkits.storage.paths
 myrm_agent_harness.toolkits.storage.types
 myrm_agent_harness.toolkits.tasks

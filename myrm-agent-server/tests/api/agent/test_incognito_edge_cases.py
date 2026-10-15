@@ -3,7 +3,7 @@
 Tests the complete behavior matrix without external LLM dependencies:
 - enable_memory=True + incognito=True → no memory tools / no auto extraction
 - enable_memory=False + incognito=True → no memory at all
-- session_cleanup_callback disabled in incognito
+- session_cleanup_callback and background skill review disabled in incognito
 - system prompt stays decoupled and cache-stable in all modes
 """
 
@@ -107,6 +107,26 @@ class TestIncognitoSessionCleanup:
 
         result = _build_session_cleanup_callback(agent_wrapper, "user-1")
         assert result is None
+
+
+class TestIncognitoSkillReview:
+    """Background skill review writes skills and approval records, so incognito must not wire it."""
+
+    def test_review_callback_is_none_when_incognito(self) -> None:
+        from app.ai_agents.general_agent.factory import _build_skill_review_callback
+
+        agent_wrapper = MagicMock()
+        agent_wrapper.incognito_mode = True
+
+        assert _build_skill_review_callback(agent_wrapper) is None
+
+    def test_review_callback_is_wired_outside_incognito(self) -> None:
+        from app.ai_agents.general_agent.factory import _build_skill_review_callback
+
+        agent_wrapper = MagicMock()
+        agent_wrapper.incognito_mode = False
+
+        assert callable(_build_skill_review_callback(agent_wrapper))
 
 
 class TestReadOnlyMemoryViewSubagentIsolation:

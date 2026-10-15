@@ -53,7 +53,6 @@ class SkillGrowthCaseSummaryRead:
     summary: str
     description: str | None
     confidence: float | None
-    test_passed: bool | None
     apply_status: str | None
     apply_error: str | None
     reason_code: str | None
@@ -88,7 +87,6 @@ class SkillGrowthCaseDetailRead:
     original_content: str | None
     proposed_content: str | None
     confidence: float | None
-    test_passed: bool | None
     apply_status: str | None
     apply_error: str | None
     reason_code: str | None

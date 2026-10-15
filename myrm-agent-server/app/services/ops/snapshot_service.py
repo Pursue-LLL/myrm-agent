@@ -334,18 +334,10 @@ class OpsAggregatedSnapshotService:
 
     @classmethod
     async def _collect_memory_info(cls) -> OpsMemoryInfo:
-        storage_mode = "sqlite"
         health_status: Literal["healthy", "degraded", "critical", "unknown"] = "unknown"
         event_count = 0
         failed_event_count = 0
         queue_backlog = 0
-
-        try:
-            from app.config.deploy_mode import get_storage_mode
-
-            storage_mode = get_storage_mode().value
-        except Exception:
-            pass
 
         try:
             from myrm_agent_harness.toolkits.memory import MemoryOperationStatus
@@ -374,7 +366,6 @@ class OpsAggregatedSnapshotService:
 
         return OpsMemoryInfo(
             health_status=health_status,
-            storage_mode=storage_mode,
             event_count=event_count,
             failed_event_count=failed_event_count,
             queue_backlog=queue_backlog,
@@ -482,7 +473,6 @@ class OpsAggregatedSnapshotService:
     def _fallback_memory_info(cls) -> OpsMemoryInfo:
         return OpsMemoryInfo(
             health_status="unknown",
-            storage_mode="sqlite",
             event_count=0,
             failed_event_count=0,
             queue_backlog=0,

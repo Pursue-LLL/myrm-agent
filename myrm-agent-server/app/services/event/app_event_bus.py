@@ -36,7 +36,6 @@ class AppEventType(StrEnum):
     NEW_SKILL_DRAFT = "new_skill_draft"
     SKILL_GROWTH_UPDATED = "skill_growth_updated"
     SKILL_EVOLVED = "skill_evolved"
-    SKILL_CAPACITY_REACHED = "skill_capacity_reached"
     SYSTEM_NOTIFICATION = "system_notification"
     IDLE_STATUS = "idle_status"
     APPROVAL_REQUIRED = "approval_required"
@@ -73,7 +72,6 @@ class AppEventType(StrEnum):
     SUBAGENT_MERGED = "subagent_merged"
     SANDBOX_PERSIST_TRIGGERED = "sandbox_persist_triggered"
     SANDBOX_PERSIST_COMPLETED = "sandbox_persist_completed"
-    REVOCATION_BROADCAST = "revocation_broadcast"
 
 
 @dataclass(frozen=True, slots=True)

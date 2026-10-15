@@ -105,6 +105,7 @@ def _select_and_batch(
     assert clicked.get("clicked") is True, clicked
 
 
+# exclusive_backend reason: configured_retrieval_embedding mutates global /api/v1/config/retrieval and batch actions operate on the instance-wide /api/v1/memory/pending queue.
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",

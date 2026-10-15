@@ -195,6 +195,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         is_incognito: bool = False,
         active_moa_preset_id: str | None = None,
         persist_moa_preset: bool = False,
+        mark_read: bool = False,
     ) -> MessageDTO:
         # Guard against incoming context bomb by transparently spilling over massive user text
         final_content = content
@@ -291,6 +292,8 @@ class _ChatMessageMixin(_ChatServiceBase):
             if chat and chat.first_message:  # already had first message
                 last_updates.pop("first_message")
                 last_updates.pop("title")
+            if mark_read:  # a person typed this message, so they are present in the chat right now
+                last_updates["last_read_at"] = datetime.utcnow()
             await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, last_updates)
             sess = uow.session
             assert sess is not None

@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * ./types::StreamHandlerState, StreamHandlerActions (POS: Stream state contracts)
+ * None (self-contained timers; chat state is reached only through the injected `actions`)
  *
  * [OUTPUT]
  * createStreamWatchdog, StreamWatchdog, StreamWatchdogOptions (POS: Client-side completion watchdog)
@@ -10,32 +10,23 @@
  * Monitors SSE response silence and reader EOF to guarantee UI state self-healing
  * whenever backend or gateway drops terminal events (e.g. Codex/custom LLM gateway
  * dropping `turn_end` / `message_end` after usage chunk).
+ *
+ * It restores UI state only. Follow-up suggestions are not requested here: a silence or usage heal can fire while
+ * the answer is still streaming, so only the terminal `message_end` knows the answer is complete.
  */
 
-/** Minimal message shape the watchdog inspects; callers keep their concrete message type via the generic. */
-export interface WatchdogMessage {
-  role?: string;
-  content?: string;
-}
-
-export interface StreamWatchdogOptions<TMessage extends WatchdogMessage = WatchdogMessage> {
+export interface StreamWatchdogOptions {
   /** Silence threshold before triggering completion watchdog (default: 3500ms). */
   silenceTimeoutMs?: number;
   /** Grace period after receiving usage event before triggering completion watchdog (default: 1500ms). */
   usageGraceMs?: number;
   /** Optional telemetry or diagnostic callback when auto-healing fires. */
   onHeal?: (reason: string) => void;
-  /** State getter function. */
-  getState: () => {
-    loading?: boolean;
-    messages?: TMessage[];
-  };
   /** Actions for mutating chat state. */
   actions: {
     setLoading: (loading: boolean) => void;
     clearActiveStream?: () => void;
     setMessageAppeared?: (appeared: boolean) => void;
-    _processSuggestions?: (message: TMessage) => void | Promise<void>;
     scheduleAutoSave?: () => void;
   };
 }
@@ -53,9 +44,7 @@ export interface StreamWatchdog {
 const DEFAULT_SILENCE_TIMEOUT_MS = 3500;
 const DEFAULT_USAGE_GRACE_MS = 1500;
 
-export function createStreamWatchdog<TMessage extends WatchdogMessage = WatchdogMessage>(
-  options: StreamWatchdogOptions<TMessage>,
-): StreamWatchdog {
+export function createStreamWatchdog(options: StreamWatchdogOptions): StreamWatchdog {
   const silenceTimeoutMs = options.silenceTimeoutMs ?? DEFAULT_SILENCE_TIMEOUT_MS;
   const usageGraceMs = options.usageGraceMs ?? DEFAULT_USAGE_GRACE_MS;
 
@@ -90,14 +79,6 @@ export function createStreamWatchdog<TMessage extends WatchdogMessage = Watchdog
       options.actions.clearActiveStream?.();
       options.actions.setMessageAppeared?.(true);
 
-      const state = options.getState();
-      const msgs = state.messages;
-      if (Array.isArray(msgs) && msgs.length > 0) {
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg) {
-          options.actions._processSuggestions?.(lastMsg);
-        }
-      }
       options.actions.scheduleAutoSave?.();
       options.onHeal?.(reason);
     } catch (err) {

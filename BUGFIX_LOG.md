@@ -1787,7 +1787,7 @@ except Exception:
 | 严重程度 | P2（键盘与触屏用户够不到卡片动作；非中文用户在 11 个组件里看到未翻译或中英混排的界面；不影响数据） |
 | 影响范围 | 前端 `scripts/`（`run-lint-gates.ts`、`reveal-contract-scan.ts`、`ratchet-baseline.ts`、`check-a11y-ratchet.mjs`、`check-hardcoded-copy.mjs`、`source-files.mjs`）、`lib/utils/a11y.ts`、`kanban`、`memory/cards`、11 个组件及 6 个 `locales/*.json` |
 | 出现次数 | 1 |
-| 关联 | 提交 `d3dad2bd6`、`00647c949`、`e80ea3ed3`、`48695d574`、`658566e7b`、`f3b7ef162`、`dd8a64b12`，本地提交，未 push；接续条目 006 的「局限」 |
+| 关联 | 提交 `d3dad2bd6`、`00647c949`、`e80ea3ed3`、`48695d574`、`658566e7b`、`f3b7ef162`、`dd8a64b12`，后续批次 `65874ad322`、`53aa05eada`、`3af4e8f772`、`43b82f2614`、`7a64855249`、`ac36e37f94`，本地提交，未 push；接续条目 006 的「局限」 |
 
 ### 现象
 
@@ -1833,6 +1833,50 @@ except Exception:
 4. 翻译壳检测会拦下与英文完全相同的值：de 的 `Subagent`、`Live`、`Tools ({count})`、`Commits ({count})` 都得换成真正的德语写法或项目里已有的写法；
 5. 局限：新增的 de / ja / ko / zh-TW 译文只经过机器门禁，没有母语者审校；真实聊天页与 Kanban 页没有端到端点过（后端 :8000 未启动）；鼠标 + 触屏并存的混合设备没有覆盖；`SubagentDetailDrawer.tsx` 591 行（改前 574）、`MaskedCredentialInputCard.tsx` 463 行，未拆分；`LoopStatusBar` 的时长缩写 `m` / `s` 与服务端给的 `current_delay_human` 仍是英文；`RiskConfirmationCard` 发给后端的审批理由是英文审计串，保持不变；干净 HEAD 上 `verify:i18n` 本来就是红的（ja / ko / de / zh-TW 各缺 92 个 en 键、17 个孤儿键、de 的 `settings.browserDoctor.statusOptional` 是翻译壳），`verify:orphans` 同样为红，均不是本次引入；扫描器的覆盖面限制见条目 006，存量只是继续下降（当前 3408 处 / 358 个文件），没有清零。
 
+
+### 补充：同一天的第二批（ICU 门禁、toast 门禁、Kanban 确认、MCP 文案）
+
+上面「局限」里「扫描器只覆盖 JSX 字面量、toast 不在门禁里」对 toast 不再成立（B 的门禁已覆盖）；「Kanban 页没有端到端点过」仍然成立，见下面的验证。
+
+**现象**
+
+7. `locales/*.json` 有 17 条文案不是合法 ICU（`{{secret:KEY}}`、裸 `<token>` 等）：开发构建抛 `INVALID_MESSAGE`，生产构建带插值参数时把键路径显示给用户；没有任何门禁检查 ICU 语法（A，`65874ad322`）；
+8. 约 150 处 toast 写死中文或英文，分布在 store、hooks、services 与组件里（B，`53aa05eada`）；`t('key') || '兜底'` 的兜底永远不会执行：next-intl 对缺失或解析失败的键返回带命名空间的键路径，不返回空值；
+9. Kanban 卡片菜单与拖拽浮层里「删除」「回收」一次点击就执行（C，`43b82f2614`）：删除连同运行记录与事件一并清除，并把依赖它、其余依赖都已满足的 backlog 任务提升为就绪（`app/services/kanban/task_ops.py:230-251`，级联见 `app/database/models/kanban.py`）；回收会停掉执行中的 Agent 并重置为就绪（`move_orchestrator.py:291-321`）；
+10. 共享的 `ConfirmDialog` 在受控且没有 trigger 时，关闭后焦点落到 `<body>`，键盘用户回到页面顶部（C）；
+11. MCP 扫描发出的 `dangerous_env_injection` 在 `settings.mcpThreat` / `mcpThreatRec` 里没有文案；`localizedOrFallback` 用「返回值等于键」判断有没有译文，而 next-intl 返回的是 `settings.mcpThreat.x`，永远不相等，用户看到键路径而不是服务端原文（G，`7a64855249`）；
+12. zh-TW 有 7 条把「歷史」写成「曆史」（D，`ac36e37f94`）。
+
+**根因**
+
+1. ICU 语法与 toast 文案都没有门禁，而 toast 弹在事件处理里，tsc 与单测都看不到；
+2. `|| '兜底'` 依赖「缺键返回空值」这个不成立的假设；`localizedOrFallback` 的判断同出一源；
+3. 删除 / 回收的入口直接调用执行函数，中间没有确认层；
+4. Radix 受控 `AlertDialog` 没有 trigger 时，关闭没有可还焦点的元素。
+
+**修复**
+
+1. A：`check-icu-syntax.mjs` + `icu-syntax-scan.ts`（用 `@formatjs/icu-messageformat-parser` 解析每条文案，零容忍）进入 `LINT_GATES`，并修掉 17 条非法文案；
+2. B：toast 文案迁入 locales（新增 69 个键 × 6 语言）：组件用 `useTranslations`，store / 工具函数用 `showI18nToast` / `translateI18nKey`；`3af4e8f772` 加 `toast-copy-scan.ts` 并入 `check-hardcoded-copy.mjs`——`.ts` / `.tsx` 里的 toast 写死文案零容忍、没有基线，`verify-i18n-references.mjs` 同时校验 `translateI18nKey` 的键；
+3. C：看板视图持有一个 `ConfirmDialog`（`KanbanTaskActionConfirm.tsx`），卡片菜单只发起请求；文案交代后果；`kanban.reclaimConfirm` 实为菜单标签，改名 `reclaimAction`；共享 `ConfirmDialog` 在打开时记下焦点元素（焦点在菜单项上时改记菜单的触发按钮），关闭后还焦点，已有的 force-promote 与 drop-confirm 对话框一并受益；
+4. G：`localizedOrFallback` 改用 `t.has(key)`，补 `dangerous_env_injection` 的描述与建议 × 6 语言；
+5. D：zh-TW 7 处「曆史」改「歷史」。
+
+**验证**
+
+1. A、B、C、G 与门禁提交各在干净导出上跑过 `bun run lint`、相关 vitest、全量 `tsc --noEmit`（只剩 `clipNotifyPayload.test.ts` 的导出产物）；B、C、G 与门禁提交另跑了 `check_fractal_docs`，B、G 与门禁提交另跑了 `verify-i18n-references`（均通过）；测试规模：B 618 个测试文件 / 4445 例，C 83 / 694，G 139 / 1103，门禁 12 个脚本测试文件 / 122 例；D 只改 zh-TW 文案，只跑了 `verify:i18n`，输出与 HEAD 逐字一致（G 同样一致）；
+2. 变异检查：向干净导出注入 `{{count}}`，ICU 门禁退出码 1 并报 `MALFORMED_ARGUMENT`；注入硬编码 toast、`t() || 'x'`、`err.message || '…'`、模板字符串四种写法，toast 门禁全部失败并列出行号，错误的 `translateI18nKey` 键被引用校验报出；G 的「无译文时显示服务端原文」用例在旧比较下失败；撤销 `ConfirmDialog` 的焦点修复后，C 的焦点用例失败；
+3. toast 门禁扫描 2432 个源码文件（不含测试与 `.d.ts`），两组各 3 次实测：2.8–5.0 秒、3.5–6.0 秒（后一组测量时机器负载约 50）；
+4. C 的组件测试用真实 Radix 与真实 next-intl（6 语言文案），25 例；**Kanban 页没有在真实浏览器里验证**：共享 :3000 与我单独起的 :3300 两个开发服务器上，无头 Chromium 都停在设置页骨架，页面反复重新导航，从未渲染到看板；源码里有 `GlobalErrorBoundary` 等自动 `location.reload()` 的路径，当时机器负载 60 以上、分块请求长时间挂起，但没有确认是哪条路径触发的，也没有确证是负载所致。375px 宽的德语长文案是否折行、两套主题下对话框配色，因此没有看过实际渲染。
+
+**局限**
+
+1. 门禁盲区：先赋给变量再传入 toast 的文案、经其它封装函数转发的 toast；
+2. 存量：工作区非测试源码里 `t('…') || '字面量'` 形态仍有 315 处 / 65 个文件（`rg --pcre2 "\bt\(\s*['\"][^)]*\)\s*\|\|\s*['\"]" src` 去掉测试文件）；toast 里的已由门禁清零，其余位置没有处理；18 个文件用了 next-intl 会忽略的 `defaultMessage`；9 个文件用 `isZh ?` 三元；`clipboardUtils.ts` 的 `ask()` / `window.confirm` 文案与 `api.ts:644` 的 `console.warn('重试失败:')` 仍是中文字面量；
+3. HEAD 上 `verify:hardcoded-copy` 为红，原因不是这批改动：他人提交的组件（workspace-boundary、visual-diff 审批卡等）顶破 JSX 棘轮基线，已提交的 `TimeTravelRollbackModal.tsx` 仍有 10 处 toast 字面量（其作者的工作区版本已迁移、尚未提交）；`verify:i18n` 在 HEAD 上本来就是红的（各语言缺键 / 孤儿键）；
+4. 新增的 de / ja / ko / zh-TW 译文只经过机器门禁，没有母语者审校；
+5. 删除仍是永久删除，没有回收站；`KanbanBoardView.tsx` 已 981 行（超过 500 行上限，本批只加了确认接线的 +19 / -4 行，未拆分）。
+
 ---
 
 ## BUG-AGENT-2026-10-14-012: 技能演进审批卡上的「变更预测与归因」永远自证为真；「测试通过」其实是质量分大于 0；回归闸门把原版就过不了的断言算成每个候选的固定扣分；沙盒校验给无可执行内容的技能盖「已验证」
@@ -1844,12 +1888,12 @@ except Exception:
 | 严重程度 | P2（审批人据以放行的几个数字不是测出来的：预测归因恒为「已证实」、扫描 / 测试徽章与实际检查不符、自动合并的「大改动」信号漏掉同长度重写；没有数据损坏） |
 | 影响范围 | harness `agent/skills/evolution/core/`（`change_manifest`、`eval_regression`、`proposal_builder`、`types`）、`agent/skills/evolution/execution/sandbox_validator.py`、`eval/`（`manifest_prediction`、`metric_contract`、`leakage_guard`）、`api/__init__.py`、`install_guard/_generated/core_ip_manifest.py`；服务端 `app/api/skills/{evolution/pending,growth}.py`、`app/services/skills/{evolution_review,growth}/`、`app/services/agent/{confidence_approval_flow,evolution/skill_immune_service}.py`、`app/services/skills/draft_notification.py`、`app/database/{models/skill,migrations}.py`；前端 `growth/`、`skills/SkillGrowthCaseCard`、`PendingEvolutionsDashboard`、`SkillHistoryPanel`、`services/skill/growth.ts`、六种语言文案；根仓库优势材料 |
 | 出现次数 | 1 |
-| 关联 | `BUG-AGENT-2026-10-14-009`（009 的「保留不动」里的变更清单 `build_change_manifest` 这次核实后一并删除，审批卡的 `testPassed` / `verificationProof` 改为只陈述真实发生过的检查）；提交 harness `645607acb1`、服务端 `d2a7e27b3f`、前端 `c82ad4528e`，本地提交，未 push |
+| 关联 | `BUG-AGENT-2026-10-14-009`（009 的「保留不动」里的变更清单 `build_change_manifest` 这次核实后一并删除，审批卡的 `testPassed` / `verificationProof` 改为只陈述真实发生过的检查）；提交 harness `645607acb1`、服务端 `d2a7e27b3f`、前端 `c82ad4528e`；扫描结论的后续修正为服务端 `f294b28648`、前端 `7fc37377fe`；均为本地提交，未 push |
 
 ### 现象
 
 1. 提案卡的「变更清单预测」段把预测通过率与「实测」通过率并排展示，并给出 CONFIRMED / REFUTED / REGRESSION 归因。「实测」是同一个静态断言函数在同一段文本上再跑一遍，与预测同源，删掉一个必需步骤的重写也被判为已证实；指标守卫读取 `predicted_value` 键，而清单从来不写这个键，这条链永远为空；
-2. `test_passed` 在自动流里取 `proposal.score > 0`，卡片上显示为「测试通过」，但演进流程里没有任何测试执行；运行期免疫闸门拦下的记录（没有跑过任何扫描）被标成 `FAILED_SCAN`，语言文案写「Failed Scan / 扫描失败」；人工修订路径里扫描器抛异常时被按「通过」记录；
+2. `test_passed` 在自动流里取 `proposal.score > 0`，卡片上显示为「测试通过」，但演进流程里没有任何测试执行；运行期免疫闸门拦下的记录（没有跑过任何扫描）被标成 `FAILED_SCAN`，语言文案写「Failed Scan / 扫描失败」；人工修订路径里扫描器抛异常时被按「通过」记录；卡片上另有读取扫描摘要的安全徽章，它以 `TRUSTED` / `UNTRUSTED` 这类内部枚举的大写原文显示，提示文字是写死的英文；
 3. 回归闸门对每个断言都做全局扣分：原版就过不了的断言（例如对 Markdown SOP 写的 Python AST 断言）让所有候选都被扣同一个常数；候选丢掉全部用例时的硬过滤，在少于七个用例时被扣分算术挡住而不可达；
 4. `SandboxValidator` 对纯提示词或只有 bash 的技能返回 `is_verified=True`；ZIP 导入闸门把只有示例代码、没有断言的代码块判为 `Hollow Test Rejected`；
 5. 自动合并的「大改动」信号只比较长度：同长度的整段重写差值为 0，不触发；
@@ -1866,7 +1910,7 @@ except Exception:
 ### 修复
 
 1. W1 + W2（删除）：harness 删除 `change_manifest`、`eval.manifest_prediction`、`eval.metric_contract`、`evaluate_pareto_generalization` 及其导出与 `core_ip_manifest` 条目，`ProposalBuilder` 不再生成清单；服务端删除清单归因路由与重建、载荷 / 查询 / 卡片类型里的清单与归因字段、`proxy_guard` 一整条代理对齐链；前端删除 `ManifestPredictionsPanel`、卡片里的预测段与对应服务类型；历史审批记录里残留的旧键由 pydantic 默认的 `extra=ignore` 忽略（有加载测试）；
-2. W3 真实性：`test_passed` 的含义收窄为「安全扫描的结果」——自动流里有 `security_scan_summary` 才为 `True`，否则为 `None`；人工修订路径取扫描器结果，扫描器抛异常为 `None`；运行期免疫记录、AST 失败的零分提案都是 `None`。`test_passed` 的类型在 API 与前端同步为可空，卡片只在非空时显示扫描徽章，修订提示只把 `=== false` 当成扫描未通过；`FAILED_SCAN` 的六种语言文案改为中性的「检查未通过 / Check Failed」；沙盒校验在没有实际检查时返回无证明，提示词类技能不再盖「已验证」，只有带断言的代码块才可能被判空洞，导入闸门语义不变；删除 `pending_evolutions` 模型，在 `MIGRATION_STATEMENTS` 末尾追加 `DROP TABLE IF EXISTS pending_evolutions`；
+2. W3 真实性：`test_passed` 的含义收窄为「该内容的安全扫描没有发现问题」——自动流里取扫描摘要的 `total_findings == 0`（扫描只拒绝 critical，到审核的提案仍可带 high / medium 发现，摘要存在不等于干净），没有摘要为 `None`；人工修订路径取 `is_clean`，扫描器抛异常为 `None`，并把 `security_scan_summary` 刷新为修订后内容的扫描结果（扫描器不可用则清空，不再保留修订前内容的摘要）；运行期免疫记录、AST 失败的零分提案都是 `None`。卡片不再单设「扫描通过 / 未通过」徽章：扫描结论只由读取摘要的安全徽章表达，该徽章改用「低风险 / 中等风险 / 高风险 / 已拦截」措辞与本地化提示（六种语言），成长案例接口与前端摘要类型不再携带 `test_passed`；修订提示只把 `=== false` 当成扫描未通过；`FAILED_SCAN` 的六种语言文案改为中性的「检查未通过 / Check Failed」；沙盒校验在没有实际检查时返回无证明，提示词类技能不再盖「已验证」，只有带断言的代码块才可能被判空洞，导入闸门语义不变；删除 `pending_evolutions` 模型，在 `MIGRATION_STATEMENTS` 末尾追加 `DROP TABLE IF EXISTS pending_evolutions`；
 3. W4：回归闸门只守住原版通过的用例，扣分按「丢失的受守用例数」计算（每个 0.15、上限 1.0），候选丢光全部受守用例才硬过滤；原版就过不了的断言不再产生扣分；
 4. W5：`confidence_approval_flow` 的大改动信号改为按字符 3-gram 多重集比较的「改动占比」（线性时间），同长度的整段重写占比接近 100%，会触发，整段追加仍会触发，阈值仍是 50%；顺手去掉对 dataclass 字段的 `getattr`；
 5. 文档：两处 `_ARCH`、`ARCHITECTURE`、`SKILLS_SYSTEM`、前端 `_ARCH` 与根仓库优势材料里关于清单预测、帕累托、归因的说法改成代码事实。
@@ -1875,9 +1919,9 @@ except Exception:
 
 1. harness（提交 `645607acb1`）：`tests/agent/skills/evolution` 与 `tests/eval` 共 712 通过；回归闸门新增基线相对用例，沙盒校验新增「无证明」与「空洞判定」用例；
 2. 服务端：`tests/api/evolution`、`tests/api/skills`（不含他人的 `test_curator.py`）、`tests/services/skills`、`test_skill_immune_service`、新增的 `test_pending_evolutions_table_retired`（升级库与全新库各一例）共 381 通过、1 跳过；`ruff check` / `ruff format --check` / `pyright` 对 22 个改动文件 0 告警；
-3. 前端：技能 / 成长 / 服务相关 31 个测试文件 203 例通过（新增 `SkillGrowthCaseCard.scanOutcome.test.tsx`：`testPassed` 为 `null` 时无扫描徽章）；`oxlint` 对改动文件无告警；`verify-i18n` 六种语言通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；
+3. 前端：技能 / 成长 / 服务相关 31 个测试文件 206 例通过（新增 `SkillGrowthCaseCard.securityIndicator.test.tsx`：四个信任等级都显示风险措辞与本地化提示、不出现大写枚举原文，未知等级只显示分数，无摘要不显示徽章，被拦截状态的标签不含 scan 字样）；`oxlint` 对改动文件无告警；`verify-i18n` 六种语言通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；
 4. 改动占比的度量对比：`difflib.SequenceMatcher` 在 2000 行半空行文本上（`autojunk=False`）超过 8 秒，在 2 万行互不相同的文本上（`autojunk=True`）仍超过 8 秒；3-gram 多重集比较在同样的 2000 行输入上 7 毫秒、2 万行（53 万字符）输入上 129 毫秒（本机单次实测）；
-5. 已提交内容的干净导出（`git archive HEAD`，补上未入库的 `.env.test`、`locales/namespaces`、`shared/config`、`e2e_core`）：服务端 `tests/api/evolution`、`test_growth_api`、`test_draft_notification`、`tests/services/skills`、`test_skill_immune_service` 与表退役测试共 200 通过；前端 `SkillGrowthCaseCard*`、`growth/`、`services/skill` 12 个测试文件 104 例通过，`oxlint` 无告警；导出里 `verify-i18n` 仍是红的，是 HEAD 上本来就有的「各语言缺 92 个 en 键、17 个孤儿键」，输出里没有出现本次涉及的任何键；
+5. 已提交内容的干净导出（`git archive HEAD`，补上未入库的 `.env.test`、`e2e_core`、`shared/config`）：服务端 `tests/api/evolution`、`tests/api/skills`、`tests/services/skills`、`tests/database` 共 512 通过、1 跳过（含 `test_curator.py`，在干净导出里全部通过）；前端技能 / 成长 / 服务相关 28 个测试文件 191 例通过；导出里 `verify-i18n` 仍是红的，是 HEAD 上本来就有的「ja / ko / de / zh-TW 各缺 92 个 en 键、17 个孤儿键」，在本次提交之前的 `7a64855249` 上同样如此，输出里没有出现本次涉及的任何键；
 6. `server_harness_import_baseline.txt` 里 `manifest_prediction` 与 `eval_regression` 两条已不再被服务端导入，随之删除，`test_baseline_matches_current_imports` 的「基线多出」一侧清空（该测试剩余的差异全是他人新增的 harness 模块导入）。
 
 ### 踩坑经验
@@ -1886,6 +1930,842 @@ except Exception:
 2. 字段名叫 `test_passed`，含义却早已变成别的东西，比删字段更危险：下游的徽章、提示、导出都在按原名解释它；这次保留字段名（避免一次牵动 API 与历史记录），只收窄语义并让「没检查过」可以表达为 `None`；
 3. 度量改动幅度时，序列对齐类算法在重复文本上会退化到不可用，且对没有空白的中文与单行描述没有意义；字符 n-gram 多重集线性、对两类文本都稳定；
 4. 一次删除要沿「入口 → 计算 → 落库 → 展示」走完：删掉 `evolution.core.eval_regression` 的服务端导入后，架构基线里对应的行同时变成过期项；
-5. 局限：没有取得浏览器级别的视觉检查（卡片去掉预测段后的布局、可空徽章在深浅主题下的显示）；`DROP TABLE` 只覆盖升级库与全新库的两个夹具，没有在桌面包里实测；`tests/architecture` 仍有他人未提交改动造成的失败（路由消费者、API 服务词汇、包初始化、前端 API 路径、harness 导入基线的新增项），没有一条指向本次删除的符号；`tests/api/skills/test_curator.py` 的 4 例失败来自他人未提交的 `curator.py`；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；服务端提交依赖 harness 提交 `645607acb1`，harness 发版后要同步锁文件。
+5. 徽章上的结论必须能由同一份证据推出：首版把「有扫描摘要」记为 `test_passed=True` 并配「安全扫描通过」徽章，自检时发现扫描只拒绝 critical，带 high 发现的提案照样进入审核甚至自动合并，卡片上「通过」徽章会和旁边显示高风险的安全徽章互相矛盾；同一张卡上出现两个口径的扫描结论，删掉多余的那个，比把两个调到一致更稳；修订路径同样如此：它只更新布尔值而不刷新摘要，安全徽章会一直显示修订前内容的扫描结果；
+6. 局限：没有取得浏览器级别的视觉检查（卡片去掉预测段后的布局、安全徽章新措辞在深浅主题下的显示）；人工修订路径把任何发现都判为扫描未通过，自动流只拒绝 critical，两条路径的严格程度不同，没有统一；发现详情面板仍显示 `threat_type` 原始标识与扫描器的英文描述；`DROP TABLE` 只覆盖升级库与全新库的两个夹具，没有在桌面包里实测；`tests/architecture` 仍有他人未提交改动造成的失败（路由消费者、API 服务词汇、包初始化、前端 API 路径、harness 导入基线的新增项），没有一条指向本次删除的符号；`tests/api/skills/test_curator.py` 的 4 例失败来自他人未提交的 `curator/service.py`；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；服务端提交依赖 harness 提交 `645607acb1`，harness 发版后要同步锁文件。
 
 ---
+
+## BUG-AGENT-2026-10-14-013: 技能库满载后删除技能也不会恢复自动学习，满载提示发给了没人连接的 WebSocket；待审核页的容量条自己写死 50 条；版本历史把内部标识原样印给用户；影子 A/B 删除后公开文档、路线图与官网仍在宣称它
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（技能库满载后用户删掉技能也不会恢复自动学习，且全程没有任何提示；公开材料仍在宣称已删除的验证闸门；不影响数据） |
+| 影响范围 | harness `agent/skills/evolution/core/budget_governor.py`、`agent/skills/evolution/db/store_queries.py`；服务端 `app/services/agent/evolution/engine.py`、`app/services/skills/evolution_events.py`、`app/services/event/app_event_bus.py`、`app/api/router.py`（删除 `app/api/skills/ws_evolution.py`、`app/services/skills/ws_hub.py`）；前端 `hooks/globalEvents/`、`lib/skills/versionOrigin.ts`、`PendingEvolutionsDashboard`、`SkillVersionsPanel`、六种语言文案；品牌仓库的公开文档与官网文案；根仓库优势材料与路线图 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-009`（影子 A/B 整条链的删除；本条补齐它遗留的容量规则、公开文档、官网与路线图表述）、`BUG-AGENT-2026-10-14-012`；提交 harness `d46a104e1`、myrm-agent `dcdf55a512` / `00ac99ccf3` / `ef6148e871`、品牌仓库 `a40d61da`、根仓库 `c67375633`，本地提交，未 push |
+
+### 现象
+
+1. 技能库达到上限后自动学习会暂停，但用户删除或归档技能并不能解除：容量按进化库 `skills.db` 里的记录计算，而删除、归档只动安装目录，从不触碰进化库，所以库会一直满着；
+2. 满载提示是向 `/ws/evolution` 广播的，前端、桌面端与扩展里没有任何代码连接这个地址（旧提交里前端只有发布、语音、浏览器录制三类 `new WebSocket`），用户从头到尾看不到「已暂停」；
+3. 每个满足触发条件的对话回合，都会把进化库里所有技能正文逐个计 token，再与 40,000 token 的上限、80% 软阈值比较；技能正文按需加载、并不进系统提示，这个上限与提示词成本无关；容量检查失败时只记 debug 日志；
+4. 待审核页的容量条把上限写死为 50，计数用的是本地技能列表长度，与服务端判定用的不是同一个集合；
+5. 版本历史每一行把服务端写入的 `created_by` 原样印出来（`agent_meta_tool`、`evolution_engine`、`batch_import`），`createdByLlm` 的文案还写着「LLM 优化」；
+6. 影子 A/B 链删除后，公开的技能演进文档（英 / 中 / 韩）仍把「A/B 测试」列为安全层，竞品对比页对技能库容量的描述与代码不符，官网评价文案、内部优势材料和路线图里也还有已不存在的说法。
+
+### 根因
+
+1. 容量规则同时按条数与 token 计量，数据源是进化库而不是用户当前看得到、删得掉的技能集合，删除与归档没有回写进化库；
+2. 满载提示沿用了 WebSocket 中枢推送，加推送时没有核实有没有订阅端；
+3. 把 token 上限当成「提示词预算」，但技能正文按需加载，上限量的是另一件事，却每回合付出全量分词的代价；
+4. 前端自己画了一个容量条，常量与计数口径都与服务端各算各的；
+5. 展示层直接取了存储字段；
+6. 删除一条链时只清了代码，没有把公开文档、官网、路线图当成同一次删除的一部分。
+
+### 修复
+
+1. harness `d46a104e1`：`SkillBudgetGovernor.check_budget(evolution_type, current_count)` 改为纯函数，只按数量（默认上限 50）判定，修复类进化（FIX / OPTIMIZE_DESCRIPTION）不受限；删除 token 上限、软阈值、冷技能识别与 `cold_storage_days`；`store_queries` 新增 `count_active_skills`（`COUNT(*)`，与读取活跃技能共用同一个过滤条件）；
+2. 服务端 `dcdf55a512`：`check_skill_budget_before_evolution` 先用 `COUNT(*)` 取数，只有达到上限时才对照实际已安装且未归档的技能（`describe_skill_lifecycle`）核对一次，所以删除、归档后会自动恢复学习；存储不可读时放行并记 WARNING；满载时对该 agent 作用域只发布一次 `SKILL_CAPACITY_REACHED`（全局 SSE），容量释放后再次填满才会重新提示；删除没有订阅端的 `/ws/evolution` 与 `ws_hub`，进化触发与运行时里的 ws 推送一并去掉；
+3. 前端 `dcdf55a512`：新增 `hooks/globalEvents/skillCapacityToast.ts`，收到事件弹一条可替换的本地化 toast（只展示上限数量，不展示服务端措辞与 agent 标识），操作直达「技能管理」；删除待审核页的容量徽标与横幅；六种语言补 `notifications.skillCapacityReached` / `skillCapacityReachedHint` / `manageSkills`；
+4. 前端 `00ac99ccf3`：新增 `lib/skills/versionOrigin.ts`，把 `created_by` 映射为本地化的来源名称（Agent 修改 / 手动编辑 / 技能成长 / 回滚 / 导入 / AI 优化），未知来源直接省略，不展示原始标识；`createdByLlm` 由「LLM 优化」改为「AI 优化」，六种语言同步；
+5. 文档 `ef6148e871`、品牌仓库 `a40d61da`、根仓库 `c67375633`：公开的技能演进文档（英 / 中 / 韩）把「A/B 测试」换成代码里真实存在的「改进闸门」（派生路径把原技能作为基线候选）；竞品对比页把 50 个上限写成数量并说明满载提示，同时去掉一句与技能演进无关、无出处的端到端测试说法；官网评价文案、内部优势材料与路线图同步去掉已不存在的说法；`skill_optimization` 包的文档串与 fractal 头部基线里的影子链残留一并清掉。
+
+### 验证
+
+1. harness：`tests/agent/skills/evolution` 393 通过（含按数量判定、修复类放行、`count_active_skills` 与过滤条件一致的用例）；
+2. 服务端：容量守卫、实时核对、事件发布、进化运行时、进化引擎任务 5 个测试文件共 28 通过；
+3. 前端：`hooks/globalEvents`、`lib/skills`、`components/features/skills` 33 个测试文件 198 例通过（新增 `skillCapacityToast.test.ts` 5 例、`versionOrigin.test.ts` 11 例）；
+4. `verify-i18n` 六种语言的键对齐、占位符、术语与翻译壳检查通过；`verify-i18n-references` 目前仍报 53 个他人组件的缺失键，没有一条属于本次涉及的文件或键；
+5. Prompt Cache：`scripts/measure_turn1_token_inventory.py --json` 的输出与改动前基线逐字段相等（15 个工具、工具小计 6,438 token），系统提示、工具定义与已绑定技能均未改动；`tests/architecture/test_prompt_token_budget_gate.py` 3 例通过；
+6. 容量检查耗时（单次实测，机器负载约 40，进化库 60 条记录）：未满时 0.491 毫秒，满载并核对实际技能时 18.701 毫秒/次；
+7. Chrome E2E 未通过：按正式流程（`./myrm ready --attach --chrome` → `e2e-context launch-check` → `./myrm test -m chrome_e2e`）对 `test_growth_center_chrome_e2e.py::test_growth_center_stats_and_lazy_detail_in_real_ui`（它打开的正是本次改过的 `PendingEvolutionsDashboard` 所在页面）试跑 5 次，没有一次通过：第 1 次页面里成长面板始终没有出现（9 分 36 秒）；第 2、5 次页面脚本最慢的块加载 89 秒左右，React 桥接在期限内没有就绪（各约 4 分钟，第 5 次结束时机器负载均值 107）；第 3 次私有 epoch 后端 43 秒内没有对齐，第 4 次共享热池恢复期内附加失败，这两次测试体都没有启动。试跑间隙对同一路由的 GET 返回 200（0.9 秒），57 个脚本块串行取完 128 秒（负载均值 77），测试匹配的文案（`Skill Growth` / `Total Cases` / `Pending Review`）与 `locales/en.json` 一致；失败发生在脚本加载阶段，不是断言内容，这既不能证明本次改动有问题，也不能当作通过；
+
+### 踩坑经验
+
+1. 「删除」必须写回计算容量的那份数据：容量按 A 处计数、用户在 B 处删除，规则就永远不会松开；改成数量规则之后，达到上限时还要对照实际技能核对一次，否则同样的问题只是换了个数字；
+2. 为保护提示词而设的 token 上限，量的却是按需加载的正文，每回合付出全量分词的代价、拿不到任何保护；与其调参数，不如删掉这条规则；
+3. 往没人订阅的通道推送等于没推送，加推送前先搜订阅端；这次的 `/ws/evolution` 从后端到前端没有一个连接方；
+4. 删除一条链要把公开文档、官网、路线图与基线文件当成同一次改动；影子 A/B 删除后，三处公开文案仍在宣称它；
+5. 共享工作区里同一批文件带着他人的未提交改动：提交时用「HEAD 文本 + 精确锚点替换」生成，再核对文件集合与残留 hunk，而不是挑 hunk 或整文件提交；
+6. 局限：Chrome E2E 没有通过（见验证 7），现有 E2E 也没有一条覆盖满载 toast 与版本历史的来源标签；满载提示只走进程内事件总线，推给当时已连接的 WebUI / 桌面端；没有客户端连接时只能靠总线向新订阅者重放最近 100 条事件补发（服务重启即丢；重放还会让重新打开的页面在空间已释放、服务端尚未清除标记时再弹一次），IM 通知（`adaptive_cards` 的事件模板）与 Web Push 都没有该事件的模板、不转发，所以只用 IM 的用户看不到；品牌仓库公开文档里「学习不会悄无声息地停下」的说法已撤回（品牌仓库 `629611ea`）；用户删除技能时 `skills_service.delete_skill` 不碰进化库，启动时的孤儿清理只处理插件技能，已删技能的记录一直留在进化库里，所以进化库记录数一旦达到 50，之后每个满足触发条件的回合都走在库核对路径，与真实在库数量无关：单次实测（机器负载均值 34 到 55，在库 20 个技能）记录数 50 / 120 / 520 / 2020 条时每次约 7 / 8 / 25 / 49 毫秒，约一半花在读取完整记录上，没有优化；根治办法是删除与归档时同步失活进化记录，涉及多条删除路径，没有做；`useGlobalEvents.ts` 已有 719 行，超过单文件 500 行上限，本次只加了接线的 4 行，该文件上有他人未提交的改动，没有拆分；没有做浏览器级别的视觉检查（满载 toast、版本历史新标签在深浅主题下的显示）；新增的 de / ja / ko / zh-TW 译文只经过机器门禁；删除 `/ws/evolution` 后待人工审核的提案没有实时通知（旧的推送本来就没人接收，需要用户打开页面才看到，没有补 SSE）；待审核页的容量条是删除而不是改成服务端下发，要不要在页面上保留容量表是产品决定；服务端提交依赖 harness 提交 `d46a104e1`，harness 发版后要执行 `./myrm harness sync-lock`；`fractal_header_baseline.txt` 里另有 5 条他人删除文件留下的过期项（`api/skill_optimization/routes/{dashboard,optimization,system}.py`、`api/skills/{audit,quality}.py`）未动，对门禁无害；`SKILL_EVOLUTION_ADVANTAGE.md` 里带日期的测试结果表与 `de/auto-translated-overrides.json` 里已删词条的过期项没有改；`verify-i18n-references` 的 53 个缺失键来自他人组件，仍在，非本次引入。
+
+---
+
+## BUG-AGENT-2026-10-14-014: 凭证页对能自动续期的授权常态误报「即将过期 / 已失效」；xAI 刷新被套餐拦截（403）时被当成授权已撤销，并永久停止刷新
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P3（只影响凭证页的状态展示与 xAI 套餐被拦截时的提示与重试；不丢数据，对话里的令牌仍按原路径续期） |
+| 影响范围 | server：`app/services/agent/oauth_token_policy.py`（`classify_refresh_failure`、新增 `is_renewable`）、`oauth_refresher.py`（新增只读 `is_refresh_rejected`）、`app/api/integrations/oauth.py`（列表项新增 `renewable`、`needs_reauth`）；frontend：`settings/sections/integration/credentials/{credentialsConstants,credentialsOAuthUtils}.ts`、`CredentialsOAuthPanel.tsx` |
+| 出现次数 | 1（读代码、真实函数执行与单元测试确认；没有真实 SuperGrok 账号，xAI 刷新失败的响应体形态没有端到端验证） |
+| 关联 | `BUG-AGENT-2026-10-14-008`（订阅登录加固；本条修正其中刷新失败分类对 403 的处理）· harness `BUG-HARNESS-2026-10-14-018`（同一批次：xAI 额度耗尽的 403 诊断） |
+
+### 现象
+
+1. 凭证页按访问令牌的 `expires_at` 判卡片状态（`credentialsOAuthUtils.ts`）：7 天内显示「即将过期」，已过期显示「已失效」并给「一键修复」。带 refresh_token 的授权（xAI、Google Workspace 等）访问令牌只有数小时到一小时，`expires_at` 只在有 Agent 回合触发刷新时才更新，于是：登录后立刻显示「即将过期（1 天）」，空闲超过令牌寿命显示「已失效」。真实函数执行：6 小时寿命的新令牌得 `{expiring, daysLeft: 1}`，空闲 7 小时得 `{expired}`。
+2. `classify_refresh_failure` 把任何带非空字符串 `error` 的 4xx（含 403）判为终态（`oauth_token_policy.py` 的旧判定与 `test_oauth_token_policy.py` 的 `(403, {"error": "access_denied"})` 用例）。终态会按指纹记住刷新令牌、此后不再尝试刷新，并发「请重新登录」事件。Hermes 对同一 xAI 令牌端点的处理（`hermes_cli/auth_xai.py:323-342`，其 issue 编号 #26847）：403 是套餐 / 权益拦截，重新登录无效，只有 400 与 401 才要求重新登录。
+
+### 根因
+
+1. 卡片状态把「访问令牌的寿命」当成「连接的寿命」；列表接口只返回访问令牌的 `expires_at`，没有告诉界面这个授权能否自行续期、刷新令牌是否已被供应商拒绝。
+2. 刷新失败分类只看「4xx + OAuth 错误体」，没有区分 RFC 6749 第 5.2 节定义的拒绝授权（400，客户端认证失败时 401）与其前面的访问闸门（403 等）。
+
+### 修复
+
+1. server：`oauth_token_policy.py` 的 `classify_refresh_failure` 只对 400 / 401 且带 OAuth 错误体的响应判终态，其余状态（含 403）一律可重试（30 秒冷却，不记指纹、不发重新授权事件）；新增纯函数 `is_renewable`（凭证同时带 `refresh_token` 与 `token_url`）。
+2. server：`oauth_refresher.py` 新增只读 `is_refresh_rejected(issuer, credential)`，只比较进程内失败记忆里的指纹与当前刷新令牌，不做 I/O、不触发刷新。
+3. server：`GET /integrations/oauth` 的每项多返回 `renewable` 与 `needs_reauth`，没有网络请求、没有副作用。
+4. frontend：`resolveOauthCardState` 先判 `needs_reauth`（已失效），再判 `renewable`（已连接，不看访问令牌到期），其余（手工粘贴、无刷新令牌）保持原有的 7 天预警；卡片对可续期凭证不再显示「到期时间」行，没有别的明细时整个明细框不渲染。没有新增文案。
+
+行为说明：
+
+1. 进程重启后失败记忆为空：此前被拒绝的刷新令牌会显示为已连接，直到下一次刷新尝试再次遇到拒绝；拒绝仍会按原有路径发（去重的）重新授权事件。
+2. xAI 刷新被 403 拦截后每 30 秒最多再试一次，不再弹「请重新登录」，也不再永久停止刷新。
+
+### 验证
+
+1. server：新增 / 改写 `test_oauth_token_policy.py`（403 与 404 / 407 等访问闸门为可重试，`is_renewable` 5 种缺失组合）、`test_oauth_refresher_failure_memory.py`（`is_refresh_rejected` 只认被拒绝的那枚刷新令牌，xAI 风格的 403 响应体不进失败记忆、不发事件）、`test_oauth_api.py`（列表三种凭证的两个字段，加 FE 类型声明了服务端列表的每个字段的契约检查）；OAuth 相关 10 个 server 测试文件加 `tests/api/integrations` 共 419 例通过、2 例跳过。
+2. frontend：新增 `credentialsOAuthUtils.test.ts`（真实函数 + 假时钟：新登录、空闲超过寿命、被拒绝、手工令牌的预警与过期）与 `CredentialsOAuthPanel.test.tsx`（渲染真实面板：可续期卡片为已连接且无到期行，手工令牌保留到期行与预警，被拒绝显示已失效与修复按钮）；`settings/sections/integration` 下 30 个文件 189 例通过。
+3. 变异检查（临时改写源码、跑测试、恢复原文并比对）：server 5 个（403 退回终态、`is_renewable` 的与改或、失败记忆忽略发行方、忽略令牌身份、列表丢掉 `needs_reauth`）、frontend 4 个（忽略 `needs_reauth`、忽略 `renewable`、到期行总是显示、FE 类型缺 `renewable`），全部杀死。
+4. 静态：`ruff check` / `ruff format --check`、mypy（3 个 server 源文件）、oxlint、prettier、ReadLints 通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`。
+5. 局限：没有真实 SuperGrok 账号与浏览器，xAI 令牌端点对失效刷新令牌的响应状态与响应体未验证（403 的语义来自 Hermes 源码与 issue，不是自行抓取；若 xAI 对已失效的刷新令牌也返回 403，则不再提示重新登录，用户在对话失败后经重新连接恢复）；`needs_reauth` 只来自进程内存，进程重启或空闲超过供应商刷新令牌寿命后的失效授权，在下一次刷新尝试之前显示为已连接；没有做卡片在深浅主题与手机宽度下的视觉检查；架构门禁里 `test_api_services_vocabulary.py`、`test_api_route_consumers.py`、`test_frontend_api_client_paths.py` 的失败来自他人新增的目录与对 harness 的导入（`ConversationTurn`），与本次路径无关。
+
+### 踩坑经验
+
+1. 「访问令牌到期」与「授权失效」是两个状态：展示层不能拿前者推断后者，服务端要把「能否自行续期」与「是否被供应商拒绝」作为事实交给界面。
+2. 同一状态码在不同服务上含义不同：RFC 只在令牌端点定义了 400 / 401，403 属于供应商自己的访问闸门，不能当成「刷新令牌被拒」。
+
+---
+
+## BUG-AGENT-2026-10-14-015: 「安全清空」把没做的事报成成功（会话检查点没清、记忆事件数恒为 1）；过期的浏览器登录会话只有一个接口会清、且只清全局保险库，定时维护从不清
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P3（`POST /api/v1/health/database/safe-purge` 目前没有界面调用方；过期会话文件只占磁盘、不再被读取；不影响对话与登录行为） |
+| 影响范围 | server：`app/services/system/vault_purge_service.py`、`app/api/health/router.py`（响应新增 `purged_memory_events` 真实计数与 `checkpoint_cleared_chats`）、`app/core/security/browser_vault.py`（新增 `cleanup_all_vaults`）、`app/api/browser_sessions/router.py`、`app/lifecycle/browser.py`（删除无调用方的函数）、`app/lifecycle/schedulers.py`（DB 维护任务新增会话清理） |
+| 出现次数 | 1（读代码、真实 SQLite / 真实 LangGraph 检查点库 / 真实文件保险库复现与单元测试确认） |
+| 关联 | harness `BUG-HARNESS-2026-10-14-016`（检查点包装器补转发 `adelete_thread`，本条是它在「安全清空」上的调用方）· 该条「踩坑」里记下的 `cleanup_expired_browser_sessions` 无调用方，本条处理 |
+
+### 现象
+
+1. 「安全清空」的结果字段 `cleared_checkpoints` 只要检查点对象有 `adelete_thread` 属性就写 1，代码里没有任何一处调用它；`purged_memory_events` 在 `purge_memories=True` 时恒写 1，与实际删了多少行无关。清空后会话的检查点线程原样留在库里。
+2. `POST /browser/sessions/cleanup`（设置页「已保存的登录会话」卡片的清理按钮调用它）只清全局保险库，各 Agent 的保险库不清；`lifecycle/browser.py` 里同时清两处的函数没有任何调用方；每 6 小时的 DB 维护任务不清浏览器会话。过期会话只在被读取时才会被删（`SessionVault.load` 遇到过期即删除），没有再被访问的域名，其过期文件在 Agent 保险库里一直留在磁盘上。
+
+### 根因
+
+1. 清空服务只做了「探测能力」（`hasattr`）而没有「执行并计数」；旧测试只播种 1 行待处理记忆并断言 `purged_memory_events == 1`，与写死的 1 无法区分，检查点计数则没有任何断言。
+2. 「清全部保险库」的逻辑写成了一个无人调用的函数，接口另写了一份只清全局的，定时任务没接入；三处各自为政，没有单一入口。
+
+### 修复
+
+1. `SafeVaultPurgeService` 在聊天行被删之前，对每个聊天调用 `sync_checkpoint_messages(checkpointer, chat_id, [])`（两种线程别名都删，失败抛 `ContinuitySyncError`）：单个聊天失败只记 WARNING 并跳过，不中断清空；结果字段改名为 `checkpoint_cleared_chats`，数的是「检查点线程已清掉的聊天数」（该聊天本来没有线程也计入，不是线程条数）；检查点对象未注册时记 WARNING、计数为 0、其余照常清空。先删检查点再删聊天行，是为了被中断的清空不会留下再也列不出来的检查点。记忆管线的三张表按 `rowcount` 累加成真实计数；从未被赋值的 `freed_disk_bytes` 字段删除；API 响应补上 `purged_memory_events`、`checkpoint_cleared_chats`。
+2. `browser_vault.py` 新增 `cleanup_all_vaults()`（全局 + 全部 Agent 保险库），接口与 DB 维护任务共用；任务内的清理失败只记日志、不影响同一周期的其余维护项；删除无调用方的 `cleanup_expired_browser_sessions`。
+
+### 验证
+
+1. A：`tests/services/system/test_safe_vault_purge_service.py`（真实 SQLite 加真实 LangGraph 检查点库：每个聊天的两种线程别名都被清掉、清空前先清检查点、单个聊天失败不中断、未注册检查点仍完成清空、记忆管线真实计数）；4 个变异（跳过检查点清除、清除顺序放到删聊天之后、失败即中断、计数写死）全部杀死。
+2. B：`tests/config/test_browser_vault.py`（真实文件保险库：过期的删、未过期的留，全局与各 Agent 保险库都覆盖）、`tests/api/browser_sessions/test_browser_sessions_cleanup_api.py`、`tests/lifecycle/test_db_maintenance_browser_sessions.py`（真实 `_db_maintenance_job` 调用清理，清理失败时其余维护项照常执行）；3 个变异（只清全局、定时任务不调用、接口退回只清全局）全部杀死。A 与 B 加上 `tests/channels/test_channel_data_plane.py` 共 45 例通过。
+3. 静态：本次改动的 server 与 harness 文件 `ruff check` / `ruff format --check` 通过；`hop_evaluator.py` mypy 通过。`browser_vault.py` 的 mypy 报错（行 51、66、99、144 的 `"object" not callable`）来自 harness `toolkits.browser` 的惰性导出被推成 `object`，不在本次改动的行内，未处理。
+4. 局限：
+   - 没有清真实的向量库（Qdrant）条目，这一步本来就不在清空服务里，也没加；没有用真实用户数据库验证；清空接口仍没有界面入口，本条只修了它报告的数字与实际行为。
+   - 检查点只按 `chats` 表里的聊天清除；不对应聊天行的线程（看板、定时任务一类）不动，其内容是否含已被清空的会话文字未验证。
+   - 设置页卡片只列全局保险库，清理按钮的提示个数现在含各 Agent 保险库里被删的过期会话，个数可能大于列表里看到的过期条数。
+   - 每 6 小时的自动清理沿用 `SessionVault.cleanup_expired` 的行为：解密失败的文件也会被删且不留备份（`session_vault/__init__.py:475-477`；`load` 遇到同样情况会先备份再删，见 `:365-368`）；读取到删除之间没有锁，同一域名恰在此刻重新登录写入的新会话理论上可能被误删（读 `:464`、删 `:473`）。会话丢失的后果是需要重新登录，窗口为毫秒级，没有实测。
+
+### 踩坑经验
+
+1. 结果对象里的计数必须来自被执行的操作（`rowcount`、实际成功次数），不能来自「对象有没有这个方法」或常量；对应的测试要断言数值，而不是断言字段存在。
+2. 同一件事在多处各写一份，漏的往往是没人测的那份：这里是接口、无人调用的函数、定时任务三处，现在收敛到 `cleanup_all_vaults` 一个入口。
+
+---
+## BUG-AGENT-2026-10-14-016: 渠道入站风险闸门在事件循环上无时限地跑任意正则（邮箱规则 4 万字符卡 11 秒、回溯型自定义规则可卡死进程），内置的邮箱 / 手机 / 身份证 / 银行卡规则与隐私分类器是两套口径；无噪声记忆套件的“清除记忆”只清一个进程内字典
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（闸门对每条渠道入站消息执行，文本由聊天对端控制；卡住事件循环会让整个进程无响应。口径不一致只造成误拦与漏拦；无噪声记忆卡片是展示性界面，不影响真实记忆） |
+| 影响范围 | server：`app/services/risk/{constants,detection,rule_service,match_checks}.py`、`pyproject.toml`（新增 `regex`）；删除 `app/api/memory/noise_free_memory_router.py`、`app/services/memory/noise_free_memory_service.py`、`app/schemas/noise_free_memory.py` 与路由注册；frontend：删除指挥中心「无噪声记忆」卡片、子组件、服务客户端；harness 侧见 `BUG-HARNESS-2026-10-14-019` |
+| 出现次数 | 1（读代码、真实函数执行与单元测试确认；没有在真实渠道上端到端验证） |
+| 关联 | harness `BUG-HARNESS-2026-10-14-017`（同一个邮箱正则在隐私管线里的二次方耗时，已改为有界的 SSOT 写法，本条让风险闸门读同一份）· harness `BUG-HARNESS-2026-10-14-004`（自定义隐私模式的编译炸弹防护，本条通过公开的 `pattern_problem` 复用同一套判定） |
+
+### 现象
+
+1. 内置邮箱规则 `(?i)\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b` 对 4 万字符的 `a.a.a.` 连续串实测 11.2 秒；用户自定义规则用标准库 `re` 编译、没有任何匹配时限，写成回溯型（嵌套量词）即可让闸门长时间占住事件循环。
+2. 内置规则各写了一份自己的正则：手机号规则会在更长的数字（订单号、运单号）里截出 11 位判为手机号；身份证规则只看 18 位形状，不校验校验位；银行卡规则在“银行卡 / bank card”后面的日期里也能凑出卡号。隐私分类器用的检测器早已修过这些，闸门没有跟上。
+3. 内置规则只在首次启动时写入数据库，此后即使代码里的模式改了，库里的旧模式一直生效，而内置规则的模式用户无法编辑。
+4. 「测试规则」只告诉用户命中与否，不给出命中的文本。
+5. 指挥中心「无噪声记忆」卡片的“清除记忆”和“提交事实”只改 harness 提取器里的进程内字典，界面显示已清除、代次加一，用户真正的记忆没有任何变化（详见 `BUG-HARNESS-2026-10-14-019`）。
+
+### 根因
+
+1. 闸门在事件循环里同步匹配，规则来源（内置、用户自定义）都没有时间预算；标准库 `re` 不提供单次匹配的超时。
+2. 内置规则的模式和确认逻辑与隐私层是两处各自演进的拷贝，没有读检测器的单一真源。
+3. 种子逻辑是“有则跳过”，只管插入，不管已有行的模式是否过期。
+4. 无噪声记忆套件的事实没有接到任何真实记忆存储，整条链路（提取器、服务、路由、卡片）互相自洽却不连到数据。
+
+### 修复
+
+1. `detection.py` 改用 `regex` 包：每条规则的每次匹配都带 0.25 秒的时间预算，超时按命中处理（宁可多拦也不放过，并记警告与“匹配超时”摘要）；`compile_pattern` 统一做长度上限（4096）、计数重复过大的拒绝（`regex` 会展开计数重复，`(a{1000}){1000}` 这类写法标准库 `re` 编译只要 0.1 毫秒，换成 `regex` 就必须先拦；判定复用 harness 的 `pattern_problem`）与编译，保存规则、加载规则、规则预览共用这一个入口，保存时拒绝，加载时跳过不可用的规则并记错误日志。
+2. 内置的邮箱、手机、身份证、银行卡规则改用隐私检测器自己的模式来源（`EMAIL_RE`、`CHINA_PHONE_RE`、`CHINA_ID_RE`、`CARD_CONTEXT_RE`），并施加同样的确认：身份证校验位、手机与邮箱排除示例占位值（`match_checks.py`）；银行卡规则按卡号上下文取值，不再被日期触发，也不再依赖 `account number` 关键词。
+3. `seed_builtin_rules` 对已存在的内置行只刷新模式，名称、严重级、动作、启用状态保持用户的设置。
+4. 「测试规则」返回命中的文本片段（最多 20 条），超时给出明确的英文提示要求简化模式。
+5. 删除无噪声记忆套件在 server 与 frontend 的全部代码，并移除指挥中心的挂载、`services/memory.ts` 的导出与硬编码文案基线里的两条。
+
+### 验证
+
+1. 新增 `tests/services/risk/test_risk_rules_engine.py`：个人数据命中 / 不命中成对用例（含订单号不是手机号、校验位错的身份证不是身份证、日期不是银行卡）、40K 点号连续串在 2 秒内完成、四条内置规则的模式可用、回溯型自定义规则被时限拦住并带“匹配超时”摘要、过大计数重复在保存时被拒绝且加载时被跳过、预览行为、种子刷新保留用户设置；`test_inbound_risk_gate_integration.py` 的夹具改用 `compile_pattern`。
+2. 实测：最慢的内置规则在 10 万字符文本上不超过 10 毫秒（机器负载很高时），0.25 秒预算有 25 倍余量；40K `a.a.a.` 串的邮箱匹配从 11.2 秒降到毫秒级。
+3. `tests/api/memory`、`tests/services/risk` 全绿；`app.api.memory.router` 导入后路由表里没有 noise-free 路径；前端 `features/memory` 90 个文件 542 例通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；本次改动的 server 文件 `ruff check` 通过，风险引擎的 mypy 无新增报错。
+4. 局限：没有在真实 IM 渠道上端到端验证；银行卡规则不再把 `account number` 当触发词，只有银行卡 / 信用卡 / 卡号 / bank card / card number 等指明是支付卡的关键词后面的卡号才命中（与隐私分类器一致，没有卡号形状的账号不再被拦）；超时按命中处理意味着极端长文本上的病态自定义规则会拦截该消息（预期行为，用户在规则页能看到“匹配超时”的摘要）；server 依赖钉住已发布的 harness，本次用到的 `pattern_problem` 与 `CARD_CONTEXT_RE` 在发布新版 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入——这是维护者的发版步骤，本次没有执行；内置的护照规则对“passport renewal process”这类普通英文句子仍会误报，本次未动。
+
+### 踩坑经验
+
+1. 在事件循环里跑用户可控的正则，必须有单次匹配的时间预算，而标准库 `re` 做不到：用 `regex` 的 `timeout=`，并且决定好超时时是放行还是拦截（闸门取拦截）。
+2. 同一类检测在两处各写一份，修好的一边会随时间偏离另一边：内置规则直接读检测器的模式来源与确认函数，不要抄正则。
+3. “只在首次启动写入”的内置数据，代码里改了就要有同步路径，并且只能同步用户无法编辑的那部分。
+4. 没有接到真实数据的演示型界面比没有界面更糟：它会报告“已清除”。
+
+---
+## BUG-AGENT-2026-10-14-017: 公开路径白名单按前缀放行，把前缀下的运维动作一并放行：`/api/v1/health/**` 下的数据库重置、安全清空、修复执行，`/api/v1/a2a/**` 下的对端增删与任务审批，以及 WebUI 密码保护开关，都不需要认证
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（本机仅回环访问时只有同机进程与浏览器页面能触达；一旦服务对局域网 / Tailscale 暴露，同网络上任何人无需凭据即可调用，其中数据库重置会直接删除 SQLite 文件） |
+| 影响范围 | server：`app/core/security/auth/public_paths.py`（`is_public_path` 增加方法参数）、`app/middleware/{auth,host_allowlist,ws_auth}.py`、`app/core/security/auth/identity.py`、`app/api/webui/auth_routes.py`（保护开关 handler 自行认证）；frontend：`BrowserDoctorCard`、`CloudBrowserCard`、`BrowserProxyCard`、`MemoryMonitorCard` 的变更类请求改走 `apiRequest` |
+| 出现次数 | 1（枚举全量路由表、读 handler、真实中间件链的单元与门禁测试确认；没有在真实的局域网暴露部署上端到端验证） |
+| 关联 | `BUG-AGENT-2026-10-14-015`（「安全清空」所在的路由前缀；本条是发现它属于公开前缀时一并发现的） |
+
+### 现象
+
+1. `PUBLIC_PATH_PREFIXES` 含整段 `/api/v1/health`，认证、Host/Origin 白名单（DNS 重绑定防护）、WebSocket 握手三处都按它放行。该前缀下实际有 8 个非 GET 路由：`POST /health/database/reset`（删除数据库文件）、`POST /health/database/safe-purge`（清空全部会话）、`POST /health/repair-actions/{action_id}/execute`、`DELETE /health/browser/orphans`、`POST /health/browser/test-cloud-connection`、`POST /health/browser/test-proxy-connection`、`POST /health/memory/profile/start`、`POST /health/memory/profile/stop`。
+2. 同一机制放行了整段 `/api/v1/a2a`：RPC 与 AgentCard 发现本来就该公开（对端用 Bearer 令牌，未受信对端的任务只进「待审批」队列），但同前缀下的运维路由也跟着公开：`POST/PATCH/DELETE /a2a/peers`、`POST /a2a/peers/probe`、`POST /a2a/tasks/{id}/approve|reject`、`GET /a2a/tasks/pending-approval`。未受信对端提交任务后，可以自己调 approve 绕过「运维人员审批」。
+3. `PUT /webui/auth/protection` 在公开前缀 `/webui/auth/` 下，handler 里没有任何身份检查，一个无会话的远程客户端能把「需要登录密码」关掉（同组的 `change-password`、`disable-protection`、`generate-setup-token` 都在 handler 内校验了密码或会话，只有它漏了）。
+4. 本机模式下 `HostAllowlistMiddleware` 对公开路径整体跳过，所以外站网页发往 `http://127.0.0.1:<port>/api/v1/health/database/reset` 的跨源 POST 也不会被 Origin 检查拦下。
+
+### 根因
+
+公开规则只看路径前缀，不看方法：为了让探活 GET 免认证而公开了整段前缀，前缀下后来加的变更类运维路由默认继承了「公开」。没有任何门禁检查「哪些变更类路由是公开的」，所以新增或挪动路由时没人会发现。
+
+### 修复
+
+1. `is_public_path(path, method)`：`/api/v1/health` 改为只读前缀（只对 GET/HEAD 公开）；`/api/v1/a2a` 整段前缀换成精确的公开面：`/api/v1/a2a/rpc`、`/api/v1/a2a/agents/` 前缀（每个 Agent 的 RPC 与发现）、`/api/v1/a2a/.well-known/agent-card.json`；对端与任务审批管理路由不再公开。四处调用点（HTTP 认证、身份解析、Host/Origin 白名单、WebSocket 握手）都传方法；方法参数无默认值，漏传会在类型检查时暴露。
+2. `PUT /webui/auth/protection` 在 handler 内用 `resolve_status` 判断，未认证返回 401；回环且本机无需密码时仍视为已认证，带会话的请求照常通过。
+3. 新增门禁 `tests/architecture/test_public_mutating_routes.py`：全量路由表里任何对外开放的变更类路由，必须登记「handler 自己怎么认证」（13 条，含 A2A 两个 RPC、分享链接三个路由、`/webui/auth/*` 八个），未登记或登记后不再公开都会失败。
+4. 前端 5 处对这些路由的 raw `fetch`（没有带认证头，也不走 `BACKEND_BASE_URL`）改为 `apiRequest`；两处 GET（健康检查、记忆历史）仍是公开的，不动。
+
+### 验证
+
+1. `tests/core/security/auth/test_public_paths.py`（80 例：8 条健康运维路由 × 4 个变更方法、6 条 A2A 运维路由 × 全部方法、公开面保持公开）、`tests/middleware/test_auth_middleware.py`（远程模式下无凭据的 POST `/health/database/reset` 与 `/a2a/tasks/{id}/approve` 返回 401，带 API Key 通过，`/health` GET 与 `/a2a/rpc` 保持公开）、`tests/middleware/test_host_allowlist_middleware.py`（外站 Origin 的变更类健康路由返回 403、GET 探活仍通）、`tests/services/webui/test_protection_session_policy.py`（非回环无会话 401 且开关未变；带会话 200）、门禁 2 例。变异检查：把规则改回旧的整段前缀，66 例失败（单元、门禁、中间件、Host 白名单四层都杀死）；保护开关的 401 用例在加认证判断之前实测返回 200（红灯）。
+2. 前端：`BrowserDoctorCard`（19 例，清理改走 mock 的 `apiRequest`）、新增 `BrowserConnectionCards`（6 例）与 `MemoryMonitorCard`（4 例）共 29 例通过；变异（云端浏览器卡改回 raw `fetch`）3 例失败；本次改动文件的 `tsc --noEmit` 无错误（全仓库还有他人未提交改动导致的 Kanban 类型错误，不在本次范围）。
+3. 静态：本次改动的 server 文件 `ruff check` / `ruff format --check` / mypy 通过（顺带修了 `identity.py`、`ws_auth.py`、`auth_routes.py`、测试夹具里原有的 mypy 错误与 `host_allowlist.py` 的格式问题）。
+4. 局限：
+   - 未验证真实部署：云托管入口前置的网络层是否已经挡住这些路径、远程模式下 Bearer 令牌的实际流转，都没有在真实环境里测。
+   - `change-password` 与 `disable-protection` 校验密码但没有登录那样的失败次数限制，未认证远程客户端可以不限速地试密码（`auth_service.py:231-256` 对比 `:194-203` 的 `_is_rate_limited`），本条没有改。
+   - A2A 的 `tasks/get` 与 `tasks/cancel` 对任何调用者开放（不区分是否受信对端），靠任务 ID 不可猜测；本条没有改。
+   - 本次新增的 `MemoryMonitorCard` 测试里卡片自身仍有硬编码英文文案（`Start Heap Profiling` 等），未在本条处理。
+
+### 踩坑经验
+
+1. 「前缀公开」是一个会随时间放大的授权：每个挂在公开前缀下的新路由都默认免认证。公开规则要么精确到路径、要么带方法，并且要有门禁列出所有「公开的变更类路由」，让新增者必须说明它怎么自己认证。
+2. 同一组路由里「大部分有校验、个别漏掉」最容易漏检：`/webui/auth/*` 八个变更路由里七个自己校验，只有保护开关没有。
+3. 前端对受保护接口用 raw `fetch` 在本机模式下看不出问题（回环被信任），一旦接口收紧，远程模式才会 401；对内接口统一走 `apiRequest`。
+
+---
+
+## BUG-AGENT-2026-10-14-018: 后台自动学习只拦 CRITICAL，带外传 / 提权 / 持久化行为的技能草稿直接物化；运行时进化的自动合并不看安全扫描；修订提案遇到任意一条发现就被判扫描失败；待审核卡片把内部风险代码原样印给用户；会话结束触发的 CAPTURED 提取与容量暂停整条链无人受益
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（默认开启的后台学习会在无人审阅时落地含 HIGH 级风险行为的技能；其余为 P2/P3） |
+| 影响范围 | 服务端 `app/services/skills/scan_risk_policy.py`（新增）、`skills/growth/lifecycle.py`、`skills/auto_extractor.py`、`skills/draft_notification.py`、`skills/evolution_review/actions.py`、`app/services/agent/confidence_approval_flow.py`、`stream_session/stream_finalize.py`、`skills/evolution_events.py`、`event/app_event_bus.py`（删除 `app/services/agent/evolution/engine.py`）；前端 `lib/skills/scanRiskText.ts`、`components/features/skills/`（成长卡片拆出 `growth-card/`）、`hooks/globalEvents/`、`PendingEvolutionsDashboard`、六种语言文案；品牌仓库竞品对比页与根仓库优势材料 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-14-013`（该条引入的容量暂停与满载提示，本条整体撤销，原因见根因 5）；本地提交，未 push |
+
+### 现象
+
+1. 默认开启的后台复盘（`process_skill_review_result`）对技能草稿只做 CRITICAL 预检；一份把数据上传到外部地址、改权限或写入开机项的草稿，只要没有 CRITICAL 发现就直接物化为可用技能；预检只扫描草稿的步骤文本（`skill_steps`），描述与触发条件不在扫描范围内，也没有把它当成一份完整的 SKILL.md 扫描；
+2. 运行时失败触发的进化提案（`ConfidenceApprovalFlow`）自动合并只看改动幅度与历史成功率，一次改动凭空多出的 HIGH 级风险不影响是否自动合并；
+3. 修订待审提案时，新内容只要有任何扫描发现（含 LOW / MEDIUM，甚至原本就存在的）就被标成 `FAILED_SCAN`，用户无法继续审阅；前端又用 `test_passed === false` 判断结果，对「仅有 HIGH、仍待审」的修订会误报失败；
+4. 待审核卡片、本地技能预览与技能详情把风险信号码（`diff_range:73%`、`low_effective_rate:20%(5runs)`）、威胁类别码（`data_exfiltration`）和英文处置建议原样展示给用户，非英文界面也是英文；
+5. 会话结束触发的 CAPTURED 提取（`trigger_skill_evolution`）与 `13` 号条目的「技能库满载暂停学习」两条链：默认的后台复盘已覆盖同一目的，CAPTURED 提取只在显式开启进化时运行；容量暂停只挡住这条可选链，对默认路径没有任何约束，而技能库的上限由 Curator 负责（活跃技能超过 `max_skills=50` 时把最久未使用的标记为过期），满载提示因此既不会在默认路径触发，也与 Curator 的规则重复。
+
+### 根因
+
+1. 后台学习的闸门只回答「有没有 CRITICAL」，没有回答「这次让技能多出了什么需要人看一眼的风险」；
+2. 后台复盘的结果里没有 `content`，只有 `skill_name / skill_description / trigger_condition / skill_steps`，闸门没有先渲染出 SKILL.md 就扫描；
+3. 修订闸门把「扫描不干净」当成「扫描拒绝」，与扫描器自己的 `REJECT` 建议（CRITICAL）是两个口径；
+4. 服务端只下发稳定的码，展示层没有统一的翻译出口，每个渲染点各自处理；
+5. 容量暂停链建在一条可选路径上，没有核实默认路径是否经过它；上限本来就有 Curator 这个单一责任方。
+
+### 修复
+
+1. 新增 `scan_risk_policy.assess_scan_risk(skill_name, proposed, *, original=None)`：对「新内容 − 原内容」按 `(威胁类别, 描述, 严重度)` 做多重集差分，只统计 HIGH 及以上；同类发现数量增加仍算新增（复制一行有风险的内容不会被当成「原本就有」）；`filesystem_access / memory_config_snooping / network_access / path_traversal / prompt_injection / screen_input` 六类取决于技能用途（GUI 技能必然截图点击、联网技能必然访问网络），HIGH 不计，CRITICAL 仍计；新技能的原内容为空；扫描器抛异常按「扫描不可用」处理，不放行；扫描放进 `asyncio.to_thread`，大技能不会占住事件循环；
+2. 后台复盘：在 CRITICAL 硬拦截之后、物化之前渲染 SKILL.md（`render_skill_draft_markdown`）并评估；有新增 HIGH 风险或扫描不可用时落为 `PENDING_REVIEW` 草稿，`reason_code = "risk:" + 信号列表`，并把扫描摘要写入 `security_scan_summary`，卡片可展示；
+3. 运行时进化：`ConfidenceApprovalFlow` 新增信号 `new_high_finding:<类别>` 与 `scan_unavailable`，任意一个出现都降为人工审批，处置建议随信号给出；
+4. 修订闸门：只有扫描器判定 `REJECT` 才进入 `FAILED_SCAN`；仅有 HIGH 的修订仍待审并保留发现；前端 `PendingEvolutionsDashboard` 改按 `result.status === 'FAILED_SCAN'` 报失败；删除 `SkillGrowthReviseResult` 里没人读的 `test_passed`；
+5. 删除 CAPTURED 触发（`evolution/engine.py`、`stream_finalize` 的触发调用）与容量暂停链（服务端容量检查与 `SKILL_CAPACITY_REACHED` 发布、前端 `skillCapacityToast`、六种语言的 `skillCapacityReached` 等文案）及对应测试，品牌仓库竞品对比页与根仓库优势材料里的「满载提示 / 容量暂停」说法改为 Curator 的自我收敛；顺带删除 `stream_finalize` 里已无调用方的 `record_citations` / `get_memory_manager` 分支并补全类型；harness 的 `capture_skill_from_trajectory` 与 `SkillBudgetGovernor` 作为库接口保留，产品不再调用；
+6. 前端新增 `lib/skills/scanRiskText.ts` 与 `useScanRiskText`：威胁类别与严重度以封闭词表判定（词表外显示「其他风险」，不暴露代码），风险信号翻译为带数值的自然语言，处置建议按信号种类各一句且去重；成长卡片、本地技能预览、技能详情共用；`SkillGrowthCaseCard.tsx` 由 634 行拆为 340 行并移出行数基线，子区块在 `growth-card/`；六种语言新增 `settings.skills.scanRisk`。
+
+### 验证
+
+1. 服务端：本次涉及的 7 个测试文件共 80 例通过，其中新增 `test_scan_risk_policy.py` 11 例（真实扫描器）、`test_skill_scan_threat_i18n_sync.py` 12 例（扫描器可报告的全部威胁类别与六种语言译文键完全一致），并在后台复盘、运行时进化信号、修订闸门的测试里分别补了 4、3、1 例；关闭后台复盘闸门后新增的 3 例会失败（变异验证）；
+2. 更宽的服务端回归 `tests/api/evolution`、`tests/api/skills`、`tests/services/skills`、`tests/services/agent/stream_session`、`tests/architecture`：2701 通过、17 失败；失败的是他人的改动，与本条无关：`test_curator.py` 4 例，`tests/architecture` 13 例（路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、server 对 harness 的深层导入基线）；本条新增的 `scan_risk_policy` 对 harness 的导入不在新增深层导入清单里；
+3. 前端：全量 vitest 1383 个文件 9705 例通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；`verify-i18n` 六种语言的键对齐、占位符、翻译壳检查通过；fractal 文档检查通过；
+4. 前端测试里 `constructor / __proto__ / toString / hasOwnProperty` 作为威胁类别或严重度时，next-intl 的 `t.has` 会把原型成员当成「存在」，直接把键路径印给用户；词表判定改为封闭数组后该用例通过；
+5. 语料实测（`external_reference_project` 下去重后随机取 500 份社区 `SKILL.md`，固定种子，当作全新技能评估）：63 份（12.6%）会被拦下复核，其中 27 份（5.4%）没有任何 CRITICAL 发现，即旧闸门不会拦、新策略才会拦的那部分；拦截的类别以 `persistence` 27、`data_exfiltration` 16、`container_escape` 11、`privilege_escalation` 8 为主；单次扫描耗时中位 11.8 毫秒、p95 36.6 毫秒、最大 157.4 毫秒（机器负载较高时的单次测量）；
+6. 局限：社区技能的命中率是后台自动学习草稿的上界，后台复盘产出的草稿由本人会话生成，没有用真实 LLM 端到端跑过；正则扫描器本身有盲区（`base64 -d | bash`、`curl -k` 等写法扫不出），本策略只让「扫描器已经能看见的新增风险」必经人审；自动合并阈值 0.8 没有外部依据；后台复盘路径里步骤文本会被预检与策略各扫一次，多出约一次扫描的耗时；扫描发现的 `description` 文本和应用失败面板里的 `remediation` 仍是服务端英文，未本地化；没有做浏览器级别的视觉检查（深浅主题、移动端）；`SkillHistoryPanel.EvolutionRecord.test_passed` 仍保留。
+
+### 踩坑经验
+
+1. 「只拦最严重一档」的闸门会让次一档里真正危险的行为静默通过；闸门应当回答「这次改动新增了什么需要人看」，并用差分而不是绝对值，否则原本就存在的发现会反复拦同一个技能；
+2. 按次数差分而不是按集合差分：集合差分会让「再复制一行有风险的内容」逃过去；
+3. 安全闸门里扫描器抛异常必须判为「不可用」并交给人，不能当成干净；
+4. 展示层依赖 i18n 库的「是否存在该键」来决定走本地化还是兜底时，要先确认库对原型成员的行为；服务端下发的类别码这种封闭词表，用封闭数组判定最稳，再用测试把词表、译文键与扫描器三者锁在一起；
+5. 给可选路径加的保护，要先核实默认路径是否经过它；一份约束如果已有单一责任方（这里是 Curator），不要在另一条链上再造一份；
+6. 共享工作区里同一批文件带着他人未提交的改动：提交用「HEAD 文本 + 精确锚点替换」生成并核对残留 hunk，而不是整文件提交。
+
+---
+
+## BUG-AGENT-2026-10-14-019: 风控内置规则默认全开，日常聊天与代码被大面积拦下（39 条日常消息拦下 31 条），同一批规则又漏掉 7/28 种真实凭据；命中记录把被拦下的密钥原文存进库；「放行」动作没有任何作用；Web 端的拦截提示是写死的英文
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（默认规则把普通对话拦成常态，用户只会整体关掉风控，真正的凭据反而没人拦；命中记录以明文保存被拦下的密钥） |
+| 影响范围 | server：`app/services/risk/{constants,patterns,builtin_rules,builtin_business_rules,match_checks,detection,rule_service}.py`、`app/api/risk/schemas.py`、`app/lifecycle/risk_rules.py`、`app/services/agent/stream_session/risk_gate.py`；frontend：`riskEvents.ts`、`i18nToastService.ts`、风控设置页三个文件、六种语言文案；harness：`toolkits/computer_use/recording/synthesizer.py`（见 `BUG-HARNESS-2026-10-14-020`） |
+| 出现次数 | 1（用 39 条日常消息与代码、28 条凭据样本在真实规则引擎上对照新旧规则得出；没有真实用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-016`（同一套引擎的时限与口径统一，本条在其之上改默认与精度）· `BUG-AGENT-2026-07-27-002`（测试夹具里的普通英文词触发风控，同一个根因的另一个症状） |
+
+### 现象
+
+1. 31 条内置规则首次启动全部启用。39 条日常消息与代码（“schedule the meeting”“team meeting agenda”“cookie recipe”“Set SECRET_KEY in your .env”“redis://localhost:6379”“password = input(...)”“token = 4096”“password=${DB_PASSWORD}”等）里拦下 31 条；关键词按子串匹配，`tin` 命中 meeting、`nda` 命中 agenda，赋值类规则把变量引用、占位符、数字都当成密钥。
+2. 同一批默认规则对 28 条凭据样本只拦下 21 条，漏掉 OpenAI project key（`sk-proj-…`）、Anthropic key、GitHub fine-grained token、Slack token、Stripe live key、GitLab token 与 JSON 里的 `"password": "…"`。
+3. 命中记录的 `match_summary` 存的是被拦下的原文（密钥、手机号、地址），设置页的命中列表直接显示。
+4. 规则的动作有 `block` 与 `allow` 两种，设置页可选；`allow` 命中后只是不拦，既不放行别的规则、也不改变任何结果；`DetectionResult.highest_action` 与 `RiskAction.RANK` 没有调用方。
+5. Web 端被拦时 SSE 里带的 `message` 是服务端写死的英文句子，非英文界面也是英文，也没说明去哪里关掉规则。
+6. harness 的计算机操作录制里还有一份同样的邮箱正则（`synthesizer.py`），对点号连续串是二次方耗时。
+
+### 根因
+
+1. 默认启用与规则精度没有关联：规则按“能想到的敏感词”写，全部默认开，没有区分“命中即真泄露”（凭据）与“只是话题相关”（词汇）；关键词不带词边界；赋值类规则只看形状，不判断右值是真值还是引用。
+2. 凭据规则的前缀表不全，且 `-` 不在允许字符里，带连字符的长密钥被截断后不够长。
+3. 命中摘要沿用“方便排查”的写法，没有把“规则本身就是为了不让秘密扩散”这一点用在自己的存储上。
+4. `allow` 动作在引擎里没有对应语义，是从没接上的设计残留。
+5. 拦截文案放在服务端，而展示语言只有前端知道。
+
+### 修复
+
+1. 默认只启用安全凭证类别的 8 条规则（`DEFAULT_ENABLED_CATEGORIES`），其余 23 条为按需开启；已存在的安装保留各自的开关状态（库里区分不出“默认”与“用户选的”），但模式刷新照常生效。
+2. 赋值类规则（`credential_assignment`、`cookie_session_like`、`env_file_secret`）捕获 `key` / `value`，由 `match_checks.is_confirmed_match` 调 harness 的 `secret_value_span` 判定右值是不是真值（排除遮罩、占位符、函数调用、模板、字段状态词、代码字符、纯数字；要求含数字或强符号）；`api_key_like` 补全前缀表并允许 `-`，带词首边界，避免 `task-…` 之类的 slug 误中；关键词规则统一走 `keyword_pattern`（ASCII 整词加可选复数，中日韩文字任意位置）。
+3. 命中摘要只记位置 `chars:起-止`（超时记 `(matching timed out)`），不记原文；启动时清空既不是位置也不是超时标记的摘要（`clear_stored_match_text`）。规则测试仍显示用户自己粘贴的样本里的命中片段。
+4. 删除 `allow`：`VALID_ACTIONS` 只剩 `block`，API 的 `action` 只接受 `block`，设置页不再提供该选项，删除 `highest_action` 与两个 `RANK`；库里动作不是 `block` 的规则在启动时改为停用的 `block` 规则（`disable_non_block_rules`）。
+5. SSE 的 `risk_blocked` 只带规则列表（id、名称、严重度），前端用与设置页相同的规则名、用户所选语言拼出提示并指向“设置 → 安全策略 → 风控规则”；`translateI18nKeyIfPresent` 保证自定义规则回退到它自己的名字。
+6. 600 多行的 `constants.py` 拆成 `constants`（词表与默认）、`patterns`（共享模式片段）、`builtin_rules` 与 `builtin_business_rules`（种子定义）。
+7. harness 的 `synthesizer.py` 改读 `EMAIL_RE`（BUG-HARNESS-2026-10-14-020）。
+8. 复审补充：赋值的右值里带省略号（`...`、`…`）按被截短的示例处理，不算密钥（`match_checks._assigns_secret`）；`translateI18nKeyIfPresent` 对含 `Object` 成员同名片段（`constructor`、`toString`）的键直接回退，因为 next-intl 的 `has` 会把这类键判为存在，自定义规则 id 为 `constructor` 时提示里会显示 `Object`，设置页同时只为内置规则查语系；设置页拆成 `RiskRuleRow`、`RiskRuleEditor`、`useRiskRulesTransfer`（原 503 行，现 344 行，行数基线条目删除）；开关、批量启停、删除、保存失败原先都提示“加载规则失败”，改用新文案 `actionError`；复制规则名称里写死的英文后缀 `(Copy)` 改为六种语言的 `duplicatedName`；列表里的图标按钮与开关补 `aria-label`。
+
+### 验证
+
+1. 新旧规则在同一份语料上对照（真实规则引擎，旧规则取自提交内容，每条规则逐条判定）：旧默认（31 条全开）拦下 31/39 条日常消息、拦下 21/28 条凭据；新默认（8 条）拦下 0/39、拦下 28 条凭据样本中的 28 条（这两份语料是照着已发现的问题挑出来的回归清单，不是独立抽样，不能当作对一般文本的误报率与召回率）；31 条全开时新规则拦下 4/39（邮箱与手机号、私网地址属于该开的规则本来就该命中；`roadmap` 出现在一个长 slug 里、`${DB_PASSWORD}` 被内部主机名规则命中，是这两条可选规则仍然存在的误报）。
+2. 耗时（每条消息过全部启用规则，取 5 次最小值）：2 千字符聊天旧 1.4 毫秒 / 新默认 0.3 毫秒；10 万字符日志旧 53.1 毫秒 / 新默认 11.9 毫秒；4 万字符 `a.a.a.` 串旧 23.7 毫秒 / 新默认 8.0 毫秒。31 条全开时新规则更慢：10 万字符日志 83.3 毫秒对旧的 53.1 毫秒（关键词规则加了词边界，单条约慢一倍，没有病态规则；仍远低于 0.25 秒的单条预算）。
+3. 测试：`tests/services/risk`、`tests/lifecycle/test_init_risk_rules.py`、渠道入站风险闸门与 bus 测试共 170 例通过；新增 `test_builtin_rule_precision.py` 锁定默认规则的误报与漏报语料、关键词词边界、命中只记位置、旧原文清除、`allow` 归一与 API 拒绝；前端 `riskEvents.test.ts`、`i18nToastService.test.ts` 与 `RiskRuleParts.test.tsx` 共 22 例通过（去掉 `translateI18nKeyIfPresent` 的保护后其中 5 例失败）；风控相关文件 `ruff`、`mypy`、`prettier` 通过。
+4. 更宽的服务端回归（`tests/channels` 全部、架构域词表、入站隔离）6787 通过、14 失败，失败的是他人未提交的改动或未同步的测试，与本条无关：群路由与前缀触发 7 例（路由器新增的 `is_untrusted_event_sender` 调用，测试替身没有该方法）、`btw` 命令相关 3 例（`test_background_command` 2 例与缺失的命令译文 1 例）、`tests/architecture` 域词表 3 例、渠道日志脱敏 `test_redact_sensitive_with_special_characters` 1 例；本条改动的风控、生命周期、闸门与 bus 测试没有失败。
+5. 真实文件语料（`external_reference_project` 里随机取的 300 个文档与 300 个源码文件，505 万字符，只含文件不含聊天；只是这一份抽样，换一份抽样数字会变，见 BUG-AGENT-2026-10-14-024）：旧规则全开 483/600 个文件命中，新默认 8 条 5/600、新规则全开 246/600。新默认的 5 处命中里 4 处不是密钥（`postgresql://user:pass@host`、LiteLLM 的 `api_key: os.environ/NAME` 引用、`Authorization=Bearer%20unrelated`、`sessionId: 'wf-ptc-e2e-session'`），1 处是测试夹具里形似密钥的假值 `API_KEY=sk-secret123456789`。省略号保护去掉的两个文件命中是文档里的截短示例 `Bearer oma_live_…` 与 `{"token":"sk-ant-oat01-..."}`（关掉保护时默认规则命中 7/600，已对照验证）。
+6. 启动时的归一化（`disable_non_block_rules`、`clear_stored_match_text`）：20 万行命中记录且无需清理时首次约 100 毫秒、再次约 19 毫秒；清除其中 2 万行原文约 53 毫秒。
+7. 最坏情形：1 MB 全是 `password = input() ` 的文本（5 万处候选，逐处确认后都不算密钥），默认 8 条规则合计 349 毫秒，`credential_assignment` 超过 0.25 秒时限，按命中处理（拦下）；同一文本旧的 31 条规则 511 毫秒，同样超时；10 万字符为 46.8 毫秒。时限只约束正则扫描，不约束命中后的确认循环，所以更长的文本耗时仍随长度线性增长。
+8. 局限：除上面的真实文件语料外，没有真实用户聊天数据，新默认规则在真实聊天里的误报率未知；`os.environ/NAME`、`user:pass@host`、`sessionId: '…'` 这类引用或占位仍会命中默认规则；一个本身以 `sk-` 开头且后面连着 20 个以上字符的 slug 仍会命中 `api_key_like`；纯字母的密码不被 `credential_assignment` 拦下（精度优先）；旧版本导出的、带 `allow` 动作的规则文件导入会被拒绝（BUG-AGENT-2026-10-14-024 起不再认这个字段，导入后是启用的拦截规则）；已安装的实例仍保留全开的旧开关，需要用户自己关掉误报多的规则；`RiskMatch.action` 与库里的 `action` 列在本条保留（恒为 `block`），BUG-AGENT-2026-10-14-024 已整体删除；`secret_value_span` 不在 harness 的 `v0.1.0rc5` 标签里（该标签的 `secret_value.py` 没有这个函数，`git tag --contains b00705cc8` 为空），而服务端钉在 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前，OSS 的锁定安装无法导入；harness 的 `pyproject.toml` 版本是 `0.1.0rc6`，但标签 `v0.1.0rc6` 早已存在（2026-06-06），发版时要先核对版本号不与旧标签冲突——发版步骤由维护者执行，本次没有执行；没有在真实渠道与浏览器里端到端验证提示的外观（深浅主题、移动端）。
+
+### 踩坑经验
+
+1. 默认开启的规则必须能回答“命中就是真泄露”，话题相关的词汇规则一律按需开启；否则用户的唯一应对是整体关掉，保护反而归零。
+2. 关键词匹配必须带词边界，英文短缩写（`tin`、`nda`、`vat`）尤其容易藏在常用词里。
+3. 赋值类规则要判断右值是不是值：变量引用、占位符、遮罩、数字都不是密钥，同一份判定放在 harness 里，不要在业务层再抄一份。
+4. 保护秘密的组件自己的审计记录也不能存秘密；只记位置就够排查。
+5. 没有语义的选项不要留在界面上：一个什么都不改变的“放行”比没有选项更误导。
+6. 用户可见的拦截文案由展示层按用户语言生成，服务端只下发稳定的标识。
+
+---
+
+## BUG-AGENT-2026-10-14-020: 会话的几种结束方式各拆各的：对回收站外的会话执行永久删除会清空它的全部消息、永久删除读不到沙箱目录而从不清 worktree、两个自动清除不清记忆与运行时缓存、清空回收站不清小组件存储；「安全清空」补做文件清理时每个会话都整库重扫金库
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（过期的回收站视图删除一个已被恢复的会话，会话仍在列表里但消息全没了，无法找回；其余为 P2：已删除会话的记忆、授权、worktree、小组件数据残留） |
+| 影响范围 | server：新增 `app/services/chat/chat_disposal.py`（拆除步骤单一定义）、`chat_retention.py`（两个自动清除的到期策略）；改动 `chat_crud.py`、`app/database/repositories/chat_repo.py`、`uow.py`、`chat/_base.py`（`get_chat_by_id` 透传 `include_trashed`）、`app/services/system/vault_purge_service.py`、`app/services/infra/sandbox_cleanup.py`（批量清理）、`app/lifecycle/schedulers.py`；harness：`ArtifactVault.purge_by_task_ids`（提交 `5cef842a1`） |
+| 出现次数 | 1（读代码 + 真实 SQLite 架构上的红灯测试确认；未在真实桌面部署与真实 Qdrant 上端到端验证） |
+| 关联 | `BUG-AGENT-2026-10-14-015`（「安全清空」漏清检查点，本条把它并入同一套拆除步骤） |
+
+### 现象
+
+1. `DELETE /chats/trash/{id}` 对一个不在回收站的会话返回 404，但它的全部消息已被删除：`ChatRepository.permanently_delete_chat` 先无条件按 `chat_id` 删消息，再只在会话已进回收站时删会话行；服务层在同一事务里先删了 recall 索引与小组件存储，事务照常提交。红灯测试：播种一个活跃会话与一条消息，调用后消息数 0（期望 1）。触发条件：回收站列表已过期（会话在另一个标签页被恢复）后点永久删除。
+2. 单个会话永久删除时读沙箱目录用的是 `get_chat_by_id`，它默认过滤 `deleted_at IS NULL`（`chat_repo.py:164-165`），而永久删除只作用于回收站内的会话，所以读到的永远是 None，`cleanup_sandbox_worktree` 这一分支从未执行，git worktree 一直留在磁盘上。清空回收站读的是回收站列表，不受影响。
+3. 回收站 30 天自动清除与无痕会话 1 小时自动清除各自内联了一份删除：直接 `DELETE FROM chats`，只清 checkpoint 与工作空间。派生记忆、记忆抽取重试队列、运行时池与执行缓存、工作记忆、沙箱 worktree、小组件存储都不清。
+4. 清空回收站不删小组件存储（`widget_kv.chat_id` 没有外键），也不清重试队列、工作记忆与执行缓存；单个永久删除则会清。
+5. 清空回收站末尾的「FTS 优化」从未执行：它对 aiosqlite 驱动连接的 `execute` 没有 `await`，探针实测报 `coroutine 'Connection.execute' was never awaited` 且 0 行写入；同时 mypy 也报该处类型错误。
+
+### 根因
+
+同一件事（一个会话彻底结束）有 6 个入口，每个入口手写自己的子集，没有任何东西规定「一个会话结束必须拆哪些」，也没有测试把入口与步骤交叉起来看；永久删除的仓储函数把「是否在回收站」放在行删除上，却没有放在先于它的消息删除上。
+
+### 修复
+
+1. `chat_disposal.py` 定义拆除步骤：`clear_conversation_state`（checkpoint 线程经 `sync_checkpoint_messages` 全部别名 + 会话授权 + 拒绝熔断计数；checkpoint 清不干净只返回 False，授权照清）、`clear_runtime_caches`、`clear_extract_retry_queue`、`forget_chat_memories`、`remove_chat_files`、`dispose_permanently_deleted_chats`（先停生产者再抹状态）。每步 fail-open：行已提交，异常会中断后续步骤。焦点刷新、软删除、永久删除、清空回收站、安全清空都由它组合。
+2. `chat_retention.py`：两个自动清除只决定哪些会话到期，删除委托 `ChatService.permanently_delete_chat`；无痕会话先直接置入回收站（不再重复跑软删除副作用）。原先内联在 `schedulers.py` 的两段删除代码移除。
+3. 仓储：永久删除的消息删除带 `EXISTS(回收站内的该会话)` 条件，单条语句，不先 SELECT（读事务会让写事务无法升级为 `BEGIN IMMEDIATE`）；服务层在行删除成功后才删 recall 索引与小组件存储；沙箱目录读取传 `include_trashed=True`；清空回收站补删小组件存储。
+4. 删除清空回收站里从未执行的 FTS 优化块，不复活：真实执行的成本实测为 18000 条消息 0.56 s（首次）到 1.7 s，且发生在写事务里、请求路径上，收益没有验证。
+5. 「安全清空」：逐会话停运行时工作、清检查点与授权（行删除前），行删除后移除全部会话的 worktree 与工作空间（受 `purge_sandboxes` 控制）。`cleared_sandboxes` 仍是移除的 worktree 数。
+6. 文件清理改批量：`WorkspaceCleanupService.cleanup_chat_workspaces` 与 harness `ArtifactVault.purge_by_task_ids` 让共享金库整批只扫描一次。`purge_by_task_id` 委托它，匹配规则只有一份。
+
+### 验证
+
+1. `tests/services/chat/test_chat_disposal.py`（17 例）：永久删除 / 清空回收站 / 回收站自动清除 / 无痕自动清除四个入口用同一张表断言：会话行、消息、小组件存储、两个 checkpoint 别名、会话授权全部消失，运行时池、执行缓存、工作记忆、记忆级联、重试队列、worktree、工作空间各被调用一次且参数正确；回收站外会话永久删除返回 False 且消息、小组件、检查点、授权原样；批量入口只调一次工作空间清理；各步骤单测含失败不阻断后续。`tests/services/infra/test_sandbox_cleanup_batch.py`（3 例，真实文件系统）、harness `tests/agent/artifacts/test_vault_purge.py` 新增 2 例。
+2. 变异检查（7 个，全部被杀死后还原并比对）：拆除跳过 checkpoint（5 例失败）、清空回收站跳过拆除（1）、仓储去掉回收站条件（1，即现象 1 的红灯）、沙箱目录读取去掉 `include_trashed`（3）、无痕清除跳过置入回收站（1）、清空回收站改回逐个拆除（1）、金库改回逐个扫描（1）。
+3. 实测（临时目录，真实 SQLite 检查点与 SQLite 库）：1000 个会话、金库 500 个对象时，逐个清理推算 13.2 s、批量 92.6 ms；金库 5000 个对象时推算 159.8 s、批量 642.9 ms（逐个清理单次实测 13.2 ms / 159.8 ms）。完整「安全清空」1000 个会话 1.6 s 到 4.5 s（含检查点、运行时、行删除、工作空间批量清理；两次运行的差异来自首次冷启动，未做多轮统计）。
+4. 静态：改动的 server 与 harness 文件 `ruff check` / `ruff format` / mypy 通过（顺带修了 `chat_crud.py` 的类型错误、`test_external_agent_pool_on_chat_delete.py` 两处多余的 `type: ignore`、harness `vault.py` 的 `get_manifest` 返回类型）。
+5. 局限：`empty_trash` 仍只取前 10000 个回收站会话做拆除，而仓储一次删光全部；清空回收站在列表与删除之间被恢复的会话仍会被拆除（均为原有行为，未改）；记忆级联、worktree 在拆除测试里是 spy，真实 Qdrant 与真实 git worktree 没有端到端验证；一次误操作对 `app/services` 整个目录跑了格式化（已把能还原的 62 个文件还原到 HEAD，4 个带他人未提交改动的已跟踪文件与 23 个他人新增文件只剩格式变化，见最终报告）。
+
+### 踩坑经验
+
+1. 「FK 级联绕过子表触发器导致 FTS 孤儿行」的说法在 `PRAGMA foreign_keys=ON`（`database/factory.py:82`）下不成立：真实架构上直接 `DELETE FROM chats` 后 `messages_fts` 命中数为 0，所以自动清除原先的直接 SQL 删除并没有 FTS 孤儿行，这条没有当 bug 处理；
+2. 「入口 × 步骤」交叉表才能抓到「读沙箱目录读到 None」这种单入口测试写不出来的缺陷，它在第一次跑矩阵时就红了；
+3. 把按会话循环的清理改批量前先量：单次 13 ms 看起来无害，乘上会话数与金库大小就是分钟级；
+4. 共享工作区里不要对目录批量格式化：只格式化自己改的文件。
+
+---
+
+## BUG-AGENT-2026-10-14-021: 看板里失败的任务没有任何可用的重试入口（菜单与抽屉里的「移至就绪」必被服务端拒绝），拖到不可能的列要等服务端报错且把服务端原文印给用户；归档（单个与批量）没有确认；确认对话框遇到无空格长标题会撑破；三处原生对话框写死中文
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（任务耗尽重试预算后，人在界面里无路可走；其余为误导性提示与缺失的二次确认） |
+| 影响范围 | harness：`toolkits/kanban/retry.py`（新增）、`dispatcher_failure.py`、`_orchestrator_tools.py`（提交 `f3057d1a9`）；server：`app/services/kanban/retry_ops.py`（新增）、`service_mixins/board_task_mixin.py`、`app/api/kanban/routes/tasks.py`（提交 `d420921820`）；frontend：`kanban-transitions.ts`（新增）、`useKanbanTaskActions.ts`（新增）、`KanbanTaskActionConfirm.tsx`、`KanbanBoardView.tsx`、`useKanbanDnD.ts`、`KanbanTaskCardActions.tsx`、`KanbanTaskDrawer*.tsx`、`KanbanBulkActionBar.tsx`、`app-shell/confirm-dialog.tsx`、`lib/utils/clipboardUtils.ts`、`memory/command-center/ConclusionAttributionStudioCard.tsx`、6 个语言包 |
+| 出现次数 | 1（读代码 + 单元 / 集成测试 + 生产构建在真实 Chrome 里对着模拟接口复核；未对真实服务端与真实模型端到端） |
+| 关联 | — |
+
+### 现象
+
+1. 失败任务的卡片菜单与抽屉头部提供「移至就绪」（`kanban-styles.ts:11` 原为 `failed: ['ready', 'archived']`），而服务端守卫在 `move_orchestrator.py` 里拒绝手动移出终态（`task.is_terminal and target_status != ARCHIVED`），点了只会得到 409。能把 FAILED 拉回来的只有仅供 Agent 使用的 `kanban_retry_task` 工具：人没有入口，重置、READY 流转与审计事件的实现也只存在于工具与分发器两处。
+2. 把卡片拖到服务端必然拒绝的列（终态任务拖到归档以外的任何列、草稿池任务拖到执行中、IN_REVIEW 的进出等）要等请求回来才失败，提示直接显示服务端原文；多选拖拽则逐个报同样的错。
+3. 归档与批量归档没有确认，归档后任务离开看板，界面里没有恢复入口。
+4. 确认对话框的描述含用户任务标题，标题是无空格长串时撑破对话框。
+5. 剪贴板读取授权的桌面端对话框、浏览器端 `confirm`、结论删除确认三处写死中文。
+6. 批量操作栏的「移至」把就绪 / 阻塞 / 已完成写死在菜单里：选中的全是失败 / 已完成 / 审核中任务时，每个选项都必败（实测 3 个失败任务批量移到就绪：`succeeded: 0, failed: 3`，错误 `Cannot move terminal task (status=failed) to ready`），界面只显示成功与失败的数量，不显示原因。
+
+### 根因
+
+1. 前端的「可移动状态」表与服务端守卫是两份互不知晓的拷贝；重试这件事没有共享实现，调用方只有一个 Agent 工具。
+2. 前端没有镜像服务端守卫；失败提示把 `err.message` 直通 toast。
+3. 归档被当作普通移动，走与其它列相同的无确认路径。
+4. 对话框描述缺 `overflow-wrap:anywhere`。
+5. 文案直接写在 `ask()` / `window.confirm()` 调用里。
+6. 批量操作栏的请求失败分支把 `String(e)` 直通 toast；`bulk-action` 声明了没有任何界面、测试与调用方的 `reclaim`（会中止运行中的 agent）。
+7. 批量操作栏是唯一没有引用 `kanban-transitions` 的状态流转入口（卡片菜单、抽屉、拖拽都已共用它），目标列表与服务端守卫各写一份。
+
+### 修复
+
+1. harness：`retry_failed_task` 持有重置、`FAILED→READY` 的 CAS 与 `RETRYING` 审计事件；按 store 的 `asyncio.Lock` 串行化重复提交；重置在任务仍为 FAILED 时先落库，其后才做 CAS，工作线程紧接着认领时不会被覆盖。`KanbanDispatcher.retry_task` 只在真正生效时发 `task_retrying` 并唤醒分发器；`kanban_retry_task` 委托它，工具 schema、docstring 与错误文案逐字不变。
+2. server：`POST /api/v1/kanban/tasks/{id}/retry`，任务不存在返回 404，非 FAILED 的任务原样返回 200（重复提交幂等）；手动移出 FAILED 仍被拒绝，重试是唯一回路。
+3. frontend：`kanban-transitions.ts` 的 `resolveMoveIntent` 镜像服务端守卫，返回 `move / retry / archive / blocked`；卡片菜单、抽屉、拖拽三条路径都经 `requestMove`，重试与归档弹确认，`failed→ready` 变成「重试」；拖拽先排除不可能的目标并给本地化提示（只有 `deps_unmet` 用专门文案，其它一律通用文案，不再显示服务端原文）；批量归档用与批量删除一致的行内确认；`ConfirmDialog` 描述加 `wrap-anywhere`；批量操作栏加 `whitespace-nowrap` 与子项不收缩，窄屏下整条横向滚动而不是把按钮文字竖排。
+4. 三处写死中文的对话框改走 i18n；`ConclusionAttributionStudioCard` 里无调用方的 `cascade` 参数及其「级联模式」措辞一并移除，并去掉其中一处原生 emoji。6 个语言包同步新增键。
+5. 确认文案与实际行为一致：重试确认写明「失败后已继续推进的下游任务不会重新执行」（失败即放行依赖它的 BACKLOG 任务，见 `dispatcher_failure.py` 的失败收尾）；归档确认直接写明任务无法恢复（服务端与界面都没有恢复已归档任务的路径）。
+6. 批量操作栏请求失败时显示本地化提示并保留选中（复用 `updateError`），不再显示原始异常；`bulk-action` 移除 `reclaim`，会中止运行中 agent 的动作只保留带确认的单任务入口；`TestBulkAction` 迁入独立的 `test_bulk_action_api.py`。
+7. 批量操作栏的「移至」改用 `kanban-transitions` 导出的 `isServerMoveAllowed` 过滤目标：只隐藏对整个选择必然全部失败的目标，仍有任务能到达的目标保留（混合选择继续由服务端逐条返回部分成功，`test_bulk_partial_failure` 钉住这条契约）；选中任务全为终态 / 审核态时整个入口隐藏；选中任务查不到状态时不过滤。没有新增接口、文案键或服务端改动。
+
+### 验证
+
+1. 测试：harness `tests/toolkits/kanban/test_retry.py` 18 例通过（含「失败已放行的下游任务不被重跑」READY / RUNNING / COMPLETED 三种）；server `tests/api/kanban/test_retry_api.py` 10 例通过；frontend 新增 `kanban-transitions`、`useKanbanDnDBlocking`、`KanbanTaskDrawerMove`、`KanbanBulkActionBar`、`KanbanBoardView`、`confirm-dialog` 六个测试文件并修改既有相关测试。最后一次受影响目录的 vitest：165 个文件、1636 例全部通过（此前整库一次：1393 个文件、9868 例通过）。
+2. 变异检查：拿掉拖拽预拦截与确认闸门，19 例失败；拿掉看板对 `requestMove` 的接线，4 例失败；两次均已还原并比对。
+3. 真实 Chrome（生产构建，隔离输出目录，模拟接口复现服务端守卫语义；覆盖桌面浅色与深色、375px 深色、中文与英文，不是全部组合）：失败卡片菜单变为「任务详情 / 重试 / 归档 / 删除」；重试确认后实际发出 `POST /kanban/tasks/{id}/retry`（不是 `/move`），卡片离开失败列进入就绪列并出现成功提示；取消不发任何请求；抽屉头部「重试」关闭抽屉后弹出同一个确认并发出同一个请求；失败卡片拖到执行中弹出「该任务不能移到该状态」且没有请求，拖到就绪弹出重试确认，已完成卡片拖到就绪同样被拦；就绪卡片拖入失败仍走原终态确认。归档确认里的 140 多字符无空格标题在 375px 对话框内换行，对话框与文档均无横向溢出；编译产物含 `.wrap-anywhere{overflow-wrap:anywhere}`。批量归档行内确认在 1440px 下全部按钮可点击（仅末尾「取消选择」图标被全局悬浮入口遮住），375px 下「确认 / 取消」位于操作条可见区域内（但整条被悬浮入口部分遮挡，见局限）。英文下重试确认、归档确认与拖拽拦截提示正常显示，没有缺失键。
+4. 静态：改动文件 oxlint 与 prettier 干净；`tsc` 仅剩他人未提交文件 `KanbanTaskHandoffSection.test.tsx(68,3)` 的一处错误；harness 改动文件的 ruff / mypy 干净，行数闸门基线已更新。
+5. 批量条清理：`test_bulk_action_api.py` 12 例通过；前端 kanban 目录 22 个文件、306 例通过；两条新用例在改动前均失败（后端 `reclaim` 返回 200 而非 400；前端本地化提示未被调用）。
+6. 批量条移动目标：先写失败用例，改动前 4 例失败（三种全终态 / 审核态选择仍显示「移至」，混合选择仍显示必败目标）；改完后 `components/features/kanban` 22 个文件、392 例全部通过；`kanban-transitions.test.ts` 把 `isServerMoveAllowed` 对 72 个起止状态对和 7 个「原地不动」状态逐一钉住（后者用真实守卫逐个求值：已完成、失败、审核中、草稿池移到自己当前状态被拒，归档到归档放行）；改动文件 oxlint 与 prettier 干净，`tsc` 仍只剩他人未提交文件 `KanbanTaskHandoffSection.test.tsx` 的一处错误。没有在真实浏览器里复核这一条（只有 jsdom 组件测试）。
+7. 局限：
+   - 浏览器复核用的是模拟接口，不是真实服务端与真实模型；重试后任务真正被认领执行的链路由 harness 与 server 测试覆盖，没有在真实桌面部署上端到端跑过。
+   - 批量条不提供「重试」：失败任务只能逐个重试。没有任何真实使用数据支撑批量恢复的需求（本地库里的看板全是测试看板），而批量重试会让每个任务获得全新的重试预算并再次消耗模型额度，需要新的接口动作、确认文案和 6 个语言包，不满足投入产出；同类产品里只有 hermes 有批量恢复（把阻塞任务批量改回就绪），且它没有终态失败。
+   - OSS CI 使用 PyPI 固定的 `myrm-agent-harness==0.1.0rc5`，server 新路由要在 CI 里生效，需要先发布 harness 并执行 `./myrm harness sync-lock`（独立的维护者发布步骤，本次未做）。
+   - `ConclusionAttributionStudioCard` 只本地化了删除确认，其余约 50 处写死中文仍在。
+   - 窄屏下批量操作栏与全局悬浮入口（小莫中枢、设计师之眼等）在底部重叠，且多选只能靠 Ctrl / Cmd / Shift 点击，触屏无法选择；均为原有问题，未动。
+   - 当前工作区里他人未提交的 `move_orchestrator.py` 交接（handoff）改动使 `tests/api/kanban/test_kanban_api.py::TestSyntheticRun::test_move_with_result_and_metadata` 失败（断言 `metadata.handoff` 只含 `changed_files`，现多了 `summary`、`timestamp`），与本条无关。
+
+### 踩坑经验
+
+1. 前后端各存一份「允许的流转」时，只要有一份没跟上，界面就会提供一个必然失败的动作；前端镜像服务端守卫并用同一张用例表测，比等服务端报错再翻译错误更便宜。
+2. 面向用户的失败提示不要透传服务端原文：只对有专门语义的错误码（如依赖未满足）给专门文案，其余统一通用文案，细节留在日志里。
+3. 把重试这种「重置 + 状态转移 + 审计」收成一份共享实现，调用方（Agent 工具、REST、GUI）才不会各漏一步；先在任务仍为 FAILED 时落库再做 CAS，避免与紧接着认领的工作线程互相覆盖。
+4. 模拟接口只模拟真实形状：这次复核里应用两次掉进全局错误边界，原因都是模拟接口给某些列表字段返回了对象，不是被验证的代码；排查时先看崩溃栈落在谁的组件里，再决定要不要改被测代码。
+5. 浏览器自动化里 `click` 会等页面空闲，页面有持续动画或重连时可能一直超时；改用聚焦加键盘（也是真实的输入路径）可以绕开，而不是改成合成点击。
+6. 服务端守卫不特判「原地不动」：终态、草稿池、审核态任务移到自己当前的状态同样被拒。过滤移动目标时把「已在该状态」一律算作可达会让全是已完成任务的选择仍显示「移至已完成」，这是先写测试才暴露的；判定要用真实守卫逐个求值，不要凭直觉。
+7. 过滤批量目标要区分「整个选择必然全部失败」与「部分任务失败」：前者隐藏，后者保留，因为批量接口的契约就是逐条返回、允许部分成功；用「任一任务不可达就隐藏」会把原本能成功的那部分也禁掉。
+
+---
+
+## BUG-AGENT-2026-10-14-022: 「安全清空」只有接口、设置里没有任何入口，用户无法自己清空全部会话；接口也不看有没有会话正在运行
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（清空会话的入口缺失；运行中清空造成的竞争没有复现，守卫来自读代码） |
+| 影响范围 | server：`app/services/system/vault_purge_service.py`（`VaultPurgeBusyError`）、`app/api/health/router.py`（409）、`tests/architecture/data/route_consumer_baseline.txt`（移除该路由）；frontend：`src/services/conversationPurge.ts`、`DataFlowErasureStrip.tsx`、`DataFlowDisclosurePanel.tsx`、6 个 locale；brand：`competitor-comparison.mdx`（中英） |
+| 出现次数 | 1（读代码 + 红灯测试确认；未在真实浏览器里点过界面） |
+| 关联 | `BUG-AGENT-2026-10-14-020`（清空时的逐会话拆除）、`BUG-AGENT-2026-10-14-017`（该路由已受认证保护） |
+
+### 现象
+
+1. `POST /health/database/safe-purge` 在路由消费者基线里登记为没有前端调用方（`route_consumer_baseline.txt` 原第 54 行）。「数据流向与隐私披露」里「您的数据权利」只有导出与记忆管理两个动作，用户想清空自己的会话只能直接调接口。
+2. `SafeVaultPurgeService.purge_vault` 取到清空互斥锁后不看网关里有没有仍在运行的一轮对话，任何带认证的调用方都能在对话进行中清空。
+
+### 根因
+
+接口先于界面落地，基线把「没有调用方」登记成了既成事实；清空与运行中的会话之间没有任何约定。
+
+### 修复
+
+1. server：`purge_vault` 取锁后立即检查 `get_agent_gateway().active_session_ids()`，非空抛 `VaultPurgeBusyError`，此时尚未碰任何状态；路由映射为 409（与 `rewind` 的 `SessionBusyError` → 409 一致）；`purge_sandboxes` 的参数描述改成真实行为。
+2. frontend：`conversationPurge.ts`（超时 300 s，409 映射为 `ConversationPurgeBusyError`）；`DataFlowErasureStrip` 放在「您的数据权利」下方：二次确认说明保留项（记忆、智能体、API 密钥、渠道设置）→ 调用 → 成功后清空侧栏会话缓存；确认对话框的触发按钮保持挂载（键盘焦点留在原处），结果写进常驻的实时区域，并给出「新对话」按钮（复用 `chat.newChat`，整页跳转，丢弃内存里已被删除的当前会话）；运行中与其它失败各给可重试提示，不抛出；文案沿用记忆管理界面的用词（待确认记忆、最近记忆活动），不写「本设备」；六种语言文案齐全。
+3. 基线移除该路由；brand 文档补上运行中拒绝与设置入口，并把测试数改成实际值。
+
+### 验证
+
+1. server `tests/api/health/test_safe_purge.py` 4 例（新增 2 例：运行中拒绝，真实 SQLite 里的会话行原样、`clear_runtime_caches` 未被调用；API 层返回 409 且消息含运行数）。红灯：先是 ImportError，补上类型后 API 返回 500 而不是 409；变异（去掉运行检查）使 2 例失败，还原后通过。`tests/api/health tests/services/system tests/services/chat/test_chat_disposal.py` 共 94 例通过。
+2. frontend `DataFlowErasureStrip.test.tsx` 5 例（展示说明、取消不清空、成功时的计数 / 侧栏缓存 / 焦点留在触发按钮 / 新对话入口、运行中拒绝、通用失败；实时区域在初始与失败时为空）+ `conversationPurge.test.ts` 3 例；5 个变异（不清侧栏缓存、运行中错误当成通用失败、新建会话无动作、服务层 409 映射失效、成功计数写死 0）各被 1 例杀死，还原后 8 例通过；对话框随成功结果卸载的旧实现上，探针测得 `document.activeElement` 为 `<body>`，焦点与预挂载实时区域两个红灯测试在组件改写后转绿；`system` 与 `services/__tests__` 两个目录 105 个文件 850 例通过。
+3. 静态：server 三个文件 `ruff check` / `ruff format` / mypy 无问题；frontend 新文件 prettier / oxlint 干净，`verify:icu-syntax`、`verify:theme-colors` 通过，`verify:i18n` 的 6 语言完整性通过（引用检查的 59 个缺键与本条无关）。
+4. 局限：运行检查是快照，清空窗口内新开的一轮不会被拦住；只覆盖网关登记的会话，cron / 看板 / IM 渠道 / 评测的 agent 运行不经网关，不在其内；客户端 300 s 超时后服务端可能仍在清空；500 可能是部分清空（数据库事务是原子的，之前的状态清理与之后的文件删除是尽力而为）；界面没有在真实浏览器里验证（浏览器工具拒绝 E2E 地址，需走 `./myrm test` 的 E2E 通道，未运行）。
+
+### 踩坑经验
+
+1. 路由消费者基线只收缩不扩张：补上调用方后要同步删掉基线行，否则 `test_baseline_only_shrinks` 会提示该行已不再是孤儿；
+2. `ConfirmDialog` 对 `onConfirm` 抛出的错误只写 console，用户看不到原因，所以需要用户看到的失败要在回调里自己处理并给提示，而不是抛出；
+3. 对话框的触发按钮不能随成功结果一起卸载：条件渲染掉它，键盘焦点会落到 `<body>`（探针实测）；结果提示用常驻挂载的 `<output>`，内容变化才会被读屏播报；
+4. 面向用户的文案先查现有界面的叫法（本条的「待确认记忆」「最近记忆活动」取自记忆管理界面），并避免绑定部署形态的措辞（「本设备」在托管部署下不成立）。
+
+---
+
+## BUG-AGENT-2026-10-14-023: 归档技能后已打开的会话仍带着它；后台学习的技能被人工批准后，系统写的英文审核备注进了技能的 description；一次自动学习弹两条提示且没有撤销；成长卡片把扫描器与运行时原文直接印给用户
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（数据正确性：技能描述被污染并进入每轮的技能目录；归档不对热会话生效；其余为 P3） |
+| 影响范围 | server：`app/core/skills/curator/service.py`（`apply_skill_archived`、`run_curator_sweep`）、`app/api/skills/drafts.py`、`app/services/skills/{auto_extractor,draft_notification,evolution_events}.py`、`skills/growth/{lifecycle,queries}.py`；frontend：`hooks/globalEvents/skillGrowthToasts.ts`（新增）、`useGlobalEvents.ts`、`services/skill/growth.ts`、`SkillHistoryPanel.tsx`、`lib/skills/growthReason.ts`（新增）、`components/features/skills/growth-card/`（新增 `GrowthTechnicalDetails.tsx`）、六种语言文案；各目录 `_ARCH.md` 与根 `ARCHITECTURE.md` |
+| 出现次数 | 1（读代码 + 红灯测试确认；未在真实浏览器与真实 LLM 里跑过） |
+| 关联 | `BUG-AGENT-2026-10-14-018`（本条补上它记录的局限之一：扫描发现的 `description` 与应用失败的 `remediation` 原文未本地化；它记录的「没做浏览器级别视觉检查」仍未补上）；本地提交，未 push |
+
+### 现象
+
+1. 归档或恢复技能后，已经打开过的会话下一轮仍用旧的技能目录：执行缓存的指纹包含 `skill_config_version`（`execution_cache/fingerprint.py:210`），指纹相等就直接复用已构建的 agent（`registry.py:119`），而归档的唯一写入口 `apply_skill_archived` 不推进这个版本；
+2. 后台学习的草稿因「相似技能 / 扫描失败 / 进化锁 / 应用失败」落成待审，系统把英文备注拼进记录的 `reason`；用户人工批准时，`draft.description`（即这段 `reason`）被原样写进新技能的 SKILL.md frontmatter，备注因此成了技能描述，并出现在每一轮进入模型的技能目录里；
+3. 自动落地一个新技能时，`skill_evolved` 与 `skill_growth_updated(AUTO_APPLIED)` 各弹一条 toast，两条都没有撤销入口；
+4. 成长卡片里扫描器的英文描述、运行时的错误签名与循环类型、应用失败原文直接展示；「相似技能 / 扫描未过 / 进化锁」这几类原因只存在于上面那段英文备注里，卡片没有本地化说明；
+5. `auto_extract_skill` 里有一条永远走不到的补丁分支：后台复盘产出的补丁一律走人工审核；
+6. 用户撤销（归档）一个自动学到的技能后，同名技能再次被提议时落成待审；人工批准会重写 SKILL.md，但生命周期状态仍是已归档，技能被批准了却不会被加载，界面没有任何提示；
+7. Curator 的 sweep 归档技能后不推进配置版本，已打开的会话继续带着被归档的技能；
+8. 可选进化的回滚（`skill_evolved` 提示里的撤销）用裸 `fetch` 调 `/api/v1/evolution/{id}/rollback`，不带 `Authorization` 头，也绕过本机后端就绪检查；开启令牌鉴权的部署里这个撤销会失败，只显示「撤销失败」。
+
+### 根因
+
+1. 归档写入口只改了技能的生命周期状态，没有通知「技能配置已变」这个缓存键；
+2. 「给人看的审核原因」与「会成为技能内容的描述」共用了同一个字段（`reason`）；
+3. 两个事件各自带提示，没有约定谁负责提示；又不能简单地让所有 `skill_evolved` 静默，因为人工批准草稿时发的也是这个事件，而前端对「已批准」状态没有提示；
+4. 服务端只下发了拼好的英文，没有下发稳定的原因码，展示层无从本地化；
+5. 补丁分支是 P1 改成「补丁一律人审」之前遗留的；
+6. 草稿落盘只写文件，不看同名技能当前的生命周期状态；
+7. sweep 的归档由 Harness 的 Curator 引擎直接写状态，服务层没有在其后通知缓存键；
+8. 回滚没有服务层封装，提示代码直接拼 URL 调 `fetch`，另一处历史面板用的是 `apiRequest`，两处走了不同的请求入口。
+
+### 修复
+
+1. `apply_skill_archived` 写入后调用 `bump_skill_config_version()`，归档、恢复、修复、成长时间线四个调用方共用这一处，热会话下一轮重建；被拒绝的归档（固定或被绑定）不推进版本；
+2. 审核原因改为结构化原因码：`risk:<信号>` / `similar:<技能名列表>` / `scan_failed` / `evolution_locked` / `apply_failed`（常量在 `draft_notification.py`），应用失败原文存 `apply_error`，扫描摘要存 `security_scan_summary`；`description` 始终是纯技能描述；`evaluate_growth_scan` 返回 `(描述, 扫描摘要)`，不再往描述里追加文字；
+3. `publish_skill_evolved_event` 增加 `notify`，后台自动落地传 `False`（由成长事件提示），人工批准与可选进化保持默认 `True`；前端 `skillGrowthToasts.ts` 只在 `notify === false` 时跳过提示，同时仍派发 `skill-evolved` 供界面刷新；
+4. 自动落地的提示只弹一条，带「撤销」= 归档（`PATCH /skills/curator/{name}/lifecycle`，可在技能列表恢复）；固定或被绑定时服务端返回 409，用单独文案说明，其他失败用通用文案；该提示改用「Agent 学会了新技能」的措辞，删除不再使用的 `skillGrowthAutoApplied`；
+5. 前端新增 `lib/skills/growthReason.ts`（封闭词表解析 `similar:` / `scan_failed` / `evolution_locked`，词表外返回 null）；`GrowthCaseEvidence` 按原因码给出本地化的「为什么需要你审核」，应用失败只给本地化结论；扫描器描述、运行时错误签名与循环类型、应用失败原文与服务端建议统一收进默认收起的 `GrowthTechnicalDetails`；六种语言新增对应文案，删除不再使用的 `runtimeFailure.loopKind`；
+6. 删除 `auto_extract_skill` 的补丁分支，传入非 `skill_draft` 类型直接返回 `unsupported result_type`；
+7. `drafts.py::_materialize_skill_draft` 落盘成功后，若同名技能处于已归档状态，经 `set_skill_archived(..., archived=False)` 恢复：批准草稿就是用户决定让它运行；
+8. `run_curator_sweep` 在 `archived_count > 0` 时推进配置版本；
+9. 新增 `services/skill/growth.ts::rollbackSkillEvolution`（`apiRequest`，带鉴权头），提示与历史面板共用，删除裸 `fetch`；
+10. `useScanRiskText.ts` 的翻译器绑定去掉类型注解：`verify:i18n` 的引用门禁此前对 `scanRiskText.ts` 报 6 条键缺失，原因是门禁只认 `const t = useTranslations(...)`，认不出 `const t: ScanRiskTranslate = ...`，键实际都在 `settings.skills.scanRisk`；去掉注解后该门禁不再报这 6 条；
+11. `drafts.py` 里两处已有的 pyright 类型错误（`eval_cases` 收窄、`_TEST_MOCK_DRAFT_NAMES` 的元组长度）一并修掉；`undoEvolve` 在中文、繁体中文、日文里去掉「(Undo)」后缀，与其余语言一致。
+
+### 验证
+
+1. 服务端：`tests/api/skills`、`tests/core/skills`、`tests/services/skills`、`tests/api/evolution`、`tests/integration/skills` 与 `tests/architecture` 分两次跑：第一次（`-x`，排除他人改动的 `test_curator.py`）747 通过后在 `test_prebuilt_skills_e2e.py` 停下；第二次 `tests/architecture` + `tests/integration/skills` 2095 通过、16 失败，其中 13 例是 `tests/architecture` 的他人改动（路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、server 对 harness 的深层导入；`test_frontend_api_literals_target_existing_routes` 的违规清单里没有本条新增的 `/evolution/{}/rollback`），3 例是 `test_prebuilt_skills_e2e.py`（失败日志出自 `app/core/skills/store/service.py:352` 的「Runtime load excluded … (disabled)」，该文件有他人未提交改动，`gates/runtime_load.py` 是他人新增的未跟踪文件；本条没有改这些文件，单独跑该文件同样失败 3 例）；本条涉及的全部文件 `ruff check` / `ruff format` / `pyright` 无问题；同目录其余文件另有 7 条 ruff、10 个未格式化、72 条 pyright 报错（`app/{api,core,services}/skills` 下 22 个文件，多数是他人正在改的文件），没有动；
+2. 前端：全量 vitest 1398 个文件 9919 例，9917 通过、2 失败（`stageTaskCount.test.ts`、`taskTopologyModel.test.ts`：子代理拓扑「待审节点」的断言，他人的改动）；新增 `skillGrowthToasts.test.ts` 11 例、`growthReason.test.ts` 12 例，并在 `SkillGrowthCaseCard.scanRisk.test.tsx` 补了原因码、应用失败、运行时失败、技术细节折叠的用例；本条涉及文件 `oxlint`、`prettier`、fractal 文档检查通过；`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；`bun run lint` 仍有 `verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy` 三个门禁失败，报出的文件（agent-assembler、channels、chat/group、system-monitor 等）都是他人的，本条涉及文件不在其中；`verify:i18n` 还剩 53 条键缺失，全部在他人的 chat / kanban / `SkillDetailSheetContent`；`useGlobalEvents.ts` 由 716 行降到 674 行，行数基线没有新增本条的项；
+3. 变异验证：去掉 `bump_skill_config_version()`、跳过 `notify` 判断、把 409 判断改成 500、撤销改成恢复、卡片直出 `applyError`、技术细节里去掉扫描器描述、`scan_failed` 解析失效，共 7 处，各被 1 例杀死，还原后通过；第 6、7 条各有红灯测试（去掉修复后失败：批准后状态仍为 `archived`、sweep 归档后版本仍为 0.0），修复后通过；第 8 条的单测改为断言经 `rollbackSkillEvolution` 调用，裸 `fetch` 的缺陷由 `apiRequest` 带 `Authorization` 头的代码（`lib/api.ts:436-446`）确认，没有开令牌鉴权的真实部署验证；
+4. 局限：没有在真实浏览器里看过（深浅主题、375px 宽度）：ChromeAgent 拒绝了 `localhost:3000`（`CHROME_AGENT_E2E_URL_REJECTED`），需要走 `./myrm test -m chrome_e2e` 通道，未运行，当前只有 jsdom 渲染测试与语义色 / 主题色门禁（`verify:theme-colors` 通过）；没有用真实 LLM 端到端跑过后台复盘；「归档后热会话下一轮不再带该技能」由指纹与缓存复用的代码链路加版本推进的单测推出，没有开真实对话验证；已经在库里的待审记录保留旧的带备注描述（不迁移，数量受上限约束且会被处理掉）；撤销自动落地的技能后，对应成长卡片的状态仍显示「已自动落地」；自动学到的技能默认带进化锁，Curator 的自动淘汰对它们不生效，所以 sweep 归档的版本推进只对用户自建、未加锁的技能有意义；复盘提示词没有改动，也没有评估其对产出质量的影响。
+
+### 踩坑经验
+
+1. `apiRequest` 把 HTTP 状态码放在 `ApiError.code`（`lib/api.ts:515`），用状态码区分 409 与其他失败时直接比较它，不要解析消息文案；
+2. 事件的「提示」与「刷新」要分开：静默掉整类事件会让共用该事件的另一条路径失去反馈，需要显式的 `notify` 标志；
+3. zsh 不会对未加引号的变量按空格拆词，`FILES="a b"` 再传给 `ruff` 会被当成一个路径；要用数组 `FILES=(a b)` 与 `"${FILES[@]}"`；
+4. 用 `Intl` 之外的方式拼名称列表时，技能名受 `SKILL_NAME_PATTERN` 约束不含逗号，才能用逗号当分隔符，这个前提要在解析处写明。
+
+---
+
+## BUG-AGENT-2026-10-14-024: 风控闸门对带占位词、引用或查询串的赋值仍然拦下，对带环境变量前缀的真密钥与 13 种厂商前缀放行；规则与命中记录的 `action` 字段恒为 `block`，却留在库、接口、种子和每次启动的归一化里
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（误拦会让用户关掉规则，漏拦让真密钥进模型；`action` 是死字段，没有用户可见的后果，但每次启动多两次写库、接口与种子多一个无意义字段） |
+| 影响范围 | server：`app/services/risk/{constants,patterns,builtin_rules,builtin_business_rules,match_checks,detection,rule_service}.py`、`app/api/risk/{router,schemas}.py`、`app/lifecycle/risk_rules.py`、`app/database/{models/security,migrations}.py`、`app/services/security/profile_manager.py`（只改类型）；harness：`core/security/detection/{secret_value,leak_detector}.py` |
+| 出现次数 | 1（复审 `BUG-AGENT-2026-10-14-019` 时逐条验证发现；没有真实用户聊天数据） |
+| 关联 | `BUG-AGENT-2026-10-14-019`（本条修它留下的误拦、漏拦与表述过满的数字）· harness `BUG-HARNESS-2026-10-14-022` |
+
+### 现象
+
+1. 在测试清单上（55 条应放行、64 条应拦下；清单是照着下面这些问题写的回归清单，不是独立抽样），019 之后的 HEAD 误拦 7 条：`?api_key=YOUR_KEY&k=1&sig=Zk9mango42`（值一路读过 `&k=`）、`secret: isSecret（N3）`（值读进全角括号）、`password: YourSecurePassword123!` 与 `SECRET_KEY=CHANGE-TO-A-UNIQUE-64-CHAR-SECRET-KEY`（文档里让读者填的占位）、`postgres://app:${DB_PASSWORD}@db:5432/app`、`postgres://user:<password>@host/db`、`postgres://user:password@localhost/db`（连接串规则不看密码是引用还是词）；漏拦 16 条：`GROQ_API_KEY=gsk_…`、`DB_PASSWORD=…`、`aws_secret_access_key = …`（键前面的 `_` 是词字符，`\b` 找不到键）和 hf_、r8_、pplx-、gsk_、dop_v1_、sbp_、npm_、pypi-、SG.、tvly-、bb_live_、shpat_、shpss_ 共 13 种厂商前缀（闸门自己存的前缀清单比 harness 的表短）。新代码在同一清单上误拦 0、漏拦 0。
+2. 真实文件语料（`external_reference_project` 里按固定种子取的 300 个文档与 300 个源码文件，472 万字符；只是这一份抽样）：HEAD 17 个文件命中，新代码 12 个，没有新增命中，清掉 5 个（`python-scaffold` 技能、三份 crewAI 文档、`modal/references/secrets.md`）。
+3. 规则与命中记录各有一个 `action` 列，值只会是 `block`：种子 31 条各写一遍，API 请求与响应带它，`RiskMatch` 带它，每次启动还跑 `disable_non_block_rules` 与 `clear_stored_match_text` 两次写库归一化，而没有任何读取方按它做分支。
+4. 019 条目里有两处数字写得过满：“拦下 28/28”和“5/600”是挑出来的清单与一份抽样上的结果，不是对一般文本的误报率与召回率。
+
+### 根因
+
+1. 赋值规则的值是 `[^\s"']+`，只在空白与引号处结束，所以它会读过 `&k=` 与全角标点；占位只靠通用的“引用/词/掩码”判断，文档占位不在其中；`db_connection_string` 没有命中后的确认。
+2. 键起点用 `\b`，`_` 与字母同属词字符，环境变量前缀的键永远不匹配。
+3. 厂商前缀密钥的清单在闸门里存了一份，harness 的 `leak_detector` 又存了一份，两份各自增删，闸门那份落后 13 种。
+4. `process.env.GROQ_API_KEY!` 的 TypeScript 非空断言不在 harness 的引用判断里。
+5. `action` 是 `allow` 被删之后留下的单值字段，019 只把取值收窄到 `block`，没有删字段。
+
+### 修复
+
+1. server `match_checks._assigns_secret`：先把值截到它自己的范围（下一个 `&k=`、第一个非 ASCII 标点），再交 harness `secret_value_span`，并拒绝以 `your` / `change` / `replace` / `example` / `placeholder` / `dummy` / `sample` / `insert` / `enter` 开头的占位值：任何大小写下，词在分隔符或结尾处结束；驼峰写法则在下一个大写字母处结束；词后面接着别的字母的是密码本身（`Yourdog2012!`、`Enterprise2012x`、`ENTERPRISE2012!` 都仍被拦）；`db_connection_string` 的 pattern 捕获密码为 `value`，纳入同一确认。
+2. `patterns.KEY_START`（`(?<![A-Za-z0-9])`）取代 `\b`：`DB_PASSWORD`、`GROQ_API_KEY`、`aws_secret_access_key` 的键能被认出；`credential_assignment` 与 `env_file_secret` 使用它。
+3. `API_KEY_PATTERN` 由闸门自己的 `sk-` 形状加 harness `DISTINCTIVE_KEY_PATTERNS`（24 种）拼成，不再另存清单；`vercel_`、`fal_` 等会命中标识符的弱前缀不在其中；`test_builtin_rule_precision.py` 要求表里每种形状都有样本且被拦下，表新增形状而没有样本时失败。
+4. harness `is_reference_value` 认三段以上属性链结尾的 `!`（`process.env.GROQ_API_KEY!`；两段的 `john.smith!` 仍可能是密码），见 harness 条目。
+5. 删除 `action`：种子、两个模型列、API 字段、`RiskAction`、`RiskMatch` 与编译后规则里的字段、`rule_service` 的校验；两个启动归一化改成迁移（先把非 `block` 的规则停用，再 `DROP COLUMN` 两次，再清空旧摘要里的原文），启动不再多两次写库。
+6. 019 条目里过满的数字补上样本限定；`_ARCH.md`、`tests/_ARCH.md` 的对应描述与 harness `redact/patterns.py` 的“单一来源”说法改准确；`server_harness_import_baseline.txt` 补上 019 起就缺的三个条目（`card_context`、`pii_patterns`、`secret_value`）。
+
+### 验证
+
+1. 同一份测试清单、同一个真实规则引擎，HEAD 与新代码对照：应放行 55 条，HEAD 误拦 7、新 0；应拦下 64 条，HEAD 漏 16、新 0。HEAD 一侧用的是现在的 harness（已含 `!` 的判断），所以 `process.env.X!` 两条在 HEAD 一侧也放行。
+2. 变异验证 6 处，各被 1 例杀死，还原后通过：不截值、不认占位词、连接串不看密码、键起点改回 `\b`、不用 harness 的表、非 ASCII 符号也截（`password: p@ss€word42` 被截成 `p@ss` 放行）。
+3. 测试：风控、生命周期、数据库迁移、渠道闸门与 bus 相关 361 例通过（含新增的迁移测试：旧库的 `action` 列被删、非 `block` 规则被停用、旧摘要原文被清空、新库迁移幂等；新增的 API 测试：规则与命中不带 `action`、仍带 `action` 的旧客户端请求不被拒）；harness `tests/core/security` 1127 例通过（复审后增加 1 例，现为 1128 例）；server 的 `ruff` 与风控文件的 `mypy` 无新增问题，harness `ruff`、`mypy` 通过。
+4. 更宽的回归：`tests/channels`、`tests/core/channel_bridge`、`tests/api/channels` 7530 通过、14 失败；其中 3 例是本条漏改的 `test_bus.py`（`RiskMatch(action=…)`，已修，单文件 55 例通过），其余 11 例与 019 记录的他人改动同族（群路由 6、前缀触发 1、`btw` 命令 2、日志脱敏 1、译文孤键 1），没有逐例复核原因，也没有改它们。`tests/architecture` 13 例失败（路由调用者基线、API 与服务域词表、`services/workflow` 缺 `__init__.py`、前端 API 路径、harness 导入基线里他人新增的深层导入），不涉及风控代码。
+5. 耗时（每条消息过 8 条默认规则，取 5 次最小值，HEAD 与新代码同一台机器同一批文本）：2 千字符聊天 0.26 → 0.41 毫秒；36 万字符日志 4.7 → 11.2 毫秒；36 万字符 `a.a.` 串 72 → 93 毫秒；36 万字符全是 `password = input() ` 的文本 166 → 196 毫秒（`credential_assignment` 单条 132 → 141 毫秒，距 0.25 秒的单条时限不远；时限只约束正则扫描，不约束命中后的确认循环）。
+6. 提交后的复审：全大写的占位词前缀见“踩坑”第 1 条。修正后 3 个新增的全大写应拦用例通过；把旧正则写回去，这 3 例失败、其余通过，还原后全部通过。整个 `external_reference_project`（约 110 万个文件）里，以全大写占位词开头、没有分隔符的赋值值只有 `CHANGEME`、`YOURSECRETACCESSKEY`、`YOURACCESSTOKEN`、`REPLACEMENT_TEST_RELAY_KEY`、`CHANGEME_*_PASSWORD` 这类，逐个过闸门都放行（纯字母或下划线词，本来就不算密钥），所以收紧没有在这份语料里带来新命中。同一批文本、同一台机器、取 5 次最小值，上一提交 → 当前：2 千字符聊天 0.24 → 0.34 毫秒；36 万字符、含大量 `token` 与 `id=` 的日志 43.6 → 60.4 毫秒；36 万字符 `a.a.` 串 72 → 93–101 毫秒（两轮测量）；36 万字符 `password = input() ` 164 → 195 毫秒。这份日志与上面第 5 条的不是同一份文本，数字不能互相比较。
+7. 同一轮把 `SecurityProfile.config_json` 的类型从裸 `dict` 改成 `dict[str, object]`（模块里原有的 `mypy` 错误），连带去掉 `profile_manager` 里一处不再需要的 `type: ignore`，换成 `cast`；`_serialize_config` 先做 JSON 往返，不改入参，所以去掉原来的 `dict(...)` 拷贝行为不变。`mypy` 对这两个文件与风控文件无错误，`tests/services/security`、风控、迁移与生命周期共 171 例通过。复审后重跑：`tests/services/risk`、迁移、生命周期、渠道 bus 与入站闸门（6 个文件集合）共 233 例通过；第 3 条的 361 例集合更大，没有原样重跑，两个数字不能互相对比。
+
+### 局限
+
+1. 抽样里剩下的 12 个命中：2 个是文档在讲 PEM 头本身，2 个是文档示例（`Bearer token123`、`sk-litellm-virtual-key-abc123`），3 个是 `sessionId: 'session-123'` 一类会话标识，1 个是 `sessionId: entry!.sessionId`（`!` 在链中间，本条只认链尾的 `!`），1 个是 `apiKey: items.mem0ApiKey`（带数字的标识符链被当成可能的密钥），1 个是字符串里字面的 `API_KEY=secret\n#…`，2 个是测试里的假密钥。
+2. 同族问题没有覆盖：`process.env.X!.trim()` 仍被拦；密码里含 `&x=` 的会在那里被截断；以占位词加分隔符开头的真密码（`Your_Pass_2024!`）会放行；纯字母的连接串密码（`postgres://admin:hunter@db`）会放行，与赋值规则“精度优先”的口径一致，HEAD 上这类写法被拦；全角冒号的 `password：…` 与中文键名（`密码`）不被规则识别（原有）。
+3. 键起点从 `\b` 改成“不是字母数字”之后，`user_token: abc123def456` 这类带前缀的键开始被检查；抽样没有新增命中，真实聊天里的误拦率未知。
+4. 019 起带 `action` 的旧导出文件：字段被忽略，规则按启用的拦截规则导入。
+5. 不带标签、单独贴出的 Databricks（`dapi…`）、Twilio（`SK…`）、Firecrawl（`fc-…`）、Vercel、Cloudflare、ElevenLabs、fal、Telegram 机器人与 Discord 机器人令牌不被闸门拦下：这 9 种形状在 harness 里属于弱前缀，不在 `DISTINCTIVE_KEY_PATTERNS` 里；带 `api_key=` 一类的标签时会被赋值规则拦下。在整个参考语料里，这 9 种形状中的 4 种（Telegram、Discord、Twilio、Databricks）扫到 22 处（其余 5 种没有扫）：14 处是 Telegram 文档占位（`123456789:XXXX…`），3 处是 `dapi0123456789abcdef…` 示例，5 处形似 Discord 的有 4 个是 Swift 驼峰标识符，另 1 个是令牌形状的字符串（没有查它的出处），Twilio 为 0 处；没有一处能确认是真令牌，所以把它们放进拒绝级会误拦文档与代码。代价是这些真令牌不带标签直接粘贴时不被拦（上一提交同样不拦，没有退步）。
+6. 规则编辑器的测试面板（`detect_preview`，`detection.py:206-219`）只跑模式本身，不做命中后的确认，所以对内置赋值规则，面板会列出闸门并不拦下的 `password = input()`；与闸门在这一点上口径不同（原有）。
+7. 全大写、没有分隔符的占位词加数字（`YOURPASSWORD1`、`ENTERPASSWORD1`）会被拦，因为词后面接着字母，与 `ENTERPRISE2012!` 无法区分；纯字母的（`CHANGEME`、`YOURPASSWORD`）不受影响。
+5. 回滚：旧版服务在已迁移的库上播种内置规则会因没有 `action` 列写库失败，之后风控没有规则、不拦任何消息；升级后不要回退。
+6. `secret_value_span` 与 `DISTINCTIVE_KEY_PATTERNS` 都不在 harness 已发布的标签里，服务端仍钉 `==0.1.0rc5`，发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行，本次没有执行。没有在真实渠道与浏览器里端到端验证；提示词没有改动。
+
+### 踩坑经验
+
+1. 全局 `(?i)` 下，占位词清单会把 `Yourdog2012!`、`Changeme2024!` 当占位；改用作用域内的 `(?i:…)`。这一步还不够：`(?i:enter)(?=[A-Z])` 里的“下一个字符是大写”对全大写的 `ENTERPRISE2012!` 同样成立（词已吃掉 `ENTER`，下一个是 `P`），于是 `ENTERPRISE2012!`、`SAMPLER99xyz`、`YOURMOM1234x` 被当成占位放行。清单里只有首字母大写的写法，361 例看不出来；交付后的第二轮复审逐个构造全大写值才发现。现在分隔符与结尾不分大小写，驼峰（`[Yy]our` 这类首字母可大可小、其余小写）才看“下一个是大写”。
+2. 曾想用“全大写短横线串就是占位”，但 `API_SECRET=ABCD-EFGH-IJKL-9999` 是真密钥的形状，所以用词表而不是形状。
+3. 600 个文件的抽样里看不到 `vercel_`、`fal_` 对标识符的误拦；整个语料用 `rg -P` 扫出约 3.5 万处，所以它们进了弱前缀表。抽样看不到不等于不存在。
+4. `KEY_START` 起初写成 `(?:(?<![A-Za-z0-9])|(?<=[_-]))`，第二支是第一支的子集（`_` 与 `-` 本来就不是字母数字），多余，且在病态文本上让 `credential_assignment` 慢了一倍；改成单个后行断言后 `a.a.` 串上从 39 毫秒降到 31 毫秒，仍比 HEAD 的 20 毫秒慢。
+5. 第一版对非 ASCII 的标点和符号都截断，复审时发现 `p@ss€word42` 会被截成 `p@ss` 而放行，改为只截标点并加了用例。
+6. 删字段时只搜了风控目录，漏了 `tests/channels/test_bus.py` 里三处 `RiskMatch(action=…)`，跑渠道全量时才暴露：删字段要对全仓搜构造点，不能只看模块目录。
+
+---
+
+---
+
+## BUG-AGENT-2026-10-14-025: 永久删除与「安全清空」各按一份手写表清单拆除会话数据：拼错的表名让小组件存储被静默跳过，有未保存改动的沙箱工作树与未合并分支被强制删除；无凭据的 GET 能触发数据库从备份恢复；资源检查与启动参数里还有无人调用、或被忽略的开关
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（清空与永久删除会丢掉用户没有保存的工作；匿名 GET 触发的恢复只在 SQLite 自检失败时才会执行，没有构造损坏库端到端复现，路径来自读代码） |
+| 影响范围 | server：`app/services/chat/{chat_bound_rows,chat_crud,chat_disposal,sandbox_worktree}.py`、`app/services/system/vault_purge_service.py`、`app/services/infra/sandbox_cleanup.py`、`app/core/utils/git_worktree.py`、`app/core/security/auth/public_paths.py`、`app/api/health/router.py`、`app/core/infra/health/{coordinator,sqlite}.py`、`app/startup/*`、`run.py`；frontend：`conversationPurge.ts`、`DataFlowErasureStrip.tsx`、6 个 locale；harness：`utils/db/fts5.py`、`api/__init__.py`；brand：`competitor-comparison.mdx`（中英） |
+| 出现次数 | 1（复审 `BUG-AGENT-2026-10-14-020` / `-022` 时逐条验证发现；真实 SQLite 与真实 git 仓库复现，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-017`（公开路径按前缀放行，本条把 GET 收窄到探针）· `-020`（会话拆除）· `-022`（清空入口）· harness `BUG-HARNESS-2026-10-14-023` |
+
+### 现象
+
+1. 「安全清空」按一份手写的表清单删会话绑定的数据，清单里把 `widget_kv` 写成 `widget_kv_entries`；删除函数对不存在的表只记一行忽略，所以小组件存储从来没被清空，清空后接口仍报成功。`approvals`、`commitments`、`fission_task_records` 同样靠 `chat_id` / `source_chat_id` 绑定会话，单个永久删除与清空回收站只处理 `widget_kv`，这三张表在两条路径上都没人清，安全清空也没有。
+2. 永久删除、清空回收站、安全清空对沙箱都用强制清理：工作树里有未提交的改动，也有只存在于该分支上的未合并提交，两者都被删掉；界面与接口不会告诉用户有什么被保留或丢失。
+3. 安全清空在事件循环里同步清理工件保险库（临时目录里 500 个会话 × 10 个工件加 5 000 个全局对象，停顿 1 937 ms），期间所有请求排队。
+4. `/api/v1/health` 前缀下的 GET 全部无需凭据：doctor、info、metrics、resources、pressure、update-status、browser 等诊断都对匿名者开放，并跳过 Host 白名单；其中 `GET /health/resources?auto_recover=true` 会让 SQLite 检查器在自检失败时隔离当前库并从最近备份恢复。该参数没有任何调用方（前端、控制平面、脚本都没有）。
+5. `force_recovery` 贯穿 `run.py`、两个启动器、启动检查、协调器、`SQLiteHealthChecker` 与上述路由，描述是「允许删除 SQLite WAL」，实际在检查器里被忽略；`purge_vault` 的 `purge_memories` / `purge_sandboxes` / `reclaim_disk` 三个开关无人传入非默认值。
+6. harness 的 `safe_purge_fts5_virtual_table` 没有任何生产调用方，只靠自己的测试和一条门面导出存活，而 server 的文件头与三份文档把清库里的 FTS5 清理说成它做的；`StorageVaultBackend.backup_corrupted` 用 `str.replace(".enc", ".corrupted")`，域名里含 `.enc`（如 `mail.enc.example.com`）时两处都被改写。
+
+### 根因
+
+1. 「哪些表绑定了会话」没有单一来源：清空、单个永久删除、清空回收站各存一份，没有任何测试对着真实库的表结构核对。
+2. 清理沙箱的 `force=True` 来自「用户已明确丢弃」的假设，但这三个入口丢弃的是会话，不是工作树里的改动。
+3. 公开路径用前缀，探针与诊断被放在同一个前缀下；`auto_recover` 是启动检查的参数，被原样暴露成了查询参数。
+4. 开关先于需求落地，调用方一直没出现，也没人删。
+
+### 修复
+
+1. `chat_bound_rows.py`：`CHAT_BOUND_TABLES` 是唯一注册表（`widget_kv`、`approvals`、`commitments`、`fission_task_records`），清空逐项遍历、单个永久删除与清空回收站调用 `delete_trashed_chat_bound_rows`；后者每条 DELETE 都带「该会话仍在回收站」的 EXISTS 条件，过期的 id 列表不会误删已恢复会话的数据，按 500 个一批。守卫测试要求真实库里每张带会话列的表必须登记、或写明由别的路径清除、或写明有意保留（及理由）。
+2. 沙箱：`cleanup_sandbox_worktree(force=False)` 保留有未保存改动的工作树，并且只用 `git branch -d` 删分支，有未合并提交就保留；`remove_chat_files` 返回 `ChatFilesRemoval(removed_worktrees, kept_worktrees)`，安全清空的结果与接口多一个 `kept_sandboxes`，清空条在 `kept_sandboxes > 0` 时多一行说明（6 种语言），确认文案补一句保留规则。只有「关闭沙箱」接口与合并后的清理仍然强制。
+3. 工件保险库清理改在 `asyncio.to_thread` 里跑，同一批数据实测事件循环停顿 1 937 ms → 16 ms。
+4. `public_paths`：只读公开路径改为三个精确路径 `/api/v1/health`、`/liveness`、`/ready`，其余健康端点走正常准入与 Host 白名单；`/health/resources` 变成只读（`auto_recover=False`，不再接受任何恢复参数，返回里去掉 `auto_recover` / `force_recovery` / `recovery`）。`/health/metrics` 的文档字符串原写「需要管理员权限」，实际只要求通过准入，已改成实情。
+5. 删除 `force_recovery` 整条链与对应测试，删除 `purge_vault` 的三个开关；启动期的 `--no-auto-recovery` 保留。
+6. harness 删除 `safe_purge_fts5_virtual_table`、只服务于它的 `ConnectionLike` 协议、门面导出与测试，brand 两份与 temp-docs 一份文档改成「清库事务里逐表发送 `delete-all` / `rebuild` / `optimize`」；`backup_corrupted` 改成只换结尾的 `.enc`。
+
+### 验证
+
+1. 红灯 / 变异：清单里写错表名 → 清空测试失败；去掉守卫测试的分类 → 失败；沙箱分支用 `-D` 的旧行为 → 新增的 3 个真实 git 仓库用例失败；把公开规则改回前缀 → 25 个用例失败；`/resources` 改回 `auto_recover=True` → 对应用例失败；`.enc` 用 `replace` → 新增用例失败；工件清理改回同步 → 事件循环用例失败。每个变异还原后全部通过。
+2. 新增 / 重写：`test_chat_bound_rows.py` 4 例（表存在、分类守卫、只删回收站里的、超过 500 个 id）、`test_safe_vault_purge_service.py` 10 例（真实全量表结构）、`test_chat_disposal.py` 18 例、`test_sandbox_worktree_integration.py` 7 例、`test_sandbox_cleanup_batch.py` 4 例、`test_safe_purge.py` 3 例、`test_resources.py` 3 例、`test_public_paths.py` 165 例、`test_auth_middleware.py` 7 例（远程模式：探针匿名可达，doctor 无密钥 401、有密钥 200）；前端 `DataFlowErasureStrip.test.tsx` 6 例。
+3. 扫描：server `tests/services/{chat,system,infra} tests/api/{health,chats} tests/middleware tests/core/{security,infra} tests/unit tests/database` 1 812 例通过，5 例失败均来自他人未提交的工作（`test_aux_llm_privacy` 4 例、`test_storage_governance_api`：`app/services/instance_archive/` 尚未跟踪）；`tests/architecture` 13 例失败，均为他人在途改动（路由消费者基线、harness 深层导入基线、前端 API 路径）；harness `tests/utils tests/api` 与会话保险库测试通过，仅 `test_token_tracker` 1 例失败（他人在途）；harness `boundary_check`、`check_fractal_docs`、`check_import_resolvability`、`check_test_source_assertions` 通过。
+4. 局限：
+   - 安全清空的运行检查只看网关登记的会话；cron / 看板 / IM 渠道 / 评测的运行与已脱离的子代理不经网关。统计它们的 `app/core/agent/run_activity.py` 还是未跟踪的他人工作，没有接入。
+   - 健康诊断端点改为需要准入后，前端里 8 个组件用相对路径的裸 `fetch`（`ResourcePressureBanner`、`UpdateNudgeBanner`、`StackUpdatePanel`、`AboutSection`、`useTrayStatus`、`BrowserPoolCard`、`BrowserDoctorCard`、`MemoryMonitorCard`）依赖浏览器自带的会话 cookie；远程 WebUI 的会话 cookie、沙箱控制平面代理签名、手机配对页三种准入下它们的真实行为没有实测，只核对了代码与调用点。
+   - 被保留的工作树没有界面入口可以移除（接口在，界面没有调用）；有未合并提交的分支被保留时不会提示。清理过程中抛异常的会话也按「保留」计数。
+   - `empty_trash` 在预读之后才进回收站的会话仍有既有的竞争窗口。
+   - 永久删除与清空回收站原先被 `_ARCH.md` 定义为「明确丢弃」（`force=True`），现改为保留有未保存改动的沙箱，文档已同步。
+
+### 踩坑经验
+
+1. 对「哪些表属于某个实体」这类事实，写成单一注册表，再用真实库的表结构做一次反向核对；手写清单加「表不存在就忽略」会把拼写错误变成静默跳过；
+2. 对同一批会话 id 的删除要带「仍在回收站」条件：别处可能已恢复其中一个，过期的 id 列表不是授权；
+3. 同一个前缀下既有探针又有诊断和运维动作时，按精确路径放行，并让「放行清单里的每一项都是真实的 GET 路由」成为测试，清单才不会悄悄过期；
+4. 暴露给 HTTP 的参数不要直接复用启动期的恢复开关：恢复会改库，读接口不应该能触发；
+5. 做公开面收窄前先列出每个调用点的凭据来源（`apiRequest` 带 Bearer 与配对头，裸 `fetch` 只带 cookie），再决定能不能收。
+
+---
+
+## BUG-AGENT-2026-10-14-026: 隐身会话结束后仍会触发后台技能复盘，并把学到的技能与待审记录写进库；自动与人工两条落盘路径把含冒号、`#`、反斜杠或换行的描述原样写进 frontmatter；描述缺失时写进占位文案；拒绝草稿时写一条没有任何读取方的记忆
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P1（隐身承诺被破坏：学习结果写入持久库）；其余 P2 |
+| 影响范围 | server：`app/ai_agents/general_agent/factory.py`（`_build_skill_review_callback`）、`app/api/skills/drafts.py`、`app/api/skills/draft_materialize.py`（新增，自 `drafts.py` 原样迁出落地写入）、`app/api/skills/draft_record.py`（新增，草稿记录视图）、`app/services/skills/auto_extractor.py`、`app/core/skills/utils.py`；frontend：`components/features/skills/SkillGrowthCaseCard.tsx`；harness：`agent/skill_agent/review.py`（见 harness `BUG-HARNESS-2026-10-14-024`）；各目录 `_ARCH.md` |
+| 出现次数 | 1（读代码 + 红灯测试 + 真实 frontmatter 解析器实验确认；未用真实 LLM、未在真实浏览器里跑过） |
+| 关联 | `BUG-AGENT-2026-10-14-023`、`-018`（同一条后台学习链路）；本地提交，未 push |
+
+### 现象
+
+1. 隐身会话里，只要轨迹满足触发条件，会话结束后仍会做一次技能复盘；产出的新技能直接写盘并自动启用，或写成待审批记录。隐身合同是不读写记忆、不留轨迹，工厂里其他持久化写入点都按 `agent_wrapper.incognito_mode` 关掉了，唯独复盘回调无条件挂载；
+2. 后台自动学习落盘新技能时，description 以未加引号的形式写进 SKILL.md。对 13 条模型可能写出的描述做解析实验：9 条往返失败（含 `: `、含 ` #`、换行、以 `- `/`@`/`*`/`[` 开头、`yes`、`null` 等），带引号、含反斜杠、纯数字、中文的 4 条碰巧通过；失败时草稿落成「应用失败」待审（`lifecycle.py` 的 `REASON_APPLY_FAILED`），用户无从判断原因；
+3. 人工批准草稿的路径只转义了双引号，反斜杠与换行仍会破坏 frontmatter；
+4. 模型没给 description 时，自动路径写入占位文案 `Auto-extracted skill`，它就是技能发现时用来匹配的文字；
+5. 拒绝草稿时向记忆库写一条「USER REJECTED SKILL PROPOSAL…」，全仓库没有任何代码读取这类记忆（`negative-exemplar` / `rejected-skill-proposal` 只有写入点与它的测试）；
+6. 新技能草稿的卡片点「拒绝」后先弹出原因输入框、按钮变成「确认拒绝」，但草稿拒绝接口不接收原因（`rejectSkillDraft(draftId)`），输入的文字被丢弃。
+
+### 根因
+
+1. 复盘回调在工厂里无条件挂载，隐身合同没有覆盖这一条写入链；harness 侧也没有「没有消费方就不复盘」的约束，宿主不传回调时仍会白做一次 LLM 调用（复盘结果只在 `review.py:313` 的 `if on_skill_review_ready` 处被消费）；
+2. frontmatter 靠 f-string 拼接，模型生成的文本被当成 YAML 语法而不是数据；自动与人工两处各拼一份、转义规则不同；
+3. 占位文案是写代码时的兜底，没有考虑它会成为技能目录里被匹配的描述；
+4. 拒绝时的记忆写入是想象中的「负反馈回路」，没有读取方就没有效果；
+5. 卡片的两步拒绝是为进化修订提案（接口接收并审计原因）设计的，新技能草稿共用了同一个交互。
+
+### 修复
+
+1. 工厂新增 `_build_skill_review_callback`：隐身模式不挂载回调；harness 的 `_should_trigger_skill_review` 在没有回调时直接返回 False，同时省掉没有消费方的复盘 LLM 调用；
+2. `core/skills/utils.py` 新增 `yaml_scalar`（`json.dumps(..., ensure_ascii=False)`，JSON 字符串是 YAML 双引号标量的子集）与 `resolve_skill_description`（description → trigger_condition → 技能名）；`yaml_scalar` 额外转义 U+0085（JSON 不转义、YAML 会折成空格）；自动路径（`auto_extractor._build_skill_markdown`）与人工路径（`draft_materialize._frontmatter`，覆盖有正文无 frontmatter 与纯表单两个分支）共用；扫描用的渲染文本与落盘文本仍为同一份；
+3. 删除占位文案，进化库里补建记录时的 description 也改用同一回退结果；
+4. 删除拒绝路由里的记忆写入，保留账本负向事件与前端刷新事件（夜间复盘数的是账本）；
+5. 前端：新技能草稿一键拒绝，不再出现原因输入；进化修订提案保持「先填原因再确认」；
+6. `drafts.py` 的落地写入（`materialize_*`、`_build_skill_md`、评测用例持久化等）原样迁入 `draft_materialize.py`，`drafts.py` 由 766 行降到 440 行（仍在行数基线内），迁移时只改了符号可见性与导入；`SkillDraftRecord` 放进独立的 `draft_record.py`，落地层不再反向依赖路由模块。
+
+### 验证
+
+1. 红灯：新增 `test_skill_frontmatter_render.py` 与 `test_draft_materialize.py` 的前 18 例在修复前 14 例失败，4 例碰巧通过，修复后全部通过；后补的 U+0085 用例（`test_skill_frontmatter_render.py` 现共 16 例）在去掉转义时失败，还原后通过；变异：去掉 harness 的无回调守卫后 `test_no_review_consumer_never_triggers` 失败，去掉工厂的隐身判断后 `test_review_callback_is_none_when_incognito` 失败，各还原后通过；前端 `SkillGrowthCaseCard.reject.test.tsx` 2 例，把 `collectsRejectReason` 临时改成 `true` 时草稿一键拒绝的用例失败，还原后通过；
+2. 服务端：`tests/api/skills`、`tests/services/skills`、`tests/api/approvals`（不含他人正在改的 `test_curator.py`，单独跑它有 4 例失败，失败点在他人未提交的 `curator/service.py` 改动）408 通过、1 跳过；`tests/api/agent/test_incognito_edge_cases.py`、`tests/ai_agents/general_agent`、`tests/core/skills`、`tests/architecture` 2597 通过、13 失败，13 例全部在 `tests/architecture` 且与 `-023` 记录的同一批他人在途改动（路由消费者、服务域词表、`__init__.py` 布局、前端 API 路径、深层 harness 导入）一致，深层导入清单里没有本条涉及的模块；
+3. harness：`tests/agent/skill_agent` 160 通过、2 失败（`test_skill_agent_privacy_context.py` 的两例断言 `auto_extract_memories` 被调度，来自他人未跟踪的 `memory_extraction_scheduler.py` 改动，与本条无关）；
+4. 本条涉及文件 `ruff check` / `ruff format` / `pyright` 无问题（`factory.py` 另有 25 条他人或早已存在的 pyright 报错，不在本条改动处）；前端 `vitest` 技能卡片 5 个文件 27 例通过，`prettier`、`oxlint` 通过，fractal 文档检查通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；`bun run lint` 仍有 `verify:stable-mocks`、`verify:a11y`、`verify:hardcoded-copy` 三个门禁失败，报出的文件都是他人的；
+5. 实验：JSON 引号化的描述在真实 `parse_skill_frontmatter` 上对 20 条样例中的 18 条往返一致（含冒号、`#`、引号、反斜杠、制表符、U+2028、中文），例外两条：U+0085（被解析成空格，已在 `yaml_scalar` 里转义并有用例）与超过 1024 字符（加载器截断到 1024，既有行为）。
+
+### 局限
+
+1. 没有在真实浏览器里看过（深浅主题、375px 宽度）：ChromeAgent 拒绝 `localhost:3000`（`CHROME_AGENT_E2E_URL_REJECTED`）；`./myrm test -m chrome_e2e` 通道因工作区有未部署的后端改动要求 PRIVATE epoch，且上一轮在同一台机器上对 `test_growth_center_chrome_e2e.py` 试跑 5 次均未通过（见 `-013`），本条没有再试；本条前端改动只删除了草稿卡片的输入框与按钮文字切换，没有新增标记与样式，行为由 jsdom 用例覆盖；
+2. 没有用真实 LLM 端到端跑过后台复盘，模型实际写出冒号或 `#` 开头描述的频率没有测过；隐身行为由单元测试（工厂回调为 None、harness 不触发）证明，没有开真实隐身对话验证；
+3. 同类的 frontmatter 拼接还有两处没改，输入来源不同：`skill_solidify_service.py` 的固化向导（`name`、`display_title`、`description` 来自用户在界面里填的内容）与 `batch_import` 的安全扫描文本；
+4. 新技能草稿的拒绝变成一次点击，没有二次确认；已拒绝的草稿不能在界面里恢复，但同名技能之后仍可被再次提议；
+5. 隐身合同只补上了后台复盘这一条链路。harness 的全局进化集成（`evolution/infra/integration.py` 的 `TRACE_SLICE_READY` 窗口计数与切片抽取）不感知隐身，而 `app/ai_agents/agents.py` 创建事件日志后端时也没有隐身判断；隐身会话是否真的会走到这条链路并产出提案没有验证；
+6. 已经落在库里的待审记录与已写入的技能文件不迁移；未改动任何提示词。
+
+### 踩坑经验
+
+1. 一份契约（隐身）要用「所有持久化写入点」做一次反向清点，而不是只检查新增的；漏掉的往往是后台异步链路；
+2. 模型生成的文本进入 YAML、SQL、shell 等语法载体前一律当数据转义，JSON 字符串是 YAML 双引号标量的安全子集，不必自己写转义表；
+3. 迁移代码时 pyright 能抓到测试没覆盖的调用点（补丁批准路径的 `_persist_approved_draft_eval_cases` 签名变更），改签名后要对整个文件跑类型检查；
+4. 共享工作区里测试夹具按模块路径打补丁（`get_session`）：函数迁到新模块后，夹具要同步补丁新模块，否则会直连真实库。
+
+---
+
+## BUG-AGENT-2026-10-14-027: 每次创建默认向量库都会删掉嵌入式 Qdrant 的锁文件，第二个进程能打开同一个数据目录并各写各的；回退到临时记忆后界面只变色、不说怎么办；清库的 FTS5 optimize 失败被吞掉；`chat_crud.py` 565 行
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-14 |
+| 严重程度 | P2（两个进程指向同一数据目录时会丢记忆集合；单进程使用不受影响） |
+| 影响范围 | server：`app/core/retriever/vector/defaults.py`、`scripts/cleanup_qdrant_locks.py`（删除）、`app/services/chat/{chat_crud,chat_deletion,chat_channel,chat_service}.py`、`app/services/system/vault_purge_service.py`；frontend：`MemoryCommandCenterPanels.tsx`、6 个 locale |
+| 出现次数 | 1（复审会话拆除与记忆回退链路时逐条验证发现；两进程场景用真实嵌入式 Qdrant 复现，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-020` / `-025`（会话拆除）；本地提交，未 push |
+
+### 现象
+
+1. `create_default_vector_store()` 每次调用都先动态导入 `scripts/cleanup_qdrant_locks.py` 并删掉数据目录里的 `.lock`。嵌入式 Qdrant 靠这把操作系统文件锁保证只有一个写入者；锁文件被删后，第二个进程能打开同一个目录。用真实嵌入式 Qdrant 复现：删锁后第二个客户端打开成功，两个写入者各自的内存视图看不到对方的写入，`meta.json` 以最后写入者为准，其中一个进程创建的集合丢失。这段清理在工厂每次被调用时都执行，而公开的就绪探针 `GET /api/v1/health/ready`（`app/api/health/router.py`、`public_paths.py`）也调用该工厂，所以每次探测都会删一次运行中进程的锁。
+2. 不删锁时，第二个进程会被拒绝并回落到内存模式（harness 的 `create_embedded_store`），记忆指挥中心的「向量存储持久化」行会变琥珀色，但只有颜色，没有说原因，也没有说用户能做什么。
+3. 清库在 FTS5 重建之后的 optimize 步骤是裸 `except: pass`，同级的删除、重建两步失败都会记 warning。
+4. `chat_crud.py` 565 行，超过 500 行硬线，同时装着 CRUD、会话 flush、置顶、整套回收站生命周期和渠道聊天解析。
+
+### 根因
+
+1. 清理脚本是为「崩溃后遗留的锁」写的，但这把锁由持有进程握着，进程退出（含 SIGKILL）时由操作系统释放，遗留的锁文件挡不住下一次打开：实测 SIGKILL 持有者后再次打开成功（现为回归测试）。清理从来不需要，反而绕过了唯一的并发保护。
+2. 回落状态只做了状态位和变色，没有面向用户的下一步。
+3. 写 optimize 时顺手带过。
+4. 文件按功能逐项累积，没有在越过行数线时拆分。
+
+### 修复
+
+1. 删除 `defaults.py` 里的清理块、脚本与它的测试；锁被占用时走已有的内存回落，由记忆指挥中心报告。同时删掉工厂里永远不会触发的 `store is None` 分支与它的不实日志（「Memory system will be disabled」）：harness 的 `create_embedded_store` 从不返回 None，打不开只会回落内存或抛 `RuntimeError`；`create_vector_store` 与 `create_default_vector_store` 的返回类型改为非可选，docstring 如实描述。
+2. 记忆指挥中心只在 `memory_fallback` 时于该行下显示一句提示（6 种语言，不含技术词）：可能有另一个 Myrm 窗口或程序占着同一个数据文件夹，或文件夹不可写，处理后重启。该面板默认隐藏，见局限 7。
+3. optimize 失败改为 warning，并写明它为什么不致命（重建后的索引不依赖它）。
+4. 回收站生命周期与渠道聊天解析原样迁到 `chat_deletion.py`（171 行）与 `chat_channel.py`（82 行），`ChatService` 组合；`chat_crud.py` 371 行并移出行数基线；`test_external_agent_pool_on_chat_delete.py` 的补丁目标跟随；文档里「由 chat_crud 调用」的三处改为真实调用方 `chat_disposal`。
+
+### 验证
+
+1. 新增 `tests/core/retriever/vector/test_defaults.py` 2 例：存活的客户端持锁时 `create_default_vector_store()` 返回非持久存储、`.lock` 仍在、第二个原生客户端被拒；子进程持锁后被 kill，下一次打开是持久存储。变异：恢复旧的删锁行为，第一例失败。
+2. 清库 optimize 用游标钩子让 optimize 失败：清库仍成功、三个索引全空、每个索引各一条 warning（`test_safe_vault_purge_service.py` 现 11 例通过）。
+3. 服务端 chat、channel_bridge、api/chats、system、health、retriever 等相关目录 1444 通过、1 失败：`test_context_pins_branches_api.py` 读 harness 的 `PERSISTENT_ROOT`，harness 提交 `a7b579dfc` 已改成用时读取，server 夹具过期，与本条无关。`test_aux_llm_privacy.py` 5 通过、4 失败（手机号没被脱敏）：harness `chat_model/sync_mixin.py` 有他人未提交的改动，本条没动这条路径。architecture 测试 475 通过、8 失败，全部指向他人未提交的内容（`services/workflow` 缺 `__init__.py` 与 `_ARCH.md`、`remote_access` 域、harness 深层导入基线）；fractal 文档与行数检查只报他人的文件。
+4. 前端 vitest 12 例通过（命令中心面板与清库条各一个文件），`verify-i18n` 通过，`tsc --noEmit` 只剩他人的 `KanbanTaskHandoffSection.test.tsx(68,3)`；触及文件的 ruff、prettier、oxlint 无问题。
+
+### 局限
+
+1. 没有在真实浏览器里看过提示在深浅主题与 375px 宽度下的样子：它是一行 `text-xs` 文本，沿用同一面板已有的琥珀色类，未验证。
+2. 没有用两个真实的 Myrm 进程端到端复现；复现用的是两个直接打开同一目录的嵌入式 Qdrant 客户端，回归测试用的是持锁客户端与被 kill 的子进程。桌面打包是否带了 `scripts/` 没验证，但全仓库已没有 `cleanup_qdrant_locks` 的引用。
+3. 回落到内存后，重启前写入的记忆不会落盘；本条只加了提示，没有改回落策略。
+4. 永久删除与「安全清空」对后台运行的任务没有拦截：`vault_purge_service.py` 只看 `get_agent_gateway().active_session_ids()`。所需的 `run_activity.py` 是他人未提交的工作，本条没有引用它；它提交后需要在 `purge_vault` 入口与永久删除路径补同一检查。
+5. `cleared_sandboxes` 保留：它是 `ChatFilesRemoval.removed_worktrees` 唯一的生产读取方，界面虽不读它；去掉它会让 `removed_worktrees` 变成没有读取方的字段，要连带改拆除函数的返回类型，收益低于风险。
+6. 未改动任何提示词。
+7. 回落提示只出现在记忆指挥中心里，而该面板默认不可见：前端 `MemorySection.tsx` 只在 `NEXT_PUBLIC_MEMORY_LABS=1` 时渲染它，服务端 `app/api/memory/router.py` 只在 `MYRM_MEMORY_LABS=1` 时挂载它的接口。默认用户看不到这条提示，默认可见的位置没有任何回落提示；`/health/ready` 在回落时仍报 `qdrant: true`（工厂不抛错）。需要一个默认可见的入口才算触达真实用户，本条没有做。
+8. 6 个服务端调用方（`warmup.py`、`schedulers.py`、`faq/router.py`、`faq/factory.py`、`cascade.py`、`adapters/setup.py`）仍保留对 `None` 的防御分支，类型检查不报错；删掉它们要连带改写若干把工厂打补丁成返回 None 的测试，没有行为收益，未动。
+9. 「持有进程退出即释放」只在本机文件系统（macOS APFS 临时目录）上实测过。数据目录放在网络文件系统或 Docker Desktop 挂载卷上时，进程崩溃后锁是否立即释放没有验证；若不释放，重启后仍会停在临时模式。这类残留锁无法安全地自动清理（能否拿到锁就是唯一的判据），所以不再尝试。
+
+### 踩坑经验
+
+1. 写「清理残留」之前先问清楚：被清理的东西是不是同时承担保护作用；这里锁文件本身就是并发保护。
+2. 回落提示要写用户能做的事（关掉另一个窗口、检查文件夹可写、重启），不要写技术名词。
+3. 拆分 mixin 后，文档里「由某文件调用」要改成真实调用方，而不是跟着文件名走。
+4. 测试夹具按模块路径打补丁：方法迁到新模块后，补丁路径要同步，否则补丁打在旧模块上不报错、却不生效。
+5. 给界面加提示之前，先沿着渲染入口查一遍它对默认用户是否可见（功能开关、接口是否挂载）；只在实验面板里可见的提示不等于告知了用户。

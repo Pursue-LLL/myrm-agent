@@ -5,7 +5,7 @@
 - ApprovalRegistry pending counts (async refresh)
 
 [OUTPUT]
-- RunDigestStore: get/update/clear per chat_id + SSE publish
+- RunDigestStore: get/update/clear per chat_id + SSE publish; terminal_failures lists chats whose last run failed or was cancelled
 
 [POS]
 Business-layer copilot run observation. Not harness; not control plane.
@@ -82,6 +82,12 @@ class RunDigestStore:
     @classmethod
     def get(cls, chat_id: str) -> RunDigest | None:
         return cls._digests.get(chat_id)
+
+    @classmethod
+    def terminal_failures(cls) -> list[RunDigest]:
+        """Digests whose latest run ended in error or cancellation (a new run replaces its chat's digest)."""
+        failed = (RunDigestPhase.ERROR, RunDigestPhase.CANCELLED)
+        return [digest for digest in cls._digests.values() if digest.phase in failed]
 
     @classmethod
     def update_from_progress(

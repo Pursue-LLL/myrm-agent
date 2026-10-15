@@ -89,15 +89,10 @@ export async function consumeStream(
   };
 
   const watchdog = createStreamWatchdog({
-    getState: () => ({
-      loading: state.loading,
-      messages: state.messages,
-    }),
     actions: {
       setLoading: actions.setLoading,
       clearActiveStream: actions.clearActiveStream,
       setMessageAppeared: actions.setMessageAppeared,
-      _processSuggestions: actions._processSuggestions,
       scheduleAutoSave: actions.scheduleAutoSave,
     },
   });

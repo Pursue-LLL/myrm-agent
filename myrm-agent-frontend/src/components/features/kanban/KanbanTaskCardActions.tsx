@@ -3,6 +3,7 @@
  * - @/components/primitives/dropdown-menu (POS: Radix 下拉菜单封装)
  * - @/lib/utils/a11y::REVEAL_ON_HOVER (POS: 悬停 / 聚焦 / 触屏三路径揭示契约)
  * - ./kanban-styles::NEXT_STATUSES (POS: 各状态可流转的目标状态)
+ * - ./kanban-transitions::moveLabelKey (POS: 状态流转入口文案)
  *
  * [OUTPUT]
  * - KanbanTaskCardActions: 任务卡片的单一操作菜单（详情 / Specify / Decompose / 状态流转 / 回收 / 删除）
@@ -25,6 +26,7 @@ import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import { NEXT_STATUSES } from './kanban-styles';
+import { moveLabelKey } from './kanban-transitions';
 
 interface KanbanTaskCardActionsProps {
   task: KanbanTask;
@@ -96,7 +98,7 @@ export default function KanbanTaskCardActions({
         )}
         {NEXT_STATUSES[task.status]?.map((nextStatus) => (
           <DropdownMenuItem key={nextStatus} className={ITEM_CLASS} onSelect={() => onMove(task.task_id, nextStatus)}>
-            {t(`moveTo.${nextStatus}`)}
+            {t(moveLabelKey(task.status, nextStatus))}
           </DropdownMenuItem>
         ))}
         {task.status === 'running' && onReclaim && (

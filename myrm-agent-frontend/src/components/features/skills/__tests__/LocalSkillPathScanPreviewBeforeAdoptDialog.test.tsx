@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LocalSkillPathScanPreviewBeforeAdoptDialog } from '../LocalSkillPathScanPreviewBeforeAdoptDialog';
 import type { LocalSkillPathPreviewResponse } from '@/store/skill/types';
+import en from '../../../../../locales/en.json';
+import { SCAN_RISK_NAMESPACE, scanRiskT } from './scanRiskTranslator';
 
 const mockTranslations: Record<string, string> = {
   'previewDialog.title': '本地技能路径预检与采纳',
@@ -48,7 +50,7 @@ const stableT = (key: string, params?: Record<string, unknown>) => {
 };
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
+  useTranslations: (namespace?: string) => (namespace === SCAN_RISK_NAMESPACE ? scanRiskT : stableT),
 }));
 
 describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
@@ -346,10 +348,14 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     // Click to expand
     fireEvent.click(toggleFindingsBtn);
     expect(screen.getByTestId('findings-inspection-panel')).toBeInTheDocument();
-    expect(screen.getByText('command_injection')).toBeInTheDocument();
+    expect(screen.getByText(en.settings.skills.scanRisk.threat.command_injection)).toBeInTheDocument();
+    expect(screen.getByText(en.settings.skills.scanRisk.severity.critical)).toBeInTheDocument();
     expect(screen.getByText('Detected raw shell execution via os.system')).toBeInTheDocument();
     expect(screen.getByText('第 28 行')).toBeInTheDocument();
-    expect(screen.getByText('hardcoded_secret')).toBeInTheDocument();
+    // A class the scanner vocabulary does not name is shown generically, never as its internal code.
+    expect(screen.getByText(en.settings.skills.scanRisk.threat.unknown)).toBeInTheDocument();
+    expect(screen.queryByText('hardcoded_secret')).not.toBeInTheDocument();
+    expect(screen.queryByText('command_injection')).not.toBeInTheDocument();
     expect(screen.getByText('第 42 行')).toBeInTheDocument();
 
     // Click to hide

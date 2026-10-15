@@ -223,9 +223,9 @@ _CLEAR_MULTI_CAPABILITY_STATE_JS = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -333,9 +333,9 @@ def test_composer_inline_context_chip_strip_lifecycle_and_removal() -> None:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -399,9 +399,9 @@ def test_composer_context_chip_strip_overflow_popover_and_overload_nudge() -> No
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

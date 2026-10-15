@@ -2,10 +2,7 @@
 
 from .auto_continue import auto_continue_interrupted_turns
 from .browser import (
-    cleanup_and_warmup_browser_threads,
-    cleanup_browser_threads,
     shutdown_global_browser_pool,
-    warmup_browser_sessions,
     warmup_global_browser_pool,
 )
 from .memory_guardian import start_memory_guardian_scheduler, stop_memory_guardian_scheduler
@@ -51,10 +48,7 @@ from .system import (
 )
 
 __all__ = [
-    "cleanup_and_warmup_browser_threads",
-    "cleanup_browser_threads",
     "shutdown_global_browser_pool",
-    "warmup_browser_sessions",
     "warmup_global_browser_pool",
     "start_auth_alert_monitor",
     "start_maintenance_scheduler",

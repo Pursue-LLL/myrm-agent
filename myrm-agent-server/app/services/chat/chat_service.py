@@ -2,7 +2,9 @@
 
 [INPUT]
 - _base::_ChatServiceBase, _ChatRepositoryPort (POS: repository 协议和访问器)
-- chat_crud::_ChatCrudMixin (POS: Chat CRUD、session、channel 操作)
+- chat_crud::_ChatCrudMixin (POS: Chat CRUD、session flush、置顶)
+- chat_deletion::_ChatDeletionMixin (POS: 回收站、永久删除、孤儿会话清理)
+- chat_channel::_ChatChannelMixin (POS: 渠道聊天解析与创建)
 - chat_message::_ChatMessageMixin (POS: 消息持久化操作)
 - chat_history::_ChatHistoryMixin (POS: 历史加载与搜索)
 - chat_turn::_ChatTurnMixin (POS: 重试/撤销/兄弟/标题生成)
@@ -18,8 +20,10 @@ ChatService: 聊天业务统一入口，组合各 mixin 的所有方法。
 
 from __future__ import annotations
 
+from .chat_channel import _ChatChannelMixin
 from .chat_compaction import _ChatCompactionMixin
 from .chat_crud import _ChatCrudMixin
+from .chat_deletion import _ChatDeletionMixin
 from .chat_history import _ChatHistoryMixin
 from .chat_message import _ChatMessageMixin
 from .chat_turn import _ChatTurnMixin
@@ -27,6 +31,8 @@ from .chat_turn import _ChatTurnMixin
 
 class ChatService(
     _ChatCrudMixin,
+    _ChatDeletionMixin,
+    _ChatChannelMixin,
     _ChatMessageMixin,
     _ChatHistoryMixin,
     _ChatTurnMixin,
@@ -35,7 +41,9 @@ class ChatService(
     """聊天服务聚合类，对外提供统一接口。
 
     各域方法定义在独立文件中：
-    - chat_crud.py: CRUD、session、channel 操作
+    - chat_crud.py: CRUD、session flush、置顶
+    - chat_deletion.py: 回收站、永久删除、孤儿会话清理
+    - chat_channel.py: 渠道聊天解析与创建
     - chat_message.py: 消息持久化
     - chat_history.py: 历史加载与搜索
     - chat_turn.py: 重试/撤销/兄弟/标题生成

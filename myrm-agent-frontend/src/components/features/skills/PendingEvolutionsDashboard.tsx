@@ -153,10 +153,7 @@ export function PendingEvolutionsDashboard() {
     };
   }, [listTotal, summary]);
 
-  const filteredCases = useMemo(
-    () => cases.filter((item) => matchesFilter(item, activeFilter)),
-    [activeFilter, cases],
-  );
+  const filteredCases = useMemo(() => cases.filter((item) => matchesFilter(item, activeFilter)), [activeFilter, cases]);
 
   const handleApprove = useCallback(
     async (item: SkillGrowthCaseSummary) => {
@@ -221,7 +218,7 @@ export function PendingEvolutionsDashboard() {
       setProcessingCaseId(item.id);
       try {
         const result = await reviseSkillGrowthCase(item, evolvedContent);
-        if (result.test_passed === false) {
+        if (result.status === 'FAILED_SCAN') {
           toast.error(t('reviseFailedScan', { name: item.skillName }));
         }
         await loadCases(true);

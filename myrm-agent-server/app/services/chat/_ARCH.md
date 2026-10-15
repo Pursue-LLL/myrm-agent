@@ -23,8 +23,14 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 |------|------|------|-------|
 | `chat_service.py` | ✅ 核心 | ChatService 门面类，通过 Mixin 组合各域方法 | ✅ |
 | `_base.py` | ✅ 基础 | `_ChatRepositoryPort` 协议 + `_ChatServiceBase` 基类（`_cr()` 访问器） | ✅ |
-| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 与会话级时效白名单/拒绝熔断计数联动清理（`_cleanup_checkpointer`，杜绝幽灵特权残留与内存泄漏）、会话级工作记忆运行态缓存清理（`_clear_session_working_memory`）、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
-| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化（持久化后联动用量同步与记忆影响账本投影） | ✅ |
+| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、session flush、Pinned Threads (pin/unpin/reorder, max 9)、`ensure_default_workspace_dir`、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
+| `chat_deletion.py` | ✅ 核心 | `_ChatDeletionMixin`: 会话删除生命周期——软删除回收站 (trash/restore/permanent-delete/empty/batch-delete/orphan-empty-session purge)；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突；会话结束后的状态拆除（checkpoint、会话级授权、运行时缓存、记忆级联、沙箱文件）统一委托 `chat_disposal`，永久删除只作用于回收站内的会话（过期的回收站视图不会清空已被恢复会话的消息与 `chat_bound_rows` 行） | ✅ |
+| `chat_channel.py` | ✅ 核心 | `_ChatChannelMixin`: 渠道聊天解析与创建（`get_channel_chat_by_key`、`get_or_create_channel_chat`，并发创建靠唯一约束 + IntegrityError 回读收敛） | ✅ |
+| `chat_disposal.py` | ✅ 核心 | 会话结束后的拆除步骤单一定义：`clear_conversation_state`（LangGraph checkpoint 线程 + 会话级时效授权 + 拒绝熔断计数；checkpoint 清不干净只返回 False，授权照清）、`clear_runtime_caches`（外部 Agent 运行时池、执行缓存、工作记忆）、`clear_extract_retry_queue`、`forget_chat_memories`（记忆级联删除 + 重试队列）、`remove_chat_files`（沙箱 worktree 逐个以 safe 模式移除：有未保存改动的 worktree 与含未合并提交的分支保留，返回 `ChatFilesRemoval(removed_worktrees, kept_worktrees)`；工作空间与 ArtifactVault 一次批量）、`dispose_permanently_deleted_chats`（先停生产者再抹状态）。永久删除、清空回收站与两个自动清除经 `dispose_permanently_deleted_chats` 走全部步骤，焦点刷新、软删除与安全清空只组合适用的步骤，每一步 fail-open | ✅ |
+| `chat_bound_rows.py` | ✅ 核心 | 只存聊天 id、没有外键指向 `chats` 的表的单一清单 `CHAT_BOUND_TABLES`（widget_kv / approvals / commitments / fission_task_records）与 `delete_trashed_chat_bound_rows`（每条 DELETE 自带回收站判断，过期的 id 列表不会误删已恢复会话的数据，500 个 id 一批）；永久删除、清空回收站与安全清空共用这一份，遗留行会把已删对话的内容经主动承诺带进其它会话；守卫测试 `tests/services/chat/test_chat_bound_rows.py` 对完整 schema 校验：含聊天列的表要么在清单里，要么在带理由的例外表里 | ✅ |
+| `chat_retention.py` | ✅ 核心 | 时间型永久删除策略：回收站超过 30 天（`purge_expired_trash`）与无痕会话空闲超过 1 小时（`purge_idle_incognito_chats`）；只决定哪些会话到期，删除委托 `ChatService`，与手动永久删除走同一套拆除 | ✅ |
+| `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化（持久化后联动用量同步与记忆影响账本投影）；`ensure_chat_and_append_user_message(mark_read=True)` 仅由人工发送路径传入，同事务把 `last_read_at` 盖为用户在场时刻（`datetime.utcnow()`，与 `Message.created_at` 同时钟域；幂等重试早退不盖章），系统注入（wakeup）保持默认 `False` | ✅ |
+| `catchup_brief.py` | ✅ 核心 | Catchup 收件箱的纯函数投影：`extract_catchup_brief` 把未读消息与 progress steps 压成有界 `CatchupBrief`（提示/回复预览、改动文件、工具计数、`needs_from_user` 编码 approval/error/question；wakeup 系统行不算用户提示）；状态与需求为封闭词表，由前端本地化 | ✅ |
 | `chat_usage_sync.py` | ✅ 核心 | `sync_chat_usage` + `ChatUsageCache` 实例：assistant 消息落库及轮次突变（retry/undo/truncate/rewind/regenerate/switch_sibling）后聚合该 chat 全部 active 消息 extra_data 的 `tokenEconomics` 快照，覆盖式写 `Chat.total_calls/total_tokens/total_usd`；进程内 TTL 缓存按「最后聚合消息 id」校验防重复全量聚合且不漏最新消息；源为 DB 消息级数据，不依赖 event-log 文件 | ✅ |
 | `chat_memory_events.py` | ✅ 辅助 | 将 assistant 消息的 `citedMemoryRefs` / `memoryRetrievalTraces` 投影为记忆操作账本事件（`record_memory_influence_event`），消息持久化的有界 best-effort 副作用 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
@@ -32,7 +38,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_turn.py` | [Pass] 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换；rewind 支持 `scope=conversation/both`（both 联动文件 revert + 快照清理 + 异常自愈补偿 `_restore_pre_rewind_snapshot`，revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；分支突变后 checkpoint sync + `Chat.total_*` 用量重算 + `_sync_todos_for_active_branch` 物理工作区进度文件原子对齐 | [Pass] |
 | `chat_title.py` | ✅ 核心 | 独立聊天标题生成服务：支持轻量模型自动总结、多级容灾降级调用与智能 Snippet 后备提取；截断到提示窗口前先按隐私策略脱敏（避免跨截断点的敏感串半截泄漏） | ✅ |
 | `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口；送给摘要模型的内容由 harness 出站闸门按隐私策略脱敏，库内消息与召回归档保持原文） | ✅ |
-| `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）。 | ✅ |
+| `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）；`WAKEUP_MESSAGE_ID_PREFIX` 标识系统注入的 wakeup 用户行。 | ✅ |
 | `usage_cache.py` | ✅ 辅助 | `ChatUsageCache`: 进程内 TTL 缓存（默认 5s，key=chat_id），携带「最后聚合 assistant 消息 id」，同一会话连续消息落库/连续突变防抖；last_message_id 变化（新消息或 sibling 切换）强制重算 | ✅ |
 | `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
 | `compact/` | ✅ 核心 | 压缩子模块：`service.py`（compact_chat）、`persist.py`、`idle_estimate.py`、`message_io.py`、`summarize_guard.py`、`llm_config.py`、`archive.py` | ✅ |
@@ -47,7 +53,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
 | `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建/验证/无密码确定性重建（同 payload+exp 同 token，GUI 状态查询据此恢复分享链接，零存储原始 token） | ✅ |
 | `share_renderer.py` | ✅ 辅助 | 对话分享只读 HTML 页面 SSR 渲染（markdown-it-py Markdown 渲染 + Agent 身份卡片 + 消息历史 + OG metadata + Dark Mode + XSS 防护） | ✅ |
-| `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用；cleanup 默认 safe（dirty worktree 保留防丢数据），用户显式丢弃（`disable_sandbox`/chat 永久删除/清空回收站）或 merge 成功后 `force=True`；merge 失败自动 `git merge --abort` 恢复 repo（防 MERGE_HEAD 阻塞后续 merge）并收集冲突文件列表返回给调用方；分支名由 `_sandbox_branch_name` 单一公式生成（SSOT，与 kanban `_worktree_branch_name` 对称）；worktree add/remove/分支删除/merge 组合与错误类型复用 `app.core.utils.git_worktree` | ✅ |
+| `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用；cleanup 默认 safe（dirty worktree 保留、含未合并提交的分支保留，防丢数据；chat 永久删除/清空回收站/安全清空走此模式），用户显式丢弃（`disable_sandbox`）或 merge 成功后 `force=True`；merge 失败自动 `git merge --abort` 恢复 repo（防 MERGE_HEAD 阻塞后续 merge）并收集冲突文件列表返回给调用方；分支名由 `_sandbox_branch_name` 单一公式生成（SSOT，与 kanban `_worktree_branch_name` 对称）；worktree add/remove/分支删除/merge 组合与错误类型复用 `app.core.utils.git_worktree` | ✅ |
 | `effective_workspace.py` | ✅ 核心 | SSOT：`resolve_effective_chat_workspace` — project.workspace_path > chat.workspace_dir > JIT sandbox；供 GET chat、converter、sandbox API、files suggest/browse、fork、`ensure_default_workspace_dir` 共用 | ✅ |
 | `ephemeral_session_store.py` | ✅ 核心 | Zero Data Retention (ZDR) 纯内存无痕会话存储器；绕过 DB / FTS 磁盘写入，支持 60s 瞬态断线防抖重连与 0x00 物理覆写抹零 | ✅ |
 | `context_bomb_guard.py` | ✅ 核心 | 入站大文本门禁（>16,000 字符）与透明沙箱工作区文件外溢（`.myrm/spillover/payload_<sha256>.md`）、Prompt Cache 保护引用注入（开头的 `[use skill]` 显式调用标签保持在引用块之前）与 24h 过期自动清扫看门狗 | ✅ |
@@ -60,7 +66,11 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 ```
 ChatService
   ├─ _ChatCrudMixin      (chat_crud.py)
-  │    CRUD、trash (soft-delete/restore/permanent-delete/empty/batch-delete)、session、channel、ensure_default_workspace_dir、pin/unpin/reorder
+  │    CRUD、session flush、ensure_chat_source、ensure_default_workspace_dir、pin/unpin/reorder
+  ├─ _ChatDeletionMixin  (chat_deletion.py)
+  │    trash (soft-delete/restore/permanent-delete/empty/batch-delete)、orphan empty session purge
+  ├─ _ChatChannelMixin   (chat_channel.py)
+  │    get_channel_chat_by_key、get_or_create_channel_chat
   ├─ _ChatMessageMixin   (chat_message.py)
   │    append_message、ensure_chat_and_append_user_message、persist_assistant_message_safe
   ├─ _ChatHistoryMixin   (chat_history.py)

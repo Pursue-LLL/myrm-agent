@@ -8,6 +8,7 @@ app.database.dto::MessageDTO (POS: 聊天与消息数据传输对象)
 filter_messages: Filter chat messages before model context construction.
 _sanitize_snippet: Sanitize highlighted FTS snippets for UI output.
 RetryResult, RegenerateResult, UndoResult, TruncateResult, ChannelHistoryEntry: Chat service result DTOs.
+WAKEUP_MESSAGE_ID_PREFIX: Id prefix of the system-injected user rows that carry async task results back to a chat.
 
 [POS]
 聊天服务辅助层。集中放置消息过滤、snippet 清理和轻量结果类型，避免 ChatService 门面承载通用细节。
@@ -32,6 +33,9 @@ from app.database.dto import MessageDTO
 logger = logging.getLogger(__name__)
 
 ChatHistoryPairs = list[list[str]]
+
+# System wakeups are stored as user rows; this prefix tells them apart from what a person typed.
+WAKEUP_MESSAGE_ID_PREFIX = "wakeup_"
 
 # Initialize message filter pipeline with harness framework capability
 _filter_config = FilterConfig(

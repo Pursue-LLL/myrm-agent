@@ -10,7 +10,7 @@
 | 文件 | 职责 |
 | ---- | ---- |
 | `models.py` | Pydantic 数据契约：`SessionNodeModel`、`ProjectClusterModel`、`FleetCockpitSummary`、`SessionSearchRequest/Response` |
-| `routes.py` | API 端点实现：`GET /projects`（项目拓扑图谱）、`GET /cockpit`（驾驶舱大盘）、`POST /search`（跨会话全文检索） |
+| `routes.py` | API 端点实现：`GET /projects`（项目拓扑图谱；会话 `working` 当且仅当 `AgentGateway.active_session_ids()` 含该 chat，即有回合在执行）、`GET /cockpit`（驾驶舱大盘）、`POST /search`（跨会话全文检索） |
 | `__init__.py` | 包门面：统一导出 `router` |
 | `_ARCH.md` | 本文档：模块架构说明与契约索引 |
 

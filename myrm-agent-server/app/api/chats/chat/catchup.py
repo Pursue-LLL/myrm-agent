@@ -1,4 +1,4 @@
-"""Catchup inbox API: briefs of unread web chats and read marking.
+"""Catchup inbox API: what happened in web chats while the user was away, and read marking.
 
 [INPUT]
 - app.api.dependencies::get_deploy_identity (POS: API 层统一依赖注入入口。所有 FastAPI 端点的依赖应从此模块导入)
@@ -7,125 +7,206 @@
 - app.database.models.chat::Chat, Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
 - app.platform_utils::get_session_factory (POS: 平台适配层。按 DEPLOY_MODE 选择平台实现，提供数据库会话工厂)
 - app.services.agent.gateway::get_agent_gateway (POS: Agent 执行网关。并发控制、内存压力熔断、优雅排空、超时保护和可观测性)
-- myrm_agent_harness.agent.streaming.broadcast.catchup::CatchupBriefExtractor (POS: Extracts structured summary (files touched, tools used, etc.) from agent messages for the Catchup feature)
+- app.services.chat.catchup_brief (POS: bounded per-chat summary projection behind the inbox)
+- app.services.chat.chat_helpers::WAKEUP_MESSAGE_ID_PREFIX (POS: id prefix of system-injected wakeup rows)
+- app.services.copilot.run_digest_store::RunDigestStore (POS: in-process run phases; the only record of a turn that failed before persisting a reply)
 
 [OUTPUT]
-- get_catchup_briefs: GET /catchup, a brief per unread web chat; a chat with a turn in flight is running, one with a pending approval is waiting_for_approval
-- mark_chat_as_read: POST /{chat_id}/read, stamps last_read_at and answers 404 for an unknown chat
+- get_catchup_briefs: GET /catchup, one brief per web chat the user has not caught up with.
+  Status priority: waiting_for_approval (a blocked turn is still in flight, so it must outrank running) > running (a turn is in flight) > error/stopped (last turn failed or was cancelled after the user left) > completed (agent replied after the user left).
+- mark_chat_as_read: POST /{chat_id}/read, stamps the user's presence (last_read_at) and answers 404 for an unknown chat
 
 [POS]
-Catchup inbox endpoints: what happened in each unread web chat while the user was away.
+Catchup inbox endpoints. ``Chat.last_read_at`` is the user's last presence in a chat; an agent reply newer than it is unseen.
+A chat with no recorded presence (NULL) counts as read until something happens that needs the user.
 """
 
+from __future__ import annotations
+
 import logging
-from datetime import datetime
-from typing import Any
+from collections.abc import Collection
+from datetime import UTC, datetime
+from typing import Annotated, NamedTuple
 
 from fastapi import APIRouter, Depends, HTTPException
-from myrm_agent_harness.agent.streaming.broadcast.catchup import CatchupBriefExtractor
-from sqlalchemy import select
+from fastapi.responses import JSONResponse
+from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
+from pydantic import BaseModel
+from sqlalchemy import exists, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_deploy_identity
 from app.core.utils.response_utils import success_response
-from app.database.models.approval import ApprovalRecord as ApprovalRecord
+from app.database.models.approval import ApprovalRecord
 from app.database.models.chat import Chat, Message
 from app.platform_utils import get_session_factory
 from app.services.agent.gateway import get_agent_gateway
+from app.services.chat.catchup_brief import CatchupBrief, CatchupStatus, extract_catchup_brief
+from app.services.chat.chat_helpers import WAKEUP_MESSAGE_ID_PREFIX
+from app.services.copilot.run_digest_store import RunDigestStore
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+INBOX_LIMIT = 20
+# Bounds the rows scanned for one brief when the user has been away through a very long autonomous run.
+UNSEEN_MESSAGE_CAP = 400
+
+
+class CatchupItem(CatchupBrief):
+    chat_id: str
+    chat_title: str
+    updated_at: str
+
+
+class CatchupInbox(BaseModel):
+    briefs: list[CatchupItem]
+
+
+class _Candidate(NamedTuple):
+    chat_id: str
+    title: str | None
+    updated_at: datetime
+    last_read_at: datetime | None
+    has_pending_approval: bool
+
+
+def _naive_utc(moment: datetime) -> datetime:
+    """Normalize to the naive-UTC convention that ``Message.created_at`` and ``last_read_at`` are stored in."""
+    if moment.tzinfo is None:
+        return moment
+    return moment.astimezone(UTC).replace(tzinfo=None)
+
+
+async def _unseen_failures(db: AsyncSession) -> dict[str, CatchupStatus]:
+    """Chats whose last turn failed or was cancelled after the user last saw them.
+
+    A failed turn persists no assistant row, so the in-process run digest is the only record of it.
+    A server restart forgets it; such a chat then ends on an unanswered user message.
+    """
+    digests = {digest.chat_id: digest for digest in RunDigestStore.terminal_failures()}
+    if not digests:
+        return {}
+    rows = await db.execute(select(Chat.id, Chat.last_read_at).where(Chat.id.in_(list(digests))))
+    failures: dict[str, CatchupStatus] = {}
+    for chat_id, last_read_at in rows:
+        digest = digests[chat_id]
+        ended_at = _naive_utc(datetime.fromisoformat(digest.updated_at))
+        if last_read_at is None or ended_at > _naive_utc(last_read_at):
+            failures[chat_id] = "error" if digest.phase == RunDigestPhase.ERROR else "stopped"
+    return failures
+
+
+async def _candidate_chats(db: AsyncSession, running_ids: Collection[str], failed_ids: Collection[str]) -> list[_Candidate]:
+    """Newest web chats that hold something unseen: a reply, a running turn, a pending approval or a failure."""
+    unseen_reply = exists().where(
+        Message.chat_id == Chat.id,
+        Message.role == "assistant",
+        Message.is_active.is_(True),
+        Message.created_at > Chat.last_read_at,
+    )
+    pending_approval = exists().where(ApprovalRecord.chat_id == Chat.id, ApprovalRecord.status == "PENDING")
+    stmt = (
+        select(Chat.id, Chat.title, Chat.updated_at, Chat.last_read_at, pending_approval.label("has_pending_approval"))
+        .where(
+            Chat.source == "web",
+            Chat.deleted_at.is_(None),
+            or_(unseen_reply, pending_approval, Chat.id.in_({*running_ids, *failed_ids})),
+        )
+        .order_by(Chat.updated_at.desc())
+        .limit(INBOX_LIMIT)
+    )
+    return [_Candidate(*row) for row in await db.execute(stmt)]
+
+
+async def _chat_brief_inputs(
+    db: AsyncSession, chat_id: str, last_read_at: datetime | None
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Messages the user has not seen, preceded by the person's latest prompt, plus their progress steps."""
+    unseen_stmt = (
+        select(Message.id, Message.role, Message.content, Message.extra_data)
+        .where(Message.chat_id == chat_id, Message.is_active.is_(True))
+        .order_by(Message.created_at.desc())
+        .limit(UNSEEN_MESSAGE_CAP)
+    )
+    if last_read_at is not None:
+        unseen_stmt = unseen_stmt.where(Message.created_at > last_read_at)
+    unseen = list(reversed((await db.execute(unseen_stmt)).all()))
+
+    # The prompt predates the user's last presence, so it is rarely among the unseen rows.
+    prompt_stmt = (
+        select(Message.id, Message.role, Message.content)
+        .where(
+            Message.chat_id == chat_id,
+            Message.role == "user",
+            Message.is_active.is_(True),
+            ~Message.id.startswith(WAKEUP_MESSAGE_ID_PREFIX, autoescape=True),
+        )
+        .order_by(Message.created_at.desc())
+        .limit(1)
+    )
+    prompt = (await db.execute(prompt_stmt)).first()
+
+    messages: list[dict[str, object]] = []
+    if prompt is not None:
+        messages.append({"id": prompt.id, "role": prompt.role, "content": prompt.content})
+    progress_steps: list[dict[str, object]] = []
+    for row in unseen:
+        messages.append({"id": row.id, "role": row.role, "content": row.content})
+        steps = row.extra_data.get("progressSteps") if isinstance(row.extra_data, dict) else None
+        if isinstance(steps, list):
+            progress_steps.extend(step for step in steps if isinstance(step, dict))
+    return messages, progress_steps
+
 
 @router.get("/catchup")
-async def get_catchup_briefs(user_id: str = Depends(get_deploy_identity)) -> Any:
-    """Get catchup briefs for all chats with unread activity."""
-    session_factory = get_session_factory()
-    gateway = get_agent_gateway()
+async def get_catchup_briefs(user_id: Annotated[str, Depends(get_deploy_identity)]) -> JSONResponse:
+    """Get a catchup brief for every web chat the user has not caught up with."""
+    running_ids = get_agent_gateway().active_session_ids()
+    briefs: list[CatchupItem] = []
 
-    briefs: dict[str, dict[str, Any]] = {}
-
-    async with session_factory() as db:
-        # Find chats where updated_at > last_read_at (or last_read_at is None)
-        # We only care about web source for now to avoid noise from background cron jobs
-        stmt = (
-            select(Chat)
-            .where(Chat.source == "web", (Chat.last_read_at.is_(None)) | (Chat.updated_at > Chat.last_read_at))
-            .order_by(Chat.updated_at.desc())
-            .limit(20)
-        )
-
-        result = await db.execute(stmt)
-        chats = result.scalars().all()
-
-        if not chats:
-            return success_response(data={"briefs": []})
+    async with get_session_factory()() as db:
+        failures = await _unseen_failures(db)
+        chats = await _candidate_chats(db, running_ids, failures.keys())
 
         for chat in chats:
-            # Determine status
-            status = "completed"
-
-            # A turn in flight is running, whether or not the client that started it is still connected
-            if gateway.is_session_active(chat.id):
-                status = "running"
-
-            # Check if waiting for approval
-            approval_stmt = select(ApprovalRecord).where(ApprovalRecord.chat_id == chat.id, ApprovalRecord.status == "PENDING")
-            approval_result = await db.execute(approval_stmt)
-            if approval_result.scalars().first():
+            status: CatchupStatus = "completed"
+            if chat.has_pending_approval:
                 status = "waiting_for_approval"
+            elif chat.chat_id in running_ids:
+                status = "running"
+            elif chat.chat_id in failures:
+                status = failures[chat.chat_id]
 
-            # Fetch unread messages
-            msg_stmt = select(Message).where(Message.chat_id == chat.id)
-            if chat.last_read_at:
-                msg_stmt = msg_stmt.where(Message.created_at > chat.last_read_at)
+            messages, progress_steps = await _chat_brief_inputs(db, chat.chat_id, chat.last_read_at)
+            brief = extract_catchup_brief(messages, progress_steps, status)
+            briefs.append(
+                CatchupItem(
+                    **brief.model_dump(),
+                    chat_id=chat.chat_id,
+                    chat_title=chat.title or "",
+                    updated_at=chat.updated_at.isoformat(),
+                )
+            )
 
-            msg_stmt = msg_stmt.order_by(Message.created_at.asc())
-            msg_result = await db.execute(msg_stmt)
-            messages = msg_result.scalars().all()
-
-            if not messages and status != "running":
-                continue
-
-            # Prepare data for extractor
-            msg_dicts = []
-            progress_steps = []
-
-            for msg in messages:
-                msg_dicts.append({"role": msg.role, "content": msg.content})
-
-                if msg.extra_data and isinstance(msg.extra_data, dict):
-                    steps = msg.extra_data.get("progressSteps")
-                    if isinstance(steps, list):
-                        progress_steps.extend(steps)
-
-            # Extract brief
-            brief = CatchupBriefExtractor.extract(messages=msg_dicts, progress_steps=progress_steps, status=status)
-
-            # Only include if there's actual activity or it's waiting
-            if brief.activity_steps or brief.files_touched or status != "completed" or brief.latest_agent_response:
-                brief_dict = brief.model_dump()
-                brief_dict["chat_id"] = chat.id
-                brief_dict["chat_title"] = chat.title or "Untitled Chat"
-                brief_dict["updated_at"] = chat.updated_at.isoformat()
-                briefs[chat.id] = brief_dict
-
-    return success_response(data={"briefs": list(briefs.values())})
+    return success_response(data=CatchupInbox(briefs=briefs).model_dump())
 
 
 @router.post("/{chat_id}/read")
-async def mark_chat_as_read(chat_id: str, user_id: str = Depends(get_deploy_identity)) -> Any:
-    """Mark a chat as read, updating last_read_at to now."""
-    session_factory = get_session_factory()
+async def mark_chat_as_read(chat_id: str, user_id: Annotated[str, Depends(get_deploy_identity)]) -> JSONResponse:
+    """Record that the user is present in the chat now.
 
-    async with session_factory() as db:
-        stmt = select(Chat).where(Chat.id == chat_id)
-        result = await db.execute(stmt)
-        chat = result.scalars().first()
-
-        if not chat:
+    ``updated_at`` is pinned so that reading never reorders the sidebar, which sorts by activity.
+    """
+    async with get_session_factory()() as db:
+        result = await db.execute(
+            update(Chat)
+            .where(Chat.id == chat_id)
+            .values(last_read_at=datetime.utcnow(), updated_at=Chat.updated_at)
+            .returning(Chat.id)
+        )
+        if result.first() is None:
             raise HTTPException(status_code=404, detail="Chat not found")
-
-        chat.last_read_at = datetime.utcnow()
         await db.commit()
 
     return success_response(data={"success": True, "chat_id": chat_id})

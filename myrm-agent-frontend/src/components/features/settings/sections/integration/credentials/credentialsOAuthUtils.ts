@@ -6,30 +6,26 @@ export function resolveOauthCardState(active: OauthCredentialRecord | undefined)
   state: OauthCardState;
   daysLeft: number;
 } {
-  let state: OauthCardState = 'missing';
-  let daysLeft = 0;
-
-  if (active) {
-    if (active.connected) {
-      if (active.expires_at) {
-        const nowSec = Date.now() / 1000;
-        if (active.expires_at < nowSec) {
-          state = 'expired';
-        } else if (active.expires_at < nowSec + 7 * 86400) {
-          state = 'expiring';
-          daysLeft = Math.max(1, Math.ceil((active.expires_at - nowSec) / 86400));
-        } else {
-          state = 'connected';
-        }
-      } else {
-        state = 'connected';
-      }
-    } else {
-      state = 'missing';
-    }
+  if (!active?.connected) {
+    return { state: 'missing', daysLeft: 0 };
+  }
+  // A refresh token the provider rejected ends the connection whatever the access token's expiry says.
+  if (active.needs_reauth) {
+    return { state: 'expired', daysLeft: 0 };
+  }
+  // A renewable credential replaces its own access token, so that token's expiry says nothing about the connection.
+  if (active.renewable || !active.expires_at) {
+    return { state: 'connected', daysLeft: 0 };
   }
 
-  return { state, daysLeft };
+  const nowSec = Date.now() / 1000;
+  if (active.expires_at < nowSec) {
+    return { state: 'expired', daysLeft: 0 };
+  }
+  if (active.expires_at < nowSec + 7 * 86400) {
+    return { state: 'expiring', daysLeft: Math.max(1, Math.ceil((active.expires_at - nowSec) / 86400)) };
+  }
+  return { state: 'connected', daysLeft: 0 };
 }
 
 export function getOauthBadgeStyles(state: OauthCardState): {

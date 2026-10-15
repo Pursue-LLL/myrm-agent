@@ -60,7 +60,6 @@ class TestDefaultValues:
         assert s.host == "0.0.0.0"
         assert s.app_name == "MyrmAgent"
         assert s.api_prefix == "/api/v1"
-        assert s.browser_auto_warmup is False
 
     def test_mcp_defaults(self) -> None:
         s = _make_settings()

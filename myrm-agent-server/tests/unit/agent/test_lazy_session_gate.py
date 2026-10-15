@@ -65,7 +65,9 @@ async def test_pending_session_draft_idempotent_commit():
     )
     assert draft.committed is False
 
-    with patch("app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock) as mock_append:
+    with patch(
+        "app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock
+    ) as mock_append:
         await draft.commit_if_pending()
         assert draft.committed is True
         mock_append.assert_awaited_once_with(
@@ -81,6 +83,7 @@ async def test_pending_session_draft_idempotent_commit():
             is_incognito=False,
             active_moa_preset_id=None,
             persist_moa_preset=False,
+            mark_read=True,
         )
 
         # Second call must be a no-op
@@ -96,7 +99,9 @@ async def test_commit_lazy_session_barrier():
 
     # 1. No draft attached
     session.pending_session_draft = None
-    with patch("app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock) as mock_mat:
+    with patch(
+        "app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock
+    ) as mock_mat:
         await commit_lazy_session_barrier(session)
         mock_mat.assert_not_called()
 
@@ -113,8 +118,12 @@ async def test_commit_lazy_session_barrier():
     session.pending_session_draft = draft
 
     with (
-        patch("app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock) as mock_append,
-        patch("app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock) as mock_mat,
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock
+        ) as mock_append,
+        patch(
+            "app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock
+        ) as mock_mat,
     ):
         await commit_lazy_session_barrier(session)
         assert draft.committed is True

@@ -80,6 +80,8 @@ function makeDragEndEvent(activeId: string, overId: string | null): DragEndEvent
 describe('useKanbanDnD', () => {
   const mockOnMoveTask = vi.fn();
   const mockOnBulkMove = vi.fn();
+  const mockOnMoveBlocked = vi.fn();
+  const callbacks = { onMoveTask: mockOnMoveTask, onMoveBlocked: mockOnMoveBlocked };
   const defaultTasks: KanbanTask[] = [
     makeMockTask({ task_id: 'task-1', status: 'ready' }),
     makeMockTask({ task_id: 'task-2', status: 'ready' }),
@@ -96,7 +98,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -111,7 +113,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -125,7 +127,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -143,7 +145,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -159,7 +161,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -180,7 +182,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -201,7 +203,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -217,7 +219,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -233,7 +235,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -246,12 +248,12 @@ describe('useKanbanDnD', () => {
   });
 
   describe('handleDragEnd - 破坏性状态确认', () => {
-    it.each(['completed', 'failed', 'archived'] as TaskStatus[])('移动到 %s 时弹出确认而不直接执行', (targetStatus) => {
+    it.each(['completed', 'failed'] as TaskStatus[])('移动到 %s 时弹出确认而不直接执行', (targetStatus) => {
       const { result } = renderHook(() =>
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -261,7 +263,7 @@ describe('useKanbanDnD', () => {
 
       expect(mockOnMoveTask).not.toHaveBeenCalled();
       expect(result.current.dropConfirmState).toEqual({
-        taskId: 'task-1',
+        taskIds: ['task-1'],
         targetStatus,
       });
     });
@@ -271,7 +273,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -291,12 +293,12 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
       act(() => {
-        result.current.handleDragEnd(makeDragEndEvent('task-1', 'archived'));
+        result.current.handleDragEnd(makeDragEndEvent('task-1', 'failed'));
       });
       act(() => {
         result.current.dismissDropConfirm();
@@ -313,7 +315,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: ['task-1', 'task-2'],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
           onBulkMove: mockOnBulkMove,
         }),
       );
@@ -330,7 +332,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: ['task-1', 'task-2'],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
           onBulkMove: mockOnBulkMove,
         }),
       );
@@ -347,7 +349,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: ['task-1', 'task-2'],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
           onBulkMove: mockOnBulkMove,
         }),
       );
@@ -368,7 +370,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: ['task-1', 'task-2'],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
           onBulkMove: mockOnBulkMove,
         }),
       );
@@ -382,7 +384,7 @@ describe('useKanbanDnD', () => {
 
       expect(mockOnBulkMove).not.toHaveBeenCalled();
       expect(result.current.dropConfirmState).toEqual({
-        taskId: 'task-1',
+        taskIds: ['task-1', 'task-2'],
         targetStatus: 'completed',
       });
     });
@@ -392,19 +394,19 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: ['task-1', 'task-2'],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
           onBulkMove: mockOnBulkMove,
         }),
       );
 
       act(() => {
-        result.current.handleDragEnd(makeDragEndEvent('task-1', 'archived'));
+        result.current.handleDragEnd(makeDragEndEvent('task-1', 'failed'));
       });
       act(() => {
         result.current.handleDropConfirm();
       });
 
-      expect(mockOnBulkMove).toHaveBeenCalledWith(['task-1', 'task-2'], 'archived');
+      expect(mockOnBulkMove).toHaveBeenCalledWith(['task-1', 'task-2'], 'failed');
       expect(mockOnMoveTask).not.toHaveBeenCalled();
     });
 
@@ -413,7 +415,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: ['task-1', 'task-2'],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -434,7 +436,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 
@@ -459,7 +461,7 @@ describe('useKanbanDnD', () => {
         useKanbanDnD({
           tasks: defaultTasks,
           selectedTaskIds: [],
-          onMoveTask: mockOnMoveTask,
+          ...callbacks,
         }),
       );
 

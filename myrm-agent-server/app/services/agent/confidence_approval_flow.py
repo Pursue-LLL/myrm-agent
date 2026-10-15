@@ -5,6 +5,7 @@
 - app.core.skills.curator.service::get_stats_collector, resolve_skill_path (POS: Curator 使用账本 .stats.json)
 - app.services.skills.evolution_reviews (POS: 统一的 evolution 审核生命周期服务)
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
+- app.services.skills.scan_risk_policy::assess_scan_risk (POS: 后台学习的高危新增复核策略)
 [OUTPUT]
 - ApprovalResult: 审批流结果（含风控降级原因）
 - ConfidenceApprovalFlow: 多信号风控审批流
@@ -20,6 +21,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionProposal, SkillRecord
+
+from app.services.skills.scan_risk_policy import NEW_FINDING_SIGNAL_PREFIX, SCAN_UNAVAILABLE_SIGNAL, assess_scan_risk
 
 if TYPE_CHECKING:
     from app.services.skills.evolution_reviews import RuntimeFailureEvidence
@@ -62,6 +65,7 @@ class ConfidenceApprovalFlow:
         1. score >= threshold AND is_general (existing LLM signals)
         2. changed-content ratio <= 50% (prevents silent large-scale rewrites)
         3. historical success rate over observed runs >= 50% or insufficient data (prevents risky fixes on low-quality skills)
+        4. no new HIGH-level security finding versus the original content (prevents silently adding outbound or privileged behavior)
         """
         from app.core.skills.store.evolution_store import get_evolution_skill_store
         from app.services.skills.evolution_reviews import (
@@ -83,6 +87,7 @@ class ConfidenceApprovalFlow:
         skill_name = skill_record.name if skill_record else proposal.skill_id
 
         risk_signals = self._evaluate_risk_signals(proposal, skill_record)
+        risk_signals.extend(await self._scan_risk_signals(proposal, skill_name))
 
         should_auto_approve = (
             proposal.score >= self._auto_approve_threshold
@@ -180,7 +185,17 @@ class ConfidenceApprovalFlow:
                 parts.append("Change exceeds 50% threshold — carefully review the diff to confirm correctness.")
             elif signal.startswith("low_effective_rate:"):
                 parts.append("This skill has low historical success rate — verify the improvement direction is correct.")
+            elif signal.startswith(NEW_FINDING_SIGNAL_PREFIX):
+                parts.append("The change adds high-risk behavior — review the flagged lines before approving.")
+            elif signal == SCAN_UNAVAILABLE_SIGNAL:
+                parts.append("The security scan could not run — review the change manually.")
         return " ".join(parts) if parts else "Review the diff and approve or reject the proposal."
+
+    @staticmethod
+    async def _scan_risk_signals(proposal: EvolutionProposal, skill_name: str) -> list[str]:
+        """Signals for HIGH-level findings the proposal adds on top of the original content."""
+        original = proposal.original_content or None
+        return (await assess_scan_risk(skill_name, proposal.proposed_content, original=original)).signals
 
     @staticmethod
     def _evaluate_risk_signals(
@@ -204,12 +219,15 @@ class ConfidenceApprovalFlow:
 
 
 def _scan_outcome(proposal: EvolutionProposal) -> bool | None:
-    """Security-scan outcome recorded for the review card.
+    """Whether the security scan of the proposed content found nothing; None when no scan ran.
 
-    A proposal reaches review only when the scan did not reject it, so a scan
-    summary means "passed"; without a summary no scan ran and nothing is claimed.
+    A scan rejects only critical findings, so a proposal that reaches review may
+    still carry findings: a recorded summary alone does not mean the content is clean.
     """
-    return True if proposal.security_scan_summary is not None else None
+    summary = proposal.security_scan_summary
+    if summary is None:
+        return None
+    return summary.get("total_findings") == 0
 
 
 def _ngram_counts(text: str) -> Counter[str]:

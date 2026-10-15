@@ -481,8 +481,8 @@
   },
   "loadout": {
     "title": "エージェント配装",
-    "subtitle": "What this agent inherits — team memory, wiki, skills, and memory policy at a glance.",
-    "loading": "Loading loadout…",
+    "subtitle": "このエージェントが継承する内容 — チームメモリ、Wiki、スキル、メモリポリシーを一目で確認できます。",
+    "loading": "配装を読み込み中…",
     "saveAgentFirst": "ロードアウトを確認するには、先にエージェントを保存してください。",
     "fix": "修正",
     "openTeamAssets": "チーム資産",
@@ -511,11 +511,11 @@
     "memoryPolicy": {
       "on": "メモリオン",
       "off": "メモリオフ",
-      "onWithPreCompact": "On · pre-compact {tokens} tok"
+      "onWithPreCompact": "オン · 事前圧縮 {tokens} tok"
     },
     "teamHub": {
       "title": "チーム資産",
-      "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "subtitle": "共有コンテキスト、Wiki、スキル、チャットメモリ — チームの設定とレビューをひとつの場所で。",
       "builtIn": "組み込み",
       "wikiTitle": "Wiki",
       "wikiDesc": "ナレッジベースとエージェントスコープのノート",
@@ -1864,7 +1864,12 @@
       "copyFailed": "コピーに失敗しました。クリップボードの権限を確認してください。",
       "readBlocked": "クリップボードの読み取りが拒否されました。設定で変更してください。",
       "readRefused": "クリップボードの読み取りを拒否しました",
-      "readFailed": "クリップボードの読み取りに失敗しました。権限を確認してください。"
+      "readFailed": "クリップボードの読み取りに失敗しました。権限を確認してください。",
+      "readPermissionTitle": "クリップボードへのアクセス許可",
+      "readPermissionPrompt": "アプリがクリップボードの内容の読み取りを求めています。許可しますか？",
+      "readPermissionRemember": "許可すると、次回からは確認されません。",
+      "readPermissionAllow": "許可",
+      "readPermissionDeny": "拒否"
     }
   },
   "chat": {
@@ -3084,7 +3089,7 @@
     },
     "personalClosedLoop": {
       "badge": "トリニティループ",
-      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "title": "個人ワークフローループ：ToDo · ログ · 週次レポート",
       "desc": "カンバンのタスクを入力として日々の事実ログを記録し、構造化された週次レビューへ自動集約して、洗練された個人の成果につなげます。",
       "step1Title": "ToDo の分解",
       "step1Desc": "カンバンのタスク計画とフェーズ追跡",
@@ -3952,7 +3957,7 @@
       "prev": "前へ",
       "next": "次へ",
       "lineCount": "{count} 行",
-      "sizeBadge": "{lines} lines · {size}",
+      "sizeBadge": "{lines} 行 · {size}",
       "storageTruncated": "ストレージ上限に達しました。ファイルは不完全な可能性があります",
       "loadingPage": "ページを読み込み中...",
       "searchPagePlaceholder": "現在のページを検索...",
@@ -4694,9 +4699,9 @@
       },
       "runtimeTitle": "実行ステータス",
       "deployMode": "デプロイモード",
-      "storageMode": "ストレージ",
       "vectorStatus": "ベクトルインデックス",
       "vectorPersistence": "ベクトルストレージの永続化",
+      "vectorPersistenceHint": "記憶は一時モードで動作しています。ほかの Myrm のウィンドウやプロセスが同じデータフォルダーを使用しておらず、フォルダーが書き込み可能であることを確認してから再起動してください。",
       "embeddingStatus": "エンベディングモデル",
       "controlPlaneStatus": "制御平面",
       "eventLedgerStatus": "イベント台帳",
@@ -4794,7 +4799,7 @@
           "layer2CadenceLabel": "Layer 2 弁証法周期",
           "conflictPatrol": "矛盾パトロール",
           "dialecticDepthLabel": "弁証法深度 / 算力",
-          "passDepthLevel": "Pass {depth} · {level}",
+          "passDepthLevel": "第 {depth} パス · {level}",
           "refreshTelemetryAria": "テレメトリを更新",
           "resetCadenceAria": "セッション周期をリセット"
         }
@@ -5332,6 +5337,9 @@
         "files": "ファイル",
         "noCommits": "最近のコミット履歴が検出されませんでした",
         "gitUnavailable": "現在のワークスペースに Git リポジトリが検出されませんでした"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "結論「{id}」を削除しますか？"
       }
     },
     "createDialog": {
@@ -7809,17 +7817,21 @@
     "taskDeleted": "タスクを削除しました",
     "addError": "タスクの追加に失敗",
     "moveError": "タスクの移動に失敗しました",
+    "moveBlocked": "このタスクはそのステータスには移動できません",
     "promoteSuccess": "タスクを準備完了に昇格しました",
     "promoteError": "タスクの昇格に失敗しました",
     "promoteUnmetDeps": "未完の依存関係があります — 強制昇格しますか？",
     "promoteForce": "強制昇格",
     "deleteError": "タスクの削除に失敗",
+    "archiveConfirmTitle": "このタスクをアーカイブしますか？",
+    "archiveConfirmDesc": "「{title}」\nタスクはボードから外れ、元に戻すことはできません。",
     "bulkSelected": "{count} 選択済み",
     "bulkArchive": "アーカイブ",
     "bulkMove": "移動まで",
     "bulkReassign": "再割り当て",
     "bulkDelete": "削除",
     "bulkDeleteConfirm": "{count} 件のタスクを削除しますか？",
+    "bulkArchiveConfirm": "{count} 件のタスクをアーカイブしますか？",
     "bulkSuccess": "{count} 件のタスクを更新しました",
     "bulkPartialSuccess": "{succeeded} 件成功、{failed} 件失敗",
     "bulkClearSelection": "選択をクリア",
@@ -7837,6 +7849,11 @@
     "reclaimReassignLabel": "エージェントに再割り当て（任意）",
     "reclaimSuccess": "タスクの回収に成功しました",
     "reclaimFailed": "タスクの回収に失敗しました",
+    "retryAction": "再試行",
+    "retryTitle": "このタスクを再試行しますか？",
+    "retryDesc": "タスクは準備完了に戻り、もう一度実行されます。これまでの試行は履歴に残り、エージェントも参照できます。失敗後にすでに先へ進んだ後続タスクは再実行されません。再実行するとモデルの利用枠を消費します。",
+    "retrySuccess": "タスクを再実行キューに追加しました",
+    "retryError": "タスクの再試行に失敗しました",
     "replanTitle": "DAG 計画変更レビュー",
     "replanDescription": "タスク依存関係グラフの変更提案をレビューします。変更は非巡回性が検証され、コミット時にアトミックに適用されます。",
     "replanAdded": "追加予定のタスク",
@@ -9697,18 +9714,17 @@
     "newSkillDraft": "新しいスキル成長ケースが作成されました：{name}",
     "reviewDraft": "今すぐ表示",
     "messageDeadLettered": "{channel} へのメッセージ配信が永続的に失敗しました。理由：{reason}",
-    "skillGrowthAutoApplied": "「{name}」を自動適用しました",
     "skillGrowthFailedScan": "「{name}」は事前セキュリティスキャンに合格しませんでした",
     "skillGrowthBlockedLocked": "「{name}」は進化ロックで保護されており、手動レビューが必要です",
     "openSkillGrowth": "スキル成長を開く",
     "skillEvolvedNew": "Agent が新しいスキルを学習しました：{name}",
     "skillEvolvedPatch": "Agent 最適化スキル：{name}",
-    "skillCapacityReached": "スキルライブラリがいっぱいです（上限 {max} 件）",
-    "skillCapacityReachedHint": "Agent は新しいスキルの自動学習を一時停止しています。使っていないスキルをアーカイブまたは削除すると再開されます。",
-    "manageSkills": "スキルを管理",
-    "undoEvolve": "元に戻す (Undo)",
+    "undoEvolve": "元に戻す",
     "rollbackSuccess": "{name} をロールバックしました",
     "rollbackFailed": "ロールバックに失敗しました。再試行してください",
+    "skillGrowthUndone": "「{name}」をアーカイブしました。スキル一覧からいつでも復元できます",
+    "skillGrowthUndoBlocked": "「{name}」は固定されているか、エージェントや定期タスクで使用中のためアーカイブできません。先に固定またはバインドを解除してください",
+    "skillGrowthUndoFailed": "「{name}」をアーカイブできませんでした。再試行してください",
     "forcePushReceived": "エージェント設定が組織によって更新されました",
     "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
     "subagentRebindRequired": "サブエージェントのバインドが変更されました。更新後の委譲ツールを使用するには新しいチャットを開始してください。",
@@ -11748,17 +11764,26 @@
   },
   "Catchup": {
     "inboxTitle": "キャッチアップ受信トレイ",
-    "loading": "読み込み中...",
-    "allCaughtUp": "すべてのブリーフを確認しました！",
+    "openInbox": "キャッチアップ受信トレイ、未確認 {count} 件",
+    "close": "閉じる",
+    "allCaughtUp": "すべて確認済みです！",
+    "untitledChat": "無題のセッション",
     "statusCompleted": "完了",
-    "statusWaiting": "待機承認",
+    "statusWaiting": "承認待ち",
     "statusError": "エラー",
     "statusRunning": "バックグラウンド実行中",
+    "statusStopped": "停止",
     "youAsked": "あなたの依頼：",
+    "latestReply": "最新の返信",
+    "needsApproval": "続行するにはあなたの承認が必要です。",
+    "needsError": "エラーのため停止しました。",
+    "needsQuestion": "あなたへの質問があります。",
     "filesChanged": "変更されたファイル",
+    "moreFiles": "ほか {count} 件",
     "toolsUsed": "使用したツール",
-    "markAsRead": "閉じる",
-    "viewChat": "表示セッション"
+    "toolCalls": "ツール呼び出し {count} 回",
+    "markAsRead": "確認済みにする",
+    "viewChat": "セッションを表示"
   },
   "backgroundTasks": {
     "title": "バックグラウンドタスク",
@@ -12457,7 +12482,7 @@
       "folderGate": {
         "title": "このフォルダを信頼しますか？",
         "description": "このフォルダには、本機で実行されるスキル・ルール・ローカルツールが含まれる可能性があります。関連付けの前に信頼度を選択してください",
-        "loading": "Scanning folder…",
+        "loading": "フォルダをスキャン中…",
         "loadFailed": "フォルダをスキャンできませんでした。再試行するか別のパスを選択してください",
         "decideFailed": "選択を保存できませんでした。もう一度お試しください",
         "disclosureTitle": "このフォルダで検出",
@@ -12612,7 +12637,7 @@
       "title": "ライセンスと著作権",
       "type": "MITライセンス（コア製品）",
       "description": "このリポジトリの Server、Frontend、Desktop は MIT ライセンスでリリースされています。",
-      "copyright": "© {year} MyrmAgent. All rights reserved."
+      "copyright": "© {year} MyrmAgent. 無断複写・転載を禁じます。"
     }
   },
   "budget": {
@@ -12936,7 +12961,7 @@
       "speed": "再生速度",
       "scrubber": "タイムラインスクラバー",
       "errorMarker": "エラー",
-      "keyboardHint": "Space: play/pause · ←/→: step frame",
+      "keyboardHint": "Space: 再生/一時停止 · ←/→: コマ送り",
       "running": "実行中...",
       "latestTool": "最新ツール：{name}",
       "result": "結果",
@@ -14537,7 +14562,7 @@
         "refresh": "更新",
         "loading": "システムヘルスステータスを読み込み中…",
         "loadFailed": "システムヘルスステータスの読み込みに失敗",
-        "meta": "デプロイ：{deploy} · ストレージ：{storage} · Bundle：{bundle}",
+        "meta": "デプロイ：{deploy} · Bundle：{bundle}",
         "warnings": "警告",
         "migrationPending": "待実行レイアウト移行",
         "migrationCount": "対応が必要な項目 {count} 件",
@@ -14567,8 +14592,7 @@
         "scenes": {
           "memory": "メモリ",
           "workspace": "ワークスペース",
-          "offload": "アンインストール",
-          "archive": "アーカイブ"
+          "offload": "アンインストール"
         }
       },
       "telemetry": {
@@ -14667,7 +14691,18 @@
         "rightsExporting": "エクスポートを準備中…",
         "rightsExportSuccess": "コンプライアンスエクスポートをダウンロードしました",
         "rightsExportFailed": "エクスポートに失敗 — メモリ設定から再試行してください",
-        "rightsManageMemory": "メモリと削除を管理"
+        "rightsManageMemory": "メモリと削除を管理",
+        "eraseTitle": "すべての会話を消去",
+        "eraseDesc": "すべての会話と、それらが生成したファイルを削除します。保存済みのメモリ、エージェント、APIキー、チャンネル設定は保持され、未確認メモリと最近のメモリアクティビティは消去されます。コピーが必要な場合は、先にデータをエクスポートしてください。",
+        "eraseButton": "会話を消去",
+        "eraseConfirmTitle": "すべての会話を消去しますか？",
+        "eraseConfirmDesc": "すべての会話と、それらが生成したファイルを完全に削除し、未確認メモリと最近のメモリアクティビティも消去します。この操作は取り消せません。\n保存済みのメモリ、エージェント、APIキー、チャンネル設定には影響しません。未保存の変更があるワークスペースも残ります。",
+        "eraseConfirmAction": "会話を消去",
+        "erasing": "消去中…",
+        "eraseSuccess": "{count} 件の会話を消去しました",
+        "eraseKept": "未保存の変更がある {count} 件のワークスペースをプロジェクトフォルダーに残しました",
+        "eraseBusy": "実行中の会話があります。停止するか完了を待ってから、もう一度お試しください。",
+        "eraseFailed": "消去を完了できませんでした。もう一度お試しください。"
       },
       "profile": {
         "title": "セキュリティ設定集",
@@ -14933,7 +14968,7 @@
         "description": "プロジェクトワークスペースの関連付け時に明示的に信頼したフォルダです。信頼を取り消すと、フォルダ内のローカルスキル・ルール・MCP サービスが無効になります",
         "totalEntries": "全 {count} フォルダ",
         "refresh": "更新",
-        "loading": "Loading…",
+        "loading": "読み込み中…",
         "empty": "信頼済みフォルダはありません",
         "loadError": "読み込み失敗",
         "revokeSuccess": "信頼を取り消しました",
@@ -14961,7 +14996,7 @@
         "enableDesc": "有効にすると、LLM が割り込み前に危険な可能性のあるツール呼び出しを評価します。",
         "saved": "スマート意図ガード設定を保存しました",
         "modelSaved": "スマート意図ガードモデルを保存しました",
-        "modelCleared": "Reviewer model cleared — using default model as fallback.",
+        "modelCleared": "レビュアーモデルをクリアしました — 既定のモデルをフォールバックとして使用します。",
         "selectModel": "審査モデルを選択",
         "selectModelPlaceholder": "高速モデルを選択（例: GPT-4o-mini）",
         "modelRecommendation": "推奨: 高速かつ低コストのモデル（GPT-4o-mini や Claude 3 Haiku など）で最適なレイテンシを実現します。",
@@ -14994,14 +15029,11 @@
         "displayName": "表示名",
         "pattern": "正規表現",
         "severity": "重大度",
-        "action": "アクション",
         "category": "カテゴリ",
         "sortOrder": "並び替え",
         "severityLow": "低",
         "severityMedium": "中",
         "severityHigh": "高",
-        "actionAllow": "許可",
-        "actionBlock": "ブロック",
         "categoryPersonal": "個人情報",
         "categoryCompany": "社内",
         "categorySecurity": "セキュリティ認証情報",
@@ -15036,10 +15068,12 @@
         "hits": "監査ログ",
         "hitsTitle": "リスクヒット記録",
         "hitsEmpty": "リスクヒットの記録はありません",
+        "hitPosition": "{start}～{end} 文字目",
+        "hitTimedOut": "照合がタイムアウトしたため、一致として扱いました",
+        "blockedTitle": "メッセージがリスクルールによりブロックされました",
+        "blockedDescription": "一致したルール：{rules}。許可するには、「設定 → セキュリティポリシー → リスクルール」で該当ルールをオフにしてください。",
         "hitsRuleName": "ルール",
         "hitsSeverity": "重大度",
-        "hitsAction": "アクション",
-        "hitsMatch": "一致した内容",
         "hitsTime": "時間",
         "hitsUser": "ユーザー",
         "hitsTotal": "合計 {count} 件",
@@ -15052,6 +15086,8 @@
         "importSuccess": "{count} 件のルールをインポートしました",
         "importError": "インポートに失敗しました。ファイル形式を確認してください",
         "duplicateRule": "コピールール",
+        "duplicatedName": "{name}（コピー）",
+        "actionError": "操作に失敗しました。もう一度お試しください",
         "rules": {
           "email_address": {
             "name": "メールアドレス",
@@ -15098,12 +15134,12 @@
             "desc": "JWT 形式の Bearer Token を検出"
           },
           "cookie_session_like": {
-            "name": "Cookie / Session 認証情報",
-            "desc": "Session、Cookie、Authorization 関連の表現を検出します。"
+            "name": "セッション / アクセストークン",
+            "desc": "値を伴うセッション ID、アクセス／リフレッシュトークン、Authorization ヘッダーを検出します。"
           },
           "db_connection_string": {
             "name": "データベース接続文字列",
-            "desc": "データベース、キャッシュ、キューの接続文字列を検出します。"
+            "desc": "パスワードを含むデータベース、キャッシュ、キューの接続文字列を検出"
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 設定",
@@ -15111,7 +15147,7 @@
           },
           "env_file_secret": {
             "name": "環境変数キー",
-            "desc": "env 形式のコンテンツ内の一般的なシークレット変数名を検出"
+            "desc": "env 形式のコンテンツで値が設定されたシークレット変数（SECRET_KEY など）を検出"
           },
           "private_ip": {
             "name": "プライベートネットワーク IP アドレス",
@@ -17481,6 +17517,66 @@
         "forceEnableFailed": "強制有効化に失敗しました",
         "securityReviewNote": "セキュリティレビュー：{recommendation}"
       },
+      "scanRisk": {
+        "severity": {
+          "critical": "重大",
+          "high": "高",
+          "medium": "中",
+          "low": "低",
+          "info": "情報"
+        },
+        "threat": {
+          "prompt_injection": "プロンプトインジェクション",
+          "command_injection": "コマンドインジェクション",
+          "credential_exposure": "認証情報の漏えい",
+          "data_exfiltration": "データの外部送信",
+          "filesystem_access": "ファイルシステムへのアクセス",
+          "process_operation": "プロセス操作",
+          "network_access": "ネットワークアクセス",
+          "screen_input": "画面・入力の制御",
+          "memory_config_snooping": "エージェントのメモリ・設定の盗み見",
+          "code_injection": "コードインジェクション",
+          "privilege_escalation": "権限昇格",
+          "environment_manipulation": "環境の改ざん",
+          "reflection": "動的コードのリフレクション",
+          "deserialization": "安全でないデシリアライズ",
+          "log_audit_tampering": "ログ・監査の改ざん",
+          "scheduled_task_injection": "スケジュールタスクの挿入",
+          "container_escape": "コンテナ脱出",
+          "memory_manipulation": "低レベルのメモリアクセス",
+          "dns_tunneling": "DNS トンネリング",
+          "supply_chain": "サプライチェーンリスク",
+          "obfuscation": "コンテンツの難読化",
+          "destructive": "破壊的な操作",
+          "persistence": "常駐化の仕組み",
+          "path_traversal": "パストラバーサル",
+          "crypto_mining": "暗号資産マイニング",
+          "reverse_shell": "リバースシェル",
+          "prompt_secret_exfiltration": "プロンプト・機密情報の漏えい",
+          "invisible_unicode": "不可視文字",
+          "dangerous_import": "危険なモジュールのインポート",
+          "ast_parse_error": "解析できないコード",
+          "llm_audit": "AI 監査の指摘",
+          "invalid_manifest": "無効なパッケージマニフェスト",
+          "integrity": "パッケージの整合性",
+          "missing_artifact": "パッケージファイルの欠落",
+          "empty_artifact": "空のパッケージファイル",
+          "unknown": "その他のリスク"
+        },
+        "signal": {
+          "newHighFinding": "新たな高リスクの動作: {threat}",
+          "scanUnavailable": "セキュリティチェックを実行できませんでした",
+          "diffRange": "大幅な書き換え（{percent} が変更）",
+          "lowEffectiveRate": "過去の成功率が低い（{runs} 回中 {rate}）",
+          "unknown": "確認が必要"
+        },
+        "remediation": {
+          "newHighFinding": "この変更には高リスクの動作が追加されています。承認する前に、指摘された箇所を確認してください。",
+          "scanUnavailable": "セキュリティチェックを実行できませんでした。承認する前に変更内容をよく確認してください。",
+          "diffRange": "内容の大部分が変更されています。変更前後を比較して、重要な内容が失われていないか確認してください。",
+          "lowEffectiveRate": "このスキルは実際の利用でよく失敗しています。この変更で問題が本当に解消されるか確認してください。"
+        }
+      },
       "growth": {
         "title": "スキル成長",
         "description": "レビュー待ちの学習結果、自動適用されたキャプチャ、ブロックされた変更を 1 つの統合キューで確認・処理します。",
@@ -17529,8 +17625,6 @@
           "memoryExtraction": "記憶抽出"
         },
         "confidence": "信頼度 {value}%",
-        "scanPassed": "セキュリティスキャン合格",
-        "scanFailed": "セキュリティスキャン不合格",
         "verifiedBadge": "検証済み",
         "hollowBlockedBadge": "空洞テストをブロックしました",
         "targetLayer": "対象層: {layer}",
@@ -17557,6 +17651,18 @@
         "reviseFailedScan": "「{name}」は改訂されましたが、セキュリティスキャンに合格しませんでした。フラグされた問題を修正してください。",
         "riskInterceptionTitle": "リスク阻止",
         "applyFailureTitle": "適用に失敗しました",
+        "applyFailureBody": "自動で適用できませんでした。技術的な詳細を確認してから、もう一度承認してください。",
+        "heldReason": {
+          "title": "確認が必要な理由",
+          "similar": "すでにあるスキルと似ています：{names}。新しい内容がある場合のみ承認してください。",
+          "evolutionLocked": "変更対象のスキルは自動更新から保護されているため、あなたの判断を待っています。",
+          "scanFailed": "自動セキュリティチェックを通過できませんでした。上の検出結果を確認してから判断してください。"
+        },
+        "technical": {
+          "toggle": "技術的な詳細",
+          "findings": "スキャナーの検出項目",
+          "advice": "推奨される対応"
+        },
         "rejectReasonLabel": "拒否理由",
         "rejectReasonPlaceholder": "このスキル成長ケースを適用するために何を変更すべきか説明してください。",
         "triggerCondition": "トリガー条件",
@@ -17568,13 +17674,19 @@
           "title": "実行時失敗の証拠",
           "tool": "ツール：{value}",
           "count": "失敗回数：{value}",
-          "confidence": "帰属信頼度 {value}%",
-          "loopKind": "ループタイプ：{value}"
+          "confidence": "帰属信頼度 {value}%"
         },
         "securityScan": {
           "title": "スキルセキュリティ静的検証詳細 ({count} 件の検出)",
           "score": "セキュリティスコア：{score}/100",
-          "line": "{line} 行目"
+          "line": "{line} 行目",
+          "badgeTitle": "セキュリティスコア {score}/100",
+          "risk": {
+            "trusted": "低リスク",
+            "installed": "中リスク",
+            "untrusted": "高リスク",
+            "reject": "ブロック済み"
+          }
         },
         "empty": {
           "title": "このビューにはケースがありません",

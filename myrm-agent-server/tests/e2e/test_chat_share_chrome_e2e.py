@@ -354,10 +354,9 @@ def _post_gate_password(share_url: str, api_url: str, password: str) -> tuple[in
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -449,10 +448,9 @@ def test_chat_share_lifecycle_via_ui() -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -549,8 +547,8 @@ def test_chat_share_password_protected_via_ui() -> None:
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
-    workload="STANDARD",
-    private_reason="exclusive_backend",
+    workload="LIVE",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

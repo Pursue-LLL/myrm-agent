@@ -14,7 +14,20 @@ vi.mock('@/services/i18nToastService', () => ({
   translateI18nKey: (key: string) => key,
 }));
 
+import { ask } from '@tauri-apps/plugin-dialog';
+import { readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
+import de from '../../../../locales/de.json';
+import en from '../../../../locales/en.json';
+import ja from '../../../../locales/ja.json';
+import ko from '../../../../locales/ko.json';
+import zhTW from '../../../../locales/zh-TW.json';
+import zh from '../../../../locales/zh.json';
 import { readFromClipboard, writeToClipboard } from '../clipboardUtils';
+
+// The global test setup replaces next-intl, so the real translator is loaded explicitly: shipped copy, real ICU.
+const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
+const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const PERMISSION_KEY = 'myrm_clipboard_read_permission';
 
 function stubClipboard(clipboard: Partial<Clipboard>) {
   Object.defineProperty(navigator, 'clipboard', { value: clipboard, configurable: true });
@@ -73,5 +86,89 @@ describe('clipboardUtils toasts', () => {
     await expect(readFromClipboard()).rejects.toThrow('boom');
 
     expect(sonner.toast.error).toHaveBeenCalledWith('common.clipboard.readFailed');
+  });
+});
+
+describe('clipboardUtils read-permission dialog', () => {
+  beforeEach(() => {
+    vi.mocked(ask).mockClear();
+    vi.mocked(tauriReadText).mockClear();
+    sonner.toast.error.mockClear();
+    localStorage.clear();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+    vi.restoreAllMocks();
+  });
+
+  it('browser: asks with the translated prompt and remembers an allow', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    stubClipboard({ readText: vi.fn().mockResolvedValue('pasted') });
+
+    await expect(readFromClipboard()).resolves.toBe('pasted');
+
+    expect(confirmSpy).toHaveBeenCalledWith('common.clipboard.readPermissionPrompt');
+    expect(localStorage.getItem(PERMISSION_KEY)).toBe('granted');
+  });
+
+  it('browser: a decline reads nothing, says so, and is not remembered', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const readText = vi.fn();
+    stubClipboard({ readText });
+
+    await expect(readFromClipboard()).rejects.toThrow('Permission denied');
+
+    expect(readText).not.toHaveBeenCalled();
+    expect(sonner.toast.error).toHaveBeenCalledWith('common.clipboard.readRefused');
+    expect(localStorage.getItem(PERMISSION_KEY)).toBeNull();
+  });
+
+  it('desktop: the native dialog gets translated title, prompt with remember note, and button labels', async () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    vi.mocked(ask).mockResolvedValue(true);
+    vi.mocked(tauriReadText).mockResolvedValue('from tauri');
+
+    await expect(readFromClipboard()).resolves.toBe('from tauri');
+
+    expect(ask).toHaveBeenCalledWith(
+      'common.clipboard.readPermissionPrompt\n\ncommon.clipboard.readPermissionRemember',
+      {
+        title: 'common.clipboard.readPermissionTitle',
+        kind: 'info',
+        okLabel: 'common.clipboard.readPermissionAllow',
+        cancelLabel: 'common.clipboard.readPermissionDeny',
+      },
+    );
+    expect(localStorage.getItem(PERMISSION_KEY)).toBe('granted');
+  });
+
+  it('desktop: a decline in the native dialog reads nothing and is not remembered', async () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    vi.mocked(ask).mockResolvedValue(false);
+
+    await expect(readFromClipboard()).rejects.toThrow('Permission denied');
+
+    expect(tauriReadText).not.toHaveBeenCalled();
+    expect(sonner.toast.error).toHaveBeenCalledWith('common.clipboard.readRefused');
+    expect(localStorage.getItem(PERMISSION_KEY)).toBeNull();
+  });
+});
+
+describe('clipboard read-permission copy in every locale', () => {
+  it.each(Object.entries(locales))('%s: every dialog string resolves to real copy', (locale, messages) => {
+    const t = createTranslator({ locale, messages, namespace: 'common.clipboard' });
+
+    for (const key of [
+      'readPermissionTitle',
+      'readPermissionPrompt',
+      'readPermissionRemember',
+      'readPermissionAllow',
+      'readPermissionDeny',
+    ] as const) {
+      expect(t(key).trim()).not.toBe('');
+      expect(t(key)).not.toContain('common.clipboard');
+    }
   });
 });

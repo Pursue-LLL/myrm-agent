@@ -15,7 +15,6 @@
 | check_file_line_budget.py | 自查工具 | Python 单文件 400 行预算本地自查（超限清单见 `scripts/ci/file_line_budget_baseline.txt`）；不接入 CI 阻断 | ✅ |
 | sync_arch_file_tables.py | 工具 | 从文件头 POS/模块 docstring 刷新 stub `_ARCH.md` 文件表（`--path-prefix` / `--force`） | ✅ |
 | run_myrm_core_coverage_gate.sh | 门禁 | Harness 核心搜索+上下文路径覆盖率 ≥80% 门禁 | ✅ |
-| cleanup_qdrant_locks.py | 运维 | 清理 Qdrant 嵌入式模式残留锁文件（运行时自动调用） | ✅ |
 | init-age.sql | 运维 | Apache AGE 扩展初始化（PostgreSQL 图数据库） | ✅ |
 | dev/ | 工具 | Server 本地 pytest / profiling 辅助 · [dev/_ARCH.md](dev/_ARCH.md) | ✅ |
 | ci/ | 门禁 | CI 脚本与 baseline（见 [ci/_ARCH.md](ci/_ARCH.md)） | ✅ |
@@ -33,4 +32,3 @@ scripts/ci/ ──→ run_default_tests.sh（ruff lint + 默认 pytest；-m 'not
 
 - 所有脚本均为独立入口，不被 `app/` 反向引用
 - `deploy_pkg/` 是 `deploy.py` 的内部子包，不对外暴露
-- `cleanup_qdrant_locks.py` 被 `app/core/retriever/vector/defaults.py` 在运行时动态导入

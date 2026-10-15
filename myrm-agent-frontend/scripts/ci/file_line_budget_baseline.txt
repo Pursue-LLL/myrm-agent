@@ -138,7 +138,6 @@ src/components/features/settings/sections/system/ExecutionTraceTimeline.tsx
 src/components/features/settings/sections/system/HeartbeatSection.tsx
 src/components/features/settings/sections/system/KanbanSection.tsx
 src/components/features/settings/sections/system/MediaGenerationSection.tsx
-src/components/features/settings/sections/system/RiskRulesSection.tsx
 src/components/features/settings/sections/system/RuntimeCostMeterCard.tsx
 src/components/features/settings/sections/system/SecurityPolicySection.tsx
 src/components/features/settings/sections/system/SessionAnalyticsDialog.tsx
@@ -157,7 +156,6 @@ src/components/features/skills/SkillBatchImportDialog.tsx
 src/components/features/skills/SkillCard.tsx
 src/components/features/skills/SkillDetailSheetContent.tsx
 src/components/features/skills/SkillDiscoverTab.tsx
-src/components/features/skills/SkillGrowthCaseCard.tsx
 src/components/features/skills/SkillInstanceManager.tsx
 src/components/features/skills/SkillPermissionsManager.tsx
 src/components/features/theme-studio/ThemeStudioGalleryPanel.tsx

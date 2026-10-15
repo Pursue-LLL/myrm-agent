@@ -1,17 +1,17 @@
-"""Chat CRUD, session management, and channel operations mixin.
+"""Chat CRUD, session flush and pinned-thread operations mixin.
 
 [INPUT]
 - _base::_ChatServiceBase, _ChatRepositoryPort (POS: repository 协议和访问器)
 - database.dto::ChatCreate, ChatDTO, MessageCreate, MessageDTO (POS: 数据传输对象)
+- chat_disposal (POS: 会话结束后的统一拆除步骤)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
-- services.memory.consolidation_service::ConsolidationService (POS: 记忆工作台与巩固服务)
 
 [OUTPUT]
-- _ChatCrudMixin: Chat CRUD、session flush、channel chat 管理、`ensure_chat_source`（cron 打标并同步 recall 索引 source）
+- _ChatCrudMixin: Chat CRUD、session flush、Pinned Threads、`ensure_chat_source`（cron 打标并同步 recall 索引 source）
 
 [POS]
-Chat CRUD 编排层。提供聊天会话的创建、读取、更新、删除，
-以及 Focus & Flush 会话刷新和频道聊天管理。
+Chat CRUD 编排层。提供聊天会话的创建、读取、更新，以及 Focus & Flush 会话刷新和置顶管理；
+删除生命周期在 ``chat_deletion``，渠道聊天在 ``chat_channel``。
 """
 
 from __future__ import annotations
@@ -19,26 +19,22 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from app.database.dto import ChatCreate, ChatDTO, MessageCreate, MessageDTO
 from app.database.repositories.uow import UnitOfWork
-from app.services.agent.execution_cache import close_execution_cache_for_chat_all_agents
-from app.services.external_agents.runtime_pool_registry import (
-    close_external_agent_pool_for_chat,
-)
 
+from . import chat_disposal
 from ._base import _ChatServiceBase
+from .conversation_recall_index_service import ConversationRecallIndexService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-from .conversation_recall_index_service import ConversationRecallIndexService
 
 logger = logging.getLogger(__name__)
 
 
 class _ChatCrudMixin(_ChatServiceBase):
-    """Chat CRUD, session, and channel operations."""
+    """Chat CRUD, session flush and pinned-thread operations."""
 
     @staticmethod
     async def get_chat_list(
@@ -311,223 +307,6 @@ class _ChatCrudMixin(_ChatServiceBase):
             await _ChatServiceBase._cr(uow).update_message_extra_data(message_id, extra_data)
 
     @staticmethod
-    async def delete_chat(chat_id: str) -> bool:
-        """Soft-delete a chat session (moves to trash)."""
-        async with UnitOfWork() as uow:
-            repo = _ChatServiceBase._cr(uow)
-            ok = await repo.soft_delete_chat(chat_id)
-            if not ok:
-                return False
-        await ConversationRecallIndexService.set_chat_excluded(chat_id, excluded=True)
-        await close_external_agent_pool_for_chat(chat_id)
-        await close_execution_cache_for_chat_all_agents(chat_id)
-        await _clear_extract_retry_queue(chat_id)
-        _clear_session_working_memory(chat_id)
-        return True
-
-    @staticmethod
-    async def batch_delete(chat_ids: list[str]) -> dict[str, int]:
-        """Batch soft-delete multiple chat sessions (move to trash).
-
-        Returns a dict with 'deleted' and 'failed' counts.
-        """
-        deleted = 0
-        failed = 0
-        for chat_id in chat_ids:
-            ok = await _ChatCrudMixin.delete_chat(chat_id)
-            if ok:
-                deleted += 1
-            else:
-                failed += 1
-        return {"deleted": deleted, "failed": failed}
-
-    @staticmethod
-    async def _read_sandbox_base_dir(chat_id: str) -> str | None:
-        """Read the chat sandbox path in a short read-only transaction.
-
-        Kept separate so the delete transaction stays write-only: with a
-        deferred BEGIN, a prior SELECT marks the connection read-seen and
-        ``factory._escalate_write_transaction`` skips the BEGIN IMMEDIATE
-        upgrade, so concurrent deletes abort with SQLITE_BUSY_SNAPSHOT — a
-        lock the busy_timeout PRAGMA cannot resolve.
-        """
-        async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
-            return chat.sandbox_base_dir if chat else None
-
-    @staticmethod
-    async def permanently_delete_chat(chat_id: str) -> bool:
-        """Permanently delete a trashed chat and its workspace, including derived memories."""
-        sandbox_base_dir: str | None = await _ChatCrudMixin._read_sandbox_base_dir(chat_id)
-        async with UnitOfWork() as uow:
-            repo = _ChatServiceBase._cr(uow)
-            sess = uow.session
-            assert sess is not None
-            await ConversationRecallIndexService.delete_chat(sess, chat_id)
-            await _delete_widget_kv_for_chat(sess, chat_id)
-            ok = await repo.permanently_delete_chat(chat_id)
-
-        if ok:
-            await _cascade_delete_memories(chat_id)
-            await _ChatCrudMixin._cleanup_checkpointer(chat_id)
-            _clear_session_working_memory(chat_id)
-            if sandbox_base_dir:
-                try:
-                    from app.services.chat.sandbox_worktree import (
-                        cleanup_sandbox_worktree,
-                    )
-
-                    # User permanently deleted this chat; the sandbox worktree
-                    # has no remaining UI entry point, so remove it even when
-                    # it holds uncommitted edits (orphaned worktrees would
-                    # otherwise leak disk forever).
-                    await cleanup_sandbox_worktree(sandbox_base_dir, chat_id, force=True)
-                except Exception as e:
-                    logger.warning("Sandbox worktree cleanup failed (chat=%s): %s", chat_id, e)
-            try:
-                from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
-
-                results = await cleanup_chat_workspace(chat_id)
-                logger.info("Chat workspace cleaned (chat=%s): %s", chat_id, results)
-            except Exception as e:
-                logger.error("Chat workspace cleanup failed (chat=%s): %s", chat_id, e)
-            await close_external_agent_pool_for_chat(chat_id)
-            await close_execution_cache_for_chat_all_agents(chat_id)
-            await _clear_extract_retry_queue(chat_id)
-        return ok
-
-    @staticmethod
-    async def restore_chat(chat_id: str) -> bool:
-        """Restore a trashed chat back to active."""
-        async with UnitOfWork() as uow:
-            repo = _ChatServiceBase._cr(uow)
-            ok = await repo.restore_chat(chat_id)
-            if not ok:
-                return False
-        await ConversationRecallIndexService.set_chat_excluded(chat_id, excluded=False)
-        return True
-
-    @staticmethod
-    async def get_trashed_chats(page: int = 1, page_size: int = 20) -> tuple[list[ChatDTO], int]:
-        """List trashed chats with pagination."""
-        offset = (page - 1) * page_size
-        async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_trashed_chats_paginated(offset, page_size)
-
-    @staticmethod
-    async def count_trashed_chats() -> int:
-        """Return count of trashed chats (for badge display)."""
-        async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).count_trashed()
-
-    @staticmethod
-    async def empty_trash() -> int:
-        """Permanently delete all trashed chats and clean workspaces, including derived memories."""
-        async with UnitOfWork() as uow:
-            trashed, _ = await _ChatServiceBase._cr(uow).get_trashed_chats_paginated(0, 10000)
-            chat_ids = [c.id for c in trashed]
-            sandbox_map = {c.id: c.sandbox_base_dir for c in trashed if c.sandbox_base_dir}
-        if not chat_ids:
-            return 0
-        async with UnitOfWork() as uow:
-            repo = _ChatServiceBase._cr(uow)
-            sess = uow.session
-            assert sess is not None
-            for cid in chat_ids:
-                await ConversationRecallIndexService.delete_chat(sess, cid)
-            count = await repo.empty_trash()
-
-        for cid in chat_ids:
-            await _cascade_delete_memories(cid)
-            await _ChatCrudMixin._cleanup_checkpointer(cid)
-            if cid in sandbox_map:
-                try:
-                    from app.services.chat.sandbox_worktree import (
-                        cleanup_sandbox_worktree,
-                    )
-
-                    # Emptying the trash permanently deletes these chats; their
-                    # sandbox worktrees have no remaining entry point, so remove
-                    # them even when dirty instead of leaking orphans.
-                    await cleanup_sandbox_worktree(sandbox_map[cid], cid, force=True)
-                except Exception as e:
-                    logger.warning(
-                        "Sandbox worktree cleanup failed during empty_trash (chat=%s): %s",
-                        cid,
-                        e,
-                    )
-            try:
-                from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
-
-                await cleanup_chat_workspace(cid)
-            except Exception as e:
-                logger.error("Workspace cleanup failed during empty_trash (chat=%s): %s", cid, e)
-            await close_external_agent_pool_for_chat(cid)
-
-        # Re-sync and optimize FTS indexes after batch purging leaf chats
-        try:
-            from sqlalchemy import text
-
-            from app.database.connection import get_database_engine
-
-            engine = get_database_engine()
-            async with engine.connect() as conn:
-                raw_conn = await conn.get_raw_connection()
-                db_api_conn = raw_conn.driver_connection
-                # Optimize FTS segments to free index pages
-                for fts_tbl in ("conversation_recall_segments_fts", "conversation_recall_fts", "messages_fts"):
-                    has_table = await conn.scalar(
-                        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"),
-                        {"name": fts_tbl},
-                    )
-                    if has_table:
-                        db_api_conn.execute(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('optimize')")
-        except Exception as e:
-            logger.warning("FTS index optimize after empty_trash non-fatal: %s", e)
-
-        return count
-
-    @staticmethod
-    async def _cleanup_checkpointer(chat_id: str) -> None:
-        """Clear LangGraph checkpointer state and ephemeral session security grants.
-
-        Uses the standard ``adelete_thread`` API provided by all LangGraph
-        checkpointer backends (MemorySaver, AsyncSqliteSaver).
-        Also purges session-scoped allowlist entries and resets the cross-turn denial
-        circuit breaker counter, guaranteeing zero privilege permanence across flushes.
-        Idempotent: deleting a non-existent thread or session state is a no-op.
-        """
-        try:
-            from app.platform_utils import get_checkpointer
-
-            cp = get_checkpointer()
-            for tid in (chat_id, f"chat_{chat_id}"):
-                await cp.adelete_thread(tid)
-            logger.info("Cleared LangGraph checkpointer (chat=%s)", chat_id)
-        except Exception as e:
-            logger.warning(
-                "Failed to clear LangGraph checkpointer (chat=%s): %s",
-                chat_id,
-                e,
-            )
-
-        try:
-            from myrm_agent_harness.agent.security.approval_flow import (
-                get_allowlist,
-                reset_denial_counter,
-            )
-
-            await get_allowlist().clear_session("sandbox", chat_id)
-            reset_denial_counter(chat_id)
-            logger.info("Cleared session allowlist grants and denial counter (chat=%s)", chat_id)
-        except Exception as e:
-            logger.warning(
-                "Failed to clear session allowlist/denial state (chat=%s): %s",
-                chat_id,
-                e,
-            )
-
-    @staticmethod
     async def focus_flush_session(chat_id: str) -> bool:
         """Soft-delete all messages to flush LLM context while retaining sandbox."""
         async with UnitOfWork() as uow:
@@ -550,64 +329,8 @@ class _ChatCrudMixin(_ChatServiceBase):
             assert sess is not None
             await ConversationRecallIndexService.delete_chat(sess, chat_id)
 
-        await _ChatCrudMixin._cleanup_checkpointer(chat_id)
+        await chat_disposal.clear_conversation_state(chat_id)
         return True
-
-    @staticmethod
-    async def get_channel_chat_by_key(user_id_or_session_key: str, session_key: str | None = None) -> ChatDTO | None:
-        """Resolve channel chat; supports ``get_channel_chat_by_key(session_key)`` or
-        ``get_channel_chat_by_key(user_id, session_key)`` (user_id is ignored for lookup).
-        """
-        key = session_key if session_key is not None else user_id_or_session_key
-        async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_channel_chat_by_key(key)
-
-    @staticmethod
-    async def get_or_create_channel_chat(
-        first: str,
-        second: str,
-        source: str | None = None,
-        *,
-        agent_id: str | None = None,
-    ) -> ChatDTO:
-        """``get_or_create_channel_chat(session_key, source)`` or
-        ``get_or_create_channel_chat(user_id, session_key, source)``.
-        """
-        if source is None:
-            channel_session_key, src = first, second
-        else:
-            _, channel_session_key, src = first, second, source
-        async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(channel_session_key)
-            if chat:
-                if agent_id and chat.agent_id != agent_id:
-                    await _ChatServiceBase._cr(uow).update_chat_fields(chat.id, {"agent_id": agent_id})
-                    return chat.model_copy(update={"agent_id": agent_id})
-                return chat
-            from sqlalchemy.exc import IntegrityError
-
-            new_chat = ChatDTO(
-                id=str(uuid4()),
-                agent_id=agent_id,
-                source=src,
-                channel_session_key=channel_session_key,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            await _ChatServiceBase._cr(uow).add_chat(new_chat)
-            try:
-                sess = uow.session
-                assert sess is not None
-                await sess.flush()
-            except IntegrityError:
-                sess = uow.session
-                assert sess is not None
-                await sess.rollback()
-                chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(channel_session_key)
-                if chat:
-                    return chat
-                raise
-            return new_chat
 
     # ── Pinned Threads ──────────────────────────────────────────────
 
@@ -646,84 +369,3 @@ class _ChatCrudMixin(_ChatServiceBase):
             raise ValueError(f"Cannot reorder more than {_ChatCrudMixin.MAX_PINNED} items")
         async with UnitOfWork() as uow:
             await _ChatServiceBase._cr(uow).reorder_pinned_chats(items)
-
-    @staticmethod
-    async def get_cascade_info(chat_id: str) -> dict[str, int]:
-        """Count memories linked to a chat session (for deletion preview)."""
-        try:
-            from app.core.memory import get_cascade_memory_manager
-
-            manager = await get_cascade_memory_manager()
-            return await manager.count_by_source_chat_id(chat_id)
-        except Exception as e:
-            logger.warning("Failed to get cascade info (chat=%s): %s", chat_id, e)
-            return {}
-
-    @staticmethod
-    async def count_orphan_empty_sessions(older_than_minutes: int = 15) -> int:
-        """Count legacy orphan sessions lacking assistant messages."""
-        from app.core.infra.health.session_diagnostics import (
-            count_orphan_empty_sessions,
-        )
-
-        return await count_orphan_empty_sessions(older_than_minutes=older_than_minutes)
-
-    @staticmethod
-    async def purge_orphan_empty_sessions(older_than_minutes: int = 15) -> int:
-        """Purge legacy orphan sessions lacking assistant messages."""
-        from app.core.infra.health.session_diagnostics import (
-            purge_orphan_empty_sessions,
-        )
-
-        return await purge_orphan_empty_sessions(older_than_minutes=older_than_minutes)
-
-
-async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> None:
-    """Remove all widget KV entries associated with a chat."""
-    from sqlalchemy import delete
-
-    from app.database.models.widget_kv import WidgetKVEntry
-
-    stmt = delete(WidgetKVEntry).where(WidgetKVEntry.chat_id == chat_id)
-    await session.execute(stmt)
-
-
-async def _clear_extract_retry_queue(chat_id: str) -> None:
-    """Drop pending memory-extract retry work for a deleted chat (fail-open)."""
-    try:
-        from app.services.memory.extract_retry.extract_retry_queue import clear_for_chat
-
-        await clear_for_chat(chat_id)
-    except Exception as exc:
-        logger.warning("Failed to clear memory extract retry queue (chat=%s): %s", chat_id, exc)
-
-
-def _clear_session_working_memory(chat_id: str) -> None:
-    """Evict active working memory state cache for deleted chat (fail-open)."""
-    try:
-        from app.services.memory.consolidation_service import ConsolidationService
-
-        ConsolidationService.clear_session_working_state(chat_id)
-    except Exception as exc:
-        logger.warning("Failed to clear session working state (chat=%s): %s", chat_id, exc)
-    try:
-        from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
-            clear_ephemeral_deltas_for_session,
-        )
-
-        clear_ephemeral_deltas_for_session(chat_id)
-    except Exception as exc:
-        logger.warning("Failed to clear ephemeral session deltas (chat=%s): %s", chat_id, exc)
-
-
-async def _cascade_delete_memories(chat_id: str) -> None:
-    """Cascade-delete all memories derived from a chat session (Right to be Forgotten)."""
-    try:
-        from app.core.memory import get_cascade_memory_manager
-
-        manager = await get_cascade_memory_manager()
-        counts = await manager.purge_by_source_chat_id(chat_id)
-        if any(counts.values()):
-            logger.info("Cascade deleted memories for chat=%s: %s", chat_id, counts)
-    except Exception as e:
-        logger.warning("Cascade memory deletion failed (chat=%s): %s", chat_id, e)

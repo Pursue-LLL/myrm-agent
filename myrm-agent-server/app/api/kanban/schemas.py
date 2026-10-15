@@ -331,7 +331,7 @@ class BulkActionRequest(BaseModel):
     task_ids: list[str] = Field(..., min_length=1, max_length=100)
     action: str = Field(
         ...,
-        description="One of: move, archive, reassign, reclaim, delete",
+        description="One of: move, archive, reassign, delete",
     )
     params: dict[str, str] = Field(
         default_factory=dict,

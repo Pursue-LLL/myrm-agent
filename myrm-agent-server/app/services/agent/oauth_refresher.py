@@ -12,6 +12,7 @@ every other issuer that exposes a standard OAuth2 refresh_token grant.
 
 [OUTPUT]
 - refresh_oauth_token: async refresh for any OAuth issuer, returns EphemeralUserCredential
+- is_refresh_rejected: read-only check whether the provider permanently rejected a stored refresh token
 
 [POS]
 OAuth token refresh service. Manages token lifecycle for all OAuth-connected integrations
@@ -25,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Mapping
 
 import httpx
 from myrm_agent_harness.agent.security.types import EphemeralUserCredential
@@ -66,6 +68,21 @@ _retry_not_before: dict[str, float] = {}
 
 _REAUTH_DEDUP_WINDOW_S = 300
 _TRANSIENT_COOLDOWN_S = 30.0
+
+
+def is_refresh_rejected(issuer: str, credential: Mapping[str, object]) -> bool:
+    """True when the provider rejected this credential's current refresh token for good.
+
+    Reads the in-process failure memory only: no I/O, no refresh attempt. The
+    memory starts empty with the process, so a rejection is reported again once
+    the next refresh attempt meets it.
+    """
+    refresh_token = credential.get("refresh_token")
+    return (
+        isinstance(refresh_token, str)
+        and bool(refresh_token)
+        and _rejected_refresh_tokens.get(issuer) == refresh_token_fingerprint(refresh_token)
+    )
 
 
 def _emit_reauth_if_needed(issuer: str, reason: str) -> None:

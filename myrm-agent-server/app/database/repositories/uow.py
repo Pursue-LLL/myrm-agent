@@ -157,8 +157,8 @@ class BoundChatRepository:
     async def update_chat_tags(self, chat_id: str, tags: list[str]) -> list[str]:
         return await ChatRepository.update_chat_tags(self.session, chat_id, tags)
 
-    async def get_chat_by_id(self, chat_id: str, load_messages: bool = False) -> ChatDTO | None:
-        return await ChatRepository.get_chat_by_id(self.session, chat_id, load_messages)
+    async def get_chat_by_id(self, chat_id: str, load_messages: bool = False, *, include_trashed: bool = False) -> ChatDTO | None:
+        return await ChatRepository.get_chat_by_id(self.session, chat_id, load_messages, include_trashed=include_trashed)
 
     async def count_messages(self, chat_id: str) -> int:
         return await ChatRepository.count_messages(self.session, chat_id)

@@ -135,7 +135,10 @@ async def _dispatch_auto_continue(
             return
 
         if marker.chat_id:
-            params.chat_history = await ChatService.load_web_chat_history(marker.chat_id)
+            # The interrupted turn's query is replayed through params, so its persisted row must not also be history.
+            params.chat_history = await ChatService.load_web_chat_history(
+                marker.chat_id, exclude_message_id=marker.user_message_id or None
+            )
 
         from myrm_agent_harness.utils.runtime.steering import (
             SteeringToken,
@@ -171,8 +174,9 @@ async def _dispatch_auto_continue(
             if not isinstance(chunk, dict):
                 continue
             event_type = chunk.get("type")
-            if event_type == "message" and isinstance(chunk.get("data"), str):
-                collected_parts.append(chunk["data"])
+            data = chunk.get("data")
+            if event_type == "message" and isinstance(data, str):
+                collected_parts.append(data)
             elif event_type == "message_end":
                 # Keep the persisted snapshot aligned with the canonical path:
                 # stream_finalize extracts token_economics from this same event.

@@ -20,6 +20,7 @@ import {
   YAxis,
 } from '@/components/features/app-shell/lazy-recharts';
 import { toast } from '@/lib/utils/toast';
+import { ApiError, apiRequest } from '@/lib/api';
 
 interface MemoryMetric {
   cpu_percent: number;
@@ -76,16 +77,15 @@ export const MemoryMonitorCard = memo(() => {
 
   const handleStartProfiling = async () => {
     try {
-      const res = await fetch('/api/v1/health/memory/profile/start', { method: 'POST' });
-      if (res.ok) {
-        setIsProfiling(true);
-        setTopAllocations([]);
-        toast.success(t('profilingStarted'));
-      } else {
-        const data = await res.json();
-        toast.error(data.detail || t('profilingStartFailed'));
-      }
+      await apiRequest('/health/memory/profile/start', { method: 'POST', silent: true });
+      setIsProfiling(true);
+      setTopAllocations([]);
+      toast.success(t('profilingStarted'));
     } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message || t('profilingStartFailed'));
+        return;
+      }
       console.error(err);
       toast.error(t('profilingStartNetworkError'));
     }
@@ -93,17 +93,18 @@ export const MemoryMonitorCard = memo(() => {
 
   const handleStopProfiling = async () => {
     try {
-      const res = await fetch('/api/v1/health/memory/profile/stop', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setIsProfiling(false);
-        setTopAllocations(data.top_allocations || []);
-        toast.success(t('profilingStopped'));
-      } else {
-        const data = await res.json();
-        toast.error(data.detail || t('profilingStopFailed'));
-      }
+      const data = await apiRequest<{ top_allocations?: TopAllocation[] }>('/health/memory/profile/stop', {
+        method: 'POST',
+        silent: true,
+      });
+      setIsProfiling(false);
+      setTopAllocations(data.top_allocations || []);
+      toast.success(t('profilingStopped'));
     } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message || t('profilingStopFailed'));
+        return;
+      }
       console.error(err);
       toast.error(t('profilingStopNetworkError'));
     }

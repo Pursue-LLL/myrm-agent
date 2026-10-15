@@ -51,7 +51,6 @@ GET /files/storage/files/{file_id}
 GET /goals/{session_id}/constraints
 PUT /goals/{session_id}/constraints
 GET /goals/{session_id}/dag
-POST /health/database/safe-purge
 GET /health/memory/conversation-recall
 GET /health/memory/search
 GET /health/metrics

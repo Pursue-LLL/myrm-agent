@@ -128,7 +128,7 @@ async def test_batch_resolve_publishes_idle_for_each_chat_id(app, setup_test_dat
 @pytest.mark.asyncio
 async def test_resolve_approval_with_session_duration_allow_always(app, setup_test_database) -> None:
     """POST /{id}/resolve with duration='session' writes ephemeral allowlist and purges on cleanup."""
-    from app.services.chat.chat_crud import _ChatCrudMixin
+    from app.services.chat import chat_disposal
 
     chat_id = "chat-session-e2e-888"
     user_id = "sandbox"
@@ -191,7 +191,7 @@ async def test_resolve_approval_with_session_duration_allow_always(app, setup_te
     assert al.check(user_id, "shell_execute", tool_name, session_id="other-chat") is False
 
     # 5. Trigger chat lifecycle cleanup (Focus & Flush or Delete)
-    await _ChatCrudMixin._cleanup_checkpointer(chat_id)
+    await chat_disposal.clear_conversation_state(chat_id)
 
     # 6. Ephemeral grant is completely purged from memory
     assert al.check(user_id, "shell_execute", tool_name, session_id=chat_id) is False

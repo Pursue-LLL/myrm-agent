@@ -90,6 +90,7 @@ async def persist_user_message(
             is_incognito=request.incognito_mode,
             active_moa_preset_id=request.active_moa_preset_id,
             persist_moa_preset=(request.action_mode == "agent" and not request.incognito_mode),
+            mark_read=True,
         )
         logger.info(
             "E1 user row committed for existing chat_id=%s message_id=%s persisted_id=%s",

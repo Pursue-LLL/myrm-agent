@@ -7,6 +7,7 @@
 - TOKEN_REFRESH_LEAD_S / DEFAULT_TOKEN_TTL_S: shared freshness constants
 - jwt_expiry / resolve_expires_at: expiry of a freshly issued access token
 - credential_expiry / is_refresh_due: expiry of a stored credential entry
+- is_renewable: whether a stored credential can renew its own access token
 - classify_refresh_failure / RefreshFailureKind: retry-heals vs needs re-authorization
 - refresh_token_fingerprint: non-reversible identity of a refresh token
 
@@ -34,9 +35,11 @@ DEFAULT_TOKEN_TTL_S = 3600
 
 RefreshFailureKind = Literal["terminal", "transient"]
 
-# Request timeouts and rate limits heal on retry whatever the body says; for any
-# other 4xx only an OAuth error body proves the provider rejected the grant.
-_TRANSIENT_STATUS_CODES = frozenset({408, 425, 429})
+# RFC 6749 section 5.2 answers a rejected grant or client with 400 (401 when client
+# authentication failed). Every other status comes from something in front of the
+# grant: a gateway, a rate limit, or an access gate such as xAI's 403 for a plan that
+# may not use the API, which signing in again does not lift.
+_REJECTION_STATUS_CODES = frozenset({400, 401})
 _TRANSIENT_ERROR_CODES = frozenset({"temporarily_unavailable", "server_error", "slow_down"})
 
 
@@ -116,18 +119,28 @@ def is_refresh_due(credential: Mapping[str, object], *, now: float) -> bool:
     return expiry is not None and expiry <= now + TOKEN_REFRESH_LEAD_S
 
 
+def is_renewable(credential: Mapping[str, object]) -> bool:
+    """True when a stored credential carries what a refresh needs.
+
+    Such a credential outlives its access token, so that token's expiry says
+    nothing about whether the connection is usable; only a refresh the provider
+    rejects ends it.
+    """
+    return bool(credential.get("refresh_token")) and bool(credential.get("token_url"))
+
+
 def classify_refresh_failure(status_code: int, body: object) -> RefreshFailureKind:
     """Decide whether a failed refresh can heal by retrying later.
 
     ``terminal`` means the provider itself rejected this refresh token or client:
-    a client-error status with an OAuth error body (RFC 6749 section 5.2, JSON
+    status 400 or 401 with an OAuth error body (RFC 6749 section 5.2, JSON
     carrying ``error``). Retrying only spends (and, for rotating tokens, burns)
-    attempts until the user signs in again. ``transient`` covers outages, rate
-    limits, unknown non-error statuses and 4xx answers without an OAuth error
-    body: those come from a proxy, gateway or firewall in front of the provider
-    and heal on their own.
+    attempts until the user signs in again. ``transient`` covers every other
+    outcome: outages, rate limits, redirects, 400/401 answers without an OAuth
+    error body (a proxy, gateway or firewall in front of the provider) and access
+    gates such as 403, none of which signing in again would change.
     """
-    if status_code < 400 or status_code >= 500 or status_code in _TRANSIENT_STATUS_CODES:
+    if status_code not in _REJECTION_STATUS_CODES:
         return "transient"
     error = body.get("error") if isinstance(body, dict) else None
     if not isinstance(error, str) or not error or error in _TRANSIENT_ERROR_CODES:

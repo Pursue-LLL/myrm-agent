@@ -7,6 +7,7 @@ import SubagentDashboard from './subagent/SubagentDashboard';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import useChatStore from '@/store/useChatStore';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import { usePresenceReadMark } from '@/hooks/chat/usePresenceReadMark';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useDeviceInspectorStore from '@/store/useDeviceInspectorStore';
@@ -210,6 +211,8 @@ export default function ChatWindowSatellites({
         onClose={() => setIsContextInspectorOpen(false)}
       />
     </>
+  const hasMessages = useChatStore((s) => s.messages.length > 0);
+  usePresenceReadMark(effectiveChatId, hasMessages);
   );
 }
 

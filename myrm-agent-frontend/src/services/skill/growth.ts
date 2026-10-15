@@ -4,7 +4,7 @@
  * ./core::approveSkillDraft,rejectSkillDraft (POS: 技能审批 API)
  *
  * [OUTPUT]
- * SkillGrowthCase/Summary/Audit DTO 与 `/skill-growth/*` cases/detail/stats/audit API。
+ * SkillGrowthCase/Summary/Audit DTO 与 `/skill-growth/*` cases/detail/stats/audit API；`/evolution/*` 审批、修订、回滚 API。
  *
  * [POS]
  * 技能进化（growth）客户端。`/skill-growth/*` REST 契约。
@@ -67,7 +67,6 @@ interface SkillGrowthCaseSummaryApiItem {
   summary: string;
   description: string | null;
   confidence: number | null;
-  test_passed: boolean | null;
   apply_status: string | null;
   apply_error: string | null;
   reason_code: string | null;
@@ -159,7 +158,6 @@ export interface SkillGrowthCaseSummary {
   summary: string;
   description: string | null;
   confidence: number | null;
-  testPassed: boolean | null;
   applyStatus: string | null;
   applyError: string | null;
   reasonCode: string | null;
@@ -253,7 +251,6 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     summary: item.summary,
     description: item.description,
     confidence: item.confidence,
-    testPassed: item.test_passed,
     applyStatus: item.apply_status,
     applyError: item.apply_error,
     reasonCode: item.reason_code,
@@ -373,7 +370,6 @@ export async function rejectSkillGrowthCase(
 export interface SkillGrowthReviseResult {
   status: string;
   skill_id: string | null;
-  test_passed: boolean | null;
   reason_code: string | null;
   remediation: string | null;
 }
@@ -387,6 +383,11 @@ export async function reviseSkillGrowthCase(
     method: 'PATCH',
     body: JSON.stringify({ evolved_content: evolvedContent }),
   });
+}
+
+/** Restores the skill version an applied evolution replaced. Callers own the failure toast. */
+export async function rollbackSkillEvolution(evolutionId: string): Promise<void> {
+  await apiRequest(`/evolution/${encodeURIComponent(evolutionId)}/rollback`, { method: 'POST', silent: true });
 }
 
 export async function listSkillGrowthAudit(limit: number = 20, days: number = 30): Promise<SkillGrowthAuditEntry[]> {

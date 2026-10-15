@@ -67,7 +67,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        if is_public_path(path):
+        if is_public_path(path, request.method):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else ""

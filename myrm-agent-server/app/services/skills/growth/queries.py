@@ -65,10 +65,6 @@ def _float_value(value: object) -> float | None:
     return float(value) if isinstance(value, int | float) else None
 
 
-def _bool_value(value: object) -> bool | None:
-    return value if isinstance(value, bool) else None
-
-
 def _form_metadata(payload: dict[str, object]) -> SkillGrowthFormMetadataRead | None:
     raw = payload.get("form_metadata")
     if not isinstance(raw, dict):
@@ -128,9 +124,8 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         original_content=None,
         proposed_content=proposed_content,
         confidence=_float_value(payload.get("confidence")),
-        test_passed=_bool_value(payload.get("test_passed")),
         apply_status=None,
-        apply_error=None,
+        apply_error=_text(payload.get("apply_error")),
         reason_code=_text(payload.get("reason_code")),
         remediation=_text(payload.get("remediation")),
         runtime_failure=None,
@@ -168,7 +163,6 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         original_content=record.original_content,
         proposed_content=record.evolved_content,
         confidence=record.confidence,
-        test_passed=record.test_passed,
         apply_status=record.apply_status.value,
         apply_error=record.apply_error,
         reason_code=record.reason_code,
@@ -197,7 +191,6 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         summary=detail.summary,
         description=detail.description,
         confidence=detail.confidence,
-        test_passed=detail.test_passed,
         apply_status=detail.apply_status,
         apply_error=detail.apply_error,
         reason_code=detail.reason_code,

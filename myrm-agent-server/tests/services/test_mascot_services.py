@@ -1,14 +1,9 @@
 """Unit tests for the Mascot services.
 
-Tests state mapping logic and temporary matplotlib cache cleanup operations.
+Tests raw agent event to mascot status mapping.
 """
 
-import os
-import time
-from pathlib import Path
-
 from app.services.mascot import (
-    MascotLRUCacheCleanupService,
     MascotStateMapper,
     MascotStatus,
 )
@@ -34,34 +29,3 @@ def test_mascot_state_mapper():
 
     # Dizzy (Errors/Lints)
     assert MascotStateMapper.map_event_to_mascot_state("tool_error", {"error_category": "compile"}) == MascotStatus.DIZZY
-
-
-def test_mascot_lru_cache_cleanup(tmp_path: Path):
-    """Verify that MascotLRUCacheCleanupService prunes expired WebP plots and preserves active ones."""
-    # Setup test workspace structure
-    plots_dir = tmp_path / ".myrm_plots"
-    plots_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create an active plot file
-    active_plot = plots_dir / "plot_active.webp"
-    active_plot.touch()
-
-    # Create an expired plot file (simulate modification time of 25 hours ago)
-    expired_plot = plots_dir / "plot_expired.webp"
-    expired_plot.touch()
-    expired_time = time.time() - (25 * 3600)
-    os.utime(expired_plot, (expired_time, expired_time))
-
-    # Create a non-webp file (should be ignored)
-    ignored_file = plots_dir / "ignored.txt"
-    ignored_file.touch()
-    os.utime(ignored_file, (expired_time, expired_time))
-
-    # Run cleanup
-    cleaned_count = MascotLRUCacheCleanupService.run_cleanup(tmp_path)
-
-    # Assertions
-    assert cleaned_count == 1
-    assert active_plot.exists()
-    assert ignored_file.exists()
-    assert not expired_plot.exists()

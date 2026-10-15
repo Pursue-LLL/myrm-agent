@@ -4,11 +4,10 @@
 - app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: 业务层 SSE 事件总线)
 
 [OUTPUT]
-- publish_skill_evolved_event: 发布 SKILL_EVOLVED 前端刷新事件
-- publish_skill_capacity_reached_event: 发布 SKILL_CAPACITY_REACHED 技能库已满提示事件
+- publish_skill_evolved_event: 发布 SKILL_EVOLVED 前端刷新事件（notify=False 时前端只刷新、不弹 toast）
 
 [POS]
-技能进化事件发布：services 层 SKILL_EVOLVED / SKILL_CAPACITY_REACHED 事件唯一出口，供 evolution_review 落盘编排、进化触发容量守卫等消费。
+技能进化事件发布：services 层 SKILL_EVOLVED 事件唯一出口，供 evolution_review 落盘编排与自动物化消费。
 """
 
 from __future__ import annotations
@@ -34,7 +33,12 @@ def publish_skill_evolved_event(
     evolution_type: str,
     description: str,
     evolution_id: str | None = None,
+    notify: bool = True,
 ) -> None:
+    """Publish ``SKILL_EVOLVED``; ``notify=False`` asks the UI to refresh without a toast.
+
+    Auto-applied growth already announces itself through ``SKILL_GROWTH_UPDATED``, so a second toast would duplicate it.
+    """
     _publish(
         AppEventType.SKILL_EVOLVED,
         {
@@ -42,13 +46,6 @@ def publish_skill_evolved_event(
             "evolution_type": evolution_type,
             "description": description[:200],
             "evolution_id": evolution_id,
+            "notify": notify,
         },
-    )
-
-
-def publish_skill_capacity_reached_event(*, agent_id: str | None, current_count: int, max_count: int) -> None:
-    """Tell the user the skill library is full, so new skills stop being learned automatically."""
-    _publish(
-        AppEventType.SKILL_CAPACITY_REACHED,
-        {"agent_id": agent_id, "current_count": current_count, "max_count": max_count},
     )

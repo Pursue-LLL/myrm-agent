@@ -177,12 +177,15 @@ const requestReadPermission = async (): Promise<boolean> => {
   // 如果在 Tauri 环境，使用原生对话框
   if (isTauri()) {
     try {
-      const allowed = await ask('应用请求读取您的剪贴板内容，是否允许？\n\n允许后将不再提示。', {
-        title: '剪贴板权限请求',
-        kind: 'info',
-        okLabel: '允许',
-        cancelLabel: '拒绝',
-      });
+      const allowed = await ask(
+        `${translateI18nKey('common.clipboard.readPermissionPrompt')}\n\n${translateI18nKey('common.clipboard.readPermissionRemember')}`,
+        {
+          title: translateI18nKey('common.clipboard.readPermissionTitle'),
+          kind: 'info',
+          okLabel: translateI18nKey('common.clipboard.readPermissionAllow'),
+          cancelLabel: translateI18nKey('common.clipboard.readPermissionDeny'),
+        },
+      );
 
       if (allowed) {
         localStorage.setItem(CLIPBOARD_PERMISSION_KEY, 'granted');
@@ -199,7 +202,7 @@ const requestReadPermission = async (): Promise<boolean> => {
     }
   } else {
     // Web 环境下，通常浏览器会自己弹窗，但我们可以先用 confirm 确认
-    const allowed = window.confirm('应用请求读取您的剪贴板内容，是否允许？');
+    const allowed = window.confirm(translateI18nKey('common.clipboard.readPermissionPrompt'));
     if (allowed) {
       localStorage.setItem(CLIPBOARD_PERMISSION_KEY, 'granted');
       return true;

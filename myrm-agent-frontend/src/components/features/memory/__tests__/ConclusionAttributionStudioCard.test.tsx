@@ -15,7 +15,17 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import de from '../../../../../locales/de.json';
+import en from '../../../../../locales/en.json';
+import ja from '../../../../../locales/ja.json';
+import ko from '../../../../../locales/ko.json';
+import zhTW from '../../../../../locales/zh-TW.json';
+import zh from '../../../../../locales/zh.json';
 import { ConclusionAttributionStudioCard } from '../command-center/ConclusionAttributionStudioCard';
+
+// The global test setup replaces next-intl, so the real translator is loaded explicitly: shipped copy, real ICU.
+const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
+const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
 
 const {
   mockGetStats,
@@ -231,7 +241,7 @@ describe('ConclusionAttributionStudioCard (Item 141 P1)', () => {
   });
 
   it('triggers delete conclusion after confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<ConclusionAttributionStudioCard />);
 
     await waitFor(() => {
@@ -244,6 +254,21 @@ describe('ConclusionAttributionStudioCard (Item 141 P1)', () => {
     await waitFor(() => {
       expect(mockDeleteConclusion).toHaveBeenCalledWith('conc_101', false);
     });
+    expect(confirmSpy).toHaveBeenCalledWith('deleteConfirm');
+  });
+
+  it('deletes nothing when the user declines the confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<ConclusionAttributionStudioCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice 坚持使用紧凑代码格式')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '删除conc_101' }));
+
+    expect(mockDeleteConclusion).not.toHaveBeenCalled();
+    expect(screen.getByText('Alice 坚持使用紧凑代码格式')).toBeInTheDocument();
   });
 
   it('simulates chat with transparent evidence package', async () => {
@@ -275,5 +300,17 @@ describe('ConclusionAttributionStudioCard (Item 141 P1)', () => {
     await waitFor(() => {
       expect(screen.getByText('记忆结论归因与证据链可视化工作台')).toBeInTheDocument();
     });
+  });
+});
+
+describe('ConclusionAttributionStudioCard delete confirmation copy in every locale', () => {
+  it.each(Object.entries(locales))('%s: names the conclusion and leaves no raw placeholder', (locale, messages) => {
+    const t = createTranslator({ locale, messages, namespace: 'memory.commandCenter.conclusionAttribution' });
+
+    const text = t('deleteConfirm', { id: 'conc_101' });
+
+    expect(text).toContain('conc_101');
+    expect(text).not.toContain('{id}');
+    expect(text).not.toContain('memory.commandCenter');
   });
 });

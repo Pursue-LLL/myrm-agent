@@ -555,6 +555,10 @@ class AgentGateway:
         """Return True when an agent execution is in-flight for the session."""
         return session_id in self._active_sessions
 
+    def active_session_ids(self) -> frozenset[str]:
+        """Snapshot of the sessions with an agent execution in flight."""
+        return frozenset(self._active_sessions)
+
     def _resolve_idle_threshold(self, *, goal_active: bool, fission_active: bool) -> float:
         """Resolve the idle-silence threshold by tier (goal > fission > default).
 

@@ -1,7 +1,18 @@
 """Skill 工具函数
 
-提供技能相关的公共工具函数，避免代码重复。
+[INPUT]
+- json: 标准库 JSON 序列化（YAML 双引号标量的转义依据）
+
+[OUTPUT]
+- normalize_skill_name: 技能名称标准化（统一 _skill 后缀）
+- resolve_skill_description: 技能描述回退（description → trigger_condition → name）
+- yaml_scalar: 把模型生成文本渲染为 YAML 双引号标量，供 SKILL.md frontmatter 使用
+
+[POS]
+技能公共工具函数。名称标准化、描述回退与 frontmatter 标量转义的单一实现，避免各落盘路径重复。
 """
+
+import json
 
 
 def normalize_skill_name(name: str) -> str:
@@ -45,4 +56,23 @@ def normalize_skill_name(name: str) -> str:
     return normalized if normalized.endswith("_skill") else f"{normalized}_skill"
 
 
-__all__ = ["normalize_skill_name"]
+def yaml_scalar(value: str) -> str:
+    """Render ``value`` as a YAML double-quoted scalar for SKILL.md frontmatter.
+
+    JSON string syntax is a subset of YAML double-quoted scalars, so colons, ``#``, quotes, backslashes
+    and line breaks in model-generated text stay data instead of breaking or retyping the frontmatter.
+    A raw NEL (U+0085) is the one character JSON leaves unescaped that YAML folds into a space, so it is escaped.
+    """
+    return json.dumps(value, ensure_ascii=False).replace("\x85", "\\x85")
+
+
+def resolve_skill_description(description: str | None, trigger_condition: str | None, name: str) -> str:
+    """Pick the text skill discovery matches on: the description, else when to use it, else the name."""
+    for candidate in (description, trigger_condition):
+        text = (candidate or "").strip()
+        if text:
+            return text
+    return name
+
+
+__all__ = ["normalize_skill_name", "resolve_skill_description", "yaml_scalar"]

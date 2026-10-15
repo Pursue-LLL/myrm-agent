@@ -7,7 +7,7 @@
  * - @/services/connect::listConnectorStatus, @/services/integrations/oauthCredentials::listOAuthCredentials
  * - @/services/channels/manage::listChannelStatuses
  * - @/lib/skills/integrationOAuthDisplay::SETTINGS_CREDENTIALS_PATH, formatOAuthIssuerLabel
- * - ./providerDataUsageCatalog, ./DataFlowYourRightsStrip
+ * - ./providerDataUsageCatalog, ./DataFlowYourRightsStrip, ./DataFlowErasureStrip
  *
  * [OUTPUT]
  * - DataFlowDisclosurePanel
@@ -46,6 +46,7 @@ import {
   DataFlowYourRightsStrip,
   type ComplianceEgressSnapshot,
 } from './DataFlowYourRightsStrip';
+import { DataFlowErasureStrip } from './DataFlowErasureStrip';
 import SettingsSection from '../SettingsSection';
 
 export interface DataFlowDisclosurePanelProps {
@@ -535,6 +536,7 @@ export const DataFlowDisclosurePanel = memo(
           </div>
 
           <DataFlowYourRightsStrip egressSnapshot={egressSnapshot} />
+          <DataFlowErasureStrip />
         </div>
       </SettingsSection>
     );

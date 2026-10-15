@@ -653,6 +653,14 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE skill_versions DROP COLUMN quality_score",
     # Evolution proposals live in approval_records; no model, route or page reads or writes pending_evolutions.
     "DROP TABLE IF EXISTS pending_evolutions",
+    # A risk rule only blocks, so neither table keeps an ``action`` column. A rule stored with another action held nothing:
+    # it is disabled before the column goes, because left enabled it would hold messages its author never meant to hold.
+    "UPDATE risk_rules SET is_enabled = 0 WHERE action != 'block'",
+    "ALTER TABLE risk_rules DROP COLUMN action",
+    "ALTER TABLE risk_hits DROP COLUMN action",
+    # A hit log holds a position or the timeout marker, never the matched text (a key, a number, an address).
+    """UPDATE risk_hits SET match_summary = ''
+    WHERE match_summary != '' AND match_summary != '(matching timed out)' AND match_summary NOT LIKE 'chars:%'""",
 ]
 
 # 创建索引的SQL语句列表

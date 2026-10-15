@@ -18,6 +18,8 @@
 | Tauri PyInstaller sidecar | `sidecar/build.py` `--add-data` → `_MEIPASS/shared/config/` |
 | Frontend Docker build | builder 阶段 COPY `shared/` 到 `/app/shared`（配合 `next.config.ts` monorepoRoot） |
 
+运行时由服务端读取的只有 `provider_legacy_remap.json`；`kanban_move_guard.json` 服务端只在契约测试里读，不进镜像与 sidecar。
+
 ## 子目录
 
 | 目录 | 职责 | 文档 |

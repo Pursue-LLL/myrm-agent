@@ -184,7 +184,7 @@ class SQLAlchemyStorage:
 
 ```python
 # ✅ 将底层异常转换为框架异常
-from myrm_agent_harness.agent.skills.optimization.exceptions import StorageError
+from myrm_agent_harness.agent.skills.optimization.protocols import StorageError
 
 
 class SQLAlchemyStorage:

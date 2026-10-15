@@ -4,7 +4,7 @@
 
 技能存储结构：
 - skills/prebuilt/{skill_name}/ - 预构建技能
-- users/{user_id}/config/skills.json - 用户技能配置
+- config/skills.json - 用户技能配置
 """
 
 from __future__ import annotations

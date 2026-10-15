@@ -85,11 +85,6 @@ if __name__ == "__main__":
         action="store_true",
         help="禁用自动恢复（健康检查失败时不尝试修复）",
     )
-    parser.add_argument(
-        "--force-recovery",
-        action="store_true",
-        help="允许危险的恢复操作（例如删除 SQLite WAL 文件，可能导致数据丢失）",
-    )
     args = parser.parse_args()
 
     # 处理 WebUI 模式参数
@@ -145,7 +140,6 @@ if __name__ == "__main__":
             skip_port_check=args.skip_port_check,
             skip_health_check=args.skip_health_check,
             no_auto_recovery=args.no_auto_recovery,
-            force_recovery=args.force_recovery,
         )
     else:
         start_with_uvicorn(
@@ -158,5 +152,4 @@ if __name__ == "__main__":
             no_qrcode=args.no_qrcode,
             skip_health_check=args.skip_health_check,
             no_auto_recovery=args.no_auto_recovery,
-            force_recovery=args.force_recovery,
         )

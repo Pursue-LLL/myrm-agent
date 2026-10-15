@@ -92,7 +92,6 @@ const makeRuntimeSnapshot = (
     generated_at: '2026-04-29T00:00:00Z',
     runtime: {
       deploy_mode: 'local',
-      storage_mode: 'local_files',
       memory_base_path: '/tmp/myrm-memory',
       relational_status: 'available',
       vector_status: 'available',
@@ -157,21 +156,29 @@ describe('MemoryCommandCenterPanels vector persistence', () => {
     expect(screen.getByText('commandCenter.runtimeStatus.memory_fallback')).toBeInTheDocument();
   });
 
-  it('shows persistent without alert styling', () => {
+  it('explains how to recover only while running in memory_fallback', () => {
+    renderVerify(makeRuntimeSnapshot('memory_fallback'));
+
+    expect(screen.getByText('commandCenter.vectorPersistenceHint')).toBeInTheDocument();
+  });
+
+  it('shows persistent without alert styling or recovery hint', () => {
     renderVerify(makeRuntimeSnapshot('persistent'));
 
     const label = screen.getByText('commandCenter.vectorPersistence');
     const row = label.closest('div');
     expect(row?.className).not.toContain('border-amber-500/50');
     expect(screen.getByText('commandCenter.runtimeStatus.persistent')).toBeInTheDocument();
+    expect(screen.queryByText('commandCenter.vectorPersistenceHint')).toBeNull();
   });
 
-  it('renders unavailable persistence state without alert styling', () => {
+  it('renders unavailable persistence state without alert styling or recovery hint', () => {
     renderVerify(makeRuntimeSnapshot('unavailable'));
 
     const label = screen.getByText('commandCenter.vectorPersistence');
     const row = label.closest('div');
     expect(row?.className).not.toContain('border-amber-500/50');
     expect(screen.getByText('commandCenter.runtimeStatus.unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('commandCenter.vectorPersistenceHint')).toBeNull();
   });
 });

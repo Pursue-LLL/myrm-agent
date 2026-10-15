@@ -24,7 +24,7 @@
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 
 from app.api.health.browser import router as browser_router
@@ -187,8 +187,9 @@ async def system_info() -> dict[str, object]:
     - 运维诊断和调试
     - 监控面板显示系统配置
     - CI/CD 流程验证部署配置
+    - 前端设置页读取部署模式、数据驻留、本地语音组件就绪状态与引擎版本
 
-    注意：前端不再使用此端点检测部署模式，改用环境变量配置
+    与其余诊断端点一样走正常准入，不属于公开探针。
 
     Returns:
         dict: 系统配置信息
@@ -230,7 +231,7 @@ async def system_info() -> dict[str, object]:
 async def system_metrics() -> dict[str, object]:
     """获取系统级监控指标
 
-    暴露给 Control Plane 用于沙箱健康度监控。需要管理员权限。
+    暴露给 Control Plane 用于沙箱健康度监控；与其余诊断端点一样走正常准入（不属于公开探针）。
     包括：
     - DLQ (死信队列) 堆积量
     - memory_pressure: 内存压力等级和使用率
@@ -339,11 +340,7 @@ async def execute_health_repair_action(
 
 
 @router.post("/database/safe-purge")
-async def safe_purge_vault(
-    purge_memories: bool = Query(True, description="Purge episodic memories while preserving profile attributes and rules"),
-    purge_sandboxes: bool = Query(True, description="Clean orphaned sandbox directories"),
-    reclaim_disk: bool = Query(True, description="Reclaim disk pages via PRAGMA optimize and incremental_vacuum"),
-) -> dict[str, object]:
+async def safe_purge_vault() -> dict[str, object]:
     """Safe Vault Purge: Cascade-proof cleanup of chat corpora & FTS5 shadow structures.
 
     Unlike destructive reset_database(), this endpoint strictly preserves white-listed
@@ -355,18 +352,22 @@ async def safe_purge_vault(
 
     It wipes:
     - All chats, forks, interrupted markers, and messages
+    - Widget data, approvals, proactive commitments and fission records bound to a chat
     - Leaf conversation recall segments & documents
     - FTS5 shadow inverted indexes (messages_fts, conversation_recall_fts, segments_fts)
     - Consumer cursor auto-increment sequences (sqlite_sequence)
-    - LangGraph checkpoints & sandbox worktrees
-    """
-    from app.services.system.vault_purge_service import SafeVaultPurgeService
+    - The pending-memory queues and memory event log (stored memories, profile attributes and rules stay)
+    - LangGraph checkpoints, session grants, and the workspaces / artifacts of those chats
+    - The sandbox worktrees of those chats, except those with unsaved work (counted in ``kept_sandboxes``)
 
-    result = await SafeVaultPurgeService.purge_vault(
-        purge_memories=purge_memories,
-        purge_sandboxes=purge_sandboxes,
-        reclaim_disk=reclaim_disk,
-    )
+    Answers 409 without touching anything while a conversation has a turn in flight.
+    """
+    from app.services.system.vault_purge_service import SafeVaultPurgeService, VaultPurgeBusyError
+
+    try:
+        result = await SafeVaultPurgeService.purge_vault()
+    except VaultPurgeBusyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not result.success:
         raise HTTPException(
             status_code=500,
@@ -377,9 +378,12 @@ async def safe_purge_vault(
         "purged_chats": result.purged_chats,
         "purged_messages": result.purged_messages,
         "purged_channel_messages": result.purged_channel_messages,
+        "purged_memory_events": result.purged_memory_events,
+        "checkpoint_cleared_chats": result.checkpoint_cleared_chats,
         "fts_tables_purged": result.fts_tables_purged,
         "cursors_reset": result.cursors_reset,
         "cleared_sandboxes": result.cleared_sandboxes,
+        "kept_sandboxes": result.kept_sandboxes,
         "preserved_agents": result.preserved_agents,
         "preserved_api_keys": result.preserved_api_keys,
         "preserved_user_configs": result.preserved_user_configs,
@@ -427,57 +431,32 @@ async def reset_database() -> dict[str, str]:
 
 
 @router.get("/resources")
-async def resource_health_check(
-    auto_recover: bool = Query(False, description="Automatically recover unhealthy resources"),
-    force_recovery: bool = Query(False, description="Allow dangerous recovery actions (SQLite WAL deletion)"),
-) -> dict[str, object]:
-    """Resource-level health check (Qdrant, SQLite, Browser).
+async def resource_health_check() -> dict[str, object]:
+    """Read-only resource health check (Qdrant, SQLite, Browser).
 
-    Checks and optionally recovers unhealthy resources.
-    Safe by default: only attempts recovery if auto_recover=true.
-
-    Args:
-        auto_recover: Enable automatic recovery on failure
-        force_recovery: Allow dangerous recovery actions (SQLite WAL deletion)
+    Reports the state of each resource without repairing anything: recovery (such as restoring the
+    database from a backup) only runs at startup, never from an HTTP request.
 
     Returns:
-        Resource health status and recovery results
+        Resource health status per checker
     """
     from app.core.infra.health import run_all_health_checks
 
     try:
-        all_healthy, results = await run_all_health_checks(
-            auto_recover=auto_recover,
-            force_sqlite_wal_cleanup=force_recovery,
-            max_retries=1,
-        )
-
-        formatted_results = []
-        for name, check_result, recovery_result in results:
-            item: dict[str, object] = {
-                "name": name,
-                "status": check_result.status.value if check_result else "unknown",
-                "message": check_result.message if check_result else "No check result",
-                "details": check_result.details if check_result else None,
-                "checked_at": (check_result.checked_at.isoformat() if check_result and check_result.checked_at else None),
-            }
-
-            if recovery_result:
-                item["recovery"] = {
-                    "status": recovery_result.status.value,
-                    "message": recovery_result.message,
-                    "actions_taken": recovery_result.actions_taken,
-                    "details": recovery_result.details,
-                    "recovered_at": (recovery_result.recovered_at.isoformat() if recovery_result.recovered_at else None),
-                }
-
-            formatted_results.append(item)
+        all_healthy, results = await run_all_health_checks(auto_recover=False)
 
         return {
             "all_healthy": all_healthy,
-            "auto_recover": auto_recover,
-            "force_recovery": force_recovery,
-            "resources": formatted_results,
+            "resources": [
+                {
+                    "name": name,
+                    "status": check_result.status.value if check_result else "unknown",
+                    "message": check_result.message if check_result else "No check result",
+                    "details": check_result.details if check_result else None,
+                    "checked_at": (check_result.checked_at.isoformat() if check_result and check_result.checked_at else None),
+                }
+                for name, check_result, _ in results
+            ],
         }
 
     except Exception as exc:

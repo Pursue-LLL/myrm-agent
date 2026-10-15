@@ -26,7 +26,6 @@ from app.config.settings import settings
 from app.database.repositories.uow import UnitOfWork
 from app.lifecycle import (
     auto_continue_interrupted_turns,
-    cleanup_browser_threads,
     init_risk_rules,
     start_approval_ttl_scheduler,
     start_auth_alert_monitor,
@@ -42,7 +41,6 @@ from app.lifecycle import (
     start_memory_guardian_guard_telemetry_dispatcher,
     start_memory_guardian_scheduler,
     start_memory_pressure_monitor,
-    warmup_browser_sessions,
     warmup_global_browser_pool,
 )
 from app.services.agent.evolution.evolution_runtime import init_evolution_runtime
@@ -279,14 +277,6 @@ async def run_async_warmup() -> None:
         await warmup_global_browser_pool()
     except Exception as exc:
         logger.error("[Startup] Browser pool initialization failed: %s", exc, exc_info=True)
-
-    # Thread cleanup always runs (zombie detection + old record deletion)
-    warmup_tasks.append(cleanup_browser_threads())
-
-    if settings.browser_auto_warmup:
-        warmup_tasks.append(warmup_browser_sessions())
-    else:
-        logger.debug("[Startup] Browser session warmup skipped (browser_auto_warmup=False)")
 
     try:
         from app.core.media.batch.orchestrator import batch_orchestrator

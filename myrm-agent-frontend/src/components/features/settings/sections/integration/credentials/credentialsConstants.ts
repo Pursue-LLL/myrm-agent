@@ -16,6 +16,10 @@ export type OauthCredentialRecord = {
   scope?: string;
   expires_at?: number;
   connected?: boolean;
+  /** The access token renews itself, so `expires_at` does not bound the connection. */
+  renewable?: boolean;
+  /** The provider permanently rejected the refresh token: only signing in again helps. */
+  needs_reauth?: boolean;
 };
 
 export const SUPPORTED_INTEGRATIONS: OauthIntegration[] = [

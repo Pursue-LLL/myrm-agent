@@ -13,7 +13,7 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `sandbox_cleanup.py` | ✅ 核心 | 删除聊天时的工作空间清理：聊天对应的本地工作空间目录 + ArtifactVault 中该任务的临时产物（返回每项清理是否成功） |
+| `sandbox_cleanup.py` | ✅ 核心 | 删除聊天时的工作空间清理：聊天对应的本地工作空间目录 + ArtifactVault 中该任务的临时产物（返回每项清理是否成功）；`cleanup_chat_workspaces` 一次处理多个聊天，共享金库只扫描一次（逐个清理的开销随 聊天数 × 金库对象数 增长）；金库清理是阻塞的文件遍历与删除，放在工作线程执行（5000 个对象实测事件循环最长停顿 1937 ms → 16 ms） |
 | `sleep_inhibitor.py` | ✅ 核心 | 系统休眠抑制 — 任务运行期间阻止系统进入空闲休眠。引用计数、跨平台 (IOKit/systemd-inhibit/SetThreadExecutionState)、仅 local 模式激活。支持 `prevent_display_sleep` 参数控制显示器保持唤醒（CU 场景需要屏幕持续亮起）；显示器需求独立计数，普通 hold 先占位时后到的 CU 需求仍会升级为常亮 |
 | `system_notification.py` | ✅ 核心 | 系统通知持久化服务。支持独立会话写入，也支持复用调用方 `AsyncSession`（避免 SQLite 下嵌套会话锁冲突）。 |
 

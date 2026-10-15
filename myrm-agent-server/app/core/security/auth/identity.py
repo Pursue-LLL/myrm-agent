@@ -192,20 +192,16 @@ def resolve_identity(
         if trust_zone is None:
             trust_zone = admission_path_to_trust_zone(AdmissionPath(admission_path)).value
 
-    identity_meta = {
-        "local_trusted": local_trusted,
-        "admission_path": admission_path,
-        "trust_zone": trust_zone,
-    }
-
-    if method == "OPTIONS" or is_public_path(path):
+    if method == "OPTIONS" or is_public_path(path, method):
         return ResolvedIdentity(
             user_id=None,
             auth_source=None,
             client_ip=client_ip,
             loopback=loopback,
             private_net=private_net,
-            **identity_meta,
+            local_trusted=local_trusted,
+            admission_path=admission_path,
+            trust_zone=trust_zone,
         )
 
     caps = get_deployment_capabilities()
@@ -299,18 +295,25 @@ def resolve_identity(
         session_username=session_username,
         pair_bound_chat_id=pair_bound_chat_id,
         tailscale_user=tailscale_user,
-        **identity_meta,
+        local_trusted=local_trusted,
+        admission_path=admission_path,
+        trust_zone=trust_zone,
     )
 
 
-def resolve_identity_from_http_scope(scope: dict[str, object]) -> ResolvedIdentity:
+def _query_string_from_scope(scope: Mapping[str, object]) -> str:
+    raw = scope.get("query_string", b"")
+    return raw.decode("latin-1") if isinstance(raw, bytes) else ""
+
+
+def resolve_identity_from_http_scope(scope: Mapping[str, object]) -> ResolvedIdentity:
     """Resolve identity from a Starlette HTTP ASGI scope."""
     headers = _headers_from_scope(scope.get("headers", []))  # type: ignore[arg-type]
     client = scope.get("client")
     client_ip = _client_ip_from_scope(client if isinstance(client, tuple) else None)
     path = str(scope.get("path", ""))
     method = str(scope.get("method", "GET"))
-    query_string = str(scope.get("query_string", b""), "latin-1")
+    query_string = _query_string_from_scope(scope)
     return resolve_identity(
         path=path,
         method=method,
@@ -320,13 +323,13 @@ def resolve_identity_from_http_scope(scope: dict[str, object]) -> ResolvedIdenti
     )
 
 
-def resolve_identity_from_ws_scope(scope: dict[str, object]) -> ResolvedIdentity:
+def resolve_identity_from_ws_scope(scope: Mapping[str, object]) -> ResolvedIdentity:
     """Resolve identity from a Starlette WebSocket ASGI scope."""
     headers = _headers_from_scope(scope.get("headers", []))  # type: ignore[arg-type]
     client = scope.get("client")
     client_ip = _client_ip_from_scope(client if isinstance(client, tuple) else None)
     path = str(scope.get("path", ""))
-    query_string = str(scope.get("query_string", b""), "latin-1")
+    query_string = _query_string_from_scope(scope)
     return resolve_identity(
         path=path,
         method="GET",

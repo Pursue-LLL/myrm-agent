@@ -370,7 +370,6 @@ export interface MemoryCommandPlaneSummary {
   archive_restore_rollback_failed: number;
   archive_restore_missing_items: number;
   archive_restore_failed_items: number;
-  storage_mode: string;
   last_event_at?: string | null;
   redaction_scope: 'metadata_only';
   sandbox_isolation: 'local_or_per_user_sandbox';
@@ -378,7 +377,6 @@ export interface MemoryCommandPlaneSummary {
 
 export interface MemoryCommandRuntimeStatus {
   deploy_mode: string;
-  storage_mode: string;
   memory_base_path: string;
   relational_status: 'available' | 'unavailable';
   vector_status: 'available' | 'unavailable';

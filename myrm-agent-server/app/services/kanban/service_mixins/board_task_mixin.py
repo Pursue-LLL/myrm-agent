@@ -6,6 +6,7 @@
 - task_ops (POS: Task CRUD operations.)
 - move_orchestrator (POS: Task state transition orchestration.)
 - review_ops (POS: IN_REVIEW approval/rejection orchestration.)
+- retry_ops (POS: FAILED-task manual retry orchestration.)
 - dependency_ops (POS: Dependency graph operations.)
 - service_mixins.core (POS: KanbanService core state.)
 
@@ -13,12 +14,13 @@
 - KanbanServiceBoardTaskMixin: Mixin providing board/task mutation methods.
 
 [POS]
-Board and task mutation mixin: create, update, delete, move, reclaim, approve/reject, and dependency ops.
+Board and task mutation mixin: create, update, delete, move, reclaim, approve/reject, retry, and dependency ops.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.kanban.protocols import (
     PlanRevisionOutcome,
@@ -67,6 +69,9 @@ from app.services.kanban.move_orchestrator import (
 from app.services.kanban.replan_ops import (
     revise_plan as run_revise_plan,
 )
+from app.services.kanban.retry_ops import (
+    retry_task as run_retry_task,
+)
 from app.services.kanban.review_ops import (
     approve_task as run_approve_task,
 )
@@ -85,8 +90,18 @@ from app.services.kanban.task_ops import (
     update_task as run_update_task,
 )
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
+    from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
+
 
 class KanbanBoardTaskMixin(KanbanServiceCore):
+    if TYPE_CHECKING:
+        # Provided by KanbanDispatcherMixin, which KanbanService composes with this mixin.
+        async def start_dispatcher(
+            self, board_id: str, runner: TaskRunner, worker_id: str | None = None
+        ) -> KanbanDispatcher | None: ...
+
     async def create_board(
         self,
         name: str,
@@ -274,6 +289,9 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             reason=reason,
             approver=approver,
         )
+
+    async def retry_task(self, task_id: str) -> KanbanTask | None:
+        return await run_retry_task(self._store, self._dispatchers, task_id)
 
     async def reclaim_task(
         self,

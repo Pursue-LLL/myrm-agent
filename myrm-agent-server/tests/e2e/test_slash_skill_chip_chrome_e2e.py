@@ -155,7 +155,7 @@ def _seed_transcript_fixture(api_url: str) -> dict[str, object]:
     execution_mode="PRIVATE",
     access_scope="GLOBAL_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -253,10 +253,9 @@ def test_slash_skill_palette_sets_composer_chip_without_raw_use_prefix() -> None
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="READ",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

@@ -29,6 +29,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     and_,
     delete,
+    exists,
     func,
     or_,
     select,
@@ -625,8 +626,11 @@ class ChatRepository:
     @staticmethod
     async def permanently_delete_chat(db: AsyncSession, chat_id: str) -> bool:
         # 显式先删除关联的 messages，确保 SQLite messages_fts_delete 触发器正常执行，
-        # 杜绝外键级联绕过子表触发器导致 FTS5 倒排索引残留孤儿行
-        await db.execute(delete(Message).where(Message.chat_id == chat_id))
+        # 杜绝外键级联绕过子表触发器导致 FTS5 倒排索引残留孤儿行。
+        # 仅当会话在回收站中才删消息：过期的回收站视图不能清空已被恢复的会话。
+        # 单条带 EXISTS 的 DELETE 而非先 SELECT，避免读事务阻止写事务升级为 BEGIN IMMEDIATE。
+        in_trash = exists().where(Chat.id == chat_id, Chat.deleted_at.isnot(None))
+        await db.execute(delete(Message).where(Message.chat_id == chat_id, in_trash))
         result = cast(
             CursorResult[tuple[object, ...]],
             await db.execute(delete(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None))),

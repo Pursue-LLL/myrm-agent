@@ -30,7 +30,7 @@ async def test_finalize_schedules_directory_timeout_when_pending() -> None:
     clarification = ClarificationTimeoutHolder(directory_pending=True)
 
     with (
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch("app.services.agent.stream_session.stream_finalize.schedule_directory_timeout") as mock_schedule,
         patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
         patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
@@ -54,7 +54,7 @@ async def test_finalize_schedules_directory_when_collector_unanswered() -> None:
     }
 
     with (
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch("app.services.agent.stream_session.stream_finalize.schedule_directory_timeout") as mock_directory_schedule,
         patch("app.services.agent.stream_session.stream_finalize.schedule_approval_timeout") as mock_approval_schedule,
         patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),

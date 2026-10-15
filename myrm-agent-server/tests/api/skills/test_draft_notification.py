@@ -90,7 +90,9 @@ async def test_notify_skill_draft_patch_and_security(
     assert draft1 is not None
     assert draft1.status == "PENDING"
     assert draft1.payload["growth_status"] == "FAILED_SCAN"
-    assert "destructive" in str(draft1.reason).lower() or "failed" in str(draft1.reason).lower()
+    assert draft1.payload["reason_code"] == "scan_failed"
+    assert draft1.payload["security_scan_summary"]["total_findings"] > 0
+    assert draft1.reason == ""
 
     # 2. Test safe patch draft -> should be PENDING_REVIEW
     patch_result = {
@@ -137,30 +139,18 @@ def test_resolve_growth_status_priority() -> None:
     assert _resolve_growth_status("REJECTED", {}) == "REJECTED"
 
 
-def test_append_scan_failure_formats_findings() -> None:
-    from myrm_agent_harness.backends.skills.scanning import (
-        ScanFinding,
-        ScanResult,
-        ScanSeverity,
+@pytest.mark.asyncio
+async def test_evaluate_growth_scan_reports_critical_findings_as_a_summary(mock_local_skills_dir: Path) -> None:
+    from app.services.skills.draft_notification import evaluate_growth_scan
+
+    status, summary = await evaluate_growth_scan(
+        {"type": "skill_draft", "content": "---\nname: unsafe\n---\n## Steps\nrm -rf /\n"},
+        skill_name="unsafe",
     )
 
-    from app.services.skills.draft_notification import _append_scan_failure
-
-    finding = ScanFinding(
-        threat_type="executable_binary",
-        description="ZIP contains executable",
-        severity=ScanSeverity.CRITICAL,
-    )
-    scan_result = ScanResult(skill_name="demo", findings=[finding], scan_duration_ms=1.0)
-
-    with_base = _append_scan_failure("Base description", scan_result)
-    assert "Base description" in with_base
-    assert "PRE-FLIGHT SECURITY SCAN FAILED" in with_base
-    assert "[CRITICAL] executable_binary" in with_base
-
-    no_base = _append_scan_failure("", scan_result)
-    assert "PRE-FLIGHT SECURITY SCAN FAILED" in no_base
-    assert no_base.startswith("**PRE-FLIGHT")
+    assert status == "FAILED_SCAN"
+    assert summary is not None
+    assert summary["total_findings"] > 0
 
 
 @pytest.mark.asyncio
@@ -175,28 +165,26 @@ async def test_evaluate_growth_scan_handles_scan_error(
         "app.services.skills.draft_notification.scan_skill_content",
         side_effect=RuntimeError("scanner broken"),
     ):
-        status, description = await evaluate_growth_scan(
+        status, summary = await evaluate_growth_scan(
             {"type": "skill_draft", "content": "---\nname: x\n---\ncontent"},
             skill_name="scan-error-skill",
-            description="desc",
         )
 
     assert status == "PENDING_REVIEW"
-    assert description == "desc"
+    assert summary is None
 
 
 @pytest.mark.asyncio
 async def test_evaluate_growth_scan_clean_content(mock_local_skills_dir: Path) -> None:
     from app.services.skills.draft_notification import evaluate_growth_scan
 
-    status, description = await evaluate_growth_scan(
+    status, summary = await evaluate_growth_scan(
         {"type": "skill_draft", "content": "print('hello')"},
         skill_name="clean-skill",
-        description="safe",
     )
 
     assert status == "PENDING_REVIEW"
-    assert description == "safe"
+    assert summary is None
 
 
 @pytest.mark.asyncio
@@ -414,13 +402,12 @@ async def test_evaluate_growth_scan_empty_content(mock_local_skills_dir: Path) -
     """Empty scannable content short-circuits to PENDING_REVIEW."""
     from app.services.skills.draft_notification import evaluate_growth_scan
 
-    status, description = await evaluate_growth_scan(
+    status, summary = await evaluate_growth_scan(
         {"type": "skill_patch", "skill_name": "", "patch_content": ""},
         skill_name="empty-skill",
-        description="desc",
     )
     assert status == "PENDING_REVIEW"
-    assert description == "desc"
+    assert summary is None
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 """Media library service — CRUD, search, tagging for AI-generated media.
 
 Persists generated images/videos/audio with rich metadata.
-Storage is delegated to the existing StorageProvider (S3 or local FS),
+Storage is delegated to the existing StorageProvider (local filesystem or persistent volume),
 while metadata lives in the SQLite media_library table for fast queries.
 """
 

@@ -19,14 +19,12 @@ def start_with_granian(
     skip_port_check: bool = False,
     skip_health_check: bool = False,
     no_auto_recovery: bool = False,
-    force_recovery: bool = False,
 ) -> None:
     """使用 granian 启动（手动多进程模式，仅适用于无嵌入式数据库的场景）。"""
     # 运行健康检查
     run_startup_health_check(
         skip_health_check=skip_health_check,
         auto_recovery=not no_auto_recovery,
-        force_recovery=force_recovery,
     )
 
     workers = int(os.getenv("GRANIAN_WORKERS", str(os.cpu_count() or 4)))

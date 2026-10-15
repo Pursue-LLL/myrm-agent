@@ -4,7 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { KanbanTask } from '@/services/kanban';
+import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
 import ja from '../../../../../locales/ja.json';
@@ -26,13 +26,13 @@ vi.mock('next-intl', async () => {
   return { useTranslations: () => translate };
 });
 
-function makeTask(taskId: string, title: string): KanbanTask {
+function makeTask(taskId: string, title: string, status: TaskStatus = 'running'): KanbanTask {
   return {
     task_id: taskId,
     board_id: 'board-1',
     title,
     description: '',
-    status: 'running',
+    status,
     priority: 'normal',
     retry_count: 0,
     max_retries: 3,
@@ -53,16 +53,28 @@ function makeTask(taskId: string, title: string): KanbanTask {
 }
 
 const TASK = makeTask('task-1', 'Weekly report');
+const FAILED_TASK = makeTask('task-1', 'Weekly report', 'failed');
 
 interface HarnessProps {
+  initialTasks?: KanbanTask[];
   onDelete?: (taskId: string) => Promise<void>;
   onReclaim?: (taskId: string) => Promise<void>;
+  onRetry?: (taskId: string) => Promise<void>;
+  onArchive?: (taskId: string) => Promise<void>;
+  onMove?: (taskId: string, status: TaskStatus) => void;
 }
 
 /** Mirrors how the board wires the hook: the tasks list is refreshed by the confirmed action itself. */
-function Harness({ onDelete = async () => {}, onReclaim = async () => {} }: HarnessProps) {
-  const [tasks, setTasks] = useState<KanbanTask[]>([TASK]);
-  const { state, requestReclaim, requestDelete, dismiss } = useKanbanTaskActionConfirm(tasks);
+function Harness({
+  initialTasks = [TASK],
+  onDelete = async () => {},
+  onReclaim = async () => {},
+  onRetry = async () => {},
+  onArchive = async () => {},
+  onMove = () => {},
+}: HarnessProps) {
+  const [tasks, setTasks] = useState<KanbanTask[]>(initialTasks);
+  const { state, requestReclaim, requestDelete, requestMove, dismiss } = useKanbanTaskActionConfirm(tasks, onMove);
   return (
     <>
       <button type="button" onClick={() => requestDelete('task-1')}>
@@ -71,10 +83,21 @@ function Harness({ onDelete = async () => {}, onReclaim = async () => {} }: Harn
       <button type="button" onClick={() => requestReclaim('task-1')}>
         open-reclaim
       </button>
+      <button type="button" onClick={() => requestMove('task-1', 'ready')}>
+        move-ready
+      </button>
+      <button type="button" onClick={() => requestMove('task-1', 'archived')}>
+        move-archived
+      </button>
+      <button type="button" onClick={() => requestMove('task-1', 'completed')}>
+        move-completed
+      </button>
       <KanbanTaskActionConfirm
         state={state}
         onDismiss={dismiss}
         onReclaim={onReclaim}
+        onRetry={onRetry}
+        onArchive={onArchive}
         onDelete={async (taskId) => {
           await onDelete(taskId);
           setTasks([]);
@@ -200,19 +223,33 @@ describe('KanbanTaskActionConfirm', () => {
 });
 
 /** The board's real entry point: a card menu item selects the action, the menu closes, the confirmation takes over. */
-function MenuHarness({ onDelete, onReclaim }: Required<HarnessProps>) {
-  const { state, requestReclaim, requestDelete, dismiss } = useKanbanTaskActionConfirm([TASK]);
+function MenuHarness({
+  task = TASK,
+  onDelete = async () => {},
+  onReclaim = async () => {},
+  onRetry = async () => {},
+  onArchive = async () => {},
+  onMove = () => {},
+}: Omit<HarnessProps, 'initialTasks'> & { task?: KanbanTask }) {
+  const { state, requestReclaim, requestDelete, requestMove, dismiss } = useKanbanTaskActionConfirm([task], onMove);
   return (
     <>
       <KanbanTaskCardActions
-        task={TASK}
-        onMove={vi.fn()}
+        task={task}
+        onMove={requestMove}
         onSpecify={vi.fn()}
         onDecompose={vi.fn()}
         onDelete={requestDelete}
         onReclaim={requestReclaim}
       />
-      <KanbanTaskActionConfirm state={state} onDismiss={dismiss} onReclaim={onReclaim} onDelete={onDelete} />
+      <KanbanTaskActionConfirm
+        state={state}
+        onDismiss={dismiss}
+        onReclaim={onReclaim}
+        onDelete={onDelete}
+        onRetry={onRetry}
+        onArchive={onArchive}
+      />
     </>
   );
 }
@@ -251,6 +288,126 @@ describe('KanbanTaskActionConfirm from the card menu', () => {
   });
 });
 
+describe('KanbanTaskActionConfirm move gate', () => {
+  it('failed → ready asks before retrying and says the task runs again', async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn(async () => {});
+    const onMove = vi.fn();
+    render(<Harness initialTasks={[FAILED_TASK]} onRetry={onRetry} onMove={onMove} />);
+
+    await user.click(screen.getByRole('button', { name: 'move-ready' }));
+
+    const confirm = await dialog();
+    expect(confirm).toHaveTextContent('Retry this task?');
+    expect(confirm).toHaveTextContent('runs again');
+    expect(confirm).toHaveTextContent('already moved on after its failure are not re-run');
+    expect(confirm).toHaveTextContent('model quota');
+    expect(onRetry).not.toHaveBeenCalled();
+    expect(onMove).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId('confirm-dialog-confirm'));
+
+    await waitFor(() => expect(onRetry).toHaveBeenCalledWith('task-1'));
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('archiving asks first, names the task, and only moves after confirmation', async () => {
+    const user = userEvent.setup();
+    const onArchive = vi.fn(async () => {});
+    const onMove = vi.fn();
+    render(<Harness initialTasks={[FAILED_TASK]} onArchive={onArchive} onMove={onMove} />);
+
+    await user.click(screen.getByRole('button', { name: 'move-archived' }));
+
+    const confirm = await dialog();
+    expect(confirm).toHaveTextContent('Archive this task?');
+    expect(confirm).toHaveTextContent('"Weekly report"');
+    expect(confirm).toHaveTextContent('cannot be restored');
+    expect(onArchive).not.toHaveBeenCalled();
+    expect(onMove).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId('confirm-dialog-confirm'));
+
+    await waitFor(() => expect(onArchive).toHaveBeenCalledWith('task-1'));
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('an ordinary move goes straight through with no dialog', async () => {
+    const user = userEvent.setup();
+    const onMove = vi.fn();
+    render(<Harness onMove={onMove} />);
+
+    await user.click(screen.getByRole('button', { name: 'move-completed' }));
+
+    expect(onMove).toHaveBeenCalledWith('task-1', 'completed');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it.each(['move-ready', 'move-archived'])('%s: cancelling runs nothing and returns focus', async (opener) => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn(async () => {});
+    const onArchive = vi.fn(async () => {});
+    const onMove = vi.fn();
+    render(<Harness initialTasks={[FAILED_TASK]} onRetry={onRetry} onArchive={onArchive} onMove={onMove} />);
+    const trigger = screen.getByRole('button', { name: opener });
+
+    await user.click(trigger);
+    await dialog();
+    await user.click(screen.getByTestId('confirm-dialog-cancel'));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(onRetry).not.toHaveBeenCalled();
+    expect(onArchive).not.toHaveBeenCalled();
+    expect(onMove).not.toHaveBeenCalled();
+    expect(trigger).toHaveFocus();
+  });
+});
+
+describe('KanbanTaskActionConfirm move gate from the card menu', () => {
+  const trigger = () => screen.getByRole('button', { name: 'Task actions' });
+
+  it('a failed card offers Retry instead of Move to Ready, and Retry opens the confirmation', async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn(async () => {});
+    const onMove = vi.fn();
+    render(<MenuHarness task={FAILED_TASK} onRetry={onRetry} onMove={onMove} />);
+
+    await user.click(trigger());
+    expect(screen.queryByRole('menuitem', { name: 'Move to Ready' })).toBeNull();
+    await user.click(screen.getByRole('menuitem', { name: 'Retry' }));
+
+    expect(await dialog()).toHaveTextContent('Retry this task?');
+    expect(onRetry).not.toHaveBeenCalled();
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('Archive opens the confirmation instead of archiving right away', async () => {
+    const user = userEvent.setup();
+    const onArchive = vi.fn(async () => {});
+    const onMove = vi.fn();
+    render(<MenuHarness task={FAILED_TASK} onArchive={onArchive} onMove={onMove} />);
+
+    await user.click(trigger());
+    await user.click(screen.getByRole('menuitem', { name: 'Archive' }));
+
+    expect(await dialog()).toHaveTextContent('Archive this task?');
+    expect(onArchive).not.toHaveBeenCalled();
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('an ordinary move item acts immediately', async () => {
+    const user = userEvent.setup();
+    const onMove = vi.fn();
+    render(<MenuHarness task={makeTask('task-1', 'Weekly report', 'ready')} onMove={onMove} />);
+
+    await user.click(trigger());
+    await user.click(screen.getByRole('menuitem', { name: 'Start' }));
+
+    expect(onMove).toHaveBeenCalledWith('task-1', 'running');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+});
+
 describe('kanban confirmation copy in every locale', () => {
   const title = 'Q3 {plan} <draft>';
 
@@ -270,6 +427,36 @@ describe('kanban confirmation copy in every locale', () => {
         'reclaimTitle',
         'reclaimDesc',
         'reclaimAction',
+      ] as const) {
+        expect(t(key).trim()).not.toBe('');
+        expect(t(key)).not.toContain('kanban.');
+      }
+    },
+  );
+
+  it.each(Object.entries(locales))(
+    '%s: retry and archive copy resolves with no raw placeholder',
+    (locale, messages) => {
+      const t = createTranslator({ locale, messages, namespace: 'kanban' });
+
+      const archiveDescription = t('archiveConfirmDesc', { title });
+      expect(archiveDescription).toContain(title);
+      expect(archiveDescription).not.toContain('{title}');
+      expect(archiveDescription.split('\n')).toHaveLength(2);
+
+      const bulk = t('bulkArchiveConfirm', { count: 3 });
+      expect(bulk).toContain('3');
+      expect(bulk).not.toContain('{count}');
+
+      for (const key of [
+        'retryAction',
+        'retryTitle',
+        'retryDesc',
+        'retrySuccess',
+        'retryError',
+        'moveBlocked',
+        'archiveConfirmTitle',
+        'moveTo.archived',
       ] as const) {
         expect(t(key).trim()).not.toBe('');
         expect(t(key)).not.toContain('kanban.');

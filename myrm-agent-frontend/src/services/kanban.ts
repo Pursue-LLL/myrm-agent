@@ -350,9 +350,14 @@ export async function rejectTask(taskId: string, reason: string, approver?: stri
   });
 }
 
+/** FAILED → READY：以全新的重试预算再跑一次；非 FAILED 的任务原样返回（幂等）。 */
+export async function retryTask(taskId: string): Promise<KanbanTask> {
+  return apiRequest(`/kanban/tasks/${taskId}/retry`, { method: 'POST' });
+}
+
 // ==================== Bulk Actions ====================
 
-export type BulkAction = 'move' | 'archive' | 'reassign' | 'reclaim' | 'delete';
+export type BulkAction = 'move' | 'archive' | 'reassign' | 'delete';
 
 export interface BulkActionResult {
   results: { task_id: string; success: boolean; error?: string }[];

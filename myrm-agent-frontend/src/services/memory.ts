@@ -28,7 +28,6 @@ export * from './memory/onboardingInsight';
 export * from './memory/screenObservationSafety';
 export * from './memory/taskTriadTrajectory';
 export * from './memory/activityCompactor';
-export * from './memory/noiseFreeMemory';
 export * from './memory/privateNotebook';
 export * from './memory/jobCompounding';
 export * from './memory/revocableProvenance';
@@ -55,6 +54,3 @@ export * from './memory/hybridSearch';
 export * from './memory/memoryMigration';
 export * from './memory/decisionAssist';
 export * from './memory/experienceCompounding';
-
-
-

@@ -273,3 +273,36 @@ async def test_sweep_spares_skill_bound_by_a_cron_job(curator_workspace: Path) -
     assert result.skipped_protected == 1
     assert json.loads((bound_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
     assert json.loads((free_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.STALE
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_archiving_a_skill_refreshes_warm_chats(
+    curator_workspace: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An archived skill must leave warm chats too, so a sweep that archives bumps the config version."""
+    from app.core.skills.config_version import get_skill_config_version
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path / "version-root"))
+    long_idle = (datetime.now(UTC) - timedelta(days=400)).isoformat()
+    skill_dir = _write_skill(
+        curator_workspace,
+        "long-idle",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": long_idle,
+            "created_at": long_idle,
+            "lifecycle_status": "stale",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "archive_after_days": 90, "grace_period_days": 0, "enabled": True})
+    assert get_skill_config_version() == 0.0
+
+    result = await run_curator_sweep(force=True, trigger="manual")
+
+    assert result.archived_count == 1
+    assert json.loads((skill_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ARCHIVED
+    assert get_skill_config_version() > 0.0

@@ -582,6 +582,8 @@ def _reclaim_unreusable_backend(record: dict[str, object]) -> None:
     from isolated_runtime.reaper import release_runtime
     from isolated_runtime.registry import process_is_alive
 
+    from e2e_core.epoch_backend_pool import has_active_epoch_holders
+
     raw = record.get("ownerPid")
     if raw is None:
         return
@@ -594,6 +596,11 @@ def _reclaim_unreusable_backend(record: dict[str, object]) -> None:
     runtime_id = str(record.get("runtimeId") or "")
     owner_token = str(record.get("ownerToken") or "")
     if not runtime_id or not owner_token:
+        return
+    if has_active_epoch_holders(
+        isolated_root=_isolated_registry_root(),
+        runtime_id=runtime_id,
+    ):
         return
     try:
         release_runtime(runtime_id, owner_token)
@@ -650,32 +657,63 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     # record left by another workspace makes a broken tree look serviceable.
     if not _agent_root_present(monorepo):
         return _spawn_verify_backend_seed(monorepo=monorepo)
-    reused = _reusable_verify_backend(monorepo=monorepo)
-    if reused is not None:
-        return reused
-    last_result: VerifyBackendSeedResult | None = None
-    for attempt in range(SEED_CAP_MAX_ATTEMPTS):
-        active = _count_active_backend_only()
-        if active >= LIVE_SHPOIB_MAX_CONCURRENT:
-            last_result = _cap_reached_result(active)
-            if attempt + 1 < SEED_CAP_MAX_ATTEMPTS:
+    from e2e_core.epoch_backend_pool import (
+        epoch_fingerprint_single_flight,
+        register_epoch_backend_holder,
+    )
+
+    isolated_root = _isolated_registry_root()
+    with epoch_fingerprint_single_flight(
+        isolated_root=isolated_root,
+        fingerprint="verify-seed",
+    ):
+        reused = _reusable_verify_backend(monorepo=monorepo)
+        if reused is not None:
+            register_epoch_backend_holder(
+                isolated_root=isolated_root,
+                runtime_id=reused.runtime_id,
+                api_base=reused.api_base,
+                owner_token=reused.owner_token,
+            )
+            return reused
+        last_result: VerifyBackendSeedResult | None = None
+        for attempt in range(SEED_CAP_MAX_ATTEMPTS):
+            active = _count_active_backend_only()
+            if active >= LIVE_SHPOIB_MAX_CONCURRENT:
+                last_result = _cap_reached_result(active)
+                if attempt + 1 < SEED_CAP_MAX_ATTEMPTS:
+                    time.sleep(_seed_cap_retry_backoff_sec())
+                    reused = _reusable_verify_backend(monorepo=monorepo)
+                    if reused is not None:
+                        register_epoch_backend_holder(
+                            isolated_root=isolated_root,
+                            runtime_id=reused.runtime_id,
+                            api_base=reused.api_base,
+                            owner_token=reused.owner_token,
+                        )
+                        return reused
+                    continue
+                return last_result
+            result = _spawn_verify_backend_seed(monorepo=monorepo)
+            if result.ok:
+                register_epoch_backend_holder(
+                    isolated_root=isolated_root,
+                    runtime_id=result.runtime_id,
+                    api_base=result.api_base,
+                    owner_token=result.owner_token,
+                )
+                return result
+            last_result = result
+            if attempt + 1 < SEED_CAP_MAX_ATTEMPTS and _is_retriable_seed_detail(
+                result.detail
+            ):
                 time.sleep(_seed_cap_retry_backoff_sec())
                 continue
-            return last_result
-        result = _spawn_verify_backend_seed(monorepo=monorepo)
-        if result.ok:
             return result
-        last_result = result
-        if attempt + 1 < SEED_CAP_MAX_ATTEMPTS and _is_retriable_seed_detail(
-            result.detail
-        ):
-            time.sleep(_seed_cap_retry_backoff_sec())
-            continue
-        return result
-    if last_result is not None:
-        return last_result
-    active = _count_active_backend_only()
-    return _cap_reached_result(active)
+        if last_result is not None:
+            return last_result
+        active = _count_active_backend_only()
+        return _cap_reached_result(active)
 
 
 def _mark_runtime_cleaning(runtime_id: str) -> None:

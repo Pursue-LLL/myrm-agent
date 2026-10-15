@@ -10,6 +10,7 @@ from app.services.agent.oauth_token_policy import (
     classify_refresh_failure,
     credential_expiry,
     is_refresh_due,
+    is_renewable,
     jwt_expiry,
     refresh_token_fingerprint,
     resolve_expires_at,
@@ -106,7 +107,6 @@ class TestClassifyRefreshFailure:
         [
             (400, {"error": "invalid_grant"}),
             (401, {"error": "invalid_client"}),
-            (403, {"error": "access_denied"}),
             (400, {"error": "unsupported_grant_type"}),
         ],
     )
@@ -116,10 +116,26 @@ class TestClassifyRefreshFailure:
     @pytest.mark.parametrize(
         ("status", "body"),
         [
+            (403, {"error": "access_denied"}),
+            (
+                403,
+                {
+                    "code": "The caller does not have permission to execute the specified operation",
+                    "error": "This account is not authorized for API access.",
+                },
+            ),
+            (404, {"error": "not_found"}),
+            (407, {"error": "proxy_authentication_required"}),
+        ],
+    )
+    def test_access_gates_are_not_rejections_of_the_grant(self, status: int, body: object) -> None:
+        """A plan or tier gate answers a valid refresh token with 403; signing in again cannot lift it."""
+        assert classify_refresh_failure(status, body) == "transient"
+
+    @pytest.mark.parametrize(
+        ("status", "body"),
+        [
             (401, None),
-            (403, None),
-            (404, None),
-            (407, None),
             (400, "not-json-object"),
             (401, {"message": "Unauthorized"}),
             (400, {"error": ""}),
@@ -146,6 +162,24 @@ class TestClassifyRefreshFailure:
     )
     def test_outages_and_rate_limits_are_transient(self, status: int, body: object) -> None:
         assert classify_refresh_failure(status, body) == "transient"
+
+
+class TestIsRenewable:
+    def test_needs_both_a_refresh_token_and_a_token_endpoint(self) -> None:
+        assert is_renewable({"token": "t", "refresh_token": "rt", "token_url": "https://auth.example/token"}) is True
+
+    @pytest.mark.parametrize(
+        "credential",
+        [
+            {"token": "t"},
+            {"token": "t", "refresh_token": "rt"},
+            {"token": "t", "token_url": "https://auth.example/token"},
+            {"token": "t", "refresh_token": "", "token_url": "https://auth.example/token"},
+            {"token": "t", "refresh_token": None, "token_url": "https://auth.example/token"},
+        ],
+    )
+    def test_a_credential_missing_either_cannot_renew(self, credential: dict[str, object]) -> None:
+        assert is_renewable(credential) is False
 
 
 class TestRefreshTokenFingerprint:

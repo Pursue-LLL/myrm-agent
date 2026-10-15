@@ -46,7 +46,6 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     summary: str
     description: str | None = None
     confidence: float | None = None
-    test_passed: bool | None = None
     apply_status: str | None = None
     apply_error: str | None = None
     reason_code: str | None = None
@@ -158,7 +157,6 @@ def _summary_response(
         summary=item.summary,
         description=item.description,
         confidence=item.confidence,
-        test_passed=item.test_passed,
         apply_status=item.apply_status,
         apply_error=item.apply_error,
         reason_code=item.reason_code,

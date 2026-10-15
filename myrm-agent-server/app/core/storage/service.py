@@ -14,7 +14,6 @@ import nanoid
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 from myrm_agent_harness.toolkits.storage.paths import (
     FILE_METADATA_SUFFIX,
-    get_all_files_prefix,
     get_file_metadata_path,
     get_file_storage_path,
     get_user_files_prefix,
@@ -99,7 +98,7 @@ class FilesService:
         content: bytes | None = None,
         sandbox_path: str | None = None,
     ) -> File:
-        """保存文件（实现 FileService Protocol）
+        """保存文件
 
         根据参数自动选择保存方式：
         - content 提供时：上传文件内容（Sandbox 模式）
@@ -281,7 +280,7 @@ class FilesService:
         return None
 
     async def get_content(self, file_id: str) -> bytes:
-        """获取文件内容（实现 FileService Protocol）
+        """获取文件内容
 
         Args:
             file_id: 文件 ID
@@ -403,7 +402,7 @@ class FilesService:
         now = datetime.utcnow()
 
         try:
-            prefix = get_all_files_prefix()
+            prefix = get_user_files_prefix()
             file_paths = await self.storage.list(prefix)
 
             for file_path in file_paths:

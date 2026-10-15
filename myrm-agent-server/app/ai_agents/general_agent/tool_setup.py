@@ -135,7 +135,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
         _session_vault: object | None
         _browser_session: object | None
         _desktop_session: object | None
-        _current_thread_id: str | None
         _current_chat_id: str | None
         skill_ids: list[str]
         enable_cron_eager: bool
@@ -833,7 +832,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 domain_blocklist = DomainAllowlist.from_strings(merged_security.network_blocklist)
 
             thread_id = self.approval_session_key or f"chat_{effective_chat_id}"
-            self._current_thread_id = thread_id
 
             # Determine context_key for browser session
             # 1. Custom Agents (have agent_id) should share browser state across chats

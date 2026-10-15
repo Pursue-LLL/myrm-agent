@@ -1325,17 +1325,21 @@ export const updateCompactionSummary = async (chatId: string, summary: string): 
   });
 };
 
+export type CatchupStatus = 'completed' | 'running' | 'waiting_for_approval' | 'error' | 'stopped';
+export type CatchupNeed = 'approval' | 'error' | 'question';
+
 export interface CatchupBrief {
   chat_id: string;
+  /** Empty when the chat has no title yet; the UI supplies the localized placeholder. */
   chat_title: string;
   updated_at: string;
   last_user_prompt: string;
-  latest_agent_response: string;
+  /** Bounded opening of the latest agent reply. */
+  result_preview: string;
   files_touched: string[];
   tool_counts: Record<string, number>;
-  activity_steps: string[];
-  needs_from_user: string | null;
-  status: string;
+  needs_from_user: CatchupNeed | null;
+  status: CatchupStatus;
 }
 
 export interface CatchupResponse {
@@ -1343,18 +1347,19 @@ export interface CatchupResponse {
 }
 
 /**
- * Fetch catchup briefs for all unread chats.
+ * Fetch a brief for every chat the user has not caught up with.
  */
 export const getCatchupBriefs = async (): Promise<CatchupResponse> => {
   return apiRequest(`/chats/catchup?t=${Date.now()}`);
 };
 
 /**
- * Mark a chat as read.
+ * Record the user's presence in a chat. `silent` suppresses the error toast for background stamping.
  */
-export const markChatAsRead = async (chatId: string): Promise<void> => {
+export const markChatAsRead = async (chatId: string, options: { silent?: boolean } = {}): Promise<void> => {
   await apiRequest(`/chats/${chatId}/read`, {
     method: 'POST',
+    silent: options.silent,
   });
 };
 

@@ -6,7 +6,7 @@
  * - SettingsSection (POS: Settings section layout shell)
  *
  * [OUTPUT]
- * - SystemHealthPanel: bundle-level system health for memory/workspace/offload/archive scenes
+ * - SystemHealthPanel: bundle-level system health for memory/workspace/offload scenes
  *
  * [POS]
  * Developer settings diagnostics. Surfaces harness context bundle health (paths, ripgrep, migration).
@@ -173,7 +173,6 @@ const SystemHealthPanel = memo(() => {
           <p className="text-xs text-muted-foreground leading-relaxed">
             {t('meta', {
               deploy: health.deploy_mode,
-              storage: health.storage_mode,
               bundle: health.bundle_id,
             })}
           </p>
@@ -245,7 +244,7 @@ SystemHealthPanel.displayName = 'SystemHealthPanel';
 
 export default SystemHealthPanel;
 
-const SCENE_LABEL_KEYS = ['memory', 'workspace', 'offload', 'archive'] as const;
+const SCENE_LABEL_KEYS = ['memory', 'workspace', 'offload'] as const;
 type SceneLabelKey = (typeof SCENE_LABEL_KEYS)[number];
 
 function isSceneLabelKey(key: string): key is SceneLabelKey {

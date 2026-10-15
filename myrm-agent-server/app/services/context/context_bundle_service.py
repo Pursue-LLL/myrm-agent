@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.context.context_assembly::ContextAssemblyService (POS: context assembly)
 - myrm_agent_harness.toolkits.context_bundle (POS: context bundle toolkit)
+- myrm_agent_harness.runtime.paths.execution_paths::get_context_root (POS: context offload root in effect)
 
 [OUTPUT]
 - ContextBundleService: bundle health, migration dry-run/apply
@@ -13,20 +14,21 @@ Server-side ContextBundle orchestration. Wraps Harness facade without duplicatin
 
 from __future__ import annotations
 
+from typing import Literal
+
+from myrm_agent_harness.runtime.paths.execution_paths import get_context_root
 from myrm_agent_harness.toolkits.context_bundle import (
     ContextBundleFacade,
-    ContextScene,
     apply_migration,
     run_migration_dry_run,
 )
 from myrm_agent_harness.toolkits.context_bundle.health import (
     HealthProbe,
     MemorySceneHealthBackend,
-    StaticSceneHealthBackend,
     WorkspaceSceneHealthBackend,
 )
 
-from app.config.deploy_mode import get_deploy_mode, get_storage_mode
+from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
 from app.schemas.context.bundle import (
     ContextBundleHealthResponse,
@@ -44,8 +46,6 @@ class ContextBundleService:
         registry = facade.index()
         registry.register(MemorySceneHealthBackend(facade.memory_path()))
         registry.register(WorkspaceSceneHealthBackend(_make_workspace_health_probe(facade)))
-        registry.register(StaticSceneHealthBackend(ContextScene.OFFLOAD, _path_writable_status(facade.offload_root())))
-        registry.register(StaticSceneHealthBackend(ContextScene.ARCHIVE, _path_writable_status(facade.archive_path())))
         return facade
 
     async def get_health(self) -> ContextBundleHealthResponse:
@@ -60,6 +60,7 @@ class ContextBundleService:
             )
             for scene, path in health.scene_paths.items()
         ]
+        scenes.append(_offload_scene_health())
         return ContextBundleHealthResponse(
             bundle_id=health.bundle_id,
             schema_version=health.schema_version,
@@ -70,7 +71,6 @@ class ContextBundleService:
             writable=health.writable,
             manifest_exists=health.manifest_exists,
             deploy_mode=get_deploy_mode(),
-            storage_mode=get_storage_mode(),
             scenes=scenes,
             migration_actions_pending=len(migration.actions),
             warnings=list(migration.warnings),
@@ -109,6 +109,16 @@ def _make_workspace_health_probe(facade: ContextBundleFacade) -> HealthProbe:
     return probe
 
 
+def _offload_scene_health() -> ContextBundleSceneHealth:
+    """Context offload files live under the runtime context root, which the bundle volume does not declare."""
+    root = get_context_root()
+    return ContextBundleSceneHealth(
+        scene="offload",
+        path=root,
+        index_status=_normalize_index_status(_path_writable_status(root)),
+    )
+
+
 def _path_writable_status(path: object) -> str:
     import os
     from pathlib import Path
@@ -120,7 +130,9 @@ def _path_writable_status(path: object) -> str:
     return "critical"
 
 
-def _normalize_index_status(value: str) -> str:
-    if value in {"ready", "degraded", "missing", "critical"}:
-        return "degraded" if value == "critical" else value
+def _normalize_index_status(value: str) -> Literal["ready", "degraded", "missing"]:
+    if value == "ready":
+        return "ready"
+    if value in {"degraded", "critical"}:
+        return "degraded"
     return "missing"

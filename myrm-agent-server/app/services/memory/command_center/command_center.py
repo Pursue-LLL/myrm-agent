@@ -30,7 +30,7 @@ from myrm_agent_harness.toolkits.memory import (
 from sqlalchemy import Select, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config.deploy_mode import get_deploy_mode, get_embedding_mode, get_storage_mode
+from app.config.deploy_mode import get_deploy_mode, get_embedding_mode
 from app.config.settings import settings
 from app.database.models.memory import (
     MemoryOperationEventModel,
@@ -265,7 +265,6 @@ class MemoryCommandCenterService:
             migration=migration,
             plane_summary=self._insights.build_plane_summary(
                 health_status=health.status,
-                storage_mode=get_storage_mode().value,
                 timeline=timeline,
                 governance_backlog=len(governance),
                 import_rollback_health=import_rollback_health,
@@ -749,7 +748,6 @@ class MemoryCommandCenterService:
     def _build_runtime(self, deploy_mode: str) -> MemoryCommandRuntimeStatus:
         return MemoryCommandRuntimeStatus(
             deploy_mode=deploy_mode,
-            storage_mode=get_storage_mode().value,
             memory_base_path=settings.database.memory_base_path,
             relational_status=("available" if self._memory_manager.has_relational else "unavailable"),
             vector_status=("available" if self._memory_manager.has_vector else "unavailable"),
