@@ -34,6 +34,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_skill_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+GLOBAL_WRITE×1）：经 `.zip` 上传装一个带密钥与本机路径的技能，`/settings/skills` 已安装列表搜索 → 详情抽屉 → 导出，对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框；结束卸载该技能 |
 | `support/test_chrome_bridge_diagnostics.py` | 单元 | `wait_for_react_e2e_bridge` 超时诊断：快照辅助返回页面 readyState/脚本加载/未捕获错误，自身异常不覆盖原始超时，超时信息携带 `diagnostics=` 以区分「未 hydrate」与「脚本未加载完」 |
 | `support/test_chrome_bridge_load.py` | 单元 | `wait_for_load_to_settle` 及其在 `wait_for_react_e2e_bridge` 中的接线（假时钟）：脚本仍在完成时不触发 heal 重载（慢 hydrate 的页面能等到 bridge），45s 无进展才重载，截止时间到仍带诊断失败；探针 JS 暴露等待所读信号，API 轮询不算加载进度 |
+| `support/test_chrome_api_queue.py` | 单元 | `wait_for_api_queue_to_drain`（假时钟）：空闲页连续 3 次快速探针即放行；探针排队时持续等待；两次突发之间的单个快样本不放行；文档仍在加载不放行；失败探针清零连续计数；页面暂不可求值时重探；截止时间到带最后一次探针结果失败；探针 JS 是发往 API 源的带预检 GET |
 | `e2e/test_telemetry_posture_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Developer 设置页面 OpenTelemetry Posture 遥测态势卡片、协议/端点/特性渲染与刷新端到端测试 |
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
 | `api/system/test_update_snapshots_api.py` | 单元 | 系统 API 恢复点路由：创建、列表、排队恢复（下次启动生效，运行库不被写）、删除 |
@@ -102,6 +103,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/e2e_fixture_stamps.py` | 辅助 | Chrome E2E 租约夹具（`conftest.py::_require_live_e2e_lease`）内的墙钟戳：一次输出 `E2E_LEASE_FIXTURE_STAMPS` 行，根仓 `scripts/dev/e2e_wait_audit.py` 的 `C4b`–`C4i` 据此拆分后端启动后到 body 前的夹具耗时 |
 | `../../scripts/dev/lib/e2e_core/shared_ui_session.py` | 辅助 | R51-v2 Shared UI Session Contract（marker `e2e_search_policy` · conftest env · bootstrap/`click_new_chat` 四阶段 reset） |
 | `support/chrome_bridge_load.py` | 辅助 | E2E bridge 等待的「慢加载 vs 卡死」判定（纯逻辑，时钟可注入）：脚本仍在完成视为 hydrate 中，`complete` 且静默 3s 视为沉降，45s 无变化视为停滞，只有后两者才交给 heal 重载 |
+| `support/chrome_api_queue.py` | 辅助 | E2E 点击前的「API 排队已排空」判定（时钟可注入）：Chrome 对同一主机最多 6 个并发连接且 SSE 长连接常驻占位，跨源 JSON 请求还要多一次预检，页面挂载并发会让新请求在队列里等过前端 30s 超时；用带预检的 GET 探针，连续 3 次在 3s 内完成且文档 `complete` 才视为排空 |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言 + `drawer_mount_wait_js` 等待 lazy drawer mount） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装；`hide_sse_heartbeats`（同步 `TestClient`）与 `hide_sse_heartbeats_async`（`httpx.AsyncClient`）响应钩子共用同一状态机，让行解析器看不到 keep-alive 帧；`check_e2e_errors` 环境类错误 skip） |
