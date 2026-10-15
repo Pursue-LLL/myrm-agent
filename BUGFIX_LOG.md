@@ -2388,7 +2388,7 @@ except Exception:
 
 1. harness：`retry_failed_task` 持有重置、`FAILED→READY` 的 CAS 与 `RETRYING` 审计事件；按 store 的 `asyncio.Lock` 串行化重复提交；重置在任务仍为 FAILED 时先落库，其后才做 CAS，工作线程紧接着认领时不会被覆盖。`KanbanDispatcher.retry_task` 只在真正生效时发 `task_retrying` 并唤醒分发器；`kanban_retry_task` 委托它，工具 schema、docstring 与错误文案逐字不变。
 2. server：`POST /api/v1/kanban/tasks/{id}/retry`，任务不存在返回 404，非 FAILED 的任务原样返回 200（重复提交幂等）；手动移出 FAILED 仍被拒绝，重试是唯一回路。
-3. frontend：`kanban-transitions.ts` 的 `resolveMoveIntent` 镜像服务端守卫，返回 `move / retry / archive / blocked`；卡片菜单、抽屉、拖拽三条路径都经 `requestMove`，重试与归档弹确认，`failed→ready` 变成「重试」；拖拽先排除不可能的目标并给本地化提示（只有 `deps_unmet` 用专门文案，其它一律通用文案，不再显示服务端原文）；批量归档用与批量删除一致的行内确认；`ConfirmDialog` 描述加 `wrap-anywhere`；批量操作栏加 `whitespace-nowrap` 与子项不收缩，窄屏下整条横向滚动而不是把按钮文字竖排。
+3. frontend：`kanban-transitions.ts` 的 `resolveMoveIntent` 镜像服务端守卫，返回 `move / retry / archive / blocked`；卡片菜单、抽屉、拖拽三条路径都经 `requestMove`，重试与归档弹确认，`failed→ready` 变成「重试」；拖拽先排除不可能的目标并给本地化提示（只有 `deps_unmet` 用专门文案，其它一律通用文案，不再显示服务端原文）；批量归档用与批量删除一致的行内确认；`ConfirmDialog` 描述加 `wrap-anywhere`；批量操作栏加 `whitespace-nowrap` 与子项不收缩，窄屏下整条横向滚动而不是把按钮文字竖排（这个做法后来被 `BUG-AGENT-2026-10-15-001` 取代：横向滚动的容器会把菜单裁掉，现在窄屏只显示图标）。
 4. 三处写死中文的对话框改走 i18n；`ConclusionAttributionStudioCard` 里无调用方的 `cascade` 参数及其「级联模式」措辞一并移除，并去掉其中一处原生 emoji。6 个语言包同步新增键。
 5. 确认文案与实际行为一致：重试确认写明「失败后已继续推进的下游任务不会重新执行」（失败即放行依赖它的 BACKLOG 任务，见 `dispatcher_failure.py` 的失败收尾）；归档确认直接写明任务无法恢复（服务端与界面都没有恢复已归档任务的路径）。
 6. 批量操作栏请求失败时显示本地化提示并保留选中（复用 `updateError`），不再显示原始异常；`bulk-action` 移除 `reclaim`，会中止运行中 agent 的动作只保留带确认的单任务入口；`TestBulkAction` 迁入独立的 `test_bulk_action_api.py`。
@@ -2776,3 +2776,75 @@ except Exception:
 3. 拆分 mixin 后，文档里「由某文件调用」要改成真实调用方，而不是跟着文件名走。
 4. 测试夹具按模块路径打补丁：方法迁到新模块后，补丁路径要同步，否则补丁打在旧模块上不报错、却不生效。
 5. 给界面加提示之前，先沿着渲染入口查一遍它对默认用户是否可见（功能开关、接口是否挂载）；只在实验面板里可见的提示不等于告知了用户。
+
+---
+
+## BUG-AGENT-2026-10-15-001: 看板批量「重新指派 → 未分配」让每个任务都失败；批量栏的菜单被裁掉、整条栏被全局触发行盖住；批量选择在操作后被清空、能碰到被筛选藏起来的任务；Shift 连选跨列；移动守卫表在前后端各存一份；任务抽屉在 375px 手机上被裁掉左边
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（批量「未分配」对所选任务 100% 失败；其余为窄屏、键盘与选择语义缺陷，不丢数据） |
+| 影响范围 | server：`app/api/kanban/routes/bulk.py`、`tests/api/kanban/test_bulk_action_api.py`、新增 `tests/api/kanban/test_move_guard_contract.py`；shared：新增 `config/kanban_move_guard.json`；frontend：`components/features/kanban/` 下批量栏、选择、看板视图拆分、抽屉、L4 头部与 `_ARCH.md` |
+| 出现次数 | 1（复审批量操作栏与看板视图时，在真实 Chromium 里逐项走查发现；浏览器里的接口是拦截返回的假数据，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-14-021`（批量栏与移动守卫）；本地提交，未 push |
+
+### 现象
+
+1. 批量栏「重新指派 → 未分配」对所选的每个任务都返回「Agent '' not found」：界面传的空 `agent_id` 被路由原样交给 `update_task`，后者把 `""` 当成 agent 去查。批量接口的测试把整个 agent 校验器 patch 掉了，所以一直是绿的。
+2. 「移动到」「重新指派」两个菜单绝对定位在 `overflow-x-auto` 的行里，被裁掉；整条栏贴着视口底部，被全局触发行盖住，按钮点不到。
+3. 批量动作之后整个选择被清空，失败的任务不能原地重试；选择里可以留着已删除、已归档的任务，复审时又发现：切到「需要处理」「自主执行」等责任筛选后，被藏起来的卡片仍然被选中，栏上的计数把它们算进去，批量动作会碰到用户看不见的任务。
+4. Shift 连选按接口返回的平铺顺序取区间，会选中其它列的卡片；在菜单或对话框里按 Escape 关闭它们时，同一次按键还会清掉选择。
+5. 前端的「可移动状态」表是服务端守卫的手写副本，测试里又有一张 72 对的表复述同一份规则，服务端改规则时两边会悄悄漂移。
+6. 任务抽屉固定 400px，低于 `sm` 没有上限：375px 手机上它比视口宽 25px（实测盒子 `x=-25, width=400`），标题、芯片与卡片的左边被裁。
+7. 维护层面：`KanbanBoardView.tsx` 940 行（超过 500 行硬线）；`_ARCH.md` 的 I/O/P 列打了 ✅ 的 20 个文件没有 L4 头；7 个 oxlint 警告；抽屉里的时限、技能、模型芯片是带 `role="button"` 的非原生元素；`KanbanTaskCard.tsx` 内联了一份与 `resolveTaskDepInfos` 相同的依赖解析循环。
+
+### 根因
+
+1. 路由没有把界面的「空串 = 未分配」换成存储层的 `None`（单任务接口早已这样做）；测试 patch 的是校验器而不是 agent 查询，把这条路径整个屏蔽。
+2. 菜单做成行内绝对定位，没有走项目已有的 portal 型 `DropdownMenu`；栏的 `bottom` 没有避开固定的全局触发行。
+3. 选择是一份独立的 id 数组，对「所有已加载任务」求交，而不是对「列里实际渲染的卡片」求交；动作完成回调不带失败 id。
+4. 连选用的是 API 顺序而不是屏幕顺序；Escape 监听没有看 `event.defaultPrevented`。
+5. 规则只有服务端一份真实来源，前端与测试各抄了一遍。
+6. `SheetContent` 的右侧基础类是 `w-3/4 sm:max-w-sm`，抽屉用 `w-[400px]` 覆盖了宽度，同时 `sm:max-w-` 只在 `sm` 以上生效，小屏没有上限。
+7. 文件按功能逐项累积，没有在越过行数线时拆分；头部与原生元素是历史欠账。
+
+### 修复
+
+1. server（`8c9c9fd9f9`）：批量重新指派把 `""` 映射为 `None`；测试改为只 stub agent 查询，真实校验器参与运行，新增「取消指派后存储的 `agent_id` 为 `None`」与「未知 agent 逐项失败、任务不变」两例。
+2. frontend（`21fbf5390c`）：两个菜单改用共享的 `DropdownMenu`（portal、向上展开）；栏抬到 `bottom-[4.5rem]`，高于全局触发行；`sm` 以下只显示图标并带 `aria-label`。
+3. frontend（`c24db834b2`、`d975192ae7`）：选择规则落到 `kanban-selection.ts` 与 `useKanbanSelection.ts`。选择只保留「列里渲染出的卡片」（被删除、归档或被责任筛选藏起来的都不在其中，没有裁剪时保持同一个数组引用）；换看板在渲染期重置；失败项通过 `onComplete(failedTaskIds)` 留在选择里，服务端的失败原文仍不展示；`selectedStatuses` 取自 `tasks` 按选中 id 过滤（保持看板顺序）。Shift 区间限定在锚点所在列、按屏幕顺序（含运行列的 lane 与折叠的 lane），锚点不在同列时退化为单选切换；Escape 忽略 `defaultPrevented`。
+4. 共享守卫（`d64e788635`）：规则写入 `shared/config/kanban_move_guard.json`（9 个状态），前端通过 `@shared/config/...` 读取；服务端新增契约测试，把 9×9 个状态对（含原地不动）逐一走真实的 `POST /api/v1/kanban/tasks/{id}/move`，答案必须与表一致。
+5. 看板视图拆分（`f37d37eeb1`）：`KanbanBoardView.tsx` 940 → 429 行，拆出 `useKanbanBoardData`、`useKanbanMoveTask`、`useKanbanLanes`、`KanbanFilterBanners`、`KanbanBoardHeader`、`KanbanBoardStats`、`KanbanViewControls`、`KanbanColumnAddFooter`、`KanbanMoveConfirmDialogs`，`STATUS_COLUMNS` 移到 `kanban-styles.ts`；行为不变。
+6. 维护（`dcea578d2f`）：20 个文件按真实的导入与导出补上 L4 头；抽屉的时限、技能、模型芯片改为原生 `<button>`，验收标准卡片因正文含链接与块级元素保持 `role="button"`（原有的 `activateOnKey` 负责键盘激活），补上带理由的 oxlint 禁用注释与键盘激活用例；图节点卡片与用户提供的 `<img>` 来源同样加带理由的禁用注释；`KanbanTaskCard` 改用 `resolveTaskDepInfos`。文档同步见 `573dc153d4`。
+7. 抽屉宽度：`w-[400px]` 改为 `w-full sm:w-[400px]`（`sm` 以上仍是 400px、上限 440px）。
+
+### 验证
+
+1. server：`test_move_guard_contract.py` 与 `test_bulk_action_api.py` 共 15 例通过，`ruff check` 与 `ruff format --check` 通过。把表里一个条目改反后契约测试失败并指出具体的状态对（变异）。
+2. frontend：`vitest run src/components/features/kanban src/lib/kanban` 27 个文件 392 例通过；`oxlint src/components/features/kanban` 退出码 0；改动文件的 prettier 无问题。新增用例里，「过滤隐藏的卡片不再被选中」（hook 与看板各一例）对旧的裁剪规则会失败、「验收标准卡片键盘激活」在移除处理器后会失败（变异验证）；芯片点击与 `resolveTaskDepInfos` 用例没有做变异验证。
+3. 真实 Chromium（patchright + 对工作区跑 `next build` 得到的生产构建，接口用请求拦截返回假数据，没有接真实后端）：批量栏走查在 1600 / 1440 / 1280 / 375 四个视口全部通过（按钮与菜单项都能命中、菜单选择发出正确请求、点击外部关闭菜单且保留选择、行内删除确认在手机上放得下）；拆分出的看板部件走查 46 项通过、0 项失败（1440×900 与 375×812 触屏：添加页脚、图/看板切换与本地持久化、责任筛选高亮、lane 开关、刷新、抽屉芯片为原生按钮并响应 Enter/Space、验收标准卡片 Enter、状态与来源对话两种筛选横幅，且无未捕获的页面错误）。
+4. 抽屉宽度：修复前 375px 视口下抽屉盒子是 `x=-25, width=400`，走查失败；修复后重新构建重跑，通过，并目视了 375 与 1440 两张截图（头部与关闭按钮完整可见）。
+5. 门禁脚本自己的问题（不是产品缺陷，如实记录）：批量栏走查首次运行有 8 项失败，原因是脚本在栏 200ms 入场动画未结束时就测命中，改为等待 `getAnimations().finished` 后四个视口全部通过；拆分部件走查前几次失败依次是脚本里「全部」按钮的名字写成 `All`（实际是 `All Tasks`）、拦截路由里 `startswith("boards/b-verify/tasks")` 排在 `/race` 之前，把赛马请求吞成了任务列表，`RaceSection` 读到 `undefined.some` 触发全局错误页（真实接口返回 `lanes`），以及一个含 `/` 的正则选择器无法解析。崩溃时是用错误边界上报的 `/api/v1/logs/client-error` 请求体拿到真实堆栈才定位到脚本侧，而不是凭猜测。
+6. 看板视图拆分：与旧文件做逐 token 比较，只有胶水代码不同（属性代替闭包、`boardId` 代替 `board.board_id`、导入）。
+
+### 局限
+
+1. 前端读的是共享 JSON，表项本身写错时前端测试发现不了，兜底的是服务端 9×9 契约测试。
+2. `STATUS_DOT` 与 `STATUS_DOT_COLORS` 里 `blocked` 的颜色不一致，是旧有设计，没有动。
+3. 选择由「渲染出的卡片」推导：筛选先隐藏再切回，之前选中的卡片会重新出现在选择里（没有记忆被丢弃的 id）。
+4. `KanbanTaskCard.tsx` 仍是 772 行，超过 500 行硬线，是更早就存在的，不在这批范围内，未拆。
+5. 浏览器走查用的是假接口，没有验证真实后端在浏览器里的批量行为；服务端行为由 pytest 与契约测试覆盖。
+6. 走查截图里，另一个会话尚未提交的 `KanbanTaskHandoffSection.tsx` 显示成原始键名（`KANBAN.TASKHANDOFF`、`kanban.delegateTask`、`kanban.currentAssignee:`）：`taskHandoff`、`delegateTask`、`currentAssignee` 不在 `en.json` 与 `zh.json` 里，next-intl 对缺失键返回键路径本身，所以组件里 `t(...) || '中文回退'` 的回退永远不会生效。该文件与它的测试不属于本批，没有改，也没有提交；它提交前需要补齐 6 个语言包的键并去掉写死的中文回退。
+7. 同样的「固定像素宽、小屏无上限」类名还出现在 `MemoryCitationsButton.tsx`、`SourcesButton.tsx`、`ChatSidebarContent.tsx` 的 `SheetContent`（`w-[400px] sm:w-[540px]`）；只按类名判断，没有在浏览器里量过，也没有改。
+8. 未改动任何提示词。
+
+### 踩坑经验
+
+1. 测试里 patch 整个校验器，会把校验器自己的缺陷一起屏蔽；只 stub 外部查询，让真实的校验逻辑参与。
+2. 派生出来的选择要对「屏幕上渲染出的东西」求交，而不是对「加载的数据」求交；两者在筛选下是不同的集合。
+3. 绝对定位的菜单放进带 `overflow` 的容器必被裁；用 portal 型组件，并在真实浏览器里量命中。
+4. 真实浏览器门禁里，拦截路由的通配分支要放在具体分支之后；否则页面崩溃会被误当成产品缺陷。先取错误边界上报的真实堆栈，再下结论。
+5. `SheetContent` 在 `sm` 以下没有 `max-w`，固定像素宽的抽屉要给小屏写 `w-full`。
+6. 带入场动画的浮层，门禁要先等 `getAnimations().finished` 再测命中，否则测到的是动画中途的位置。
