@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - @/services/kanban::moveTask, promoteTask, reclaimTask, approveTask, rejectTask (POS: 任务状态流转 API)
+ * - @/services/riskHeldToast::isRiskHeldError (POS: 被风控规则拦下的文字已有统一提示，失败提示据此跳过)
  * - ./kanban-transitions::resolveMoveIntent (POS: 判断移动是否属于重试或归档)
  *
  * [OUTPUT]
@@ -13,6 +14,7 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { KanbanTask, TaskStatus, PromoteResult } from '@/services/kanban';
 import { moveTask, promoteTask, reclaimTask, approveTask, rejectTask } from '@/services/kanban';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { resolveMoveIntent } from './kanban-transitions';
 
 interface UseKanbanTaskDrawerWorkflowParams {
@@ -74,8 +76,11 @@ export function useKanbanTaskDrawerWorkflow({
       onRefresh();
       onOpenChange(false);
       toast.success(t('rejectSuccess'));
-    } catch {
-      toast.error(t('rejectError'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held reason; the dialog keeps the text.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('rejectError'));
+      }
     }
     setRejecting(false);
   }, [task, rejectReason, onRefresh, onOpenChange, t]);

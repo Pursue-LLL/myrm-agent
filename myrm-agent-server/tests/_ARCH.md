@@ -119,7 +119,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/test_authoring_risk_gate.py` | 模块 | 智能体档案（创建与更新的 `system_prompt`、`description`、建议提示词、命令绑定指令；更新不带文字时不过闸）、提示词生成与 AI 创建的意图、批量目录的提示词、技能派生的指令的风险闸门（真实处理函数，只注入规则）：拒绝为 400 `risk_held` 且响应里没有原文、库里什么都没存、命中的文字不送达模型或引擎，干净文本照常通过 |
 | `api/agent/test_ai_build.py` | 模块 | AI 创建智能体接口：空意图与未配置模型的拒绝、SSE 流式产出；可用资源目录用真实 `Skill` 对象，只列 `available` 的技能 |
 | `core/cron/adapters/test_inbound_event_dispatch.py` | 模块 | IM 入站消息到事件触发的派发：空白消息跳过、委派给调度器、调度器报错被吞掉且围栏不外泄、非所有者的作业继承围栏；被风控规则拦下的消息不拉起作业且不写命中记录、日志只有规则名而没有原文，干净消息照常派发，筛查失败时不派发 |
-| `api/test_text_entry_risk_gate.py` | 模块 | 用户键入指令文本的 REST 入口的风险闸门（真实路由，只注入规则）：子智能体与后台任务的 steer 不送达、定时任务与心跳的提示词不落库（PATCH 没带 `prompt` 不重新过闸）、看板任务标题 / 描述 / 验收标准（含列表里的 `semantic` 项，`shell` 项不过闸）与评论不落库；拒绝为 400 `risk_held` 且响应里没有原文，干净文本照常通过 |
+| `api/test_text_entry_risk_gate.py` | 模块 | 用户键入指令文本的 REST 入口的风险闸门（真实路由，只注入规则）：子智能体与后台任务的 steer 不送达、定时任务与心跳的提示词不落库（PATCH 没带 `prompt` 不重新过闸）、看板任务标题 / 描述 / 验收标准（含列表里的 `semantic` 项，`shell` 项不过闸）、结果、驳回理由、移交的结果与元数据（含嵌套的字符串；任务不移动、仍在 IN_REVIEW）与评论不落库；拒绝为 400 `risk_held` 且响应里没有原文，干净文本照常通过 |
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |

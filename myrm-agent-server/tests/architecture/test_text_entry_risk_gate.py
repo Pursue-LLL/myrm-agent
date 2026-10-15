@@ -31,6 +31,8 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("api/cron/routes/heartbeat.py", "heartbeat_enable", "reject_if_risky"),
     ("api/kanban/routes/tasks.py", "create_task", "reject_if_risky"),
     ("api/kanban/routes/tasks.py", "update_task", "reject_if_risky"),
+    ("api/kanban/routes/tasks.py", "move_task", "reject_if_risky"),
+    ("api/kanban/routes/tasks.py", "reject_task", "reject_if_risky"),
     ("api/kanban/routes/task_meta.py", "add_comment", "reject_if_risky"),
     ("api/goals/constraints.py", "update_goal_constraints", "reject_if_risky"),
     ("api/goals/constraints.py", "update_goal_objective", "reject_if_risky"),

@@ -40,12 +40,12 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/boards/{board_id}/tasks` | `title` / `description` / 验收标准的文字部分（字符串形式与列表里的 `semantic` 项；`shell` 项是被执行的命令，不过闸）先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，不建任务）；POST body 可选 `metadata`（如 `source_chat_id`）、`model_override`（`provider/model`，经 `validate_model_override` 校验，非法 400）、`extra_skill_ids`（经 `validate_extra_skill_ids` 校验，id 不在可发现技能集内 400；仅用户路径生效——decompose/specify 输出不含技能、pipeline 仅注入预置模板技能，均走 service 层不受影响） |
-| GET/PATCH/DELETE | `/tasks/{task_id}` | PATCH 带上的 `title` / `description` / 验收标准文字同样先过风险闸门（没带的字段不重新过闸）；PATCH 支持 `result`/`metadata`/`require_approval` 等字段；`extra_skill_ids` 同样经 `validate_extra_skill_ids` 校验；`require_approval` 仅活动状态（TRIAGE/BACKLOG/READY/RUNNING/BLOCKED）可改，IN_REVIEW 与终态返回 400（守卫在 `task_ops.update_task`） |
-| POST | `/tasks/{task_id}/move` | - |
+| GET/PATCH/DELETE | `/tasks/{task_id}` | PATCH 带上的 `title` / `description` / `result` / 验收标准文字同样先过风险闸门（没带的字段不重新过闸）；PATCH 支持 `result`/`metadata`/`require_approval` 等字段；`extra_skill_ids` 同样经 `validate_extra_skill_ids` 校验；`require_approval` 仅活动状态（TRIAGE/BACKLOG/READY/RUNNING/BLOCKED）可改，IN_REVIEW 与终态返回 400（守卫在 `task_ops.update_task`） |
+| POST | `/tasks/{task_id}/move` | `result` 与移交 `metadata` 里的所有字符串（含嵌套的列表和对象）是下一个智能体会读到的文字，先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，任务不移动） |
 | POST | `/tasks/{task_id}/promote` | - |
 | POST | `/tasks/{task_id}/reclaim` | - |
 | POST | `/tasks/{task_id}/approve` | IN_REVIEW → COMPLETED（promote dependents；非 IN_REVIEW 幂等 200 返回当前状态） |
-| POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填，回写 error，retry_count 重置；非 IN_REVIEW 幂等 200） |
+| POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填且先过风险闸门，命中 400 `risk_held`、任务仍在 IN_REVIEW；回写 error，retry_count 重置；非 IN_REVIEW 幂等 200） |
 | POST | `/tasks/{task_id}/retry` | FAILED → READY（无请求体，重置重试预算；非 FAILED 幂等 200 返回当前状态） |
 
 ### `tasks_list.py`

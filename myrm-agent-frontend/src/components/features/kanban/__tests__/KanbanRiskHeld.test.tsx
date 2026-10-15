@@ -147,16 +147,53 @@ describe('kanban text entry when the server holds the text', () => {
       expect(hook.result.current.editingCriteria).toBe(true);
     });
 
+    it('explains a held result once and keeps the editor open', async () => {
+      stubFetch(400, riskHeldRefusalBody);
+      const hook = drawer();
+      act(() => {
+        hook.result.current.setEditingResult(true);
+        hook.result.current.setResultText('deployed with key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+      });
+
+      await act(() => hook.result.current.handleSaveResult());
+
+      expectOnlyTheNotice();
+      expect(hook.result.current.editingResult).toBe(true);
+    });
+
+    it('explains a held rejection reason once and keeps the dialog open with the text', async () => {
+      stubFetch(400, riskHeldRefusalBody);
+      const hook = drawer();
+      act(() => {
+        hook.result.current.setShowRejectDialog(true);
+        hook.result.current.setRejectReason('retry with key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+      });
+
+      await act(() => hook.result.current.handleReject());
+
+      expectOnlyTheNotice();
+      expect(hook.result.current.showRejectDialog).toBe(true);
+      expect(hook.result.current.rejectReason).toBe('retry with key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+    });
+
     it('still reports any other failure with its own toast', async () => {
       stubFetch(500, { detail: 'boom' });
       const hook = drawer();
-      act(() => hook.result.current.setCommentText('write the docs'));
+      act(() => {
+        hook.result.current.setCommentText('write the docs');
+        hook.result.current.setResultText('parsed 3 files');
+        hook.result.current.setRejectReason('add source citations');
+      });
 
       await act(() => hook.result.current.handleSubmitComment());
       await act(() => hook.result.current.handleSaveCriteria());
+      await act(() => hook.result.current.handleSaveResult());
+      await act(() => hook.result.current.handleReject());
 
       expect(sonnerToast.error).toHaveBeenCalledWith('addCommentError');
       expect(sonnerToast.error).toHaveBeenCalledWith('criteriaUpdateError');
+      expect(sonnerToast.error).toHaveBeenCalledWith('updateError');
+      expect(sonnerToast.error).toHaveBeenCalledWith('rejectError');
     });
   });
 });

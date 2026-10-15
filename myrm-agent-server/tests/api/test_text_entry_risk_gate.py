@@ -6,6 +6,7 @@ the matched rules, so the web UI can name them; clean text and fields that are n
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,6 +16,7 @@ from fastapi.testclient import TestClient
 from httpx import Response
 from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
 from app.api.agents.subagents import router as subagents_router
 from app.api.background_tasks.router import router as background_tasks_router
@@ -237,6 +239,95 @@ def test_kanban_task_update_without_text_is_not_screened(kanban_client: TestClie
     task_id = kanban_client.post(f"/api/v1/kanban/boards/{board_id}/tasks", json={"title": "deploy"}).json()["task_id"]
 
     assert kanban_client.patch(f"/api/v1/kanban/tasks/{task_id}", json={"priority": "high"}).status_code == 200
+
+
+def _new_task(client: TestClient) -> str:
+    return str(client.post(f"/api/v1/kanban/boards/{_board(client)}/tasks", json={"title": "deploy"}).json()["task_id"])
+
+
+def _task_state(client: TestClient, task_id: str) -> dict[str, object]:
+    state: dict[str, object] = client.get(f"/api/v1/kanban/tasks/{task_id}").json()
+    return state
+
+
+async def _put_in_review(task_id: str) -> None:
+    service = KanbanService.get_instance()
+    task = await service.get_task(task_id)
+    assert task is not None
+    task.status = TaskStatus.IN_REVIEW
+    await service.store.save_task(task)
+
+
+def test_kanban_task_result_with_a_secret_is_refused_and_unchanged(kanban_client: TestClient) -> None:
+    task_id = _new_task(kanban_client)
+
+    _assert_held(kanban_client.patch(f"/api/v1/kanban/tasks/{task_id}", json={"result": f"deployed with {SECRET}"}))
+
+    assert not _task_state(kanban_client, task_id)["result"]
+
+
+def test_kanban_task_clean_result_is_stored(kanban_client: TestClient) -> None:
+    task_id = _new_task(kanban_client)
+
+    response = kanban_client.patch(f"/api/v1/kanban/tasks/{task_id}", json={"result": "deployed to staging"})
+
+    assert response.status_code == 200
+    assert _task_state(kanban_client, task_id)["result"] == "deployed to staging"
+
+
+def test_kanban_reject_with_a_secret_is_refused_and_the_task_stays_in_review(kanban_client: TestClient) -> None:
+    task_id = _new_task(kanban_client)
+    asyncio.run(_put_in_review(task_id))
+
+    _assert_held(kanban_client.post(f"/api/v1/kanban/tasks/{task_id}/reject", json={"reason": f"retry with {SECRET}"}))
+
+    task = _task_state(kanban_client, task_id)
+    assert task["status"] == "in_review"
+    events = kanban_client.get(f"/api/v1/kanban/tasks/{task_id}/events").json()["items"]
+    assert SECRET not in str(task) + str(events)
+
+
+def test_kanban_reject_with_a_clean_reason_returns_the_task_to_ready(kanban_client: TestClient) -> None:
+    task_id = _new_task(kanban_client)
+    asyncio.run(_put_in_review(task_id))
+
+    response = kanban_client.post(f"/api/v1/kanban/tasks/{task_id}/reject", json={"reason": "add source citations"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+
+
+@pytest.mark.parametrize(
+    "handoff",
+    [
+        {"result": f"done, key {SECRET}"},
+        {"metadata": {"note": f"key {SECRET}"}},
+        {"metadata": {"checks": {"env": ["A=1", f"KEY={SECRET}"]}}},
+    ],
+)
+def test_kanban_move_with_a_secret_in_the_handoff_is_refused_and_not_moved(
+    kanban_client: TestClient, handoff: dict[str, object]
+) -> None:
+    task_id = _new_task(kanban_client)
+    before = _task_state(kanban_client, task_id)
+
+    _assert_held(kanban_client.post(f"/api/v1/kanban/tasks/{task_id}/move", json={"status": "backlog", **handoff}))
+
+    assert _task_state(kanban_client, task_id) == before
+
+
+def test_kanban_move_with_a_clean_handoff_stores_it(kanban_client: TestClient) -> None:
+    task_id = _new_task(kanban_client)
+
+    response = kanban_client.post(
+        f"/api/v1/kanban/tasks/{task_id}/move",
+        json={"status": "backlog", "result": "parsed 3 files", "metadata": {"changed_files": ["a.py", "b.py"]}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["result"] == "parsed 3 files"
+    assert body["metadata"]["handoff"]["changed_files"] == ["a.py", "b.py"]
 
 
 def test_kanban_comment_with_a_secret_is_refused_and_not_stored(kanban_client: TestClient) -> None:

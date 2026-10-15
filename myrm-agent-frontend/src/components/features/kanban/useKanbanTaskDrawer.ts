@@ -304,8 +304,11 @@ export function useKanbanTaskDrawer({
       setEditingResult(false);
       onRefresh();
       toast.success(t('resultUpdated'));
-    } catch {
-      toast.error(t('updateError'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held result; the editor stays open.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('updateError'));
+      }
     } finally {
       setSavingResult(false);
     }
