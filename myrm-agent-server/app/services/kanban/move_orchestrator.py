@@ -12,7 +12,7 @@
 - move_task, reclaim_task, cancel_task_execution, cleanup_task_worktree, merge_task_worktree (approve/reject live in review_ops)
 
 [POS]
-Task state transition orchestration: move, reclaim, cancel with dependency and event handling. COMPLETED triggers worktree merge back to the task branch; ARCHIVED triggers worktree cleanup. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops).
+Task state transition orchestration: move, reclaim, cancel with dependency and event handling. COMPLETED triggers worktree merge back to the task branch; ARCHIVED triggers worktree cleanup. Both run in the background (git cost grows with repository size, so the request must not wait for it) — the same way the dispatcher merges tasks it completes. Dependents of a merged task are released only after the merge, because they branch off the repository when they start. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops).
 """
 
 from __future__ import annotations
@@ -45,6 +45,7 @@ from app.services.kanban.service_mixins.types import (
 from app.services.kanban.worktree_ops import (
     cleanup_task_worktree,
     merge_task_worktree,
+    spawn_worktree_op,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,27 @@ async def synthesize_run(
         error=error,
     )
     return run.run_id
+
+
+async def _merge_then_release_dependents(
+    store: SqlAlchemyKanbanStore,
+    dispatchers: dict[str, KanbanDispatcher],
+    runner: TaskRunner | None,
+    task: KanbanTask,
+    wake_dispatcher: WakeDispatcher,
+) -> None:
+    """Merge a completed task's worktree, then let its dependents start.
+
+    Dependents create their worktree from the repository as it is when they start, so they must not be
+    released before the merge lands. They are released even when the merge fails or raises: the failure is
+    recorded as an event and the worktree is preserved, so holding them back would only stall the board.
+    """
+    try:
+        await merge_task_worktree(runner, task, store)
+    finally:
+        await promote_dependents(store, task.task_id)
+        if task.board_id in dispatchers:
+            wake_dispatcher(task.board_id)
 
 
 async def move_task(
@@ -213,13 +235,14 @@ async def move_task(
             },
         )
 
-    if target_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED):
+    merges_worktree = target_status == TaskStatus.COMPLETED and bool(saved.branch)
+    if target_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED) and not merges_worktree:
         await promote_dependents(store, task_id)
 
-    if target_status == TaskStatus.COMPLETED and saved.branch:
-        await merge_task_worktree(runner, saved, store)
+    if merges_worktree:
+        spawn_worktree_op(_merge_then_release_dependents(store, dispatchers, runner, saved, wake_dispatcher))
     elif target_status == TaskStatus.ARCHIVED and saved.branch:
-        await cleanup_task_worktree(runner, saved)
+        spawn_worktree_op(cleanup_task_worktree(runner, saved))
 
     if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
         # If this is a goal-mode task, synchronize goal resumption in GoalRegistry
