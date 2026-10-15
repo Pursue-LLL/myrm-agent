@@ -2,6 +2,7 @@
  * [INPUT]
  * - @/services/kanban (POS: 任务类型与完成意图判定)
  * - @/lib/kanban/kanbanDecisionFrame::deriveTaskDecisionFrame (POS: 责任方与推荐动作推导)
+ * - @/lib/kanban/kanbanBlockedReason::blockedReasonText (POS: 阻塞原因的界面语言文案)
  * - ./kanban-styles (POS: 优先级、状态点、诊断严重度样式与耗时格式化)
  * - ./useKanbanTaskCardDetails、./KanbanTaskCardDetails (POS: 展开详情的数据层与面板)
  * - ./KanbanTaskCardActions、./KanbanSpecifyDialog、./KanbanDecomposeDialog (POS: 卡片菜单与两个任务对话框)
@@ -33,6 +34,7 @@ import {
   Bot,
 } from 'lucide-react';
 import { deriveTaskDecisionFrame } from '@/lib/kanban/kanbanDecisionFrame';
+import { blockedReasonText } from '@/lib/kanban/kanbanBlockedReason';
 import { PRIORITY_INDICATORS, DIAGNOSTIC_SEVERITY_STYLES, formatDuration } from './kanban-styles';
 import KanbanTaskCardActions from './KanbanTaskCardActions';
 import KanbanTaskCardDetails from './KanbanTaskCardDetails';
@@ -291,7 +293,7 @@ export default function KanbanTaskCard({
                 {task.block_kind === 'scheduled' && <Clock className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'external' && <ExternalLink className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'human' && <User className="w-3 h-3 shrink-0" />}
-                {task.blocked_reason}
+                {blockedReasonText(task.blocked_reason, t)}
               </span>
             )}
             {task.block_kind === 'scheduled' && task.scheduled_until && (

@@ -8263,6 +8263,9 @@
       "actionBacklog": "排定优先级并安排执行",
       "actionDone": "任务已成功执行完毕"
     },
+    "blockedReason": {
+      "parentMergeFailed": "前置任务的改动合并失败，请先处理，再继续"
+    },
     "cardActions": "任务操作",
     "deleteConfirmTitle": "删除此任务？",
     "deleteConfirmDesc": "「{title}」\n任务及其运行记录将被永久删除。正在等待它的任务，若没有其他依赖未完成，会变为就绪状态并可能自动开始执行。"

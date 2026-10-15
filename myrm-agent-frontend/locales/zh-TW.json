@@ -8195,6 +8195,9 @@
       "actionBacklog": "排定優先順序並安排執行",
       "actionDone": "任務已成功執行完畢"
     },
+    "blockedReason": {
+      "parentMergeFailed": "前置任務的變更合併失敗，請先處理，再繼續"
+    },
     "cardActions": "任務操作",
     "deleteConfirmTitle": "刪除此任務？",
     "deleteConfirmDesc": "「{title}」\n任務及其執行記錄將被永久刪除。正在等待它的任務，若沒有其他依賴未完成，會變為就緒狀態並可能自動開始執行。"

@@ -125,6 +125,30 @@ describe('KanbanTaskCard concurrency queued badge', () => {
   });
 });
 
+describe('KanbanTaskCard blocked reason', () => {
+  const renderBlocked = (reason: string) =>
+    render(
+      <KanbanTaskCard
+        task={makeTask({ status: 'blocked', block_kind: 'human', blocked_reason: reason })}
+        allTasks={[]}
+        onMove={noop}
+        onDelete={noop}
+        onRefresh={noop}
+      />,
+    );
+
+  it('shows a dependency merge failure in the interface language', () => {
+    renderBlocked("Merging a dependency's changes failed; resolve it, then continue");
+    expect(screen.getByText('blockedReason.parentMergeFailed')).toBeTruthy();
+    expect(screen.queryByText(/Merging a dependency/)).toBeNull();
+  });
+
+  it('shows any other reason as written', () => {
+    renderBlocked('Waiting for the reviewer');
+    expect(screen.getByText('Waiting for the reviewer')).toBeTruthy();
+  });
+});
+
 describe('KanbanTaskCard attachment badge inside a draggable card', () => {
   it('opens the drawer on click without letting the card see the press or double-click', () => {
     const card = { onMouseDown: vi.fn(), onTouchStart: vi.fn(), onDoubleClick: vi.fn() };

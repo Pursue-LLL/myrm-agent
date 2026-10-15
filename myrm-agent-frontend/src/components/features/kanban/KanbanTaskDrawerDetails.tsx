@@ -4,6 +4,7 @@
  * - ./kanban-styles (POS: 优先级样式、超时预设、可编辑审批的状态、时间格式化)
  * - ./KanbanMarkdown、./KanbanSkillPicker、./ReviewCommentThread (POS: 富文本、技能选择、验收意见)
  * - @/lib/kanban/kanbanChatBoard::buildKanbanBoardDeepLink (POS: 回到来源会话的看板链接)
+ * - @/lib/kanban/kanbanBlockedReason::blockedReasonText (POS: 阻塞原因的界面语言文案)
  * - @/lib/utils/a11y::activateOnKey (POS: 非原生按钮的键盘激活)
  *
  * [OUTPUT]
@@ -35,6 +36,7 @@ import { Clock, ExternalLink, User } from 'lucide-react';
 import Link from 'next/link';
 import type { AgentListItem } from '@/services/agent';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
+import { blockedReasonText } from '@/lib/kanban/kanbanBlockedReason';
 import { ReviewCommentThread } from './ReviewCommentThread';
 import type { AcceptanceResultItem } from './ReviewCommentThread';
 import { activateOnKey } from '@/lib/utils/a11y';
@@ -369,7 +371,7 @@ export function TaskDetailsSection({
             {task.block_kind === 'human' && <User className="w-3.5 h-3.5 shrink-0" />}
             <span className="font-medium capitalize">{task.block_kind ?? 'blocked'}</span>
             <span className="text-muted-foreground">—</span>
-            {task.blocked_reason}
+            {blockedReasonText(task.blocked_reason, t)}
           </p>
           {task.block_kind === 'scheduled' && task.scheduled_until && (
             <p className="text-[10px] text-chart-4 font-mono">

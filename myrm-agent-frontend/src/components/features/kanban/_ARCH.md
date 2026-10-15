@@ -121,6 +121,10 @@
 - `@/hooks/agent/useAgentName` — 智能体名称映射
 - `next-intl` — 国际化（`kanban` namespace；`status.runningWithLimit`、`status.verifying`、`staleRunningCount` 六语言 en/zh/de/ko/ja/zh-TW）
 
+## Blocked reason
+
+- `KanbanTaskCard` / `KanbanTaskDrawerDetails`：阻塞原因经 `@/lib/kanban/kanbanBlockedReason::blockedReasonText` 显示——服务端写入的是英文句子（频道命令、诊断、活动流原样展示），已知的整句译成界面语言（目前是「依赖任务合并失败」`kanban.blockedReason.parentMergeFailed`，六语言），未知原因原样显示
+
 ## Completion intent UI
 
 - `KanbanTaskCard` / `KanbanTaskDrawerDetails`：`metadata.completion_intent` 且 `status=running` 时显示 `kanban.status.verifying`（验收中），替代 progress_note

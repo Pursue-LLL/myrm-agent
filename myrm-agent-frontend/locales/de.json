@@ -8195,6 +8195,9 @@
       "actionBacklog": "Priorisieren oder zur Ausführung planen",
       "actionDone": "Aufgabe erfolgreich abgeschlossen"
     },
+    "blockedReason": {
+      "parentMergeFailed": "Das Zusammenführen einer Abhängigkeit ist fehlgeschlagen. Beheben Sie das und fahren Sie dann fort."
+    },
     "cardActions": "Aufgabenaktionen",
     "deleteConfirmTitle": "Aufgabe löschen?",
     "deleteConfirmDesc": "„{title}“\nDie Aufgabe und ihr Ausführungsverlauf werden endgültig gelöscht. Aufgaben, die auf sie warten, werden Bereit, sofern sie nichts anderes blockiert, und können automatisch starten."

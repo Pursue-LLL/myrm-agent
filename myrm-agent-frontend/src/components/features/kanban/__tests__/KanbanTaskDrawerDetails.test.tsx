@@ -133,6 +133,21 @@ describe('TaskDetailsSection running skill notice', () => {
   });
 });
 
+describe('TaskDetailsSection blocked reason', () => {
+  const blockedTask = (reason: string) => makeTask({ status: 'blocked', block_kind: 'human', blocked_reason: reason });
+
+  it('shows a dependency merge failure in the interface language', () => {
+    renderSection(blockedTask("Merging a dependency's changes failed; resolve it, then continue"));
+    expect(screen.getByText('blockedReason.parentMergeFailed')).toBeTruthy();
+    expect(screen.queryByText(/Merging a dependency/)).toBeNull();
+  });
+
+  it('shows any other reason as written', () => {
+    renderSection(blockedTask('Waiting for the reviewer'));
+    expect(screen.getByText('Waiting for the reviewer')).toBeTruthy();
+  });
+});
+
 describe('TaskDetailsSection inline editors', () => {
   it('opens the timeout editor from a native button', async () => {
     const setEditingTimeout = vi.fn();

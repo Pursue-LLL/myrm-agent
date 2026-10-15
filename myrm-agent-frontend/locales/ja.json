@@ -8195,6 +8195,9 @@
       "actionBacklog": "優先度を設定して実行をスケジュール",
       "actionDone": "タスクは正常に完了しました"
     },
+    "blockedReason": {
+      "parentMergeFailed": "前置タスクの変更のマージに失敗しました。解決してから続行してください"
+    },
     "cardActions": "タスクの操作",
     "deleteConfirmTitle": "このタスクを削除しますか？",
     "deleteConfirmDesc": "「{title}」\nタスクと実行履歴は完全に削除されます。このタスクを待っていたタスクは、他に待機要因がなければ準備完了になり、自動的に実行が始まることがあります。"
