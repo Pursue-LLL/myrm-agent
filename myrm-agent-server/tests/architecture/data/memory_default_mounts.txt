@@ -21,7 +21,6 @@ profile_notes_router
 four_layer_promotion_router
 decay_lifecycle_router
 memory_migration_router
-kg_screening_router
 radar.router
 follow_ups_router
 onboarding.router

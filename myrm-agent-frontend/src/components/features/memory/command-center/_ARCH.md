@@ -30,7 +30,6 @@
 | `ColdArchiveRecordsView.tsx`            | 辅助 | 艾宾浩斯生命周期卡片子组件：呈现 COLD 冷存储归档数据切片与访问频次时间戳 | ✅    |
 | `SovereignMigrationInspectorCard.tsx`   | 核心 | 全量数字资产主权打包、跨机无损还原与多源迁入卡片：.myrmpkg 加密便携导出、路径解绑重映射与竞品智能体迁入 | ✅    |
 | `CompetitorAssetDetectionView.tsx`      | 辅助 | 主权迁移卡片子组件：呈现本机第三方智能体资产（Hermes/Claude Code/Codex）嗅探结果与一键迁入 | ✅    |
-| `KnowledgeGraphPoisoningShieldCard.tsx` | 核心 | 知识图谱抽取前合规前筛与防投毒哨兵卡片：隐藏 HTML 注释指令扫描、零宽隐写字符剥离与系统指令越权熔断阻断 | ✅    |
 | `IntegrationRetainedContextPurgeCard.tsx` | 核心 | 集成断连上下文治理与溯源撤销卡片：对标并超越 OpenAI Dots 隐私规范、已摄入上下文透明盘点、双模断连选择性 Purge 与来源撤销账本 | ✅    |
 | `ProjectLivingFactLedgerCard.tsx` | 核心 | 长期项目动态事实状态账本与四层上下文投影卡片：决议/否决/约束全景账本、4-Tier 动态投影仿真器与基于验证结果的能力沉淀飞轮 | ✅    |
 | `FirstEncounterReportCard.tsx` | 核心 | 历史会话轻量采样与“初见报告”冷启动卡片：多源 Agent 探测雷达、首2尾12关键帧采样、香农熵双轨零泄漏脱敏与个人技术画像一键入库 | ✅    |

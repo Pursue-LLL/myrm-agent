@@ -27,9 +27,6 @@ from app.api.memory.four_layer_promotion_router import (
 from app.api.memory.four_tier_fts_router import (
     router as four_tier_fts_router,
 )
-from app.api.memory.kg_screening_router import (
-    router as kg_screening_router,
-)
 from app.api.memory.markdown_chunker import (
     router as markdown_chunker_router,
 )
@@ -115,7 +112,6 @@ router.include_router(profile_notes_router, tags=["memory-profile-notes"])
 router.include_router(four_layer_promotion_router, tags=["memory-four-layer-promotion"])
 router.include_router(decay_lifecycle_router, tags=["memory-decay-lifecycle"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
-router.include_router(kg_screening_router, tags=["memory-kg-screening"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
