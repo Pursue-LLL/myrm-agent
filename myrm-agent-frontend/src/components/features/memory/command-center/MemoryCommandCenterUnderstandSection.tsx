@@ -23,7 +23,6 @@ import { BehavioralMetricsPanel } from '../insights/BehavioralMetricsPanel';
 import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
 import { HindsightReflectionCard } from './HindsightReflectionCard';
-import { GroundTruthDriftDefenseCard } from './GroundTruthDriftDefenseCard';
 import { KnowledgeGraphPoisoningShieldCard } from './KnowledgeGraphPoisoningShieldCard';
 import { IntegrationRetainedContextPurgeCard } from './IntegrationRetainedContextPurgeCard';
 import { ProjectLivingFactLedgerCard } from './ProjectLivingFactLedgerCard';
@@ -61,7 +60,6 @@ export const UnderstandSection = ({
     <BehavioralMetricsPanel t={t} />
     <RepoEvidenceCard />
     <HindsightReflectionCard />
-    <GroundTruthDriftDefenseCard />
     <KnowledgeGraphPoisoningShieldCard />
     <IntegrationRetainedContextPurgeCard />
     <ProjectLivingFactLedgerCard />
