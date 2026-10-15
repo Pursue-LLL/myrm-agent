@@ -117,6 +117,7 @@ def test_status_is_idle_before_any_run(client: TestClient) -> None:
         "phase": None,
         "done": 0,
         "total": 0,
+        "cancel_requested": False,
         "result": None,
         "error_code": None,
     }
@@ -129,6 +130,7 @@ def test_status_reports_a_running_run_with_its_progress(client: TestClient) -> N
     body = client.get("/api/v1/wiki/maintain/status").json()
 
     assert body["state"] == "running"
+    assert body["cancel_requested"] is False
     assert (body["mode"], body["phase"], body["done"], body["total"]) == ("full", "drift_review", 2, 5)
     assert body["result"] is None
 
@@ -196,6 +198,7 @@ def test_cancel_asks_the_running_run_to_stop_and_keeps_reporting_it_as_running(c
     assert response.status_code == 200
     body = response.json()
     assert (body["state"], body["phase"], body["done"], body["total"]) == ("running", "link_discovery", 4, 20)
+    assert body["cancel_requested"] is True
     assert run.stop.is_set()
 
 
@@ -224,8 +227,18 @@ def test_cancel_after_the_run_finished_changes_nothing(client: TestClient) -> No
     body = client.post("/api/v1/wiki/maintain/cancel").json()
 
     assert body["state"] == "succeeded"
+    assert body["cancel_requested"] is False
     assert body["result"]["connections_discovered"] == 2
     assert not run.stop.is_set()
+
+
+def test_a_page_that_reloads_after_cancelling_still_sees_the_run_as_stopping(client: TestClient) -> None:
+    _run("full")
+    client.post("/api/v1/wiki/maintain/cancel")
+
+    body = client.get("/api/v1/wiki/maintain/status").json()
+
+    assert (body["state"], body["cancel_requested"]) == ("running", True)
 
 
 def test_status_of_a_cancelled_run_carries_what_it_wrote_before_stopping(client: TestClient) -> None:
@@ -235,6 +248,7 @@ def test_status_of_a_cancelled_run_carries_what_it_wrote_before_stopping(client:
     body = client.get("/api/v1/wiki/maintain/status").json()
 
     assert body["state"] == "cancelled"
+    assert body["cancel_requested"] is False
     assert body["error_code"] is None
     assert (body["result"]["issues_fixed"], body["result"]["connections_discovered"]) == (1, 2)
 

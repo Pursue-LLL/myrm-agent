@@ -53,6 +53,8 @@ class WikiMaintainStatusResponse(BaseModel):
     phase: Literal["drift_review", "link_discovery"] | None = None
     done: int = 0
     total: int = 0
+    # Cancel was asked and the run is still winding down; lets a page that reloads meanwhile show it as stopping.
+    cancel_requested: bool = False
     result: WikiMaintenanceResponse | None = None
     error_code: Literal["maintain_failed", "maintain_timeout", "compile_in_progress"] | None = None
 
@@ -90,6 +92,7 @@ def _status_response(run: MaintainRun | None) -> WikiMaintainStatusResponse:
         phase=run.phase.value if run.phase is not None else None,
         done=run.done,
         total=run.total,
+        cancel_requested=run.cancel_requested,
         result=_maintenance_response(run.result) if run.result is not None else None,
         error_code=run.error_code,
     )

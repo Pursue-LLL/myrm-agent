@@ -56,6 +56,11 @@ class MaintainRun:
     # Background runs only: the event loop keeps no strong reference to a task nobody awaits.
     task: asyncio.Task[None] | None = None
 
+    @property
+    def cancel_requested(self) -> bool:
+        """Cancel was asked and the run has not finished winding down."""
+        return self.state is MaintainRunState.RUNNING and self.stop.is_set()
+
     def on_progress(self, progress: MaintainProgress) -> None:
         self.phase = progress.phase
         self.done = progress.done
