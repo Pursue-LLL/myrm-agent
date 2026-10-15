@@ -95,9 +95,6 @@ from app.api.memory.kg_screening_router import (
 from app.api.memory.markdown_chunker import (
     router as markdown_chunker_router,
 )
-from app.api.memory.markdown_curator_router import (
-    router as markdown_curator_router,
-)
 from app.api.memory.mem_cube_router import (
     router as mem_cube_router,
 )
@@ -266,10 +263,6 @@ router.include_router(
 router.include_router(
     ephemeral_delta_router,
     tags=["memory-ephemeral-delta"],
-)
-router.include_router(
-    markdown_curator_router,
-    tags=["memory-markdown-curator"],
 )
 router.include_router(
     two_layer_dialectic_router,

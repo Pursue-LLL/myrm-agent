@@ -76,13 +76,6 @@
 | `PromptCachePreservingDeltaCard.tsx` | 核心 | 会话内记忆更新检视：稳定 system 前缀 + human 尾部的布局预览；默认绑定当前聊天 session；命中率见聊天上下文环，此处不展示伪造百分比 | ✅    |
 | `EphemeralDeltaLiveInspectorView.tsx` | 辅助 | 瞬态增量实时检视子组件：呈现活跃增量列表、交互式用户修正录入表单、LWW 重写覆盖与前缀哈希校验 | ✅    |
 | `PromptCacheConsolidationView.tsx` | 辅助 | 缓存一致性与归档子组件：双轨预览、一键归档落库；HUD 仅展示后端遥测，无数据时显示占位符 | ✅    |
-| `MemoryCuratorStudioCard.tsx` | 核心 | 记忆策展工作台与 Markdown 双向同步卡片：深度汲取 OpenClaw/Hermes 纯文本人类可读可编辑哲学，工作区 MEMORY.md 镜像毫秒级热重载、所见即所得卡片流策展与一键隐私物理擦除 | ✅    |
-| `MemoryCuratorStreamView.tsx` | 辅助 | 所见即所得卡片流子组件：呈现认知分类与状态筛选药丸、反乱记待审人类门禁确认/驳回、原地即时编辑与一键物理抹除 | ✅    |
-| `MemoryCuratorWorkspaceView.tsx` | 辅助 | 工作区 Markdown 镜像子组件：呈现原生纯文本 Markdown 编辑器、双向对账 Diff 统计、从磁盘热重载同步至 SQLite 与导出镜像 | ✅    |
-| `MemoryCuratorHudBar.tsx` | 辅助 | 策展 4 维 HUD 监控条：呈现生效记忆、待审门禁、双向镜像同步延迟与认知分类分布 | ✅    |
-| `MemoryCuratorAddForm.tsx` | 辅助 | 折叠式新记忆录入表单：录入标题、分类、详细内容与标签并即时刷盘 | ✅    |
-| `MemoryCuratorEntryCard.tsx` | 辅助 | 单条记忆卡片项：支持原地编辑、状态徽章、置信度与一键物理抹除 | ✅    |
-| `curatorFallbacks.ts` | 辅助 | 策展工作台离线与单测仿真数据集 | ✅    |
 | `TwoLayerDialecticStudioCard.tsx` | 核心 | Lab-only（`NEXT_PUBLIC_MEMORY_LAB=1`）两层上下文布局预览：Layer 1 用户消息尾快照、Layer 2 辩证调和控制台；未接入 live 中间件，命中率见聊天上下文环 | ✅    |
 | `TwoLayerDialecticHudBar.tsx` | 辅助 | 两层辩证 4 维 HUD：前缀布局稳定提示、Layer 1/2 周期与辩证深度；不展示伪造缓存命中率 | ✅    |
 | `BaseContextCacheView.tsx` | 辅助 | Layer 1 基础上下文与 Prompt Cache 检视子组件：呈现冻结 System 块、User 尾部注入块、持久 Cache Key 与单次编译仿真 | ✅    |

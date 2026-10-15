@@ -37,7 +37,6 @@ export * from './memory/diskReconciliation';
 export * from './memory/gitOkf';
 export * from './memory/conversationLineageDefense';
 export * from './memory/ephemeralDelta';
-export * from './memory/curatorStudio';
 export * from './memory/twoLayerDialectic';
 export * from './memory/budgetPacking';
 export * from './memory/autoMemoryConsolidation';
