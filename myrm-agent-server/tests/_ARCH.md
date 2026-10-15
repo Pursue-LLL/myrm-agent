@@ -244,7 +244,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `frontend/workspace-browser` 单测 | 模块 | RichMediaFilePreview 分发 12 例（kind 覆盖/大小写/unsupported/编辑按钮禁用）+ WorkspaceFilePreview is_text 降级 2 例（未知二进制→unsupported 不 fetch / 未知文本→文本渲染） |
 | `api/agent/test_stream_collector_file_mutation.py` | 模块 | StreamContentCollector `file_mutation_failed` / `workspace_merge_failed` → `extra_data.fileMutationFailures` / `workspaceMergeFailures` |
 | `api/agent/test_stream_collector_skill_batch.py` | 模块 | StreamContentCollector 收到 `tool_end`(`skill_mutation_batch_id`) → 关联到对应调用的 skill_manage 步骤（后一次调用不覆盖前一次、批次事件不新建步骤、`extra_data.progressSteps` 落库携带批次 id） |
-| `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session；**early claim** 后须等 user persist 再 retry |
+| `api/agent/test_agent_stream_retry_contract_e2e.py` | 模块 | agent-stream 重试契约：执行中同 `chat_id+message_id+content` 重试 → user turn 幂等 + SSE `AgentBusyError`(409)；mock Agent 挂起 active session；**early claim** 后须等 user persist 再 retry；resume 输给审批超时计时器 → 真实 HTTP 409 与响应体原样到达客户端 |
 | `api/agent/test_agent_stream_concurrency_limit_e2e.py` | 模块 | agent-stream 并发上限契约：gateway 排队超时 `AgentQueueTimeout` → 结构化 SSE `error_kind=concurrency_limit`（`diagnostic_result` 含 reason/占用者/i18n 文案/resolution_steps）；holder 直接挂起 gateway 占槽位，waiter 走真实 HTTP 全链路 |
 | `api/agent/test_reconnect_integration.py` | 模块 | ASGI Last-Event-ID 重连 + early busy 第二 turn 不双写 user row（mock agent） |
 | `api/chats/test_stream_retry_busy_seed_fixture.py` | 模块 | stream-retry-busy seed/release HTTP + **`test_busy_fixture_query_is_not_risk_blocked`**（fixture 文案不得触发 risk gate） |

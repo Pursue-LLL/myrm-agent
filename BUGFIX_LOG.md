@@ -3481,7 +3481,7 @@ except Exception:
 | 发现日期 | 2026-10-15（对「审批超时计时器与手动处理二选一」做竞品对照，再按前后端契约逐条核对） |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P3（只有在计时器到点的同一时刻点击才会触发，后果是提示不对，不是数据错；第 2 项无运行时影响） |
-| 影响范围 | server：`app/services/agent/stream_session/{orchestrator.py,orchestrator_turn_body.py,_ARCH.md}`、`app/services/agent/goals/{goal_branch_stash.py,goal_registry.py,_ARCH.md}`、`app/services/agent/gateway.py`、`app/core/channel_bridge/goal_handler.py`、`app/services/kanban/task_ops.py`、`app/server/lifespan.py`、`app/api/mcp/endpoint.py`；测试：`tests/services/agent/stream_session/test_orchestrator_launch_handoff.py`、`tests/unit/services/agent/test_stream_resume_dependencies.py`、`tests/services/agent/test_goal_branch_stash.py`；frontend 仅加测试与文档：`src/lib/approval/__tests__/resumeApprovalStream.test.ts`、`src/services/__tests__/resumePlanConfirmStream.test.ts`、`src/lib/approval/_ARCH.md`、`src/store/chat/_ARCH.md`；server 测试文档 `tests/_ARCH.md` |
+| 影响范围 | server：`app/services/agent/stream_session/{orchestrator.py,orchestrator_turn_body.py,_ARCH.md}`、`app/services/agent/goals/{goal_branch_stash.py,goal_registry.py,_ARCH.md}`、`app/services/agent/gateway.py`、`app/core/channel_bridge/goal_handler.py`、`app/services/kanban/task_ops.py`、`app/server/lifespan.py`、`app/api/mcp/endpoint.py`；测试：`tests/services/agent/stream_session/test_orchestrator_launch_handoff.py`、`tests/unit/services/agent/test_stream_resume_dependencies.py`、`tests/services/agent/test_goal_branch_stash.py`、`tests/api/agent/test_agent_stream_retry_contract_e2e.py`；frontend 仅加测试与文档：`src/lib/approval/__tests__/resumeApprovalStream.test.ts`、`src/services/__tests__/resumePlanConfirmStream.test.ts`、`src/lib/approval/_ARCH.md`、`src/store/chat/_ARCH.md`；server 测试文档 `tests/_ARCH.md` |
 | 出现次数 | 未测量（没有线上记录，也没有可统计的埋点；第 1 项的触发窗口只有计时器到点前后的几秒） |
 | 关联 | `BUG-AGENT-2026-10-15-010`（第 2 项：清理任务不再广播恢复，超时恢复只由 harness 计时器完成，本条的二选一就建立在这一点上）；提交 `9e088ef76d`（第 2 项）与含本条的提交（第 1 项），本地提交，未 push |
 
@@ -3502,13 +3502,13 @@ except Exception:
 
 ### 验证
 
-1. server 新增 4 例：已被超时处理的 resume 返回 409 且不启动回合；两次 resume 只有第一次到达启动器；被拒的 resume 记为失败回合（`unknown_error`）；新回合不碰超时仲裁器。把 `orchestrator.py` 临时换回 HEAD 的版本，前三例失败（第四例是防护用例，本来就应通过），换回后 `tests/services/agent/stream_session` 加依赖测试共 262 通过。
+1. server 在编排层新增 4 例：已被超时处理的 resume 返回 409 且不启动回合；两次 resume 只有第一次到达启动器；被拒的 resume 记为失败回合（`unknown_error`）；新回合不碰超时仲裁器。把 `orchestrator.py` 临时换回 HEAD 的版本，前三例失败（第四例是防护用例，本来就应通过），换回后 `tests/services/agent/stream_session` 加依赖测试共 262 通过。另在 `tests/api/agent/test_agent_stream_retry_contract_e2e.py` 加 1 例，用 `httpx.ASGITransport` 请求 `/api/v1/agents/agent-stream`，确认 409 状态码与响应体原样到达客户端；该文件 2 例通过。把编排层换回修复前的版本，这一例失败，而且因为没有 409，这次恢复真的跑了一轮模型调用（约 1.28 万令牌，测试库里）；有 409 时它在启动回合之前就返回，不调用模型。
 2. frontend 新增 4 例：409 抛 `ApprovalExpiredError` 且不进入流处理；其它 HTTP 失败仍是普通错误；计划确认 409 抛「Plan confirmation has already been resolved by timeout」，其它状态码带状态。前端代码没有改，这几例在当前前端上本来就通过，作用是第一次钉住这条之前没有测试的契约，不是修复前后的红绿对照。`resumeApprovalStream.test.ts` 与新文件共 5 例通过；`oxlint` 退出码 0，`prettier --check` 通过，`tsc --noEmit` 没有这两个文件的错误。
 3. 第 2 项：`test_goal_branch_stash.py` 重写为 8 例并全部通过（按分支暂存与恢复、无暂存时迁移、坏暂存按无暂存、分支未变不动作、事件发布、读取当前分支、`session_ids`、监视器在 `.git/HEAD` 变化后触发并能停止）；坏暂存用例用公开的 `save_stash` 造数据再破坏存储里的值。`tests/services/agent`、`kanban`、`test_gateway.py`、`tests/api/mcp`、`tests/server` 共 1746 通过、2 失败，这 2 个失败与本条无关（`test_deep_research_wiki_vault.py::test_vault_research_blocks_credential_content`、`test_task_runner.py::TestBuildMultimodalRealExtraction::test_extract_enabled_empty_pdf_falls_back_to_reference`，都在他人未提交的在制品里）；`tests/core/channel_bridge -k goal` 17 通过；`goal_branch_stash.py` 与 `goal_registry.py` 的 mypy 为 0 错误；触及文件的 `ruff check`、`ruff format --check` 通过。
 
 ### 局限
 
-1. 没有在浏览器里端到端跑「409 → 本地化提示 → 卡片移除」：前端这一段是读码确认加单元测试，不是实际点击。
+1. 没有在浏览器里端到端跑「409 → 本地化提示 → 卡片移除」：服务端到 HTTP 这一段有路由级测试，前端这一段是读码确认加单元测试，不是实际点击。
 2. 线上触发频率没有测量。
 3. 计时器的恢复回调正在运行时用户点击：命中的应是会话预占（忙碌提示）而不是 409，这个窗口没有验证。
 4. 迟到的浏览器接管点击现在先被 409 拒绝，早于 `resolve_pending_browser_takeover_for_chat`（`registry.py:362`），那条记录保持 `PENDING`，由清理任务定案为 `TIMEOUT`；此前它会先被标成已处理再被拒。这是有意的改变，没有对应测试；计时器是否会为接管记录计时也没有核实。
