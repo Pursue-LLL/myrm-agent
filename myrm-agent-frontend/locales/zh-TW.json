@@ -7835,6 +7835,7 @@
     "bulkSuccess": "{count} 個任務已更新",
     "bulkPartialSuccess": "{succeeded} 個成功, {failed} 個失敗",
     "bulkClearSelection": "取消選擇",
+    "selectTask": "選取任務：{title}",
     "forcePromoteTitle": "依賴未滿足",
     "forcePromoteDesc": "以下父任務尚未完成：",
     "forcePromoteConfirm": "強制放行",

@@ -7835,6 +7835,7 @@
     "bulkSuccess": "{count} Aufgaben aktualisiert",
     "bulkPartialSuccess": "{succeeded} erfolgreich, {failed} fehlgeschlagen",
     "bulkClearSelection": "Auswahl aufheben",
+    "selectTask": "Aufgabe auswählen: {title}",
     "forcePromoteTitle": "Abhängigkeiten nicht erfüllt",
     "forcePromoteDesc": "Die folgenden übergeordneten Aufgaben sind noch nicht abgeschlossen:",
     "forcePromoteConfirm": "Erzwungene Freigabe",

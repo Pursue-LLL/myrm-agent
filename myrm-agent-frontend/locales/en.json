@@ -7903,6 +7903,7 @@
     "bulkSuccess": "{count} tasks updated",
     "bulkPartialSuccess": "{succeeded} succeeded, {failed} failed",
     "bulkClearSelection": "Clear selection",
+    "selectTask": "Select task: {title}",
     "forcePromoteTitle": "Dependencies Not Met",
     "forcePromoteDesc": "The following parent tasks are not yet completed:",
     "forcePromoteConfirm": "Force Promote",

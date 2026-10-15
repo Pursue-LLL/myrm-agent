@@ -7835,6 +7835,7 @@
     "bulkSuccess": "{count}개 작업이 업데이트되었습니다",
     "bulkPartialSuccess": "{succeeded}개 성공, {failed}개 실패",
     "bulkClearSelection": "선택 해제",
+    "selectTask": "작업 선택: {title}",
     "forcePromoteTitle": "종속성 미충족",
     "forcePromoteDesc": "다음 상위 작업이 아직 완료되지 않았습니다:",
     "forcePromoteConfirm": "강제 승격",
