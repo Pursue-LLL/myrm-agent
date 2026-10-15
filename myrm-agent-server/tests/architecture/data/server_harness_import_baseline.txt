@@ -512,6 +512,7 @@ myrm_agent_harness.toolkits.wiki.core.types
 myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint
 myrm_agent_harness.toolkits.wiki.maintenance.issue_kind
 myrm_agent_harness.toolkits.wiki.maintenance.modes
+myrm_agent_harness.toolkits.wiki.maintenance.progress
 myrm_agent_harness.toolkits.wiki.maintenance.stale_summary
 myrm_agent_harness.toolkits.wiki.mcp_server
 myrm_agent_harness.toolkits.wiki.pipeline.apply
