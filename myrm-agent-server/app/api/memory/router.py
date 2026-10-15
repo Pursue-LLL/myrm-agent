@@ -20,9 +20,6 @@ from app.api.memory.bitemporal_tms_router import (
 from app.api.memory.budget_packing_router import (
     router as budget_packing_router,
 )
-from app.api.memory.cjk_iteration_router import (
-    router as cjk_iteration_router,
-)
 from app.api.memory.code_memory_compaction_router import (
     router as code_memory_compaction_router,
 )
@@ -305,10 +302,6 @@ router.include_router(
 router.include_router(
     inode_identity_router,
     tags=["memory-inode-identity"],
-)
-router.include_router(
-    cjk_iteration_router,
-    tags=["memory-cjk-iteration"],
 )
 router.include_router(
     skill_triad_router,

@@ -89,7 +89,6 @@
   "src/components/features/memory/command-center/BudgetGreedyPackingStudioCard.tsx": 9,
   "src/components/features/memory/command-center/BudgetPackingHudBar.tsx": 11,
   "src/components/features/memory/command-center/CircuitBreakerFallbackConsoleView.tsx": 24,
-  "src/components/features/memory/command-center/CjkIterationInspectionCard.tsx": 25,
   "src/components/features/memory/command-center/CodeGraphAssetCard.tsx": 13,
   "src/components/features/memory/command-center/CodeImpactReportView.tsx": 6,
   "src/components/features/memory/command-center/CodeMemoryCompactionCard.tsx": 14,
