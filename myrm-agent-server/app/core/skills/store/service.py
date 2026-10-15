@@ -160,7 +160,7 @@ class SkillsService:
                     self.local_skills.set_paths(all_paths)
                 except Exception as e:
                     logger.debug("Failed to sync local skill paths in get_skill: %s", e)
-                skill = self.local_skills.get_skill_by_id(skill_id)
+                skill = await reader.scan_off_loop(lambda: self.local_skills.get_skill_by_id(skill_id))
         else:
             prebuilt_path = get_skill_metadata_path(SkillType.PREBUILT, skill_id)
             try:

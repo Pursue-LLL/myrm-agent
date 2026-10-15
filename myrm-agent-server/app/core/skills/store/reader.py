@@ -5,10 +5,16 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import json
 import logging
 import mimetypes
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from functools import partial
+from typing import TypeVar
 
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 from myrm_agent_harness.toolkits.storage.paths import (
@@ -21,9 +27,25 @@ from .user_config import UserSkillConfigManager
 
 logger = logging.getLogger(__name__)
 
+_T = TypeVar("_T")
+
+# A scan is CPU-bound under the GIL: overlapping scans only slow each other and the event loop down, so one runs at a
+# time.
+_SCAN_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="skill-scan")
+
 # ========================================================================
 # 列表操作
 # ========================================================================
+
+
+async def scan_off_loop(scan: Callable[[], _T]) -> _T:
+    """Run a blocking skill-directory scan on the scan worker so the event loop keeps serving other requests.
+
+    A scan parses every SKILL.md and runs the security patterns over it (about a second for two dozen skills); run on
+    the loop, it would freeze every request, stream and health check for that long.
+    """
+    context = contextvars.copy_context()
+    return await asyncio.get_running_loop().run_in_executor(_SCAN_EXECUTOR, partial(context.run, scan))
 
 
 async def list_prebuilt_skills(storage: StorageProvider) -> list[Skill]:
@@ -64,7 +86,7 @@ async def list_local_skills(
             all_paths.append(path)
 
     provider = LocalSkillsProvider(all_paths)
-    return provider.scan_all()
+    return await scan_off_loop(provider.scan_all)
 
 
 def list_workspace_skills(workspace_root: str | None) -> list[Skill]:
