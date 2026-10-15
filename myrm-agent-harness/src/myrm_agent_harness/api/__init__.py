@@ -6,9 +6,10 @@ modules.
 
 Quick start::
 
-    from myrm_agent_harness.api import create_skill_agent, LLMConfig
+    from myrm_agent_harness.api import AgentRuntimeSpec, LLMConfig, create_skill_agent
 
-    agent = await create_skill_agent(llm_config=LLMConfig(...))
+    spec = AgentRuntimeSpec(agent_id=None, name="assistant", system_prompt=None)
+    agent = await create_skill_agent(spec, llm_config=LLMConfig(model="gpt-4", api_key="sk-..."))
 """
 
 from __future__ import annotations
@@ -317,7 +318,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "cosine_similarity_int8": ("myrm_agent_harness.toolkits.vector.quantization", "cosine_similarity_int8"),
     "is_within_boundary": ("myrm_agent_harness.core.security.path", "is_within_boundary"),
     "safe_join_path": ("myrm_agent_harness.core.security.path", "safe_join_path"),
-    "safe_purge_fts5_virtual_table": ("myrm_agent_harness.utils.db.fts5", "safe_purge_fts5_virtual_table"),
     "build_isolated_child_env": (
         "myrm_agent_harness.toolkits.code_execution.security.env_isolation",
         "build_isolated_child_env",

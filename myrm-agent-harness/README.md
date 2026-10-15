@@ -30,7 +30,7 @@
 - ✅ **完整 LangChain 兼容**：全面支持 `astream()`, `ainvoke()`, `abatch()`
 - ✅ **高级技能系统**：渐进式披露、MCP 集成、基于文件的技能
 - ✅ **LLM-Wiki Knowledge Base**：Karpathy 架构，LLM 作为编译器维护结构化 Markdown Wiki（见 Wiki Toolkit）
-- ✅ **生产就绪代码执行**：Agent-in-Sandbox 模式（LocalExecutor），可选 `SmartCachedStorage` 等缓存层
+- ✅ **生产就绪代码执行**：Agent-in-Sandbox 模式（LocalExecutor）
 - ✅ **统一路径解析**：`WorkspacePathResolver` 实现本地 ↔ 容器路径一致性转换
 - ✅ **Claude Code 兼容**：完整支持 Hooks、allowed-tools 和技能生命周期
 - ✅ **独立工具设计**：专用工具（Read/Write/Edit/Glob/Grep）；若系统安装 `ripgrep`，文件搜索可走外部实现
@@ -38,7 +38,7 @@
 ### 架构亮点
 - ✅ **框架-业务分离**：纯框架层，零业务逻辑（[自动化检测与修复](scripts/_ARCH.md)）
 - ✅ **智能缓存系统**：文件缓存与 LRU 等策略（行为依赖负载与配置）
-- ✅ **多沙箱支持**：Local（开发）、Docker（生产）、E2B（云端）统一 API
+- ✅ **多沙箱支持**：Local（开发）、Docker（生产）、E2B（云端）统一 API；Docker / E2B 由控制平面承载，harness 内的执行器只有 `LocalExecutor`
 - ✅ **类型安全**：包内代码以严格类型约束为目标（见 `pyproject` / `mypy` 配置）
 - ✅ **测试**：`tests/` 下单元、集成与性能等用例；以本地 `pytest` 结果为准
 - ✅ **分形自文档**：自组织、自愈的四层文档系统
@@ -56,22 +56,26 @@
 | ❌ **用户身份感知** | 框架不知道"谁"在使用，无 `user_id` 概念 |
 | ❌ **多租户管理** | 隔离由业务层负责（多进程/容器/prefix注入） |
 | ❌ **跨用户并发** | 单实例设计，并发靠横向扩展（创建多个实例） |
-| ❌ **Agent 配置读环境变量** | `LLMConfig`、`AgentConfig` 等运行时配置通过 API 显式传入，不由环境变量注入 |
+| ❌ **Agent 配置隐式读环境变量** | `LLMConfig`、`AgentConfig` 等运行时配置通过 API 显式传入，框架不会隐式读取环境变量；`LLMConfig.from_env()` / `AgentConfig.from_env()`（读取 `MYRM_*`）是调用方显式调用的辅助方法 |
 | ✅ **基础设施 opt-in env** | 存储路径（`MYRM_DATA_DIR`）、诊断 i18n 目录（`MYRM_LOCALES_DIR`）、统一网关（`MYRM_GATEWAY_*`）、诊断探针等基础设施允许可选环境变量 |
 
 ### 错误 vs 正确用法
 
 ```python
 # ❌ 错误：一个实例处理多个用户
-agent = create_skill_agent(...)
-await agent.run(user_a_message)  # 数据泄露风险！
-await agent.run(user_b_message)
+agent = await create_skill_agent(spec, llm_config=llm_config)
+async for event in agent.run(user_a_message):  # 数据泄露风险！
+    ...
+async for event in agent.run(user_b_message):
+    ...
 
-# ✅ 正确：每个用户独立实例
-agent_a = create_skill_agent(storage_prefix="user_a/")
-agent_b = create_skill_agent(storage_prefix="user_b/")
-await agent_a.run(user_a_message)
-await agent_b.run(user_b_message)
+# ✅ 正确：每个用户独立实例（业务层为每个实例注入各自隔离的 storage_backend）
+agent_a = await create_skill_agent(spec_a, llm_config=llm_config, storage_backend=storage_a)
+agent_b = await create_skill_agent(spec_b, llm_config=llm_config, storage_backend=storage_b)
+async for event in agent_a.run(user_a_message):
+    ...
+async for event in agent_b.run(user_b_message):
+    ...
 ```
 
 **详见**：[FRAMEWORK_DESIGN_PRINCIPLES.md](./FRAMEWORK_DESIGN_PRINCIPLES.md)
@@ -104,14 +108,18 @@ choco install ripgrep
 ### 简单示例（开箱即用）
 
 ```python
-from myrm_agent_harness.api import create_skill_agent, LLMConfig
+from myrm_agent_harness.api import AgentRuntimeSpec, LLMConfig, create_skill_agent
+
+# AgentRuntimeSpec 是创建与运行 Agent 的唯一规格（agent_id / name / system_prompt 必填）
+spec = AgentRuntimeSpec(agent_id=None, name="assistant", system_prompt="You are a helpful assistant.")
 
 # Just provide config - no need to know about ChatOpenAI or BaseChatModel!
 agent = await create_skill_agent(
+    spec,
     llm_config=LLMConfig(
         model="gpt-4",
         api_key="sk-...",
-    )
+    ),
 )
 
 # Run agent
@@ -119,15 +127,18 @@ async for event in agent.run("Hello, how are you?"):
     print(event)
 ```
 
+以下示例复用上面的 `spec`。
+
 ### 从环境变量创建
 
 ```python
 # 设置环境变量：
-# export MODEL_NAME="gpt-4"
-# export API_KEY="sk-..."
+# export MYRM_MODEL_NAME="gpt-4"
+# export MYRM_API_KEY="sk-..."
 
 agent = await create_skill_agent(
-    llm_config=LLMConfig.from_env()
+    spec,
+    llm_config=LLMConfig.from_env(),
 )
 ```
 
@@ -140,6 +151,7 @@ from myrm_agent_harness.backends.skills import SkillBackend
 skill_backend = SkillBackend.local("./skills")
 
 agent = await create_skill_agent(
+    spec,
     llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
     skill_backend=skill_backend,  # 动态技能加载
 )
@@ -161,6 +173,7 @@ context_middleware = create_context_pipeline_middleware(
 
 # 创建带自定义中间件的 Agent
 agent = await create_skill_agent(
+    spec,
     llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
     middlewares=[context_middleware],  # 完全控制
 )
@@ -179,6 +192,7 @@ tools = [
 ]
 
 agent = await create_skill_agent(
+    spec,
     llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
     tools=tools,  # 传入业务工具
 )
@@ -211,6 +225,7 @@ wiki_tools = create_wiki_tools(compiler, query_engine, linter, structure)
 
 # Use with Agent
 agent = await create_skill_agent(
+    spec,
     llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
     tools=wiki_tools,  # Agent can now use wiki knowledge base!
 )
@@ -238,24 +253,24 @@ print(f"Fixed {lint_result.issues_fixed} issues")
 
 ### 高级：配置并行工具调用
 
+通过 `AgentRuntimeSpec.engine_params["enable_parallel_tool_calls"]` 配置：
+
 ```python
 # 显式启用并行工具调用
-agent = await create_skill_agent(
-    llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
-    parallel_tool_calls=True,
+spec = AgentRuntimeSpec(
+    agent_id=None,
+    name="assistant",
+    system_prompt=None,
+    engine_params={"enable_parallel_tool_calls": True},
 )
+agent = await create_skill_agent(spec, llm_config=LLMConfig(model="gpt-4", api_key="sk-..."))
 
-# 显式禁用并行工具调用
-agent = await create_skill_agent(
-    llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
-    parallel_tool_calls=False,
-)
+# 显式禁用并行工具调用：engine_params={"enable_parallel_tool_calls": False}
 ```
 
 - `True`：多个独立工具调用可并行执行（降低延迟）
 - `False`：工具串行执行
-- `None`（默认）：使用 LLM 提供商的默认值
-- 也可通过环境变量 `PARALLEL_TOOL_CALLS=true/false` 配置
+- 未设置 / `None`（默认）：使用 LLM 提供商的默认值
 
 ### 直接使用 SkillAgent（完全控制）
 
@@ -296,7 +311,7 @@ myrm-agent-harness/          # 本仓库根（示意）
 │       ├── backends/                # 后端抽象（skills, storage, profiles, secrets）
 │       ├── toolkits/                # 通用工具包（不与 agent/ 耦合，可独立使用）
 │       │   ├── code_execution/      # 沙箱代码执行（Agent-in-Sandbox）
-│       │   ├── storage/             # 存储与缓存（含 SmartCachedStorage）
+│       │   ├── storage/             # 存储（Local 后端）
 │       │   ├── memory/              # 可插拔记忆系统
 │       │   ├── retriever/           # 检索（向量/BM25/混合搜索）
 │       │   ├── mcp/                 # MCP 协议集成
@@ -428,20 +443,22 @@ class MyStorageProvider(StorageProvider):
 启用 artifact 收集以追踪生成的文件：
 
 ```python
-# 创建 Agent 时启用 artifact 收集
-agent = await create_skill_agent(
-    llm_config=LLMConfig(model="gpt-4"),
-    collect_artifacts=True,  # 默认：False
-)
+async def on_artifacts_ready(event: dict[str, object]) -> dict[str, object] | None:
+    # 框架层提供文件路径和读取函数
+    # 业务层处理持久化（user_id, chat_id, URLs）
+    artifacts_data = event["data"]  # [{filename, path, type}, ...]
+    read_content = event["read_content"]  # async function(path) -> bytes
+    ...
+    return event  # 返回的事件会继续推送到 agent.run() 的事件流；返回 None 则丢弃
 
-# 在流处理器中处理 artifacts_ready 事件
-async for event in agent.run(query, ...):
-    if event["type"] == "artifacts_ready":
-        # 框架层提供文件路径和读取函数
-        # 业务层处理持久化（user_id, chat_id, URLs）
-        artifacts_data = event["data"]  # [{filename, path, type}, ...]
-        read_content = event["read_content"]  # async function(path) -> bytes
-        ...
+
+# 创建 Agent 时启用 artifact 收集（需同时提供 on_artifacts_ready，否则不发出 artifacts_ready 事件）
+agent = await create_skill_agent(
+    spec,
+    llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
+    collect_artifacts=True,  # 默认：False
+    on_artifacts_ready=on_artifacts_ready,
+)
 ```
 
 **架构设计（2026-01-27 纯粹设计）**：
@@ -450,41 +467,19 @@ async for event in agent.run(query, ...):
 
 #### 内置工具配置
 
-内置工具（如网络搜索和抓取）现在是**配置驱动**的，而非基于协议：
+框架内置的元工具由 `create_skill_agent` 的布尔参数开关；网络搜索、网页抓取等领域工具由业务层创建后经 `tools=` 传入（见上文「使用业务工具」）：
 
 ```python
 agent = await create_skill_agent(
-    llm_config=LLMConfig(model="gpt-4"),
-    # 通过配置启用内置工具
-    enable_search=True,
-    search_config={"api_key": "..."},
-    enable_fetch=True,
-    web_fetch_config={...},
+    spec,
+    llm_config=LLMConfig(model="gpt-4", api_key="sk-..."),
+    enable_shell_tools=True,  # 默认：True
+    enable_answer_tool=False,  # 默认：False
+    enable_planning=False,  # 默认：False
 )
 ```
 
 ## 🚀 1.0.0 新特性
-
-### 智能缓存系统 ⚡
-```python
-from myrm_agent_harness.toolkits.storage import SmartCachedStorage, LocalBackend
-
-# SmartCachedStorage：在 backend 之上叠加缓存与异步写回（效果依赖负载与配置）
-backend = LocalBackend(root_path="/data")
-cache = SmartCachedStorage(
-    backend=backend,
-    cache_dir="/tmp/cache",
-    max_cache_size_mb=500,  # LRU 淘汰
-    enable_async_upload=True,  # 后台异步写入
-)
-
-# 使用缓存
-data = await cache.read("skills/my_skill.py", session_id="abc123")
-```
-
-**说明**：是否命中缓存、延迟与吞吐取决于访问模式与配置；请在目标环境中用基准或 profiling 验证。
-
----
 
 ### 统一路径解析 🗺️
 ```python
@@ -514,17 +509,20 @@ local_path = WorkspacePathResolver.to_local_path(
 
 ### 多执行模式支持 🐳☁️
 ```python
-from myrm_agent_harness.toolkits.code_execution import create_executor
-from myrm_agent_harness.toolkits.code_execution.config import ExecutionMode, ExecutionConfig
+from myrm_agent_harness.toolkits.code_execution import (
+    ExecutionConfig,
+    ExecutionContext,
+    ExecutionMode,
+    create_executor,
+)
 
-# Local（开发环境）
 executor = create_executor(ExecutionConfig(mode=ExecutionMode.LOCAL))
-
-# 所有模式统一 API
-result = await executor.execute(code, context)
+executor.bind_workspace("/path/to/workspace")
+result = await executor.execute(ExecutionContext(code="print('hello')"))
 ```
 
-**模式对比**：
+**模式对比**：Docker / E2B 是 `myrm-control-plane` 承载沙箱的方式；harness 的 `ExecutionMode` 目前只有 `LOCAL`，Agent 在所选沙箱内以 `LocalExecutor` 执行代码。
+
 | 模式 | 隔离性 | 性能 | 可扩展性 | 成本 |
 |------|--------|------|----------|------|
 | **Local** | ❌ 无 | ⚡ 最快 | ❌ 受限 | ✅ 免费 |

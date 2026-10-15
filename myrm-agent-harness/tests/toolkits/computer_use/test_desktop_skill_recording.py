@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from myrm_agent_harness.toolkits.computer_use.recording import (
     DesktopRecordedEvent,
     RecordedActionType,
@@ -93,6 +95,17 @@ def test_extract_parameter_slots() -> None:
     slot_names = {s["name"] for s in slots}
     assert "input_file_path" in slot_names
     assert "recipient_email" in slot_names
+
+
+def test_a_long_dotted_value_does_not_stall_slot_extraction() -> None:
+    """A run of dots is scanned in linear time: 20 000 characters take far less than 0.1 s."""
+    started = time.perf_counter()
+    slots = extract_parameter_slots(
+        [DesktopRecordedEvent(seq=1, action=RecordedActionType.TYPE.value, app_name="Terminal", value="a." * 10_000)]
+    )
+
+    assert time.perf_counter() - started < 0.1
+    assert slots == []
 
 
 def test_synthesize_desktop_skill_draft_full_flow() -> None:

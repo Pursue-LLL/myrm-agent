@@ -1,7 +1,7 @@
 """Agent configuration package — unified export of all config types and utilities.
 
 子模块：
-- llm: LLM 与 Agent 配置（LLMConfig, AgentConfig, StorageConfig）
+- llm: LLM 与 Agent 配置（LLMConfig, AgentConfig）
 - llm_safety: 出站消息的工具调用/结果配对规范化，与中间件链同源（normalize_messages）
 - parsers: LiteLLM模型名解析和转换（to_litellm_model, parse_litellm_model）
 - file_io: 文件 I/O 资源限制与正则安全配置（FileIOConfig）
@@ -10,6 +10,22 @@
 - readiness: 配置完整性检查（ConfigReadinessChecker, ConfigReadinessResult）
 - exceptions: 配置异常定义（ConfigIncompleteError, InvalidConfigError）
 """
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.config.exceptions import (
+        ConfigIncompleteError,
+        ConfigValidationError,
+        InvalidConfigError,
+    )
+    from myrm_agent_harness.agent.config.file_io import DEFAULT_FILE_IO_CONFIG, FileIOConfig
+    from myrm_agent_harness.agent.config.llm import AgentConfig, LLMConfig
+    from myrm_agent_harness.agent.config.llm_safety import normalize_messages
+    from myrm_agent_harness.agent.config.parsers import parse_litellm_model, to_litellm_model
+    from myrm_agent_harness.agent.config.presets import BUILTIN_PRESETS, ConfigPreset
+    from myrm_agent_harness.agent.config.readiness import ConfigReadinessChecker, ConfigReadinessResult
+    from myrm_agent_harness.agent.config.validator import ConfigIssue, check_config_health
 
 __all__ = [
     "BUILTIN_PRESETS",
@@ -24,7 +40,6 @@ __all__ = [
     "FileIOConfig",
     "InvalidConfigError",
     "LLMConfig",
-    "StorageConfig",
     "check_config_health",
     "normalize_messages",
     "parse_litellm_model",
@@ -39,7 +54,6 @@ _LAZY_IMPORTS = {
     "FileIOConfig": ("myrm_agent_harness.agent.config.file_io", "FileIOConfig"),
     "AgentConfig": ("myrm_agent_harness.agent.config.llm", "AgentConfig"),
     "LLMConfig": ("myrm_agent_harness.agent.config.llm", "LLMConfig"),
-    "StorageConfig": ("myrm_agent_harness.agent.config.llm", "StorageConfig"),
     "normalize_messages": ("myrm_agent_harness.agent.config.llm_safety", "normalize_messages"),
     "parse_litellm_model": ("myrm_agent_harness.agent.config.parsers", "parse_litellm_model"),
     "to_litellm_model": ("myrm_agent_harness.agent.config.parsers", "to_litellm_model"),

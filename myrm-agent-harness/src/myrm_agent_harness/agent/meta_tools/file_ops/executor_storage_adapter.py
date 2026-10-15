@@ -4,7 +4,7 @@ Adapts CodeExecutor file operations to the StorageProvider interface,
 allowing file tool strategies to use an executor as a storage backend.
 
 [INPUT]
-- toolkits.storage.base::FileInfo, StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all storage backends. Supports file read/write, delete, list, info query, and namespace isolation. Method names use read/write (not get/put), fully compatible with the StorageBackend Protocol.)
+- toolkits.storage.base::FileInfo, StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all storage backends. Supports file read/write, delete, list, and info query. Method names use read/write (not get/put).)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 
 [OUTPUT]
@@ -29,7 +29,6 @@ class ExecutorStorageAdapter(StorageProvider):
     """Adapt a CodeExecutor to the StorageProvider interface."""
 
     def __init__(self, executor: CodeExecutor) -> None:
-        super().__init__(namespace=None)
         self._executor = executor
 
     @property
@@ -54,22 +53,10 @@ class ExecutorStorageAdapter(StorageProvider):
     async def read_text(self, key: str, encoding: str = "utf-8") -> str:
         return await self._executor.read_file(key)
 
-    async def get_text(self, key: str, encoding: str = "utf-8") -> str:
-        return await self._executor.read_file(key)
-
     async def write(self, key: str, content: bytes, content_type: str | None = None) -> None:
         await self._executor.write_file(key, content.decode("utf-8"))
 
     async def write_text(
-        self,
-        key: str,
-        content: str,
-        encoding: str = "utf-8",
-        content_type: str | None = None,
-    ) -> None:
-        await self._executor.write_file(key, content)
-
-    async def put_text(
         self,
         key: str,
         content: str,
