@@ -2993,16 +2993,16 @@ except Exception:
 
 ---
 
-## BUG-AGENT-2026-10-15-005: 看板卡片没有可见、可聚焦的选择入口，触屏与键盘无法多选；批量拖拽逐张走单卡路径，强制晋升确认被后一张覆盖，批量接口还接受 `force` 越过未完成依赖；回收站、引用来源、记忆引用三个面板在 375px 手机上被裁；`KanbanTaskCard.tsx` 772 行且模块文档失实
+## BUG-AGENT-2026-10-15-005: 看板卡片没有可见、可聚焦的选择入口，触屏与键盘无法多选；批量拖拽逐张走单卡路径，强制晋升确认被后一张覆盖，批量接口还接受 `force` 越过未完成依赖；回收站、引用来源、记忆引用三个面板在 375px 手机上被裁；`KanbanTaskCard.tsx` 772 行且模块文档失实；勾选框未选中的圆圈在深浅主题下几乎不可见；展开详情加载失败被静默吞掉
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-15 |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P2（批量接口的 `force` 是 API 层真实的依赖守卫绕过路径，界面从不发这个参数；其余为触屏、键盘、窄屏与可维护性缺陷，不丢数据） |
-| 影响范围 | server：`app/api/kanban/routes/bulk.py`、`tests/api/kanban/test_bulk_action_api.py`、`app/api/kanban/_ARCH.md`；frontend：`components/features/kanban/` 下卡片、批量栏、拖拽、移动 hook、新增 `kanban-card-gestures.ts`、`kanban-bulk.ts`、`KanbanTaskCardDetails.tsx`、`useKanbanTaskCardDetails.ts` 与 `_ARCH.md`，三个 `SheetContent`（`ChatSidebarContent.tsx`、`MemoryCitationsButton.tsx`、`SourcesButton.tsx`），6 个语言包新增 `selectTask`，`scripts/ci/file_line_budget_baseline.txt` |
+| 影响范围 | server：`app/api/kanban/routes/bulk.py`、`tests/api/kanban/test_bulk_action_api.py`、`app/api/kanban/_ARCH.md`；frontend：`components/features/kanban/` 下卡片、批量栏、拖拽、移动 hook、新增 `kanban-card-gestures.ts`、`kanban-bulk.ts`、`KanbanTaskCardDetails.tsx`、`useKanbanTaskCardDetails.ts` 与 `_ARCH.md`，三个 `SheetContent`（`ChatSidebarContent.tsx`、`MemoryCitationsButton.tsx`、`SourcesButton.tsx`），6 个语言包新增 `selectTask` 与 `detailsLoadError`，`scripts/ci/file_line_budget_baseline.txt` |
 | 出现次数 | 1（复审看板时逐项核对代码与真实 Chromium 走查发现；浏览器里的接口是拦截返回的假数据，没有用户数据） |
-| 关联 | `BUG-AGENT-2026-10-15-001` 的局限 4（`KanbanTaskCard.tsx` 未拆）、局限 7（三个固定宽度面板）在本条处理；本地提交 `1550b8ada3`、`ef2888d299`、`104e223aec`、`89aeeb7899`，未 push |
+| 关联 | `BUG-AGENT-2026-10-15-001` 的局限 4（`KanbanTaskCard.tsx` 未拆）、局限 7（三个固定宽度面板）在本条处理；本地提交 `1550b8ada3`、`ef2888d299`、`104e223aec`、`89aeeb7899`，复审修复 `0bf6504cd6`，未 push |
 
 ### 现象
 
@@ -3011,6 +3011,7 @@ except Exception:
 3. 批量接口 `bulk.py` 读取 `params.force`：任何 API 调用方传 `force=true` 都能把依赖未完成的任务晋升到就绪。界面的批量栏与 `bulkAction` 都不发这个参数，所以平时不会被触发。
 4. 回收站、引用来源、记忆引用三个 `SheetContent` 写死 `w-[400px]`，小屏没有上限：375px 手机上比视口宽 25px，右侧面板丢掉左边，回收站面板伸出右边。它们写的 `sm:w-[540px]` 从没生效过（面板基础类在 `sm` 以上封顶 `max-w-sm`，即 384px）。
 5. `KanbanTaskCard.tsx` 772 行，超过 500 行硬线；`_ARCH.md` 与 L4 头对卡片、批量路径的描述与代码不符。
+6. 复审时在真实 Chromium 里量到：勾选框未选中的圆圈描边对比度浅色主题 1.18:1、深色主题 1.26:1（WCAG 非文本对比度要求 3:1），悬停显现后仍几乎看不见；展开详情的加载写成 `catch { /* silent */ }`，失败时面板空白、没有任何提示；展开按钮的 `aria-label` 写死英文 `collapse` / `expand`，也不报告展开状态。
 
 ### 根因
 
@@ -3019,6 +3020,7 @@ except Exception:
 3. 批量接口把单任务接口的 `force` 开关原样照搬，却没有单任务接口配套的确认步骤。
 4. 固定像素宽度没有给小屏写 `w-full`；`sm:w-[540px]` 被面板基础类的 `sm:max-w-sm` 盖住，无人量过。
 5. 展开区的数据加载、依赖编辑、评论提交都内联在卡片组件里，文件随功能累积；文档没有跟着改。
+6. `globals.css:524-526` 的 `* { border-color: var(--border) }` 不在任何 layer 内，优先级高于 Tailwind 放在 layer 内的工具类，所以 `border-primary/50` 与 `data-[state=checked]:border-primary` 都没有生效：量到的描边色深色是 `rgb(37, 35, 32)`、浅色是 `rgb(236, 234, 228)`，正是 `--border` 本身。`Checkbox` 封装自带的 `border-accent-warm` 同理被盖住。只验证了这一个元素，没有扫描全仓。详情加载的静默 `catch` 与写死的 `aria-label` 是原文件遗留。
 
 ### 修复
 
@@ -3027,25 +3029,28 @@ except Exception:
 3. 批量接口（同一提交）：`bulk.py` 不再读取 `params.force`，强制晋升只留给单任务移动接口及其确认步骤。新增 `test_bulk_move_never_forces_past_unmet_dependencies`。
 4. 面板宽度（`104e223aec`）：三处改为 `w-full max-w-[400px]`：低于 400px 的屏幕铺满，400px 及以上与之前完全相同。
 5. 拆分与文档（`89aeeb7899`）：`KanbanTaskCard.tsx` 772 → 354 行，展开区渲染拆到 `KanbanTaskCardDetails.tsx`（346 行）、状态与请求拆到 `useKanbanTaskCardDetails.ts`（156 行）；从行数基线里去掉该文件；`_ARCH.md`、服务端 `_ARCH.md` 与 L4 头改为描述当前行为。
+6. 复审修复（`0bf6504cd6`）：描边改为 `!border-primary`（加 `!` 才压得过未分层的全局规则），勾选框填充不变；详情加载失败时弹本地化提示（新增 `kanban.detailsLoadError`，6 个语言包），并在 `finally` 里清除加载态；展开按钮改用已有的 `taskDetails` 名称并带 `aria-expanded`；`_ARCH.md` 补上描边这条约束，两个 hook 的 L4 头改为当前行为。
 
 ### 验证
 
-1. frontend：`vitest run src/components/features/kanban` 27 个文件 392 例通过；新增用例：`KanbanDndComponents.select.test.tsx` 8 例（显隐规则、点击与双击不冒泡、Space 切换、Enter 无副作用、Shift 范围），`useKanbanMoveTask.test.ts` 7 例（单卡成功、`deps_unmet` 进入确认、其他失败；批量全成功、部分成功、整体失败的回滚与选择），批量栏新增读屏计数一例。`oxlint` 与 `prettier --check` 对改动文件无问题；`tsc --noEmit` 14 个错误全部在他人未提交的文件里，没有一个来自本条改动文件。
+1. frontend：`vitest run src/components/features/kanban` 28 个文件 405 例通过（含他人新增的 `KanbanTaskHandoffSection.test.tsx`）；新增用例：`KanbanDndComponents.select.test.tsx` 8 例（显隐规则、点击与双击不冒泡、Space 切换、Enter 无副作用、Shift 范围），`useKanbanMoveTask.test.ts` 7 例（单卡成功、`deps_unmet` 进入确认、其他失败；批量全成功、部分成功、整体失败的回滚与选择），批量栏新增读屏计数一例；复审补充 `useKanbanTaskCardDetails.test.ts` 12 例（首次展开取数、收起再展开重取、依赖与评论成功后更新列表并刷新、失败提示与加载态）、展开按钮名称与 `aria-expanded` 1 例、描边类约束 1 例，三处都做了变异验证：把源码改回旧写法，对应用例即失败，还原后通过。`oxlint` 与 `prettier --check` 对改动文件无问题；`tsc --noEmit` 共 15 个错误，按路径过滤改动目录与三个面板文件，唯一命中是他人未提交的 `KanbanTaskHandoffSection.test.tsx`，本条改动文件为 0 个。
 2. server：`pytest tests/api/kanban` 448 通过、1 失败、1 跳过；`ruff check` 与 `ruff format --check` 通过。新增用例在旧代码下 `succeeded=2`（强制越过依赖），修复后 `succeeded=1, failed=1` 且子任务状态不变。唯一失败的 `test_move_with_result_and_metadata` 来自他人尚未提交的 `move_orchestrator.py`（新增了 `handoff["timestamp"]`），与本条无关，未处理。
-3. 真实 Chromium（patchright + `next build` 生产构建，接口用请求拦截返回假数据，没有接真实后端），最终一次全部通过：桌面 1280×800 的 27 项（悬停显隐、点击选中、读屏计数、不开抽屉、双击净无变化、Space 选中与取消、Enter 不触发任何东西、Shift 连选、从复选框起拖不发请求、批量拖拽只发一次 `bulk-action` 且不发单卡移动、被拒的卡留在原列并保持选中、无强制晋升弹窗与服务端原文、全部成功后选择被清空、已在目标列的卡不会被发送）与触屏 375×812 的 9 项（复选框常显且不小于 24px、可命中、轻点选中且不开抽屉、批量栏不超出视口、再点一张累加、无横向溢出），均无未捕获的页面错误。
-4. 面板宽度：用项目的 Tailwind 产物与真实面板类在 Chromium 里量，修复前后：320 / 375 / 390px 视口由 `x=-80 / -25 / -10`、宽 400（被裁）变为 `x=0`、宽等于视口；400 / 500 / 639px 前后都是 400px；640 / 1280px 前后都是 384px。
-5. 卡片拆分：与原文件做归一化逐行比较，只有拆分处的胶水代码不同。
-6. 门禁脚本自己的问题（不是产品缺陷，如实记录）：最终前的几次走查出现过失败，逐个查明都在脚本里：批量拖拽时全局的调度器健康轮询（30 秒一次）在假接口下弹出红色横幅，把布局下推；`scroll_into_view_if_needed` 触发看板平滑滚动，紧接着量到的坐标是过期的（触屏「命中」「轻点」两项因此失败，等滚动结束再量即通过，`tap()` 本身是成功的）；放置目标贴近容器右缘会触发 dnd-kit 自动滚动；第二次拖拽的场景把「只有一张卡真正需要移动」当成批量，那条路径一直走单卡接口（见局限 2）。脚本改为每次拖拽前把目标列滚到最左并立即生效，并拦截调度器健康接口后，全部通过。
+3. 真实 Chromium（patchright + `next build` 生产构建，接口用请求拦截返回假数据，没有接真实后端），最终一次全部通过：桌面 1280×800 的 27 项（悬停显隐、点击选中、读屏计数、不开抽屉、双击净无变化、Space 选中与取消、Enter 不触发任何东西、Shift 连选、从复选框起拖不发请求、批量拖拽只发一次 `bulk-action` 且不发单卡移动、被拒的卡留在原列并保持选中、无强制晋升弹窗与服务端原文、全部成功后选择被清空、已在目标列的卡不会被发送）与触屏 375×812 的 9 项（复选框常显且不小于 24px、可命中、轻点选中且不开抽屉、批量栏不超出视口、再点一张累加、无横向溢出），均无未捕获的页面错误；复审修复后整套重跑，桌面 27 项、触屏 9 项仍全部通过。
+4. 复审门禁（同一套真实 Chromium，单独一轮）：深色 / 浅色主题下量真实像素的对比度——描边修复前未选中圆圈浅色 1.18:1、深色 1.26:1，computed 描边色等于 `--border`；修复后未选中圆圈描边对比度浅色 3.41:1（对卡片底 3.61:1）、深色 6.72:1，选中填充浅色 3.41:1、深色 6.72:1。展开按钮：名称稳定，`aria-expanded` 随展开 / 收起在 `false` / `true` 间切换；把 `/tasks/t1/runs` 改成返回 500 后，出现「Failed to load task details」，服务端原文不出现在界面，面板保持展开；中文环境下勾选框、展开按钮、失败提示都是中文。
+5. 面板宽度：用项目的 Tailwind 产物与真实面板类在 Chromium 里量，修复前后：320 / 375 / 390px 视口由 `x=-80 / -25 / -10`、宽 400（被裁）变为 `x=0`、宽等于视口；400 / 500 / 639px 前后都是 400px；640 / 1280px 前后都是 384px。
+6. 卡片拆分：与原文件做归一化逐行比较，只有拆分处的胶水代码不同。
+7. 门禁脚本自己的问题（不是产品缺陷，如实记录）：最终前的几次走查出现过失败，逐个查明都在脚本里：批量拖拽时全局的调度器健康轮询（30 秒一次）在假接口下弹出红色横幅，把布局下推；`scroll_into_view_if_needed` 触发看板平滑滚动，紧接着量到的坐标是过期的（触屏「命中」「轻点」两项因此失败，等滚动结束再量即通过，`tap()` 本身是成功的）；放置目标贴近容器右缘会触发 dnd-kit 自动滚动；第二次拖拽的场景把「只有一张卡真正需要移动」当成批量，那条路径一直走单卡接口（见局限 2）。脚本改为每次拖拽前把目标列滚到最左并立即生效，并拦截调度器健康接口后，全部通过。复审那一轮也有两处是脚本的问题：浅色主题由 `localStorage.theme` 决定，不跟随 `prefers-color-scheme`，第一版脚本只设了后者，页面仍是深色；对比度取样位置取在圆圈外沿，选中状态量成了 1.21:1，改成取填充与底色的对比后才是 6.72:1。未选中圆圈的低对比度不是脚本问题，computed 描边色等于 `--border` 已直接证明。
 
 ### 局限
 
 1. 触屏拖拽（`TouchSensor` 的 250ms 长按）没有在浏览器里验证；触屏只验证了复选框的轻点选择。验证用的是 Chromium 的触屏模拟，不是真机。
 2. 多选拖拽时，若真正需要移动的只有一张卡（其余已在目标列），`useKanbanDnD.dispatchMove` 仍走单卡接口：该卡遇到未完成依赖时弹单卡确认，选择保持不变。真实 Chromium 里复现过（选 Bravo + Delta 拖到 Ready，只发了一次 `POST .../tasks/t2/move`）。这是原有行为，没有改；重试与归档的单卡确认流程依赖它。
-3. 卡片的展开按钮 `aria-label={details.expanded ? 'collapse' : 'expand'}` 是写死的英文（原文件就有），语言包里没有对应键；没有在本条里处理。
+3. 卡片包装器是 `role=button`（dnd-kit 的 activator），里面又放了勾选框和按钮：真实 Chromium 里数到 5 个 `[role=button] [role=checkbox]`、17 个 `[role=button] button`。这是原有的卡片结构，没有改；读屏可能提示嵌套交互控件，没有用读屏软件验证。
 4. `KanbanTaskCard.tsx` 之外，`KanbanBoardView.tsx` 仍有约 438 行（在行数基线内，未超 500）。
 5. 浏览器走查用的是假接口，没有验证真实后端在浏览器里的行为；服务端行为由 pytest 覆盖。
 6. 最后一次重跑时，工作区里他人未提交的改动仍使若干门禁失败，与本条无关，没有处理也没有隐藏：`verify:stable-mocks`（`channels/pairing` 的两个测试）、`verify:a11y`（`handoff-brief`、`workspace/quick-switcher`、`extension-widgets` 等）、`verify:hardcoded-copy`（`KanbanTaskHandoffSection.tsx` 3 处写死中文）、行数基线（25 个他人文件超线）与孤儿模块检查；失败清单里没有本条改动的文件。`verify:theme-colors` 与 `verify:icu-syntax` 通过。`ja.json` 此前一度含非法 UTF-8，最后一次检查时 6 个语言包都能正常解析，本条只对它做过字节级插入 `selectTask`。
 7. 未改动任何提示词。
+8. 其他组件里用普通 `border-<token>` 色类的地方，可能同样被 `globals.css` 的全局规则盖住；本条只验证了勾选框这一个元素，没有扫描全仓，也没有改全局规则（改它会影响所有边框）。
 
 ### 踩坑经验
 
@@ -3055,3 +3060,5 @@ except Exception:
 4. 平滑滚动、入场动画、全局轮询弹出的横幅，都会让「刚量到的坐标」过期。真实浏览器门禁里，量坐标前要把滚动位置固定下来、等动画结束、拦住会改变布局的后台请求。
 5. 门禁失败先区分脚本问题与产品问题：用单独的调试脚本打出 `elementsFromPoint`、滚动位置、请求列表，再下结论；本条的 5 项失败里没有一项是产品缺陷，但每一项都是靠打印出来的事实而不是猜测排除的。
 6. 具名 `group/x` 的悬停显隐不能复用共享的 `REVEAL_ON_HOVER`，需要把 `group-hover/x`、`group-focus-within/x` 与 `pointer-coarse:opacity-100` 写全，门禁脚本才认。
+7. 类名写了不等于生效：未分层的全局基础样式会盖掉 Tailwind 的 layer 内工具类。对比度、颜色这类视觉约束要量 computed style 与真实像素，不要只看类名。
+8. 对比度门禁要先验证测量方法本身：同一次走查里，未选中圆圈的 1.2:1 是真问题（computed 描边色直接证明），选中状态的 1.21:1 却是取样位置不对。两种失败用不同的证据区分，不能一并当成产品缺陷，也不能一并当成脚本问题。
