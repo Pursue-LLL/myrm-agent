@@ -41,7 +41,6 @@ from app.schemas.memory.command_center import (
     MemoryCommandGraphNode,
     MemoryCommandGraphResponse,
     MemoryCommandGraphStats,
-    MemoryCommandPlaneSummary,
     MemoryEvidencePlaybackResponse,
     MemoryRecallBoundaryData,
     MemoryRepoEvidenceResponse,
@@ -166,17 +165,6 @@ async def get_memory_command_center(
     """
 
     return await MemoryCommandCenterService(db, memory_manager, project_id=project_id or None).build_snapshot()
-
-
-@router.get("/plane-summary", response_model=MemoryCommandPlaneSummary)
-async def get_memory_plane_summary(
-    db: AsyncSession = Depends(get_db_session),
-    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
-) -> MemoryCommandPlaneSummary:
-    """Return a content-free memory health envelope for sandbox control planes."""
-
-    snapshot = await MemoryCommandCenterService(db, memory_manager).build_snapshot()
-    return snapshot.plane_summary
 
 
 @router.get("/recall-boundary", response_model=MemoryRecallBoundaryData)
