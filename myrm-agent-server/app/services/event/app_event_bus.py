@@ -52,6 +52,7 @@ class AppEventType(StrEnum):
     LOCATOR_HEALED = "locator_healed"
     GOAL_TERMINAL = "goal_terminal"
     GOAL_DEQUEUED = "goal_dequeued"
+    GOAL_BRANCH_SWITCHED = "goal:branch_switched"
     EXTENSION_STATUS_CHANGED = "extension_status_changed"
     SUBAGENT_REBIND_REQUIRED = "subagent_rebind_required"
     SUBAGENT_STALE = "subagent_stale"

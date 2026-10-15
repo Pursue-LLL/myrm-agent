@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.agent.goals.types import GoalStatus
@@ -9,6 +9,7 @@ from app.services.agent.goals.goal_registry import (
     GoalRegistry,
     check_and_handle_branch_stash,
 )
+from app.services.event.app_event_bus import AppEventType
 
 
 @pytest.fixture
@@ -95,6 +96,30 @@ async def test_check_and_handle_branch_stash_integration(mock_storage) -> None:
 
         # Clean up
         GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_branch_switch_publishes_goal_branch_switched_event(mock_storage) -> None:
+    session_id = "test-branch-event-session"
+    bus = MagicMock()
+
+    with (
+        patch("app.services.agent.goals.goal_registry.get_current_git_branch", new_callable=AsyncMock) as mock_branch_getter,
+        patch("app.platform_utils.get_storage_provider", return_value=mock_storage),
+        patch("app.services.event.app_event_bus.get_event_bus", return_value=bus),
+    ):
+        GoalRegistry.unregister(session_id)
+        mock_branch_getter.return_value = "branch_a"
+        await check_and_handle_branch_stash(session_id)
+        mock_branch_getter.return_value = "branch_b"
+        await check_and_handle_branch_stash(session_id)
+        GoalRegistry.unregister(session_id)
+
+    events = [call.args[0] for call in bus.publish.call_args_list]
+    assert [event.event_type for event in events] == [AppEventType.GOAL_BRANCH_SWITCHED] * 2
+    assert events[-1].event_type == "goal:branch_switched"  # the wire name the frontend listens for
+    assert events[-1].data["branch"] == "branch_b"
+    assert events[-1].data["stashed_branch"] == "branch_a"
 
 
 @pytest.mark.asyncio

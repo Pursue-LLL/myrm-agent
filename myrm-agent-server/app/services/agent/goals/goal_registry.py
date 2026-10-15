@@ -419,12 +419,12 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
                     logger.error("Failed to restore todos for branch %s: %s", branch, e)
 
     try:
-        from app.services.event.app_event_bus import AppEvent, get_event_bus
+        from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
         bus = get_event_bus()
         bus.publish(
             AppEvent(
-                event_type="goal:branch_switched",
+                event_type=AppEventType.GOAL_BRANCH_SWITCHED,
                 data={
                     "chat_id": session_id,
                     "branch": branch,
