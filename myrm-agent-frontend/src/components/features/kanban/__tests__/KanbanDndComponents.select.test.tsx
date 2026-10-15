@@ -215,4 +215,15 @@ describe('DraggableTaskCard drag activation', () => {
     await user.pointer(press(screen.getByText('Title a')));
     expect(onDragStart).toHaveBeenCalledTimes(1);
   });
+
+  it('leaves touch panning to the browser so a swipe that starts on a card scrolls the board', () => {
+    renderColumn();
+
+    const card = screen.getByText('Title a').closest('[aria-roledescription]');
+
+    // jsdom 不解析 Tailwind，单测里只能固定类名；`touch-none` 会让从卡片起手的任何滑动都滚不动看板。
+    expect(card).not.toBeNull();
+    expect(card?.className).toContain('touch-manipulation');
+    expect(card?.className).not.toContain('touch-none');
+  });
 });
