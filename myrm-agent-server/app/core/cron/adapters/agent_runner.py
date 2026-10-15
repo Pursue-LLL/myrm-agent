@@ -33,6 +33,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
+from myrm_agent_harness.api.security import is_untrusted_ingress_active
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
     enter_cron_execution_context,
     exit_cron_execution_context,
@@ -50,6 +51,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from .injection_scan import scan_cron_prompt
+from .research_lease import grant_run_lease, release_run_lease
 
 logger = logging.getLogger(__name__)
 
@@ -321,17 +323,21 @@ def resolve_trusted_desktop_keys(
 def _resolve_cron_enable_memory(
     enabled_builtin_tools: list[str],
     memory_settings: dict[str, object] | None,
+    *,
+    untrusted: bool,
 ) -> bool:
-    """Enable memory for cron only when both gates pass.
+    """Enable memory for cron only when all gates pass.
 
     1. The intersected tool set allows memory (``tools_allowed`` per-job
        allow-list, parallel to web_search/file/shell handling).
     2. The user-level memory master switch is on (``enableMemory`` personal
        setting), keeping cron consistent with channel/voice entry points.
+    3. The run was not started by an untrusted sender: memory here is the owner's,
+       so a stranger's run neither reads nor writes it.
     """
     from app.core.memory.proactive.settings import resolve_memory_enabled
 
-    return "memory" in enabled_builtin_tools and resolve_memory_enabled(memory_settings)
+    return not untrusted and "memory" in enabled_builtin_tools and resolve_memory_enabled(memory_settings)
 
 
 async def _resolve_cron_enable_web_search(
@@ -557,7 +563,15 @@ class AgentJobRunner:
         if await should_block_execution():
             return JobResult(success=False, error="daily budget exceeded (block policy)")
 
-        if job.chat_id:
+        # A non-owner's message started this run, so its trigger context is a stranger's text: the run gets the
+        # read-only lease and no memory or owner chat history (below), is never queued as a goal in the owner's
+        # chat, where it would run unfenced, and cannot be a workflow template, whose agents the lease cannot reach.
+        untrusted = is_untrusted_ingress_active()
+        if untrusted and job.workflow_template_id:
+            logger.info("Cron job %s: workflow template jobs do not run for a non-owner sender", job.id)
+            return JobResult(success=True, skipped=True, skip_reason="untrusted-workflow")
+
+        if job.chat_id and not untrusted:
             queued = await self._try_enqueue_if_goal_active(job, context=context)
             if queued:
                 return JobResult(
@@ -594,6 +608,7 @@ class AgentJobRunner:
             effective_prompt = f"{effective_prompt}\n\n{context}"
 
         cron_ctx_token = enter_cron_execution_context()
+        lease_session_key: str | None = None
         try:
             from app.ai_agents.agents import AgentFactory, GeneralAgentParams
             from app.core.channel_bridge.config_loader import load_user_configs
@@ -804,7 +819,7 @@ class AgentJobRunner:
                 declared_capabilities=job.required_capabilities,
                 declared_allowed_roots=job.allowed_roots,
                 **cron_tool_flags,
-                enable_memory=_resolve_cron_enable_memory(enabled_builtin_tools, memory_settings),
+                enable_memory=_resolve_cron_enable_memory(enabled_builtin_tools, memory_settings, untrusted=untrusted),
                 enable_web_search=await _resolve_cron_enable_web_search(
                     enabled_builtin_tools=enabled_builtin_tools,
                     job=job,
@@ -837,27 +852,8 @@ class AgentJobRunner:
             agent = AgentFactory.create_general_agent(params)
             agent.approval_session_key = f"cron:{job.id}"
 
-            has_explicit_mutations = bool(
-                job.required_capabilities
-                and any(
-                    cap in job.required_capabilities
-                    for cap in ("shell_exec", "file_write", "git_push", "send_email")
-                )
-            )
-            is_research_or_unattended = getattr(job, "is_research", False) or not has_explicit_mutations
-            if is_research_or_unattended:
-                from myrm_agent_harness.core.security.readonly_research_sandbox import (
-                    ResearchModeEnum,
-                    get_readonly_research_sandbox_facade,
-                )
-
-                get_readonly_research_sandbox_facade().grant_research_lease(
-                    session_id=agent.approval_session_key,
-                    research_mode=ResearchModeEnum.AUTONOMOUS_RESEARCH,
-                    ttl_seconds=float(job.timeout_seconds or 300) + 60.0,
-                )
-
             timeout = job.timeout_seconds or 300
+            lease_session_key = grant_run_lease(agent, job, timeout_seconds=timeout, untrusted=untrusted)
             run_started_at = time.monotonic()
             model_name: str | None = getattr(agent.model_cfg, "model", None)
 
@@ -919,7 +915,7 @@ class AgentJobRunner:
                         )
                     else:
                         result = await asyncio.wait_for(
-                            _consume_stream(agent, job, effective_prompt, runtime_context),
+                            _consume_stream(agent, job, effective_prompt, runtime_context, untrusted=untrusted),
                             timeout=timeout,
                         )
                     if cron_post_run_verify:
@@ -956,16 +952,6 @@ class AgentJobRunner:
                         agent_id=params.agent_id,
                         extra_context=runtime_context,
                     )
-                    try:
-                        from myrm_agent_harness.core.security.readonly_research_sandbox import (
-                            get_readonly_research_sandbox_facade,
-                        )
-
-                        ro_facade = get_readonly_research_sandbox_facade()
-                        ro_facade.revoke_lease(agent.approval_session_key)
-                        ro_facade.purge_ephemeral_overlay(agent.approval_session_key)
-                    except Exception as ro_err:
-                        logger.debug("Read-only research lease cleanup ignored: %s", ro_err)
 
                 await _finalize_heartbeat_follow_up_delivery(job, result)
 
@@ -997,6 +983,8 @@ class AgentJobRunner:
             logger.warning("Cron agent job %s failed: %s", job.id, exc)
             return JobResult(success=False, error=str(exc))
         finally:
+            if lease_session_key:
+                release_run_lease(lease_session_key)
             exit_cron_execution_context(cron_ctx_token)
 
 
@@ -1108,6 +1096,8 @@ async def _consume_stream(
     job: CronJob,
     effective_prompt: str,
     runtime_context: dict[str, object],
+    *,
+    untrusted: bool,
 ) -> JobResult:
     from app.ai_agents.general_agent import GeneralAgent
 
@@ -1115,7 +1105,8 @@ async def _consume_stream(
 
     acc = _StreamAccumulator()
     model_name: str | None = getattr(agent.model_cfg, "model", None)
-    chat_history = await _load_thread_history(job)
+    # The bound thread is the owner's private conversation; a non-owner's run never reads it.
+    chat_history = None if untrusted else await _load_thread_history(job)
 
     async for event in agent.process_stream(
         query=effective_prompt,

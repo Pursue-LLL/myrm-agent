@@ -1,4 +1,4 @@
-"""Integration tests for cron event dispatch hook placement and sender admission in AgentRouter."""
+"""Integration tests for cron event dispatch hook placement, sender admission and sender trust in AgentRouter."""
 
 from __future__ import annotations
 
@@ -8,10 +8,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.channels.protocols.pairing import DmPolicy
+from app.channels.protocols.pairing import DmPolicy, PairingRole, PairingStatus
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.session_gate import SessionGateConfig
 from app.channels.types import InboundMessage
+
+_ADMIN_PAIRING = (PairingStatus.ACTIVE, PairingRole.ADMIN, None)
 
 
 def _msg(content: str, *, message_id: str = "msg-1") -> InboundMessage:
@@ -40,11 +42,20 @@ def bus() -> MagicMock:
     return bus
 
 
+def _pairing_store(*, identity: str | None = None, row: tuple[PairingStatus, PairingRole, int | None] | None = None) -> MagicMock:
+    """A pairing store that knows the one sender: its resolved ``identity`` and its pairing ``row``, if it has them."""
+    pairing = MagicMock()
+    pairing.resolve = AsyncMock(return_value=identity)
+    pairing.get_pairing_detail = AsyncMock(return_value=row)
+    return pairing
+
+
 @pytest.fixture()
 def router(bus: MagicMock) -> AgentRouter:
+    """A router whose sender is the owner: an ACTIVE admin pairing."""
     return AgentRouter(
         bus=bus,
-        pairing_store=MagicMock(),
+        pairing_store=_pairing_store(identity="sandbox", row=_ADMIN_PAIRING),
         agent_executor=AsyncMock(),
         session_gate_config=SessionGateConfig(debounce_window_ms=0),
     )
@@ -68,6 +79,7 @@ async def test_normal_message_dispatches_cron_once(router: AgentRouter) -> None:
                 "server down alert",
                 "feishu",
                 "owner-1",
+                untrusted=False,
             )
         finally:
             await router.stop()
@@ -190,18 +202,21 @@ def _dm_from(sender_id: str, content: str, *, message_id: str) -> InboundMessage
     )
 
 
-def _allowlist_router(bus: MagicMock, *, active_pairing: str | None) -> AgentRouter:
-    """A router with an ALLOWLIST DM policy whose pairing store knows the one sender, if ``active_pairing`` is given."""
-    pairing = MagicMock()
-    pairing.resolve = AsyncMock(return_value=active_pairing)
-    pairing.get_pairing_detail = AsyncMock(return_value=None)
-    policy = MagicMock()
-    policy.get_dm_policy = AsyncMock(return_value=DmPolicy.ALLOWLIST)
+def _dm_router(
+    bus: MagicMock,
+    *,
+    policy: DmPolicy = DmPolicy.ALLOWLIST,
+    identity: str | None = None,
+    row: tuple[PairingStatus, PairingRole, int | None] | None = None,
+) -> AgentRouter:
+    """A router with the given DM ``policy`` whose pairing store knows the one sender as ``identity`` / ``row``."""
+    policy_provider = MagicMock()
+    policy_provider.get_dm_policy = AsyncMock(return_value=policy)
     return AgentRouter(
         bus=bus,
-        pairing_store=pairing,
+        pairing_store=_pairing_store(identity=identity, row=row),
         agent_executor=AsyncMock(),
-        policy_provider=policy,
+        policy_provider=policy_provider,
         session_gate_config=SessionGateConfig(debounce_window_ms=0),
     )
 
@@ -225,7 +240,7 @@ async def _deliver(router: AgentRouter, *messages: InboundMessage) -> AsyncMock:
 
 @pytest.mark.asyncio
 async def test_sender_the_policy_ignores_does_not_fire_event_triggers(bus: MagicMock) -> None:
-    router = _allowlist_router(bus, active_pairing=None)
+    router = _dm_router(bus)
 
     dispatch = await _deliver(router, _dm_from("stranger", "server down alert", message_id="stranger-1"))
 
@@ -233,12 +248,30 @@ async def test_sender_the_policy_ignores_does_not_fire_event_triggers(bus: Magic
 
 
 @pytest.mark.asyncio
-async def test_paired_sender_fires_event_triggers(bus: MagicMock) -> None:
-    router = _allowlist_router(bus, active_pairing="paired_member_feishu_member")
+async def test_paired_member_fires_fenced_event_triggers(bus: MagicMock) -> None:
+    router = _dm_router(bus, identity="paired_member_feishu_member", row=(PairingStatus.ACTIVE, PairingRole.MEMBER, None))
 
     dispatch = await _deliver(router, _dm_from("member", "server down alert", message_id="member-1"))
 
-    dispatch.assert_awaited_once_with("server down alert", "feishu", "")
+    dispatch.assert_awaited_once_with("server down alert", "feishu", "", untrusted=True)
+
+
+@pytest.mark.asyncio
+async def test_owner_fires_unfenced_event_triggers(bus: MagicMock) -> None:
+    router = _dm_router(bus, identity="sandbox", row=_ADMIN_PAIRING)
+
+    dispatch = await _deliver(router, _dm_from("owner", "server down alert", message_id="owner-dm-1"))
+
+    dispatch.assert_awaited_once_with("server down alert", "feishu", "", untrusted=False)
+
+
+@pytest.mark.asyncio
+async def test_open_policy_guest_fires_fenced_event_triggers(bus: MagicMock) -> None:
+    router = _dm_router(bus, policy=DmPolicy.OPEN)
+
+    dispatch = await _deliver(router, _dm_from("guest", "server down alert", message_id="guest-1"))
+
+    dispatch.assert_awaited_once_with("server down alert", "feishu", "", untrusted=True)
 
 
 @pytest.mark.asyncio
@@ -252,5 +285,18 @@ async def test_failed_admission_check_skips_dispatch_and_keeps_routing(
     ):
         dispatch = await _deliver(router, _msg("first alert", message_id="fail-1"), _msg("second alert", message_id="fail-2"))
 
-    dispatch.assert_awaited_once_with("second alert", "feishu", "owner-1")
+    dispatch.assert_awaited_once_with("second alert", "feishu", "owner-1", untrusted=False)
     assert "Admission check failed for feishu/user1, denying" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_failed_trust_check_fences_the_job_and_keeps_routing(router: AgentRouter, caplog: pytest.LogCaptureFixture) -> None:
+    check = AsyncMock(side_effect=RuntimeError("store down"))
+    with (
+        patch.object(router._resolver, "is_untrusted_event_sender", check),
+        caplog.at_level(logging.WARNING, logger="app.channels.routing.router"),
+    ):
+        dispatch = await _deliver(router, _msg("server alert", message_id="trust-1"))
+
+    dispatch.assert_awaited_once_with("server alert", "feishu", "owner-1", untrusted=True)
+    assert "Trust check failed for feishu/user1, treating as untrusted" in caplog.text

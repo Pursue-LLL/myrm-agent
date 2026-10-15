@@ -7,6 +7,7 @@ Tests for the cron blueprint registry and fill_blueprint function.
 from __future__ import annotations
 
 import pytest
+from myrm_agent_harness.core.security.tool_registry import BUILTIN_TOOL_NAMES, TOOL_PERMISSION_MAP
 
 from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES, SUPPLEMENTAL_BY_ID
 from app.core.cron.blueprints import (
@@ -50,6 +51,13 @@ class TestBlueprintRegistry:
     def test_supplemental_covers_all_builtin_ids(self) -> None:
         builtin_ids = {bp.id for bp in BUILTIN_BLUEPRINTS}
         assert set(SUPPLEMENTAL_BY_ID) == builtin_ids
+
+    def test_default_capabilities_are_tokens_a_tool_call_resolves_to(self) -> None:
+        """A capability is the permission type of a tool call; a token no call resolves to is never granted."""
+        resolvable = {*TOOL_PERMISSION_MAP.values(), *BUILTIN_TOOL_NAMES, "shell_exec", "mcp_invoke"}
+        for bp in BUILTIN_BLUEPRINTS:
+            unknown = set(bp.default_required_capabilities) - resolvable
+            assert not unknown, f"{bp.id} declares capabilities no tool call resolves to: {sorted(unknown)}"
 
     def test_all_slot_defaults_are_strings(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:

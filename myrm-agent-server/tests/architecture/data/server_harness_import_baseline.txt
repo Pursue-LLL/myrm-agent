@@ -114,7 +114,6 @@ myrm_agent_harness.agent.security.delegation.models
 myrm_agent_harness.agent.security.detection.content_boundary
 myrm_agent_harness.agent.security.engine
 myrm_agent_harness.agent.security.guards.estop
-myrm_agent_harness.agent.security.guards.taint_tracker
 myrm_agent_harness.agent.security.guards.untrusted_ingress_fence
 myrm_agent_harness.agent.security.jit_gate
 myrm_agent_harness.agent.security.jit_gate.models

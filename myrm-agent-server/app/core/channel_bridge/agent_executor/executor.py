@@ -97,19 +97,11 @@ class ChannelAgentExecutor:
         # Security Fence: Enforce physical tool stripping for non-admin paired members and guests
         is_untrusted_ingress = is_untrusted_sender(effective_uid, msg)
         if is_untrusted_ingress:
-            from myrm_agent_harness.agent.security.guards.taint_tracker import (
-                TaintLabel,
-                get_taint_tracker,
-            )
             from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
                 set_untrusted_ingress,
             )
 
             set_untrusted_ingress(True)
-            get_taint_tracker().record_ingress_taint(
-                TaintLabel.UNTRUSTED_INGRESS,
-                source=f"channel:{msg.channel}:{effective_uid}",
-            )
 
         if not is_resume and topic_context and topic_context.agent_id and msg.content:
             faq_reply = await self._try_faq_intercept(

@@ -9,17 +9,18 @@ pairing status, and WhatsApp LID fallback logic.
 - channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
 - channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)
 - channels.routing.policy_resolver_support::BoundedCooldownMap, GroupFollowUpTracker, policy query and sender check helpers (POS: policy lookups, cooldown and follow-up tracking, the owner rule)
-- channels.routing.sender_admission::check_sender_admitted (POS: side-effect-free admission check)
+- channels.routing.sender_admission::check_sender_admitted, is_untrusted_event_sender (POS: side-effect-free admission and sender-trust checks)
 - channels.types::InboundMessage, ContextEntry, METADATA_GUEST_TURN_KEY (POS: core message types and metadata constants shared by every channel)
 
 [OUTPUT]
-- PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus a read-only is_sender_admitted
+- PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus the read-only is_sender_admitted / is_untrusted_event_sender
 
 [POS]
 Inbound policy resolution: decides whether a message reaches an agent turn and under which identity.
 Handles DM/group policy evaluation, user identity resolution, and pairing state management.
 Router holds an instance via composition and calls resolve_group_user / resolve_dm_user,
-and is_sender_admitted for work that must follow the access policy but runs before those resolvers.
+and is_sender_admitted / is_untrusted_event_sender for work that must follow the access policy and the sender's
+trust level but runs before those resolvers.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ from app.channels.routing.policy_resolver_support import (
     resolve_paired_user,
     should_respond_in_group_support,
 )
-from app.channels.routing.sender_admission import check_sender_admitted
+from app.channels.routing.sender_admission import check_sender_admitted, is_untrusted_event_sender
 from app.channels.types import (
     METADATA_GUEST_TURN_KEY,
     ContextEntry,
@@ -105,6 +106,14 @@ class PolicyResolver:
         For work that must follow the policy but runs before ``resolve_*_user``, which reply, count and pair.
         """
         return await check_sender_admitted(self._pairing, self._policy, self._get_channel, msg)
+
+    async def is_untrusted_event_sender(self, msg: InboundMessage) -> bool:
+        """Whether the sender is anyone but the owner, by the rule that fences a chat turn from that sender.
+
+        Decided without any side effect, for work that runs before ``resolve_*_user`` but must be fenced like
+        the chat turn those resolvers would start.
+        """
+        return await is_untrusted_event_sender(self._pairing, msg)
 
     async def resolve_group_user(
         self,

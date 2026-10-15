@@ -661,6 +661,14 @@ MIGRATION_STATEMENTS: list[str] = [
     # A hit log holds a position or the timeout marker, never the matched text (a key, a number, an address).
     """UPDATE risk_hits SET match_summary = ''
     WHERE match_summary != '' AND match_summary != '(matching timed out)' AND match_summary NOT LIKE 'chars:%'""",
+    # Capability token ``code_interpreter_tool`` -> ``code_interpreter``, the permission type the security engine
+    # matches; the old token matched no permission, so a job or profile that declared it never got the capability.
+    """UPDATE cron_jobs SET required_capabilities = REPLACE(required_capabilities, '"code_interpreter_tool"', '"code_interpreter"')
+    WHERE required_capabilities LIKE '%"code_interpreter_tool"%'""",
+    """UPDATE agents SET security_overrides = REPLACE(security_overrides, '"code_interpreter_tool"', '"code_interpreter"')
+    WHERE security_overrides LIKE '%"code_interpreter_tool"%'""",
+    """UPDATE security_profiles SET config_json = REPLACE(config_json, '"code_interpreter_tool"', '"code_interpreter"')
+    WHERE config_json LIKE '%"code_interpreter_tool"%'""",
 ]
 
 # 创建索引的SQL语句列表

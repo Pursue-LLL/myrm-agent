@@ -247,7 +247,7 @@ components: []
 7. **Agent 执行**：`AgentExecutor.execute_stream()` + CancellationToken；`build_channel_inbound_query` 将文档块拼入 user 正文
 8. **流式回复**：Placeholder 编辑 + 自适应节流 + 智能分块
 
-**Cron 事件触发**：命令检测之后、进入会话队列之前，入站文本会匹配 Cron 事件触发器（`core/cron/adapters/inbound_event_dispatch.py`）。事件触发会以所有者身份无人值守地启动任务，因此只对访问策略会放行的发送者生效：所有者与控制面转发始终放行；陌生人（ALLOWLIST/PAIRING 策略下）、已拉黑或待审批的配对、未启用的群聊（访客模式下直接 @ 机器人的消息除外，它按一次性请求放行）不会触发。判定由只读的 `routing/sender_admission.py` 完成（不绑定、不记账、不回复），查询失败即拒绝并记 WARNING（详见 `routing/_ARCH.md` 的 Event-Trigger Admission）。
+**Cron 事件触发**：命令检测之后、进入会话队列之前，入站文本会匹配 Cron 事件触发器（`core/cron/adapters/inbound_event_dispatch.py`）。事件触发会以所有者身份无人值守地启动任务，因此只对访问策略会放行的发送者生效：所有者与控制面转发始终放行；陌生人（ALLOWLIST/PAIRING 策略下）、已拉黑或待审批的配对、未启用的群聊（访客模式下直接 @ 机器人的消息除外，它按一次性请求放行）不会触发。判定由只读的 `routing/sender_admission.py` 完成（不绑定、不记账、不回复），查询失败即拒绝并记 WARNING。所有者以外的发送者（已配对成员、访客、没有有效管理员配对的发送者）触发的任务，按与其聊天回合相同的不受信栅栏运行：只读研究租约、不带记忆与所有者聊天历史、不进入目标队列、不运行工作流模板任务；该判定同样由只读的 `is_untrusted_event_sender` 完成，查询失败按不受信处理并记 WARNING（详见 `routing/_ARCH.md` 的 Event-Trigger Admission）。
 
 **前端联动**：设置 → 偏好 → **提取附件文本**（`extractDocumentText`）同步影响 Web 聊天、IM 渠道与看板任务附件。
 

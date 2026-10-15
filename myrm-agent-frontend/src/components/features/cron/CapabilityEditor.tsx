@@ -31,7 +31,7 @@ const CAPABILITY_DEFS = [
   { id: 'file_read', icon: FileInput },
   { id: 'file_write', icon: FileOutput },
   { id: 'mcp_invoke', icon: Plug },
-  { id: 'code_interpreter_tool', icon: Code },
+  { id: 'code_interpreter', icon: Code },
 ] as const;
 
 /** SSOT: keep aligned with server `blueprints.py` `_CAP_*` / `_TOOLS_*`. */
@@ -49,8 +49,8 @@ const BLUEPRINT_EXECUTION_POLICY = {
     toolsSorted: ['file_ops', 'web_search'],
   },
   devops: {
-    caps: ['shell_exec', 'file_read', 'file_write', 'code_interpreter_tool'],
-    capsSorted: ['code_interpreter_tool', 'file_read', 'file_write', 'shell_exec'],
+    caps: ['shell_exec', 'file_read', 'file_write', 'code_interpreter'],
+    capsSorted: ['code_interpreter', 'file_read', 'file_write', 'shell_exec'],
     tools: ['web_search', 'file_ops', 'code_execute'] as BuiltinToolId[],
     toolsSorted: ['code_execute', 'file_ops', 'web_search'],
   },

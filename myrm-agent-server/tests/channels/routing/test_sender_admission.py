@@ -1,23 +1,25 @@
-"""Sender admission: the read-only verdict on whether the access policy lets a sender through.
+"""Sender admission and sender trust: the read-only verdicts that guard event-triggered cron jobs.
 
-The verdict guards event-triggered cron jobs, which run before PolicyResolver. It must agree with what PolicyResolver
-decides for the same sender (the owner is always admitted on top of that) and it must not change any state.
+Both run before PolicyResolver. Admission must agree with what PolicyResolver decides for the same sender (the owner
+is always admitted on top of that); trust must agree with the fence the chat turn gets on the identity PolicyResolver
+assigns. Neither may change any state.
 """
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.channels.protocols.pairing import DmPolicy, GroupPolicy, GroupTriggerMode, PairingRole, PairingStatus
 from app.channels.routing.context_buffer import GroupContextBuffer
+from app.channels.routing.identity_scope import is_untrusted_sender
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver import PolicyResolver
-from app.channels.types import METADATA_EXPLICIT_MENTION_KEY, InboundMessage, ReactionLevel
+from app.channels.types import METADATA_EXPLICIT_MENTION_KEY, METADATA_GUEST_TURN_KEY, InboundMessage, ReactionLevel
 from app.core.channel_bridge.pairing_store import SqlPairingStore
 
 Pairing = tuple[PairingStatus, PairingRole] | None
@@ -38,6 +40,7 @@ class _Policy:
     group: GroupPolicy = GroupPolicy.OPEN
     enabled_groups: frozenset[str] = frozenset()
     guest_mode: bool = False
+    default_user_id: str = "sandbox"  # what PairingStore.resolve returns for an ACTIVE admin pairing
 
     async def get_dm_policy(self, channel: str) -> DmPolicy:
         return self.dm
@@ -61,7 +64,7 @@ class _Policy:
         return set()
 
     async def get_default_user_id(self) -> str | None:
-        return "default"
+        return self.default_user_id
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,7 @@ DM_CASES = [
 GROUP_CASES = [
     _GroupCase("enabled-stranger", GroupPolicy.OPEN, True, False, False, None, True, True),
     _GroupCase("enabled-member", GroupPolicy.OPEN, True, False, False, _MEMBER, True, True),
+    _GroupCase("enabled-owner", GroupPolicy.OPEN, True, False, False, _OWNER, True, True),
     _GroupCase("enabled-allowlist-policy", GroupPolicy.ALLOWLIST, True, False, False, None, True, True),
     _GroupCase("not-enabled-stranger", GroupPolicy.OPEN, False, False, False, None, False, False),
     _GroupCase("not-enabled-blocked", GroupPolicy.OPEN, False, False, False, _BLOCKED, False, False),
@@ -303,3 +307,80 @@ class TestTrustedAndPreResolved:
         assert await resolver.is_sender_admitted(roster.dm(stranger)) is False
         assert await resolver.is_sender_admitted(roster.dm(member)) is True
         assert await resolver.is_sender_admitted(roster.group(member)) is False
+
+
+async def _chat_turn_is_fenced(resolver: PolicyResolver, msg: InboundMessage) -> bool:
+    """The fence decision the executor makes for this sender, on the identity and message the resolvers hand over."""
+    if msg.is_group:
+        resolved = await resolver.resolve_group_user(msg)
+        assert resolved is not None
+        user_id, msg = resolved
+    else:
+        resolved_user = await resolver.resolve_dm_user(msg)
+        assert resolved_user is not None
+        user_id = resolved_user
+    return is_untrusted_sender(user_id, msg)
+
+
+class TestSenderTrust:
+    @pytest.mark.parametrize("case", [case for case in DM_CASES if case.runs_turn], ids=lambda case: case.id)
+    async def test_dm_verdict_matches_the_chat_fence(self, roster: _Roster, case: _DmCase) -> None:
+        sender_id = await roster.paired_sender(case.pairing)
+        resolver = _resolver(roster, _Policy(dm=case.dm))
+        msg = roster.dm(sender_id)
+        before = await roster.detail(sender_id)
+
+        verdict = await resolver.is_untrusted_event_sender(msg)
+
+        assert await roster.detail(sender_id) == before, "the verdict must not create or change a pairing"
+        assert verdict is await _chat_turn_is_fenced(resolver, msg)
+
+    @pytest.mark.parametrize("case", [case for case in GROUP_CASES if case.runs_turn], ids=lambda case: case.id)
+    async def test_group_verdict_matches_the_chat_fence(self, roster: _Roster, case: _GroupCase) -> None:
+        sender_id = await roster.paired_sender(case.pairing)
+        resolver = _resolver(roster, case.policy)
+        msg = roster.group(sender_id, mentioned=True, explicit_mention=case.explicit_mention)
+        before = await roster.detail(sender_id)
+
+        verdict = await resolver.is_untrusted_event_sender(msg)
+
+        assert await roster.detail(sender_id) == before
+        assert verdict is await _chat_turn_is_fenced(resolver, msg)
+
+    @pytest.mark.parametrize(
+        ("pairing", "untrusted"),
+        [(_OWNER, False), (_MEMBER, True), (_PENDING, True), (_BLOCKED, True), (None, True)],
+        ids=["owner", "member", "pending", "blocked", "stranger"],
+    )
+    async def test_only_an_active_admin_pairing_is_the_owner(self, roster: _Roster, pairing: Pairing, untrusted: bool) -> None:
+        resolver = _resolver(roster, _Policy())
+        sender_id = await roster.paired_sender(pairing)
+
+        assert await resolver.is_untrusted_event_sender(roster.dm(sender_id)) is untrusted
+        assert await resolver.is_untrusted_event_sender(roster.group(sender_id)) is untrusted
+
+    @pytest.mark.parametrize(
+        ("user_id", "guest_turn", "untrusted"),
+        [
+            ("sandbox", False, False),
+            ("guest_chan_x", False, True),
+            ("paired_member_chan_x", False, True),
+            ("sandbox", True, True),
+        ],
+        ids=["owner", "guest", "member", "guest-turn-marker"],
+    )
+    async def test_control_plane_forward_is_judged_by_the_identity_it_carries(
+        self, roster: _Roster, user_id: str, guest_turn: bool, untrusted: bool
+    ) -> None:
+        msg = roster.dm(roster.sender(), user_id=user_id, trusted=True)
+        if guest_turn:
+            msg = replace(msg, metadata={**msg.metadata, METADATA_GUEST_TURN_KEY: "1"})
+
+        assert await _resolver(roster, _Policy()).is_untrusted_event_sender(msg) is untrusted
+
+    async def test_a_pre_resolved_identity_does_not_make_a_stranger_the_owner(self, roster: _Roster) -> None:
+        resolver = _resolver(roster, _Policy())
+        stranger, owner = roster.sender(), await roster.paired_sender(_OWNER)
+
+        assert await resolver.is_untrusted_event_sender(roster.dm(stranger, user_id="sandbox")) is True
+        assert await resolver.is_untrusted_event_sender(roster.dm(owner, user_id="sandbox")) is False

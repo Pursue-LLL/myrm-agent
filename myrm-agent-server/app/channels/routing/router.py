@@ -648,13 +648,15 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 asyncio.create_task(self._handle_bang_command(msg))
                 continue
 
-            # Event triggers start unattended jobs on the owner's account, so they follow the same sender policy as a
-            # chat turn. The resolvers that enforce it run later and have side effects, hence the read-only check.
+            # Event triggers start unattended jobs on the owner's account, so they follow the same sender policy and
+            # the same tool fence as a chat turn from that sender. The resolvers that enforce both run later and have
+            # side effects, hence the read-only checks.
             if await self._is_sender_admitted(msg):
                 await dispatch_cron_event_for_inbound_message(
                     msg.content,
                     msg.channel,
                     msg.user_id or "",
+                    untrusted=await self._is_untrusted_event_sender(msg),
                 )
 
             # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
@@ -847,6 +849,17 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         except Exception:
             logger.warning("Admission check failed for %s/%s, denying", msg.channel, msg.sender_id, exc_info=True)
             return False
+
+    async def _is_untrusted_event_sender(self, msg: InboundMessage) -> bool:
+        """Whether a job this sender's message starts runs under the tool fence of an untrusted chat turn.
+
+        Fails closed (the sender counts as untrusted): the consume loop has no per-message guard.
+        """
+        try:
+            return await self._resolver.is_untrusted_event_sender(msg)
+        except Exception:
+            logger.warning("Trust check failed for %s/%s, treating as untrusted", msg.channel, msg.sender_id, exc_info=True)
+            return True
 
     async def _dispatch_resolved(
         self,

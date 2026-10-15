@@ -278,7 +278,7 @@
       "file_read": "파일 읽기",
       "file_write": "파일 쓰기",
       "mcp_invoke": "외부 도구",
-      "code_interpreter_tool": "코드 실행",
+      "code_interpreter": "코드 실행",
       "browser_navigate": "브라우저 탐색",
       "browser_fill": "브라우저 양식 작성",
       "browser_upload": "브라우저 업로드",

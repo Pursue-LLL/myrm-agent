@@ -60,11 +60,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/routing/test_draft_review_stream_hold.py` | 单元 | `draft_review` 待审回复：生成期间正文不流式写入聊天占位消息（审批续跑回合同样），普通回复照常流式；是否扣留只取决于话题，与回合类型无关 |
 | `channels/routing/test_action_button_approval.py` | 单元 | IM 按钮审批：内容解析校验、群聊请求者/共同审批人授权（私聊免检）、批准/拒绝续跑与重复点击幂等、原消息状态行按点击者语言编辑、无运行任务时 SSE 回退；扣留回复（`outbound_draft`）仅 owner 可裁决——非 owner 被拒并指引、运行中的任务不放行他人、工具审批不受 owner 校验，owner 卡片的每个按钮处理器都认识 |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
-| `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定 |
+| `channels/routing/test_sender_admission.py` | 单元 | 事件触发的发送者准入（只读判定）：用真实配对表钉住 DM（ALLOWLIST/PAIRING/OPEN/DISABLED × 所有者/成员/陌生人/已拉黑/待审批）、群聊（启用群、非启用群、访客 @mention、群策略 DISABLED）、WhatsApp LID 映射与控制面转发的放行/拒绝，并与真实 `resolve_dm_user` / `resolve_group_user` 逐例比对；判定前后配对状态不变、不创建 LID 绑定；事件触发的发送者信任判定（`is_untrusted_event_sender`）：DM 与群聊每个会跑回合的用例都与聊天回合实际使用的围栏逐例一致且不改配对，只有 ACTIVE 的 ADMIN 配对算所有者（成员、待审批、已拉黑、陌生人一律不可信），控制面转发按其携带的身份判定（含访客回合标记），预置的 `user_id` 不能让陌生人变成所有者 |
 | `channels/routing/risk_gate_testkit.py` | 辅助 | 入站风险闸门测试的共享构建器：`make_bus()`（桩消息总线，出站消息可断言）与 `make_router()`（接在该总线上、配对仓库与执行器皆为桩的 `AgentRouter`） |
 | `channels/routing/test_inbound_risk_gate_integration.py` | 单元 | 入站风险闸门对真实检测引擎：命中规则的消息不进入 Agent 回合，发送者收到固定提示（群聊发到群里，私聊发给发送者）；干净消息、没有规则、续跑消息与空内容照常放行；多条规则时第一条命中即拦下 |
 | `channels/routing/test_inbound_risk_gate_order.py` | 单元 | 入站风险闸门的位置与收尾：被拦消息和话题绑定的提前返回都会把收件日志条目标为已处理（原文不留在待重放的日志里）；超长粘贴先过闸门再溢出落盘；忙时 steer / redirect、`/steer`、委派提示词与进行中委派的转向都被拦，干净转向照常送达 |
-| `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由 |
+| `channels/test_router_cron_event_dispatch.py` | 单元 | 路由器的 cron 事件触发钩子：普通消息触发一次且重复投递仍只触发一次，命令/待审批/reaction 不触发；访问策略不放行的发送者不触发、已配对成员触发；准入查询失败时拒绝触发并记 WARNING，后续消息照常路由；所有者触发的作业不带围栏，已配对成员与开放策略下的访客触发的作业带围栏，信任判定失败时按带围栏处理并记 WARNING，路由不受影响 |
+| `core/cron/adapters/test_research_lease.py` | 模块 | 定时任务的只读研究租约策略对真实 harness 租约登记：声明为空或只含读取类能力（`file_read`、`web_search_tool`、`net_fetch`）的作业判为只读，声明了写入、命令、代码或未知能力的不是；只读作业与不可信发送者触发的运行各拿一把私有会话键（`cron:{作业}:{后缀}`）的租约，放行默认的五个只读工具、拒绝其余，租约比运行超时多留 60 秒；同一作业的并发运行互不撤销，释放后租约与覆盖层都被清空且清理失败不抛出；声明了写入类能力的所有者运行不挂租约、保留原会话键 |
 | `channels/routing/test_draft_command.py` | 单元 | IM `/draft approve\|reject <编号>`：参数解析（过短、非十六进制、多余词一律给用法）；对真实审批表裁决，与 WebUI/按钮走同一收口（批准发出、拒绝丢弃）；6 位以上短码即可且回复报完整短码、按 owner 语言作答并回到提问的会话；未知编号、已处理、非扣留回复的审批、两条同码（都不裁决）、畸形请求、查询失败均不改动任何审批且不抛出 |
 | `services/approvals/draft_testkit.py` | 辅助 | 被扣留回复测试的共享构建器：`held_reply()`（带附件、按钮与线程的整条回复）、`draft_payload()`（路由器存储的 payload 形态：正文在 `draft_content`，其余冻结在 `outbound`）；`test_outbound_draft.py`、`test_registry_lifecycle.py` 与 `channels/routing/test_draft_command.py` 共用 |
 | `services/approvals/test_outbound_draft.py` | 单元 | 被扣留回复定案后的收尾：按评审后的正文发出（含仅附件），无快照、快照不可解码或无内容则不发；批准后发不出去时告知 owner（错误 toast 与通知中心，按 owner 语言）且永不抛出；拒绝或超时不发送并释放临时附件；关闭发送方的“待审核”占位消息（无占位则不动，平台不可编辑则删除，平台挂起有时限，网关不可达不撤销决定） |
@@ -116,6 +117,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/test_inbound_skill_invocation.py` | 模块 | 绑定技能的斜杠命令到达 agent 时仍是 `[use skill] ...`：回复上下文、群上下文与投递横幅一律置于标签之后 |
 | `core/utils/test_skill_invocation.py` | 单元 | `decorate_behind_skill_tag`：只装饰标签之后的文本，标签始终居首 |
 | `database/test_risk_action_column_retired.py` | 模块 | 风险表的迁移对真实 SQLite：升级中的库丢掉规则与命中记录的 `action` 列，非 `block` 的规则被停用、其余规则保持原状，命中记录里既不是位置也不是超时标记的摘要被清空；新库从不带这两列，迁移重复执行不出错 |
+| `database/test_capability_token_migration.py` | 模块 | 能力词表迁移对真实 SQLite：升级中的库把作业能力、Agent 安全覆盖与安全档案里存着的 `code_interpreter_tool` 整词改成 `code_interpreter`，只是含有这段文字的其他值（如域名白名单项）与已用新词的行保持原样；三条语句相邻、各管一张表，重复执行不再改动任何行 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务 |
 | `lifecycle/test_context_cleanup_job.py` | 模块 | 每日上下文清理任务把共享的读取追踪器交给清理流程；追踪器不可用时仍按修改时间清理并记录警告 |
 | `lifecycle/test_init_risk_rules.py` | 模块 | 启动风险规则初始化对真实 SQLite：先读后写遇并发提交（SQLITE_BUSY_SNAPSHOT，`busy_timeout` 不覆盖）时在新事务上重试，检测引擎仍拿到规则 |

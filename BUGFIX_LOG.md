@@ -2865,6 +2865,80 @@ except Exception:
 4. 真实浏览器门禁里，拦截路由的通配分支要放在具体分支之后；否则页面崩溃会被误当成产品缺陷。先取错误边界上报的真实堆栈，再下结论。
 5. `SheetContent` 在 `sm` 以下没有 `max-w`，固定像素宽的抽屉要给小屏写 `w-full`。
 6. 带入场动画的浮层，门禁要先等 `getAnimations().finished` 再测命中，否则测到的是动画中途的位置。
+
+---
+
+## BUG-AGENT-2026-10-15-002: 挂了只读租约的定时任务运行里所有真实工具都被拒；非所有者的消息拉起的事件触发任务与所有者同权运行；能力词表里的 `code_interpreter_tool` 不被安全引擎识别；入站回合开始前的污点登记从未生效
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-14 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P1（通过准入、但不是所有者的发送者，其消息匹配到事件触发任务时，那次无人值守运行拿到所有者声明的全部能力、记忆与绑定会话的历史，而同一发送者的聊天回合是被围栏的；前提是存在一条与该消息匹配的事件触发任务，没有端到端构造利用，路径来自读代码与探针。租约不可用与词表漂移为 P2，死登记为 P3） |
+| 影响范围 | server：`app/core/cron/adapters/{research_lease（新增）,agent_runner,inbound_event_dispatch}.py`、`app/channels/routing/{router,sender_admission,policy_resolver}.py`、`app/core/channel_bridge/agent_executor/executor.py`、`app/services/a2a/service.py`、`app/core/cron/blueprints.py`、`app/database/migrations.py` 与对应的 `_ARCH.md`、`CHANNELS_SYSTEM.md`；frontend：`CapabilityEditor.tsx`、`AgentSecurityTab.tsx`、`securityPolicyUtils.ts`、六个语言包、`scripts/translation-patches/ko/batch-07.json` 与 `batch-08.json`；harness：见关联 |
+| 出现次数 | 1（核对事件触发器与只读租约的运行时绑定时，对 HEAD 逐项做探针发现；探针只用内存里的假任务与测试库，没有用户数据） |
+| 关联 | harness `BUG-HARNESS-2026-10-15-001`（租约白名单、块作用域围栏）；路线图 #194、#118 中由发送者触发的那一部分；本地提交，未 push |
+
+### 现象
+
+1. 挂了只读租约的定时任务，运行里所有真实工具都被拒。`agent_runner.py` 对没有声明 `shell_exec` / `file_write` / `git_push` / `send_email` 的任务授予只读研究租约（21 个内置蓝图里 19 个满足）。租约的默认白名单却是 7 个没有任何内置工具使用的名字，租约又是默认拒绝：照旧代码的方式挂上租约后，审批批处理里 `web_search_tool`、`web_fetch_tool`、`file_read_tool` 三个都被拒，不挂租约时三个都通过（探针）。租约键固定为 `cron:{job.id}`，同一任务的两次运行重叠时，先结束的那次撤销会把另一次的租约一起撤掉；判断条件里的 `getattr(job, "is_research", False)` 取的是 `CronJob` 上不存在的字段，永远是 `False`。
+2. 非所有者的消息拉起的事件触发任务与所有者同权。渠道里每条通过准入的消息都会去匹配事件触发任务（`dispatch_cron_event_for_inbound_message`），匹配到的任务以所有者的身份在后台运行：声明的全部能力、所有者的记忆、绑定会话里的主线历史、目标队列、工作流模板都可用。同一个发送者的聊天回合则在 `executor.py` 里被围栏（`set_untrusted_ingress`，物理剥离破坏性工具）；事件触发这条路径上没有任何等价的限制。
+3. 能力词表里有一个名字安全引擎不认。蓝图 `_CAP_DEVOPS`、任务编辑器的能力选项、智能体安全页与自定义规则的权限列表写的都是 `code_interpreter_tool`（工具名），而安全引擎里的能力是权限类型，`bash_code_execute_tool` 对应的是 `code_interpreter`。声明 `code_interpreter_tool` 的任务或智能体，执行 `bash_code_execute_tool` 被拒（`Capability not granted: code_interpreter`）；写一条自定义规则 `code_interpreter_tool=deny` 不匹配任何东西，命令照样放行（探针）。
+4. 入站回合开始前的污点登记从未生效：`executor.py`（渠道回合）与 `a2a/service.py`（A2A 回合）都在 `set_untrusted_ingress(True)` 之后调用 `record_ingress_taint`，而运行开始时 `reset_all_guards()` 会重建跟踪器，这条登记随之丢失（harness 测试复现）；真正起作用的只有围栏的 `ContextVar`。
+5. 任务编辑器里事件触发器的说明只写了匹配方式与准入，没有说明发送者不同时任务的权限不同，用户无从得知别人触发的任务会受限。
+6. 路由器的逐消息信任判定要调用 `PairingStore.get_pairing_detail`（协议方法），5 个渠道测试替身（`test_group_routing`、`test_prefix_trigger`、`test_progress_stream`、`test_wecom_stream_integration`、`test_channel_activity_e2e`）没有实现它，调用抛 `AttributeError`，按 fail-closed 记为不可信并打出带堆栈的警告，在路由测试里表现为额外的失败与大段堆栈。
+
+### 根因
+
+1. 租约白名单按想象中的通用工具名手写，测试里用同一批名字，所以一直是绿的；server 用 4 个能力名的启发式与一个不存在的字段决定谁挂租约，没有一个测试断言「挂了租约的运行里该放行的工具真的放行」；租约键按任务而不是按运行。
+2. 事件触发这条路径只回答了「这条消息能不能触发任务」（准入），没有回答「发送者是不是所有者」；围栏当时只有整轮开关，用在常驻的消费循环里会把循环自己也打上，宿主没法只给由它派生的任务打标。
+3. 能力词表没有单一来源：蓝图与前端三处各写一份，没有任何测试对着 `resolve_permission_type` 核对。
+4. 污点登记写在回合开始前，而回合开始时会重建跟踪器；两处调用方都没有测试断言登记之后仍然可读。
+5. 事件触发器的说明按「谁发都一样」写成。
+6. 测试替身是手写的，没有按协议完整实现；热路径上原先没有调用过这个方法。
+
+### 修复
+
+1. 租约：白名单收敛为 harness 里的单一常量 `DEFAULT_READ_ONLY_TOOLS`（`file_read_tool`、`grep_tool`、`glob_tool`、`web_search_tool`、`web_fetch_tool`，见 `BUG-HARNESS-2026-10-15-001`）。server 新增 `core/cron/adapters/research_lease.py`：`is_read_only_job`（任务声明的能力都是这 5 个工具对应的权限类型，或一个都没声明）、`grant_run_lease`（每次运行一个私有键 `cron:{job.id}:{12 位随机}`，保留 `cron:` 前缀以沿用无人值守的审批行为；TTL 为超时加 60 秒）、`release_run_lease`（撤销并清理覆盖层，永不抛错）。`_run_once` 授予后把键交给智能体，并在最外层 `finally` 释放；4 个能力名的启发式与 `is_research` 一并删除。
+2. 非所有者：harness 新增 `untrusted_ingress_scope()`，只标记块内及由块内派生的任务，退出时还原。server 新增 `sender_admission.is_untrusted_event_sender` = 聊天围栏判据（`is_untrusted_sender`）命中，或发送者既不是控制面转发、也没有 ACTIVE 且 ADMIN 的配对（`is_admin_sender`）；经 `PolicyResolver.is_untrusted_event_sender` 提供给路由，`router._is_untrusted_event_sender` 外包一层 fail-closed（判定出错按不可信处理并记带堆栈的警告）。`dispatch_cron_event_for_inbound_message` 新增必填的关键字参数 `untrusted`：不可信时用 `untrusted_ingress_scope()` 包住 `scheduler.dispatch_event`，调度器派生的任务继承围栏，消费循环本身不受影响。`_run_once` 在围栏内：工作流模板任务不运行（`skip_reason="untrusted-workflow"`，不计失败）、不入目标队列、关闭记忆、强制挂租约（即使任务声明了变更类能力）、不读绑定会话的历史。
+3. 词表：蓝图与前端三处（`CapabilityEditor`、`AgentSecurityTab`、`securityPolicyUtils`）改为 `code_interpreter`，六个语言包与韩语翻译补丁里两处标签键随之改名；`migrations.py` 末尾追加 3 条幂等的 `REPLACE`，把 `cron_jobs.required_capabilities`、`agents.security_overrides`、`security_profiles.config_json` 里已存的旧名改成新名。`test_blueprints.py` 新增断言：每个蓝图默认声明的能力都是某次工具调用会解析到的权限类型。
+4. 删除 `executor.py` 与 `a2a/service.py` 里两处无效的回合前污点登记；harness 的 `record_ingress_taint` 文档写明运行开始时跟踪器会被重建。
+5. 事件触发器的说明（六个语言包的 `triggerEventDesc`）补上：发消息的人不是你时，任务只读运行，可以读文件与搜网页，不能改文件、执行命令或使用你的记忆，绑定了工作流模板的任务会被跳过。
+6. 5 个测试替身补全 `get_pairing_detail`。
+7. 文档：路由、定时任务适配器、测试三份 `_ARCH.md`、`CHANNELS_SYSTEM.md`、前端 `cron/_ARCH.md` 与 harness 三份 `_ARCH.md` 对齐代码；路线图 #194、#118 记录实施与边界。
+
+### 验证
+
+1. harness：`tests/unit/test_readonly_research_sandbox_suite.py`、`tests/agent/middlewares/approval`、`tests/agent/security/guards` 共 371 通过（最后一次改动后重跑，53 秒），改动文件 `ruff check` 无问题。
+2. server 定向：新增 `test_research_lease.py`（8 个测试函数，含参数化）与 `test_capability_token_migration.py`（3 例：每张表一条语句、各表里的旧名被改、二次运行无变化），连同改动过的 `test_inbound_event_dispatch`、`test_inbound_event_integration`、`test_agent_runner_skip`、`test_sender_admission`、`test_router_cron_event_dispatch`、`test_blueprints` 与整个 `tests/database` 共 317 通过（217 秒）。
+3. server 大范围回归：7 478 通过、23 失败、55 跳过、9 取消选择（1 212 秒）。其中 18 例在干净的 HEAD 快照上同样失败（群路由 6、`test_prefix_trigger` 1、`test_cron_execution_policy` 5、`test_background_command` 2，`test_locale_key_parity`、`test_onebot_enhancements`、`test_seo_weekly_audit_blueprint`、`test_blueprint_api` 各 1），与本条无关；其余 5 例只在工作树出现（4 例 `test_group_routing`、1 例 `test_wecom_stream_integration`），原因是上面的测试替身缺 `get_pairing_detail`，以及机器负载下依赖固定等待窗口的用例随机失败。补全替身后重跑这 5 个文件：34 通过、10 失败，失败里 6 例群路由与 1 例 `test_prefix_trigger::test_prepare_execution_context_exec_msg_stripped_prefix` 与干净 HEAD 的失败逐例相同，另 3 例是 `test_prefix_trigger` 里等待 0.8 秒的用例。
+4. 随机失败是否与本条有关，用 A/B 判断（`test_prefix_trigger.py` 共 17 例，负载均值 80 到 90）：默认 0.8 秒窗口下，干净 HEAD 快照两次各失败 3 例，工作树两次分别失败 3 例与 9 例；用一个不进仓库的 pytest 插件把 0.8 秒窗口拉长到 8 秒后，HEAD 快照与工作树都是 16 通过、1 失败（141 秒对 145 秒），失败是同一例、断言信息逐字相同（`ctx.user_id` 是 `guest_whatsapp_sender@s.whatsapp.net` 而不是 `test-user`）。结论：随机失败只取决于机器负载下的等待窗口，那 1 例是既有失败。
+5. 前端：`src/components/features/cron` 9 个文件 68 通过；`settings/system` 与 onboarding 62 个文件 423 通过，另有 1 个未处理错误来自别人未提交的 `ShareLinksSection.test.tsx`；`CapabilityEditor.test.tsx` 8 通过；`bun run typecheck` 只剩 3 个不在本批文件里的错误（`ThinkingBudgetEffortSlider.tsx`、`usePermissionTierStore.ts`、`KanbanTaskHandoffSection.test.tsx`）；`verify:i18n` 报 53 个缺失键，全部来自别人的文件，没有一条指向本批文件。
+6. 静态检查：改动的 server 文件 `ruff check` 无问题；`mypy` 在本批改动的行上没有错误（全仓既有 1 431 个错误分布在 256 个文件）；本批前端文件 `oxlint` 与 `prettier` 无问题。
+7. 每条准入消息多一次配对表查询：开发机负载下用真实 SQLite 实测，均值约 1.5 到 2.7 毫秒，p99 不超过约 16 毫秒（一次性探针，脚本没有保留）。
+
+### 局限
+
+1. `_run_once` 里租约的授予与释放、`_consume_stream(untrusted=)` 的接线没有端到端用例：零件各有单元测试，`_run_once` 依赖整套智能体工厂，没有构造；接线只由读代码与类型检查覆盖。
+2. 声明了空能力的任务（界面写「留空为全部能力」「不限制（全部能力）」，`locales/en.json` 的 `capabilitiesDesc`、`capabilitiesAllHint`、`capPreset.full`）运行时是租约内只读、只有 5 个工具，不能用记忆、技能、浏览器、MCP 工具，也不能写文件或执行命令。修复前它同样挂租约、而租约拒绝一切，所以这是既有设计与界面文案的不一致，不是本次引入；改成「留空即不挂租约」还是改文案，是产品决定，本条没有动。
+3. 租约放行的文件读取与网页抓取仍能把读到的内容带出去，与被围栏的聊天访客处于同一水平，没有收窄。
+4. webhook、`system_event` 触发与 REST `POST /cron/trigger/event` 不带发送者，不经本判定，仍不围栏。
+5. 工作流模板任务不受租约约束（租约进不了它的子智能体），所以非所有者触发时只能跳过；前端不展示被跳过的原因，只在服务端日志与运行记录里可见。
+6. 子智能体用各自的审批键，不在这份租约之下；租约里的主智能体只放行 5 个读取工具，调用不了委派类工具，但委派类工具是否另有绕过审批关口的入口，没有逐个验证。
+7. 群聊里聊天路径以 `pairing.resolve(...) == default_uid` 判所有者，事件路径以 ACTIVE 且 ADMIN 的配对判所有者；本地部署模式下两者对管理员本人是否一致，没有实测。不一致时所有者自己在群里的消息会被当成非所有者，是偏安全的一侧。
+8. 聊天路径本身的疑点（静态读代码，没有运行，没有改）：Discord 适配器给每条入站消息预置平台作者 ID 作 `user_id`，该渠道私聊的陌生人既不经 DM 策略与配对，其聊天回合也不套用不可信围栏；事件路径不受此影响。需另立项核实，见路线图 #194。
+9. 仍写着 `code_interpreter_tool` 的三处不在本次迁移的读写路径上，没有改，也没有逐一核对它们各自该用哪套名字：IM 进度标签映射（`app/core/channel_bridge/executor_helpers/stream.py`，键是工具名，真实工具名是 `bash_code_execute_tool`）、`app/api/agents/profile_audit.py` 的 `_DANGEROUS_TOOLS`（与 `tools_allowed` 里的内置工具 ID 比较，不读能力字段）、前端 `settings/sections/system/AdvancedPiiConfig.tsx` 的 `KNOWN_TOOLS`。
+10. server 引用的 harness 新符号（`DEFAULT_READ_ONLY_TOOLS`、`untrusted_ingress_scope`、`is_untrusted_ingress_active`）要先发布 harness 版本，再 `./myrm harness sync-lock`；两个仓库都只做了本地提交。
+11. 本条没有动、仍然失败的既有测试：见验证第 3 点的 18 例；前端的 3 个类型错误、1 个未处理错误与 53 个缺失的语言键同属别人未提交的改动。
+
+### 踩坑经验
+
+1. 默认拒绝的策略下，白名单写错的后果不是「漏拦」而是「全拒」；只断言「写工具被拒」的测试发现不了，必须有一个断言「该放行的真的放行」的用例，并把名单钉在注册表上。
+2. 在热路径上新增一次协议方法调用时，先找出所有手写的测试替身补齐，否则 fail-closed 会把「替身缺方法」伪装成「发送者不可信」，失败只表现为随机的路由用例失败与警告。
+3. 追加式迁移列表的位置就是版本号：别人还在往里加语句时，新语句只能追加到列表末尾，并在提交前重新核对。
+4. 机器负载在 80 以上时，靠固定等待窗口的测试会随机失败；判断「是不是我的改动」要在同一负载下对 HEAD 快照做 A/B，再把等待窗口拉长复核，而不是凭一次失败集合下结论。
+5. 回合开始前的登记会被开始时的重建清掉；需要跨整个运行保留的标记，放在 `ContextVar` 里，并配一个断言「重建后标记仍在」的测试。
+
 ---
 
 ## BUG-AGENT-2026-10-15-003: Curator 配置接口接受 0 与负数，一次清理就能把所有可清理的技能标记为过期乃至归档；面板里关闭总开关后没有「保存」入口，数字输入清空即变成 0；已无调用方的进化容量治理器与按数量统计的接口仍留在 harness

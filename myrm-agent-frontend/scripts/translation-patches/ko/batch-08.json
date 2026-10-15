@@ -10,7 +10,7 @@
       "file_read": "서버에서 파일 내용을 읽습니다",
       "file_write": "서버에서 파일을 만들거나 수정합니다",
       "mcp_invoke": "구성된 타사 도구와 서비스를 호출합니다",
-      "code_interpreter_tool": "샌드박스 환경에서 Python 코드를 실행합니다",
+      "code_interpreter": "샌드박스 환경에서 Python 코드를 실행합니다",
       "browser_navigate": "브라우저를 URL로 이동합니다 (내부 IP는 기본적으로 차단)",
       "browser_fill": "브라우저 페이지에서 양식을 작성합니다",
       "browser_upload": "브라우저를 통해 파일을 업로드합니다",
