@@ -25,7 +25,6 @@ graph_rrf_router
 hindsight_reflection_router
 code_memory_compaction_router
 experience_gene_router
-auto_recall_router
 memory_drift_router
 memory_migration_router
 cross_agent_router

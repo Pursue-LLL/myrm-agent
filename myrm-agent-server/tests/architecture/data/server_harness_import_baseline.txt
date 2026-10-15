@@ -421,7 +421,6 @@ myrm_agent_harness.toolkits.mcp.oauth
 myrm_agent_harness.toolkits.mcp.security
 myrm_agent_harness.toolkits.memory
 myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
-myrm_agent_harness.toolkits.memory.auto_recall
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.codegraph
 myrm_agent_harness.toolkits.memory.compaction

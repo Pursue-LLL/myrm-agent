@@ -18,7 +18,6 @@ export * from './memory/graphRrf';
 export * from './memory/hindsight';
 export * from './memory/codeCompaction';
 export * from './memory/experienceGene';
-export * from './memory/autoRecall';
 export * from './memory/driftDefense';
 export * from './memory/sovereignMigration';
 export * from './memory/crossAgent';

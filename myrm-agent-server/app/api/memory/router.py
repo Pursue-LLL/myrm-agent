@@ -8,9 +8,6 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory import onboarding
-from app.api.memory.auto_recall_router import (
-    router as auto_recall_router,
-)
 from app.api.memory.budget_packing_router import (
     router as budget_packing_router,
 )
@@ -139,7 +136,6 @@ router.include_router(graph_rrf_router, tags=["memory-graph-rrf"])
 router.include_router(hindsight_reflection_router, tags=["memory-hindsight-reflection"])
 router.include_router(code_memory_compaction_router, tags=["memory-code-compaction"])
 router.include_router(experience_gene_router, tags=["memory-experience-genes"])
-router.include_router(auto_recall_router, tags=["memory-auto-recall"])
 router.include_router(memory_drift_router, tags=["memory-drift-defense"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
 router.include_router(cross_agent_router, tags=["memory-cross-agent"])
