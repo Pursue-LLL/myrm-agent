@@ -19,7 +19,6 @@ from app.api.integrations import (
     mcp_oauth,
     oauth,
     provider_oauth,
-    retained_context_router,
     search,
     web_fetch,
     xai_oauth,
@@ -51,9 +50,4 @@ router.include_router(
     provider_oauth.router,
     prefix="/provider-oauth",
     tags=["integrations-provider-oauth"],
-)
-router.include_router(
-    retained_context_router.router,
-    prefix="/retained-context",
-    tags=["integrations-retained-context"],
 )

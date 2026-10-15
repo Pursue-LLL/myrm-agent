@@ -89,7 +89,6 @@
   "src/components/features/memory/command-center/FourTierMemoryTierListView.tsx": 20,
   "src/components/features/memory/command-center/FourTierPersistentMemoryCard.tsx": 10,
   "src/components/features/memory/command-center/IncrementalDiffInspectorCard.tsx": 15,
-  "src/components/features/memory/command-center/IntegrationRetainedContextPurgeCard.tsx": 33,
   "src/components/features/memory/command-center/MarginalValuePackingView.tsx": 21,
   "src/components/features/memory/command-center/MarkdownChunkerHudBar.tsx": 12,
   "src/components/features/memory/command-center/MarkdownChunkerStudioCard.tsx": 10,

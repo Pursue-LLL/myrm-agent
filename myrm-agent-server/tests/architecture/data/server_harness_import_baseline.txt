@@ -439,7 +439,6 @@ myrm_agent_harness.toolkits.memory.integration.fetcher
 myrm_agent_harness.toolkits.memory.integration.summarizer
 myrm_agent_harness.toolkits.memory.integration.tree_manager
 myrm_agent_harness.toolkits.memory.integration.types
-myrm_agent_harness.toolkits.memory.integration_purge
 myrm_agent_harness.toolkits.memory.manager
 myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics

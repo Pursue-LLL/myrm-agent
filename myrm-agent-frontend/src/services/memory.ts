@@ -14,7 +14,6 @@ export * from './memory/profileNotes';
 export * from './memory/fourLayerPromotion';
 export * from './memory/decayLifecycle';
 export * from './memory/sovereignMigration';
-export * from './memory/retainedContext';
 export * from './memory/onboardingInsight';
 export * from './memory/privateNotebook';
 export * from './memory/fourTierFts';
