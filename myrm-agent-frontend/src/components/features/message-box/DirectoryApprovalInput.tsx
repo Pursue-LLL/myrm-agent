@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - @/store/useChatStore::sendMessage (POS: chat SSE resume 发送)
+ * - @/store/useChatStore::sendMessage / setState (POS: chat SSE resume 发送；回答后把卡片行置 answered，释放被卡片接管的输入框)
  * - @/lib/tauri::isTauriEnvironment (POS: 桌面原生 picker 分流)
  * - @/store/chat/streamErrors::ApprovalExpiredError (POS: 超时已先行拒绝该请求，回答不再生效)
  * - @/lib/sessionAccessRefresh::refreshSessionAccessRoots (POS: grant 后 FE store 与 DB 对齐)
@@ -23,7 +23,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { isTauriEnvironment } from '@/lib/tauri';
 import useChatStore from '@/store/useChatStore';
-import { refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 
@@ -40,7 +39,6 @@ interface DirectoryApprovalInputProps {
   answered: boolean;
   isResumeMode?: boolean;
   request?: DirectoryRequestPayload;
-  onAnswered?: () => void;
 }
 
 export default function DirectoryApprovalInput({
@@ -48,7 +46,6 @@ export default function DirectoryApprovalInput({
   answered,
   isResumeMode = true,
   request,
-  onAnswered,
 }: DirectoryApprovalInputProps) {
   const t = useTranslations('chat.directoryRequest');
   const sendMessage = useChatStore((state) => state.sendMessage);
@@ -58,8 +55,14 @@ export default function DirectoryApprovalInput({
   const [submitting, setSubmitting] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
 
+  // The composer stays taken over by the card until its row says answered, so closing it is a store write.
   const markAnswered = () => {
-    onAnswered?.();
+    useChatStore.setState((state) => {
+      const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
+      if (idx !== -1 && state.messages[idx].directoryRequest) {
+        state.messages[idx].directoryRequest.answered = true;
+      }
+    });
   };
 
   // An answer that arrives after the timeout already declined the request is not a failure: the card closes.
@@ -67,7 +70,6 @@ export default function DirectoryApprovalInput({
     if (error instanceof ApprovalExpiredError) {
       markAnswered();
       toast.warning(t('expired'));
-      void refreshOpenChatTranscript(chatId);
       return;
     }
     console.error('Failed to answer directory access request:', error);

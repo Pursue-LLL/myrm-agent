@@ -44,6 +44,10 @@ function ids(messages: Message[] | null): string[] {
   return (messages ?? []).map((m) => m.messageId);
 }
 
+/**
+ * The shapes below are what the real flows leave behind: a streamed turn is one row on screen under its request id,
+ * while the DB holds one UUID row per stream (a paused turn that resumed has two) and a user row under the request id.
+ */
 describe('mergeStoredTail', () => {
   it('does not show a streamed turn twice once its stored twin arrives under a UUID', () => {
     const local = [message('r-1', 'user', 'go'), message('r-1', 'assistant', 'answer', { routingTier: 'simple' })];
@@ -52,42 +56,60 @@ describe('mergeStoredTail', () => {
     expect(mergeStoredTail(local, tail)).toBe(local);
   });
 
-  it('adds the continuation of a paused turn right behind it', () => {
-    const local = [
-      message('r-1', 'user', 'go'),
-      message('r-1', 'assistant', 'paused'),
-      message('r-2', 'user', 'next question'),
-    ];
+  it('does not duplicate a paused turn that resumed live: one row on screen, one stored row per stream', () => {
+    const local = [message('r-1', 'user', 'go'), message('r-1', 'assistant', 'paused and continued')];
     const tail = [
       message('r-1', 'user', 'go'),
       storedAssistant('uuid-1', 'r-1', 'paused'),
-      storedAssistant('uuid-2', 'r-1', 'continued after timeout'),
-      message('r-2', 'user', 'next question'),
+      storedAssistant('uuid-2', 'r-1', 'continued'),
     ];
 
-    expect(ids(mergeStoredTail(local, tail))).toEqual(['r-1', 'r-1', 'uuid-2', 'r-2']);
+    expect(mergeStoredTail(local, tail)).toBe(local);
   });
 
-  it('recognises rows hydrated from the DB by id and by their request id alike', () => {
+  it.each([
+    ['names the hydrated row as its request', 'uuid-1'],
+    ['keeps the original request', 'r-1'],
+  ])('does not duplicate a paused turn resumed after a reload when the continuation %s', (_label, requestId) => {
+    const local = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'paused')];
+    const tail = [
+      message('r-1', 'user', 'go'),
+      storedAssistant('uuid-1', 'r-1', 'paused'),
+      storedAssistant('uuid-2', requestId, 'continued'),
+    ];
+
+    expect(mergeStoredTail(local, tail)).toBe(local);
+  });
+
+  it('recognises rows hydrated from the DB', () => {
     const local = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')];
     const tail = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')];
 
     expect(mergeStoredTail(local, tail)).toBe(local);
   });
 
-  it('keeps a user row and an assistant row with the same raw id apart', () => {
+  it('keeps a stored answer whose request only has its user row on screen', () => {
     const local = [message('r-1', 'user', 'go')];
     const tail = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')];
 
     expect(ids(mergeStoredTail(local, tail))).toEqual(['r-1', 'uuid-1']);
   });
 
-  it('appends rows of turns the screen has never seen', () => {
+  it('appends background notices and turns from another device in stored order', () => {
     const local = [message('r-1', 'user', 'go'), message('r-1', 'assistant', 'answer')];
-    const notice = message('uuid-9', 'assistant', 'background job finished');
-    const tail = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer'), notice];
+    const notice = message('bg_finish_9', 'assistant', 'background job finished');
+    const tail = [
+      message('r-1', 'user', 'go'),
+      storedAssistant('uuid-1', 'r-1', 'answer'),
+      notice,
+      message('r-2', 'user', 'asked on the phone'),
+      storedAssistant('uuid-3', 'r-2', 'answered on the phone'),
+    ];
 
-    expect(mergeStoredTail(local, tail)).toEqual([...local, notice]);
+    const merged = mergeStoredTail(local, tail);
+
+    expect(ids(merged)).toEqual(['r-1', 'r-1', 'bg_finish_9', 'r-2', 'uuid-3']);
+    expect(merged?.slice(0, 2)).toEqual(local);
   });
 
   it('leaves rows on screen untouched, including local-only rows and injected fields', () => {
@@ -117,19 +139,19 @@ describe('refreshOpenChatTranscript', () => {
   });
 
   it('adds the rows only the DB holds and keeps older pages with their cursor', async () => {
-    seedStore([message('u0', 'user', 'old'), message('r-1', 'user', 'go'), message('r-1', 'assistant', 'paused')]);
+    seedStore([message('u0', 'user', 'old'), message('r-1', 'user', 'go'), message('r-1', 'assistant', 'answer')]);
     getMessagesMock.mockResolvedValue(
       page([
         message('r-1', 'user', 'go'),
-        storedAssistant('uuid-1', 'r-1', 'paused'),
-        storedAssistant('uuid-2', 'r-1', 'continued'),
+        storedAssistant('uuid-1', 'r-1', 'answer'),
+        message('bg_finish_9', 'assistant', 'background job finished'),
       ]),
     );
 
     await refreshOpenChatTranscript(CHAT_ID);
 
     const state = useChatStore.getState();
-    expect(ids(state.messages)).toEqual(['u0', 'r-1', 'r-1', 'uuid-2']);
+    expect(ids(state.messages)).toEqual(['u0', 'r-1', 'r-1', 'bg_finish_9']);
     expect(state.nextCursor).toBe('older-cursor');
     expect(state.hasMoreMessages).toBe(true);
   });

@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { DrawerResumeValue } from '@/lib/approval/approvalDecision';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
-import { refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
 import type { StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import {
   getModelSelection,
@@ -71,8 +70,6 @@ export async function resumeApprovalStream(
 
   if (!response.ok) {
     if (response.status === 409) {
-      // The timeout already resumed this interrupt: bring what that run did into the open transcript.
-      void refreshOpenChatTranscript(request.chatId);
       throw new ApprovalExpiredError();
     }
     throw new Error(`Approval resume failed: HTTP ${response.status}`);

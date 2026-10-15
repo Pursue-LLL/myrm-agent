@@ -5,15 +5,15 @@
  * @/store/useChatStore (POS: open-chat state)
  *
  * [OUTPUT]
- * refreshOpenChatTranscript: Add the persisted rows an open chat does not show yet, without touching composer state.
+ * refreshOpenChatTranscript: Append the persisted turns an open chat does not show yet, without touching composer state.
  * mergeStoredTail: Pure merge of a persisted tail page into the rows already on screen.
  *
  * [POS]
- * In-place transcript sync for changes that land on an open chat outside any stream: an SSE reconnect, finished
- * background work, an approval the timeout already resolved. Rows already on screen are never rewritten, so
- * store-injected fields and card state survive; only missing rows are added. Unlike initializeChat / loadMessages it
- * never toggles loading flags, resets session config, attaches to a turn or clears attachments, and a failed fetch
- * leaves the visible transcript untouched.
+ * In-place transcript sync for rows that land on an open chat outside any stream: an SSE reconnect, finished
+ * background work. Rows already on screen are never rewritten, so store-injected fields and card state survive; only
+ * turns the screen has never seen are appended. Unlike initializeChat / loadMessages it never toggles loading flags,
+ * resets session config, attaches to a turn or clears attachments, and a failed fetch leaves the visible transcript
+ * untouched.
  */
 
 import { getMessages } from '@/services/chat';
@@ -26,8 +26,9 @@ const TAIL_PAGE_SIZE = 10;
 const refreshesInFlight = new Set<string>();
 
 /**
- * Rows of one turn share a key. A streamed assistant row is keyed by its request id while its stored twin has a
- * UUID id and carries that request id, so matching on `messageId` alone would show every finished turn twice.
+ * Rows of one turn share this key: a streamed assistant row is keyed by its request id, while its stored rows carry
+ * UUID ids and name that request in `requestMessageId`. The role is part of the key because the user row of a turn is
+ * stored under the very request id its assistant row streams under.
  */
 function turnKey(message: Message): string {
   const turnId =
@@ -35,49 +36,26 @@ function turnKey(message: Message): string {
   return `${message.role}:${turnId}`;
 }
 
-function countByKey(messages: Message[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const message of messages) {
-    const key = turnKey(message);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return counts;
-}
-
 /**
- * Merge a persisted tail page into the rows on screen. A stored row counts as shown when its id is on screen, or
- * when its turn already has that many rows on screen; the rest are inserted behind their turn, else appended.
+ * Merge a persisted tail page into the rows on screen by identity, never by counting rows: a turn that paused and
+ * resumed is one row on screen (the resume streams into the paused row) yet one stored row per stream. A stored row is
+ * already shown when its turn is on screen, or when it names an on-screen assistant row as its request (a resume sent
+ * from a row hydrated from the DB). The rest belong to turns the screen has never seen and are appended in stored
+ * order.
  * Returns `local` itself when nothing is missing, and null when the tail shares nothing with `local`.
  */
 export function mergeStoredTail(local: Message[], tail: Message[]): Message[] | null {
-  const localIds = new Set(local.map((message) => message.messageId));
-  const shownPerTurn = countByKey(local);
-  const seenPerTurn = new Map<string, number>();
-  const missing: Message[] = [];
-  let sharesRows = false;
-  for (const row of tail) {
-    const key = turnKey(row);
-    const seen = (seenPerTurn.get(key) ?? 0) + 1;
-    seenPerTurn.set(key, seen);
-    if (localIds.has(row.messageId) || seen <= (shownPerTurn.get(key) ?? 0)) {
-      sharesRows = true;
-    } else {
-      missing.push(row);
-    }
-  }
-  if (!sharesRows) {
+  const shownTurns = new Set(local.map(turnKey));
+  const shownAssistantIds = new Set(local.filter((m) => m.role === 'assistant').map((m) => m.messageId));
+  const isShown = (row: Message): boolean =>
+    shownTurns.has(turnKey(row)) ||
+    (row.role === 'assistant' && !!row.requestMessageId && shownAssistantIds.has(row.requestMessageId));
+
+  const missing = tail.filter((row) => !isShown(row));
+  if (missing.length === tail.length) {
     return null;
   }
-  if (missing.length === 0) {
-    return local;
-  }
-  const merged = [...local];
-  for (const row of missing) {
-    const key = turnKey(row);
-    const lastOfTurn = merged.findLastIndex((message) => turnKey(message) === key);
-    merged.splice(lastOfTurn === -1 ? merged.length : lastOfTurn + 1, 0, row);
-  }
-  return merged;
+  return missing.length === 0 ? local : [...local, ...missing];
 }
 
 /** A turn that owns the store streams state the DB has not persisted yet, so it must not be overwritten. */

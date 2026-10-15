@@ -1,5 +1,6 @@
 /**
- * A refused resume must neither mark the directory card answered nor show the folder as granted.
+ * A refused resume must neither mark the directory card answered nor show the folder as granted; a dispatched one must
+ * release the composer the card took over.
  *
  * Real scenario: the user presses grant after the session expired. The resume request is refused, so the server never
  * received the grant; the optimistic access-root refresh would still list the folder as accessible and the card would
@@ -12,17 +13,16 @@ import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
+import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
+import type { Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
 import DirectoryApprovalInput from '../DirectoryApprovalInput';
 
 const pipeline = vi.hoisted(() => ({ sendMessage: vi.fn<() => Promise<boolean>>() }));
-const transcript = vi.hoisted(() => ({ refreshOpenChatTranscript: vi.fn<(chatId: string) => Promise<void>>() }));
 
 vi.mock('@/store/chat/messageRequest', () => pipeline);
-
-vi.mock('@/store/chat/chatTranscriptRefresh', () => transcript);
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
@@ -41,15 +41,27 @@ vi.mock('../DirectoryBrowsePopover', () => ({
   rememberDirectoryGrantPath: vi.fn(),
 }));
 
-const onAnswered = vi.fn();
+const MESSAGE_ID = 'msg-1';
 
+const pendingDirectory: Message = {
+  messageId: MESSAGE_ID,
+  chatId: 'chat-1',
+  createdAt: new Date(),
+  content: '',
+  role: 'assistant',
+  directoryRequest: { answered: false, isResumeMode: true, request: { path: '/data/reports', writable: true } },
+};
+
+const isAnswered = () => useChatStore.getState().messages[0]?.directoryRequest?.answered;
+
+/** Rendered with the props MessageBox and MessageInput pass: the card closes itself through the store. */
 function grantDirectory(): void {
   render(
     <DirectoryApprovalInput
-      messageId="msg-1"
+      messageId={MESSAGE_ID}
       answered={false}
+      isResumeMode
       request={{ path: '/data/reports', writable: true }}
-      onAnswered={onAnswered}
     />,
   );
   fireEvent.click(screen.getByRole('button', { name: 'grant' }));
@@ -57,12 +69,10 @@ function grantDirectory(): void {
 
 beforeEach(() => {
   pipeline.sendMessage.mockReset();
-  transcript.refreshOpenChatTranscript.mockReset();
-  onAnswered.mockClear();
   vi.mocked(toast.error).mockClear();
   vi.mocked(toast.warning).mockClear();
   vi.mocked(refreshSessionAccessRoots).mockClear();
-  useChatStore.setState({ chatId: 'chat-1' });
+  useChatStore.setState({ chatId: 'chat-1', messages: [structuredClone(pendingDirectory)] });
 });
 
 describe('DirectoryApprovalInput resume', () => {
@@ -73,32 +83,31 @@ describe('DirectoryApprovalInput resume', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('submitFailed'));
     expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
-    expect(onAnswered).not.toHaveBeenCalled();
-    expect(transcript.refreshOpenChatTranscript).not.toHaveBeenCalled();
+    expect(isAnswered()).toBe(false);
   });
 
-  it('records the grant and marks the card answered once the resume is dispatched', async () => {
+  it('records the grant and releases the composer once the resume is dispatched', async () => {
     pipeline.sendMessage.mockResolvedValue(true);
 
     grantDirectory();
 
-    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(isAnswered()).toBe(true));
     expect(refreshSessionAccessRoots).toHaveBeenCalledWith('chat-1', {
       optimistic: { path: '/data/reports', writable: true, source: 'hitl_grant' },
     });
     expect(toast.error).not.toHaveBeenCalled();
-    expect(transcript.refreshOpenChatTranscript).not.toHaveBeenCalled();
+    expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)).toBeNull();
   });
 
-  it('closes the card without recording a grant and pulls in what the timeout continued with', async () => {
+  it('closes the card without recording a grant when the timeout already declined the request', async () => {
     pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
 
     grantDirectory();
 
-    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(isAnswered()).toBe(true));
     expect(toast.warning).toHaveBeenCalledWith('expired');
     expect(toast.error).not.toHaveBeenCalled();
     expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
-    expect(transcript.refreshOpenChatTranscript).toHaveBeenCalledWith('chat-1');
+    expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)).toBeNull();
   });
 });

@@ -21,7 +21,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ClarificationForm } from '@/store/chat/types';
 import { cn } from '@/lib/utils';
@@ -284,7 +283,6 @@ const ClarificationInput = ({
     if (err instanceof ApprovalExpiredError) {
       markAnswered();
       toast.warning(t('expired'));
-      void refreshOpenChatTranscript(useChatStore.getState().chatId);
       return;
     }
     console.error('Failed to answer clarification:', err);

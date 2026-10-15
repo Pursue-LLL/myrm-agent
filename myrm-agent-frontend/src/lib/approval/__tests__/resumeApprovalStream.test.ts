@@ -5,7 +5,6 @@ import type { ToolApprovalRequest } from '@/store/chat/types/toolApproval';
 const mockCreateAISearchStream = vi.hoisted(() => vi.fn());
 const mockHandleMessageStream = vi.hoisted(() => vi.fn());
 const mockGetModelSelection = vi.hoisted(() => vi.fn());
-const mockRefreshOpenChatTranscript = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/chat', () => ({
   createAISearchStream: (...args: unknown[]) => mockCreateAISearchStream(...args),
@@ -13,10 +12,6 @@ vi.mock('@/services/chat', () => ({
 
 vi.mock('@/store/chat/messageStreamHandler', () => ({
   handleMessageStream: (...args: unknown[]) => mockHandleMessageStream(...args),
-}));
-
-vi.mock('@/store/chat/chatTranscriptRefresh', () => ({
-  refreshOpenChatTranscript: (...args: unknown[]) => mockRefreshOpenChatTranscript(...args),
 }));
 
 vi.mock('@/store/chat/messageRequest', () => ({
@@ -94,7 +89,7 @@ describe('resumeApprovalStream', () => {
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
   });
 
-  it('throws ApprovalExpiredError and pulls in what the timeout continued with (HTTP 409)', async () => {
+  it('throws ApprovalExpiredError when the timeout already answered the approval (HTTP 409)', async () => {
     mockCreateAISearchStream.mockResolvedValue(conflictResponse());
 
     const { resumeApprovalStream } = await import('../resumeApprovalStream');
@@ -104,7 +99,6 @@ describe('resumeApprovalStream', () => {
     );
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
-    expect(mockRefreshOpenChatTranscript).toHaveBeenCalledWith('chat-1');
   });
 
   it('keeps other HTTP failures as plain errors', async () => {
@@ -115,6 +109,5 @@ describe('resumeApprovalStream', () => {
     const failure = resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed');
     await expect(failure).rejects.toThrow('Approval resume failed: HTTP 500');
     await expect(failure).rejects.not.toBeInstanceOf(ApprovalExpiredError);
-    expect(mockRefreshOpenChatTranscript).not.toHaveBeenCalled();
   });
 });
