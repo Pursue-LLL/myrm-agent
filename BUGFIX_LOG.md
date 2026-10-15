@@ -3117,7 +3117,7 @@ except Exception:
 
 ### 局限
 
-1. 触屏拖拽（`TouchSensor` 的 250ms 长按）没有在浏览器里验证；触屏只验证了复选框的轻点选择。验证用的是 Chromium 的触屏模拟，不是真机。
+1. 触屏拖拽（`TouchSensor` 的 250ms 长按）没有在浏览器里验证；触屏只验证了复选框的轻点选择。验证用的是 Chromium 的触屏模拟，不是真机。（后续在 `BUG-AGENT-2026-10-15-011` 里补验，并修掉了触屏滑动被当成拖拽的问题。）
 2. 多选拖拽时，若真正需要移动的只有一张卡（其余已在目标列），`useKanbanDnD.dispatchMove` 仍走单卡接口：该卡遇到未完成依赖时弹单卡确认，选择保持不变。真实 Chromium 里复现过（选 Bravo + Delta 拖到 Ready，只发了一次 `POST .../tasks/t2/move`）。这是原有行为，没有改；重试与归档的单卡确认流程依赖它。
 3. 卡片包装器是 `role=button`（dnd-kit 的 activator），里面又放了勾选框和按钮：真实 Chromium 里数到 5 个 `[role=button] [role=checkbox]`、17 个 `[role=button] button`。这是原有的卡片结构，没有改；读屏可能提示嵌套交互控件，没有用读屏软件验证。
 4. `KanbanTaskCard.tsx` 之外，`KanbanBoardView.tsx` 仍有约 438 行（在行数基线内，未超 500）。
@@ -3412,3 +3412,58 @@ except Exception:
 1. 去重键与写出端各有一份序列化约定时，宽的那份会放进窄的那份处理不了的值；判断一个值能不能安全经过，要看它最先经过的那份序列化放行了什么。
 2. 计划里写的「跳过坏事件」防护没有先核对上游：读了 `PubSubBus.publish()` 才发现凡是 `default=str` 编不了的在发布时就已经抛了，那段 `try/except` 是不可达的死代码；加防护之前先问「这个失败还能走到这里吗」。
 3. 枚举要列全所有发布类型：留一个字符串字面量，按枚举做的死代码审计就会把活事件当成死项（上一阶段差点这么做）。
+
+---
+
+## BUG-AGENT-2026-10-15-011: 手机上从看板卡片起手的滑动被当成拖拽，卡片会被拖进相邻列；看板卡片被写成椭圆；批量接口把非预期异常吞掉且把异常原文回给调用方
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（不丢数据；但落点是「就绪」列时会触发调度器领取任务并真实跑一次 Agent，见现象 1） |
+| 影响范围 | frontend：`components/features/kanban/` 下 `useKanbanDnD.ts`、`KanbanDndComponents.tsx`、`KanbanTaskCard.tsx`、`kanban-card-gestures.ts`、`_ARCH.md` 及 4 个测试文件；server：`app/api/kanban/routes/bulk.py`、`routes/_ARCH.md`、`tests/api/kanban/test_bulk_action_api.py` |
+| 出现次数 | 1（复审看板时逐项核对代码与真实 Chromium 触屏模拟走查发现；浏览器里的接口是拦截返回的假数据，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-15-005` 的局限 1（触屏拖拽未验证）在本条补验；未 push |
+
+### 现象
+
+1. 375×812 触屏模拟下，从一张卡片上起手向左滑，看板没有顺着手指滚动，而是卡片被拖起、看板反向滚动了 330px，并发出一次移动请求（修复前在同一套假接口加生产构建的夹具里量到，见验证 5）。落点若是「就绪」列，`move_orchestrator.py:264` 会唤醒调度器，harness 的 `dispatcher.py:343-345` 列出就绪任务并领取，随后真实跑一次 Agent；这条链路只读了代码，浏览器里的接口是假数据，没有实际跑起 Agent。
+2. 看板卡片根元素是 `rounded-full`：卡片有多行内容，被画成椭圆，四角的内容被裁；外层拖拽包装层是 `rounded-md`，选中描边与卡片轮廓对不上。
+3. `bulk.py` 全文件没有 logger，`except Exception as exc` 只把 `str(exc)` 填进该条结果；单任务移动接口遇到同样的异常会走框架的 500 日志。批量路径成了唯一吞掉异常且不留痕的地方，同时把内部异常原文（路径、SQL 报错）回给了调用方，而前端从不读取这个字段。
+
+### 根因
+
+1. `useKanbanDnD.ts` 同时挂了 `PointerSensor`（位移 8px 起拖）与 `TouchSensor`（长按 250ms、容差 5px）。`PointerSensor` 同样接管触屏指针，位移到阈值就起拖拽，长按约束形同虚设；卡片包装层的 `touch-none` 又让浏览器不再把卡片上的滑动当滚动。`touch-none` 来自一次与看板无关的大提交，没有测试固定传感器配置。
+2. `rounded-full` 被用在了整张多行卡片的根元素上。
+3. 兜底的 `except Exception` 把「业务拒绝」与「意料之外的故障」混在一起处理。
+
+### 修复
+
+1. 传感器改为 `MouseSensor`（位移 8px）+ `TouchSensor`（长按 250ms、容差 5px）+ `KeyboardSensor`；包装层 `touch-none` → `touch-manipulation`。`ISOLATE_FROM_CARD` 由停 `onPointerDown` 改为停 `onMouseDown` / `onTouchStart`（两个传感器的激活事件），勾选框、菜单触发器与 portal 菜单、附件徽标（原先自己写了一份 `onPointerDown`，换传感器后会失效）都展开它。新增 `kanban-card-gestures.test.ts` 读取看板的真实传感器：隔离属性必须覆盖每个指针类传感器的激活事件，触屏必须是长按约束且不能再有监听 `onPointerDown` 的传感器。
+2. 卡片与包装层统一 `rounded-lg`（8px，与列容器一致）。
+3. `bulk.py`：`ValueError`（含 `DependencyUnmetError`、未知 Agent）保持原样把原因回在该条结果里；其余异常用 `logger.exception` 记 ERROR（含堆栈），该条结果只回 `Internal error`，其余条目照常执行。日志级别取 ERROR 而不是 WARNING：这是意料之外的失败，需要人看。
+
+### 验证
+
+1. frontend：`vitest run src/components/features/kanban` 29 个文件 410 例通过。新增或改写：`kanban-card-gestures.test.ts` 2 例；`KanbanDndComponents.select.test.tsx` 改用与看板相同的传感器（原先用 `DndContext` 默认的 `PointerSensor`，与线上配置不同），新增「卡片本体按下并移动起拖、勾选框按下并移动不起拖」1 例（dnd-kit 拖拽结束后 50ms 内仍保留拦截 click 的捕获监听，该用例单独成组并在结束后等它撤掉）；`KanbanTaskCard.test.tsx` 新增附件徽标 1 例；`KanbanTaskCardActions.test.tsx` 把外层替身从 `onPointerDown` 改为 `onMouseDown` / `onTouchStart` 并补触摸事件。
+2. 变异测试（改坏实现，确认新增测试会红，再还原）：去掉 `onMouseDown` 隔离 → 5 例失败；去掉 `onTouchStart` 隔离 → 4 例失败；换回 `PointerSensor` → 3 例失败；触屏约束从长按改成位移 → 1 例失败。server 侧三种：恢复成旧的吞异常写法 → 1 例失败；对所有异常都记日志 → 2 例失败（含业务拒绝被记日志）；记日志但仍回 `str(exc)` → 1 例失败。
+3. server：`pytest tests/api/kanban` 450 通过、1 失败、1 跳过；`ruff check` 与 `ruff format --check` 通过。新增 2 例：业务拒绝保留原因且不进 ERROR 日志；非预期异常只记一条日志、响应里没有原文（如数据库路径）、同批其他条目照常成功。唯一失败的 `test_move_with_result_and_metadata` 来自他人尚未提交的 `move_orchestrator.py`（新增了 `handoff` 的 `summary` / `timestamp`），与本条无关，未处理。
+4. 真实 Chromium（patchright + `next build` 生产构建，接口用请求拦截返回假数据）新写的门禁，连续 3 次全部通过，共 25 项：触屏 375×812 的 11 项（包装层 `touch-action` 为 `manipulation`；从卡片起手的滑动让看板顺着手指滚动、不留拖拽浮层、不发移动请求；24px 快滑不起拖；450ms 长按起拖，原地松手不落点；从勾选框与菜单触发器长按都不起拖；无横向溢出；无页面错误）、触屏 820×900 的 3 项（长按拖动时浮层可见，放进相邻列只发一次移动）、桌面 1280×800 的 5 项（位移 4px 不起拖，较长位移起拖并只发一次移动到目标列）、浅 / 深主题各 3 项（卡片圆角 8px，包装层与卡片同圆角，截图确认不再是椭圆）。已有的两套门禁在同一构建上重跑仍全部通过：看板勾选框与批量拖拽（桌面 27 项 + 触屏 9 项）、对比度与详情展开（20 项）。
+5. 修复前的对照：同一套夹具在旧代码上跑触屏探测脚本，量到「从卡片滑动：看板被拖拽并反向滚动 330px，发出 1 次移动请求」。
+6. 门禁脚本自己的问题（不是产品缺陷，如实记录）：无头 Chromium 在页面加载后约 2 秒内会丢掉触屏滚动手势，从空白的列区域起手也一样。对照：空白测试页 10/10 首次手势都能滚动，再叠加 dnd-kit 风格的 window 级非被动 touchmove 监听仍是 8/8；真实看板页加载后立刻滑动，首次手势 4/4 为 0（第 2、3 次手势约滚 116px），先做一次轻点或竖向滑动作预热后首次手势 6/6 正常，闲置 6 秒后 4/4 正常；主线程没有长任务。原因没有查明，与传感器无关；之前把「从卡片滑动没滚动」解读成卡片挡住了滚动，其实是这个现象。门禁脚本现在等页面稳定 4 秒再测触屏。
+
+### 局限
+
+1. 触屏只在 Chromium 触屏模拟里验证，没有 iOS Safari、Android 真机、手写笔，也没有读屏软件；长按 250ms 期间系统的文本选择、长按菜单是否干扰起拖，真机上没有验证。
+2. 页面加载后最初约 2 秒内的触屏滚动，上面第 6 点的现象原因不明，没有量过真机。
+3. 批量上限（请求体 100 条）比看板一次加载的 200 条小，没有改：这个上限也是单次请求时长的唯一上界。归档带 worktree 的任务要逐条做脏检查与删除，用裸 git 在临时仓库近似该路径（`task_runner/worktree/cleanup.py:57,66`，不是真实函数）量到 100 条 44s（约 440ms/条，这台机器本身很慢，绝对值不可信），无 worktree 时 200 条约 1.2–1.9s（6–9.5ms/条）。超过 100 条现在是整批 422 干净拒绝、不会部分写入，少选几条重试即可。
+4. 卡片详情展开没有请求守卫（`useKanbanTaskCardDetails.ts` 的 `toggleExpand`）：两次请求读同一任务的同样 4 个只读接口，详情本就是展开瞬间的快照，找不到可观察的错误结果，没有改。
+5. 全仓 `tsc --noEmit` 另有 16 处错误，在他人未提交的在制品里（设计画布、人机协作座舱、创作工作室、思考预算、移交面板测试等），本条没有碰。
+
+### 踩坑经验
+
+1. 手势隔离必须与上游真实的激活事件一一对应：换传感器就要换隔离事件，而且要有读取真实传感器的测试，否则隔离悄悄变成死代码（附件徽标就是这样）。
+2. 测试里的 `DndContext` 用默认传感器与线上不同，测的就不是线上行为：把传感器换掉后，原来「通过」的勾选框用例立刻红了，才发现它们一直在用 `PointerSensor`。
+3. 无头浏览器里「第一次手势没动」先找对照再下结论：我之前据此判断过卡片挡住了滚动，换成空白页、预热、闲置对照后才发现是页面加载后的短暂现象。
+4. 上调一个限制之前先量它守着什么：批量上限看似只是个数字，实际是请求时长的上界，无 worktree 的耗时不能代表有 worktree 的耗时。
