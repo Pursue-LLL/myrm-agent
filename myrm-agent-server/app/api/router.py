@@ -63,6 +63,7 @@ from app.api.agents.mixed_fleet_router import router as mixed_fleet_router
 from app.api.agents.multi_bot_focus_router import router as multi_bot_focus_router
 from app.api.agents.multi_lane_router import router as multi_lane_router
 from app.api.agents.openapi_services import router as openapi_services_router
+from app.api.agents.orthogonal_reviewer_router import router as orthogonal_reviewer_router
 from app.api.agents.pipeline_integrity_router import router as pipeline_integrity_router
 from app.api.agents.profile_audit import router as profile_audit_router
 from app.api.agents.ralph_workflow_router import router as ralph_workflow_router
@@ -348,6 +349,7 @@ api_router.include_router(external_bundle_router)
 api_router.include_router(kanban_orchestrator_router)
 api_router.include_router(fleet_router_router)
 api_router.include_router(graph_triage_router)
+api_router.include_router(orthogonal_reviewer_router)
 api_router.include_router(agent_assembler_router)
 api_router.include_router(agent_avatar_router)
 api_router.include_router(capability_dispatch_router)

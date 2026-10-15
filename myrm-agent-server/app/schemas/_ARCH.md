@@ -69,6 +69,7 @@
 | `kanban_orchestrator.py` | 多智能体持久化任务看板调度中枢与卡片 DAG 依赖拓扑分发器 DTO（`KanbanLaneEnum`、`CardPriorityEnum`、`CardArtifactDTO`、`KanbanCardDTO`、`KanbanBoardStateDTO`、`CreateBoardRequestDTO`、`CreateCardRequestDTO`、`TransitionCardRequestDTO`、`TransitionCardResponseDTO`、`MountArtifactRequestDTO`、`HumanOverrideRequestDTO`、`DecomposeGoalRequestDTO`、`DecomposeGoalResponseDTO`） |
 | `fleet_router.py` | 跨机分布式舰队 Profile Rail 全景导航轨、多网关拓扑自愈、离线缓冲与跨机工件中继中枢 DTO（`GatewayTelemetryDTO`、`RegisterGatewayRequest`、`GatewayNodeResponse`、`HeartbeatRequest`、`RegisterProfileRequest`、`FleetProfileResponse`、`InjectedContextResponse`、`BufferCommandRequest`、`BufferedCommandResponse`、`FlushResponse`、`RelayArtifactRequest`、`RelayedArtifactResponse`、`FleetTopologyResponse`） |
 | `graph_triage.py` | 图工程自适应适用性评估门禁与并发 Token 预算熔断套件 DTO（`SubtaskSpec`、`TriageAssessmentRequest`、`TriageFeaturesDTO`、`TriageAssessmentResponse`、`BudgetEstimateRequest`、`BudgetEstimateResponse`、`ConfigureGuardRequest`、`SpendUpdateRequest`、`ExecutionSpendResponse`、`NodeExecutionOutputItem`、`PartialReduceRequest`、`PartialReduceResponse`） |
+| `orthogonal_reviewer.py` | 正交双视角审查门禁与零偏见盲审子代理 DTO（`ReviewFindingDTO`、`ReviewerReportDTO`、`ArbitrationVerdictDTO`、`IntentReviewRequest`、`BlindReviewRequest`、`ArbitrateRequest`、`FullReviewRequest`、`FullReviewResponse`、`AutoFixRequest`、`AutoFixResponse`） |
 
 
 

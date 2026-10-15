@@ -286,6 +286,9 @@
 | `GraphApplicabilityTriageCard.tsx` | 组件 | 图工程自适应适用性评估门禁与并发 Token 预算熔断卡片：呈现单步/探索/串行/重型并行场景准入与伪需求拦截决策横幅、前置 Token 与花费预测硬上限仪表盘、实时自适应多档位节流并发进度条、以及危急预算状态下提前局部优雅归约报告交互抽屉 | ✅ |
 | `graph-triage/` | 辅助 | 图工程准入门禁轻量模块化子组件集与前端类型定义（TriageDecisionBannerView, PredictiveBudgetGaugeView, ElasticThrottlingCardView, types） | ✅ |
 | `__tests__/GraphApplicabilityTriageCard.test.tsx` | 测试 | 图工程准入门禁与预算熔断卡片单元测试套件：覆盖头部与四类场景试演切换、前置预估超限拦截模拟、健康到危急多档位水位自适应并发节流、以及提前局部优雅归约报告交互渲染 | ✅ |
+| `DualOrthogonalReviewerCard.tsx` | 组件 | 正交双视角审查门禁与零偏见盲审子代理控制台卡片：呈现 Reviewer A 意图一致性（共享需求上下文）与 Reviewer B 盲态无偏审查（零先验物理隔离子智能体）双列分栏、综合仲裁裁决（准入/阻断）、严重度大盘、Blocker 告警与自动修复指令一键派发 | ✅ |
+| `orthogonal-reviewer/` | 辅助 | 正交双审门禁轻量模块化子组件集与前端类型定义（DualReviewerSplitView, ArbiterVerdictSummaryView, types） | ✅ |
+| `__tests__/DualOrthogonalReviewerCard.test.tsx` | 测试 | 正交双视角审查卡片单元测试套件：覆盖头部元数据与双重视角渲染、意图偏离拦截与 Blocker 告警、盲审类型漏洞与边界异常拦截、双重阻断与自愈修复指令派发回调、以及无障碍实时播报 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                       | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                  | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                   | ✅    |

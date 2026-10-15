@@ -98,6 +98,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `kanban_orchestrator_router.py` | 路由 | WebUI 多智能体持久化任务看板调度中枢、卡片依赖 DAG 拓扑与工件挂载分发器 REST API：提供项目看板增查 `/agents/kanban-orchestrator/boards`、任务卡片创建与无环依赖检查 `/boards/{id}/cards`、泳道流转与自动解锁级联 `/cards/{id}/transition`、工件挂载 `/artifacts`、人机一体拖拽干预 `/override` 与 Boss Agent 目标自动拆解 `/decompose`。 | ✅ |
 | `fleet_router_router.py` | 路由 | 跨机分布式舰队 Profile Rail 全景导航轨、多网关拓扑自愈、离线缓冲与跨机工件中继 REST API：提供多节点网关增查与注销 `/fleet/gateways`、心跳遥测与 DEGRADED 判定 `/heartbeat`、Profile 注册 `/profiles`、宿主拓扑上下文注入 `/profiles/{id}/context`、离线指令排队缓冲 `/buffer` 与自愈排空 `/flush`、以及 SHA-256 跨网关工件中继 `/relay` 与分布式拓扑快照 `/topology`。 | ✅ |
 | `graph_triage_router.py` | 路由 | 图工程自适应适用性评估门禁与并发 Token 预算熔断 REST API：提供任务模式准入/拦截启发式评估 `/agents/graph-triage/assess`、扇出前置 Token 与费用预算评估 `/estimate-budget`、会话硬上限与初始并发配置 `/sessions/{session_id}/configure`、实时消费上报与限流状态流转 `/sessions/{session_id}/update-spend`、当前预算水位查询 `/sessions/{session_id}/status`、以及危急预算状态下优雅局部归约触发 `/sessions/{session_id}/early-reduce`。 | ✅ |
+| `orthogonal_reviewer_router.py` | 路由 | 正交双视角审查门禁与零偏见盲审子代理 REST API：提供意图一致性单项审查 `/agents/orthogonal-reviewer/review-intent`、全新盲态无偏代码审查 `/review-blind`、正交双重视角一站式综合仲裁审查 `/evaluate`、会话级审查历史查询与状态维护 `/sessions/{session_id}/latest`、以及阻断缺陷一键生成修复指令 `/sessions/{session_id}/auto-fix`。 | ✅ |
 
 
 

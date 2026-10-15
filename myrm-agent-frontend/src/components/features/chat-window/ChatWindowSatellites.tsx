@@ -1688,6 +1688,12 @@ export const ExportedGraphApplicabilityTriageCard = dynamic(
   { ssr: false },
 );
 
+export const ExportedDualOrthogonalReviewerCard = dynamic(
+  () => import('./DualOrthogonalReviewerCard').then((module) => ({ default: module.DualOrthogonalReviewerCard })),
+  { ssr: false },
+);
+
+
 
 
 
