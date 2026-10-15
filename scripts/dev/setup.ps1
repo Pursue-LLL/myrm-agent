@@ -1,13 +1,9 @@
 # First-time setup after cloning myrm-agent (Windows).
-# Monorepo (sibling myrm-agent-harness): editable harness via install_harness.sh (Git Bash).
-# OSS-only clone: PyPI harness via uv sync.
+# The harness (myrm-agent-harness\) lives in this repository; uv sync installs it as an editable path source.
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $ServerDir = Join-Path $RepoRoot "myrm-agent-server"
 $FrontendDir = Join-Path $RepoRoot "myrm-agent-frontend"
-$MonorepoRoot = Split-Path $RepoRoot -Parent
-$HarnessSrc = Join-Path $MonorepoRoot "myrm-agent-harness\src\myrm_agent_harness"
-$HarnessInstaller = Join-Path $MonorepoRoot "scripts\maintainer\install_harness.sh"
 
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     Write-Error "uv not found. Install from https://docs.astral.sh/uv/"
@@ -19,18 +15,9 @@ if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
 Set-Location $ServerDir
 uv python install 3.13
 
-if ((Test-Path $HarnessSrc) -and (Test-Path $HarnessInstaller)) {
-    Write-Host "Server: monorepo harness detected -> editable install..."
-    if (-not (Get-Command bash -ErrorAction SilentlyContinue)) {
-        Write-Error "Monorepo requires Git Bash for harness install. Run from open-perplexity root: ./myrm setup"
-    }
-    bash $HarnessInstaller
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-} else {
-    Write-Host "Server: uv sync (PyPI harness)..."
-    # Match scripts/lib/server_sync_flags.sh (PowerShell has no shared source; keep in sync manually).
-    uv sync --all-extras --no-extra matrix-e2ee --no-extra voice-tts --no-extra wechat-silk
-}
+Write-Host "Server: uv sync (editable in-repo harness)..."
+# Match scripts/lib/server_sync_flags.sh (PowerShell has no shared source; keep in sync manually).
+uv sync --all-extras --no-extra matrix-e2ee --no-extra voice-tts --no-extra wechat-silk
 
 Write-Host "Installing browser runtime (patchright)..."
 uv run patchright install chromium 2>$null

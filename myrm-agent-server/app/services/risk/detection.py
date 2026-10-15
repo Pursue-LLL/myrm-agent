@@ -2,25 +2,61 @@
 
 Compiles and caches active risk rules as regex patterns, performs short-circuit
 matching against text content, and records risk hits to the database.
+
+Patterns are read by the ``regex`` package, whose default mode reads ordinary ``re`` patterns the same way (it differs
+on corner cases such as ``[[:alpha:]]``), because only it can stop a match that runs too long: ``detect`` runs on
+the event loop, on text any chat sender controls.
 """
 
 from __future__ import annotations
 
 import logging
-import re
-import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+import regex
+from myrm_agent_harness.core.security.detection.custom_rules import pattern_problem
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import RiskHit, RiskRule
 
+from .match_checks import is_confirmed_match
+
 logger = logging.getLogger(__name__)
 
 MAX_PATTERN_LENGTH = 4096
-REGEX_COMPILE_TIMEOUT_SECONDS = 2.0
+
+# Time one rule may spend on one text. A legitimate pattern needs milliseconds; a backtracking blow-up has no end, and
+# ``detect`` holds the event loop meanwhile, so the budget bounds how long one message can stall the server. A rule that
+# runs out of it counts as having matched (the text is not let through unchecked).
+MATCH_TIMEOUT_SECONDS = 0.25
+
+# What a hit's ``match_summary`` holds: where the match lies, or that matching ran out of time. Never the matched text.
+POSITION_SUMMARY_PREFIX = "chars:"
+TIMED_OUT_SUMMARY = "(matching timed out)"
+_MAX_PREVIEW_SNIPPETS = 20
+_SNIPPET_LENGTH = 80
+
+
+def compile_pattern(pattern: str) -> regex.Pattern[str]:
+    """Compile a rule pattern; ``ValueError`` says why it cannot be used.
+
+    The engine builds every copy of a counted repeat when it compiles (``a{99999999}`` would take gigabytes), so the
+    harness's size check comes before compiling.
+    """
+    if len(pattern) > MAX_PATTERN_LENGTH:
+        raise ValueError(f"Pattern length {len(pattern)} exceeds limit {MAX_PATTERN_LENGTH}")
+    problem = pattern_problem(pattern)
+    if problem is not None:
+        raise ValueError(f"Invalid regex pattern: {problem}")
+    return regex.compile(pattern, regex.DOTALL)
+
+
+def _abbreviate(snippet: str) -> str:
+    if len(snippet) <= _SNIPPET_LENGTH:
+        return snippet
+    return snippet[:40] + "..." + snippet[-37:]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,7 +66,6 @@ class RiskMatch:
     rule_id: str
     display_name: str
     severity: str
-    action: str
     category: str
     match_summary: str
 
@@ -42,15 +77,6 @@ class DetectionResult:
     blocked: bool
     matches: tuple[RiskMatch, ...]
 
-    @property
-    def highest_action(self) -> str:
-        if not self.matches:
-            return "allow"
-        from .constants import RiskAction
-
-        rank = RiskAction.RANK
-        return max(self.matches, key=lambda m: rank.get(m.action, 0)).action
-
 
 @dataclass
 class _CompiledRule:
@@ -59,9 +85,32 @@ class _CompiledRule:
     rule_id: str
     display_name: str
     severity: str
-    action: str
     category: str
-    compiled: re.Pattern[str]
+    compiled: regex.Pattern[str]
+
+
+def _first_hit(rule: _CompiledRule, text: str) -> str | None:
+    """Where the first confirmed match of *rule* lies in *text* (``chars:START-END``), or None.
+
+    The summary names the position and never repeats the matched text: the rules exist to keep secrets and personal
+    data from spreading, and the hit record would otherwise store them in the clear.
+
+    A rule that cannot finish the text within the budget counts as a hit, so that a message built to stall a pattern
+    is held by the rule instead of passing it.
+    """
+    try:
+        for m in rule.compiled.finditer(text, timeout=MATCH_TIMEOUT_SECONDS):
+            if is_confirmed_match(rule.rule_id, m):
+                return f"{POSITION_SUMMARY_PREFIX}{m.start()}-{m.end()}"
+    except TimeoutError:
+        logger.warning(
+            "Risk rule %s did not finish a %d-character text in %.2fs; the text counts as its hit",
+            rule.rule_id,
+            len(text),
+            MATCH_TIMEOUT_SECONDS,
+        )
+        return TIMED_OUT_SUMMARY
+    return None
 
 
 @dataclass
@@ -88,28 +137,10 @@ class RiskDetectionService:
 
         compiled: list[_CompiledRule] = []
         for rule in db_rules:
-            pattern_str = rule.pattern
-            if len(pattern_str) > MAX_PATTERN_LENGTH:
-                logger.warning(
-                    "Skipping rule %s: pattern length %d exceeds limit %d",
-                    rule.rule_id,
-                    len(pattern_str),
-                    MAX_PATTERN_LENGTH,
-                )
-                continue
-
             try:
-                t0 = time.monotonic()
-                compiled_re = re.compile(pattern_str, re.DOTALL)
-                elapsed = time.monotonic() - t0
-                if elapsed > REGEX_COMPILE_TIMEOUT_SECONDS:
-                    logger.warning(
-                        "Rule %s compiled in %.3fs (slow), consider simplifying pattern",
-                        rule.rule_id,
-                        elapsed,
-                    )
-            except re.error as exc:
-                logger.error("Failed to compile rule %s: %s", rule.rule_id, exc)
+                compiled_re = compile_pattern(rule.pattern)
+            except ValueError as exc:
+                logger.error("Skipping rule %s: %s", rule.rule_id, exc)
                 continue
 
             compiled.append(
@@ -117,7 +148,6 @@ class RiskDetectionService:
                     rule_id=rule.rule_id,
                     display_name=rule.display_name,
                     severity=rule.severity,
-                    action=rule.action,
                     category=rule.category,
                     compiled=compiled_re,
                 )
@@ -129,37 +159,23 @@ class RiskDetectionService:
         return len(compiled)
 
     def detect(self, text: str) -> DetectionResult:
-        """Match text against compiled rules (short-circuit on first block)."""
+        """Match text against the compiled rules; the first rule that hits holds it."""
         if not text or not self._rules:
             return DetectionResult(blocked=False, matches=())
 
-        matches: list[RiskMatch] = []
-        blocked = False
-
         for rule in self._rules:
-            m = rule.compiled.search(text)
-            if m is None:
-                continue
+            snippet = _first_hit(rule, text)
+            if snippet is not None:
+                match = RiskMatch(
+                    rule_id=rule.rule_id,
+                    display_name=rule.display_name,
+                    severity=rule.severity,
+                    category=rule.category,
+                    match_summary=snippet,
+                )
+                return DetectionResult(blocked=True, matches=(match,))
 
-            snippet = m.group()
-            if len(snippet) > 80:
-                snippet = snippet[:40] + "..." + snippet[-37:]
-
-            match = RiskMatch(
-                rule_id=rule.rule_id,
-                display_name=rule.display_name,
-                severity=rule.severity,
-                action=rule.action,
-                category=rule.category,
-                match_summary=snippet,
-            )
-            matches.append(match)
-
-            if rule.action == "block":
-                blocked = True
-                break
-
-        return DetectionResult(blocked=blocked, matches=tuple(matches))
+        return DetectionResult(blocked=False, matches=())
 
     async def record_hits(
         self,
@@ -179,7 +195,6 @@ class RiskDetectionService:
                 rule_id=m.rule_id,
                 rule_name=m.display_name,
                 severity=m.severity,
-                action=m.action,
                 match_summary=m.match_summary,
             )
             session.add(hit)
@@ -189,24 +204,18 @@ class RiskDetectionService:
     def detect_preview(self, text: str, pattern: str) -> list[str]:
         """Test a single regex pattern against text.
 
-        Returns list of match snippets for rule preview/testing.
-        Raises ValueError on invalid regex.
+        Returns the abbreviated text of the first matches, so the author of a rule sees what it catches in the sample.
+        Raises ValueError on an invalid pattern or one that cannot finish the text in time.
         """
-        if len(pattern) > MAX_PATTERN_LENGTH:
-            raise ValueError(f"Pattern length {len(pattern)} exceeds limit {MAX_PATTERN_LENGTH}")
-
-        try:
-            compiled = re.compile(pattern, re.DOTALL)
-        except re.error as exc:
-            raise ValueError(f"Invalid regex: {exc}") from exc
-
-        found = compiled.findall(text)
+        compiled = compile_pattern(pattern)
         snippets: list[str] = []
-        for item in found[:20]:
-            s = item if isinstance(item, str) else str(item)
-            if len(s) > 80:
-                s = s[:40] + "..." + s[-37:]
-            snippets.append(s)
+        try:
+            for m in compiled.finditer(text, timeout=MATCH_TIMEOUT_SECONDS):
+                snippets.append(_abbreviate(m.group()))
+                if len(snippets) == _MAX_PREVIEW_SNIPPETS:
+                    break
+        except TimeoutError as exc:
+            raise ValueError("Pattern took too long to match the sample text; simplify it") from exc
         return snippets
 
     @property

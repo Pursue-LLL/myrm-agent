@@ -4583,7 +4583,6 @@
   "Unable to load a live screenshot right now. You can retry or review the action details below.": "Es kann derzeit kein Live-Screenshot geladen werden. Sie können es erneut versuchen oder die Aktionsdetails unten überprüfen.",
   "The target element is no longer visible on the current screenshot. Retry or review the action details below.": "Das Zielelement ist im aktuellen Screenshot nicht mehr sichtbar. Versuchen Sie es erneut oder überprüfen Sie die Aktionsdetails unten.",
   "Screen recording permission is required before we can show a visual preview. Grant permission in System Settings, then retry.": "Bevor wir eine visuelle Vorschau zeigen können, ist eine Bildschirmaufzeichnungsgenehmigung erforderlich. Erteilen Sie die Berechtigung in den Systemeinstellungen und versuchen Sie es dann erneut.",
-  "Batch Optimization": "Chargenoptimierung",
   "Guest": "Gast",
   "Log In": "Einloggen",
   "Log in to sync your data": "Melden Sie sich an, um Ihre Daten zu synchronisieren",

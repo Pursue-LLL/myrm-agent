@@ -17,12 +17,14 @@ web search; deep search uses web_fetch + sufficiency, not browser eager bind.
 from __future__ import annotations
 
 import logging
+import time
 from typing import cast
 
 from fastapi import Request
 
 from app.ai_agents import GeneralAgentParams
 from app.core.channel_bridge.config_parsers import verify_search_service_available
+from app.core.security.privacy_settings import resolve_privacy_params
 from app.core.types import ChatHistoryReq, MCPServerConfig, ModelConfig
 from app.services.agent.moa_preset_resolver import (
     apply_moa_preset_activation,
@@ -36,7 +38,7 @@ from .archive_restore import (
     inject_archive_restore_actions_into_query,
     prevalidate_archive_restore_actions,
 )
-from .helpers import _extract_code_execution_network
+from .helpers import _extract_code_execution_network, _requested_privacy_params
 from .media import _extract_media_generation_params
 from .mention import (
     _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
@@ -45,7 +47,7 @@ from .mention import (
 )
 from .models import AgentRequest
 from .resolvers import _resolve_model_config
-from .routing_memory import RecentRouting, load_recent_routing, resolve_turn_routing
+from .routing_memory import RecentRouting, complaint_floor, load_recent_routing, load_retry_baseline, resolve_turn_routing
 from .upload_sync import (
     inject_uploaded_files_into_query,
     sync_uploaded_files_to_workspace,
@@ -388,19 +390,16 @@ async def convert_to_general_agent_params(
             recent_routing_tiers = recent_routing.tiers or None
 
             complaint_min_tier: RoutingTier | None = None
-            is_complaint_up = bool(
-                request.sibling_group_id
-                and (not request.regenerate_instruction or request.regenerate_instruction == "__complaint_up__")
-            )
-            if is_complaint_up and recent_routing_tiers:
-                _tier_next = {
-                    RoutingTier.SIMPLE: RoutingTier.STANDARD,
-                    RoutingTier.STANDARD: RoutingTier.REASONING,
-                }
-                complaint_min_tier = _tier_next.get(recent_routing_tiers[-1], RoutingTier.REASONING)
-            elif is_complaint_up:
-                complaint_min_tier = RoutingTier.STANDARD
+            retry_climbs = True
+            if request.sibling_group_id and not request.regenerate_instruction:
+                complaint_min_tier, retry_climbs = complaint_floor(
+                    await load_retry_baseline(request.chat_id),
+                    standard=model_cfg,
+                    light=light_model_cfg,
+                    reasoning=reasoning_model_cfg,
+                )
 
+            route_started = time.perf_counter()
             routing_result = await route_task(
                 query=request.query,
                 standard_model_cfg=model_cfg,
@@ -413,27 +412,30 @@ async def convert_to_general_agent_params(
                 recent_tiers=recent_routing_tiers,
                 min_tier=complaint_min_tier,
             )
-            model_cfg = routing_result.model_cfg
-            if routing_result.fallback_model_cfg is not None:
-                fallback_model_cfg = routing_result.fallback_model_cfg
-            routing_tier = routing_result.tier.value
-            routing_reason = routing_result.reason
-
-            # 最高档 REASONING 无更高档可升：complaint-up 只是重新生成，并非
-            # 档位选择错误。记录惩罚会削弱未来同类任务的档位选择（越用越笨），故跳过。
-            if is_complaint_up and recent_routing_tiers and recent_routing_tiers[-1] is not RoutingTier.REASONING:
-                from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-                    record_misroute,
+            routing_ms = (time.perf_counter() - route_started) * 1000
+            if request.action_mode == "deep_research" and routing_result.tier is not RoutingTier.REASONING:
+                # The report is the deliverable of a research run and research topics are short by nature, so only a
+                # reasoning verdict changes the planner/report model (research sub-agents use the light slot
+                # separately). Routing did not select this run's model, so no tier is recorded: a retry then climbs
+                # from the main model, and the token mass of the light-model sub-agents stays out of the standard
+                # tier whose per-token price the savings estimate uses.
+                logger.info("Smart routing: deep research ignores tier=%s routing_ms=%.1f", routing_result.tier.value, routing_ms)
+            else:
+                model_cfg = routing_result.model_cfg
+                if routing_result.fallback_model_cfg is not None:
+                    fallback_model_cfg = routing_result.fallback_model_cfg
+                routing_tier = routing_result.tier.value
+                routing_reason = routing_result.reason
+                if not retry_climbs and routing_reason.startswith("min_tier_escalation("):
+                    # The floor had no different model to move to, so the row must not claim an upgrade.
+                    routing_reason = "retry_floor_held"
+                logger.info(
+                    "Smart routing: tier=%s model=%s reason=%s routing_ms=%.1f",
+                    routing_result.tier.value,
+                    model_cfg.model,
+                    routing_result.reason,
+                    routing_ms,
                 )
-
-                record_misroute(recent_routing_tiers[-1])
-
-            logger.info(
-                "Smart routing: tier=%s model=%s reason=%s",
-                routing_result.tier.value,
-                model_cfg.model,
-                routing_result.reason,
-            )
         except Exception:
             logger.warning("Smart routing failed, using default model", exc_info=True)
 
@@ -663,10 +665,6 @@ async def convert_to_general_agent_params(
     from app.platform_utils.sandbox.tool_gateway import merge_tool_gateway_config
 
     tool_gateway_config = merge_tool_gateway_config(tool_gateway_config if isinstance(tool_gateway_config, dict) else None)
-
-    if request.regenerate_instruction and request.regenerate_instruction != "__complaint_up__":
-        regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
-        user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
 
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -949,13 +947,7 @@ async def convert_to_general_agent_params(
     if request.privacy_routing is not None:
         privacy_routing_obj = {str(k): v for k, v in request.privacy_routing.items()}
 
-    privacy_deep_scan = request.privacy_deep_scan
-    if privacy_deep_scan is None and isinstance(ps_dict, dict):
-        raw = ps_dict.get("privacyDeepScan")
-        if isinstance(raw, bool):
-            privacy_deep_scan = raw
-    if privacy_deep_scan is None:
-        privacy_deep_scan = False
+    privacy_params = resolve_privacy_params(ps_dict, _requested_privacy_params(request))
 
     final_query = request.query
     mention_warnings: list[str] = []
@@ -1156,6 +1148,10 @@ async def convert_to_general_agent_params(
         )
         prompt_mode = resolved.prompt_mode if resolved else "full"
 
+    if request.regenerate_instruction:
+        regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
+        user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
+
     params = GeneralAgentParams(
         message_id=request.message_id,
         chat_id=request.chat_id,
@@ -1237,17 +1233,8 @@ async def convert_to_general_agent_params(
         image_generation=image_gen_params if not is_fast_search else None,
         video_generation=video_gen_params if not is_fast_search else None,
         tts=tts_params if not is_fast_search else None,
-        privacy_enabled=request.privacy_enabled,
-        privacy_s2_action=request.privacy_s2_action,
-        privacy_s3_action=request.privacy_s3_action,
         privacy_routing_raw=privacy_routing_obj,
-        privacy_custom_keywords_s2=request.privacy_custom_keywords_s2 or [],
-        privacy_custom_keywords_s3=request.privacy_custom_keywords_s3 or [],
-        privacy_custom_patterns_s2=request.privacy_custom_patterns_s2 or [],
-        privacy_custom_patterns_s3=request.privacy_custom_patterns_s3 or [],
-        privacy_sensitive_tools_s2=request.privacy_sensitive_tools_s2 or [],
-        privacy_sensitive_tools_s3=request.privacy_sensitive_tools_s3 or [],
-        privacy_deep_scan=privacy_deep_scan,
+        **privacy_params,
         code_execution_allow_network=code_exec_allow_network,
         event_log_dir=get_settings().database.event_log_dir,
         event_log_max_jsonl_line_bytes=get_settings().event_log_max_jsonl_line_bytes,

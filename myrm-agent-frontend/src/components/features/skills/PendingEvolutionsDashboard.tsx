@@ -7,7 +7,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, Clock3, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
@@ -25,13 +24,10 @@ import {
   type SkillGrowthCaseSummary,
   type SkillGrowthSummary,
 } from '@/services/skill/growth';
-import { createCronJob } from '@/services/cron';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
-  CapacityAlertBanner,
-  CapacityPoolBadge,
   EMPTY_SUMMARY,
   FILTER_ORDER,
   LIST_CASES_LIMIT,
@@ -44,13 +40,7 @@ import {
 export function PendingEvolutionsDashboard() {
   const t = useTranslations('settings.skills.growth');
   const { user } = useAuthStore();
-  const { fetchLocalSkills, fetchUserSkillConfig, localSkills } = useSkillStore();
-
-  const skillCount = localSkills?.length ?? 0;
-  const maxSkillCount = 50;
-  const capacityPercent = Math.min(100, Math.round((skillCount / maxSkillCount) * 100));
-  const isWarning = capacityPercent >= 80 && capacityPercent < 100;
-  const isLimit = capacityPercent >= 100;
+  const { fetchLocalSkills, fetchUserSkillConfig } = useSkillStore();
 
   const [cases, setCases] = useState<SkillGrowthCaseSummary[]>([]);
   const [listTotal, setListTotal] = useState(0);
@@ -59,8 +49,6 @@ export function PendingEvolutionsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [processingCaseId, setProcessingCaseId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<GrowthFilter>('all');
-  const searchParams = useSearchParams();
-  const growthTypeFilter = searchParams.get('growthType')?.trim() || null;
   const [viewMode, setViewMode] = useState<SkillGrowthViewMode>(() => {
     if (typeof window === 'undefined') {
       return 'simple';
@@ -165,31 +153,21 @@ export function PendingEvolutionsDashboard() {
     };
   }, [listTotal, summary]);
 
-  const filteredCases = useMemo(() => {
-    let items = cases.filter((item) => matchesFilter(item, activeFilter));
-    if (growthTypeFilter) {
-      items = items.filter((item) => item.growthType === growthTypeFilter);
-    }
-    return items;
-  }, [activeFilter, cases, growthTypeFilter]);
+  const filteredCases = useMemo(() => cases.filter((item) => matchesFilter(item, activeFilter)), [activeFilter, cases]);
 
   const handleApprove = useCallback(
-    async (item: SkillGrowthCaseSummary, applyMode: 'immediate' | 'shadow' = 'immediate') => {
+    async (item: SkillGrowthCaseSummary) => {
       if (!user?.id || processingCaseId) {
         return;
       }
       setProcessingCaseId(item.id);
       try {
-        const result = await approveSkillGrowthCase(item, applyMode);
+        const result = await approveSkillGrowthCase(item);
         const nextStatus = result.apply_status === 'FAILED' ? 'APPLY_FAILED' : 'APPROVED';
         if (result.apply_status === 'FAILED') {
           toast.error(result.apply_error ?? result.remediation ?? t('approveFailed', { name: item.skillName }));
         } else {
-          toast.success(
-            applyMode === 'shadow'
-              ? t('approveShadowSuccess', { name: item.skillName })
-              : t('approveSuccess', { name: item.skillName }),
-          );
+          toast.success(t('approveSuccess', { name: item.skillName }));
         }
         window.dispatchEvent(
           new CustomEvent('skill-growth-updated', {
@@ -240,48 +218,12 @@ export function PendingEvolutionsDashboard() {
       setProcessingCaseId(item.id);
       try {
         const result = await reviseSkillGrowthCase(item, evolvedContent);
-        if (result.test_passed) {
-          toast.success(t('reviseSuccess', { name: item.skillName }));
-        } else {
+        if (result.status === 'FAILED_SCAN') {
           toast.error(t('reviseFailedScan', { name: item.skillName }));
         }
         await loadCases(true);
       } catch (reviseError) {
         toast.error(reviseError instanceof Error ? reviseError.message : t('reviseFailed', { name: item.skillName }));
-      } finally {
-        setProcessingCaseId(null);
-      }
-    },
-    [loadCases, processingCaseId, t, user?.id],
-  );
-
-  const handleCreateCron = useCallback(
-    async (item: SkillGrowthCaseSummary, scheduleHint: string) => {
-      if (!user?.id || processingCaseId) {
-        return;
-      }
-      setProcessingCaseId(item.id);
-      try {
-        await createCronJob({
-          name: item.skillName || scheduleHint,
-          job_type: 'agent',
-          schedule: {
-            kind: 'cron',
-            expr: scheduleHint,
-            tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-          prompt: item.summary || item.description || scheduleHint,
-        });
-        await approveSkillGrowthCase(item, 'immediate');
-        toast.success(t('cronCreated', { name: item.skillName }));
-        window.dispatchEvent(
-          new CustomEvent('skill-growth-updated', {
-            detail: { caseId: item.id, status: 'APPROVED', source: item.source },
-          }),
-        );
-        await loadCases(true);
-      } catch (cronError) {
-        toast.error(cronError instanceof Error ? cronError.message : t('cronCreateFailed', { name: item.skillName }));
       } finally {
         setProcessingCaseId(null);
       }
@@ -295,13 +237,6 @@ export function PendingEvolutionsDashboard() {
       description={t('description')}
       action={
         <div className="flex items-center gap-2">
-          <CapacityPoolBadge
-            skillCount={skillCount}
-            maxSkillCount={maxSkillCount}
-            capacityPercent={capacityPercent}
-            isWarning={isWarning}
-            isLimit={isLimit}
-          />
           <Button variant="outline" size="sm" className="gap-2" onClick={toggleViewMode}>
             {viewMode === 'simple' ? <List className="h-4 w-4" /> : <SquareStack className="h-4 w-4" />}
             {t(`viewMode.${viewMode}` as Parameters<typeof t>[0])}
@@ -339,14 +274,6 @@ export function PendingEvolutionsDashboard() {
           toneClassName="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
         />
       </div>
-
-      <CapacityAlertBanner
-        skillCount={skillCount}
-        maxSkillCount={maxSkillCount}
-        capacityPercent={capacityPercent}
-        isWarning={isWarning}
-        isLimit={isLimit}
-      />
 
       {showListScopeHint && (
         <p className="text-sm text-muted-foreground">{t('listScopeHint', { shown: cases.length, total: listTotal })}</p>
@@ -415,15 +342,9 @@ export function PendingEvolutionsDashboard() {
               item={item}
               isProcessing={processingCaseId === item.id}
               viewMode={viewMode}
-              onApprove={() => handleApprove(item, 'immediate')}
-              onApproveShadow={() => handleApprove(item, 'shadow')}
+              onApprove={() => handleApprove(item)}
               onReject={(reason?: string) => handleReject(item, reason)}
               onRevise={(evolvedContent: string) => handleRevise(item, evolvedContent)}
-              onCreateCron={
-                item.growthType === 'cron_suggestion' && item.formMetadata?.scheduleHint
-                  ? (hint: string) => handleCreateCron(item, hint)
-                  : undefined
-              }
             />
           ))}
         </div>

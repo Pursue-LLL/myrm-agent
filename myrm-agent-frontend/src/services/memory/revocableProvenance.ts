@@ -4,7 +4,7 @@
  *
  * [OUTPUT]
  * Revocable Provenance-Qualified Memory & Dream Diary DTOs and API clients:
- * - saveProvenanceMemory, getProvenanceMemory, listProvenanceMemories, findMemoriesBySession
+ * - saveProvenanceMemory, listProvenanceMemories
  * - forgetMemory (Atomic memory forget with transcript immutability guarantee)
  * - recordDreamDiary, listDreamDiaries (Transparent background consolidation diaries)
  *
@@ -96,17 +96,6 @@ export async function saveProvenanceMemory(
 }
 
 /**
- * Retrieves a single provenance-qualified memory by ID.
- */
-export async function getProvenanceMemory(
-  memoryId: string
-): Promise<ProvenanceQualifiedMemoryDTO> {
-  return apiRequest<ProvenanceQualifiedMemoryDTO>(
-    `/memory/provenance/memories/${encodeURIComponent(memoryId)}`
-  );
-}
-
-/**
  * Lists stored memories with option to include revoked records.
  */
 export async function listProvenanceMemories(
@@ -115,19 +104,6 @@ export async function listProvenanceMemories(
   const query = includeRevoked ? '?include_revoked=true' : '';
   return apiRequest<ProvenanceQualifiedMemoryDTO[]>(
     `/memory/provenance/memories${query}`
-  );
-}
-
-/**
- * Finds all memories originating from a specific chat session.
- */
-export async function findMemoriesBySession(
-  sessionId: string,
-  includeRevoked = false
-): Promise<ProvenanceQualifiedMemoryDTO[]> {
-  const query = includeRevoked ? '?include_revoked=true' : '';
-  return apiRequest<ProvenanceQualifiedMemoryDTO[]>(
-    `/memory/provenance/memories/session/${encodeURIComponent(sessionId)}${query}`
   );
 }
 

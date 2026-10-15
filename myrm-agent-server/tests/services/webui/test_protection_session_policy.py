@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from pathlib import Path
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -13,12 +16,12 @@ app = build_minimal_app(webui=True)
 from app.services.webui import admin_store
 from app.services.webui.auth_service import webui_auth_service
 from app.services.webui.passwords import hash_password
-from app.services.webui.protection_store import set_password_protection_enabled
+from app.services.webui.protection_store import is_password_protection_enabled, set_password_protection_enabled
 from app.services.webui.session import SESSION_COOKIE_NAME, create_session_value, parse_session_value
 
 
 @pytest.fixture(autouse=True)
-def _local_admin(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _local_admin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("DEPLOY_MODE", "local")
     monkeypatch.setenv("WEBUI_MODE", "true")
     monkeypatch.setenv("WEBUI_REMOTE_MODE", "true")
@@ -60,6 +63,28 @@ async def test_enable_protection_invalidates_old_cookie() -> None:
         )
         assert response.status_code == 200
     assert parse_session_value(cookie) is None
+
+
+@pytest.mark.asyncio
+async def test_protection_toggle_rejects_unauthenticated_remote_client() -> None:
+    transport = ASGITransport(app=app, client=("203.0.113.10", 50000))
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.put("/webui/auth/protection", json={"require_password": False})
+    assert response.status_code == 401
+    assert is_password_protection_enabled()
+
+
+@pytest.mark.asyncio
+async def test_protection_toggle_accepts_remote_client_with_session() -> None:
+    transport = ASGITransport(app=app, client=("203.0.113.10", 50000))
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.put(
+            "/webui/auth/protection",
+            json={"require_password": False},
+            cookies={SESSION_COOKIE_NAME: create_session_value("admin")},
+        )
+    assert response.status_code == 200
+    assert not is_password_protection_enabled()
 
 
 def test_update_protection_enabled_rotates_only_when_enabling() -> None:

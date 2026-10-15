@@ -6,7 +6,7 @@ Business-layer Run Observer + Session Advisor. Side Q&A does not enter the main 
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `run_digest_store.py` | 核心 | Process-local RunDigest SSOT；stream progress + approval pending 同步；SSE `run_digest_updated` | ✅ |
+| `run_digest_store.py` | 核心 | Process-local RunDigest SSOT；stream progress + approval pending 同步；SSE `run_digest_updated`；`terminal_failures()` 只读列出最近一次运行以 error/cancelled 结束的 chat（Catchup 收件箱据此发现未落库回复的失败回合；进程重启即遗忘） | ✅ |
 | `advisor_service.py` | 核心 | Tier-0 状态 regex + Tier-1 lite/default 模型只读问答（`load_llm_from_model_config`，wire-aware）；`Accept-Language` → locale | ✅ |
 | `advisor_thread_store.py` | 辅助 | 旁路线程内存存储（每 chat 最多 50 条） | ✅ |
 

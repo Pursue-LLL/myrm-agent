@@ -9,13 +9,14 @@
  *
  * [POS]
  * 成长进化中心技能健康度组件。解决盲目过滤与死特性问题，直观呈现 Harness 纯规则健康分与治理处置建议。
+ * 只展示近 7 天有运行的技能；沉睡与归档由技能库（SkillCard）的 Curator 生命周期徽章呈现。
  */
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, ArrowUpRight, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, CheckCircle2, CircleDashed, Clock, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SkillHealthItem } from '@/services/statistics';
@@ -24,7 +25,14 @@ const STATUS_VARIANT: Record<string, string> = {
   STAR: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
   HEALTHY: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
   AT_RISK: 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
-  STALE: 'bg-muted text-muted-foreground border-border',
+  UNPROVEN: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+};
+
+const RECOMMENDATION_KEY: Record<string, string> = {
+  STAR: 'recStar',
+  HEALTHY: 'recHealthy',
+  AT_RISK: 'recAtRisk',
+  UNPROVEN: 'recUnproven',
 };
 
 function getStatusIcon(status: string) {
@@ -35,7 +43,8 @@ function getStatusIcon(status: string) {
       return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />;
     case 'AT_RISK':
       return <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />;
-    case 'STALE':
+    case 'UNPROVEN':
+      return <CircleDashed className="h-3.5 w-3.5 text-sky-500 shrink-0" />;
     default:
       return <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
   }
@@ -56,7 +65,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
     return <p className="text-sm text-muted-foreground py-2">{t('empty')}</p>;
   }
 
-  const attentionItems = items.filter((item) => item.status === 'AT_RISK' || item.status === 'STALE');
+  const attentionItems = items.filter((item) => item.status === 'AT_RISK');
   const healthyItems = items.filter((item) => item.status === 'STAR' || item.status === 'HEALTHY');
 
   const filteredItems = activeTab === 'attention' ? attentionItems : activeTab === 'healthy' ? healthyItems : items;
@@ -117,10 +126,12 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
       ) : (
         <div className="space-y-2.5">
           {displayItems.map((item) => {
-            const isAttention = item.status === 'AT_RISK' || item.status === 'STALE';
+            const isAttention = item.status === 'AT_RISK';
             return (
               <div
                 key={item.skill_name}
+                data-testid="skill-health-row"
+                data-skill-name={item.skill_name}
                 className={cn(
                   'rounded-lg border px-3 py-2.5 transition-colors',
                   isAttention ? 'border-border/80 bg-muted/20 dark:bg-muted/10' : 'border-border/60 bg-card',
@@ -133,7 +144,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                       <p className="text-sm font-medium truncate">{item.skill_name}</p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {t('calls7d', { count: item.call_count_7d })}
+                      {t('calls7d', { count: item.truncated ? `${item.call_count_7d}+` : item.call_count_7d })}
                       {' · '}
                       {t('callsTotal', { count: item.call_count_total })}
                       {item.success_rate_7d !== null && (
@@ -145,16 +156,18 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-semibold tabular-nums">{Math.round(item.health_score)}</span>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'text-xs flex items-center gap-1',
-                        STATUS_VARIANT[item.status] ?? STATUS_VARIANT.STALE,
-                      )}
-                    >
-                      {t(`status.${item.status}`, { default: item.status })}
-                    </Badge>
+                    {/* An unproven skill's score only measures how little evidence exists, so it is not shown. */}
+                    <span className="text-sm font-semibold tabular-nums">
+                      {item.status === 'UNPROVEN' ? '–' : Math.round(item.health_score)}
+                    </span>
+                    {item.status in STATUS_VARIANT && (
+                      <Badge
+                        variant="outline"
+                        className={cn('text-xs flex items-center gap-1', STATUS_VARIANT[item.status])}
+                      >
+                        {t(`status.${item.status}`)}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
@@ -163,13 +176,12 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                     <div className="text-muted-foreground leading-relaxed flex items-start gap-1.5">
                       <span className="font-medium text-foreground/80 shrink-0">{t('recommendationPrefix')}</span>
                       <span>
-                        {item.status === 'STAR'
-                          ? t('recStar', { default: item.actionable_recommendation })
-                          : item.status === 'AT_RISK'
-                            ? t('recAtRisk', { default: item.actionable_recommendation })
-                            : item.status === 'STALE'
-                              ? t('recStale', { default: item.actionable_recommendation })
-                              : t('recHealthy', { default: item.actionable_recommendation })}
+                        {item.status in RECOMMENDATION_KEY
+                          ? t(RECOMMENDATION_KEY[item.status], {
+                              observed: item.observed_count_7d,
+                              required: item.min_observed_count,
+                            })
+                          : item.actionable_recommendation}
                       </span>
                     </div>
                     <Link

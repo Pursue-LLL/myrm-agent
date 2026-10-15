@@ -498,9 +498,43 @@ async def test_approve_draft_with_markdown_fence(mock_local_skills_dir: Path) ->
 
 
 @pytest.mark.asyncio
+async def test_approve_restores_an_archived_skill_of_the_same_name(
+    mock_local_skills_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Undo archives a learned skill; approving its re-proposed draft must not leave it archived."""
+    from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
+    from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
+
+    import app.core.skills.curator.service as curator_service
+
+    monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path / "data"))
+    collector = SkillStatsCollector()
+    monkeypatch.setattr(curator_service, "_stats_collector", collector)
+    skill_dir = mock_local_skills_dir / "undone-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text("---\nname: undone-skill\ndescription: old\n---\n", encoding="utf-8")
+    curator_service.apply_skill_archived(collector, skill_dir, archived=True)
+
+    draft = await notify_skill_draft_created(
+        {
+            "has_value": True,
+            "type": "skill_draft",
+            "skill_name": "undone-skill",
+            "content": "---\nname: undone-skill\ndescription: new\n---\n\n## Steps\n1. Do",
+        }
+    )
+    assert draft is not None
+
+    result = await approve_skill_draft(draft.id, ApproveDraftRequest(skill_name="undone-skill"))
+
+    assert result["materialized"] is True
+    assert collector.get_stats(skill_dir).lifecycle_status == SkillLifecycleStatus.ACTIVE
+
+
+@pytest.mark.asyncio
 async def test_materialize_semantic_memory_failure() -> None:
     """Semantic memory materialization failure returns a clean error dict."""
-    from app.api.skills.drafts import _materialize_semantic_memory
+    from app.api.skills.draft_materialize import materialize_semantic_memory
 
     class _Draft:
         id = "memory-draft"
@@ -510,7 +544,7 @@ async def test_materialize_semantic_memory_failure() -> None:
         "app.services.agent.platform_config.require_platform_embedding_config",
         side_effect=RuntimeError("no embedding backend"),
     ):
-        result = await _materialize_semantic_memory(_Draft())  # type: ignore[arg-type]
+        result = await materialize_semantic_memory(_Draft())  # type: ignore[arg-type]
 
     assert result["materialized"] is False
     assert "Semantic memory materialization failed" in (result.get("error") or "")
@@ -635,10 +669,8 @@ async def test_reject_non_pending_review_raises_400() -> None:
 
 
 @pytest.mark.asyncio
-async def test_reject_writes_negative_exemplar_memory(mock_local_skills_dir: Path) -> None:
-    """Rejecting a draft adds a negative exemplar memory (mocked)."""
-    from unittest.mock import patch as mock_patch
-
+async def test_reject_leaves_memory_untouched(mock_local_skills_dir: Path) -> None:
+    """Rejection lives in the ledger; no memory is written because nothing would read it."""
     draft = await notify_skill_draft_created(
         {
             "has_value": True,
@@ -649,31 +681,11 @@ async def test_reject_writes_negative_exemplar_memory(mock_local_skills_dir: Pat
     )
     assert draft is not None
 
-    fake_manager = AsyncMock()
-    fake_manager.add_knowledge = AsyncMock(return_value=SimpleNamespace(id="neg-1"))
-
-    with (
-        mock_patch(
-            "app.services.agent.platform_config.require_platform_embedding_config",
-            new=AsyncMock(return_value=SimpleNamespace(provider="openai", api_key="k")),
-        ),
-        mock_patch(
-            "app.core.memory.adapters.setup.create_memory_manager",
-            new=AsyncMock(return_value=fake_manager),
-        ),
-        mock_patch(
-            "app.core.memory.adapters.setup.resolve_context_binding",
-            return_value=SimpleNamespace(namespace="test"),
-        ),
-    ):
+    with patch("app.core.memory.adapters.setup.create_memory_manager", new=AsyncMock()) as create_manager:
         result = await reject_skill_draft(draft.id)
 
     assert result["status"] == "REJECTED"
-    fake_manager.add_knowledge.assert_awaited_once()
-    assert fake_manager.add_knowledge.await_args.kwargs["tags"] == [
-        "rejected-skill-proposal",
-        "negative-exemplar",
-    ]
+    create_manager.assert_not_awaited()
 
     async with get_session() as db:
         await db.execute(delete(ExperienceLedgerEvent))

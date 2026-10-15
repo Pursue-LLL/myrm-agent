@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from sqlalchemy import case, desc, func, literal, select
+from sqlalchemy import case, func, literal, select
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
@@ -33,7 +33,6 @@ from .case_types import (
     SkillGrowthCaseSummaryRead,
     SkillGrowthFormMetadataRead,
 )
-from .proxy_guard import evaluate_case_proxy_alignment
 
 _GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in SkillGrowthCaseStatus)
 
@@ -64,10 +63,6 @@ def _float_value(value: object) -> float | None:
     if isinstance(value, bool):
         return None
     return float(value) if isinstance(value, int | float) else None
-
-
-def _bool_value(value: object) -> bool | None:
-    return value if isinstance(value, bool) else None
 
 
 def _form_metadata(payload: dict[str, object]) -> SkillGrowthFormMetadataRead | None:
@@ -113,11 +108,10 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
     verification_proof: dict[str, object] | None = dict(raw_proof) if isinstance(raw_proof, dict) else None
     target_layer = _text(payload.get("target_layer")) or "prompt"
     target_pathology = _text(payload.get("target_pathology")) or "unhandled_exception"
-    is_continual = record.action_type == "continual_overlay" or payload.get("source") == "continual"
-    source = SkillGrowthCaseSource.CONTINUAL if is_continual else SkillGrowthCaseSource.DRAFT
+    scan_summary = payload.get("security_scan_summary")
     return SkillGrowthCaseDetailRead(
         id=f"draft:{record.id}",
-        source=source,
+        source=SkillGrowthCaseSource.DRAFT,
         status=_approval_growth_status(record),
         skill_name=draft_name,
         skill_id=None,
@@ -130,9 +124,8 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         original_content=None,
         proposed_content=proposed_content,
         confidence=_float_value(payload.get("confidence")),
-        test_passed=_bool_value(payload.get("test_passed")),
         apply_status=None,
-        apply_error=None,
+        apply_error=_text(payload.get("apply_error")),
         reason_code=_text(payload.get("reason_code")),
         remediation=_text(payload.get("remediation")),
         runtime_failure=None,
@@ -143,8 +136,7 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         verification_proof=verification_proof,
         target_layer=target_layer,
         target_pathology=target_pathology,
-        proxy_alignment=evaluate_case_proxy_alignment(payload),
-        security_scan_summary=(payload.get("security_scan_summary") if isinstance(payload.get("security_scan_summary"), dict) else None),
+        security_scan_summary=scan_summary if isinstance(scan_summary, dict) else None,
     )
 
 
@@ -171,7 +163,6 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         original_content=record.original_content,
         proposed_content=record.evolved_content,
         confidence=record.confidence,
-        test_passed=record.test_passed,
         apply_status=record.apply_status.value,
         apply_error=record.apply_error,
         reason_code=record.reason_code,
@@ -184,11 +175,6 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         verification_proof=(verification_proof if isinstance(verification_proof, dict) else None),
         target_layer=target_layer,
         target_pathology=target_pathology,
-        prediction_manifest=(record.change_manifest if isinstance(record.change_manifest, dict) else None),
-        attribution_result=(record.attribution_result if isinstance(record.attribution_result, dict) else None),
-        proxy_alignment=evaluate_case_proxy_alignment(
-            {"prediction_manifest": record.change_manifest} if isinstance(record.change_manifest, dict) else payload_dict
-        ),
         security_scan_summary=(record.security_scan_summary if isinstance(record.security_scan_summary, dict) else None),
     )
 
@@ -205,7 +191,6 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         summary=detail.summary,
         description=detail.description,
         confidence=detail.confidence,
-        test_passed=detail.test_passed,
         apply_status=detail.apply_status,
         apply_error=detail.apply_error,
         reason_code=detail.reason_code,
@@ -221,9 +206,6 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         verification_proof=detail.verification_proof,
         target_layer=detail.target_layer,
         target_pathology=detail.target_pathology,
-        prediction_manifest=detail.prediction_manifest,
-        attribution_result=detail.attribution_result,
-        proxy_alignment=detail.proxy_alignment,
         security_scan_summary=detail.security_scan_summary,
     )
 
@@ -325,7 +307,7 @@ async def _load_approval_cases(*, limit: int) -> list[SkillGrowthCaseSummaryRead
         result = await db.execute(
             select(ApprovalRecord)
             .where(ApprovalRecord.action_type.in_(SKILL_GROWTH_CASE_ACTION_TYPES))
-            .order_by(desc(ApprovalRecord.created_at))
+            .order_by(ApprovalRecord.created_at.desc())
             .limit(limit)
         )
         records = list(result.scalars().all())

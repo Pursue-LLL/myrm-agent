@@ -681,8 +681,9 @@ const useChatStore = create<ChatState>()(
                 state.messages = removeWaitingForTurnStep(state.messages, currentSessionMessageId);
               }
             });
+            return;
           }
-          return;
+          // No pane controller: the turn started outside the pane, so the chat-level controller below owns it.
         }
 
         if (!chatAbortController) {

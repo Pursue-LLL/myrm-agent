@@ -38,6 +38,7 @@ import {
   Network,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
+import type { SettingsTab } from './settingsRoutes';
 
 export type SettingsGroup = 'personal' | 'ai-core' | 'ai-tools' | 'knowledge' | 'integration' | 'system';
 
@@ -49,56 +50,6 @@ const groupConfig: Record<SettingsGroup, { labelKey: string; order: number }> = 
   integration: { labelKey: 'group.integration', order: 5 },
   system: { labelKey: 'group.system', order: 6 },
 };
-
-export type SettingsTab =
-  | 'account'
-  | 'workbench'
-  | 'preferences'
-  | 'theme-studio'
-  | 'personalization'
-  | 'agents'
-  | 'security'
-  | 'riskRules'
-  | 'shares'
-  | 'models'
-  | 'defaultModel'
-  | 'search'
-  | 'mcp'
-  | 'skills'
-  | 'skillQuality'
-  | 'toolStability'
-  | 'toolQuality'
-  | 'evolutionPending'
-  | 'evolutionRejection'
-  | 'credentials'
-  | 'wiki'
-  | 'openaiApi'
-  | 'hosting'
-  | 'developer'
-  | 'importExport'
-  | 'cron'
-  | 'kanban'
-  | 'checkpoint'
-  | 'channels'
-  | 'channelRouting'
-  | 'voice'
-  | 'companion'
-  | 'usageStatistics'
-  | 'experimentalFeatures'
-  | 'memory'
-  | 'brand-studio'
-  | 'memory-backup'
-  | 'memory-cloud-backup'
-  | 'memory-migration'
-  | 'integrationCatalog'
-  | 'integrationMemory'
-  | 'extensionBridge'
-  | 'connect'
-  | 'a2aPeers'
-  | 'workspaceRules'
-  | 'enterprise'
-  | 'system'
-  | 'about';
 
 interface MenuItem {
   id: SettingsTab;
@@ -127,7 +78,7 @@ const menuItems: MenuItem[] = [
   // 技能与插件
   { id: 'skills', icon: Wand2, labelKey: 'skills', group: 'ai-tools' },
   { id: 'mcp', icon: Plug, labelKey: 'mcp', group: 'ai-tools' },
-  { id: 'toolQuality', icon: Activity, labelKey: 'toolQuality', group: 'ai-tools' },
+  { id: 'toolStability', icon: Activity, labelKey: 'toolStability', group: 'ai-tools' },
 
   // 知识与数据
   { id: 'wiki', icon: BookOpen, labelKey: 'wiki', group: 'knowledge' },
@@ -166,10 +117,6 @@ const subMenuItems: Partial<Record<SettingsTab, SubMenuItem[]>> = {
     { id: 'compounding', labelKey: 'compoundingPlaybook' },
     { id: 'pending', labelKey: 'evolutionPending' },
     { id: 'rejections', labelKey: 'evolutionRejection' },
-  ],
-  toolQuality: [
-    { id: 'quality', labelKey: 'skillQuality' },
-    { id: 'stability', labelKey: 'toolStability' },
   ],
   memory: [
     { id: 'team-hub', labelKey: 'memory-team-hub' },

@@ -32,9 +32,12 @@ import type { McpAppView, ProgressItem, Source, ToolImageOutput } from '@/store/
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
+import { findLastTurnAnswerId } from '@/lib/chat/lastTurnAnswer';
 import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
-import { regenerateLastTurn, undoLastTurn, cancelAgentRequest } from '@/services/chat';
+import { regenerateLastTurn, cancelAgentRequest } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
+import { messageHasSkillManageUndo } from './progress-steps/skillManageBatch';
+import { SkillManageUndoHintCard } from './SkillManageUndoHintCard';
 import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStageHUD';
 import { ExecutionPhaseStepper } from '@/components/features/chat-window/ExecutionPhaseStepper';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
@@ -97,6 +100,11 @@ const MessageBox = ({
   const messages = useChatStore((state) => state.messages);
   const composerPendingClarification = useMemo(() => findActivePendingClarification(messages), [messages]);
   const composerPendingDirectoryRequest = useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
+  // Regenerate acts on the latest turn only, so only that turn's answer offers it.
+  const isLastTurnAnswer = useMemo(
+    () => message.role === 'assistant' && findLastTurnAnswerId(messages) === message.messageId,
+    [messages, message.role, message.messageId],
+  );
   const hideInlineClarification = composerPendingClarification?.messageId === message.messageId;
   const hideInlineDirectoryRequest = composerPendingDirectoryRequest?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
@@ -247,40 +255,6 @@ const MessageBox = ({
       });
     } catch (error) {
       console.error('Cancel failed:', error);
-    }
-  };
-
-  // 撤销：先调用后端 API 持久化删除整轮对话，再同步前端 UI 状态
-  const handleUndo = async () => {
-    if (!chatId) {
-      return;
-    }
-
-    try {
-      const result = await undoLastTurn(chatId);
-
-      if (result.success && result.deleted_count > 0) {
-        if (hasKbEvidenceOnCurrentMessage) {
-          recordQualityOutcomeNegative('chat', 1, `chat:${message.messageId}`);
-        }
-        // 找到最后一条 user message 的位置，删除它及之后的所有消息
-        let userMessageIndex = -1;
-        for (let i = messageIndex - 1; i >= 0; i--) {
-          if (messages[i]?.role === 'user') {
-            userMessageIndex = i;
-            break;
-          }
-        }
-
-        if (userMessageIndex >= 0) {
-          useChatStore.setState((state) => ({
-            messages: state.messages.slice(0, userMessageIndex),
-          }));
-          void usePlanStore.getState().fetchPlan(chatId);
-        }
-      }
-    } catch (error) {
-      console.error('Undo failed:', error);
     }
   };
 
@@ -493,6 +467,9 @@ const MessageBox = ({
                 <>
                   <EvidenceStageHUD steps={resolvedProgressSteps} loading={loading} />
                   <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />
+                  {messageHasSkillManageUndo(resolvedProgressSteps) && !(loading && isLast) ? (
+                    <SkillManageUndoHintCard messageId={message.messageId} />
+                  ) : null}
                 </>
               )}
             </div>
@@ -769,12 +746,12 @@ const MessageBox = ({
               messageIndex={messageIndex}
               loading={loading}
               isLast={isLast}
+              isLastTurnAnswer={isLastTurnAnswer}
               chatId={chatId}
               enableEvalLab={enableEvalLab}
               markdownRef={markdownRef}
               onCancel={handleCancel}
               onRegenerate={handleRegenerate}
-              onUndo={handleUndo}
             />
 
             {/* 时间旅行流规则拦截与纠偏徽章 (TTSR) */}

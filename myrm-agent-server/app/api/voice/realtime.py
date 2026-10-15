@@ -16,6 +16,7 @@ The server's role is limited to:
 - app.api.voice.realtime_background::BACKGROUND_TOOL_HANDLERS (POS: voice background task lifecycle)
 - app.services.agent.profile.profile_resolver (POS: Agent profile resolver)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
+- app.core.security.privacy_settings::privacy_agent_params (POS: persisted privacy switch → agent privacy params)
 - app.api.voice.tool_catalog (POS: Realtime tool declarations + memory_search_tool)
 - app.core.utils.errors::validation_error (POS: HTTP 400 factory)
 - app.core.utils.session_id::is_safe_session_id (POS: safe chat_id whitelist guard)
@@ -40,6 +41,7 @@ from pydantic import BaseModel
 from app.api.dependencies import verify_voice_enabled
 from app.api.voice.tool_catalog import RealtimeToolDef, build_realtime_tools
 from app.api.voice.voice_memory_context import voice_memory_context_from
+from app.core.security.privacy_settings import privacy_agent_params
 from app.core.utils.errors import validation_error
 from app.core.utils.session_id import is_safe_session_id
 
@@ -299,6 +301,7 @@ async def execute_realtime_tool(
                 personal_settings=memory_settings,
                 channel="realtime_voice",
             ),
+            **privacy_agent_params(memory_settings),
         )
 
         from app.services.agent.runtime_context import (

@@ -135,7 +135,7 @@ export function MCPConfigList({
               pollTimerRef.current = null;
             }
             setOauthLoading(null);
-            toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
+            toast({ title: t('mcpOAuthFailed'), variant: 'destructive' });
             return;
           }
           try {
@@ -150,14 +150,14 @@ export function MCPConfigList({
                 [config.name]: { connected: true, expired: false, scope: config.oauth?.scope || null },
               }));
               setOauthLoading(null);
-              toast({ title: t('mcpOAuthSuccess') || 'OAuth Connected' });
+              toast({ title: t('mcpOAuthSuccess') });
             } else if (statusRes.status === 'expired_or_invalid') {
               clearInterval(pollTimer);
               if (pollTimerRef.current === pollTimer) {
                 pollTimerRef.current = null;
               }
               setOauthLoading(null);
-              toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
+              toast({ title: t('mcpOAuthFailed'), variant: 'destructive' });
             }
           } catch {
             // transient polling errors, continue
@@ -165,7 +165,7 @@ export function MCPConfigList({
         }, POLL_INTERVAL_MS);
         pollTimerRef.current = pollTimer;
       } catch {
-        toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
+        toast({ title: t('mcpOAuthFailed'), variant: 'destructive' });
         setOauthLoading(null);
       }
     },
@@ -181,9 +181,9 @@ export function MCPConfigList({
           delete next[serverName];
           return next;
         });
-        toast({ title: t('mcpOAuthDisconnected') || 'OAuth Disconnected' });
+        toast({ title: t('mcpOAuthDisconnected') });
       } catch {
-        toast({ title: t('mcpOAuthDisconnectFailed') || 'Disconnect Failed', variant: 'destructive' });
+        toast({ title: t('mcpOAuthDisconnectFailed'), variant: 'destructive' });
       }
     },
     [t, toast],

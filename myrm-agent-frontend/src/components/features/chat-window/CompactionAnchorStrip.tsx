@@ -17,6 +17,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { GitCommit, FileCode, Code2, Network, AlertTriangle, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
 export interface ExactAnchorData {
@@ -34,6 +35,7 @@ export interface CompactionAnchorStripProps {
 }
 
 export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }: CompactionAnchorStripProps) {
+  const t = useTranslations('compaction.anchors');
   const [isExpanded, setIsExpanded] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,9 +79,9 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary">
             <Code2 className="h-3.5 w-3.5" />
           </div>
-          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Verified Anchors</span>
+          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{t('title')}</span>
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-            {totalCount} symbols
+            {t('symbolCount', { count: totalCount })}
           </span>
         </div>
 
@@ -88,9 +90,9 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
           onClick={() => setIsExpanded((prev) => !prev)}
           className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
           aria-expanded={isExpanded}
-          aria-label={isExpanded ? 'Collapse anchors' : 'Expand anchors'}
+          aria-label={isExpanded ? t('collapseAnchors') : t('expandAnchors')}
         >
-          <span>{isExpanded ? 'Collapse' : 'Inspect'}</span>
+          <span>{isExpanded ? t('collapse') : t('inspect')}</span>
           {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
       </div>
@@ -125,7 +127,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
               <span className="truncate">{sym}</span>
             </span>
           ))}
-          {totalCount > 6 && <span className="text-[10px] text-zinc-400">+{totalCount - 6} more</span>}
+          {totalCount > 6 && <span className="text-[10px] text-zinc-400">{t('more', { count: totalCount - 6 })}</span>}
         </div>
       )}
 
@@ -137,7 +139,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                 <GitCommit className="h-3 w-3" />
-                <span>Commits ({commitShas.length})</span>
+                <span>{t('commits', { count: commitShas.length })}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {commitShas.map((sha) => {
@@ -149,7 +151,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                       type="button"
                       onClick={() => handleCopy(sha, id)}
                       className="group inline-flex items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                      title="Click to copy SHA"
+                      title={t('copySha')}
                     >
                       <span>{sha.slice(0, 8)}</span>
                       {isCopied ? (
@@ -169,7 +171,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                 <FileCode className="h-3 w-3" />
-                <span>Files ({filePaths.length})</span>
+                <span>{t('files', { count: filePaths.length })}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {filePaths.map((path) => {
@@ -184,8 +186,8 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                         onSymbolClick?.(path, 'filePaths');
                       }}
                       className="group inline-flex max-w-full sm:max-w-md items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                      title="Click to copy path"
-                      aria-label={`Copy path: ${path}`}
+                      title={t('copyPath')}
+                      aria-label={t('copyPathLabel', { path })}
                     >
                       <span className="truncate" title={path}>
                         {path}
@@ -207,7 +209,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                 <Code2 className="h-3 w-3" />
-                <span>Symbols ({codeSymbols.length})</span>
+                <span>{t('symbols', { count: codeSymbols.length })}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {codeSymbols.map((sym) => {
@@ -222,8 +224,8 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                         onSymbolClick?.(sym, 'codeSymbols');
                       }}
                       className="group inline-flex max-w-full sm:max-w-xs items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                      title="Click to copy symbol"
-                      aria-label={`Copy symbol: ${sym}`}
+                      title={t('copySymbol')}
+                      aria-label={t('copySymbolLabel', { symbol: sym })}
                     >
                       <span className="truncate" title={sym}>
                         {sym}
@@ -245,7 +247,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                 <Network className="h-3 w-3" />
-                <span>Endpoints ({apiEndpoints.length})</span>
+                <span>{t('endpoints', { count: apiEndpoints.length })}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {apiEndpoints.map((ep) => {
@@ -257,8 +259,8 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                       type="button"
                       onClick={() => handleCopy(ep, id)}
                       className="group inline-flex max-w-full sm:max-w-sm items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                      title="Click to copy endpoint"
-                      aria-label={`Copy endpoint: ${ep}`}
+                      title={t('copyEndpoint')}
+                      aria-label={t('copyEndpointLabel', { endpoint: ep })}
                     >
                       <span className="truncate" title={ep}>
                         {ep}
@@ -280,7 +282,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-3 w-3" />
-                <span>Error Signatures ({errorSpans.length})</span>
+                <span>{t('errorSignatures', { count: errorSpans.length })}</span>
               </div>
               <div className="space-y-1">
                 {errorSpans.map((err, i) => (

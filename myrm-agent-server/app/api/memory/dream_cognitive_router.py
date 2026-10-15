@@ -7,7 +7,6 @@
 [INPUT]
 - POST /api/memory/dream-cognitive/consolidate
 - GET /api/memory/dream-cognitive/diaries
-- GET /api/memory/dream-cognitive/diaries/{diary_id}
 - GET /api/memory/dream-cognitive/diaries/{diary_id}/markdown
 - GET /api/memory/dream-cognitive/overview
 
@@ -59,25 +58,6 @@ def list_growth_diaries(
 ) -> list[GrowthDiaryEntryDTO]:
     """Retrieve human-readable AI embodiment growth diaries."""
     return service.list_diaries(cube_id=cube_id, limit=limit)
-
-
-@router.get(
-    "/diaries/{diary_id}",
-    response_model=GrowthDiaryEntryDTO,
-    summary="Get single growth diary entry",
-)
-def get_growth_diary(
-    diary_id: str,
-    service: DreamCognitiveService = Depends(get_dream_cognitive_service),
-) -> GrowthDiaryEntryDTO:
-    """Fetch details of a single growth diary entry."""
-    entry = service.get_diary(diary_id)
-    if entry is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Growth diary with id '{diary_id}' not found.",
-        )
-    return entry
 
 
 @router.get(

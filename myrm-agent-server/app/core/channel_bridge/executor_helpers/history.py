@@ -23,7 +23,7 @@ from app.channels.types import TopicContext
 
 if TYPE_CHECKING:
     from app.database.dto import ChatDTO
-    from app.services.chat.chat_service import ChannelHistoryEntry
+    from app.services.chat.chat_helpers import ChannelHistoryEntry
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +177,7 @@ async def generate_channel_title(
                 )
 
         if title_model:
-            title = await ChatService._call_llm_for_title(first_message[:200], title_model)
+            title = await ChatService._call_llm_for_title(first_message, title_model)
         else:
             title = ChatService._generate_fallback_title(first_message)
 

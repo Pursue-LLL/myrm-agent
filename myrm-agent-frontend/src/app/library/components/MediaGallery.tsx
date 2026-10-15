@@ -42,7 +42,7 @@ import {
   getMediaFileUrl,
   getMediaThumbnailUrl,
 } from '@/services/media';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const TYPE_OPTIONS = ['image', 'video', 'audio'] as const;
 
@@ -629,7 +629,10 @@ function MediaCard({
               <p className="text-xs text-white truncate">{item.prompt || item.model || item.id}</p>
             </div>
             <button
-              className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+              className={cn(
+                'absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white transition-opacity hover:bg-red-600',
+                REVEAL_ON_HOVER,
+              )}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();

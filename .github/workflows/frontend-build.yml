@@ -20,14 +20,14 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
         working-directory: myrm-agent-frontend
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: oven-sh/setup-bun@ec67ec93a744265007323ee824c0d1645e317bb7 # v2.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Lockfile policy (bun SSOT, no package-lock.json)
@@ -38,7 +38,9 @@ jobs:
         run: bun run i18n:split
       # The gates below are independent: one red gate must not hide the others, so a single
       # run lists every failing gate instead of exposing them one push at a time.
-      - name: Oxlint (errors fail; warnings non-blocking)
+      # `lint` runs every static gate (stable mocks, a11y, theme colors, hardcoded copy, oxlint)
+      # and lists all the red ones; its gate list lives in scripts/run-lint-gates.ts.
+      - name: Lint gates (every gate runs; oxlint errors fail, warnings non-blocking)
         if: ${{ !cancelled() }}
         run: bun run lint
       - name: TypeScript strict (no error count regression)

@@ -56,6 +56,7 @@ from e2e_core.shared_ui_hydrate import (  # noqa: E402
 )
 from e2e_core.warm_ui_heal import heal_shared_frontend_debounced  # noqa: E402
 
+from tests.support.chrome_bridge_load import wait_for_load_to_settle  # noqa: E402
 from tests.support.e2e_runtime_guard import heartbeat_once  # noqa: E402
 
 __all__ = [
@@ -2581,6 +2582,10 @@ _REACT_E2E_BRIDGE_PROBE_JS = """(() => ({
   hasSkeleton: Boolean(document.querySelector('[data-testid="app-shell-skeleton"]')),
   bodyLength: (document.body?.innerText || '').length,
   href: location.href,
+  readyState: document.readyState,
+  scriptsDone: performance.getEntriesByType('resource')
+    .filter((e) => /\\.js(\\?|$)/.test(e.name) && e.responseEnd > 0).length,
+  domScripts: document.scripts.length,
 }))()"""
 
 # Installed on the first bridge poll so a blank page that never hydrates still
@@ -2640,6 +2645,34 @@ def _log_bridge_wait_state(
     print(
         f"E2E_BRIDGE_WAIT: polls={polls} reload_passes={reload_passes} probe={last} "
         f"diagnostics={_bridge_failure_diagnostics(client, page)}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
+def _wait_for_page_load_to_settle(
+    client: ChromeMcpClient,
+    page: McpPage,
+    first_probe: dict[str, object],
+    *,
+    deadline: float,
+) -> None:
+    """Hold the heal reloads back while the page is still loading its scripts (see ``chrome_bridge_load``)."""
+    started_at = time.monotonic()
+
+    def read_probe() -> dict[str, object]:
+        return _coerce_evaluate_result(client.evaluate(page, _REACT_E2E_BRIDGE_PROBE_JS, timeout_sec=10.0))
+
+    outcome = wait_for_load_to_settle(
+        read_probe,
+        first_probe,
+        deadline=deadline,
+        on_wait=lambda: touch_wall_progress(current_node="wait_for_page_load"),
+        clock=time.monotonic,
+        sleep=time.sleep,
+    )
+    print(
+        f"E2E_BRIDGE_LOAD_WAIT: outcome={outcome} waited={time.monotonic() - started_at:.0f}s",
         file=sys.stderr,
         flush=True,
     )
@@ -2785,6 +2818,9 @@ def wait_for_react_e2e_bridge(
     shortcut: SEARCH_POLICY/HYDRATE_PRIVATE_SEARCH_JS needs
     ``window.__MYRM_E2E_CHAT__`` methods, so reporting ready on app-layout alone
     strands the contract with a transient ``no-bridge``.
+
+    A page that is still loading scripts is left alone until it settles or stalls: every heal reload below
+    restarts all chunk downloads, which a slow dev server cannot finish before the next reload.
     """
     target_url = page_url or getattr(page, "url", None)
     deadline = time.monotonic() + _react_bridge_wait_timeout_sec(timeout_sec)
@@ -2792,6 +2828,7 @@ def wait_for_react_e2e_bridge(
     polls = 0
     reload_passes = 0
     hooked_reload_passes = -1
+    settled_reload_passes = -1
     max_reload_passes = 3
     ui_home = f"{get_e2e_ui_url().rstrip('/')}/"
 
@@ -2814,6 +2851,10 @@ def wait_for_react_e2e_bridge(
             return last
         if polls in {1, 4, 8}:
             _log_bridge_wait_state(client, page, polls=polls, reload_passes=reload_passes, last=last)
+        if reload_passes != settled_reload_passes:
+            settled_reload_passes = reload_passes
+            _wait_for_page_load_to_settle(client, page, last, deadline=deadline)
+            continue
         body_length = last.get("bodyLength")
         href = str(last.get("href", ""))
         if (

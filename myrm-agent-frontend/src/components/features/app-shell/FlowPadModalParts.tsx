@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import { type FlowPadCapture } from '@/store/useFlowPadStore';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const MAX_TEXT_PER_CAPTURE = 4000;
 const MAX_PREVIEW_TEXT = 200;
@@ -54,7 +56,10 @@ export function CapturePreview({
       <button
         type="button"
         onClick={onRemove}
-        className="absolute top-1 right-1 z-10 h-5 w-5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        className={cn(
+          'absolute top-1 right-1 z-10 h-5 w-5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 hover:text-white flex items-center justify-center transition-opacity',
+          REVEAL_ON_HOVER,
+        )}
       >
         <X className="w-3 h-3" />
       </button>

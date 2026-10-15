@@ -47,6 +47,19 @@ describe('waitForTauriRuntime', () => {
     await expect(waitForTauriRuntime({ pollIntervalMs: 1, maxAttempts: 5 })).resolves.toBe(true);
     expect(isTauriEnvironment).toHaveBeenCalledTimes(3);
   });
+
+  it('stops waiting between polls as soon as the signal aborts', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    vi.mocked(isTauriEnvironment).mockReturnValue(false);
+    const controller = new AbortController();
+
+    // A poll interval no test would sit through: only the abort can end the wait.
+    const pending = waitForTauriRuntime({ pollIntervalMs: 60_000, maxAttempts: 5, signal: controller.signal });
+    controller.abort();
+
+    await expect(pending).resolves.toBe(false);
+    expect(isTauriEnvironment).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('waitForBackendReady', () => {
@@ -94,6 +107,20 @@ describe('waitForBackendReady', () => {
 
     controller.abort();
     await expect(pending).resolves.toBe(false);
+  });
+
+  it('stops waiting between probes as soon as the signal aborts', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
+    const controller = new AbortController();
+
+    // A poll interval no test would sit through: only the abort can end the wait.
+    const pending = waitForBackendReady({ pollIntervalMs: 60_000, maxAttempts: 5, signal: controller.signal });
+    await vi.waitFor(() => expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1), { timeout: 5_000 });
+    controller.abort();
+
+    await expect(pending).resolves.toBe(false);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
   });
 });
 

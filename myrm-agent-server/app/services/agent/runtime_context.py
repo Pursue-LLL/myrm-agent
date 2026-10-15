@@ -5,12 +5,14 @@
 - app.services.agent.execution_cache.types::ExecutionMode (POS: pooled vs ephemeral)
 
 [OUTPUT]
-- build_agent_runtime_context: merge execution_mode + disabled_skill_roots into a context dict
+- SINGLE_TENANT_USER_ID: the one user id every single-tenant server run is bound to
+- build_agent_runtime_context: merge user_id + execution_mode + disabled_skill_roots into a context dict
 
 [POS]
 Business-layer helper so every agent entrypoint (Web, IM, Cron, Kanban, Eval, Wakeup,
 Goal stream, timeout auto-resume, offline recovery, OpenAI-compatible API, voice)
-passes the same runtime context keys to the harness, including disabled skill path filtering.
+passes the same runtime context keys to the harness, including disabled skill path filtering
+and the user_id that harness skill tools (skill_manage, skill_market install/uninstall) require.
 """
 
 from __future__ import annotations
@@ -24,6 +26,9 @@ if TYPE_CHECKING:
     from app.services.agent.params.models import AgentRequest
 
 logger = logging.getLogger(__name__)
+
+# Single-tenant SSOT: matches the cron REST ``USER_ID`` and the agent factory's fallback id.
+SINGLE_TENANT_USER_ID = "default"
 
 
 def resolve_stream_execution_mode() -> ExecutionMode:
@@ -45,8 +50,9 @@ async def build_agent_runtime_context(
     execution_mode: ExecutionMode,
     base: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Build RunnableConfig context with execution mode and disabled skill roots."""
+    """Build RunnableConfig context with user id, execution mode and disabled skill roots."""
     ctx: dict[str, object] = dict(base or {})
+    ctx.setdefault("user_id", SINGLE_TENANT_USER_ID)
     ctx["execution_mode"] = execution_mode
 
     try:

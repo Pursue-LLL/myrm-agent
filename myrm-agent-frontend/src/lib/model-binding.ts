@@ -1,13 +1,27 @@
 /**
- * 模型绑定解析模块
+ * [INPUT]
+ * @/lib/model-routing::resolveSmartRouting (POS: Single decision point for smart routing activation and slots)
+ * @/store/chat/types::ActionMode, AgentConfig (POS: 会话级 Agent 与模式配置类型)
+ * @/store/config/providerTypes::DefaultModelConfig, ProviderConfig, hasUsableProviderAuth (POS: Provider and default-model configuration contract)
  *
- * 根据当前 actionMode 和智能体配置，解析应使用的活动模型。
- * 优先级链：模式/智能体绑定 > 全局默认
+ * [OUTPUT]
+ * resolveActiveModelSelection / resolveActiveModelConfig / resolveActiveFallbackSelection: 按 actionMode 与智能体绑定解析活动模型、完整配置与备用模型。
+ * resolveModelPickerTriggerDisplay: 模型选择器触发器展示（模型名、MoA preset、Smart Routing 态与可选性）。
+ * isModelAvailable: 模型可用性（Provider 启用 + 有可用认证 + 模型在启用列表中）。
+ *
+ * [POS]
+ * 模型绑定解析层：根据 actionMode 与智能体配置解析应使用的模型，优先级链为 模式/智能体绑定 > 全局默认；路由判定委托 model-routing。
  */
 
 import type { ActionMode, AgentConfig } from '@/store/chat/types';
-import type { DefaultModelConfig, SingleModelSelection, ProviderConfig } from '@/store/config/providerTypes';
+import type {
+  CustomModelInfo,
+  DefaultModelConfig,
+  SingleModelSelection,
+  ProviderConfig,
+} from '@/store/config/providerTypes';
 import { hasUsableProviderAuth } from '@/store/config/providerTypes';
+import { resolveSmartRouting } from '@/lib/model-routing';
 
 export interface ResolvedModelConfig {
   selection: SingleModelSelection | null;
@@ -111,51 +125,15 @@ export function resolveActiveFallbackSelection(
 }
 
 /**
- * 判断当前是否处于智能路由 (Auto Smart Routing) 模式
- */
-export function isSmartRoutingActive(
-  actionMode: ActionMode,
-  agentConfig: AgentConfig | null,
-  defaultModelConfig: DefaultModelConfig,
-): boolean {
-  if (actionMode === 'fast') {
-    return false;
-  }
-  const isRoutingConfigured =
-    agentConfig?.routingConfig?.enabled !== undefined
-      ? Boolean(agentConfig.routingConfig.enabled)
-      : Boolean(defaultModelConfig?.routingConfig?.enabled);
-
-  if (!isRoutingConfigured) {
-    return false;
-  }
-  // 显式选择具体模型时覆盖智能路由
-  if (actionMode === 'agent' && agentConfig?.modelSelection) {
-    return false;
-  }
-  return true;
-}
-
-/**
- * 判断系统是否已配置并支持智能路由
- */
-export function isSmartRoutingConfigured(
-  agentConfig: AgentConfig | null,
-  defaultModelConfig: DefaultModelConfig,
-): boolean {
-  if (agentConfig?.routingConfig?.enabled !== undefined) {
-    return Boolean(agentConfig.routingConfig.enabled);
-  }
-  return Boolean(defaultModelConfig?.routingConfig?.enabled);
-}
-
-/**
- * Model picker trigger display: primary model name plus optional session MoA preset chip and smart routing flag.
+ * Model picker trigger display: primary model name plus optional session MoA preset chip and smart routing flags.
  */
 export interface ModelPickerTriggerDisplay {
   modelName: string | null;
   moaPresetId: string | null;
+  /** Complexity routing drives this turn (the trigger shows "Auto" instead of a model name). */
   isSmartRouting: boolean;
+  /** The picker may offer the "Smart Routing" entry; selecting it clears the agent's pinned model. */
+  canSelectSmartRouting: boolean;
 }
 
 export function resolveModelPickerTriggerDisplay(
@@ -163,16 +141,13 @@ export function resolveModelPickerTriggerDisplay(
   agentConfig: AgentConfig | null,
   defaultModelConfig: DefaultModelConfig,
   providers: ProviderConfig[],
+  customModelInfo: Record<string, CustomModelInfo>,
   activeMoaPresetId: string | null,
 ): ModelPickerTriggerDisplay {
-  const isSmart = isSmartRoutingActive(actionMode, agentConfig, defaultModelConfig);
-  if (isSmart) {
-    const moaPresetId = actionMode === 'agent' && activeMoaPresetId ? activeMoaPresetId : null;
-    return {
-      modelName: null,
-      moaPresetId,
-      isSmartRouting: true,
-    };
+  const routing = resolveSmartRouting(actionMode, agentConfig, defaultModelConfig, providers, customModelInfo);
+  const moaPresetId = actionMode === 'agent' && activeMoaPresetId ? activeMoaPresetId : null;
+  if (routing.active) {
+    return { modelName: null, moaPresetId, isSmartRouting: true, canSelectSmartRouting: routing.canSelect };
   }
 
   const selection = resolveActiveModelSelection(actionMode, agentConfig, defaultModelConfig, providers);
@@ -181,8 +156,7 @@ export function resolveModelPickerTriggerDisplay(
     modelName = selection.model;
   }
 
-  const moaPresetId = actionMode === 'agent' && activeMoaPresetId ? activeMoaPresetId : null;
-  return { modelName, moaPresetId, isSmartRouting: false };
+  return { modelName, moaPresetId, isSmartRouting: false, canSelectSmartRouting: routing.canSelect };
 }
 
 /**

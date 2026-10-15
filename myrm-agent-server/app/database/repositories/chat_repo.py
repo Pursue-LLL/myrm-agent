@@ -2,10 +2,12 @@
 
 [INPUT]
 app.database.models::Chat, Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
+app.database.models.chat::SYSTEM_NOTICE_EXTRA_KEYS (POS: 系统通知行的 extra_data 标记键，重试与版本计数不把这些行当作回答)
 app.database.repositories.chat_message_search_repo::ChatMessageSearchRepository (POS: 聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略)
 
 [OUTPUT]
-ChatRepository: Chat/Message CRUD, FTS5 message search, compaction CAS and sibling branch persistence.
+ChatRepository: Chat/Message CRUD, FTS5 message search, compaction CAS, sibling branch persistence and routing tier
+history reads (momentum window, tier of the latest user turn).
 SiblingDetail: Sibling branch query DTO.
 
 [POS]
@@ -15,6 +17,7 @@ SiblingDetail: Sibling branch query DTO.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TypedDict, cast
@@ -26,7 +29,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     and_,
     delete,
-    desc,
+    exists,
     func,
     or_,
     select,
@@ -42,6 +45,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models import Chat, Message
+from app.database.models.chat import SYSTEM_NOTICE_EXTRA_KEYS
 from app.database.repositories.chat_message_search_repo import ChatMessageSearchRepository, MessageFtsSearchRow
 
 logger = logging.getLogger(__name__)
@@ -60,6 +64,28 @@ class SiblingDetail(TypedDict):
 
 
 _DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
+
+
+def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]:
+    """Answers of the turn *last_user* opened: every assistant message ordered after it, active or not.
+
+    System notices (`SYSTEM_NOTICE_EXTRA_KEYS` set to true) are appended by the server rather than generated for the
+    turn, so they are neither retried nor counted as versions of its answer. SQLite's `json_extract` yields 1 for a
+    JSON true and NULL for an absent key or a NULL column, so `IS NOT 1` keeps every row that is not a notice.
+    """
+    return and_(
+        Message.chat_id == chat_id,
+        Message.role == "assistant",
+        (Message.created_at > last_user.created_at)
+        | ((Message.created_at == last_user.created_at) & (Message.id > last_user.id)),
+        *(func.json_extract(Message.extra_data, f"$.{key}").is_not(1) for key in SYSTEM_NOTICE_EXTRA_KEYS),
+    )
+
+
+def _recorded_routing_tier(extra: object) -> str | None:
+    """The `routingTier` string persisted in a message's `extra_data`, None when it holds none."""
+    tier = extra.get("routingTier") if isinstance(extra, dict) else None
+    return tier if isinstance(tier, str) else None
 
 
 class ChatRepository:
@@ -116,7 +142,7 @@ class ChatRepository:
         query_stmt = (
             select(Chat)
             .where(*where_clause)
-            .order_by(desc(Chat.is_pinned), Chat.pin_order.asc(), desc(Chat.updated_at))
+            .order_by(Chat.is_pinned.desc(), Chat.pin_order.asc(), Chat.updated_at.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -430,16 +456,7 @@ class ChatRepository:
         is_active=False.  Returns the user query and the sibling_group_id so
         the caller can attach the same group to the regenerated response.
         """
-        condition = (Message.created_at > last_user_msg.created_at) | (
-            (Message.created_at == last_user_msg.created_at) & (Message.id > last_user_msg.id)
-        )
-        result = await db.execute(
-            select(Message).where(
-                Message.chat_id == chat_id,
-                condition,
-                Message.role == "assistant",
-            )
-        )
+        result = await db.execute(select(Message).where(_answers_of_turn(chat_id, last_user_msg)))
         assistant_msgs = result.scalars().all()
 
         group_id = ""
@@ -492,12 +509,13 @@ class ChatRepository:
 
     @staticmethod
     async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str]:
-        """Fetch the recorded routing values of recent assistant messages for momentum calculation.
+        """Fetch the recorded routing values of the latest assistant messages for momentum calculation.
 
-        Returns raw `routingTier` strings in chronological order. The column holds either a complexity tier
-        (e.g. "standard", "reasoning") or a specialty slot hit (e.g. "code", "long_doc"); callers partition them
-        with `services.agent.params.routing_memory.split_recent_routing`.
-        Only returns values that were actually recorded (skips messages without routing data).
+        Returns the raw `routingTier` strings of the latest *limit* assistant messages that carry `extra_data`, in
+        chronological order; messages that recorded no tier add nothing but still occupy the window, so an old routed
+        turn does not leak past newer unrouted ones. The column holds either a complexity tier (e.g. "standard",
+        "reasoning") or a specialty slot hit (e.g. "code", "long_doc"); callers partition them with
+        `services.agent.params.routing_memory.split_recent_routing`.
         """
         result = await db.execute(
             select(Message.extra_data)
@@ -506,17 +524,31 @@ class ChatRepository:
                 Message.role == "assistant",
                 Message.extra_data.isnot(None),
             )
-            .order_by(desc(Message.created_at))
+            .order_by(Message.created_at.desc())
             .limit(limit)
         )
-        rows = result.scalars().all()
-        tiers: list[str] = []
-        for extra in reversed(rows):
-            if isinstance(extra, dict):
-                tier = extra.get("routingTier")
-                if isinstance(tier, str):
-                    tiers.append(tier)
-        return tiers
+        rows: Sequence[object] = result.scalars().all()
+        recorded = (_recorded_routing_tier(extra) for extra in reversed(rows))
+        return [tier for tier in recorded if tier is not None]
+
+    @staticmethod
+    async def get_last_turn_routing_tier(db: AsyncSession, chat_id: str) -> str | None:
+        """Raw `routingTier` of the newest answer of the latest user turn that recorded one, None when none did.
+
+        The turn is what a retry replaces, so answers it already deactivated still count. System notices are not
+        answers and rows the system appended on its own (auto-continue) carry no tier: both are skipped rather than
+        read as an unrouted answer; an earlier turn's tier never stands in for a turn that recorded none.
+        """
+        last_user = await ChatRepository.get_last_user_message(db, chat_id)
+        if last_user is None:
+            return None
+        result = await db.execute(
+            select(Message.extra_data)
+            .where(_answers_of_turn(chat_id, last_user))
+            .order_by(Message.created_at.desc(), Message.id.desc())
+        )
+        rows: Sequence[object] = result.scalars().all()
+        return next((tier for tier in map(_recorded_routing_tier, rows) if tier is not None), None)
 
     # ── Pinned Threads ──────────────────────────────────────────────
 
@@ -582,7 +614,7 @@ class ChatRepository:
         count_result = await db.execute(select(func.count(Chat.id)).where(where_clause))
         total = count_result.scalar_one()
 
-        result = await db.execute(select(Chat).where(where_clause).order_by(desc(Chat.deleted_at)).offset(offset).limit(limit))
+        result = await db.execute(select(Chat).where(where_clause).order_by(Chat.deleted_at.desc()).offset(offset).limit(limit))
         chats = result.scalars().all()
         return [ChatDTO.model_validate(c) for c in chats], total
 
@@ -594,8 +626,11 @@ class ChatRepository:
     @staticmethod
     async def permanently_delete_chat(db: AsyncSession, chat_id: str) -> bool:
         # 显式先删除关联的 messages，确保 SQLite messages_fts_delete 触发器正常执行，
-        # 杜绝外键级联绕过子表触发器导致 FTS5 倒排索引残留孤儿行
-        await db.execute(delete(Message).where(Message.chat_id == chat_id))
+        # 杜绝外键级联绕过子表触发器导致 FTS5 倒排索引残留孤儿行。
+        # 仅当会话在回收站中才删消息：过期的回收站视图不能清空已被恢复的会话。
+        # 单条带 EXISTS 的 DELETE 而非先 SELECT，避免读事务阻止写事务升级为 BEGIN IMMEDIATE。
+        in_trash = exists().where(Chat.id == chat_id, Chat.deleted_at.isnot(None))
+        await db.execute(delete(Message).where(Message.chat_id == chat_id, in_trash))
         result = cast(
             CursorResult[tuple[object, ...]],
             await db.execute(delete(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None))),

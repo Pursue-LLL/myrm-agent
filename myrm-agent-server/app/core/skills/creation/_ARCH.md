@@ -20,4 +20,4 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `service.py` | ✅ 核心 | `SkillCreationService` — 技能创建服务；保存前执行严格 frontmatter/contract 校验，资源写入执行 Python AST、JSON、YAML 语法校验，`skill_creation_service` 全局实例 |
+| `service.py` | ✅ 核心 | `SkillCreationService` — 技能创建服务（默认写入 `models.LOCAL_SKILLS_DIR`，即目录扫描主根）；保存前执行严格 frontmatter/contract 校验，资源写入执行 Python AST、JSON、YAML 语法校验，`skill_creation_service` 全局实例 |

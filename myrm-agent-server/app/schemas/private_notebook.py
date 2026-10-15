@@ -75,13 +75,6 @@ class HistoryEntryItemDTO(BaseModel):
     created_at: datetime = Field(description="Timestamp")
 
 
-class RecordTurnRequestDTO(BaseModel):
-    """Request to record a turn into current active context."""
-
-    role: str = Field(description="Turn author role")
-    content: str = Field(description="Turn message text")
-
-
 class NewContextRequestDTO(BaseModel):
     """Request to rotate to a clean new context window."""
 

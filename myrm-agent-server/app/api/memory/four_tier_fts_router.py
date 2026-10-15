@@ -34,19 +34,6 @@ async def save_item(
         raise HTTPException(status_code=400, detail=str(err)) from err
 
 
-@router.get("/items/{item_id}", response_model=FourTierMemoryItemDTO)
-async def get_item(
-    item_id: str,
-    project_hash: str = Query(default="default", description="Project hash partition"),
-    service: FourTierFtsService = Depends(get_four_tier_fts_service),
-) -> FourTierMemoryItemDTO:
-    """Retrieves a single memory item by ID."""
-    item = service.get_item(item_id, project_hash=project_hash)
-    if item is None:
-        raise HTTPException(status_code=404, detail=f"Memory item '{item_id}' not found")
-    return item
-
-
 @router.delete("/items/{item_id}")
 async def delete_item(
     item_id: str,

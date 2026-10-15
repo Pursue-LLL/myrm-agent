@@ -1,3 +1,17 @@
+/**
+ * [INPUT]
+ * - next-intl::useTranslations (POS: 前端国际化 Hook，仅用其类型)
+ * - @/services/statistics::GrowthDashboardData (POS: 成长看板数据契约)
+ *
+ * [OUTPUT]
+ * - growthMarkdownLabels: 成长报告导出文案，取自 growthDashboard 命名空间
+ * - buildGrowthMarkdown: 成长报告 Markdown 构建，技能排名只含已判定的技能
+ * - downloadGrowthMarkdown: 触发 Markdown 文件下载
+ *
+ * [POS]
+ * 成长进化中心报告导出。文案经 growthMarkdownLabels 注入，构建函数本身是纯函数，可脱离 React 测试。
+ */
+import type { useTranslations } from 'next-intl';
 import type { GrowthDashboardData } from '@/services/statistics';
 
 export interface GrowthMarkdownLabels {
@@ -12,12 +26,35 @@ export interface GrowthMarkdownLabels {
   savings: string;
   totalCost: string;
   skillHealth: string;
-  skillRow: (name: string, score: number, status: string, calls7d: number) => string;
+  /** Localized verdict of a health status. */
+  skillStatus: (status: string) => string;
+  skillRow: (name: string, score: number, statusLabel: string, calls7d: number | string) => string;
   generatedAt: string;
 }
 
 function formatDate(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Export wording from the `growthDashboard` namespace; a status this build has no wording for reads as a dash. */
+export function growthMarkdownLabels(t: ReturnType<typeof useTranslations<'growthDashboard'>>): GrowthMarkdownLabels {
+  return {
+    title: t('export.title'),
+    period: t('weeklySummary.title'),
+    memories: t('snapshot.totalMemories'),
+    memoryCitations: t('export.memoryCitations'),
+    conversations: t('weeklySummary.conversations'),
+    messages: t('weeklySummary.messages'),
+    cronJobs: t('weeklySummary.cronExecutions'),
+    toolCalls: t('weeklySummary.toolCalls'),
+    savings: t('savings.title'),
+    totalCost: t('savings.totalCost'),
+    skillHealth: t('skillHealth.title'),
+    skillStatus: (status) => (t.has(`skillHealth.status.${status}`) ? t(`skillHealth.status.${status}`) : '–'),
+    skillRow: (name, score, statusLabel, calls7d) =>
+      t('export.skillRow', { name, score: Math.round(score), status: statusLabel, calls7d }),
+    generatedAt: t('export.generatedAt', { date: formatDate() }),
+  };
 }
 
 export function buildGrowthMarkdown(data: GrowthDashboardData, labels: GrowthMarkdownLabels): string {
@@ -45,12 +82,17 @@ export function buildGrowthMarkdown(data: GrowthDashboardData, labels: GrowthMar
     );
   }
 
-  const rankedSkills = [...skill_health].sort((a, b) => b.health_score - a.health_score).slice(0, 10);
+  // An unproven skill's score only measures how little evidence exists, so it takes no part in the ranking.
+  const rankedSkills = skill_health
+    .filter((skill) => skill.status !== 'UNPROVEN')
+    .sort((a, b) => b.health_score - a.health_score)
+    .slice(0, 10);
 
   if (rankedSkills.length > 0) {
     lines.push('', `## ${labels.skillHealth}`);
     for (const skill of rankedSkills) {
-      lines.push(labels.skillRow(skill.skill_name, skill.health_score, skill.status, skill.call_count_7d));
+      const calls7d = skill.truncated ? `${skill.call_count_7d}+` : skill.call_count_7d;
+      lines.push(labels.skillRow(skill.skill_name, skill.health_score, labels.skillStatus(skill.status), calls7d));
     }
   }
 

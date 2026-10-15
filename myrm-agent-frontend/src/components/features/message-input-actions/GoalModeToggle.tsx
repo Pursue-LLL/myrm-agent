@@ -23,6 +23,7 @@ import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { fetchWithTimeout } from '@/lib/api';
 import { toast } from 'sonner';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 // Custom SVG Icons
 const TargetIcon = ({ className = 'w-4 h-4' }) => (
@@ -351,7 +352,7 @@ export default function GoalModeToggle() {
                       />
                       <button
                         onClick={() => removeProtectedPath(i)}
-                        className="text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className={cn('text-muted-foreground hover:text-red-500 transition-opacity', REVEAL_ON_HOVER)}
                       >
                         <XIcon className="w-3 h-3" />
                       </button>
@@ -383,7 +384,10 @@ export default function GoalModeToggle() {
                     <div key={i} className="flex flex-col gap-1 p-2 border rounded-lg bg-muted/10 relative group">
                       <button
                         onClick={() => removeCriteria(i)}
-                        className="absolute right-1 top-1 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className={cn(
+                          'absolute right-1 top-1 text-muted-foreground hover:text-red-500 transition-opacity',
+                          REVEAL_ON_HOVER,
+                        )}
                       >
                         <XIcon className="w-3 h-3" />
                       </button>
@@ -456,7 +460,7 @@ export default function GoalModeToggle() {
                       />
                       <button
                         onClick={() => removeConstraint(i)}
-                        className="text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className={cn('text-muted-foreground hover:text-red-500 transition-opacity', REVEAL_ON_HOVER)}
                       >
                         <XIcon className="w-3 h-3" />
                       </button>

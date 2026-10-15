@@ -1,6 +1,6 @@
 """Trigger unattended headless agent streams for goal continuation.
 
-[INPUT] streaming, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context
+[INPUT] streaming, config_loader, ChatService, profile_resolver, tool_mount, GoalProvider, runtime_context, privacy_settings
 [OUTPUT] GoalStreamAgentContext, trigger_goal_stream*, handle_unattended_goal_stream_failure
 [POS] Headless goal continuation (dequeue / WAIT resume / loop restart) with chat-bound profile.
 """
@@ -214,6 +214,7 @@ async def trigger_goal_stream(
         enrich_model_context_window,
         resolve_model_config,
     )
+    from app.core.security.privacy_settings import privacy_agent_params
     from app.services.agent.streaming import ai_agent_service_stream
 
     logger.info(
@@ -320,6 +321,7 @@ async def trigger_goal_stream(
             personal_settings=memory_settings,
             channel="goal_stream",
         ),
+        **privacy_agent_params(memory_settings),
     )
 
     async def _run_stream() -> None:

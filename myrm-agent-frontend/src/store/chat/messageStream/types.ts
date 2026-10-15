@@ -19,6 +19,11 @@ export interface StreamMutableState {
   loading: boolean;
 }
 
+/**
+ * `messages` / `messageAppeared` / `loading` are the snapshot taken when the stream opened. The store is immutable,
+ * so they never reflect what the stream writes afterwards, and the running turn's assistant message is not in them.
+ * Handlers read and write message state only inside `StreamHandlerActions.setMessages` callbacks.
+ */
 export interface StreamHandlerState extends StreamMutableState {
   scheduler: AdaptiveScheduler;
   /**

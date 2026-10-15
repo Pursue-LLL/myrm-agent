@@ -14,6 +14,6 @@
 
 ## 模块依赖
 
-- `myrm_agent_harness.runtime.cognitive_clock`：框架四频枚举与协作让步信号
+- `myrm_agent_harness.runtime.cognitive_clock`：协作让步信号（`get_global_pause_signal`）
 - `myrm_agent_harness.runtime.maintenance`：容量准入与调度协议
 - `app.services.memory`：记忆管理与账本审计

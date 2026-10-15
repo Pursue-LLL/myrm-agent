@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.core.skills.models import SkillType
 from app.database.models import BatchSnapshot
 from app.services.skills import mutation_batch_service as mbs
 from app.services.skills.mutation_batch_service import (
@@ -178,17 +181,83 @@ async def test_rollback_deletes_skill_created_in_batch() -> None:
     row = _snapshot_row(content="", existed_before=False)
     session = _session_with_rows([row])
     live = _SkillLiveState(skill_id="skill-1", skill_md="new-md", resources={}, skill_existed=True)
-    delete_skill = AsyncMock(return_value=True)
+    remove_created = AsyncMock(return_value=True)
 
     with (
         patch.object(mbs, "_capture_live_state", AsyncMock(return_value=live)),
-        patch(
-            "app.core.skills.store.service.skills_service.delete_skill",
-            delete_skill,
-        ),
+        patch.object(mbs, "_delete_skill_created_in_batch", remove_created),
         patch("app.core.skills.config_version.bump_skill_config_version"),
     ):
         restored = await rollback_skill_mutation_batch(session, "batch-1")
 
     assert restored == 1
-    delete_skill.assert_awaited_once_with("skill-1")
+    remove_created.assert_awaited_once_with("skill-1")
+
+
+@pytest.mark.asyncio
+async def test_rollback_fails_closed_when_created_skill_cannot_be_removed() -> None:
+    row = _snapshot_row(content="", existed_before=False)
+    session = _session_with_rows([row])
+    live = _SkillLiveState(skill_id="skill-1", skill_md="new-md", resources={}, skill_existed=True)
+
+    with (
+        patch.object(mbs, "_capture_live_state", AsyncMock(return_value=live)),
+        patch.object(mbs, "_delete_skill_created_in_batch", AsyncMock(return_value=False)),
+        patch.object(mbs, "_restore_live_state", AsyncMock()),
+        pytest.raises(MutationBatchRollbackError, match="Failed to remove skill created in batch"),
+    ):
+        await rollback_skill_mutation_batch(session, "batch-1")
+
+
+@pytest.mark.asyncio
+async def test_created_local_skill_is_removed_through_the_creation_service(tmp_path: Path) -> None:
+    root = tmp_path / "skills"
+    skill = SimpleNamespace(type=SkillType.LOCAL, storage_path=str(root / "demo"))
+    delete_local = AsyncMock(return_value=SimpleNamespace(success=True))
+
+    with (
+        patch("app.core.skills.store.service.skills_service.get_skill", AsyncMock(return_value=skill)),
+        patch("app.core.skills.creation.service.skill_creation_service.base_path", root),
+        patch("app.core.skills.creation.service.skill_creation_service.delete_skill", delete_local),
+    ):
+        removed = await mbs._delete_skill_created_in_batch("local::abc")
+
+    assert removed is True
+    delete_local.assert_awaited_once_with("demo")
+
+
+@pytest.mark.asyncio
+async def test_created_local_skill_outside_the_creation_root_is_left_alone(tmp_path: Path) -> None:
+    skill = SimpleNamespace(type=SkillType.LOCAL, storage_path=str(tmp_path / "elsewhere" / "demo"))
+    delete_local = AsyncMock(return_value=SimpleNamespace(success=True))
+
+    with (
+        patch("app.core.skills.store.service.skills_service.get_skill", AsyncMock(return_value=skill)),
+        patch("app.core.skills.creation.service.skill_creation_service.base_path", tmp_path / "skills"),
+        patch("app.core.skills.creation.service.skill_creation_service.delete_skill", delete_local),
+    ):
+        removed = await mbs._delete_skill_created_in_batch("local::abc")
+
+    assert removed is False
+    delete_local.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_created_skill_that_no_longer_resolves_counts_as_not_removed() -> None:
+    with patch("app.core.skills.store.service.skills_service.get_skill", AsyncMock(return_value=None)):
+        assert await mbs._delete_skill_created_in_batch("local::gone") is False
+
+
+@pytest.mark.asyncio
+async def test_created_non_local_skill_is_removed_through_the_store() -> None:
+    skill = SimpleNamespace(type=SkillType.PREBUILT, storage_path="prebuilt/demo")
+    delete_from_store = AsyncMock(return_value=True)
+
+    with (
+        patch("app.core.skills.store.service.skills_service.get_skill", AsyncMock(return_value=skill)),
+        patch("app.core.skills.store.service.skills_service.delete_skill", delete_from_store),
+    ):
+        removed = await mbs._delete_skill_created_in_batch("prebuilt-1")
+
+    assert removed is True
+    delete_from_store.assert_awaited_once_with("prebuilt-1")

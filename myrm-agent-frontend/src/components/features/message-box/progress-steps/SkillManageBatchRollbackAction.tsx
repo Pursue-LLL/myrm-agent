@@ -63,8 +63,7 @@ export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRoll
       );
     } catch (err) {
       const { toast } = await import('@/lib/utils/toast');
-      const code =
-        err instanceof ApiError && typeof err.data?.code === 'string' ? err.data.code : undefined;
+      const code = err instanceof ApiError && typeof err.data?.code === 'string' ? err.data.code : undefined;
       toast.error(
         code === 'compensation_failed'
           ? t('skillManageRollbackCompensationFailed')
@@ -121,6 +120,7 @@ export function SkillManageBatchRollbackAction({ batchId }: SkillManageBatchRoll
             <AlertDialogCancel disabled={submitting}>{tSkills('upload.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={submitting}
+              data-testid="skill-manage-rollback-confirm"
               onClick={(event) => {
                 event.preventDefault();
                 void handleRollback();

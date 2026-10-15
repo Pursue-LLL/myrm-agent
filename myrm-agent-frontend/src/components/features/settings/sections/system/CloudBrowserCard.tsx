@@ -20,6 +20,7 @@ import {
   type BrowserCloudProviderType,
 } from '@/services/config';
 import { toast } from '@/hooks/shared/useToast';
+import { apiRequest } from '@/lib/api';
 
 const PROVIDERS: { value: BrowserCloudProviderType; label: string; desc: string }[] = [
   { value: 'browserbase', label: 'Browserbase', desc: 'Managed stealth browsers with residential proxies' },
@@ -77,11 +78,13 @@ const CloudBrowserCard = memo(() => {
     setTestStatus('testing');
     setTestMessage('');
     try {
-      const resp = await fetch('/api/v1/health/browser/test-cloud-connection', { method: 'POST' });
-      const data = await resp.json();
+      const data = await apiRequest<{ status: string; message?: string; error?: string }>(
+        '/health/browser/test-cloud-connection',
+        { method: 'POST', silent: true },
+      );
       if (data.status === 'connected') {
         setTestStatus('success');
-        setTestMessage(data.message);
+        setTestMessage(data.message ?? '');
       } else {
         setTestStatus('failed');
         setTestMessage(data.message || data.error || 'Connection failed');

@@ -18,7 +18,6 @@
 | `__init__.py` | ✅ 核心 | 平台服务入口：数据库/存储/文件服务/执行策略单例；导出 `get_deployment_capabilities` | ✅ |
 | `deployment_capabilities.py` | ✅ 核心 | 启动时构建语义能力位（local/tauri/sandbox/remote） | ✅ |
 | `execution.py` | ✅ 核心 | Agent 执行策略抽象（ExecutionStrategy Protocol + LocalExecutionStrategy） | 永远返回本地执行策略 |
-| `protocols.py` | ✅ 核心 | 平台协议接口定义（FileService, ExecutionStrategy 等） |
 | `workspace_root.py` | ✅ 辅助 | 工作区根路径解析（`get_workspace_root`，供 core/services/api 共用） | ✅ |
 | `workspace_session.py` | ✅ 辅助 | chat_id → `chat_{id}` workspace session SSOT（Goal progress hydrate） | ✅ |
 
@@ -28,8 +27,7 @@
 
 | 模块 | 职责 |
 |------|------|
-| `sandbox/` | Sandbox 模式实现（云端存储等） |
-| `local/` | 本地模式实现（本地文件服务等） |
+| `sandbox/` | Sandbox 模式实现（控制平面配额与预算、tool gateway、SaaS 首启种子） |
 
 ---
 
@@ -52,22 +50,16 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
   ├─ 对话状态持久化（checkpoints 表）
   └─ 由 LangGraph 框架自动调用（每步自动保存/恢复）
 
-装饰器: IncrementalSessionCheckpointer
-  ├─ 增量保存（hash 去重）
-  ├─ 浏览器会话追踪（SessionVault）
-  └─ 线程追踪（ThreadStore）
-
-ThreadStore（线程生命周期管理）
-  ├─ 任务注册（checkpoint_threads 表）
-  ├─ 僵尸检测（48h 未活跃 → failed）
-  └─ 自动恢复（应用重启后恢复活跃会话）
+装饰器: LoadFallbackCheckpointer（harness `runtime/checkpointing/load_fallback.py`）
+  ├─ 转发 saver 的全部异步接口（含 adelete_thread）
+  └─ 无法反序列化的旧 checkpoint 读作"无 checkpoint"（开启全新会话，不使每轮失败）
 ```
 
 #### 生命周期管理
 
 - **启动**：`app/server/lifespan.py::optimized_lifespan` 调度 `_init_checkpointer_task()` → `create_checkpointer()` → `set_checkpointer()`
 - **关闭**：调用 harness 返回的 cleanup 回调清理连接资源
-- **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据；truncate/rewind 通过 `session_continuity_service.sync_chat_checkpoint_from_db` 对齐 DB 与 checkpoint。调用点：永久删除（`chat_crud._cleanup_checkpointer`）、清空回收站、焦点刷新、fork 回滚、Resume 失败恢复
+- **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据；truncate/rewind 通过 `session_continuity_service.sync_chat_checkpoint_from_db` 对齐 DB 与 checkpoint。调用点：永久删除 / 清空回收站 / 两个自动清除 / 安全清空 / 焦点刷新（均经 `services/chat/chat_disposal.clear_conversation_state`）、fork 回滚、Resume 失败恢复
 - **错误处理**：sqlite 模式 `create_checkpointer()` fail-fast（启动失败）；`get_checkpointer()` 未注入时 **RuntimeError**
 - **恢复容错**：如果历史 checkpoint 因序列化类签名变更等原因无法反序列化，增量 checkpointer 会记录警告并按“无历史状态”重新启动，避免单条坏数据阻断整个流式请求
 

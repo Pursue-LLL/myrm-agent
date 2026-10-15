@@ -7,9 +7,11 @@ import {
   hasIntegrationSettingsLink,
   getIntegrationSkillSettingsPath,
   getIntegrationSkillSettingsLinkLabel,
+  formatOAuthIssuerLabel,
   getSkillUnavailableDisplayMessage,
   isEnvGatedSkillUnavailable,
-  SETTINGS_GOOGLE_OAUTH_PATH,
+  SETTINGS_CREDENTIALS_PATH,
+  SETTINGS_PROVIDERS_PATH,
   SETTINGS_AGENTS_LOADOUT_PATH,
 } from '../integrationOAuthDisplay';
 import type { Skill, SkillRequires } from '@/store/skill/types';
@@ -83,7 +85,7 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
     };
 
     expect(hasIntegrationSettingsLink(skill)).toBe(true);
-    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_GOOGLE_OAUTH_PATH);
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_CREDENTIALS_PATH);
     expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
       'card.integrationOAuth.connectionRequired.unavailable',
     );
@@ -167,6 +169,48 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
     expect(getSkillUnavailableDisplayMessage(skill, mockTranslator)).toBe(
       'card.integrationOAuth.googleWorkspace.unavailable',
     );
+  });
+});
+
+describe('formatOAuthIssuerLabel', () => {
+  it('turns issuer ids into capitalised words', () => {
+    expect(formatOAuthIssuerLabel('google_workspace')).toBe('Google Workspace');
+    expect(formatOAuthIssuerLabel('x-live-search')).toBe('X Live Search');
+  });
+
+  it('keeps already-cased ids and ignores empty segments', () => {
+    expect(formatOAuthIssuerLabel('OAuth')).toBe('OAuth');
+    expect(formatOAuthIssuerLabel('__github__')).toBe('Github');
+  });
+
+  it('spells brand names the way the brand does', () => {
+    expect(formatOAuthIssuerLabel('xai')).toBe('xAI');
+  });
+
+  it('never resolves an id to an inherited object property', () => {
+    expect(formatOAuthIssuerLabel('constructor')).toBe('Constructor');
+    expect(formatOAuthIssuerLabel('toString')).toBe('ToString');
+  });
+});
+
+describe('getIntegrationSkillSettingsPath account routing', () => {
+  it.each(['google_workspace', 'xai', 'github'])(
+    'sends a skill waiting on the %s account to the Credentials page',
+    (issuer) => {
+      const skill = buildSkill({
+        available: false,
+        unavailable_reason: 'Missing account',
+        required_oauth_issuers: [issuer],
+      });
+
+      expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_CREDENTIALS_PATH);
+    },
+  );
+
+  it('sends the X live search skill to the Models page when it declares no account', () => {
+    const skill = buildSkill({ id: 'x-live-search', available: false, unavailable_reason: 'raw reason' });
+
+    expect(getIntegrationSkillSettingsPath(skill)).toBe(SETTINGS_PROVIDERS_PATH);
   });
 });
 

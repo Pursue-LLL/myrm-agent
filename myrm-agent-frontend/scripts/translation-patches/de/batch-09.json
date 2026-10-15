@@ -143,16 +143,11 @@
           "confirmReject": "Ablehnung bestätigen",
           "reject": "Ablehnen",
           "approve": "Genehmigen",
-          "approveShadow": "Genehmigen + Schatten",
           "retryApply": "Anwenden erneut versuchen",
           "revise": "Überarbeiten",
           "reviseLabel": "Vorgeschlagenen Inhalt bearbeiten",
           "cancelRevise": "Abbrechen",
-          "saveRevision": "Überarbeitung speichern",
-          "createCron": "Geplanten Task erstellen"
-        },
-        "cronSuggestion": {
-          "title": "Vorgeschlagener Zeitplan"
+          "saveRevision": "Überarbeitung speichern"
         },
         "riskInterceptionTitle": "Risiko-Intervention",
         "applyFailureTitle": "Anwendungsfehler",

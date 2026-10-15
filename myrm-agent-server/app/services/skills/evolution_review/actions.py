@@ -5,8 +5,10 @@
 - .persistence::load_approval_record, persist_approval_payload (POS: Evolution 审核 ApprovalRecord 持久化读写)
 - .types::EvolutionApprovalPayload (POS: Evolution 审核域类型)
 - ..experience_ledger::record_experience_event (POS: 学习资产事件账本)
+- myrm_agent_harness.agent.skills.evolution.core.types::EvolutionType (POS: 进化类型枚举)
+- myrm_agent_harness.backends.skills.scanning.scanner::scan_skill_content, compute_scan_summary (POS: 技能内容安全扫描)
 [OUTPUT]
-- approve/reject/revise/rollback evolution review records
+- approve/reject/revise/rollback evolution review records；修订时按新内容重新扫描并刷新 test_passed 与 security_scan_summary，仅扫描器判定 REJECT（CRITICAL）才拦为 FAILED_SCAN
 [POS]
 Evolution 审核写操作：审批决议、修订提案、回滚已落地变更。
 """
@@ -38,7 +40,6 @@ from .types import (
     MAX_SKILL_CONTENT_CHARS,
     EvolutionApplyError,
     EvolutionApplyStatus,
-    EvolutionApprovalPayload,
     EvolutionGrowthStatus,
     EvolutionReviewRecord,
     approval_payload,
@@ -49,58 +50,10 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 
-def _rebuild_manifest_after_revision(payload: EvolutionApprovalPayload, revised_content: str) -> dict[str, object] | None:
-    """Recompute the prediction manifest after a manual revision.
-
-    The original manifest's target was computed against the pre-revision
-    proposed content; once the user edits that content the prediction would go
-    stale, so baseline/target are recomputed from the eval_cases snapshot.
-    Returns None when no manifest or no eval_cases exist (nothing to predict).
-    """
-    manifest_dict = payload.change_manifest
-    if not isinstance(manifest_dict, dict) or not manifest_dict.get("predictions") or not payload.eval_cases:
-        return None
-
-    from myrm_agent_harness.agent.skills.evolution.core.eval_regression import (
-        evaluate_content_assertions,
-    )
-    from myrm_agent_harness.eval.manifest_prediction import (
-        ChangePredictionManifest,
-        MetricPrediction,
-        PredictionDirection,
-    )
-
-    try:
-        original_pred = next(p for p in manifest_dict["predictions"] if p.get("metric_name") == "pass_rate")
-    except StopIteration:
-        return None
-
-    baseline = float(original_pred["baseline_value"])
-    target_pass_rate = evaluate_content_assertions(payload.eval_cases, revised_content)
-    revised_pred = MetricPrediction(
-        metric_name="pass_rate",
-        direction=PredictionDirection.INCREASE,
-        baseline_value=baseline,
-        target_value=max(target_pass_rate, baseline),
-        tolerance=float(original_pred.get("tolerance", 0.05)),
-    )
-
-    manifest = ChangePredictionManifest(
-        manifest_id=str(manifest_dict.get("manifest_id", "")),
-        target_component=str(manifest_dict.get("target_component", "")),
-        rationale=f"Revised: {manifest_dict.get('rationale', '')}".strip(),
-        rollback_patch=manifest_dict.get("rollback_patch"),
-        created_at=manifest_dict.get("created_at"),
-        predictions=[revised_pred],
-    )
-    return manifest.to_dict()
-
-
 async def approve_evolution_review_record(
     evolution_id: str,
     *,
     auto_approved: bool = False,
-    apply_mode: str = "immediate",
 ) -> EvolutionReviewRecord:
     approval_record = await load_approval_record(evolution_id)
     if approval_record is None:
@@ -128,7 +81,7 @@ async def approve_evolution_review_record(
             raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         record = resolved
 
-    return await apply_approval_record(record, auto_approved=auto_approved, apply_mode=apply_mode)
+    return await apply_approval_record(record, auto_approved=auto_approved)
 
 
 async def reject_evolution_review_record(
@@ -229,20 +182,30 @@ async def revise_evolution_review_record(
     if len(evolved_content) > MAX_SKILL_CONTENT_CHARS:
         raise EvolutionApplyError(f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS}).")
 
-    scan_passed = True
+    scan_passed: bool | None = None
+    scan_rejected = False
+    scan_summary: dict[str, object] | None = None
     try:
         from myrm_agent_harness.backends.skills.scanning.scanner import (
+            compute_scan_summary,
             scan_skill_content,
         )
+        from myrm_agent_harness.backends.skills.types import SkillTrustRecommendation
 
         scan_result = scan_skill_content(payload.skill_name, evolved_content)
         scan_passed = scan_result.is_clean
+        # Only findings the scanner itself rejects block the revision; lesser findings stay visible in
+        # the summary for the reviewer, who already decides on approval.
+        scan_rejected = scan_result.trust_recommendation == SkillTrustRecommendation.REJECT
+        scan_summary = compute_scan_summary(scan_result).to_dict()
     except Exception as exc:
         logger.warning("Security scan failed during revision for %s: %s", evolution_id, exc)
 
     payload.evolved_content = evolved_content
     payload.test_passed = scan_passed
-    if not scan_passed:
+    # The stored summary always describes the current evolved content; None when the scan could not run.
+    payload.security_scan_summary = scan_summary
+    if scan_rejected:
         payload.growth_status = EvolutionGrowthStatus.FAILED_SCAN
         payload.reason_code = "revised_failed_scan"
         payload.remediation = "Revised content failed security scan. Please fix the flagged issues."
@@ -252,7 +215,6 @@ async def revise_evolution_review_record(
         payload.apply_error = None
         payload.reason_code = "revised"
         payload.remediation = None
-        payload.change_manifest = _rebuild_manifest_after_revision(payload, evolved_content)
 
     updated = await persist_approval_payload(
         evolution_id,

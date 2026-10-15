@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
-import { Search, Timer, RefreshCw, Plus, Sparkles } from 'lucide-react';
+import { Search, Timer, RefreshCw, Plus } from 'lucide-react';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
@@ -148,14 +147,7 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <CronStatsBar stats={stats} activeFilter={filter} onFilterChange={setFilter} />
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/settings/evolutionPending?growthType=cron_suggestion"
-            className="inline-flex items-center gap-1 rounded-md border border-border/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground hover:border-primary/30"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            {t('suggestionsLink')}
-          </Link>
+        <div className="shrink-0">
           <SchedulerHealthBadge />
         </div>
       </div>

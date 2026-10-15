@@ -148,7 +148,7 @@ def _pin_direct_sse(client: object, page: object) -> None:
     not, so without this pin the agent-stream POST would wait up to 30s on the
     multiplex bridge (connectionManager.waitUntilReady) and, on timeout, the textarea
     would never clear because the store only clears it after the first SSE chunk
-    (streamConsumer.ts setInputMessage('')).
+    (consumeStream.ts setInputMessage('')).
     """
     pinned = client.evaluate(
         page,

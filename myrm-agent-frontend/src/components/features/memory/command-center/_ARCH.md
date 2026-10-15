@@ -48,8 +48,6 @@
 | `TaskTriadTrajectoryCard.tsx` | 核心 | 超长任务三元状态轨迹黑匣子卡片：已达成里程碑、死胡同防循环规则拦截雷达、在途约束中途保护与单步避坑快照 HUD | ✅    |
 | `ActivityCompactorCard.tsx` | 核心 | 分级滑动时间窗口活动日志折叠与提炼管道卡片：10min 动作算法去抖折叠 (0 Token)、6h 宏观业务里程碑提纯与 24h 长期偏好归档 | ✅    |
 | `ActivityCompactorTimelineView.tsx` | 辅助 | 分级活动折叠卡片子组件：呈现微观 10min 纯算法折叠切片与 6h 宏观里程碑时间线列表 | ✅    |
-| `NoiseFreeMemoryCard.tsx` | 核心 | 工具回执噪声剥离与单调递增清除代次套件卡片：物理剥离工具调用/回执、代码级 PII 正则拦截网关与 Epoch Fencing 防幽灵复活 | ✅    |
-| `NoiseFreeMemoryEpochView.tsx` | 辅助 | 无噪声记忆套件子组件：呈现当前代次 (Epoch) HUD、已持久化事实列表与幽灵写入拦截统计 | ✅    |
 | `PrivateNotebookCard.tsx` | 核心 | 透明可检视模型私有笔记本卡片：对标 Codex PR #42385 超越版、Notes 5 工具操作台、历史交互检索与平滑跨窗口接力 | ✅    |
 | `PrivateNotebookNotesListView.tsx` | 辅助 | 私有笔记本卡片子组件：呈现透明 Markdown 笔记索引、行数统计、实时检视与人工纠偏覆写 | ✅    |
 | `PrivateNotebookHistoryView.tsx` | 辅助 | 私有笔记本卡片子组件：跨上下文窗口长程交互历史检索、归档窗口列表与流式条目展现 | ✅    |
@@ -91,29 +89,6 @@
 | `MemoryCuratorAddForm.tsx` | 辅助 | 折叠式新记忆录入表单：录入标题、分类、详细内容与标签并即时刷盘 | ✅    |
 | `MemoryCuratorEntryCard.tsx` | 辅助 | 单条记忆卡片项：支持原地编辑、状态徽章、置信度与一键物理抹除 | ✅    |
 | `curatorFallbacks.ts` | 辅助 | 策展工作台离线与单测仿真数据集 | ✅    |
-| `ProcedureExperienceRetrievalCard.tsx` | 核心 | 过程形态经验协议与双节点检索卡片：八字段模板终结流水账式轨迹，首问意图与写前拦截双节点精准命中，固定 Top-N 彻底终结字符截断 | ✅    |
-| `ProcedureProtocolInspectorView.tsx` | 辅助 | 八字段过程经验协议检视子组件：呈现操作意图/不可变边界/步骤/反模式八维度结构与紧凑检索锚点面 | ✅    |
-| `ProcedureMultiIntentSplitTool.tsx` | 辅助 | 多意图强制拆条工具子组件：支持复杂复合意图自动语义切分为单一职责条目 | ✅    |
-| `ProcedureRegisterForm.tsx` | 辅助 | 八字段规范过程经验注册表单：严格校验目标、前置、步骤、边界与反模式 | ✅    |
-| `DualNodeRetrievalConsoleView.tsx` | 辅助 | 双节点固定条数检索控制台子组件：呈现首问 first_user vs 写前 pre_write 节点切换、固定 Top-N 注入对比与锚点面加权 | ✅    |
-| `ProcedureExperienceHudBar.tsx` | 辅助 | 过程经验 4 维 HUD 监控条：呈现八字段合规条目数、双节点拦截状态、固定条数策略与多意图强制拆条模式 | ✅    |
-| `procedureFallbacks.ts` | 辅助 | 过程经验离线与单测仿真数据集 | ✅    |
-| `BusinessScenarioTemplatesCard.tsx` | 核心 | 业务场景经验模板与转人工门禁工作台卡片：对标 OpenViking PPT 复盘与 τ²-bench 换货真实场景，复用排障方法而非旧数据，先问必查闭环与确定性转人工门禁 | ✅    |
-| `BusinessTemplateHudBar.tsx` | 辅助 | 业务经验 4 维 HUD 监控条：呈现冷启动模板数、经营复盘规则数、零售换货 5 阶段状态与例外转人工门禁触发点 | ✅    |
-| `BusinessAnalysisReviewTemplateView.tsx` | 辅助 | 经营分析复盘三方法检视子组件：公式计算值回查、多源口径核对与交付前模板验收，提供有效性验证演化交互 | ✅    |
-| `RetailExchangeChecklistView.tsx` | 辅助 | 换货全链路先问必查交互式检查清单子组件：先问 -> 必查 -> 显式确认 -> 办理 -> 告知后续 5 阶段步进与 tau2 约束 | ✅    |
-| `EscalationGateEvaluatorView.tsx` | 辅助 | 例外转人工决策门禁评估子组件：定制例外/政策模糊、断码缺货、连续纠偏争议 3 大拦截规则仿真与结构化人工交接包组装 | ✅    |
-| `businessTemplateFallbacks.ts` | 辅助 | 业务场景经验模板离线与单测仿真数据集 | ✅    |
-| `ExperienceObservabilityStudioCard.tsx` | 核心 | 零改造宿主生命周期插件与经验可观测看板卡片：对标 OpenViking Plugin/MCP/Skill 三路零改造接入，经验列表、Session 溯源与效果分布全景可视 | ✅    |
-| `ExperienceObservabilityHudBar.tsx` | 辅助 | 经验可观测 4 维 HUD 监控条：呈现受监控条目数、累计注入数、归因成功率与当前宿主通道网关 | ✅    |
-| `ExperienceDistributionDashboardView.tsx` | 辅助 | 经验效果分布与会话溯源子组件：呈现经验全景列表、原始 Session 证据链高亮溯源与交互式采纳/争议效果反馈 | ✅    |
-| `ZeroRefactorPluginConsoleView.tsx` | 辅助 | 零改造宿主生命周期插件配置与演练控制台子组件：提供 Plugin/MCP/Skill 三路接入通道切换、目标宿主切换与生命周期事件钩子模拟 | ✅    |
-| `experienceObservabilityFallbacks.ts` | 辅助 | 经验可观测与宿主插件离线及单测仿真数据集 | ✅    |
-| `FailureSessionRetrievalStudioCard.tsx` | 核心 | 失败触发历史会话检索与自愈中枢卡片：对标 AgentGit agit search MCP，工具报错自动提取指纹检索历史同类错误、直读 Session 解决轮次、零提示免问自动恢复 | ✅    |
-| `FailureRetrievalHudBar.tsx` | 辅助 | 失败检索自愈 4 维 HUD 监控条：呈现双轨收录库数、正向解法占比、避坑死胡同警示数与静默免提示拦截状态 | ✅    |
-| `FailureResolutionSearchView.tsx` | 辅助 | 智能报错检索与解法对比测试器：支持输入错误堆栈/典型预设，实时提取指纹并双轨展示正向验证解法与避坑反模式，支持命令一键复制 | ✅    |
-| `HistoricalResolutionsCatalogView.tsx` | 辅助 | 历史错误解法库全景列表子组件：提供成功/避坑多维度过滤、Session ID 轮次溯源、置信度徽章与方案代码审查 | ✅    |
-| `failureSessionRetrievalFallbacks.ts` | 辅助 | 失败检索与历史解法库离线及单测仿真数据集 | ✅    |
 | `PeerCognitionStudioCard.tsx` | 核心 | 社会认知实体图谱与常驻画像卡中枢卡片：对标 Hermes+Honcho 官方实践，以参与者 Peer 为中心组织记忆，打破孤立事实表局限，常驻 Peer Card 自演化与多智能体角色对齐 | ✅    |
 | `PeerCognitionHudBar.tsx` | 辅助 | 社会认知 4 维 HUD 监控条：呈现常驻 Peer 实体数、语义关系边数、累计协作演化频次与低 Token 上下文投影开销 | ✅    |
 | `PeerEntityGraphExplorerView.tsx` | 辅助 | 实体拓扑与关系边检索探索子组件：支持按用户/智能体/项目/审查者筛选实体，呈现 asserts/approves/collaborates/governs 语义边与动态建立关系 | ✅    |
@@ -147,23 +122,12 @@
 | `GrowthDiaryTimelineView.tsx` | 辅助 | 智能体心智进化成长日记时间轴检视组件：呈现演化标题、动机徽章、反思叙事、主题标签、Actions 列表与 Markdown 视图渲染 | ✅    |
 | `DreamCognitiveSynthesisConsoleView.tsx` | 辅助 | 梦境认知重组触发控制台：支持配置会话碎片与关联 Memory Cube，实时触发非阻塞梦境整合并展示执行报告与动作详情 | ✅    |
 | `dreamCognitiveFallbacks.ts` | 辅助 | 梦境认知重组与成长日记离线及单测仿真数据集 | ✅    |
-| `MemoryLineageStudioCard.tsx` | 核心 | 记忆图谱重组与演化溯源链中枢卡片：对标 MemOS 知识图谱重组与 Lineage 溯源链，全景 DAG 拓扑、多维语义边自动建立、白盒演化溯源与一键版本回溯 | ✅    |
-| `MemoryLineageHudBar.tsx` | 辅助 | 记忆谱系 4 维 HUD 监控条：呈现活跃记忆数、演化版本深度、多维语义边数与全自动图重组执行状态 | ✅    |
-| `LineageDagGraphView.tsx` | 辅助 | 演化谱系有向无环图与多维语义关系拓扑展示组件：支持 Active/Superseded 过滤、父子归纳/时序/推断/冲突语义边辨识与节点白盒追溯 | ✅    |
-| `GraphReorganizationConsoleView.tsx` | 辅助 | 自动化图谱重组工作台：支持调节置信度阈值、触发批次重组分析并实时呈现新合成语义关系边报告 | ✅    |
-| `memoryLineageFallbacks.ts` | 辅助 | 记忆图谱重组与演化溯源链离线及单测仿真数据集 | ✅    |
 | `QuadrupleRetrievalStudioCard.tsx` | 核心 | 目标驱动四路并行检索与推理重排工作台卡片：对标 MemOS 混合检索架构，前置 TaskGoalParser 消除自然语言模糊噪音，四路并行召回矩阵与 Reasoner 语义推理重排 | ✅    |
 | `QuadrupleRetrievalHudBar.tsx` | 辅助 | 四路检索 4 维 HUD 监控条：呈现总索引数、4 通道激活状态、平均端到端延迟与通道权重乘数 | ✅    |
 | `TaskGoalParserConsoleView.tsx` | 辅助 | 目标意图前置解构控制台：直观展示自然语言查询解构结果、实体锚点、词法分词、元数据过滤与置信度 | ✅    |
 | `QuadrupleRecallMatrixView.tsx` | 辅助 | 四路并行召回矩阵看板：直观展示 Graph 拓扑、Vector 稠密、Lexical 词法与 Metadata 过滤四通道命中量与融合增益 | ✅    |
 | `ReasonerHarmonizerCard.tsx` | 辅助 | 推理重排单项条目卡片：展示排名、多通道徽章、Reasoner 裁决徽章（Boost/Keep/Stale Penalty/Suppress）与可展开审计推导 | ✅    |
 | `quadrupleRetrievalFallbacks.ts` | 辅助 | 目标驱动四路并行检索离线与单测仿真数据集 | ✅    |
-| `LiveCorrectionStudioCard.tsx` | 核心 | 自然语言交互式记忆反馈与即时重校工作台卡片：对标 MemOS Feedback 与 mem_feedback 模块，支持对话中一键纠正偏见与失误、语义槽位提取、冲突定位对比与用户应答回执 | ✅    |
-| `LiveCorrectionHudBar.tsx` | 辅助 | 实时记忆重校 3 维 HUD 监控条：呈现重校引擎运行状态、活跃候选记忆数、累积已生效纠错数与重置动作 | ✅    |
-| `CorrectionIntentDetectorView.tsx` | 辅助 | 自然语言纠错指令输入与语义槽位分析视图：支持快捷预设指令点击、多意图分类、新断言/否定值/主体/置信度白盒提取 | ✅    |
-| `ConflictLocalizationComparisonView.tsx` | 辅助 | 记忆冲突定位与状态机演进视图：呈现活跃候选记忆节点、命中定位指示、Supersede/Retract/Amend 转换前后 Diff 对比 | ✅    |
-| `LiveCorrectionReceiptCard.tsx` | 辅助 | 即时重校执行回执卡片：呈现对话助手自然语言应答确认气泡、端到端耗时与不可篡改审计追踪键值项 | ✅    |
-| `liveCorrectionFallbacks.ts` | 辅助 | 自然语言交互式记忆反馈与即时重校离线与单测仿真数据集 | ✅    |
 | `SqliteVecStudioCard.tsx` | 核心 | 基于SQLite与sqlite-vec的嵌入式轻量向量存储工作台卡片：对标 OpenClaw 嵌入式存储方案，展示单文件零容器自包含引擎指标、Native SIMD vec0/Process BLOB 双轨模式与时间衰减稠密检索 | ✅    |
 | `SqliteVecHudBar.tsx` | 辅助 | SQLite-Vec 向量引擎 4 维 HUD 监控条：呈现引擎双轨运行模式、文件体积、向量集合数、存储文档总数与指标刷新 | ✅    |
 | `SqliteVecQueryConsoleView.tsx` | 辅助 | 稠密向量近邻检索控制台：支持配置测试查询向量、艾宾浩斯时间半衰期衰减开关与相似度过滤阈值 | ✅    |

@@ -44,6 +44,7 @@
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |
 | `session_lane.py` | 核心 | 外部竞品（Claude Code, Codex 等）转录本会话车道服务：dry-run 预览转换、confirm 批量落库 Chat / Message 表、挂载初始轻量上下文、严格保持静态前缀一致以最大化 Prompt Cache 命中 | ✅ |
 | `skill_binding.py` | 辅助 | 技能审核通过后绑定 Agent profile | ✅ |
+| `skill_bundle_writer.py` | 核心 | 技能审核通过后把竞品技能包写入本地技能主根：覆盖前备份 SKILL.md（`.bak-migration`），按 Hermes `.usage.json` 记录播种 `.stats.json` 账本；同名技能已有账本时一律保留（账本是在本机积累的运行证据：结果计数、历史、pinned），与批量导入替换技能时沿用旧账本的策略一致 | ✅ |
 | `mcp_config_converter.py` | 核心 | 竞品 MCP 配置 → MCPMigrationItem → config dict / preview；无状态转换器；并发策略映射（`supports_parallel_*` ↔ `hostSerial`）；transport 别名收敛（`http` → `streamable_http`）；可选保活间隔映射（`keepalive*` → `keepaliveInterval`；仅 remote transport 生效，`stdio` 或低于 5 秒时标记 `keepaliveIntervalIgnored` 供前端解释） | ✅ |
 | `workbuddy_skills_mapping.py` | 辅助 | WorkBuddy Top 20 核心技能映射映射表与解析器 | ✅ |
 | `workspace_bind_candidates.py` | 辅助 | OpenClaw migration → project workspace bind 候选路径 + Obsidian/md fingerprint；dry-run/confirm 响应与 session metadata SSOT | ✅ |

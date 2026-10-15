@@ -1,4 +1,4 @@
-"""Domain service managing session delta lifecycle, preview injection, and batch reconciliation.
+"""Domain service managing session delta lifecycle and preview injection.
 
 [POS]
 app/services/memory/ephemeral_delta_service.py
@@ -7,7 +7,7 @@ app/services/memory/ephemeral_delta_service.py
 - Harness toolkits.memory.ephemeral_delta (SSOT store + tail injector)
 
 [OUTPUT]
-- Domain service managing session delta lifecycle, preview injection, and batch reconciliation
+- Domain service managing session delta lifecycle and preview injection
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ from app.schemas.ephemeral_delta import (
     PreviewDeltaInjectionRequestDTO,
     PreviewDeltaInjectionResponseDTO,
     PromptCacheMetricsDTO,
-    ReconcileSessionResponseDTO,
     RecordDeltaRequestDTO,
     SessionDeltaSnapshotDTO,
 )
@@ -100,19 +99,7 @@ class EphemeralDeltaService:
             reconciled_at=datetime.now(UTC) if snapshot.is_reconciled else None,
         )
 
-    def reconcile_session(self, session_id: str) -> ReconcileSessionResponseDTO:
-        with self._lock:
-            active = self._store.get_active_deltas(session_id)
-
-        return ReconcileSessionResponseDTO(
-            session_id=session_id,
-            active_delta_count=len(active),
-            injection_still_active=len(active) > 0,
-        )
-
-    def preview_injection(
-        self, payload: PreviewDeltaInjectionRequestDTO
-    ) -> PreviewDeltaInjectionResponseDTO:
+    def preview_injection(self, payload: PreviewDeltaInjectionRequestDTO) -> PreviewDeltaInjectionResponseDTO:
         messages = [SystemMessage(content=payload.raw_system_prompt)]
         for prompt in payload.human_messages:
             messages.append(HumanMessage(content=prompt))

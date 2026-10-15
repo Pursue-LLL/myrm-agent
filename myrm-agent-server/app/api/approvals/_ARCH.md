@@ -13,7 +13,6 @@
 | `credentials.py` | 路由 | `POST /{approval_id}/credentials` 瞬态敏感凭证内存暂存与 handle 签发 | ✅ |
 | `test_routes.py` | 路由 | local/test-only 调试与 E2E 辅助端点：`POST /test/seed-mock`、`/test/seed-hardened-mock`、`/test/cleanup-hardened-mock`（`is_local_mode()` 守卫，非 local 返回 404） | ✅ |
 | `knowledge_patch.py` | 辅助 | 知识补丁审批通过后的 Wiki/Procedural 规则写入处理 | ✅ |
-| `tiered_risk.py` | 路由 | 三级风险自适应判定、单次授权 Token 校验与 Dry-run 预演端点 | ✅ |
 
 ## 路由（前缀 `/api/v1/approvals`）
 

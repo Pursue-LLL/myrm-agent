@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const stableT = (key: string) => key;
@@ -31,7 +31,9 @@ vi.mock('@/components/primitives/card', async () => {
     CardContent: React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(({ children }, ref) => (
       <div ref={ref}>{children}</div>
     )),
-    CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    CardHeader: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+      <div className={className}>{children}</div>
+    ),
   };
 });
 
@@ -54,7 +56,7 @@ vi.mock('@/components/features/message-box/MarkdownContent', () => ({
 
 vi.mock('../WikiConceptLinksPanel', () => ({
   WikiConceptLinksPanel: ({ onSelectConcept }: { onSelectConcept?: (name: string, heading?: string) => void }) => (
-    <div>
+    <div id="wiki-concept-links">
       <button data-testid="mock-jump-btn" onClick={() => onSelectConcept?.('Alpha', '简介')}>
         Jump to Intro
       </button>
@@ -230,5 +232,66 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
     const exactHeading = screen.getByTestId('heading-exact');
     expect(fuzzyHeading.classList.contains('bg-primary/10')).toBe(false);
     expect(exactHeading.classList.contains('bg-primary/10')).toBe(false);
+  });
+});
+
+describe('WikiConceptDetailPanel links shortcut', () => {
+  const concept: Concept = { name: 'Alpha', content: '# Alpha' };
+
+  it('is labelled with translated copy and never hidden at any breakpoint', () => {
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    const shortcut = screen.getByRole('button', { name: 'links.title' });
+    expect(shortcut.getAttribute('aria-label')).toBe('links.title');
+    expect(shortcut.getAttribute('title')).toBe('links.title');
+    // 窄屏下文字可以收起成纯图标，但按钮本身不能在任何断点被隐藏
+    expect(shortcut.classList.contains('hidden')).toBe(false);
+    expect(shortcut.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+  });
+
+  it('scrolls the links panel into view when pressed', () => {
+    const scrolledIds: string[] = [];
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value(this: HTMLElement) {
+        scrolledIds.push(this.id);
+      },
+    });
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    act(() => {
+      screen.getByRole('button', { name: 'links.title' }).click();
+    });
+
+    expect(scrolledIds).toEqual(['wiki-concept-links']);
+  });
+});
+
+describe('WikiConceptDetailPanel header layout', () => {
+  // 头部嵌在宽度不定的详情栏里（手机、平板、窄窗口）：放不下时整块换行，词条名独占一行，
+  // 不能被来源徽标、来源链接和操作按钮挤到 0 宽；CardHeader 基类自带的 `space-y-1.5` 要显式归零，
+  // 否则标题块多出 6px 下外边距（单行时偏高 3px、换行时行距变大）。jsdom 不计算样式，这里只钉住这些类名。
+  const concept: Concept = {
+    name: 'Alpha',
+    content: '# Alpha',
+    provenance: 'chat-compound',
+    source_chat: 'chat-123',
+  };
+
+  it('lets the header and the title block wrap instead of squeezing the concept name', () => {
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    const header = screen.getByTestId('wiki-concept-edit-btn').closest('[class~="@container"]') as HTMLElement;
+    const [titleBlock, actions] = Array.from(header.children) as HTMLElement[];
+    const name = within(titleBlock).getByText('Alpha');
+
+    expect(header.classList.contains('flex-wrap')).toBe(true);
+    expect(header.classList.contains('space-y-0')).toBe(true);
+    expect(header.classList.contains('justify-between')).toBe(false);
+    expect(titleBlock.classList.contains('flex-wrap')).toBe(true);
+    expect(titleBlock.classList.contains('truncate')).toBe(false);
+    expect(name.classList.contains('max-w-full')).toBe(true);
+    expect(actions.classList.contains('ml-auto')).toBe(true);
   });
 });

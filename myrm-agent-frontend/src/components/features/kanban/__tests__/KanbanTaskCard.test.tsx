@@ -46,7 +46,6 @@ vi.mock('lucide-react', () => ({
   ExternalLink: () => <span />,
   GitBranch: () => <span />,
   Paperclip: () => <span />,
-  Sparkles: () => <span />,
   User: () => <span />,
   ShieldAlert: () => <span />,
   ShieldCheck: () => <span />,

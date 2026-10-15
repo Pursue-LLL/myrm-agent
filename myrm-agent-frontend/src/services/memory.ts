@@ -28,7 +28,6 @@ export * from './memory/onboardingInsight';
 export * from './memory/screenObservationSafety';
 export * from './memory/taskTriadTrajectory';
 export * from './memory/activityCompactor';
-export * from './memory/noiseFreeMemory';
 export * from './memory/privateNotebook';
 export * from './memory/jobCompounding';
 export * from './memory/revocableProvenance';
@@ -41,19 +40,13 @@ export * from './memory/ephemeralDelta';
 export * from './memory/ruleCascade';
 export * from './memory/relationalBacktrack';
 export * from './memory/curatorStudio';
-export * from './memory/procedureExperience';
-export * from './memory/businessTemplates';
-export * from './memory/experienceObservability';
-export * from './memory/failureSessionRetrieval';
 export * from './memory/peerCognition';
 export * from './memory/twoLayerDialectic';
 export * from './memory/budgetPacking';
 export * from './memory/autoMemoryConsolidation';
 export * from './memory/memCube';
 export * from './memory/dreamCognitive';
-export * from './memory/memoryLineage';
 export * from './memory/quadrupleRetrieval';
-export * from './memory/liveCorrection';
 export * from './memory/sqliteVec';
 export * from './memory/vectorSpaceGuard';
 export * from './memory/markdownChunker';
@@ -61,6 +54,3 @@ export * from './memory/hybridSearch';
 export * from './memory/memoryMigration';
 export * from './memory/decisionAssist';
 export * from './memory/experienceCompounding';
-
-
-

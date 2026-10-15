@@ -14,11 +14,6 @@ from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from app.ai_agents.general_agent.checkpoint_helpers import (
-    mark_thread_completed,
-    mark_thread_failed,
-    update_checkpoint_counters,
-)
 from app.core.utils.delivery_provenance import (
     apply_delivery_banner,
     resolve_general_agent_pipeline_labels,
@@ -324,24 +319,6 @@ async def execute_stream_pipeline(
                 if learnings:
                     active_goal.metadata["relevant_learnings"] = learnings
 
-        if agent_wrapper.enable_browser and agent_wrapper._browser_session and agent_wrapper._session_vault:
-            from myrm_agent_harness.toolkits.browser import BrowserCheckpointHelper
-
-            expected_thread_id = agent_wrapper.approval_session_key or str(context["session_id"])
-            if agent_wrapper._current_thread_id and agent_wrapper._current_thread_id != expected_thread_id:
-                logger.warning(
-                    f"Thread ID mismatch: init={agent_wrapper._current_thread_id}, runtime={expected_thread_id}. "
-                    "Using init value (BrowserSession already bound)."
-                )
-            elif not agent_wrapper._current_thread_id:
-                agent_wrapper._current_thread_id = expected_thread_id
-
-            checkpoint_helper = BrowserCheckpointHelper(agent_wrapper._browser_session, agent_wrapper._session_vault)
-            agent_wrapper._checkpoint_helper = checkpoint_helper
-            checkpoint_context = checkpoint_helper.get_initial_context()
-            context.update(checkpoint_context)
-            logger.info(f"Checkpoint: initialized for thread_id={agent_wrapper._current_thread_id}")
-
         artifact_processor = get_artifact_processor(
             user_id="sandbox",
             chat_id=effective_chat_id,
@@ -352,9 +329,6 @@ async def execute_stream_pipeline(
         from myrm_agent_harness.backends.skills.decorators.version_aware import (
             session_id_var,
         )
-        from myrm_agent_harness.backends.skills.protocols import (
-            resolved_skill_versions_var,
-        )
 
         from app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware import (
             reset_answer_tool_convergence,
@@ -362,11 +336,9 @@ async def execute_stream_pipeline(
 
         reset_answer_tool_convergence()
         token = session_id_var.set(str(context["session_id"]))
-        version_token = resolved_skill_versions_var.set({})
 
         from app.services.infra.sleep_inhibitor import SleepInhibitor
 
-        task_completed = False
         # 挂载了桌面会话的运行必须保持屏幕常亮：空闲熄屏会把屏幕锁住，CU 任务因此中断
         keep_display_awake = getattr(agent_wrapper, "_desktop_session", None) is not None
         async with SleepInhibitor.hold(prevent_display_sleep=keep_display_awake):
@@ -390,29 +362,12 @@ async def execute_stream_pipeline(
                             logger.warning(f"🛑 GeneralAgent 被取消: chat_id={message_id}")
                             break
 
-                        if agent_wrapper._checkpoint_helper:
-                            should_update = await update_checkpoint_counters(agent_wrapper._checkpoint_helper, event)
-                            if should_update:
-                                await agent_wrapper._checkpoint_helper.update_context(context)
-
                         yield event
-
-                    task_completed = True
-                except Exception:
-                    if agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
-                        await mark_thread_failed(agent_wrapper._current_thread_id)
-                    raise
                 finally:
-                    for _var, _tok in (
-                        (session_id_var, token),
-                        (resolved_skill_versions_var, version_token),
-                    ):
-                        try:
-                            _var.reset(_tok)
-                        except ValueError:
-                            pass
-                    if task_completed and agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
-                        await mark_thread_completed(agent_wrapper._current_thread_id)
+                    try:
+                        session_id_var.reset(token)
+                    except ValueError:
+                        pass
 
     if use_execution_pool:
         assert scope_key is not None

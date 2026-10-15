@@ -16,7 +16,6 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `agent_history.py` | 模块 | Get the version history of an agent's profile. | ✅ |
 | `ai_build.py` | 模块 | AI-driven agent config generator: accepts a natural-language intent, streams a complete AgentCreate-compatible JSON (name, prompt, skills, MCPs, tools); without a usable model it refuses with 422 `{message, error_code: model_not_configured}` so the client can localize it | ✅ |
 | `generate_prompt.py` | 模块 | Thin API for the agent editor: resolves the user's default model and streams a draft system prompt | ✅ |
-| `media.py` | 模块 | Request to test media generation configuration connectivity. | ✅ |
 | `openapi_services.py` | 模块 | OpenAPI Services API. | ✅ |
 | `providers.py` | 模块 | Agent provider configuration endpoints for deletion impact analysis and batch operations | ✅ |
 | `subagents.py` | 模块 | Subagent REST：list / cancel-all / steer / cancel；registry merge via harness session_tree。 | ✅ |

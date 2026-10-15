@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   IconActivity,
   IconAlertTriangle,
@@ -19,6 +20,7 @@ import {
   YAxis,
 } from '@/components/features/app-shell/lazy-recharts';
 import { toast } from '@/lib/utils/toast';
+import { ApiError, apiRequest } from '@/lib/api';
 
 interface MemoryMetric {
   cpu_percent: number;
@@ -37,6 +39,7 @@ interface TopAllocation {
 }
 
 export const MemoryMonitorCard = memo(() => {
+  const t = useTranslations('settings.memoryCenter.monitor');
   const [history, setHistory] = useState<MemoryMetric[]>([]);
   const [isProfiling, setIsProfiling] = useState(false);
   const [topAllocations, setTopAllocations] = useState<TopAllocation[]>([]);
@@ -74,36 +77,36 @@ export const MemoryMonitorCard = memo(() => {
 
   const handleStartProfiling = async () => {
     try {
-      const res = await fetch('/api/v1/health/memory/profile/start', { method: 'POST' });
-      if (res.ok) {
-        setIsProfiling(true);
-        setTopAllocations([]);
-        toast.success('Heap profiling started. System may experience slight overhead.');
-      } else {
-        const data = await res.json();
-        toast.error(data.detail || 'Failed to start profiling');
-      }
+      await apiRequest('/health/memory/profile/start', { method: 'POST', silent: true });
+      setIsProfiling(true);
+      setTopAllocations([]);
+      toast.success(t('profilingStarted'));
     } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message || t('profilingStartFailed'));
+        return;
+      }
       console.error(err);
-      toast.error('Network error starting profiling');
+      toast.error(t('profilingStartNetworkError'));
     }
   };
 
   const handleStopProfiling = async () => {
     try {
-      const res = await fetch('/api/v1/health/memory/profile/stop', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setIsProfiling(false);
-        setTopAllocations(data.top_allocations || []);
-        toast.success('Heap profiling stopped. Results ready.');
-      } else {
-        const data = await res.json();
-        toast.error(data.detail || 'Failed to stop profiling');
-      }
+      const data = await apiRequest<{ top_allocations?: TopAllocation[] }>('/health/memory/profile/stop', {
+        method: 'POST',
+        silent: true,
+      });
+      setIsProfiling(false);
+      setTopAllocations(data.top_allocations || []);
+      toast.success(t('profilingStopped'));
     } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message || t('profilingStopFailed'));
+        return;
+      }
       console.error(err);
-      toast.error('Network error stopping profiling');
+      toast.error(t('profilingStopNetworkError'));
     }
   };
 

@@ -41,6 +41,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录
 | `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止） | ❌ |
 | `worktree_ops.py` | ✅ 核心 | worktree 生命周期委派：`cleanup_task_worktree`（ARCHIVED safe cleanup，dirty 保留）、`merge_task_worktree`（COMPLETED 合并，失败追加 `MERGE_CONFLICT` 事件含 `conflicts` 列表） | ❌ |
 | `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents、error 清空）、reject→READY（reason 回写 error、retry_count 重置），优先委托 dispatcher，fallback 走 store 原子 CAS 流转 + 统一 action（task_completed/task_rejected）+ 完成/驳回通知补发（emit_task_rejected）；非 IN_REVIEW 幂等 no-op | ✅ |
+| `retry_ops.py` | ✅ 核心 | FAILED 任务人工重试编排：委托 dispatcher.retry_task（harness 单一实现：重置预算 + CAS FAILED→READY + `RETRYING` 事件 + emit/wake），无 dispatcher 时直接调用 harness `retry_failed_task` 并补发 `task_retrying` SSE；非 FAILED 幂等 no-op（返回当前状态），任务不存在返回 None | ✅ |
 | `race_orchestrator.py` | ✅ 核心 | 赛马编排：1 task→N lane 子任务扇出（`parent_task_id` 分组，各绑智能体/`model_override`，继承分支+`completion_criteria`，`require_approval=True`）；槽位门禁（N≤`max_concurrent_tasks`）+成本确认门禁（`estimate_race_cost` 走 runs 聚合，260 前 interim）；`pick_race_winner` 走 approve 合并 winner、ARCHIVED 归档 loser（分支保留）、无分支父任务 COMPLETED 无 git 副作用；`RACE_STARTED`/`RACE_DECIDED` 审计事件 | ✅ |
 | `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
 | `board_summary.py` | ✅ 核心 | `build_board_summary`（含 `stale_running_count`） | ❌ |

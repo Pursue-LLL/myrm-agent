@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { getWebuiUrl } from '@/lib/api';
+
 interface OgData {
   title?: string;
   description?: string;
@@ -23,7 +25,9 @@ export function OgCard({ url }: { url: string }) {
     let cancelled = false;
     const fetchOg = async () => {
       try {
-        const resp = await fetch(`/api/webui/og-metadata?url=${encodeURIComponent(url)}`);
+        const resp = await fetch(getWebuiUrl(`/og-metadata?url=${encodeURIComponent(url)}`), {
+          credentials: 'include',
+        });
         if (!resp.ok) {
           setFailed(true);
           return;

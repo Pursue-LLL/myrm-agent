@@ -14,6 +14,8 @@ import { mutate as mutateSwr } from 'swr';
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
+import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
+import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
 import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
 import {
   notifyBackgroundTasksChangedForShellJobFinish,
@@ -39,10 +41,8 @@ const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'subagents_updated',
   'teammate_message',
   'cron_updated',
-  'skill_ab_test_updated',
   'budget_updated',
   'channel_status_updated',
-  'skill_quality_updated',
   'skill_pool_updated',
   'goal:branch_switched',
 ]);
@@ -211,14 +211,7 @@ export function useGlobalEvents(): void {
         const status = String(payload.data.status ?? '');
 
         if (status === 'AUTO_APPLIED') {
-          pushToast.success(t('skillGrowthAutoApplied', { name }), {
-            duration: 8_000,
-            dismissible: true,
-            action: {
-              label: t('openSkillGrowth'),
-              onClick: openSkillGrowth,
-            },
-          });
+          showSkillLearnedToast(name, { t, pushToast, openSkillGrowth });
         } else if (status === 'FAILED_SCAN') {
           pushToast.error(t('skillGrowthFailedScan', { name }), {
             duration: 10_000,
@@ -252,44 +245,8 @@ export function useGlobalEvents(): void {
       } else if (payload.type === 'skill_evolved') {
         const skillName = String(payload.data.skill_name ?? '');
         const evolutionType = String(payload.data.evolution_type ?? 'new');
-        const description = String(payload.data.description ?? '');
-        const evolutionId = String(payload.data.evolution_id ?? '');
 
-        const doRollback = async () => {
-          if (!evolutionId) {
-            return;
-          }
-          try {
-            const res = await fetch(`/api/v1/evolution/history/${evolutionId}/rollback`, { method: 'POST' });
-            if (!res.ok) {
-              throw new Error('Rollback failed');
-            }
-            pushToast.success(t('rollbackSuccess', { name: skillName }));
-          } catch {
-            pushToast.error(t('rollbackFailed', { name: skillName }));
-          }
-        };
-
-        pushToast.success(
-          evolutionType === 'new'
-            ? t('skillEvolvedNew', { name: skillName })
-            : t('skillEvolvedPatch', { name: skillName }),
-          {
-            description,
-            duration: 8_000,
-            dismissible: true,
-            action: {
-              label: t('openSkillGrowth'),
-              onClick: openSkillGrowth,
-            },
-            cancel: evolutionId
-              ? {
-                  label: t('undoEvolve') || 'Undo',
-                  onClick: doRollback,
-                }
-              : undefined,
-          },
-        );
+        showSkillEvolvedToast(payload.data, { t, pushToast, openSkillGrowth });
         window.dispatchEvent(
           new CustomEvent('skill-evolved', {
             detail: { skill_name: skillName, evolution_type: evolutionType },
@@ -353,38 +310,9 @@ export function useGlobalEvents(): void {
         showLocatorHealedToast(payload.data);
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'mcp_auth_required') {
-        const serverName = String(payload.data.server_name ?? 'MCP');
-        const toastId = `mcp-auth-${serverName}`;
-        pushToast.warning(t('mcpAuthRequired', { server: serverName }), {
-          id: toastId,
-          duration: 30_000,
-          dismissible: true,
-          action: {
-            label: t('reauthorize'),
-            onClick: () => {
-              pushToast.dismiss(toastId);
-              router.push('/settings/extensions');
-            },
-          },
-        });
-        notifyIfLeader(t('mcpAuthRequired', { server: serverName }));
+        showMcpAuthRequiredToast(payload.data, { t, router, toast: pushToast, notifyIfLeader });
       } else if (payload.type === 'oauth_reauth_required') {
-        const issuer = String(payload.data.issuer ?? 'OAuth');
-        const reason = String(payload.data.reason ?? '');
-        const toastId = `oauth-reauth-${issuer}`;
-        pushToast.warning(t('oauthReauthRequired', { issuer, reason }), {
-          id: toastId,
-          duration: 30_000,
-          dismissible: true,
-          action: {
-            label: t('reauthorize'),
-            onClick: () => {
-              pushToast.dismiss(toastId);
-              router.push('/settings/integrationCatalog');
-            },
-          },
-        });
-        notifyIfLeader(t('oauthReauthRequired', { issuer, reason }));
+        showOAuthReauthRequiredToast(payload.data, { t, router, toast: pushToast, notifyIfLeader });
       } else if (PASSTHROUGH_EVENTS.has(payload.type)) {
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'workspace_file_changed') {
@@ -402,27 +330,23 @@ export function useGlobalEvents(): void {
         const fixSuggestion = payload.data.fix_suggestion ? String(payload.data.fix_suggestion) : undefined;
         const layer = String(payload.data.layer ?? 'system');
 
-        const title = `${component} Failed`;
-
         if (status === 'fail') {
-          pushToast.error(t('healthAlertFail', { component, layer }) || title, {
-            description: `${message}${fixSuggestion ? `\nTip: ${fixSuggestion}` : ''}`,
+          pushToast.error(t('healthAlertFail', { component, layer }), {
+            description: `${message}${fixSuggestion ? `\n${t('healthAlertTip', { tip: fixSuggestion })}` : ''}`,
             duration: 15_000,
             dismissible: true,
             action: {
-              label: t('viewHealthDashboard') || 'View Dashboard',
+              label: t('viewHealthDashboard'),
               onClick: () => router.push('/settings/system'),
             },
           });
-          notifyIfLeader(t('healthAlertFail', { component, layer }) || title, message, () =>
-            router.push('/settings/system'),
-          );
+          notifyIfLeader(t('healthAlertFail', { component, layer }), message, () => router.push('/settings/system'));
         }
       } else if (payload.type === 'budget_alert') {
         const budgetStatus = String(payload.data.status ?? 'warning');
-        const pct = typeof payload.data.pct === 'number' ? payload.data.pct : 0;
         const remaining = typeof payload.data.remaining === 'number' ? payload.data.remaining : 0;
         const dimension = String(payload.data.dimension ?? '');
+        const remainingText = t('budgetRemaining', { dimension, remaining: remaining.toFixed(4) });
 
         if (budgetStatus === 'exceeded') {
           if (dimension === 'work_units') {
@@ -431,28 +355,23 @@ export function useGlobalEvents(): void {
             useBudgetExceededStore.getState().show(Math.round(required), Math.round(limit));
             void mutateSwr((key) => Array.isArray(key) && key[0] === 'cp-entitlements');
           } else {
-            pushToast.error(t('budgetExceeded') || 'Budget exceeded', {
-              description: `${dimension} — $${remaining.toFixed(4)} remaining`,
+            pushToast.error(t('budgetExceeded'), {
+              description: remainingText,
               duration: 15_000,
               dismissible: true,
             });
-            notifyIfLeader(
-              t('budgetExceeded') || 'Budget exceeded',
-              `${dimension} — $${remaining.toFixed(4)} remaining`,
-            );
+            notifyIfLeader(t('budgetExceeded'), remainingText);
           }
         } else if (budgetStatus === 'finalization') {
-          pushToast.warning(t('budgetFinalization') || 'Budget nearly exhausted — finalizing', {
-            description: `${dimension} — $${remaining.toFixed(4)} remaining`,
+          pushToast.warning(t('budgetFinalization'), {
+            description: remainingText,
             duration: 12_000,
             dismissible: true,
           });
         } else {
           const ecoActive = payload.data.eco_mode === true;
-          pushToast.warning(t('budgetWarning') || `Budget ${pct.toFixed(0)}% used`, {
-            description: ecoActive
-              ? `${dimension} — $${remaining.toFixed(4)} remaining\n${t('ecoModeActive') || 'Eco mode: compressing context to save tokens'}`
-              : `${dimension} — $${remaining.toFixed(4)} remaining`,
+          pushToast.warning(t('budgetWarning'), {
+            description: ecoActive ? `${remainingText}\n${t('ecoModeActive')}` : remainingText,
             duration: 10_000,
             dismissible: true,
           });
@@ -528,7 +447,6 @@ export function useGlobalEvents(): void {
         window.dispatchEvent(new CustomEvent('extension-status-changed', { detail: payload.data }));
       } else if (payload.type === 'subagent_stale') {
         const taskId = String(payload.data.task_id ?? '');
-        const agentType = String(payload.data.agent_type ?? 'subagent');
         const staleDuration =
           typeof payload.data.stale_duration_seconds === 'number' ? payload.data.stale_duration_seconds : 0;
         const wastedTokens = typeof payload.data.wasted_tokens === 'number' ? payload.data.wasted_tokens : 0;
@@ -538,15 +456,12 @@ export function useGlobalEvents(): void {
             useSubagentStore.getState().markStale(taskId, staleDuration, wastedTokens);
           });
         }
-        pushToast.warning(t('subagentStale') || `Subagent stalled: ${agentType}`, {
-          description: `${t('noProgressFor') || 'No progress for'} ${durationMin}min · ${wastedTokens.toLocaleString()} tokens`,
+        pushToast.warning(t('subagentStale'), {
+          description: t('subagentStaleDescription', { minutes: durationMin, tokens: wastedTokens }),
           duration: 15_000,
           dismissible: true,
         });
-        notifyIfLeader(
-          t('subagentStale') || `Subagent stalled: ${agentType}`,
-          `${durationMin}min · ${wastedTokens.toLocaleString()} tokens`,
-        );
+        notifyIfLeader(t('subagentStale'), t('subagentStaleStats', { minutes: durationMin, tokens: wastedTokens }));
       } else if (payload.type === 'subagent_rebind_required') {
         pushToast.info(t('subagentRebindRequired'), {
           duration: 10_000,
@@ -556,7 +471,7 @@ export function useGlobalEvents(): void {
         const action = String(payload.data.action ?? 'updated');
         if (agentId && (action === 'updated' || action === 'rollback' || action === 'force_push')) {
           if (action === 'rollback') {
-            pushToast.success(t('rollbackSuccess') || 'Successfully rolled back agent profile.');
+            pushToast.success(t('agentProfileRollbackSuccess'));
           } else if (action === 'force_push') {
             pushToast.info(t('forcePushReceived'), {
               description: t('forcePushRollbackHint'),

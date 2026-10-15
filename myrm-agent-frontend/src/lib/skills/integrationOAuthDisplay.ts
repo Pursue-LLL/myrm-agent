@@ -4,11 +4,26 @@ export const GOOGLE_WORKSPACE_SKILL_ID = 'google-workspace';
 export const X_LIVE_SEARCH_SKILL_ID = 'x-live-search';
 export const XURL_SKILL_ID = 'xurl';
 
-export const SETTINGS_GOOGLE_OAUTH_PATH = '/settings/credentials';
+export const SETTINGS_CREDENTIALS_PATH = '/settings/credentials';
 export const SETTINGS_PROVIDERS_PATH = '/settings/models';
 export const SETTINGS_DEFAULT_MODEL_PATH = '/settings/defaultModel';
 export const SETTINGS_AGENTS_LOADOUT_PATH = '/settings/agents#loadout';
 export const SETTINGS_SKILLS_PATH = '/settings/skills';
+
+/** Issuer ids whose brand spelling differs from the title-cased id. */
+const OAUTH_ISSUER_BRAND_LABELS: ReadonlyMap<string, string> = new Map([['xai', 'xAI']]);
+
+/** Reader-facing name of an OAuth account: `google_workspace` -> `Google Workspace`, `xai` -> `xAI`. */
+export function formatOAuthIssuerLabel(issuer: string): string {
+  return (
+    OAUTH_ISSUER_BRAND_LABELS.get(issuer) ??
+    issuer
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  );
+}
 
 type SkillsCardTranslator = (
   key:
@@ -66,10 +81,10 @@ export function getIntegrationSkillSettingsPath(skill: Skill): string {
     return SETTINGS_AGENTS_LOADOUT_PATH;
   }
   if (skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0 && !skill.available) {
-    return SETTINGS_GOOGLE_OAUTH_PATH;
+    return SETTINGS_CREDENTIALS_PATH;
   }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
-    return SETTINGS_GOOGLE_OAUTH_PATH;
+    return SETTINGS_CREDENTIALS_PATH;
   }
   if (isXLiveSearchUnavailable(skill)) {
     return SETTINGS_PROVIDERS_PATH;

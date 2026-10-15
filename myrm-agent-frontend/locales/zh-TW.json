@@ -204,7 +204,11 @@
     "bundleCategoryOther": "其他資產",
     "bundleExportSelected": "導出選中 ({count})",
     "bundleSelectAll": "全選",
-    "bundleClearSelection": "清空選擇"
+    "bundleClearSelection": "清空選擇",
+    "subgoalAddFailed": "新增子目標失敗",
+    "subgoalAddNetworkError": "網路錯誤：新增子目標失敗",
+    "subgoalRemoveFailed": "移除子目標失敗",
+    "subgoalRemoveNetworkError": "網路錯誤：移除子目標失敗"
   },
   "commands": {
     "palette": {
@@ -222,7 +226,7 @@
     "builtin": {
       "export": "匯出對話或複製 Markdown（支援 HTML/MD/JSON/ZIP）",
       "compact": "壓縮對話上下文以節省 Token",
-      "focus": "清除聊天曆史但保留沙箱環境（節省 Token）",
+      "focus": "清除聊天歷史但保留沙箱環境（節省 Token）",
       "yolo": "切換 YOLO 模式 – 自動審批所有工具執行",
       "freeze": "緊急停止 – 凍結所有工具執行",
       "compactToast": "手動壓縮會清除 Prompt Cache。系統會在 Token 使用量達 90% 時自動壓縮。",
@@ -230,9 +234,9 @@
       "compacted": "已壓縮 {messageCount} 條訊息，節省約 {tokensSaved} tokens",
       "nothingToCompact": "無需壓縮",
       "compactionFailed": "壓縮失敗",
-      "focusFlushing": "正在清除聊天曆史...",
-      "focusSuccess": "聊天曆史已清除，沙箱環境已保留。",
-      "focusFailed": "清除聊天曆史失敗",
+      "focusFlushing": "正在清除聊天歷史...",
+      "focusSuccess": "聊天歷史已清除，沙箱環境已保留。",
+      "focusFailed": "清除聊天歷史失敗",
       "noActiveChat": "沒有活躍的對話",
       "yoloEnabled": "YOLO 模式已開啟{timeout} – 所有工具自動審批",
       "yoloDisabled": "YOLO 模式已關閉 – 恢復審批提示",
@@ -317,7 +321,6 @@
     "usageAnalytics": "統計分析",
     "totalCalls": "呼叫次數",
     "totalTokens": "Token",
-    "batchOptimization": "批次最佳化",
     "research": "研究工作臺",
     "wikiKnowledgeBase": "知識庫"
   },
@@ -944,7 +947,8 @@
       },
       "turn1BudgetWarning": "預估 Turn1 schema（約 {tokens} tokens）超出直接綁定預算（{budget}）。請減少已選 endpoint，否則 Agent 無法使用這些 API 工具。",
       "turn1BudgetServiceWarning": "該服務已選 endpoint 可能超出 Turn1 綁定預算。請減少選擇，避免 Agent 啟動失敗。",
-      "atLeastOneEndpoint": "必須至少保留一個端點。"
+      "atLeastOneEndpoint": "必須至少保留一個端點。",
+      "presetAdded": "已新增 {name} 連接器"
     },
     "sharedContexts": {
       "targetLabel": "智能體",
@@ -1213,7 +1217,8 @@
         "equippedCountSuffix": "已裝配",
         "pureInstructionNotice": "未裝配技能 · 純指令模式",
         "emptyExplanation": "當前未勾選裝配任何技能。該智能體將以純語言模型指令模式運行；可點擊上方「全選」或在下方勾選裝配所需技能。"
-      }
+      },
+      "forcePushSummary": "v{version} → 已同步 {synced}，已略過 {skipped}，失敗 {failed}（共 {total}）"
     },
     "validation": {
       "dependencyInvalid": "智慧體配置存在問題",
@@ -1543,7 +1548,7 @@
       "delete": "刪除",
       "deleteConfirm": "確認刪除此FAQ條目？",
       "import": "批量導入",
-      "importDesc": "從JSON導入FAQ條目。格式：[{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "從JSON導入FAQ條目。格式：['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "導入",
       "importSuccess": "已導入 {count} 個條目",
       "importFailed": "導入失敗",
@@ -1849,6 +1854,22 @@
         "absolute_path": "本機檔案路徑",
         "unknown": "敏感資訊"
       }
+    },
+    "errorTitle": "錯誤",
+    "unknownError": "未知錯誤",
+    "apiErrorDetails": "詳情",
+    "apiErrorTraceId": "追蹤 ID",
+    "clipboard": {
+      "copied": "已複製到剪貼簿",
+      "copyFailed": "複製失敗，請檢查剪貼簿權限",
+      "readBlocked": "讀取剪貼簿已被拒絕，請在設定中更改",
+      "readRefused": "已拒絕讀取剪貼簿",
+      "readFailed": "讀取剪貼簿失敗，請檢查權限",
+      "readPermissionTitle": "剪貼簿權限請求",
+      "readPermissionPrompt": "應用程式請求讀取您的剪貼簿內容，是否允許？",
+      "readPermissionRemember": "允許後將不再提示。",
+      "readPermissionAllow": "允許",
+      "readPermissionDeny": "拒絕"
     }
   },
   "chat": {
@@ -1933,7 +1954,8 @@
       "privacy": "憑證安全",
       "redacted": "自動去識別化",
       "importAnother": "匯入其他對話",
-      "resumeNow": "立即前往續聊"
+      "resumeNow": "立即前往續聊",
+      "importFailed": "匯入失敗"
     },
     "placeholder": "有問題儘管問我......",
     "uploading": "上傳中...",
@@ -2273,10 +2295,8 @@
     "subscriptionQuickConnect": "已有訂閱？一鍵接入",
     "subscriptionModalTitle": "一鍵接入官方付費訂閱",
     "subscriptionModalDesc": "透過官方設備碼安全直連，無需購買和配置 API Key，憑證本地安全加密存儲。",
-    "subscriptionCopilot": "GitHub Copilot 訂閱",
-    "subscriptionOpenai": "ChatGPT Plus / Pro 訂閱",
     "subscriptionXai": "xAI SuperGrok 訂閱",
-    "subscriptionClaude": "Claude Pro / Max 訂閱",
+    "subscriptionXaiSummary": "Grok 系列模型，無需 API Key",
     "subscriptionConnectBtn": "連接",
     "subscriptionDeviceCodeHint": "請在瀏覽器中打開驗證鏈接並輸入設備碼：",
     "subscriptionCopyCode": "複製設備碼",
@@ -2284,6 +2304,10 @@
     "subscriptionOpenAuth": "打開授權頁面",
     "subscriptionWaiting": "等待授權完成...",
     "subscriptionConnected": "授權成功！已自動啟用並設為預設模型",
+    "subscriptionFailedStart": "啟動授權失敗，請重試",
+    "subscriptionFailedExpired": "授權已過期，請重試",
+    "subscriptionFailedDenied": "授權遭拒絕，請重試",
+    "subscriptionFailedTimeout": "授權逾時，請重試",
     "subscriptionNotice": "訂閱授權基於廠商官方 OAuth 協議。如遇到官方配額限制，可隨時在設定中切換為 API Key。",
     "agentReady": "{agentName} 準備就緒",
     "related": "相關的",
@@ -2308,14 +2332,16 @@
     "previewLinks": "連結預覽",
     "regenerate": "重新生成",
     "regenerate_try_again": "重試",
-    "regenerate_frontier": "使用更強模型重試",
     "regenerate_concise": "更簡潔",
     "regenerate_detailed": "更詳細",
     "regenerate_creative": "更有創意",
     "regenerate_custom": "自定義指令...",
     "regenerate_custom_placeholder": "告訴 AI 如何回答...",
     "regenerate_submit": "重新生成",
-    "undo": "撤銷",
+    "regenerate_options": "重新生成選項",
+    "attachment_download": "下載",
+    "attachment_document": "{type} 文件",
+    "attachment_document_generic": "文件",
     "copiedSuccessfully": "已複製",
     "linkDetected": "你想使用外部資源嗎？",
     "linkDetectedDescription": "使用@符號來引用外部資源，否則視為普通文字，是否為你新增？",
@@ -2450,7 +2476,7 @@
       "routingReasonKeywordStandard": "匹配標準業務程式設計與通用任務特徵",
       "routingReasonSpecialtyCode": "匹配程式碼重構與專精開發策略",
       "routingReasonSpecialtyLongDoc": "匹配長文件與海量上下文解析策略",
-      "routingReasonComplaintUp": "響應用戶更強模型重試，已自動升檔算力",
+      "routingReasonComplaintUp": "響應用戶重試，已自動升檔算力",
       "routingReasonMomentum": "繼承前序對話深度分析上下文",
       "routingReasonLlmJudge": "已自動評估任務複雜度",
       "routingReasonJudgeUnavailable": "複雜度評估暫不可用，已使用標準模型",
@@ -3063,7 +3089,7 @@
     },
     "personalClosedLoop": {
       "badge": "三位一體閉環",
-      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "title": "個人工作流閉環：待辦 · 日誌 · 週報",
       "desc": "以看板待辦為輸入源，沉澱每日日誌事實，自動聚合生成高質量結構化週報，實現個人精細化閉環交付。",
       "step1Title": "待辦拆解",
       "step1Desc": "Kanban 看板任務梳理與階段跟蹤",
@@ -3207,8 +3233,6 @@
       "level": "層",
       "runAffectedTests": "執行 {count} 個受影響測試套件"
     },
-    "subscriptionPkceNotice": "{providerName} 授權頁面已在新分頁開啟。請在完成登入與授權後返回本頁面。",
-    "subscriptionPkceReopen": "重新打開授權頁面",
     "modelPlaybook": {
       "chipTitle": "模型編排戰略手冊",
       "chipBadge": "推薦策略",
@@ -3355,7 +3379,62 @@
       "skillsTools": "業務技能與內建工具",
       "disabled": "已關閉",
       "totalBaseline": "初始基線底噪總計"
-    }
+    },
+    "modelPricing": {
+      "title": "算力單價與 Prompt Cache 透視",
+      "sourceBadge": "權威即時資料",
+      "loading": "載入單價矩陣中...",
+      "supportsCache": "支援 Prompt Cache",
+      "inputPrice": "輸入單價",
+      "outputPrice": "輸出單價",
+      "cacheReadPrice": "Cache 命中讀取單價",
+      "savings": "立省",
+      "compareTitle": "主流模型單價比較（$ / 1M tokens）",
+      "inPrice": "入：{price}",
+      "outPrice": "出：{price}",
+      "footnote": "所有計價均依底層供應商的官方標價即時換算，零加價。"
+    },
+    "preferenceRadar": {
+      "ariaLabel": "偏好擬合雷達看板",
+      "title": "線上偏好擬合雷達",
+      "subtitle": "連續重力衰減與多維權重微調",
+      "lockedTitle": "已鎖定：AI 自動擬合暫停",
+      "unlockedTitle": "未鎖定：AI 根據對話回饋自適應微調",
+      "lockedLabel": "已鎖定",
+      "adaptiveLabel": "自適應中",
+      "modeManual": "手動固定模式",
+      "modeDynamic": "動態學習模式",
+      "resetBaseline": "重設基準 (1.0x)",
+      "summaryBalanced": "偏好均衡：各維度均衡召回，通用協作",
+      "summaryFocused": "偏好聚焦：強化「{first} ({firstValue}x)」與「{second} ({secondValue}x)」",
+      "presetBalanced": "平衡通用",
+      "presetCode": "程式實戰",
+      "presetResearch": "調研推演",
+      "dimensionRecency": "時效脈衝",
+      "dimensionRecencyHint": "最新事件／日內解析度",
+      "dimensionActionability": "程式實作",
+      "dimensionActionabilityHint": "可執行腳本／實作步驟",
+      "dimensionDepth": "架構深度",
+      "dimensionDepthHint": "底層原理／演進根因",
+      "dimensionConciseness": "精煉表達",
+      "dimensionConcisenessHint": "直擊要害／杜絕套話",
+      "dimensionBreadth": "全景視野",
+      "dimensionBreadthHint": "全局宏觀／生態對比"
+    },
+    "focusFlush": {
+      "ariaLabel": "專注模式",
+      "tooltip": "專注模式（清除聊天歷史但保留沙箱）",
+      "dialogTitle": "專注對話（清除歷史）",
+      "dialogQuestion": "確定要清除本次對話的歷史記錄嗎？",
+      "dialogDetail": "這將為 Agent 提供全新的上下文並<cost>節省 Token 成本</cost>，但<keep>沙箱環境、檔案與已安裝的套件將完整保留</keep>。",
+      "confirm": "清除歷史"
+    },
+    "folderDrop": {
+      "grantFailed": "授予目錄存取權限失敗：{path}"
+    },
+    "cacheResetNotice": "快取已重設：{reason}{tokens, plural, =0 {} other {，約 #k token 未命中快取}}",
+    "pdfParsedPages": "[PDF] {fileName}：已解析 {parsed}/{total} 頁",
+    "pdfImageOptimized": "[PDF] 解析最佳化：已擷取 {kept} 張核心圖像（攔截 {dropped} 張視覺雜訊）"
   },
   "mode": {
     "fast": "快速搜尋",
@@ -3620,10 +3699,6 @@
         "title": "關於 MyrmAgent",
         "description": "檢視關於應用的資訊"
       },
-      "skillQuality": {
-        "title": "技能質量",
-        "description": "技能質量監控與管理"
-      },
       "evolutionRejection": {
         "title": "技能成長審計",
         "description": "檢視技能成長鏈路中的拒絕、鎖定和安全失敗等負向結果。"
@@ -3631,10 +3706,6 @@
       "toolStability": {
         "title": "工具穩定性",
         "description": "監控和管理工具執行的穩定性與可靠性"
-      },
-      "toolQuality": {
-        "title": "執行質量",
-        "description": "監控和分析技能和工具的執行質量與穩定性"
       },
       "memory": {
         "title": "記憶管理中心",
@@ -3659,6 +3730,18 @@
       "brand-studio": {
         "title": "品牌風格",
         "description": "定義你的品牌形象——配色、字體、語氣與規則。你的 AI 會在為你建立的所有內容中遵循它。"
+      },
+      "workbench": {
+        "title": "我的工作臺",
+        "description": "彙整工作空間累積的記憶、知識庫、技能、規則與排程任務等核心資產"
+      },
+      "shares": {
+        "title": "分享連結",
+        "description": "管理唯讀 Artifact 分享連結。撤銷連結可立即阻斷公網訪問。"
+      },
+      "a2aPeers": {
+        "title": "A2A 遠端節點",
+        "description": "註冊並管理支援 A2A 協定的可信遠端智慧體"
       }
     }
   },
@@ -3694,8 +3777,9 @@
         "isolated": "孤立節點",
         "bridge": "橋接紐帶",
         "locate": "定位",
+        "refresh": "重新整理",
         "cohesion": "內聚度",
-        "members": "個概念"
+        "communitySize": "{count, plural, other {# 個概念}}"
       },
       "deselectAll": "切換全部",
       "legend": "節點類型",
@@ -4140,7 +4224,20 @@
       "copyRaw": "複製原始 JSON",
       "copied": "已複製",
       "close": "關閉"
-    }
+    },
+    "skillManageRollbackDescription": "此步驟修改了一個或多個技能。可撤銷整批修改並恢復修改前的內容。",
+    "skillManageRollbackConfirmTitle": "撤銷技能修改？",
+    "skillManageRollbackConfirmDescription": "將把本批次涉及的所有技能恢復為 Agent 修改前的內容。此處無法再次撤銷該操作。",
+    "skillManageRollbackConfirmAction": "恢復修改前內容",
+    "skillManageRollbackButton": "撤銷技能修改",
+    "skillManageRollbackSubmitting": "正在恢復…",
+    "skillManageRollbackDone": "已撤銷修改",
+    "skillManageRollbackSuccess": "已將 {count} 個技能恢復為修改前的內容。",
+    "skillManageRollbackFailed": "無法撤銷此次技能修改，請重試或在技能設置中回滾版本。",
+    "skillManageRollbackCompensationFailed": "撤銷未能安全完成。請打開 設置 → 技能 → 歷史 核對版本，必要時手動回滾。",
+    "skillManageRollbackAlreadyConsumed": "該批次已撤銷或鏈接已失效。若仍需更早版本，請前往「設置 → 技能 → 歷史」。",
+    "skillManageUndoHintBody": "助手在本條回覆中修改了技能。展開下方「任務步驟」可撤銷這些修改並恢復之前的內容。",
+    "skillManageUndoHintAction": "打開任務步驟"
   },
   "memory": {
     "mesh": {
@@ -4602,9 +4699,9 @@
       },
       "runtimeTitle": "執行狀態",
       "deployMode": "部署模式",
-      "storageMode": "儲存",
       "vectorStatus": "向量索引",
       "vectorPersistence": "向量儲存持久化",
+      "vectorPersistenceHint": "記憶目前運作於暫存模式。請確認沒有其他 Myrm 視窗或程式正在使用同一個資料夾，且該資料夾可寫入，然後重新啟動。",
       "embeddingStatus": "嵌入模型",
       "controlPlaneStatus": "控制平面",
       "eventLedgerStatus": "事件賬本",
@@ -4702,7 +4799,7 @@
           "layer2CadenceLabel": "Layer 2 辯證檢查 Cadence",
           "conflictPatrol": "衝突巡檢",
           "dialecticDepthLabel": "辯證深度 / 算力",
-          "passDepthLevel": "Pass {depth} · {level}",
+          "passDepthLevel": "第 {depth} 輪 · {level}",
           "refreshTelemetryAria": "重新整理遙測",
           "resetCadenceAria": "重置會話 Cadence 計數器"
         }
@@ -5240,6 +5337,9 @@
         "files": "個檔案",
         "noCommits": "未偵測到近期的 Commit 歷史",
         "gitUnavailable": "目前工作區未偵測到 Git 倉庫"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "確定刪除結論「{id}」？"
       }
     },
     "createDialog": {
@@ -5864,9 +5964,7 @@
         "title": "治理策略",
         "description": "此共享上下文的治理規則。",
         "correctionAutoApprove": "糾錯自動傳播",
-        "correctionAutoApproveHint": "當 Agent 被糾正時，糾錯內容將自動寫入此共享上下文，讓所有繫結的 Agent 同步學習。",
-        "goalCompletionAutoApprove": "Goal 完成自動歸檔",
-        "goalCompletionAutoApproveHint": "當 Goal 完成時，Planner 記錄的架構決策將自動寫入此共享上下文，供團隊 Agent 複用。"
+        "correctionAutoApproveHint": "當 Agent 被糾正時，糾錯內容將自動寫入此共享上下文，讓所有繫結的 Agent 同步學習。"
       },
       "proposals": {
         "title": "提案收件箱",
@@ -5874,8 +5972,7 @@
         "contentPlaceholder": "寫入一條可長期複用的共享記憶候選...",
         "create": "建立提案",
         "empty": "暫無提案",
-        "correctionTag": "糾錯",
-        "goalCompletionTag": "Goal 完成"
+        "correctionTag": "糾錯"
       },
       "proposalStatus": {
         "pending": "待審批",
@@ -5967,7 +6064,15 @@
     "extractionReason": "提取依據",
     "validPermanent": "長期有效",
     "manualReviewRequired": "需人工確認 · 永不自動覆蓋",
-    "sourceEvidence": "依據發言"
+    "sourceEvidence": "依據發言",
+    "selectMemory": "選取這則記憶",
+    "shareRules": {
+      "loadFailed": "載入規則失敗",
+      "selectAtLeastOne": "請至少選擇一條規則",
+      "exported": "已成功匯出 {count} 條規則",
+      "exportFailed": "匯出失敗",
+      "copied": "已複製 {count} 條規則到剪貼簿"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -6554,6 +6659,16 @@
       "download": "下載產物",
       "exportZip": "一鍵打包匯出 ZIP",
       "emptyDesc": "在與智慧體對話中產生的交付物與檔案將自動沉澱於此處"
+    },
+    "architecture": {
+      "jsonCopied": "JSON 已複製",
+      "jsonCopiedDesc": "架構 IR 已複製到剪貼簿",
+      "copyFailed": "複製失敗",
+      "exportFailed": "匯出失敗",
+      "viewportNotFound": "找不到畫布視口元素",
+      "exportSuccess": "匯出成功",
+      "svgExported": "架構圖已匯出為獨立 SVG",
+      "pngExported": "架構圖已匯出為高解析度 PNG"
     }
   },
   "MessageSources": {
@@ -7072,7 +7187,6 @@
     "createReminderHint": "到點直接推送此訊息，不呼叫 AI 模型。",
     "chatLinkedTasks": "{count} 個定時",
     "chatLinkedTasksTooltip": "檢視繫結此對話的定時任務",
-    "suggestionsLink": "排程建議",
     "filteredByChat": "僅顯示對話 {chatId}… 關聯的任務",
     "scriptLabel": "Python 指令碼",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('異常!' if r.status_code != 200 else '')",
@@ -7451,7 +7565,7 @@
     "triggerWebhookCurl": "cURL 示例",
     "triggerWebhookAdd": "新增 Webhook",
     "triggerEventLabel": "事件觸發器",
-    "triggerEventDesc": "當收到的訊息匹配正規表示式時觸發任務",
+    "triggerEventDesc": "當收到的訊息匹配正規表示式時觸發任務。訪問策略會忽略的訊息（例如來自未繫結賬號，或位於未啟用群聊中）不會觸發。",
     "triggerEventPattern": "匹配規則（正則）",
     "triggerEventPatternInvalid": "正規表示式無效",
     "triggerEventChannel": "頻道（可選）",
@@ -7703,17 +7817,21 @@
     "taskDeleted": "任務已刪除",
     "addError": "新增任務失敗",
     "moveError": "移動任務失敗",
+    "moveBlocked": "該任務不能移到該狀態",
     "promoteSuccess": "任務已提升至就緒",
     "promoteError": "提升任務失敗",
     "promoteUnmetDeps": "存在未滿足的依賴 — 是否強制提升？",
     "promoteForce": "強制提升",
     "deleteError": "刪除任務失敗",
+    "archiveConfirmTitle": "歸檔此任務？",
+    "archiveConfirmDesc": "「{title}」\n任務將從看板中移除，且無法還原。",
     "bulkSelected": "已選 {count} 項",
     "bulkArchive": "歸檔",
     "bulkMove": "移動到",
     "bulkReassign": "重新分配",
     "bulkDelete": "刪除",
     "bulkDeleteConfirm": "確認刪除 {count} 個任務？",
+    "bulkArchiveConfirm": "確認歸檔 {count} 個任務？",
     "bulkSuccess": "{count} 個任務已更新",
     "bulkPartialSuccess": "{succeeded} 個成功, {failed} 個失敗",
     "bulkClearSelection": "取消選擇",
@@ -7726,11 +7844,16 @@
     "dropHere": "拖放到這裡",
     "reclaimTitle": "回收執行中的任務",
     "reclaimDesc": "這將立即停止正在執行此任務的智慧體，並將任務重置為就緒狀態。",
-    "reclaimConfirm": "回收",
+    "reclaimAction": "回收",
     "reclaimReasonPlaceholder": "原因（可選）",
     "reclaimReassignLabel": "重新分配給智慧體（可選）",
     "reclaimSuccess": "任務已成功回收",
     "reclaimFailed": "回收任務失敗",
+    "retryAction": "重試",
+    "retryTitle": "重試此任務？",
+    "retryDesc": "任務將回到就緒狀態並重新執行。先前的嘗試會保留在歷史記錄中，智慧體也能看到它們。失敗後已經繼續推進的下游任務不會重新執行。再次執行會消耗模型額度。",
+    "retrySuccess": "任務已重新排入佇列",
+    "retryError": "重試任務失敗",
     "replanTitle": "DAG 規劃修訂審查",
     "replanDescription": "審查對任務依賴圖提出的修改。所有變更將在提交時進行無環性驗證並單事務原子生效。",
     "replanAdded": "待新增任務",
@@ -8060,7 +8183,10 @@
       "actionDispatching": "排隊等待空閒執行器派發",
       "actionBacklog": "排定優先順序並安排執行",
       "actionDone": "任務已成功執行完畢"
-    }
+    },
+    "cardActions": "任務操作",
+    "deleteConfirmTitle": "刪除此任務？",
+    "deleteConfirmDesc": "「{title}」\n任務及其執行記錄將被永久刪除。正在等待它的任務，若沒有其他依賴未完成，會變為就緒狀態並可能自動開始執行。"
   },
   "channels": {
     "sectionTitle": "訊息通道",
@@ -8110,7 +8236,9 @@
       "clearConfirm": "確定清空該渠道的所有背景上下文記錄嗎？此操作不可撤銷（符合 GDPR 遺忘權）。",
       "clearedSuccess": "已成功清除歷史明細",
       "clearing": "清除中...",
-      "refresh": "重新整理統計"
+      "refresh": "重新整理統計",
+      "deletedCount": "已刪除 {count} 則訊息",
+      "clearFailed": "清空渠道記錄失敗"
     },
     "groupsTitle": "群組管理",
     "groupsDesc": "選擇機器人應在哪些群組中響應。未選中的群組將被忽略。",
@@ -9514,7 +9642,62 @@
     "humanAttentionTitle": "需要你處理",
     "humanAttentionView": "前往處理",
     "humanAttentionMultiple": "{count} 項待你確認",
-    "humanAttentionKindClarify": "澄清問題"
+    "humanAttentionKindClarify": "澄清問題",
+    "riskConfirmation": {
+      "tierHighRisk": "Level 3 · 高風險操作（強制確認）",
+      "tierWrite": "Level 2 · 狀態寫入（支援預演）",
+      "tierRead": "Level 1 · 唯讀操作（自動放行）",
+      "targetLabel": "目標物件：",
+      "riskReasonsTitle": "風險警示與潛在影響",
+      "editingParamsTitle": "修改執行參數（JSON）",
+      "paramsSummaryTitle": "參數摘要",
+      "editParams": "修改參數",
+      "noParams": "無輸入參數",
+      "invalidJson": "JSON 格式無效",
+      "dryRunResultTitle": "預演模擬結果",
+      "rejectReasonPlaceholder": "選填：輸入拒絕理由...",
+      "dryRun": "預演",
+      "confirmationToken": "權杖：{token}...",
+      "reject": "終止打回",
+      "confirmReject": "確認打回",
+      "applyEditsAndRun": "修改參數並執行",
+      "authorizeAndRun": "授權並執行",
+      "continueRun": "繼續執行",
+      "approved": "已放行"
+    },
+    "maskedCredentials": {
+      "title": "臨時憑證與單次使用閘門",
+      "badgeZeroDisk": "不寫入磁碟 / 自動清除",
+      "revoke": "撤銷",
+      "description": "將敏感憑證（如資料庫密碼、OAuth 權杖）直接傳遞給沙箱中的處理程序。金鑰僅停留在暫存記憶體中，不會寫入磁碟，也不會暴露給 LLM 上下文或聊天記錄。",
+      "stagedReady": "憑證已暫存，可供執行",
+      "singleUseBadge": "單次使用",
+      "suggested": "建議：",
+      "credentialIndex": "憑證 #{index}",
+      "keyLabel": "變數名稱（如 DB_PASS）",
+      "secretLabel": "金鑰值（已遮罩）",
+      "showSecret": "顯示金鑰",
+      "hideSecret": "隱藏金鑰",
+      "removeCredential": "移除憑證",
+      "ttlLabel": "有效期限：",
+      "ttl30": "30 秒",
+      "ttl60": "60 秒（預設）",
+      "ttl120": "2 分鐘",
+      "ttl300": "5 分鐘",
+      "singleUseEnforced": "已強制單次使用票證",
+      "addRow": "再新增一個變數",
+      "stage": "暫存遮罩憑證",
+      "staging": "正在保護...",
+      "keyErrorEmpty": "變數名稱不可為空",
+      "keyErrorFormat": "變數名稱只能包含大寫字母、數字與底線",
+      "keyErrorBlocked": "「{key}」是受保護的系統環境變數，已被攔截",
+      "toastNoCredential": "請至少填寫一筆包含變數名稱與金鑰的憑證。",
+      "toastStaged": "憑證已安全遮罩並暫存，僅供單次執行使用。",
+      "toastStageFailed": "暫存憑證失敗：{message}",
+      "toastCleared": "已清除暫存憑證。",
+      "errorUnknown": "未知錯誤",
+      "errorServerStatus": "伺服器回應狀態 {status}"
+    }
   },
   "notifications": {
     "title": "系統通知",
@@ -9531,20 +9714,21 @@
     "newSkillDraft": "新的技能成長案例已生成：{name}",
     "reviewDraft": "立即檢視",
     "messageDeadLettered": "傳送到 {channel} 的訊息已永久失敗，原因：{reason}",
-    "skillGrowthAutoApplied": "「{name}」已自動落地",
     "skillGrowthFailedScan": "「{name}」未透過預檢安全掃描",
     "skillGrowthBlockedLocked": "「{name}」受進化鎖保護，需要人工稽核",
     "openSkillGrowth": "開啟技能成長",
     "skillEvolvedNew": "Agent 學會了新技能：{name}",
     "skillEvolvedPatch": "Agent 最佳化了技能：{name}",
-    "undoEvolve": "撤銷 (Undo)",
+    "undoEvolve": "撤銷",
     "rollbackSuccess": "已成功撤銷並恢復：{name}",
     "rollbackFailed": "撤銷失敗，請重試",
+    "skillGrowthUndone": "已歸檔「{name}」，可隨時在技能列表中恢復",
+    "skillGrowthUndoBlocked": "「{name}」已被固定，或正被智慧體、定時任務使用，無法歸檔。請先解除固定或繫結",
+    "skillGrowthUndoFailed": "歸檔「{name}」失敗，請重試",
     "forcePushReceived": "智慧體配置已被組織更新",
     "forcePushRollbackHint": "快照已儲存，可在智慧體設定中回滾。",
     "subagentRebindRequired": "子 Agent 繫結已變更。請開啟新對話以使用更新後的委派工具。",
     "subagentStale": "子 Agent 停滯",
-    "noProgressFor": "無進展已",
     "viewAgent": "檢視",
     "approvalRequired": "Agent 需要審批授權：{actionType}",
     "approvalsRecovered": "已恢復 {count} 條待審批項",
@@ -9602,7 +9786,12 @@
     "mcpAuthRequired": "{server} 需要重新授權",
     "oauthReauthRequired": "{issuer} 授權已過期，請重新授權以恢復訪問。",
     "reauthorize": "立即授權",
-    "budgetFinalization": "預算即將耗盡 — 正在收尾"
+    "budgetFinalization": "預算即將耗盡 — 正在收尾",
+    "healthAlertTip": "提示：{tip}",
+    "budgetRemaining": "{dimension} — 剩餘 ${remaining}",
+    "subagentStaleDescription": "已 {minutes} 分鐘無進展 · {tokens, number} tokens",
+    "subagentStaleStats": "{minutes} 分鐘 · {tokens, number} tokens",
+    "agentProfileRollbackSuccess": "已成功回滾智慧體配置。"
   },
   "configConflict": {
     "title": "配置衝突檢測",
@@ -10085,32 +10274,6 @@
       "pre_rollback": "復原前"
     }
   },
-  "SkillOptimization": {
-    "qualityScore": "質量評分",
-    "successRate": "成功率",
-    "tokenEfficiency": "Token效率",
-    "executionTime": "執行時間",
-    "userSatisfaction": "使用者滿意度",
-    "callFrequency": "呼叫頻率",
-    "loading": "載入中...",
-    "noData": "暫無資料",
-    "overallScore": "綜合評分",
-    "baselineVersion": "基線版本",
-    "optimizedVersion": "最佳化版本",
-    "successRateDelta": "成功率變化",
-    "tokenEfficiencyDelta": "Token效率變化",
-    "executionTimeDelta": "執行時間變化",
-    "activeSkills": "活躍技能數",
-    "totalCalls": "總呼叫次數",
-    "avgSuccessRate": "平均成功率",
-    "avgExecutionTime": "平均執行時間",
-    "recommendedToOptimize": "推薦最佳化技能",
-    "optimizeAll": "一鍵最佳化全部",
-    "priorityScore": "優先順序得分",
-    "optimize": "最佳化",
-    "optimizing": "最佳化中...",
-    "noRecommendations": "暫無推薦最佳化技能"
-  },
   "Agent": {
     "list": {
       "title": "我的智慧體",
@@ -10391,14 +10554,14 @@
       "status": {
         "PENDING_REVIEW": "待稽核",
         "AUTO_APPLIED": "已自動應用",
-        "FAILED_SCAN": "安全掃描失敗",
+        "FAILED_SCAN": "檢查未通過",
         "BLOCKED_LOCKED": "被鎖定攔截",
         "APPROVED": "已批准",
         "REJECTED": "已拒絕",
         "APPLY_FAILED": "應用失敗",
         "pendingReview": "待稽核",
         "autoApplied": "已自動應用",
-        "failedScan": "安全掃描失敗",
+        "failedScan": "檢查未通過",
         "blockedLocked": "被鎖定攔截",
         "approved": "已批准",
         "rejected": "已拒絕",
@@ -10415,88 +10578,6 @@
     "btnFixing": "正在提權修復...",
     "btnSuccess": "修復成功",
     "btnFix": "一鍵授權修復"
-  },
-  "messageFilter": {
-    "settings": {
-      "title": "訊息過濾",
-      "description": "配置訊息過濾規則和 PII 檢測設定。",
-      "enabled": "啟用過濾",
-      "piiMode": "PII 檢測模式",
-      "piiModeOff": "關閉",
-      "piiModeRedact": "脫敏",
-      "piiModeBlock": "攔截",
-      "whitelistApiKeys": "API Key 白名單",
-      "whitelistPlaceholder": "輸入 API Keys（逗號分隔）",
-      "auditEnabled": "啟用審計日誌",
-      "save": "儲存配置",
-      "saved": "配置儲存成功",
-      "saveFailed": "配置儲存失敗"
-    },
-    "audit": {
-      "title": "審計日誌",
-      "description": "檢視訊息過濾審計日誌，用於安全監控。",
-      "userId": "使用者 ID",
-      "filterType": "過濾器型別",
-      "action": "操作",
-      "reason": "原因",
-      "timestamp": "時間戳",
-      "noLogs": "暫無審計日誌",
-      "refresh": "重新整理",
-      "export": "匯出日誌"
-    },
-    "stats": {
-      "title": "過濾統計",
-      "description": "檢視效能指標和過濾統計資料。",
-      "totalEvents": "總事件數",
-      "eventsByAction": "按操作統計",
-      "eventsByFilter": "按過濾器統計",
-      "averageTime": "平均處理時間",
-      "slowestFilter": "最慢過濾器",
-      "refresh": "重新整理統計"
-    },
-    "rules": {
-      "title": "過濾規則",
-      "description": "管理自定義過濾規則。",
-      "add": "新增規則",
-      "edit": "編輯規則",
-      "delete": "刪除規則",
-      "name": "規則名稱",
-      "patternType": "模式型別",
-      "pattern": "匹配模式",
-      "action": "操作",
-      "enabled": "啟用",
-      "priority": "優先順序",
-      "save": "儲存規則",
-      "cancel": "取消",
-      "confirmDelete": "確定要刪除此規則嗎？"
-    },
-    "templates": {
-      "title": "規則模板",
-      "description": "快速應用預設過濾規則。",
-      "apply": "應用模板",
-      "applied": "模板應用成功",
-      "applyFailed": "模板應用失敗"
-    },
-    "version": {
-      "title": "版本歷史",
-      "description": "檢視和回滾配置變更歷史。",
-      "version": "版本",
-      "updatedBy": "更新人",
-      "updatedAt": "更新時間",
-      "rollback": "回滾",
-      "confirmRollback": "確定要回滾到版本 {version} 嗎？",
-      "rolledBack": "已回滾到版本 {version}",
-      "rollbackFailed": "回滾失敗"
-    },
-    "messageBox": {
-      "filtered": "此訊息已被安全策略過濾",
-      "reason": "原因：{reason}",
-      "consensusMetaTitle": "多模型共識推理",
-      "consensusMetaModels": "{succeeded}/{total} 個模型參與",
-      "consensusMetaAggregator": "聚合模型: {model}",
-      "consensusMetaElapsed": "總耗時: {seconds}s",
-      "consensusActive": "等待其餘模型響應中…"
-    }
   },
   "multiPane": {
     "title": "工作臺",
@@ -10571,12 +10652,23 @@
       "retentionHealth": "記憶質量",
       "coherence": "一致性"
     },
+    "growthTypes": {
+      "skill_draft": "新技能",
+      "skill_patch": "技能更新",
+      "semantic_memory": "記憶",
+      "fix": "技能修復",
+      "derived": "技能最佳化",
+      "captured": "沉澱技能",
+      "slice_extraction": "任務提煉",
+      "optimize_description": "描述最佳化",
+      "other": "其他"
+    },
     "skillEvents": {
       "title": "技能成長時間線",
       "empty": "暫無成長事件",
       "pendingReview": "待稽核",
       "autoApplied": "已自動應用",
-      "failedScan": "掃描失敗",
+      "failedScan": "檢查未通過",
       "blockedLocked": "鎖定攔截",
       "approved": "已批准",
       "rejected": "已拒絕",
@@ -10616,27 +10708,27 @@
     "skillHealth": {
       "title": "技能健康度（7天）",
       "description": "基於近期技能調用的複利健康評分。",
-      "empty": "暫無技能調用記錄。",
+      "empty": "近 7 天沒有技能運行。",
       "calls7d": "7天 {count} 次調用",
       "callsTotal": "累計 {count} 次",
       "successRate": "成功率 {rate}%",
       "filterAll": "全部",
       "filterAttention": "待治理",
       "filterHealthy": "健康與標星",
-      "noAttentionNeeded": "當前暫無需要治理的風險或沉睡技能",
+      "noAttentionNeeded": "當前暫無需要治理的風險技能",
       "recommendationPrefix": "治理建議:",
       "manageSkill": "去管理",
       "showMore": "展開全部 ({count})",
       "showLess": "收起",
-      "recStar": "高複利明星資產，團隊零摩擦高頻複用",
-      "recAtRisk": "高風險資產，檢測到失敗/重試率較高，建議檢查 Prompt 與參數",
+      "recStar": "明星資產：有明確結果的調用幾乎都成功",
+      "recAtRisk": "風險資產：有明確結果的調用失敗較多，建議檢查 Prompt 與參數",
       "recHealthy": "健康運行資產，處於活躍輪轉中",
-      "recStale": "長期閒置資產，建議排查是否過時或補齊使用示例",
+      "recUnproven": "有明確結果的運行還不夠：目前 {observed}/{required} 次。只有單獨使用該技能並調用過工具的運行才有明確結果。",
       "status": {
         "STAR": "標星",
         "HEALTHY": "健康",
         "AT_RISK": "風險",
-        "STALE": "沉睡"
+        "UNPROVEN": "待驗證"
       }
     },
     "learningTimeline": {
@@ -10711,6 +10803,7 @@
       "title": "閉環學習五環狀態中心",
       "subtitle": "全域自進化閉環拓撲與健康可觀測看板",
       "healthScore": "閉環健康度",
+      "refresh": "重新整理",
       "optimal": "極佳運轉",
       "warning": "需要關注",
       "degraded": "存在退化",
@@ -10765,10 +10858,11 @@
     "skillTrends": {
       "title": "技能使用趨勢",
       "description": "追蹤技能的使用效率如何隨時間演進。",
-      "empty": "暫無技能使用資料，技能被使用後會自動展示趨勢。",
+      "empty": "所選時間範圍內沒有技能被使用，技能被使用後會自動展示趨勢。",
+      "observedRuns": "有明確結果 {count} 次",
+      "truncated": "該技能只保留了最近一批運行記錄，所選範圍內更早的運行可能未在圖中顯示。",
       "metric": {
         "success_rate": "成功率",
-        "avg_duration_ms": "平均耗時",
         "call_count": "使用次數"
       }
     },
@@ -10843,40 +10937,6 @@
       "cache": "快取節省",
       "routing": "路由節省",
       "totalCost": "實際花費"
-    },
-    "manifestPredictions": {
-      "title": "清單預測與歸因",
-      "description": "基準測試評估預測效能變化與實際執行指標對比",
-      "evaluating": "正在評估...",
-      "evaluateNow": "立即評估基準",
-      "manifestId": "清單 ID",
-      "targetComponent": "目標元件",
-      "recommendedAction": "建議操作",
-      "rationale": "依據理由",
-      "metricsTitle": "預測與實際指標對比",
-      "confidence": "信賴度",
-      "metricName": "指標名稱",
-      "baseline": "基準線",
-      "predictedTarget": "預測目標",
-      "actualValue": "實際值",
-      "delta": "變化量",
-      "verdict": "判定結果",
-      "explanation": "說明",
-      "hideRollbackPatch": "隱藏回滾補丁",
-      "viewRollbackPatch": "檢視回滾補丁",
-      "rollbackSuccess": "回滾補丁已成功套用。",
-      "rollbackFailed": "回滾技能演進失敗。",
-      "verdicts": {
-        "confirmed": "已確認",
-        "regression": "退化",
-        "refuted": "未達預期",
-        "inconclusive": "待確定"
-      },
-      "actions": {
-        "keep": "保留",
-        "rollback": "回滾",
-        "re_evaluate": "重新評估"
-      }
     }
   },
   "subagentDashboard": {
@@ -10991,7 +11051,82 @@
       "yielded": "已讓出",
       "interrupted": "已中斷",
       "checkpoint": "檢查點"
-    }
+    },
+    "detailFallbackAgentType": "子任務",
+    "detailNoDescription": "未提供描述",
+    "detailDuration": "耗時",
+    "detailTokens": "Token",
+    "detailCost": "成本",
+    "detailModelInherited": "繼承",
+    "detailTabOverview": "概覽",
+    "detailTabJournal": "執行日誌（{count}）",
+    "detailTabTools": "工具（{count}）",
+    "detailTabMessages": "訊息（{count}）",
+    "detailTabReplay": "回放",
+    "detailTabViewport": "視口",
+    "detailHandoverTitle": "結構化交接與證據",
+    "detailHandoverBadge": "交接紀錄",
+    "detailExecutiveSummary": "摘要",
+    "detailKeyFindings": "關鍵發現與證據（{count}）",
+    "detailArtifacts": "工件",
+    "detailCitations": "引用與文件",
+    "detailCopy": "複製",
+    "detailCopiedArtifactPath": "工件路徑已複製到剪貼簿",
+    "detailCopiedCitationUrl": "引用連結已複製到剪貼簿",
+    "detailCopiedTaskDescription": "任務描述已複製到剪貼簿",
+    "detailCompletedChecklist": "已完成清單",
+    "detailErrorDiagnostic": "錯誤診斷",
+    "detailVerificationPassed": "獨立驗證：已通過",
+    "detailVerificationFailed": "獨立驗證：未通過",
+    "detailVerificationRounds": "輪次：{rounds}/{maxRounds}",
+    "detailTaskSpec": "任務說明與提示詞",
+    "detailMetadata": "中繼資料與治理",
+    "detailTaskId": "任務 ID",
+    "detailParentTaskId": "父任務 ID",
+    "detailRootTask": "根任務",
+    "detailRoleScope": "角色 / 範圍",
+    "detailStandardLeaf": "標準葉子",
+    "detailProgress": "進度狀態",
+    "detailJournalEmpty": "暫無執行日誌記錄。",
+    "detailToolsEmpty": "暫無工具執行記錄。",
+    "detailToolCall": "工具呼叫 #{index}",
+    "detailMessagesEmpty": "暫無隊友訊息往來。",
+    "detailReplayStep": "步驟回放（{current}/{total}）",
+    "detailReplayKind": "類型：{kind}",
+    "detailReplayDuration": "耗時：{ms}ms",
+    "detailReplayEmpty": "沒有可回放的步驟。",
+    "viewportEmptyTitle": "純文字/程式碼任務視口",
+    "viewportEmptyDescription": "目前子任務為純文字或程式碼任務，尚未產生獨立的沙箱瀏覽器快照。",
+    "viewportOpenDesktop": "開啟沙箱圖形桌面窺視",
+    "viewportSwitchingToast": "正在切換至沙箱圖形桌面",
+    "viewportUrlCopied": "URL 已複製",
+    "viewportLive": "即時",
+    "viewportSnapshot": "快照",
+    "viewportCopyUrl": "複製 URL",
+    "viewportOpenInNewTab": "在新分頁開啟",
+    "viewportFallbackTitle": "沙箱瀏覽器視口",
+    "viewportRestoreSize": "還原尺寸",
+    "viewportFullscreen": "全螢幕縮放",
+    "viewportZoomOut": "縮小",
+    "viewportZoomIn": "放大",
+    "viewportTakeover": "接管控制",
+    "viewportExitZoom": "結束放大",
+    "viewportPreviewAlt": "子任務視口預覽",
+    "insightsAnomalyStalled": "已停滯 {seconds} 秒，無工具或 token 進展",
+    "insightsAnomalySlow": "已執行 {duration} 秒，超過 {type} 平均耗時 {average} 秒的 2 倍",
+    "insightsAnomalyAborted": "已被預算或逾時保護中止",
+    "insightsAdviceStalled": "部分子任務似乎已停滯。可以透過引導縮小任務範圍，或直接取消。",
+    "insightsAdviceVerification": "{count, plural, =1 {# 個任務未通過獨立驗證。請先查看驗證發現，再完成彙總。} other {# 個任務未通過獨立驗證。請先查看驗證發現，再完成彙總。}}",
+    "insightsAdviceFanOut": "並行子任務較多（超過 {limit} 個）。請確保最終彙總步驟會合併各路輸出，避免上下文溢出。",
+    "insightsEmpty": "暫無可用於洞察的子任務資料。",
+    "insightsAdviceTitle": "最佳化建議",
+    "insightsAnomaliesTitle": "異常與離群項（{count}）",
+    "insightsAnomaliesEmpty": "所有子任務的耗時與 token 用量均在正常基線內。",
+    "insightsTypePerformance": "依類型的效能基線",
+    "insightsSpawned": "已啟動 {count} 個",
+    "insightsAvgDuration": "平均耗時",
+    "insightsTotalTokens": "Token 總量",
+    "insightsTotalCost": "總成本"
   },
   "trajectoryDiff": {
     "title": "跨會話執行軌跡對比 (Cross-Session Trajectory Diff)",
@@ -11406,7 +11541,8 @@
       "description": "基於評測失敗軌跡的確定性特徵歸因，消融實證表明：擴展工具/中間件防護對任務成功率的提升收益遠大於單純調試提示詞（Tools/Middleware ≫ Prompt）。建議優先按下方建議順序優化 Harness 配置。",
       "affectsCases": "關聯 {count} 個未通過用例",
       "quickConfig": "直達配置"
-    }
+    },
+    "skillAbStartFailed": "啟動技能 A/B 測試失敗"
   },
   "vault": {
     "title": "解鎖安全金庫",
@@ -11628,15 +11764,24 @@
   },
   "Catchup": {
     "inboxTitle": "會話追趕簡報",
-    "loading": "載入中...",
+    "openInbox": "會話追趕簡報，{count} 項待處理",
+    "close": "關閉",
     "allCaughtUp": "您已處理完所有簡報！",
+    "untitledChat": "未命名會話",
     "statusCompleted": "已完成",
     "statusWaiting": "等待審批",
     "statusError": "發生錯誤",
     "statusRunning": "後臺執行中",
+    "statusStopped": "已停止",
     "youAsked": "您的要求：",
+    "latestReply": "最新回覆",
+    "needsApproval": "正在等待您審批後繼續。",
+    "needsError": "因出錯已停止。",
+    "needsQuestion": "向您提出了問題。",
     "filesChanged": "修改的檔案",
+    "moreFiles": "另有 {count} 個",
     "toolsUsed": "使用的工具",
+    "toolCalls": "{count} 次工具呼叫",
     "markAsRead": "忽略",
     "viewChat": "檢視會話"
   },
@@ -11856,7 +12001,6 @@
       "toolsConnect": {
         "pageTitle": "連接你的日常工具",
         "pageDescription": "讓助手直接訪問你每天使用的服務，隨時可在設置中添加更多。",
-        "connected": "已連接",
         "connectButton": "連接",
         "moreHint": "30+ 集成服務可在 設置 → 集成 中配置",
         "continueButton": "繼續",
@@ -12182,9 +12326,9 @@
     "mcpTlsHint": "對於 mTLS：提供客戶端證書以及可選的分開密鑰。路徑支援 ~ 展開。",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 參照儲存在 Agent Secrets 中的密鑰。",
+    "mcpHeadersHint": "使用 '{{secret:KEY_NAME}}' 參照儲存在 Agent Secrets 中的密鑰。",
     "mcpHeaderKeyPlaceholder": "請求頭名稱（例如 Authorization）",
-    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "配置已儲存",
     "mcpSecretRefSaveHintDesc": "請求頭中的密鑰引用將在運行時解析。",
@@ -12338,7 +12482,7 @@
       "folderGate": {
         "title": "是否信任此資料夾？",
         "description": "該資料夾可能包含會在本機執行的技能、規則與本地工具。關聯前請先選擇信任程度",
-        "loading": "Scanning folder…",
+        "loading": "正在掃描資料夾…",
         "loadFailed": "無法掃描該資料夾，請重試或選擇其他路徑",
         "decideFailed": "無法儲存您的選擇，請重試",
         "disclosureTitle": "在此資料夾中發現",
@@ -12351,6 +12495,10 @@
         "restrict": "不信任並關聯",
         "trust": "信任並關聯"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "已信任此工作區，擴充功能與工具已完全啟用。",
+      "trustFailed": "信任工作區失敗"
     }
   },
   "milestone": {
@@ -12437,7 +12585,7 @@
       },
       "secure": {
         "title": "安全與隱私",
-        "description": "Supports end-to-end encryption and local deployment — your data is fully under your control"
+        "description": "支援端對端加密與本機部署 — 您的資料完全由您掌控"
       },
       "extensible": {
         "title": "高度可擴展",
@@ -12445,7 +12593,7 @@
       },
       "opensource": {
         "title": "核心產品開源",
-        "description": "Server, Frontend, Desktop are open-source, community-driven, continuously iterated — contributions welcome"
+        "description": "服務端、前端、桌面端皆已開源，社群驅動、持續迭代 — 歡迎貢獻"
       }
     },
     "changelog": {
@@ -12489,7 +12637,7 @@
       "title": "許可證與版權",
       "type": "MIT 許可證（核心產品）",
       "description": "本倉庫中的 Server、Frontend 與 Desktop 均以 MIT 許可證發布。",
-      "copyright": "© {year} MyrmAgent. All rights reserved."
+      "copyright": "© {year} MyrmAgent. 保留所有權利。"
     }
   },
   "budget": {
@@ -12498,9 +12646,9 @@
     "save": "儲存",
     "todaySpend": "今日支出",
     "sessionSpend": "會話支出",
-    "statusWarning": "Approaching budget limit — agent has been notified",
-    "statusFinalization": "Budget nearly exhausted — agent will conclude response",
-    "statusExceeded": "Budget exceeded — execution blocked",
+    "statusWarning": "接近預算上限 — 智慧體已收到提醒",
+    "statusFinalization": "預算即將耗盡 — 智慧體將結束回覆",
+    "statusExceeded": "預算已超限 — 執行被阻止",
     "ecoModeHint": "已啟用省電模式：優化上下文壓縮以節省 Token",
     "criticalPauseActive": "已觸發審批暫停",
     "autoDowngradedActive": "已平滑降級至經濟模型",
@@ -12813,7 +12961,7 @@
       "speed": "播放速度",
       "scrubber": "時間線滑塊",
       "errorMarker": "錯誤",
-      "keyboardHint": "Space: play/pause · ←/→: step frame",
+      "keyboardHint": "空白鍵：播放/暫停 · ←/→：逐格",
       "running": "執行中...",
       "latestTool": "最新工具：{name}",
       "result": "結果",
@@ -13080,22 +13228,6 @@
     "slideCounter": "第 {current} / {total} 頁",
     "speakerNotes": "演講者備註",
     "noSpeakerNotes": "暫無備註"
-  },
-  "vibrancy": {
-    "triggerAriaLabel": "桌面原生毛玻璃與流體微動效設定",
-    "triggerTooltip": "按 ⌥⌘V 或點選調節桌面原生毛玻璃與流體微動效",
-    "panelTitle": "原生材質與微互動調諧",
-    "platformTag": "{platform} 原生材質",
-    "quickToggleAriaLabel": "快速切換毛玻璃開關",
-    "styleLabel": "視窗磨砂與透明材質風格",
-    "styleMica": "Win11 雲母 (Mica)",
-    "styleAcrylic": "亞克力磨砂 (Acrylic)",
-    "styleVibrantDark": "macOS 暗黑毛玻璃",
-    "styleUltraThin": "超透晶體 (Ultra Thin)",
-    "styleDisabled": "實色不透明 (已關閉)",
-    "statusDisabled": "實色",
-    "intensityLabel": "模糊深度與飽和度",
-    "platformHint": "在 macOS / Windows 11 下啟用系統原生半透明材質透射；Web 端自適應平滑降級。"
   },
   "spreadsheet": {
     "viewerTitle": "出版級高顏值電子表格看板",
@@ -13456,17 +13588,6 @@
       "sandbox": "沙箱執行"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "活躍對話覆蓋層",
-    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
-    "rollbackTooltip": "回滾此對話覆蓋層",
-    "rollback": "回滾",
-    "collapse": "收起",
-    "expand": "展開",
-    "howItWorks": "運行機制",
-    "howItWorksDesc": "對話覆蓋層提供零重置故障恢復，在指定輪次預算內自動生效並在到期後平滑撤出。",
-    "allActiveOverlays": "全部活躍覆蓋層 ({count})"
-  },
   "taskSpaces": {
     "title": "並行瀏覽器任務空間",
     "badgeRunning": "執行中",
@@ -13820,9 +13941,7 @@
       "mcp": "MCP",
       "skills": "技能管理",
       "compoundingPlaybook": "複利閉環",
-      "skillQuality": "技能質量",
       "toolStability": "工具穩定性",
-      "toolQuality": "執行質量",
       "evolutionPending": "技能成長",
       "evolutionRejection": "技能成長審計",
       "eval": "能力評估",
@@ -13871,7 +13990,8 @@
         "knowledge": "知識與資料",
         "integration": "通訊與整合",
         "system": "系統與安全"
-      }
+      },
+      "brand-studio": "品牌風格"
     },
     "workbench": {
       "badge": "資產留存 & 平台中立",
@@ -13915,6 +14035,7 @@
         "subtitle": "打破專有閉源生態綁定。無需擔心供應商鎖定，一切資產透明可控、隨取隨走。",
         "exportConfig": "匯出工作區配置",
         "exportMemory": "備份記憶資產",
+        "exportTakeout": "匯出全部個人資料",
         "points": {
           "decouplingTitle": "模型與資產解耦",
           "decouplingDesc": "隨時無縫熱切換 Claude、DeepSeek、GPT、Gemini 等任意大模型，歷史資產與技能 100% 保持連續可用。",
@@ -13943,12 +14064,23 @@
       "tabDescriptions": {
         "followUps": "檢視並管理從對話中自動提取的隱式跟進事項，可忽略或延後",
         "migration": "掃描 Hermes、OpenClaw、Claude Code、Codex — 預覽匯入；技能需稽核；MCP 與渠道需手動配置",
-        "teamHub": "共享上下文、Wiki、技能與記憶 — 團隊配置一屏入口"
+        "teamHub": "共享上下文、Wiki、技能與記憶 — 團隊配置一屏入口",
+        "explorer": "管理智慧體的長期記憶、事實、經歷及跨智慧體共享上下文",
+        "backup": "建立系統記憶的安全備份，隨時還原或進行快照版本控管",
+        "cloudBackup": "將備份自動同步至雲端儲存（WebDAV/S3），確保跨裝置資料安全"
       },
       "migrationUnavailable": {
         "title": "助手匯入僅支援本地與桌面版",
         "description": "SaaS 雲沙箱無法訪問你電腦上的 Hermes、OpenClaw、Claude Code、Codex 等目錄。請下載 Tauri 桌面版或使用 Local WebUI 後，在設定→記憶→遷移中使用嚮導。",
         "downloadCta": "前往下載頁面"
+      },
+      "monitor": {
+        "profilingStarted": "記憶體剖析已啟動，系統可能出現輕微額外開銷。",
+        "profilingStartFailed": "啟動記憶體剖析失敗",
+        "profilingStartNetworkError": "啟動記憶體剖析時網路出錯",
+        "profilingStopped": "記憶體剖析已停止，結果已就緒。",
+        "profilingStopFailed": "停止記憶體剖析失敗",
+        "profilingStopNetworkError": "停止記憶體剖析時網路出錯"
       }
     },
     "commands": {
@@ -13985,7 +14117,6 @@
         "title": "使用提示",
         "usage": "在輸入框中輸入 / 觸發命令面板",
         "trigger": "在輸入框中輸入 / 觸發命令面板",
-        "variables": "模板支援變數：'{{input}}', '{{date}}', '{{time}}'",
         "examples": "示例：/translate 翻譯，/review 程式碼審查",
         "example": "示例：/translate 翻譯，/review 程式碼審查"
       },
@@ -14018,17 +14149,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "示例",
-          "translate": {
-            "name": "translate",
-            "template": "請將以下內容翻譯為英文：'{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "請審查此程式碼：'{{input}}'"
-          }
         },
         "actions": {
           "cancel": "取消",
@@ -14165,6 +14285,20 @@
         "probeRecommendedActionSwitchMode": "關閉並切換模式",
         "probeRecommendedActionRetryProbe": "重新檢測並連接",
         "learnMore": "了解更多"
+      },
+      "disabled": "已停用",
+      "manage": "管理",
+      "openWebsite": "開啟 {name} 官網",
+      "categories": {
+        "productivity": "效率工具",
+        "development": "開發工具",
+        "communication": "通訊協作",
+        "data_storage": "資料儲存",
+        "browser": "瀏覽器",
+        "web_search": "網頁搜尋",
+        "docs": "文件",
+        "design": "設計",
+        "api": "API 工具"
       }
     },
     "integrationMemory": {
@@ -14219,7 +14353,13 @@
       "endpointDesc": "將此 Base URL 用於任何 OpenAI 相容客戶端：",
       "docsTitle": "快速開始",
       "docsDesc": "使用你的 API 金鑰配合 OpenAI SDK 或任何相容客戶端。",
-      "createdAt": "建立時間"
+      "createdAt": "建立時間",
+      "loadFailed": "載入 API 金鑰失敗",
+      "createFailed": "建立 API 金鑰失敗",
+      "keyRevoked": "API 金鑰已撤銷",
+      "revokeFailed": "撤銷金鑰失敗",
+      "keyDeleted": "API 金鑰已刪除",
+      "deleteFailed": "刪除金鑰失敗"
     },
     "hosting": {
       "title": "託管目標",
@@ -14410,7 +14550,8 @@
         "installInProgress": "安裝中…",
         "installSuccess": "安裝成功",
         "installing": "正在安裝 {backend}",
-        "installingDesc": "可能需要幾分鐘。安裝記錄顯示在下方。"
+        "installingDesc": "可能需要幾分鐘。安裝記錄顯示在下方。",
+        "installFailed": "安裝失敗"
       },
       "showSystemMessages": "顯示系統訊息",
       "showSystemMessagesDesc": "在聊天中顯示 AI 的系統提示詞（System Prompts）",
@@ -14421,7 +14562,7 @@
         "refresh": "重新整理",
         "loading": "正在載入系統健康狀態…",
         "loadFailed": "載入系統健康狀態失敗",
-        "meta": "部署：{deploy} · 儲存：{storage} · Bundle：{bundle}",
+        "meta": "部署：{deploy} · Bundle：{bundle}",
         "warnings": "警告",
         "migrationPending": "待執行佈局遷移",
         "migrationCount": "需處理 {count} 項",
@@ -14451,8 +14592,7 @@
         "scenes": {
           "memory": "記憶",
           "workspace": "工作區",
-          "offload": "解除安裝",
-          "archive": "歸檔"
+          "offload": "解除安裝"
         }
       },
       "telemetry": {
@@ -14551,13 +14691,27 @@
         "rightsExporting": "正在準備匯出…",
         "rightsExportSuccess": "合規匯出已下載",
         "rightsExportFailed": "匯出失敗 — 請嘗試在記憶設定中匯出",
-        "rightsManageMemory": "管理記憶與刪除"
+        "rightsManageMemory": "管理記憶與刪除",
+        "eraseTitle": "清空全部會話",
+        "eraseDesc": "刪除所有會話及其產生的檔案。已儲存的記憶、智能體、API 金鑰與頻道設定會保留；待確認記憶與近期記憶活動會一併清空。需要副本請先匯出資料。",
+        "eraseButton": "清空會話",
+        "eraseConfirmTitle": "清空全部會話？",
+        "eraseConfirmDesc": "這會永久刪除所有會話及其產生的檔案，並清空待確認記憶與近期記憶活動，無法復原。\n已儲存的記憶、智能體、API 金鑰與頻道設定不受影響，含未儲存變更的工作區也會保留。",
+        "eraseConfirmAction": "清空會話",
+        "erasing": "正在清空…",
+        "eraseSuccess": "已清空 {count} 個會話",
+        "eraseKept": "{count} 個含未儲存變更的工作區已保留在你的專案資料夾中",
+        "eraseBusy": "有會話仍在執行。請先停止或等待完成，然後重試。",
+        "eraseFailed": "清空未能完成，請重試。"
       },
       "profile": {
         "title": "安全配置集",
         "description": "選擇預設的安全配置集或在下方自定義。",
         "loading": "正在載入配置集...",
-        "selectDefault": "選擇配置集"
+        "selectDefault": "選擇配置集",
+        "activated": "已啟用配置集：{name}",
+        "activateFailed": "啟用配置集失敗",
+        "loaded": "配置集已載入"
       },
       "modeAllow": "允許",
       "modeAsk": "需要審批",
@@ -14622,7 +14776,36 @@
         "actionPseudonymize": "偽匿名化",
         "actionRedact": "自動脫敏",
         "actionBlock": "攔截",
-        "pseudonymizeHint": "偽匿名化模式將個人資訊替換為帶語義標籤的佔位符後再傳送至雲端。AI 保留完整的語義理解能力，原始值在本地還原後呈現給使用者。零隱私洩露，零質量損失。",
+        "pseudonymizeHint": "偽匿名化會把敏感內容替換成佔位符再傳送：模型只看到佔位符，看不到真實內容，回覆裡的佔位符會在本機還原成原文。模型能分辨佔位符的類型，但無法就內容本身作答。",
+        "consequence": {
+          "warn": "不做隱藏：原文會原樣傳送給模型。",
+          "pseudonymize": "替換成佔位符後再傳送，回覆顯示給你時還原成原文。",
+          "redact": "遮罩後再傳送，模型看不到原文，之後也無法還原。",
+          "block": "你送出的訊息含這類內容時會被攔截，不會傳送；工具回傳的內容等則遮罩後再使用。"
+        },
+        "coverage": {
+          "title": "保護範圍",
+          "covered": "已涵蓋：你傳給模型的訊息、工具與網頁回傳的內容、寫入記憶的內容，以及標題、建議、摘要等背景模型呼叫。",
+          "notCovered": "未涵蓋：圖片與音訊本身；圖像與影片生成、語音朗讀、記憶與文件的檢索索引等不經過對話模型的功能。",
+          "matching": "辨識只看文字本身：簡稱、拼音、錯別字等換一種寫法的內容可能不會命中，可用上方的「試一試」確認。"
+        },
+        "tester": {
+          "title": "試一試",
+          "description": "輸入一句話，看看依目前設定，模型會收到什麼。",
+          "placeholder": "例如：幫我總結鳳凰計畫的預算超支原因",
+          "checking": "檢查中",
+          "levelNone": "沒有發現敏感內容，原文照常傳送。",
+          "levelS2": "辨識為敏感資訊",
+          "levelS3": "辨識為機密資訊",
+          "action": "處理方式：{action}",
+          "modelSees": "模型會收到",
+          "blocked": "這則訊息會被攔截，不會傳送給模型。",
+          "unchanged": "目前設定只提醒，原文會原樣傳送。",
+          "deepScanNote": "試一試不包含深度掃描。",
+          "failed": "暫時無法試用，請稍後再試。",
+          "ineffectiveTitle": "以下自訂模式暫時無法生效",
+          "ineffectiveHint": "它們的寫法有誤，目前不會遮蓋任何內容。請修改後重新新增，或直接刪除。"
+        },
         "deepScanLabel": "深度掃描（LLM 增強）",
         "deepScanDesc": "使用 LLM 檢測正則無法捕獲的非結構化隱私資訊（如病史、家庭關係、工作單位等）。可能增加延遲。",
         "routing": {
@@ -14635,7 +14818,7 @@
           "localApiKey": "本地模型 API Key",
           "localApiKeyPlaceholder": "不需要則留空",
           "s2Strategy": "S2（敏感）策略",
-          "s2CloudAfterRedact": "脫敏後上雲",
+          "s2CloudAfterRedact": "雲端模型",
           "s2Local": "僅本地",
           "s3Strategy": "S3（機密）策略",
           "s3Local": "僅本地",
@@ -14646,7 +14829,8 @@
           "testConnection": "測試",
           "testSuccess": "本地模型連線成功",
           "testFailed": "連線失敗",
-          "noLocalModelWarning": "已選擇本地路由策略但未配置本地模型，所有請求將回退到雲端處理。"
+          "noLocalModelWarning": "已選擇本地路由策略但未配置本地模型，所有請求將回退到雲端處理。",
+          "testSuccessLatency": "本地模型連線成功 ({latency}ms)"
         },
         "advanced": {
           "title": "高階 PII 配置",
@@ -14667,12 +14851,7 @@
           "toolsS2Desc": "觸發 S2 保護的工具呼叫。",
           "toolsS3Label": "S3 敏感工具",
           "toolsS3Desc": "觸發 S3 保護的工具呼叫。",
-          "invalidRegex": "無效的正規表示式",
-          "keywordTooShort": "關鍵詞至少需要 2 個字元",
-          "testMatch": "測試匹配",
-          "testMatchPlaceholder": "輸入文字測試自定義規則...",
-          "testMatchResult": "匹配：{level} — {patterns}",
-          "testMatchNoResult": "未匹配任何自定義規則"
+          "keywordTooShort": "關鍵詞至少需要 2 個字元"
         }
       },
       "domainAllowlist": {
@@ -14789,7 +14968,7 @@
         "description": "關聯專案工作區時您明確信任的資料夾。撤銷信任後，該資料夾內的本地技能、規則與 MCP 服務將被停用",
         "totalEntries": "共 {count} 個資料夾",
         "refresh": "重新整理",
-        "loading": "Loading…",
+        "loading": "載入中…",
         "empty": "暫無受信任資料夾",
         "loadError": "載入失敗",
         "revokeSuccess": "已撤銷信任",
@@ -14850,14 +15029,11 @@
         "displayName": "顯示名稱",
         "pattern": "正規表示式",
         "severity": "嚴重級別",
-        "action": "觸發動作",
         "category": "分類",
         "sortOrder": "排序",
         "severityLow": "低",
         "severityMedium": "中",
         "severityHigh": "高",
-        "actionAllow": "放行",
-        "actionBlock": "攔截",
         "categoryPersonal": "個人資訊",
         "categoryCompany": "公司內部",
         "categorySecurity": "安全憑證",
@@ -14892,10 +15068,12 @@
         "hits": "審計日誌",
         "hitsTitle": "風控命中記錄",
         "hitsEmpty": "暫無命中記錄",
+        "hitPosition": "第 {start}–{end} 個字元",
+        "hitTimedOut": "比對逾時，已視為命中",
+        "blockedTitle": "訊息已被風控規則攔截",
+        "blockedDescription": "命中規則：{rules}。如需放行，請在「設定 → 安全策略 → 風控規則」中關閉對應規則。",
         "hitsRuleName": "規則",
         "hitsSeverity": "級別",
-        "hitsAction": "動作",
-        "hitsMatch": "匹配內容",
         "hitsTime": "時間",
         "hitsUser": "使用者",
         "hitsTotal": "共 {count} 條記錄",
@@ -14908,6 +15086,8 @@
         "importSuccess": "成功匯入 {count} 條規則",
         "importError": "匯入失敗，請檢查檔案格式",
         "duplicateRule": "複製規則",
+        "duplicatedName": "{name}（副本）",
+        "actionError": "操作失敗，請重試",
         "rules": {
           "email_address": {
             "name": "郵箱地址",
@@ -14954,12 +15134,12 @@
             "desc": "檢測 JWT 格式的 Bearer Token"
           },
           "cookie_session_like": {
-            "name": "Cookie / Session 憑證",
-            "desc": "檢測 Session、Cookie 和 Authorization 相關內容"
+            "name": "工作階段 / 存取權杖",
+            "desc": "檢測帶有取值的工作階段 ID、存取或更新權杖和 Authorization 標頭"
           },
           "db_connection_string": {
             "name": "資料庫連線串",
-            "desc": "檢測資料庫、快取和佇列的連線字串"
+            "desc": "檢測內嵌密碼的資料庫、快取和訊息佇列連線字串"
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 配置",
@@ -14967,7 +15147,7 @@
           },
           "env_file_secret": {
             "name": "環境變數金鑰",
-            "desc": "檢測 env 檔案中的常見金鑰變數名"
+            "desc": "檢測 env 內容中被賦值的金鑰變數（如 SECRET_KEY）"
           },
           "private_ip": {
             "name": "內網 IP 地址",
@@ -15523,7 +15703,8 @@
         "agenticBadge": "64K Agentic 增強",
         "agenticTooltip": "自動產生的 64K 上下文 modelfile，滿足生產級工具呼叫與長期記憶需求",
         "keepAliveTipTitle": "全天候常駐與顯存釋放指南",
-        "keepAliveTipDesc": "將模型保留在顯存中以支援全天候後台機器人，或在重負載任務時釋放顯存。"
+        "keepAliveTipDesc": "將模型保留在顯存中以支援全天候後台機器人，或在重負載任務時釋放顯存。",
+        "downloadFailed": "下載失敗"
       },
       "importFromModelsDev": "從 models.dev 匯入",
       "getModels": "獲取模型",
@@ -15542,7 +15723,32 @@
       "connectionSuccess": "連線成功",
       "connectionFailed": "連線失敗",
       "vercelGatewaySpendHint": "在 Vercel AI Gateway 控制台追蹤開銷、限流與延遲",
-      "openVercelDashboard": "查看控制台"
+      "openVercelDashboard": "查看控制台",
+      "oauth": {
+        "title": "訂閱登入",
+        "connected": "已連線",
+        "noticeTitle": "SuperGrok 訂閱說明",
+        "noticeBody": "透過 SuperGrok 授權後，您可直接在 Myrm 中免 Key 使用 Grok 系列大型語言模型驅動 Agent 任務，並共用 X (Twitter) 即時搜尋與多模態能力。",
+        "deviceCodeHint": "請在瀏覽器中輸入以下驗證碼完成授權：",
+        "copyCode": "複製驗證碼",
+        "openVerificationPage": "開啟驗證頁面",
+        "waiting": "等待授權完成...",
+        "cancel": "取消",
+        "connectedWithApiKey": "已透過 SuperGrok 訂閱登入。優先使用 API Key，訂閱登入作為備選。",
+        "connectedWithQuota": "已透過 SuperGrok 訂閱登入，將使用訂閱額度進行 AI 呼叫。",
+        "disconnect": "斷開連線",
+        "loginPrompt": "使用 SuperGrok 訂閱登入，無需 API Key 即可使用 AI 模型。",
+        "loginButton": "使用 SuperGrok 訂閱登入",
+        "toast": {
+          "timeout": "授權逾時，請重試",
+          "connected": "SuperGrok 訂閱連線成功",
+          "expired": "授權已過期，請重試",
+          "denied": "授權遭拒絕，請重試",
+          "startFailed": "啟動授權失敗，請重試",
+          "disconnected": "已斷開 SuperGrok 訂閱登入",
+          "disconnectFailed": "斷開連線失敗"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "本地輕量模型在處理複雜 Agent 工具鏈時極易產生幻覺或陷入死迴圈。執行長任務建議使用 30B 以上規模模型或雲端高階模型（如 Claude 3.5 Sonnet）。",
@@ -15701,7 +15907,7 @@
         "embeddingModel": "嵌入模型",
         "embeddingModelDescription": "文字向量化模型，用於支援知識庫、記憶、網路搜尋等能力的語義搜尋",
         "dismiss": "忽略",
-        "orphanWarning": "檢測到 {{count}} 條舊記憶需要遷移到新模型",
+        "orphanWarning": "檢測到 {count} 條舊記憶需要遷移到新模型",
         "reindex": "遷移",
         "reindexing": "遷移中...",
         "rerankerModel": "重排序模型",
@@ -15956,7 +16162,13 @@
       "vaultDeleteDesc": "確定要刪除憑證「{label}」嗎？此操作不可撤銷。",
       "vaultEdit": "編輯",
       "tokenRequired": "需要權杖",
-      "xaiOauthTimeout": "授權逾時"
+      "xaiOauthTimeout": "授權逾時",
+      "xaiOauthConnectDesc": "點擊下方按鈕，在瀏覽器中授權您的 SuperGrok 帳號。授權後將自動連接。",
+      "xaiOauthCode": "驗證碼：",
+      "xaiOauthCodeHint": "請在瀏覽器中輸入此驗證碼完成授權...",
+      "xaiOauthReopen": "重新打開授權頁面",
+      "xaiOauthWaiting": "等待授權...",
+      "xaiOauthConnectBtn": "授權 SuperGrok"
     },
     "skillQuality": {
       "title": "技能質量管理",
@@ -16003,39 +16215,6 @@
       }
     },
     "skillOptimization": {
-      "title": "技能自最佳化",
-      "description": "LLM驅動的技能自動最佳化系統，持續提升技能質量",
-      "dashboard": "儀表盤",
-      "activeOptimizations": "進行中的最佳化",
-      "abTestsRunning": "A/B測試執行中",
-      "qualityRanking": "質量排名",
-      "topSkills": "Top 10 最佳技能",
-      "bottomSkills": "Bottom 10 待最佳化技能",
-      "triggerOptimization": "手動觸發最佳化",
-      "viewHistory": "檢視歷史",
-      "actions": "操作",
-      "noData": "暫無資料",
-      "qualityScore": "質量評分",
-      "overallScore": "綜合評分",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token效率",
-      "executionTime": "執行時間",
-      "userSatisfaction": "使用者滿意度",
-      "callFrequency": "呼叫頻率",
-      "radarChart": "5維質量雷達圖",
-      "optimizationHistory": "最佳化歷史",
-      "status": {
-        "pending": "待處理",
-        "inProgress": "進行中",
-        "completed": "已完成",
-        "failed": "失敗"
-      },
-      "abTestStatus": {
-        "running": "執行中",
-        "baselineWin": "Baseline獲勝",
-        "candidateWin": "Candidate獲勝",
-        "noDifference": "無顯著差異"
-      },
       "versions": {
         "title": "版本歷史",
         "version": "版本",
@@ -16054,112 +16233,15 @@
         "scoreDelta": "評分變化",
         "contentChanged": "內容已變更",
         "contentUnchanged": "內容未變更",
-        "createdByLlm": "LLM最佳化",
+        "createdByLlm": "AI 最佳化",
         "createdByManual": "手動編輯",
         "createdByRollback": "版本回滾",
+        "createdByAgent": "Agent 修改",
+        "createdBySkillGrowth": "技能成長",
+        "createdByImport": "匯入",
         "refresh": "重新整理",
         "confirmAction": "啟用此版本"
-      },
-      "guardian": {
-        "idleTitle": "可進行 Shadow 驗證",
-        "idleDescription": "候選版本已就緒。啟動 Shadow 測試可在全量上線前對比真實流量表現。",
-        "startShadow": "啟動 Shadow 測試",
-        "startSuccess": "Shadow 測試已啟動",
-        "startFailed": "啟動 Shadow 測試失敗",
-        "runningTitle": "Shadow 測試：v{baseline} vs v{candidate}",
-        "consistency": "一致性",
-        "samples": "樣本數",
-        "versions": "版本",
-        "confidence": "測試置信度",
-        "hideSamples": "隱藏樣本",
-        "reviewDifferences": "檢視差異",
-        "stopTest": "停止測試",
-        "stopConfirmTitle": "停止 Shadow 測試？",
-        "stopConfirmDescription": "技能「{skillId}」的 Shadow 測試將停止，基線 v{baseline} 保持生效。",
-        "cancel": "取消",
-        "promote": "提升 v{version}",
-        "promoteSuccess": "版本 v{version} 已設為當前版本",
-        "promoteFailed": "提升版本失敗",
-        "stopSuccess": "Shadow 測試已停止",
-        "stopFailed": "停止測試失敗",
-        "networkError": "網路錯誤",
-        "match": "一致",
-        "diverged": "分歧",
-        "baselineLabel": "基線",
-        "candidateLabel": "候選"
-      },
-      "batchPage": {
-        "submitConfirmTitle": "建立恢復點？",
-        "submitConfirmDescription": "批次最佳化前將自動儲存快照。若結果不滿意，可在任務詳情頁一鍵回滾。",
-        "submitConfirmAction": "開始批次最佳化",
-        "submitCancel": "取消",
-        "rollback": "回滾批次任務",
-        "rollbackCardDescription": "將該批次內所有技能恢復到最佳化前的快照狀態。",
-        "rollbackConfirmTitle": "回滾此批次任務？",
-        "rollbackConfirmDescription": "該批次內所有技能將恢復到最佳化前的快照狀態。",
-        "rollbackSuccess": "批次回滾完成（已恢復 {count} 個技能）",
-        "rollbackPartial": "批次回滾部分完成 — 已恢復 {rolled}/{total} 個技能，{failed} 個失敗",
-        "rollbackFailed": "批次回滾失敗",
-        "cancel": "取消批次任務",
-        "cancelConfirmTitle": "取消此批次任務？",
-        "cancelConfirmDescription": "可選擇僅停止任務（保留已最佳化內容），或同時將所有技能恢復到批次最佳化前的快照。",
-        "cancelKeepAction": "僅取消",
-        "cancelRollbackAction": "取消並回滾",
-        "cancelSuccess": "批次任務已取消",
-        "cancelRollbackSuccess": "批次任務已取消，已恢復 {count} 個技能",
-        "cancelRollbackPartial": "批次任務已取消 — 已恢復 {rolled}/{total} 個技能，{failed} 個失敗",
-        "cancelRollbackFailed": "批次任務已取消，但回滾失敗 — 請手動檢查技能版本",
-        "cancelFailed": "取消批次任務失敗",
-        "statusPending": "排隊中",
-        "statusRunning": "執行中",
-        "statusCompleted": "已完成",
-        "statusCancelled": "已取消",
-        "statusFailed": "失敗",
-        "filterAll": "全部",
-        "filterActive": "執行中",
-        "filterExecuting": "執行中"
       }
-    },
-    "skillAggregation": {
-      "title": "Skill 質量聚合",
-      "description": "多維度 Skill 質量分析與聚合儀表盤",
-      "loading": "載入中...",
-      "error": "錯誤",
-      "errorFetchingMetrics": "獲取指標失敗",
-      "connected": "已連線",
-      "disconnected": "未連線",
-      "last7Days": "最近 7 天",
-      "last30Days": "最近 30 天",
-      "last90Days": "最近 90 天",
-      "exportCSV": "匯出 CSV",
-      "exportJSON": "匯出 JSON",
-      "exportSuccess": "匯出成功",
-      "exportSuccessDescription": "資料已成功匯出",
-      "exportFailed": "匯出失敗",
-      "exportFailedDescription": "匯出資料失敗",
-      "avgQuality": "平均質量",
-      "median": "中位數",
-      "totalSkills": "總 Skill 數",
-      "executions": "執行次數",
-      "optimizationRate": "最佳化率",
-      "topSkills": "最佳 Skills",
-      "bottomSkills": "最差 Skills",
-      "qualityDistribution": "質量分佈",
-      "worstSkills": "最差表現 Skills",
-      "excellent": "優秀 (≥80%)",
-      "good": "良好 (50-80%)",
-      "poor": "較差 (<50%)",
-      "noData": "暫無資料",
-      "refresh": "重新整理",
-      "skillTrend": "技能趨勢",
-      "globalTrend": "全域性質量趨勢",
-      "qualityScore": "質量分數",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token效率",
-      "dataPoints": "資料點數",
-      "totalExecutions": "總執行次數",
-      "timeRange": "時間範圍",
-      "errorFetchingTrends": "獲取趨勢資料失敗"
     },
     "wiki": {
       "title": "LLM-Wiki 知識庫",
@@ -16407,7 +16489,7 @@
         "truncatedList": "顯示 {shown} / {total} 項問題。",
         "loadFailed": "無法加載健康報告。",
         "retry": "重試",
-        "maintainToastOpen": "{open, plural, one {# item still needs your action} other {# items still need your action}} · {fixed} auto-fixed",
+        "maintainToastOpen": "{open, plural, other {# 項仍待處理}} · 已自動修復 {fixed} 項",
         "issueType": {
           "broken_link": "斷鏈",
           "broken_wikilink": "無效雙向連結",
@@ -16739,7 +16821,19 @@
         "renameSuccess": "重新命名成功",
         "operationFailed": "操作失敗",
         "namePlaceholder": "輸入名稱...",
-        "confirm": "確認"
+        "confirm": "確認",
+        "links": {
+          "title": "連結與脈絡",
+          "summary": "被 {backlinks} 處引用 · 引用 {outlinks} 處",
+          "tabBacklinks": "被引用 ({count})",
+          "tabOutlinks": "引用了 ({count})",
+          "refresh": "重新整理連結",
+          "loadFailed": "載入連結失敗",
+          "emptyBacklinks": "還沒有內容引用這個概念",
+          "emptyOutlinks": "這個概念還沒有引用其他內容",
+          "missing": "缺失",
+          "jumpToSection": "點擊卡片可直達小節：{heading}"
+        }
       },
       "saveToWiki": {
         "buttonTitle": "儲存到 Wiki",
@@ -16960,6 +17054,11 @@
         "skipped": "今天已提交過同名復盤，未重複入庫",
         "empty": "請輸入復盤內容",
         "error": "提交失敗，請稍後重試"
+      },
+      "reviewSlip": {
+        "fetchFailed": "取得審閱單失敗",
+        "applied": "選擇性回寫完成：已沉澱 {committed} 項，略過 {discarded} 項",
+        "applyFailed": "套用選擇性回寫失敗"
       }
     },
     "skills": {
@@ -16978,7 +17077,6 @@
         "rollbackFailed": "撤銷失敗，請重試",
         "cancel": "取消",
         "fetchError": "獲取技能歷史失敗",
-        "qualityBefore": "進化前",
         "status": {
           "approved": "已生效",
           "rolled_back": "已撤銷",
@@ -17415,7 +17513,69 @@
         "sourceTab": "原始碼",
         "saveSource": "儲存 SKILL.md",
         "sourceSaved": "SKILL.md 儲存成功",
-        "sourceSaveFailed": "儲存 SKILL.md 失敗"
+        "sourceSaveFailed": "儲存 SKILL.md 失敗",
+        "forceEnableFailed": "強制啟用失敗",
+        "securityReviewNote": "安全審查：{recommendation}"
+      },
+      "scanRisk": {
+        "severity": {
+          "critical": "嚴重",
+          "high": "高",
+          "medium": "中",
+          "low": "低",
+          "info": "提示"
+        },
+        "threat": {
+          "prompt_injection": "提示詞注入",
+          "command_injection": "指令注入",
+          "credential_exposure": "憑證外洩",
+          "data_exfiltration": "資料外傳",
+          "filesystem_access": "檔案系統存取",
+          "process_operation": "程序操作",
+          "network_access": "網路存取",
+          "screen_input": "螢幕與輸入控制",
+          "memory_config_snooping": "窺探 Agent 記憶或設定",
+          "code_injection": "程式碼注入",
+          "privilege_escalation": "權限提升",
+          "environment_manipulation": "環境竄改",
+          "reflection": "動態程式碼反射",
+          "deserialization": "不安全的反序列化",
+          "log_audit_tampering": "日誌或稽核竄改",
+          "scheduled_task_injection": "排程任務注入",
+          "container_escape": "容器逃逸",
+          "memory_manipulation": "底層記憶體存取",
+          "dns_tunneling": "DNS 隧道",
+          "supply_chain": "供應鏈風險",
+          "obfuscation": "內容混淆",
+          "destructive": "破壞性操作",
+          "persistence": "持久化駐留",
+          "path_traversal": "路徑穿越",
+          "crypto_mining": "加密貨幣挖礦",
+          "reverse_shell": "反向 Shell",
+          "prompt_secret_exfiltration": "提示詞或金鑰外洩",
+          "invisible_unicode": "隱藏字元",
+          "dangerous_import": "危險模組匯入",
+          "ast_parse_error": "程式碼無法解析",
+          "llm_audit": "AI 稽核發現",
+          "invalid_manifest": "無效的套件清單",
+          "integrity": "套件完整性問題",
+          "missing_artifact": "缺少套件檔案",
+          "empty_artifact": "套件檔案為空",
+          "unknown": "其他風險"
+        },
+        "signal": {
+          "newHighFinding": "新增高風險行為：{threat}",
+          "scanUnavailable": "安全檢查未能執行",
+          "diffRange": "變動幅度較大（變更 {percent}）",
+          "lowEffectiveRate": "歷史成功率偏低（{runs} 次執行中為 {rate}）",
+          "unknown": "需要人工覆核"
+        },
+        "remediation": {
+          "newHighFinding": "這次變更加入了高風險行為，核准前請先核對被標出的內容。",
+          "scanUnavailable": "安全檢查未能執行，核准前請仔細核對這次變更。",
+          "diffRange": "大部分內容都被改動了，請對比變更前後，確認沒有遺失重要內容。",
+          "lowEffectiveRate": "這個技能在實際使用中經常失敗，請確認這次變更確實解決了問題。"
+        }
       },
       "growth": {
         "title": "技能成長",
@@ -17453,7 +17613,7 @@
         "status": {
           "PENDING_REVIEW": "待稽核",
           "AUTO_APPLIED": "已自動落地",
-          "FAILED_SCAN": "安全掃描失敗",
+          "FAILED_SCAN": "檢查未通過",
           "BLOCKED_LOCKED": "被鎖定攔截",
           "APPROVED": "已透過",
           "REJECTED": "已拒絕",
@@ -17461,24 +17621,15 @@
         },
         "source": {
           "backgroundReview": "後臺覆盤",
-          "continualRecovery": "持續自癒",
           "manualEvolution": "手動最佳化",
           "memoryExtraction": "記憶提取"
         },
-        "proxyAlignment": {
-          "driftBadge": "度量欺騙風險",
-          "driftTooltip": "檢測到古德哈特代理指標偏離：Token或耗時看似最佳化，但核心業務準確率衰減",
-          "alignedBadge": "度量對齊已驗證",
-          "alignedTooltip": "核心業務意圖與代理指標協同最佳化，無投機性偷工減料"
-        },
         "confidence": "置信度 {value}%",
-        "testPassed": "驗證透過",
-        "testFailed": "驗證失敗",
         "verifiedBadge": "已認證",
         "hollowBlockedBadge": "空洞測試已攔截",
         "targetLayer": "架構層：{layer}",
         "targetPathology": "病理特徵：{pathology}",
-        "verificationProofTitle": "沙箱膠囊驗證憑證 (Verified Capsule Proof)",
+        "verificationProofTitle": "驗證記錄",
         "blastRadius": "影響範圍: {files} 檔案, {lines} 行",
         "noVerificationProof": "暫無沙箱實測驗證憑證",
         "impactedDependents": {
@@ -17489,23 +17640,29 @@
           "confirmReject": "確認拒絕",
           "reject": "拒絕",
           "approve": "透過",
-          "approveShadow": "透過並 Shadow 驗證",
           "retryApply": "重試應用",
           "revise": "修訂",
           "reviseLabel": "編輯提案內容",
           "cancelRevise": "取消",
-          "saveRevision": "儲存修訂",
-          "createCron": "建立定時任務"
+          "saveRevision": "儲存修訂"
         },
-        "approveShadowSuccess": "已為 {name} 啟動 Shadow 測試",
         "reviseSuccess": "\"{name}\" 修訂成功",
         "reviseFailed": "\"{name}\" 修訂失敗",
         "reviseFailedScan": "\"{name}\" 已修訂但安全掃描未透過，請修復標記的問題。",
-        "cronSuggestion": {
-          "title": "建議的執行計劃"
-        },
         "riskInterceptionTitle": "風控攔截",
         "applyFailureTitle": "應用失敗",
+        "applyFailureBody": "未能自動應用。請查看技術細節後重新批准。",
+        "heldReason": {
+          "title": "為什麼需要你審核",
+          "similar": "它與你已有的技能相似：{names}。僅當它帶來新內容時再批准。",
+          "evolutionLocked": "它要修改的技能受到保護，不會被自動更新，因此需要你來決定。",
+          "scanFailed": "它未通過自動安全檢查。請先查看上方的檢查結果再決定。"
+        },
+        "technical": {
+          "toggle": "技術細節",
+          "findings": "掃描器檢出項",
+          "advice": "建議操作"
+        },
         "rejectReasonLabel": "拒絕原因",
         "rejectReasonPlaceholder": "說明需要如何調整後才能透過這次技能成長案例。",
         "triggerCondition": "觸發條件",
@@ -17517,48 +17674,24 @@
           "title": "執行時失敗證據",
           "tool": "工具：{value}",
           "count": "失敗次數：{value}",
-          "confidence": "歸因置信度 {value}%",
-          "loopKind": "迴圈型別：{value}"
-        },
-        "manifestPrediction": {
-          "title": "可證偽變更預測與歸因",
-          "baseline": "基準線",
-          "target": "目標",
-          "predictedDirection": {
-            "INCREASE": "預期提升",
-            "DECREASE": "預期降低",
-            "NEUTRAL": "預期保持"
-          },
-          "falsificationConditions": "證偽條件",
-          "attributionVerdict": "歸因結論",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "泛化提升 (Pareto 最優)",
-            "overfitting": "疑似過擬合告警",
-            "generalization_collapse": "泛化崩塌嚴重退化",
-            "stable_parity": "雙軸平穩",
-            "regression": "雙軸回退",
-            "insufficient_holdout": "驗證集樣本不足"
-          },
-          "metricDeltas": "實測指標變化",
-          "unpredictedRegressions": "未預期退化警告"
+          "confidence": "歸因置信度 {value}%"
         },
         "securityScan": {
           "title": "技能安全靜態掃描體檢詳情 ({count} 項發現)",
           "score": "安全評分：{score}/100",
-          "line": "第 {line} 行"
+          "line": "第 {line} 行",
+          "badgeTitle": "安全評分 {score}/100",
+          "risk": {
+            "trusted": "低風險",
+            "installed": "中等風險",
+            "untrusted": "高風險",
+            "reject": "已攔截"
+          }
         },
         "empty": {
           "title": "當前檢視暫無案例",
           "description": "當 Agent 捕獲到新經驗、自動落地能力，或需要你稽核時，相關記錄會出現在這裡。"
-        },
-        "cronCreateFailed": "無法為 {name} 安排定期複查",
-        "cronCreated": "已為 {name} 安排定期複查"
+        }
       },
       "upload": {
         "title": "上傳自定義技能",
@@ -17984,7 +18117,13 @@
         "error": "更新權限失敗",
         "skillEnabled": "技能已啟用",
         "skillNotEnabled": "技能未啟用",
-        "templateApplied": "範本已套用"
+        "templateApplied": "範本已套用",
+        "approveFailed": "核准權限失敗"
+      },
+      "tabSubtitles": {
+        "inventory": "管理並探索智慧體的核心技能與方法",
+        "pending": "審查並核准智慧體自動成長、進化出的新技能",
+        "rejections": "查看技能成長稽核與進化過程中的異常阻斷紀錄"
       }
     },
     "language": "語言",
@@ -18268,7 +18407,7 @@
       "recipeImport": {
         "title": "從 AI 技能導入配方",
         "hint": "粘貼 generate-myrm-theme 輸出的 JSON；如需背景圖請在步驟 1 上傳。",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "導入配方",
         "success": "配方已導入編輯器",
         "errors": {
@@ -18918,13 +19057,13 @@
       "desktopModeDescription": "系統設定僅在 Tauri 桌面客戶端中可用",
       "sandboxReset": {
         "title": "重置容器環境",
-        "description": "重建沙箱容器以重置系統級狀態（全域性包、系統配置）。您的工作區檔案和聊天曆史將被保留。",
+        "description": "重建沙箱容器以重置系統級狀態（全域性包、系統配置）。您的工作區檔案和聊天歷史將被保留。",
         "button": "重置環境",
         "confirmTitle": "確定要重置容器環境嗎？",
-        "confirmDescription": "此操作將銷燬當前容器並建立一個全新的容器。您的工作區檔案（持久化捲上的）、聊天曆史、記憶和設定將被保留。全域性安裝的包和系統級更改將被重置。環境將重啟，大約需要 10-30 秒。",
+        "confirmDescription": "此操作將銷燬當前容器並建立一個全新的容器。您的工作區檔案（持久化捲上的）、聊天歷史、記憶和設定將被保留。全域性安裝的包和系統級更改將被重置。環境將重啟，大約需要 10-30 秒。",
         "confirm": "確認重置",
         "cancel": "取消",
-        "preserved": "保留項：工作區檔案、聊天曆史、記憶、設定",
+        "preserved": "保留項：工作區檔案、聊天歷史、記憶、設定",
         "reset": "重置項：全域性包 (pip/apt)、系統配置、容器狀態",
         "resetting": "重置中...",
         "success": "容器重建已啟動，環境即將重啟。",
@@ -19502,9 +19641,9 @@
     "mcpOAuthConfigured": "已配置",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "已配置",
-    "mcpHeadersHint": "使用 {{secret:KEY_NAME}} 引用在 Agent Secrets 中儲存的金鑰。",
+    "mcpHeadersHint": "使用 '{{secret:KEY_NAME}}' 引用在 Agent Secrets 中儲存的金鑰。",
     "mcpHeaderKeyPlaceholder": "Header 名稱（如 Authorization）",
-    "mcpHeaderValuePlaceholder": "值或 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "值或 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "新增 Header",
     "mcpSecretRefSaveHint": "配置已儲存",
     "mcpSecretRefSaveHintDesc": "Headers 中的金鑰引用將在執行時解析。",
@@ -19538,7 +19677,8 @@
       "hardcoded_secret": "配置中存在明文金鑰或令牌",
       "credential_exposure": "檢測到可能的憑證洩露",
       "supply_chain": "供應鏈風險（如未 pin 的 npx 包）",
-      "supply_chain_malware": "軟體包存在已知惡意軟體公告"
+      "supply_chain_malware": "軟體包存在已知惡意軟體公告",
+      "dangerous_env_injection": "偵測到可劫持 MCP 服務的危險環境變數"
     },
     "mcpThreatRec": {
       "prompt_injection": "請勿啟用該 MCP，並聯系管理員",
@@ -19551,10 +19691,11 @@
       "risky_mcp_profile": "請限制訪問範圍並在瞭解風險後確認啟用",
       "suspicious_url": "請移除不可信的外部回撥 URL",
       "sensitive_path": "請將檔案系統 MCP 限制在非敏感目錄",
-      "hardcoded_secret": "請改用 {{secret:KEY}} 引用金鑰",
-      "credential_exposure": "請改用 {{secret:KEY}} 引用金鑰",
+      "hardcoded_secret": "請改用 '{{secret:KEY}}' 引用金鑰",
+      "credential_exposure": "請改用 '{{secret:KEY}}' 引用金鑰",
       "supply_chain": "請在引數中 pin 包名和版本",
-      "supply_chain_malware": "請移除被標記的軟體包並使用已驗證依賴"
+      "supply_chain_malware": "請移除被標記的軟體包並使用已驗證依賴",
+      "dangerous_env_injection": "請移除該環境變數，以防止任意程式碼執行"
     },
     "mcpDeleteFailed": "刪除失敗",
     "mcpDeleteSuccess": "服務已刪除",
@@ -19874,7 +20015,9 @@
       "deleteFromCloud": "刪除",
       "deleteSuccess": "雲端備份已刪除",
       "enabled": "啟用雲端備份",
-      "save": "儲存配置"
+      "save": "儲存配置",
+      "saveFailed": "儲存配置失敗",
+      "deleteFailed": "刪除失敗"
     },
     "sessionAnalytics": {
       "copyMarkdown": "複製對賬單 (MD)",
@@ -20487,7 +20630,11 @@
           "timeout": "超時時間",
           "onExpiry": "超時策略",
           "autoReject": "自動丟棄",
-          "autoSend": "自動傳送"
+          "autoSend": "自動傳送",
+          "timeoutMinutes": "{minutes} 分鐘",
+          "timeoutHour": "1 小時",
+          "noNotifyChannel": "尚未設定通知投遞。待審核的回覆只會在本應用內或透過後臺推送通知提醒你，你不在時可能無人查看就已過期。",
+          "noNotifyChannelLink": "前往偏好設定"
         },
         "identity": {
           "label": "團隊身份",
@@ -20923,7 +21070,8 @@
       "policyUpdated": "安全策略更新成功",
       "tierProd": "生產環境",
       "tierStaging": "預發環境",
-      "tierDev": "開發環境"
+      "tierDev": "開發環境",
+      "probeFailed": "探測 {host} 失敗：{message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "螢幕審批高亮 — 在真實顯示器上對點選目標顯示紅框（macOS 與 Windows）",
@@ -20932,6 +21080,27 @@
       "headline": "工位級保護需安裝 Myrm 桌面客戶端",
       "body": "當前為瀏覽器模式。計算機使用仍可在應用內審批。Locked Use 自動解鎖需 macOS 桌面客戶端；工位防窺帷幕與螢幕審批高亮在 macOS 與 Windows 桌面客戶端可用。",
       "bulletCurtain": "工位防窺帷幕 — 全螢幕遮蔽，旁人無法看到 Agent 操作（macOS 與 Windows）"
+    },
+    "developerCenter": {
+      "tabDescriptions": {
+        "devtools": "配置系統除錯模式與智慧體評估診斷設定",
+        "experimental": "啟用或關閉開發測試中的前瞻實驗功能",
+        "usage": "追蹤詳細的模型呼叫次數、用量分佈、費用占比與執行帳本",
+        "companion": "設定桌面寵物夥伴的互動偏好、語音回應與行為習慣",
+        "importExport": "匯入或匯出全域應用程式配置，方便跨裝置輕鬆同步"
+      }
+    },
+    "systemCenter": {
+      "tabDescriptions": {
+        "settings": "管理本機連接埠、遠端服務存取及系統程序狀態",
+        "about": "查看目前系統版本、開發團隊資訊及應用程式更新日誌"
+      }
+    },
+    "modelCenter": {
+      "tabDescriptions": {
+        "providers": "配置 AI 模型提供商與 API 金鑰",
+        "default": "設定預設與降級模型、路由策略及第三方模型設定"
+      }
     }
   },
   "workLayout": {
@@ -20999,6 +21168,27 @@
       "keyTakeawaysTitle": "衍生核心認知與探索經驗",
       "warpToSource": "穿梭回源分支",
       "forkIndicator": "從節點分叉"
+    },
+    "anchors": {
+      "title": "已驗證錨點",
+      "symbolCount": "{count, plural, =1 {# 個符號} other {# 個符號}}",
+      "expandAnchors": "展開錨點",
+      "collapseAnchors": "收合錨點",
+      "collapse": "收合",
+      "inspect": "檢視",
+      "more": "另有 {count} 項",
+      "commits": "提交（{count}）",
+      "files": "檔案（{count}）",
+      "symbols": "符號（{count}）",
+      "endpoints": "端點（{count}）",
+      "errorSignatures": "錯誤特徵（{count}）",
+      "copySha": "點擊複製 SHA",
+      "copyPath": "點擊複製路徑",
+      "copySymbol": "點擊複製符號",
+      "copyEndpoint": "點擊複製端點",
+      "copyPathLabel": "複製路徑：{path}",
+      "copySymbolLabel": "複製符號：{symbol}",
+      "copyEndpointLabel": "複製端點：{endpoint}"
     }
   },
   "extensionUI": {

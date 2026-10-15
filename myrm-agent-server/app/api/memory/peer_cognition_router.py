@@ -67,22 +67,6 @@ async def list_peer_identities(
 
 
 @router.get(
-    "/peers/{peer_id}",
-    response_model=PeerIdentityDTO,
-    summary="Get single peer identity by identifier",
-)
-async def get_peer_identity(
-    peer_id: str,
-    service: Annotated[PeerCognitionService, Depends(get_peer_cognition_service)],
-) -> PeerIdentityDTO:
-    """Retrieve identity details for an individual peer."""
-    peer = service.get_peer(peer_id)
-    if peer is None:
-        raise HTTPException(status_code=404, detail=f"Peer identity not found: {peer_id}")
-    return peer
-
-
-@router.get(
     "/cards/{peer_id}",
     response_model=PeerPersonaCardDTO,
     summary="Retrieve curated standing persona card for a peer",

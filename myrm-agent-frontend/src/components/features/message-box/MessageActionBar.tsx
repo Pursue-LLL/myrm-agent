@@ -25,7 +25,6 @@ import RevertFiles from '../message-actions/RevertFiles';
 import RegenerateMenu from '../message-actions/RegenerateMenu';
 import SaveEvalCase from '../message-actions/SaveEvalCase';
 import SiblingNav from '../message-actions/SiblingNav';
-import Undo from '../message-actions/Undo';
 import SaveToMemoryButton from '../message-actions/SaveToMemoryButton';
 import ExtractToSkillButton from '../message-actions/ExtractToSkillButton';
 import SaveToWikiButton from '../message-actions/SaveToWikiButton';
@@ -40,12 +39,13 @@ interface MessageActionBarProps {
   messageIndex: number;
   loading: boolean;
   isLast: boolean;
+  /** Regenerate acts on the latest turn only, so only that turn's answer offers it. */
+  isLastTurnAnswer: boolean;
   chatId?: string;
   enableEvalLab: boolean;
   markdownRef: RefObject<HTMLDivElement | null>;
   onCancel: () => Promise<void>;
   onRegenerate: (instruction?: string) => Promise<void>;
-  onUndo: () => Promise<void>;
 }
 
 export default function MessageActionBar({
@@ -53,12 +53,12 @@ export default function MessageActionBar({
   messageIndex,
   loading,
   isLast,
+  isLastTurnAnswer,
   chatId,
   enableEvalLab,
   markdownRef,
   onCancel,
   onRegenerate,
-  onUndo,
 }: MessageActionBarProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
@@ -87,8 +87,7 @@ export default function MessageActionBar({
             <AlertTriangle className="w-4 h-4" />
           </button>
         )}
-        {!isStreaming && <RegenerateMenu onRegenerate={onRegenerate} />}
-        {!isStreaming && <Undo onUndo={onUndo} />}
+        {!isStreaming && isLastTurnAnswer && <RegenerateMenu onRegenerate={onRegenerate} />}
         {!isStreaming && effectiveChatId && message.siblingGroupId && (message.siblingCount ?? 0) > 1 && (
           <SiblingNav
             chatId={effectiveChatId}

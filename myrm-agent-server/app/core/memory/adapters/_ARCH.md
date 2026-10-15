@@ -9,7 +9,7 @@ Memory 系统的业务层适配器。业务层通过 `ResolvedContextBinding` �
 ContextBundle volume 边界，再调用 `setup.py` 创建 `MemoryManager`。
 
 `setup.py` 读取 `MEMORY_BASE_PATH`（memory scene）决定存储路径，实现 Local 与 SaaS 沙箱卷挂载的无缝切换。
-ContextBundle 卷布局由 `myrm_agent_harness.toolkits.context_bundle` 定义（PyPI harness 包）。
+ContextBundle 卷布局由 `myrm_agent_harness.toolkits.context_bundle` 定义（同仓 `myrm-agent-harness/`）。
 
 ---
 

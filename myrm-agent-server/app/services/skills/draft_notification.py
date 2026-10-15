@@ -5,7 +5,7 @@ final lifecycle status into the experience ledger, and publishes front-end
 refresh events.
 
 [INPUT]
-- myrm_agent_harness.backends.skills.scanning::ScanResult, ScanSeverity, scan_skill_content (POS: 技能内容安全扫描)
+- myrm_agent_harness.backends.skills.scanning::ScanSeverity, compute_scan_summary, scan_skill_content (POS: 技能内容安全扫描)
 - app.database.connection::get_session (POS: 数据库连接管理)
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
 - app.services.skills.experience_ledger::record_skill_growth_event (POS: 学习资产事件账本)
@@ -20,6 +20,7 @@ refresh events.
 - notify_skill_draft_created: Harness 审核输出 → 可审核草稿
 - persist_skill_draft_record: ApprovalRecord 落库 + 去重抑制 + ledger 镜像 + 前端事件
 - evaluate_growth_scan / build_scannable_growth_content: 落库前安全预检
+- REASON_*: 成长 case 的结构化原因码（审核备注不写进技能 description，由前端按原因码本地化）
 
 [POS]
 技能成长记录持久化：成长 case 落库、安全预检、去重抑制与前端刷新事件发布。
@@ -29,8 +30,8 @@ import logging
 from datetime import datetime
 
 from myrm_agent_harness.backends.skills.scanning import (
-    ScanResult,
     ScanSeverity,
+    compute_scan_summary,
     scan_skill_content,
 )
 
@@ -45,6 +46,14 @@ logger = logging.getLogger(__name__)
 MAX_SKILL_CONTENT_CHARS = 65_536
 MAX_PENDING_PROPOSALS = 50
 
+# Why a growth case needs a human. Stored as ``reason_code`` (never in the description, which becomes the
+# skill's own description on approval); the front end renders the localized explanation.
+REASON_RISK_PREFIX = "risk:"
+REASON_SIMILAR_PREFIX = "similar:"
+REASON_SCAN_FAILED = "scan_failed"
+REASON_EVOLUTION_LOCKED = "evolution_locked"
+REASON_APPLY_FAILED = "apply_failed"
+
 
 def _resolve_growth_status(record_status: str, payload: dict[str, object]) -> str:
     payload_status = payload.get("growth_status")
@@ -55,15 +64,6 @@ def _resolve_growth_status(record_status: str, payload: dict[str, object]) -> st
     if record_status == "REJECTED":
         return "REJECTED"
     return "PENDING_REVIEW"
-
-
-def _append_scan_failure(description: str, scan_result: ScanResult) -> str:
-    findings_texts = [f"- [{f.severity.name}] {f.threat_type}: {f.description}" for f in scan_result.findings]
-    base = description.strip()
-    suffix = "\n".join(findings_texts)
-    if base:
-        return f"{base}\n\n**PRE-FLIGHT SECURITY SCAN FAILED:**\n{suffix}"
-    return f"**PRE-FLIGHT SECURITY SCAN FAILED:**\n{suffix}"
 
 
 def _publish_sse_event(event_type: AppEventType, data: dict[str, object]) -> None:
@@ -154,26 +154,28 @@ async def evaluate_growth_scan(
     result: dict[str, object],
     *,
     skill_name: str,
-    description: str,
-) -> tuple[str, str]:
-    """Return (status, description) after pre-flight security scan."""
+) -> tuple[str, dict[str, object] | None]:
+    """Return (status, scan_summary) after the pre-flight security scan.
+
+    The summary is set only for ``FAILED_SCAN`` so the review card can list what the scan found.
+    """
     content_to_scan = await build_scannable_growth_content(result)
     if not content_to_scan:
-        return "PENDING_REVIEW", description
+        return "PENDING_REVIEW", None
 
     try:
         scan_result = scan_skill_content(skill_name, content_to_scan)
     except Exception as exc:
         logger.error("Skill draft pre-flight scan failed: %s", exc)
-        return "PENDING_REVIEW", description
+        return "PENDING_REVIEW", None
 
     if not scan_result.is_clean and scan_result.max_severity and scan_result.max_severity >= ScanSeverity.CRITICAL:
         logger.warning(
             "Skill draft '%s' failed pre-flight security scan. Marking as FAILED_SCAN.",
             skill_name,
         )
-        return "FAILED_SCAN", _append_scan_failure(description, scan_result)
-    return "PENDING_REVIEW", description
+        return "FAILED_SCAN", compute_scan_summary(scan_result).to_dict()
+    return "PENDING_REVIEW", None
 
 
 async def persist_skill_draft_record(
@@ -183,8 +185,16 @@ async def persist_skill_draft_record(
     description: str | None = None,
     reviewed_at: datetime | None = None,
     dedupe_statuses: tuple[str, ...] = ("PENDING_REVIEW",),
+    reason_code: str | None = None,
+    security_scan_summary: dict[str, object] | None = None,
+    apply_error: str | None = None,
 ) -> ApprovalRecord | None:
-    """Persist a skill growth case using ApprovalRegistry."""
+    """Persist a skill growth case using ApprovalRegistry.
+
+    ``reason_code`` (one of the ``REASON_*`` forms), ``security_scan_summary`` and ``apply_error`` tell the
+    reviewer why the case needs them. ``description`` must stay the skill's own description: approving the
+    draft writes it into the skill.
+    """
     agent_id = str(result.get("agent_id") or "default")
     chat_id = result.get("chat_id")
     draft_type = str(result.get("type") or "unknown")
@@ -261,9 +271,8 @@ async def persist_skill_draft_record(
                 lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, version=1),
                 verification_steps=v_steps if isinstance(v_steps, list) else [],
             )
-            val = SandboxValidator()
-            proof = await val.verify_skill_capsule(v_skill)
-            verification_proof = proof.to_dict()
+            proof = await SandboxValidator().verify_skill_capsule(v_skill)
+            verification_proof = proof.to_dict() if proof is not None else None
         except Exception as exc:
             logger.debug("Automatic capsule verification fallback skipped: %s", exc)
             verification_proof = None
@@ -278,6 +287,9 @@ async def persist_skill_draft_record(
         "growth_status": status,
         "eval_cases": eval_cases if isinstance(eval_cases, list) else None,
         "verification_proof": verification_proof,
+        "reason_code": reason_code,
+        "security_scan_summary": security_scan_summary,
+        "apply_error": apply_error,
     }
 
     approval_status = "PENDING"
@@ -339,15 +351,16 @@ async def notify_skill_draft_created(result: dict[str, object]) -> ApprovalRecor
         return None
 
     draft_name = str(result.get("skill_name") or str(result.get("content") or "")[:80] or "")
-    description = str(result.get("skill_description") or "")
     status = "PENDING_REVIEW"
+    scan_summary: dict[str, object] | None = None
 
     if str(result.get("type") or "") in ("skill_draft", "skill_patch") and draft_name:
-        status, description = await evaluate_growth_scan(result, skill_name=draft_name, description=description)
+        status, scan_summary = await evaluate_growth_scan(result, skill_name=draft_name)
 
     return await persist_skill_draft_record(
         result,
         status=status,
-        description=description,
         dedupe_statuses=("PENDING_REVIEW", "FAILED_SCAN", "BLOCKED_LOCKED"),
+        reason_code=REASON_SCAN_FAILED if status == "FAILED_SCAN" else None,
+        security_scan_summary=scan_summary,
     )

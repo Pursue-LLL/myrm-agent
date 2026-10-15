@@ -105,8 +105,8 @@ def _seed_benchmarked_run() -> None:
     """Pre-seed one benchmarked run: the trend section needs at least two runs to show."""
     seeded = http_json(
         "POST",
-        f"{get_e2e_api_url()}/api/v1/memory/command-center/diagnostics/actions",
-        body={"action": "run_diagnostics"},
+        f"{get_e2e_api_url()}/api/v1/memory/command-center/diagnostics/repairs",
+        body={"plan_id": "run_diagnostics", "mode": "execute"},
         timeout_sec=300.0,
     )
     assert isinstance(seeded, dict), seeded
@@ -121,10 +121,9 @@ def _memory_center_page() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -192,10 +191,9 @@ _CLICK_REFRESH_TOOL_GUIDANCE_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -251,10 +249,9 @@ _CLICK_REFRESH_ECONOMICS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

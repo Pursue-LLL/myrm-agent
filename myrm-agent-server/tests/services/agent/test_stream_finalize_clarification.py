@@ -128,8 +128,6 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
     session.collector.has_content = False
     session.collector.cleanup = MagicMock()
     session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
-    session.monitor = MagicMock()
-    session.monitor.stop = AsyncMock()
     session.extra_context = {}
     session.stream_ttft_ms = None
     session.had_fatal_error = False
@@ -143,7 +141,7 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "app.services.agent.stream_session.stream_finalize._mark_pending_clarification_answered",
             new_callable=AsyncMock,
@@ -180,8 +178,6 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
     session.collector.extra_data = {"clarification": {"answered": True, "isResumeMode": False}}
     session.collector.cleanup = MagicMock()
     session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
-    session.monitor = MagicMock()
-    session.monitor.stop = AsyncMock()
     session.extra_context = {}
     session.stream_ttft_ms = None
     session.had_fatal_error = False
@@ -195,7 +191,7 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
         patch("app.services.agent.stream_session.stream_finalize.CancellationRegistry"),
         patch("app.services.agent.stream_session.stream_finalize.SteeringRegistry"),
         patch("app.services.agent.goals.goal_registry.GoalRegistry"),
-        patch("myrm_agent_harness.agent.security.user_credentials_ctx") as mock_ctx,
+        patch("app.services.agent.stream_session.stream_finalize.user_credentials_ctx") as mock_ctx,
         patch(
             "app.services.agent.stream_session.stream_finalize._mark_pending_clarification_answered",
             new_callable=AsyncMock,

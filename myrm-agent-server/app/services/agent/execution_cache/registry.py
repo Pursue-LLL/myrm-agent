@@ -160,7 +160,7 @@ class ChatAgentExecutionCache:
                 entry.last_used = time.monotonic()
 
     async def refresh_unit(self, scope_key: str, unit: BuiltExecutionUnit) -> None:
-        """Persist wrapper mutations (browser checkpoint, thread id) into the cache entry."""
+        """Persist wrapper mutations (browser and desktop sessions) into the cache entry."""
         async with self._lock:
             entry = self._entries.get(scope_key)
             if entry is not None:

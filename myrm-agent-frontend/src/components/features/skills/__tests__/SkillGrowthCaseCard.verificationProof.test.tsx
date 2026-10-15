@@ -1,22 +1,31 @@
 /**
- * Regression tests for SkillGrowthCaseCard Verified Badge and Capsule Proof rendering.
+ * Regression tests for SkillGrowthCaseCard verification record rendering and the view-mode split of developer diagnostics.
  */
 /** @vitest-environment jsdom */
 
 import type React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import en from '../../../../../locales/en.json';
 
 import SkillGrowthCaseCard from '../SkillGrowthCaseCard';
+import { SCAN_RISK_NAMESPACE, scanRiskT } from './scanRiskTranslator';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
 
 const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.verifiedBadge': 'Verified',
   'settings.skills.growth.hollowBlockedBadge': 'Hollow Test Blocked',
-  'settings.skills.growth.verificationProofTitle': 'Verified Capsule Proof',
+  'settings.skills.growth.verificationProofTitle': 'Verification record',
+  'settings.skills.growth.targetLayer': 'Layer',
+  'settings.skills.growth.targetPathology': 'Pathology',
   'settings.skills.growth.source.backgroundReview': 'Background Review',
   'settings.skills.growth.status.PENDING_REVIEW': 'Pending Review',
 };
+
+const growthTypeNames: Record<string, string> = en.growthDashboard.growthTypes;
+const growthTypeT = Object.assign((key: string) => growthTypeNames[key] ?? key, {
+  has: (key: string) => key in growthTypeNames,
+});
 
 const stableT = (key: string, params?: Record<string, unknown>): string => {
   if (key === 'blastRadius' && params) {
@@ -26,7 +35,12 @@ const stableT = (key: string, params?: Record<string, unknown>): string => {
 };
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
+  useTranslations: (namespace?: string) => {
+    if (namespace === 'growthDashboard.growthTypes') {
+      return growthTypeT;
+    }
+    return namespace === SCAN_RISK_NAMESPACE ? scanRiskT : stableT;
+  },
   useLocale: () => 'en',
 }));
 
@@ -62,14 +76,12 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     summary: 'A verified capsule test skill',
     description: null,
     confidence: 0.95,
-    testPassed: true,
     applyStatus: null,
     applyError: null,
     reasonCode: null,
     remediation: null,
     runtimeFailure: null,
     chatId: null,
-    formMetadata: null,
     hasDiff: false,
     hasTrajectory: false,
     hasTriggerCondition: false,
@@ -81,8 +93,8 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
   };
 }
 
-describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
-  it('renders verified badge and capsule proof details when is_verified is true', () => {
+describe('SkillGrowthCaseCard verification record', () => {
+  it('renders verified badge and verification record details when is_verified is true', () => {
     const item = makeItem({
       verificationProof: {
         is_verified: true,
@@ -103,7 +115,7 @@ describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
     );
 
     expect(screen.getByText('Verified')).toBeInTheDocument();
-    expect(screen.getByText('Verified Capsule Proof')).toBeInTheDocument();
+    expect(screen.getByText('Verification record')).toBeInTheDocument();
     expect(screen.getByText('Passed AST check and sandbox tests cleanly')).toBeInTheDocument();
     expect(screen.getByText('Blast Radius: 1 file(s), 18 line(s)')).toBeInTheDocument();
   });
@@ -129,5 +141,23 @@ describe('SkillGrowthCaseCard Verified Capsule Proof', () => {
     );
 
     expect(screen.getByText('Hollow Test Blocked')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['simple', false],
+    ['detailed', true],
+  ] as const)('shows layer and pathology diagnostics only in detailed mode (%s)', (viewMode, visible) => {
+    render(
+      <SkillGrowthCaseCard
+        item={makeItem({ targetLayer: 'L2', targetPathology: 'tool_misuse' })}
+        isProcessing={false}
+        viewMode={viewMode}
+        onApprove={async () => {}}
+        onReject={async () => {}}
+      />,
+    );
+
+    expect(screen.queryByText('Layer') !== null).toBe(visible);
+    expect(screen.queryByText('Pathology') !== null).toBe(visible);
   });
 });

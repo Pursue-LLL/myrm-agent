@@ -21,8 +21,8 @@ import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
-import { isSmartRoutingActive } from '@/lib/model-binding';
-import { Sparkles } from 'lucide-react';
+import { resolveSmartRouting } from '@/lib/model-routing';
+import { ArrowsSplit } from '@phosphor-icons/react';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
@@ -37,11 +37,17 @@ const EmptyChat = React.memo(() => {
     })),
   );
 
-  const defaultModelConfig = useProviderStore((s) => s.defaultModelConfig);
+  const { defaultModelConfig, providers, customModelInfo } = useProviderStore(
+    useShallow((s) => ({
+      defaultModelConfig: s.defaultModelConfig,
+      providers: s.providers,
+      customModelInfo: s.customModelInfo,
+    })),
+  );
 
   const isSmartRouting = useMemo(
-    () => isSmartRoutingActive(actionMode, agentConfig, defaultModelConfig),
-    [actionMode, agentConfig, defaultModelConfig],
+    () => resolveSmartRouting(actionMode, agentConfig, defaultModelConfig, providers, customModelInfo).active,
+    [actionMode, agentConfig, defaultModelConfig, providers, customModelInfo],
   );
 
   const title = t('researchBegins');
@@ -61,7 +67,12 @@ const EmptyChat = React.memo(() => {
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-medium border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs group"
               title={t('smartRoutingBadgeClickHint')}
             >
-              <Sparkles className="w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform" />
+              <ArrowsSplit
+                size={14}
+                weight="bold"
+                aria-hidden="true"
+                className="shrink-0 group-hover:scale-110 transition-transform"
+              />
               <span>{t('smartRoutingBadge')}</span>
               <span className="text-[10px] opacity-75 underline ml-1">{t('smartRoutingBadgeAction')}</span>
             </button>

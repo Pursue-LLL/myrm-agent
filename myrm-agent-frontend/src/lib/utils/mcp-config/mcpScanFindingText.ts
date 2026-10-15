@@ -1,10 +1,13 @@
 import type { MCPScanFinding } from '@/store/config/types';
 
-type SettingsTranslate = (key: string, values?: Record<string, string | number | Date>) => string;
+export interface SettingsTranslate {
+  (key: string, values?: Record<string, string | number | Date>): string;
+  has: (key: string) => boolean;
+}
 
+/** next-intl 对缺失的键返回带命名空间的键路径而不是原键，只能用 `has` 判断有没有译文。 */
 function localizedOrFallback(t: SettingsTranslate, key: string, fallback: string): string {
-  const translated = t(key);
-  return translated === key ? fallback : translated;
+  return t.has(key) ? t(key) : fallback;
 }
 
 export function getMcpFindingDescription(finding: MCPScanFinding, t: SettingsTranslate): string {

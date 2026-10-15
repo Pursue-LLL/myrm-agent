@@ -9,9 +9,15 @@
  * once with its method, connection, the target its session is attached to (page, iframe,
  * worker and its current url; "session unknown to the proxy" when the router no longer
  * knows it), the host's load average and how long Chrome has been up, and a later line
- * says when it left the pending set. The first stall of a burst also logs a snapshot of
- * Chrome's renderer processes (priority, CPU share). `stats()` feeds `/proxy/status`
+ * says when it left the pending set. The first stall of a burst also logs `stall page` lines
+ * (a read-only probe of the stalled pages) and a snapshot of Chrome's renderer processes
+ * (priority, cores used), both produced by the `stallSnapshot` hook. `stats()` feeds `/proxy/status`
  * (slow requests, those on unknown sessions, load, cpus).
+ *
+ * A `Runtime.evaluate` / `callFunctionOn` sent with `awaitPromise` is answered only when the page's script
+ * finishes (a scroll-and-collect loop runs for tens of seconds by design), so being unanswered says nothing
+ * about Chrome. Those are logged as `script wait` and counted apart: they neither count as slow requests nor
+ * trigger the renderer snapshot.
  */
 import os from 'node:os';
 
@@ -19,6 +25,7 @@ const SLOW_MS = 10_000;
 const TICK_MS = 2000;
 /** One process snapshot per burst of stalls: a stalled Chrome often stalls dozens of requests at once. */
 const SNAPSHOT_COOLDOWN_MS = 30_000;
+const SCRIPT_HEAD_CHARS = 60;
 
 export class RequestWatch {
     /**
@@ -49,6 +56,8 @@ export class RequestWatch {
         this.slowCount = 0;
         /** slow requests whose session the router no longer knows: Chrome drops commands for a detached session */
         this.unknownSessionCount = 0;
+        /** requests that were waiting on a page script (`awaitPromise`), not on Chrome */
+        this.scriptWaitCount = 0;
     }
 
     sweep() {
@@ -60,8 +69,14 @@ export class RequestWatch {
             const known = this.flagged.get(proxyId);
             if (known) known.lastSeen = t;
             if (known || t - req.createdAt < this.slowMs) continue;
-            const info = { label: req.client.label, method: req.method, createdAt: req.createdAt, lastSeen: t };
+            const scriptWait = Boolean(req.awaitsScript);
+            const info = { label: req.client.label, method: req.method, createdAt: req.createdAt, lastSeen: t, kind: scriptWait ? 'script wait' : 'slow request' };
             this.flagged.set(proxyId, info);
+            if (scriptWait) {
+                this.scriptWaitCount++;
+                this.log(`script wait ${info.label} ${info.method} (awaitPromise) still running after ${this.#seconds(t - req.createdAt)}s`);
+                continue;
+            }
             this.slowCount++;
             newStall = true;
             const target = req.sessionId ? this.describeSession(req.sessionId) : null;
@@ -70,7 +85,8 @@ export class RequestWatch {
             const session = req.sessionId ? ` sess=${req.sessionId.slice(0, 8)} [${target ?? 'session unknown to the proxy'}]` : '';
             const age = this.chromeAgeMs();
             const chrome = age === null ? '' : `, chrome up ${Math.round(age / 60_000)}m`;
-            this.log(`slow request ${info.label} ${info.method}${session} unanswered for ${this.#seconds(t - req.createdAt)}s `
+            const script = req.script ? ` script "${req.script}"` : '';
+            this.log(`slow request ${info.label} ${info.method}${session}${script} unanswered for ${this.#seconds(t - req.createdAt)}s `
                 + `(load ${this.loadavg()[0].toFixed(0)} on ${this.cpus} cpus, ${this.pendingRequests.size} pending${chrome})`);
         }
         if (newStall && t - this.lastSnapshotAt >= SNAPSHOT_COOLDOWN_MS) {
@@ -80,18 +96,29 @@ export class RequestWatch {
         for (const [proxyId, info] of this.flagged) {
             if (this.pendingRequests.get(proxyId)?.createdAt === info.createdAt) continue;
             this.flagged.delete(proxyId);
-            this.log(`slow request ${info.label} ${info.method} left the pending set after at least ${this.#seconds(info.lastSeen - info.createdAt)}s `
+            this.log(`${info.kind} ${info.label} ${info.method} left the pending set after at least ${this.#seconds(info.lastSeen - info.createdAt)}s `
                 + '(answered, or timed out by the 60 s reaper)');
         }
     }
 
     stats() {
-        return { slowRequests: this.slowCount, slowRequestsOnUnknownSession: this.unknownSessionCount, loadavg1: Number(this.loadavg()[0].toFixed(1)), cpus: this.cpus };
+        return { slowRequests: this.slowCount, slowRequestsOnUnknownSession: this.unknownSessionCount, scriptWaits: this.scriptWaitCount, loadavg1: Number(this.loadavg()[0].toFixed(1)), cpus: this.cpus };
     }
 
     #seconds(ms) {
         return Math.round(ms / 1000);
     }
+}
+
+/**
+ * The first characters of the script a Runtime request runs, so a slow-request line names the code that stalled.
+ * Only the head is kept (whitespace collapsed): enough to tell scripts apart without copying page data into the log.
+ */
+export function describeScript(params) {
+    const source = params?.expression ?? params?.functionDeclaration;
+    if (typeof source !== 'string') return null;
+    const head = source.replace(/\s+/g, ' ').trim();
+    return head.length > SCRIPT_HEAD_CHARS ? `${head.slice(0, SCRIPT_HEAD_CHARS)}...` : head;
 }
 
 /** Create the watch and sweep it while the proxy runs. */

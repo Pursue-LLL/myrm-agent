@@ -1,6 +1,6 @@
 """Integration test: SSRF_ALLOWED_SCHEMES includes ws/wss without breaking http/https.
 
-Validates that the url_utils.SSRF_ALLOWED_SCHEMES expansion to include ws/wss
+Validates that the url_syntax.SSRF_ALLOWED_SCHEMES expansion to include ws/wss
 does not regress existing http/https validation, and that ws/wss URLs pass
 scheme validation while still being subjected to full SSRF hostname/IP checks.
 """
@@ -12,7 +12,7 @@ from myrm_agent_harness.core.security.guards.ssrf import (
     async_validate_url_for_ssrf,
     validate_url_for_ssrf,
 )
-from myrm_agent_harness.utils.url_utils import SSRF_ALLOWED_SCHEMES
+from myrm_agent_harness.utils.url_syntax import SSRF_ALLOWED_SCHEMES
 
 
 class TestSSRFAllowedSchemes:

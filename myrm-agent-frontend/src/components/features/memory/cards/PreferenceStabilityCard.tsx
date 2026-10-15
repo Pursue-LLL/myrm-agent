@@ -14,6 +14,7 @@ import {
   type PreferenceFacetListResponse,
 } from '@/services/memory/preferences';
 import { DashboardBrowsingIcon, PinIcon, Delete02Icon, UndoIcon } from 'hugeicons-react';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const LIFECYCLE_CONFIG: Record<string, { color: string; dotColor: string }> = {
   active: { color: 'text-emerald-600 dark:text-emerald-400', dotColor: 'bg-emerald-500' },
@@ -229,7 +230,7 @@ const FacetRow = memo<{
           <PinIcon size={12} />
         </button>
       ) : (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={cn('flex items-center gap-0.5 transition-opacity', REVEAL_ON_HOVER)}>
           <button
             onClick={() => onPin(facet.id)}
             className="p-0.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"

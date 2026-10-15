@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/components/features/app-shell/lazy-recharts::PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer (POS: Recharts 懒加载统一入口)
+ * - next-intl::useTranslations (POS: 前端国际化 Hook)
+ *
+ * [OUTPUT]
+ * - HealthRadar: 记忆健康雷达图，四个维度加综合分
+ *
+ * [POS]
+ * 成长看板的记忆健康可视化。图表颜色直接取主题变量（变量里是完整颜色，不包 hsl()），随明暗主题切换。
+ */
+
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
@@ -57,15 +69,9 @@ export default function HealthRadar({ dimensions, score }: HealthRadarProps) {
     <div className="relative">
       <ResponsiveContainer width="100%" height={220}>
         <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="70%">
-          <PolarGrid stroke="hsl(var(--border))" />
-          <PolarAngleAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
-          <Radar
-            dataKey="value"
-            stroke="hsl(var(--primary))"
-            fill="hsl(var(--primary))"
-            fillOpacity={0.2}
-            strokeWidth={2}
-          />
+          <PolarGrid stroke="var(--border)" />
+          <PolarAngleAxis dataKey="label" tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
+          <Radar dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.2} strokeWidth={2} />
         </RadarChart>
       </ResponsiveContainer>
 

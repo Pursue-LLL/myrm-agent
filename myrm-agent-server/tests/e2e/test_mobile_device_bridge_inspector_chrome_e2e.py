@@ -64,7 +64,7 @@ _VERIFY_DEVICE_STORE_AND_PANEL_JS = """(() => {
     execution_mode="PRIVATE",
     access_scope="GLOBAL_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

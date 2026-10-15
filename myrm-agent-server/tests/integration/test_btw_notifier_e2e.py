@@ -11,7 +11,13 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
-from _btw_notifier_testkit import (
+from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
+from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
+from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
+from app.channels.core.exceptions import ChannelSendError
+from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
+from tests.integration._btw_notifier_testkit import (
     _background_event,
     _btw_task,
     _fake_gateway,
@@ -22,12 +28,6 @@ from _btw_notifier_testkit import (
     _patched_delivery,
     _wait_for_messages,
 )
-from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
-from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
-from myrm_agent_harness.toolkits.kanban.types import TaskStatus
-
-from app.channels.core.exceptions import ChannelSendError
-from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 
 @pytest.mark.asyncio

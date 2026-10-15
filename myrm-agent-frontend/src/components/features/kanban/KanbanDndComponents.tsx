@@ -2,6 +2,7 @@
  * [INPUT]
  * - @dnd-kit/core::useDroppable, useDraggable (POS: 跨平台拖拽基础设施)
  * - ./KanbanTaskCard (POS: 看板任务卡片渲染组件)
+ * - ./kanban-selection::columnLanes, laneKeyOf (POS: 看板多选与泳道规则，列渲染与 Shift 区间共用)
  *
  * [OUTPUT]
  * - KanbanDropColumn: 可放置的看板列组件（集成 useDroppable + 高亮/占位符动画）
@@ -12,13 +13,14 @@
  */
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import KanbanTaskCard from './KanbanTaskCard';
+import { columnLanes, laneKeyOf } from './kanban-selection';
 
 const STATUS_STYLES: Record<TaskStatus, string> = {
   triage: 'bg-purple-500/5 border-purple-500/30',
@@ -81,34 +83,10 @@ export function KanbanDropColumn({
   });
   const isHighlighted = (isOver || dragOverColumn === status) && draggedTaskId !== null;
 
-  const agentLanes = useMemo(() => {
-    if (!laneByProfile || status !== 'running') {
-      return null;
-    }
-    const groups = new Map<string | null, KanbanTask[]>();
-    for (const task of columnTaskItems) {
-      const key = task.agent_id ?? null;
-      const arr = groups.get(key);
-      if (arr) {
-        arr.push(task);
-      } else {
-        groups.set(key, [task]);
-      }
-    }
-    return [...groups.entries()].sort(([a], [b]) => {
-      if (a === null) {
-        return 1;
-      }
-      if (b === null) {
-        return -1;
-      }
-      const nameA = agentNameMap?.get(a) ?? a;
-      const nameB = agentNameMap?.get(b) ?? b;
-      return nameA.localeCompare(nameB);
-    });
-  }, [columnTaskItems, laneByProfile, status, agentNameMap]);
-
-  const showLaneHeaders = agentLanes !== null && agentLanes.length > 1;
+  const agentLanes = useMemo(
+    () => columnLanes(status, columnTaskItems, { laneByProfile: !!laneByProfile, agentNameMap }),
+    [status, columnTaskItems, laneByProfile, agentNameMap],
+  );
 
   const renderTaskCards = (items: KanbanTask[]) =>
     items.map((task) => (
@@ -148,9 +126,9 @@ export function KanbanDropColumn({
             <span className="text-[10px] text-primary/60 font-medium">{t('dropHere')}</span>
           </div>
         )}
-        {showLaneHeaders
+        {agentLanes
           ? agentLanes.map(([agentId, laneTasks]) => {
-              const laneKey = agentId ?? '__unassigned__';
+              const laneKey = laneKeyOf(agentId);
               const isCollapsed = collapsedAgents?.has(laneKey) ?? false;
               const displayName = agentId ? (agentNameMap?.get(agentId) ?? agentId) : t('unassigned');
               return (
@@ -216,15 +194,25 @@ function DraggableTaskCard({
   queuedByConcurrency = false,
 }: DraggableTaskCardProps) {
   const t = useTranslations('kanban');
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
     id: task.task_id,
     disabled: task.status === 'in_review',
   });
+  // dnd-kit 的键盘激活只在登记了 activator 时才校验 event.target；未登记时卡片内任何按钮上的
+  // Enter/Space 都会被当作“开始拖拽”并 preventDefault，卡片里的菜单与展开按钮就无法用键盘操作。
+  // 把卡片自身登记为 activator，拖拽仍可由聚焦卡片后按 Space/Enter 触发。
+  const setCardRef = useCallback(
+    (node: HTMLElement | null) => {
+      setNodeRef(node);
+      setActivatorNodeRef(node);
+    },
+    [setNodeRef, setActivatorNodeRef],
+  );
 
   return (
     // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- role, tabIndex and key listeners come from dnd-kit via spread
     <div
-      ref={setNodeRef}
+      ref={setCardRef}
       {...listeners}
       {...attributes}
       onClick={(e) => {

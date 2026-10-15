@@ -27,6 +27,7 @@ import {
 } from './config/providerTypes';
 import { normalizeProviders } from '@/services/config/configNormalizer';
 import { getConfigSyncManager, type ProvidersConfigValue } from '@/services/config';
+import { reconcileProviderOAuthFlags } from '@/services/provider-oauth-reconcile';
 import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { ensurePlatformReadiness } from '@/lib/platform-readiness';
@@ -197,6 +198,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
       isStoreInitialized = true;
       console.log('[ProviderStore] Initialized from ConfigSyncManager');
+      void reconcileProviderOAuthFlags(get().providers, get().updateProvider);
     } catch (error) {
       console.error('[ProviderStore] Initialization failed:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';

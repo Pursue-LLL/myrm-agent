@@ -248,10 +248,10 @@ const MediaGenerationSection = memo(() => {
       setProviderStatuses(newStatuses);
       setVideoApiKey('');
 
-      toast.success(t('apiKeySaved') || 'API Key saved successfully!');
+      toast.success(t('apiKeySaved'));
     } catch (error) {
       console.error('Failed to save API Key:', error);
-      toast.error(t('apiKeySaveFailed') || 'Failed to save API Key');
+      toast.error(t('apiKeySaveFailed'));
     } finally {
       setSavingVideoKey(false);
     }
@@ -272,10 +272,10 @@ const MediaGenerationSection = memo(() => {
       setImageProviderStatus(newStatuses['openai']);
       setImageApiKey('');
 
-      toast.success(t('apiKeySaved') || 'API Key saved successfully!');
+      toast.success(t('apiKeySaved'));
     } catch (error) {
       console.error('Failed to save API Key:', error);
-      toast.error(t('apiKeySaveFailed') || 'Failed to save API Key');
+      toast.error(t('apiKeySaveFailed'));
     } finally {
       setSavingImageKey(false);
     }

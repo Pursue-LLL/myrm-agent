@@ -17,8 +17,7 @@ Framework Protocol 实现层（Business Layer 的 harness 适配器）。
 
 **框架层（harness）负责**：
 - 定义 Protocol 接口（如 `SkillBackendProtocol`, `StorageProtocol`）
-- 提供默认实现（如 `InMemoryStorage`）
-- 核心业务逻辑（如 Skill Optimization 引擎）
+- 提供与业务无关的纯逻辑（如技能安全校验）
 
 **业务层（server/adapters）负责**：
 - 实现框架 Protocol（使用业务技术栈）
@@ -47,9 +46,10 @@ Framework Protocol 实现层（Business Layer 的 harness 适配器）。
 **框架 Protocol**：
 ```python
 # myrm_agent_harness.agent.skills.optimization.protocols
-class SkillQualityDataSource(Protocol):
-    async def get_quality_history(...) -> list[dict]: ...
-    async def save_quality_score(...) -> None: ...
+class SkillOptimizationStorage(Protocol):
+    async def save_skill_version(...) -> SkillVersion: ...
+    async def get_active_version(...) -> SkillVersion | None: ...
+    async def activate_version(...) -> SkillVersion: ...
 ```
 
 **Server 实现**：
@@ -58,25 +58,19 @@ class SkillQualityDataSource(Protocol):
 class SQLAlchemyStorage(SkillOptimizationStorage):
     """SQLAlchemy implementation of SkillOptimizationStorage Protocol
 
-    支持两种session管理模式：
-    - 固定session（API请求级，FastAPI依赖注入）
-    - session_factory（scheduler等长生命周期组件）
+    每次操作通过 session_factory 创建独立 session 并在结束时关闭，
+    长生命周期组件（skill loader）不持有未关闭的 session。
     """
 
-    def __init__(self, session=None, session_factory=None): ...
+    def __init__(self, session_factory): ...
 ```
 
 **包含的 Repository**：
-- `OptimizationRepository`: 优化记录 CRUD
-- `ABTestRepository`: A/B 测试数据
-- `QualityRepository`: 质量评分历史
 - `SnapshotRepository`: Skill版本快照 CRUD（支持版本回滚和对比）
-- `BatchTaskRepository`: 批量任务管理
-- `AuditLogRepository`: 审计日志
 
 **ORM 模型**（`app/database/models/skill_optimization/`）：
 - `SkillVersionModel`: Skill版本表（复合主键 skill_id + version）
-- `BatchSnapshot`: 批量优化前技能快照（支持 cancel/rollback）
+- `BatchSnapshot`: 技能修改批次落盘前的内容快照（撤销该批次时恢复）
 
 ---
 
@@ -88,7 +82,6 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 ┌─────────────────────────────────────┐
 │ myrm_agent_harness.agent.skills.optimization │ ← 框架层（Protocol 定义）
 │ - protocols.py (StorageProtocol)    │
-│ - in_memory_storage.py (默认实现)    │
 └─────────────────────────────────────┘
             ↑ 依赖（实现接口）
 ┌─────────────────────────────────────┐
@@ -149,19 +142,19 @@ class SQLiteMemoryBackend:
 ❌ **错误示例**（包含业务逻辑）：
 ```python
 class SQLAlchemyStorage:
-    async def save_quality_score(self, score):
+    async def save_skill_version(self, version):
         # ❌ 不应该在 adapter 里做业务判断
-        if score < 0.5:
+        if version.created_by == "llm":
             await self.send_alert()  # 业务逻辑
-        await self.repo.save(score)
+        await self.repo.save(version)
 ```
 
 ✅ **正确示例**（纯粹的数据适配）：
 ```python
 class SQLAlchemyStorage:
-    async def save_quality_score(self, score):
+    async def save_skill_version(self, version):
         # ✅ 只负责数据存储，不包含业务逻辑
-        await self.repo.save(score)
+        await self.repo.save(version)
 ```
 
 ### 2. 遵循 Protocol 契约
@@ -191,7 +184,7 @@ class SQLAlchemyStorage:
 
 ```python
 # ✅ 将底层异常转换为框架异常
-from myrm_agent_harness.agent.skills.optimization.exceptions import StorageError
+from myrm_agent_harness.agent.skills.optimization.protocols import StorageError
 
 
 class SQLAlchemyStorage:

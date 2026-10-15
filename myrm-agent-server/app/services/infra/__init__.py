@@ -3,6 +3,7 @@
 from app.services.infra.sandbox_cleanup import (
     WorkspaceCleanupService,
     cleanup_chat_workspace,
+    cleanup_chat_workspaces,
 )
 from app.services.infra.sleep_inhibitor import SleepInhibitor
 
@@ -10,4 +11,5 @@ __all__ = [
     "SleepInhibitor",
     "WorkspaceCleanupService",
     "cleanup_chat_workspace",
+    "cleanup_chat_workspaces",
 ]

@@ -11,6 +11,7 @@ import { Label } from '@/components/primitives/label';
 import { Textarea } from '@/components/primitives/textarea';
 import { apiRequest } from '@/lib/api';
 import { toast } from '@/hooks/shared/useToast';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface FaqCorpus {
   id: string;
@@ -399,7 +400,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
                     </div>
                   )}
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className={cn('flex gap-1 transition-opacity', REVEAL_ON_HOVER)}>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingEntry(entry)}>
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>

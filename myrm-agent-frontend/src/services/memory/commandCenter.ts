@@ -4,7 +4,7 @@
  * ./core::MemoryType (POS: Frontend memory API client)
  *
  * [OUTPUT]
- * getMemoryCommandCenter, runMemoryCommandAction, runMemoryDiagnosticAction, getMemoryDiagnosticHistory: Personal Brain Command Center API client with migration diagnostics and cleanup DTOs.
+ * getMemoryCommandCenter, runMemoryCommandAction, getMemoryDiagnosticHistory: Personal Brain Command Center API client with migration diagnostics and cleanup DTOs.
  *
  * [POS]
  * Frontend Personal Brain Command Center client. Owns command-center DTOs, GUI governance actions, executable diagnostics, migration integrity state, and import cleanup metrics.
@@ -370,7 +370,6 @@ export interface MemoryCommandPlaneSummary {
   archive_restore_rollback_failed: number;
   archive_restore_missing_items: number;
   archive_restore_failed_items: number;
-  storage_mode: string;
   last_event_at?: string | null;
   redaction_scope: 'metadata_only';
   sandbox_isolation: 'local_or_per_user_sandbox';
@@ -378,7 +377,6 @@ export interface MemoryCommandPlaneSummary {
 
 export interface MemoryCommandRuntimeStatus {
   deploy_mode: string;
-  storage_mode: string;
   memory_base_path: string;
   relational_status: 'available' | 'unavailable';
   vector_status: 'available' | 'unavailable';
@@ -505,16 +503,6 @@ export interface MemoryCommandDiagnosticHistoryResponse {
   items: MemoryCommandDiagnosticHistoryItem[];
 }
 
-export interface MemoryCommandDiagnosticActionRequest {
-  action: 'run_diagnostics' | 'run_health_refresh';
-}
-
-export interface MemoryCommandDiagnosticActionResponse {
-  status: 'completed' | 'completed_with_findings' | 'failed';
-  action: string;
-  run: MemoryCommandDiagnosticRun;
-}
-
 export interface MemoryCommandRepairExecutionResult {
   plan_id: string;
   status: 'completed' | 'blocked' | 'failed' | 'dry_run';
@@ -556,15 +544,6 @@ export const runMemoryCommandAction = async (
   body: MemoryCommandActionRequest,
 ): Promise<MemoryCommandActionResponse> => {
   return apiRequest<MemoryCommandActionResponse>('/memory/command-center/actions', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-};
-
-export const runMemoryDiagnosticAction = async (
-  body: MemoryCommandDiagnosticActionRequest,
-): Promise<MemoryCommandDiagnosticActionResponse> => {
-  return apiRequest<MemoryCommandDiagnosticActionResponse>('/memory/command-center/diagnostics/actions', {
     method: 'POST',
     body: JSON.stringify(body),
   });

@@ -20,10 +20,6 @@ describe('createStreamWatchdog', () => {
       silenceTimeoutMs: 3000,
       usageGraceMs: 1000,
       onHeal,
-      getState: () => ({
-        loading: true,
-        messages: [{ role: 'assistant', content: 'hello' }],
-      }),
       actions: {
         setLoading,
         clearActiveStream,
@@ -49,23 +45,16 @@ describe('createStreamWatchdog', () => {
     const setLoading = vi.fn();
     const clearActiveStream = vi.fn();
     const setMessageAppeared = vi.fn();
-    const _processSuggestions = vi.fn();
     const onHeal = vi.fn();
 
-    const mockMsg = { role: 'assistant', content: 'chunk response' };
     const watchdog = createStreamWatchdog({
       silenceTimeoutMs: 3000,
       usageGraceMs: 1000,
       onHeal,
-      getState: () => ({
-        loading: true,
-        messages: [mockMsg],
-      }),
       actions: {
         setLoading,
         clearActiveStream,
         setMessageAppeared,
-        _processSuggestions,
       },
     });
 
@@ -84,7 +73,6 @@ describe('createStreamWatchdog', () => {
     expect(setLoading).toHaveBeenCalledWith(false);
     expect(clearActiveStream).toHaveBeenCalled();
     expect(setMessageAppeared).toHaveBeenCalledWith(true);
-    expect(_processSuggestions).toHaveBeenCalledWith(mockMsg);
     expect(onHeal).toHaveBeenCalledWith(expect.stringContaining('silence timeout'));
     watchdog.dispose();
   });
@@ -99,10 +87,6 @@ describe('createStreamWatchdog', () => {
       silenceTimeoutMs: 4000,
       usageGraceMs: 1200,
       onHeal,
-      getState: () => ({
-        loading: true,
-        messages: [{ role: 'assistant', content: 'finished task' }],
-      }),
       actions: {
         setLoading,
         clearActiveStream,
@@ -136,10 +120,6 @@ describe('createStreamWatchdog', () => {
     const watchdog = createStreamWatchdog({
       silenceTimeoutMs: 5000,
       onHeal,
-      getState: () => ({
-        loading: true,
-        messages: [{ role: 'assistant', content: 'abrupt EOF' }],
-      }),
       actions: {
         setLoading,
         clearActiveStream,
@@ -166,10 +146,6 @@ describe('createStreamWatchdog', () => {
 
     const watchdog = createStreamWatchdog({
       onHeal,
-      getState: () => ({
-        loading: false,
-        messages: [],
-      }),
       actions: {
         setLoading,
       },
@@ -192,10 +168,6 @@ describe('createStreamWatchdog', () => {
     const watchdog = createStreamWatchdog({
       silenceTimeoutMs: 2000,
       onHeal,
-      getState: () => ({
-        loading: true,
-        messages: [],
-      }),
       actions: {
         setLoading,
       },

@@ -24,34 +24,11 @@ interface RewindButtonProps {
 
 export function RewindButton({ chatId, messageId, messageIndex, disabled = false }: RewindButtonProps) {
   const openRewind = useRewindStore((s) => s.openRewind);
-  const isTarget = useRewindStore((s) => s.target?.messageId === messageId);
   const t = useTranslations('chat.rewind');
-
-  if (typeof window !== 'undefined') {
-    const g = window as unknown as Record<string, unknown>;
-    g.__REWIND_BTN_RENDERED__ = {
-      dialogOpen: isTarget,
-      chatId,
-      messageId,
-      messageIndex,
-      disabled,
-      time: Date.now(),
-    };
-  }
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (typeof window !== 'undefined') {
-      const g = window as unknown as Record<string, unknown>;
-      g.__REWIND_BTN_CLICKED__ = {
-        time: Date.now(),
-        chatId,
-        messageId,
-        messageIndex,
-        disabled,
-      };
-    }
     openRewind({ chatId, messageId, messageIndex });
   };
 

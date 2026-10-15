@@ -8,11 +8,11 @@
  * RegenerateMenu: Dropdown button with regenerate options (Try Again, More Concise, More Detailed, Custom).
  *
  * [POS]
- * Enhanced regenerate action surface. Replaces simple "Retry" with instruction-aware regeneration.
+ * Regenerate action surface: a plain retry plus style presets and a custom instruction.
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { RefreshCw, ChevronDown, AlignLeft, AlignJustify, MessageSquarePlus, Sparkles } from 'lucide-react';
+import { RefreshCw, ChevronDown, AlignLeft, AlignJustify, MessageSquarePlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface RegenerateMenuProps {
@@ -68,14 +68,10 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
     }
   };
 
+  // `instruction` is prompt text for the model, not UI copy: it stays English
+  // so one preset sends the same prompt in every UI language.
   const presets = [
     { icon: RefreshCw, labelKey: 'regenerate_try_again' as const, instruction: undefined },
-    {
-      icon: Sparkles,
-      labelKey: 'regenerate_frontier' as const,
-      instruction: '__complaint_up__',
-      highlight: true,
-    },
     { icon: AlignLeft, labelKey: 'regenerate_concise' as const, instruction: 'Be more concise and to the point' },
     {
       icon: AlignJustify,
@@ -93,13 +89,14 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
           disabled={loading}
           className="p-2 text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-50"
           title={t('regenerate')}
+          data-testid="message-regenerate-button"
         >
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
         <button
           onClick={() => setOpen(!open)}
           className="p-1 pr-1.5 text-black/70 dark:text-white/70 hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white"
-          aria-label="Regenerate options"
+          aria-label={t('regenerate_options')}
         >
           <ChevronDown size={12} />
         </button>
@@ -109,15 +106,13 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
         <div className="absolute bottom-full left-0 mb-1 w-56 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden">
           {!customMode ? (
             <>
-              {presets.map(({ icon: Icon, labelKey, instruction, highlight }) => (
+              {presets.map(({ icon: Icon, labelKey, instruction }) => (
                 <button
                   key={labelKey}
                   onClick={() => handleClick(instruction)}
-                  className={`flex items-center gap-2.5 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors ${
-                    highlight ? 'text-primary font-medium bg-primary/5 hover:bg-primary/10' : ''
-                  }`}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${highlight ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <Icon className="w-4 h-4 shrink-0 text-muted-foreground" />
                   <span>{t(labelKey)}</span>
                 </button>
               ))}

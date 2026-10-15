@@ -13,7 +13,7 @@
 | `ExportMenu.tsx`           | 组件 | 导出单条/会话为 Markdown/PDF 等                                                                                                                                                                                                                    | ✅    |
 | `MemoryFeedback.tsx`       | 组件 | 记忆召回质量 thumbs up/down 反馈                                                                                                                                                                                                                   | ✅    |
 | `ReadAloud.tsx`            | 组件 | TTS 朗读 assistant 消息（browser 默认本地 SpeechSynthesis；API 模式走 `/tts`，受 `voice_interaction` feature gate 隐藏）                                                                                                                           | ✅    |
-| `RegenerateMenu.tsx`       | 组件 | 重新生成与分流重试菜单：支持直接重试、更强模型重试（`__complaint_up__` 算力升档）、风格偏好预设及自定义重生成指令                                                                                                                                  | ✅    |
+| `RegenerateMenu.tsx`       | 组件 | 重新生成菜单：直接重试（路由回合由服务端自动升一档）、风格偏好预设及自定义重生成指令                                                                                                                                  | ✅    |
 | `SessionRevertButton.tsx`  | 组件 | 会话级撤销（ChatWindow chips）：Honest UX 分流 + Tooltip + 混合成功 toast                                                                                                                                                                          | ✅    |
 | `RevertFiles.tsx`          | 组件 | 消息级文件撤销：空变更/不可撤销 toast 分流；混合变更 Popover 标注 skip_reason；部分成功 toast                                                                                                                                                      | ✅    |
 | `SaveEvalCase.tsx`         | 组件 | 保存为 Eval Lab 用例                                                                                                                                                                                                                               | ✅    |
@@ -21,7 +21,6 @@
 | `SaveToWikiButton.tsx`     | 组件 | Chat message ids → `POST /wiki/compound`（server DB hydrate Q&A/trust）→ Pending HITL（**agentConfig.agentId scoped**）；无痕模式隐藏；`message_not_found` / `incognito_forbidden` i18n toast；Vitest：`__tests__/SaveToWikiButton.scope.test.tsx` | ✅    |
 | `SiblingNav.tsx`           | 组件 | 同 prompt 多分支 sibling 导航（←/→）                                                                                                                                                                                                               | ✅    |
 | `SourcesButton.tsx`        | 组件 | 独立消息来源 Sheet（web/mcp/knowledge/conversation）；knowledge 含 wiki asset 缩略图；导出 `SourceItem` 供 `MemoryCitationsButton` 复用                                                                                                            | ✅    |
-| `Undo.tsx`                 | 组件 | 撤销上一条 user 发送（编辑重发入口）                                                                                                                                                                                                               | ✅    |
 
 ## 依赖
 

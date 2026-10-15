@@ -26,7 +26,6 @@ from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.backends.skills.usage_recorder import (
     begin_skill_run_usage,
     commit_skill_run_usage,
-    flush_skill_usage_stats,
     set_stats_collector,
 )
 
@@ -43,6 +42,7 @@ def _make_proposal(
     score: float = 0.9,
     is_general: bool = True,
     evolution_type: EvolutionType = EvolutionType.FIX,
+    security_scan_summary: dict[str, object] | None = None,
 ) -> EvolutionProposal:
     return EvolutionProposal(
         skill_id=skill_id,
@@ -54,6 +54,7 @@ def _make_proposal(
         reasoning="test",
         is_general=is_general,
         created_at=None,
+        security_scan_summary=security_scan_summary,
     )
 
 
@@ -87,7 +88,6 @@ class _SkillLedger:
             )
             commit_skill_run_usage()
         reset_loaded_skills()
-        flush_skill_usage_stats()
         return SkillRecord(
             skill_id=f"{skill_name}-id",
             name=skill_name,
@@ -135,10 +135,33 @@ class TestEvaluateRiskSignals:
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
         assert not any("diff_range" in s for s in signals)
 
-    def test_exact_threshold_no_signal(self) -> None:
-        original = "a" * 100
-        proposed = "a" * 150  # exactly 50% change — threshold is > 50%, so no trigger
+    def test_same_length_rewrite_triggers_signal(self) -> None:
+        original = "\n".join(f"step {i}: open the page and click the button" for i in range(20))
+        proposed = "\n".join(f"step {i}: close the tab and wait a moment!!!" for i in range(20))
+        assert len(original) == len(proposed)
         proposal = _make_proposal(original=original, proposed=proposed)
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
+        assert any("diff_range" in s for s in signals)
+
+    def test_growth_beyond_half_triggers_signal(self) -> None:
+        original = "\n".join(f"step {i}: open the page and click the button" for i in range(20))
+        appended = "\n".join(f"extra {i}: brand new guidance appended here" for i in range(12))
+        proposal = _make_proposal(original=original, proposed=f"{original}\n{appended}")
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
+        assert any("diff_range" in s for s in signals)
+
+    def test_small_in_place_edit_no_signal(self) -> None:
+        original_lines = [f"step {i}: open the page and click the button" for i in range(20)]
+        proposed_lines = [*original_lines[:9], "step 9: wait for the dialog, then press enter", *original_lines[10:]]
+        proposal = _make_proposal(original="\n".join(original_lines), proposed="\n".join(proposed_lines))
+        signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
+        assert not any("diff_range" in s for s in signals)
+
+    def test_chinese_description_tweak_no_signal(self) -> None:
+        proposal = _make_proposal(
+            original="当用户需要搜索网络上的最新新闻并整理成摘要时使用此技能，不适用于本地文件检索。",
+            proposed="当用户需要搜索网络上的最新资讯并整理成摘要时使用此技能，不适用于本地文件检索。",
+        )
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, None)
         assert not any("diff_range" in s for s in signals)
 
@@ -245,6 +268,42 @@ async def test_clean_proposal_allows_auto_approve_path() -> None:
     # but the risk_signals gate should not block it
 
 
+_SKILL_BODY = "1. Open the weekly report.\n2. Summarize the findings in three bullets.\n3. Reply with the summary.\n" * 4
+_SUDO_STEP = "4. Install the helper: sudo apt-get install -y ripgrep\n"
+
+
+@pytest.mark.asyncio
+async def test_a_proposal_that_adds_a_high_risk_line_is_held_despite_a_high_score() -> None:
+    proposal = _make_proposal(
+        skill_id="test_skill_adds_sudo",
+        original=_SKILL_BODY,
+        proposed=_SKILL_BODY + _SUDO_STEP,
+        score=0.95,
+        is_general=True,
+    )
+
+    result = await ConfidenceApprovalFlow(auto_approve_threshold=0.8).process_evolution(proposal)
+
+    assert not result.approved
+    assert result.requires_manual_review
+    assert "new_high_finding:privilege_escalation" in result.risk_signals
+
+
+@pytest.mark.asyncio
+async def test_a_risk_the_skill_already_had_is_not_a_new_signal() -> None:
+    original = _SKILL_BODY + _SUDO_STEP
+    proposal = _make_proposal(original=original, proposed=original.replace("three bullets", "two bullets"))
+
+    assert await ConfidenceApprovalFlow._scan_risk_signals(proposal, "test_skill") == []
+
+
+@pytest.mark.asyncio
+async def test_a_captured_proposal_is_scanned_as_a_brand_new_skill() -> None:
+    proposal = _make_proposal(original="", proposed=_SKILL_BODY + _SUDO_STEP, evolution_type=EvolutionType.CAPTURED)
+
+    assert await ConfidenceApprovalFlow._scan_risk_signals(proposal, "test_skill") == ["new_high_finding:privilege_escalation"]
+
+
 @pytest.mark.asyncio
 async def test_approval_result_has_risk_signals_field() -> None:
     """ApprovalResult always includes risk_signals field."""
@@ -258,8 +317,9 @@ async def test_approval_result_has_risk_signals_field() -> None:
 
 
 @pytest.mark.asyncio
-async def test_test_passed_reflects_score() -> None:
-    """test_passed is True when score > 0, False when score == 0."""
+async def test_test_passed_records_the_security_scan_outcome() -> None:
+    """test_passed is True for a clean scan, False when the scan reported findings, None when no scan ran."""
+    from myrm_agent_harness.backends.skills.types import SecurityScanSummary
     from sqlalchemy import select
 
     from app.database.connection import get_session
@@ -277,21 +337,23 @@ async def test_test_passed_reflects_score() -> None:
                     return record, review
         raise AssertionError(f"No evolution review for skill_id={skill_id}")
 
-    zero_proposal = _make_proposal(skill_id="test_skill_zero_score", score=0.0, is_general=False)
+    clean = SecurityScanSummary(score=100, trust_recommendation="trusted").to_dict()
+    with_findings = SecurityScanSummary(
+        score=60, trust_recommendation="untrusted", finding_counts={"high": 1}, total_findings=1
+    ).to_dict()
+    cases: list[tuple[str, dict[str, object] | None, bool | None]] = [
+        ("test_skill_unscanned", None, None),
+        ("test_skill_scan_clean", clean, True),
+        ("test_skill_scan_findings", with_findings, False),
+    ]
+
     flow = ConfidenceApprovalFlow()
-    await flow.process_evolution(zero_proposal)
-
-    record, review = await _review_for_skill("test_skill_zero_score")
-    assert review.test_passed is False
-    async with get_session() as db:
-        await db.delete(record)
-        await db.commit()
-
-    positive_proposal = _make_proposal(skill_id="test_skill_positive_score", score=0.5, is_general=False)
-    await flow.process_evolution(positive_proposal)
-
-    record, review = await _review_for_skill("test_skill_positive_score")
-    assert review.test_passed is True
-    async with get_session() as db:
-        await db.delete(record)
-        await db.commit()
+    for skill_id, summary, expected in cases:
+        await flow.process_evolution(
+            _make_proposal(skill_id=skill_id, score=0.1, is_general=False, security_scan_summary=summary)
+        )
+        record, review = await _review_for_skill(skill_id)
+        assert review.test_passed is expected, skill_id
+        async with get_session() as db:
+            await db.delete(record)
+            await db.commit()

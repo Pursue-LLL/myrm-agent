@@ -1,12 +1,13 @@
-"""SHPOIB warm backend pool for LIVE chrome_e2e (R159).
+"""SHPOIB warm backend pool for LIVE chrome_e2e (R159): registry, borrow, release.
 
 [POS] Dev Gate layer. Keeps hot private backends ready for borrow to cut
 cold bootstrap (~89s) to near-zero on pool hit. Pattern derived from flock + registry + progress tokens (R159).
+Registry sections are short by contract (``_registry_lock``); booting backends lives in
+``shpoib_warm_refill`` so a spawn can never sit under the lock borrowers wait on.
 """
 
 from __future__ import annotations
 
-import argparse
 import fcntl
 import json
 import os
@@ -15,24 +16,17 @@ import sys
 import time
 import urllib.error
 import urllib.request
-import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Final, TypedDict
 
-# 作为脚本直接执行时（`python .../e2e_core/shpoib_warm_pool.py`），sys.path[0] 指向模块自身所在
-# 目录而非 dev lib 根，导致模块级导入 e2e_core.* / dev_gate.* 失败；
-# 自举 dev lib 根（当前目录的父目录或向上两级），与 dev_gate/cli.py 保持同模式。
-if __package__ in (None, ""):
-    _lib_root = str(Path(__file__).resolve().parent.parent)
-    if _lib_root not in sys.path:
-        sys.path.insert(0, _lib_root)
-
 from e2e_core.real_user_home import real_user_home
 
 DEFAULT_POOL_SIZE: Final[int] = 2
-POOL_PROGRESS_INTERVAL_SEC: Final[float] = 30.0
+_LOCK_WAIT_REPORT_SEC: Final[float] = 2.0
 _SCHEMA_VERSION: Final[int] = 1
 
 
@@ -62,13 +56,6 @@ class WarmBorrowResult:
     environment: dict[str, str]
 
 
-def _monorepo_root() -> Path:
-    raw = os.environ.get("MYRM_MONOREPO_ROOT", "").strip()
-    if raw:
-        return Path(raw).resolve()
-    return Path(__file__).resolve().parents[5]
-
-
 def _pool_root() -> Path:
     raw = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
     base = Path(raw) if raw else real_user_home() / ".local/state/myrm-dev"
@@ -81,6 +68,47 @@ def _registry_path() -> Path:
 
 def _lock_path() -> Path:
     return _pool_root() / "registry.lock"
+
+
+def _refill_lock_path() -> Path:
+    return _pool_root() / "refill.lock"
+
+
+@contextmanager
+def _registry_lock() -> Iterator[None]:
+    """Serialise registry read-modify-write sections.
+
+    Hold it for milliseconds, never across a backend spawn: a cold boot takes
+    minutes, and every borrower and releaser queues on this lock, so a spawn
+    under it stalls each PRIVATE session that reaches setup in the meantime.
+    """
+    _pool_root().mkdir(parents=True, exist_ok=True)
+    with _lock_path().open("a+", encoding="utf-8") as handle:
+        queued_at = time.monotonic()
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        waited = time.monotonic() - queued_at
+        if waited >= _LOCK_WAIT_REPORT_SEC:
+            print(f"E2E_SHPOIB_WARM_POOL_LOCK_WAIT: waited={waited:.0f}s", file=sys.stderr)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _refill_slot() -> Iterator[bool]:
+    """Single-flight refill: yields False when another process is already refilling."""
+    _pool_root().mkdir(parents=True, exist_ok=True)
+    with _refill_lock_path().open("a+", encoding="utf-8") as handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _pid_alive(pid: int) -> bool:
@@ -276,127 +304,12 @@ def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
     return removed
 
 
-def _spawn_warm_backend(*, monorepo: Path) -> WarmBorrowResult:
-    from e2e_core.verify_backend_seed import _spawn_verify_backend_seed
-
-    spawned = _spawn_verify_backend_seed(monorepo=monorepo)
-    if not spawned.ok:
-        return WarmBorrowResult(
-            ok=False,
-            runtime_id=spawned.runtime_id,
-            owner_token=spawned.owner_token,
-            api_base=spawned.api_base,
-            detail=spawned.detail,
-            environment={},
-        )
-    owner_token = spawned.owner_token or f"warm-pool-{uuid.uuid4().hex[:12]}"
-    environment = {
-        "E2E_API_BASE": spawned.api_base.rstrip("/"),
-        "MYRM_E2E_PRIVATE_RUNTIME_ID": spawned.runtime_id,
-        "MYRM_E2E_PRIVATE_BACKEND": "1",
-        "MYRM_PRIVATE_BACKEND": "1",
-        "MYRM_E2E_SHPOIB": "1",
-    }
-    return WarmBorrowResult(
-        ok=True,
-        runtime_id=spawned.runtime_id,
-        owner_token=owner_token,
-        api_base=spawned.api_base.rstrip("/"),
-        detail="spawned",
-        environment=environment,
-    )
-
-
-def _backend_process_pid(runtime_id: str) -> int | None:
-    """Read the detached backend PID, not the short-lived pool maintainer PID."""
-    try:
-        from isolated_runtime.allocator import get_runtime
-
-        record = get_runtime(runtime_id)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return None
-    identity = record.get("backendProcess")
-    if not isinstance(identity, dict):
-        return None
-    pid = identity.get("pid")
-    return pid if isinstance(pid, int) and pid > 0 else None
-
-
 def _count_ready(registry: WarmPoolRegistry) -> int:
     count = 0
     for record in registry["backends"].values():
         if record.get("state") == "ready":
             count += 1
     return count
-
-
-def maintain_warm_pool(*, target_size: int | None = None) -> int:
-    """Top up warm pool to target_size ready backends. Returns ready count."""
-    monorepo = _monorepo_root()
-    resolved_target = target_size
-    if resolved_target is None:
-        raw = os.environ.get("MYRM_E2E_SHPOIB_WARM_POOL_SIZE", "").strip()
-        resolved_target = int(raw) if raw.isdigit() else DEFAULT_POOL_SIZE
-    resolved_target = max(0, min(4, resolved_target))
-    if resolved_target == 0:
-        return 0
-    if os.environ.get("MYRM_E2E_SHPOIB_WARM_POOL", "1").strip() in {"0", "false", "no"}:
-        return 0
-
-    _pool_root().mkdir(parents=True, exist_ok=True)
-    with _lock_path().open("a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            now = time.time()
-            registry = _load_registry()
-            _prune_stale(registry, now=now)
-            ready = _count_ready(registry)
-            spawned = 0
-            while ready + spawned < resolved_target:
-                result = _spawn_warm_backend(monorepo=monorepo)
-                if not result.ok:
-                    print(
-                        f"E2E_SHPOIB_WARM_POOL_SPAWN_FAIL: {result.detail}",
-                        file=sys.stderr,
-                    )
-                    break
-                key = result.runtime_id
-                backend_pid = _backend_process_pid(result.runtime_id)
-                if backend_pid is None or not _pid_alive(backend_pid):
-                    # Never publish a warm row owned by the short-lived
-                    # `ready.sh` process; that row would be pruned immediately
-                    # on the next borrow and hide a real pool failure.
-                    try:
-                        from isolated_runtime.reaper import release_runtime
-
-                        release_runtime(result.runtime_id, result.owner_token)
-                    except (ImportError, OSError, RuntimeError, ValueError):
-                        pass
-                    print(
-                        "E2E_SHPOIB_WARM_POOL_SPAWN_FAIL: backend process identity missing",
-                        file=sys.stderr,
-                    )
-                    break
-                registry["backends"][key] = {
-                    "runtimeId": result.runtime_id,
-                    "ownerToken": result.owner_token,
-                    "apiBase": result.api_base,
-                    "state": "ready",
-                    "ownerPid": backend_pid,
-                    "heartbeatAt": now,
-                    "acquiredAt": now,
-                    "sourceFingerprint": _workspace_source_fingerprint(),
-                }
-                spawned += 1
-                print(
-                    f"E2E_SHPOIB_WARM_POOL_OK: runtime={result.runtime_id} "
-                    f"api={result.api_base}",
-                    file=sys.stderr,
-                )
-            _save_registry(registry)
-            return _count_ready(registry)
-        finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def try_borrow_warm_backend(
@@ -406,102 +319,93 @@ def try_borrow_warm_backend(
     if os.environ.get("MYRM_E2E_SHPOIB_WARM_POOL", "1").strip() in {"0", "false", "no"}:
         return None
     resolved_pid = borrower_pid if borrower_pid is not None else os.getpid()
-    _pool_root().mkdir(parents=True, exist_ok=True)
-    with _lock_path().open("a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            now = time.time()
-            registry = _load_registry()
-            _prune_stale(registry, now=now)
-            workspace_fp = _workspace_source_fingerprint()
-            for key, record in list(registry["backends"].items()):
-                if record.get("state") != "ready":
-                    continue
-                runtime_id = str(record.get("runtimeId", key))
-                owner_token = record.get("ownerToken")
-                api_base = record.get("apiBase")
-                if not isinstance(owner_token, str) or not isinstance(api_base, str):
-                    registry["backends"].pop(key, None)
-                    continue
-                if not warm_backend_health_ok(api_base, runtime_id):
+    with _registry_lock():
+        now = time.time()
+        registry = _load_registry()
+        _prune_stale(registry, now=now)
+        workspace_fp = _workspace_source_fingerprint()
+        for key, record in list(registry["backends"].items()):
+            if record.get("state") != "ready":
+                continue
+            runtime_id = str(record.get("runtimeId", key))
+            owner_token = record.get("ownerToken")
+            api_base = record.get("apiBase")
+            if not isinstance(owner_token, str) or not isinstance(api_base, str):
+                registry["backends"].pop(key, None)
+                continue
+            if not warm_backend_health_ok(api_base, runtime_id):
+                print(
+                    "E2E_SHPOIB_WARM_POOL_PRUNE: "
+                    f"runtime={runtime_id} api={api_base} reason=unhealthy",
+                    file=sys.stderr,
+                )
+                registry["backends"].pop(key, None)
+                continue
+            # §26.26: never borrow a backend whose source differs from the
+            # current workspace — it would run tests against stale code.
+            # Records spawned by newer maintain already carry the fingerprint;
+            # legacy rows (no fingerprint) are probed live.
+            stored_fp = record.get("sourceFingerprint")
+            if workspace_fp:
+                if isinstance(stored_fp, str) and stored_fp:
+                    backend_fp = stored_fp
+                else:
+                    backend_fp = warm_backend_source_fingerprint(api_base)
+                if backend_fp and backend_fp != workspace_fp:
                     print(
-                        "E2E_SHPOIB_WARM_POOL_PRUNE: "
-                        f"runtime={runtime_id} api={api_base} reason=unhealthy",
+                        "E2E_SHPOIB_WARM_POOL_STALE_CODE: "
+                        f"runtime={runtime_id} api={api_base}",
                         file=sys.stderr,
                     )
                     registry["backends"].pop(key, None)
                     continue
-                # §26.26: never borrow a backend whose source differs from the
-                # current workspace — it would run tests against stale code.
-                # Records spawned by newer maintain already carry the fingerprint;
-                # legacy rows (no fingerprint) are probed live.
-                stored_fp = record.get("sourceFingerprint")
-                if workspace_fp:
-                    if isinstance(stored_fp, str) and stored_fp:
-                        backend_fp = stored_fp
-                    else:
-                        backend_fp = warm_backend_source_fingerprint(api_base)
-                    if backend_fp and backend_fp != workspace_fp:
-                        print(
-                            "E2E_SHPOIB_WARM_POOL_STALE_CODE: "
-                            f"runtime={runtime_id} api={api_base}",
-                            file=sys.stderr,
-                        )
-                        registry["backends"].pop(key, None)
-                        continue
-                record["state"] = "borrowed"
-                record["ownerPid"] = resolved_pid
-                record["heartbeatAt"] = now
-                _save_registry(registry)
-                environment = {
-                    "E2E_API_BASE": api_base.rstrip("/"),
-                    "MYRM_E2E_PRIVATE_RUNTIME_ID": runtime_id,
-                    "MYRM_E2E_PRIVATE_BACKEND": "1",
-                    "MYRM_PRIVATE_BACKEND": "1",
-                    "MYRM_E2E_SHPOIB": "1",
-                    "MYRM_E2E_WARM_POOL_BORROW": "1",
-                    # Borrowed backends are warm-period seeded; the borrow
-                    # contract resets providers to the borrower's authoritative
-                    # env so a reused backend never serves a peer's seed (R2).
-                    "MYRM_E2E_FORCE_MODEL_SEED": "1",
-                }
-                print(
-                    f"E2E_SHPOIB_WARM_POOL_BORROW: runtime={runtime_id} api={api_base}",
-                    file=sys.stderr,
-                )
-                return WarmBorrowResult(
-                    ok=True,
-                    runtime_id=runtime_id,
-                    owner_token=owner_token,
-                    api_base=api_base.rstrip("/"),
-                    detail="borrowed",
-                    environment=environment,
-                )
-            # Persist pruned rows (unhealthy / stale-code backends removed during
-            # this pass) even when nothing was borrowed, so the next maintain or
-            # borrow does not re-probe them.
+            record["state"] = "borrowed"
+            record["ownerPid"] = resolved_pid
+            record["heartbeatAt"] = now
             _save_registry(registry)
-            return None
-        finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            environment = {
+                "E2E_API_BASE": api_base.rstrip("/"),
+                "MYRM_E2E_PRIVATE_RUNTIME_ID": runtime_id,
+                "MYRM_E2E_PRIVATE_BACKEND": "1",
+                "MYRM_PRIVATE_BACKEND": "1",
+                "MYRM_E2E_SHPOIB": "1",
+                "MYRM_E2E_WARM_POOL_BORROW": "1",
+                # Borrowed backends are warm-period seeded; the borrow
+                # contract resets providers to the borrower's authoritative
+                # env so a reused backend never serves a peer's seed (R2).
+                "MYRM_E2E_FORCE_MODEL_SEED": "1",
+            }
+            print(
+                f"E2E_SHPOIB_WARM_POOL_BORROW: runtime={runtime_id} api={api_base}",
+                file=sys.stderr,
+            )
+            return WarmBorrowResult(
+                ok=True,
+                runtime_id=runtime_id,
+                owner_token=owner_token,
+                api_base=api_base.rstrip("/"),
+                detail="borrowed",
+                environment=environment,
+            )
+        # Persist pruned rows (unhealthy / stale-code backends removed during
+        # this pass) even when nothing was borrowed, so the next maintain or
+        # borrow does not re-probe them.
+        _save_registry(registry)
+        return None
 
 
 def release_warm_backend(*, runtime_id: str) -> bool:
     """Drop borrowed backend from pool registry (backend reaper handles process)."""
-    with _lock_path().open("a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            registry = _load_registry()
-            removed = registry["backends"].pop(runtime_id, None) is not None
-            _save_registry(registry)
-            if removed:
-                print(
-                    f"E2E_SHPOIB_WARM_POOL_RELEASE: runtime={runtime_id}",
-                    file=sys.stderr,
-                )
-            return removed
-        finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    with _registry_lock():
+        registry = _load_registry()
+        removed = registry["backends"].pop(runtime_id, None) is not None
+        _save_registry(registry)
+        if removed:
+            print(
+                f"E2E_SHPOIB_WARM_POOL_RELEASE: runtime={runtime_id}",
+                file=sys.stderr,
+            )
+        return removed
 
 
 def warm_pool_snapshot() -> dict[str, object]:
@@ -519,36 +423,3 @@ def warm_pool_snapshot() -> dict[str, object]:
         "totalCount": len(registry["backends"]),
         "targetSize": DEFAULT_POOL_SIZE,
     }
-
-
-def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="SHPOIB warm backend pool (R159)")
-    sub = parser.add_subparsers(dest="command", required=True)
-    maintain = sub.add_parser("maintain")
-    maintain.add_argument("--size", type=int, default=DEFAULT_POOL_SIZE)
-    status = sub.add_parser("status")
-    status.add_argument("--json", action="store_true")
-    return parser
-
-
-def main() -> int:
-    args = _build_parser().parse_args()
-    if args.command == "maintain":
-        count = maintain_warm_pool(target_size=args.size)
-        print(count)
-        return 0
-    if args.command == "status":
-        payload = warm_pool_snapshot()
-        if args.json:
-            print(json.dumps(payload, indent=2, sort_keys=True))
-        else:
-            print(
-                f"shpoib-warm-pool ready={payload['readyCount']} "
-                f"borrowed={payload['borrowedCount']}"
-            )
-        return 0
-    return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

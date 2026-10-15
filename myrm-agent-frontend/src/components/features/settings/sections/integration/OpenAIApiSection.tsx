@@ -40,11 +40,11 @@ const OpenAIApiSection = memo(() => {
       const result = await listApiKeys();
       setKeys(result);
     } catch {
-      toast({ title: 'Failed to load API keys', variant: 'destructive' });
+      toast({ title: t('loadFailed'), variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadKeys();
@@ -68,7 +68,7 @@ const OpenAIApiSection = memo(() => {
       setNote('');
       await loadKeys();
     } catch {
-      toast({ title: 'Failed to create API key', variant: 'destructive' });
+      toast({ title: t('createFailed'), variant: 'destructive' });
     } finally {
       setIsCreating(false);
     }
@@ -88,9 +88,9 @@ const OpenAIApiSection = memo(() => {
     try {
       await revokeApiKey(revokeTarget);
       await loadKeys();
-      toast({ title: 'API key revoked' });
+      toast({ title: t('keyRevoked') });
     } catch {
-      toast({ title: 'Failed to revoke key', variant: 'destructive' });
+      toast({ title: t('revokeFailed'), variant: 'destructive' });
     } finally {
       setRevokeTarget(null);
     }
@@ -103,9 +103,9 @@ const OpenAIApiSection = memo(() => {
     try {
       await deleteApiKey(deleteTarget);
       await loadKeys();
-      toast({ title: 'API key deleted' });
+      toast({ title: t('keyDeleted') });
     } catch {
-      toast({ title: 'Failed to delete key', variant: 'destructive' });
+      toast({ title: t('deleteFailed'), variant: 'destructive' });
     } finally {
       setDeleteTarget(null);
     }

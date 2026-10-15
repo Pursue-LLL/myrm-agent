@@ -431,6 +431,7 @@ def _open_task_drawer_and_click(
         raise AssertionError(f"unknown drawer action {action!r}")
 
 
+# exclusive_backend reason: asserts exact global /api/v1/statistics/overview pending_approvals delta (kpi_review == kpi_before + 1).
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",

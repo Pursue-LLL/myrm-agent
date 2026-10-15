@@ -20,7 +20,6 @@ from app.schemas.private_notebook import (
     NoteEntryDTO,
     NoteMetadataDTO,
     NoteSearchResultDTO,
-    RecordTurnRequestDTO,
     RewriteNoteRequestDTO,
 )
 
@@ -130,33 +129,6 @@ class PrivateNotebookService:
             for c in contexts
         ]
 
-    def list_entries(self, context_id: str) -> list[HistoryEntryItemDTO]:
-        """Lists turns recorded under context_id."""
-        entries = self._manager.history.list_entries(context_id)
-        return [
-            HistoryEntryItemDTO(
-                context_id=e.context_id,
-                turn_index=e.turn_index,
-                role=e.role,
-                content=e.content,
-                created_at=e.created_at,
-            )
-            for e in entries
-        ]
-
-    def read_entry(self, context_id: str, turn_index: int) -> HistoryEntryItemDTO | None:
-        """Reads a specific turn entry."""
-        entry = self._manager.history.read_entry(context_id, turn_index)
-        if entry is None:
-            return None
-        return HistoryEntryItemDTO(
-            context_id=entry.context_id,
-            turn_index=entry.turn_index,
-            role=entry.role,
-            content=entry.content,
-            created_at=entry.created_at,
-        )
-
     def search_history(self, query: str, max_results: int = 10) -> list[HistoryEntryItemDTO]:
         """Searches history across all contexts."""
         hits = self._manager.history.search_history(query, max_results=max_results)
@@ -170,10 +142,6 @@ class PrivateNotebookService:
             )
             for h in hits
         ]
-
-    def record_turn(self, request: RecordTurnRequestDTO) -> None:
-        """Records an ongoing turn into the active context."""
-        self._manager.record_turn(request.role, request.content)
 
     def switch_to_new_context(self, request: NewContextRequestDTO) -> NewContextResponseDTO:
         """Smoothly switches to a clean context while preserving sandbox state and notes."""

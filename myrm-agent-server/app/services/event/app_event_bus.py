@@ -50,10 +50,8 @@ class AppEventType(StrEnum):
     TEAMMATE_MESSAGE = "teammate_message"
     APPROVAL_RESOLVED = "approval_resolved"
     CRON_UPDATED = "cron_updated"
-    SKILL_AB_TEST_UPDATED = "skill_ab_test_updated"
     BUDGET_UPDATED = "budget_updated"
     CHANNEL_STATUS_UPDATED = "channel_status_updated"
-    SKILL_QUALITY_UPDATED = "skill_quality_updated"
     KANBAN_TASK_UPDATED = "kanban_task_updated"
     BACKGROUND_TASK_DONE = "background_task_done"
     UX_WARNING_TRUNCATED = "ux_warning_truncated"
@@ -74,7 +72,6 @@ class AppEventType(StrEnum):
     SUBAGENT_MERGED = "subagent_merged"
     SANDBOX_PERSIST_TRIGGERED = "sandbox_persist_triggered"
     SANDBOX_PERSIST_COMPLETED = "sandbox_persist_completed"
-    REVOCATION_BROADCAST = "revocation_broadcast"
 
 
 @dataclass(frozen=True, slots=True)

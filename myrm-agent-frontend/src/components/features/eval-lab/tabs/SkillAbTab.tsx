@@ -52,7 +52,7 @@ export default function SkillAbTab({ datasetId }: SkillAbTabProps) {
       }, 2000);
     } catch (e: unknown) {
       setRunning(false);
-      toast.error((e as Error).message || 'Failed to start Skill A/B');
+      toast.error((e as Error).message || t('skillAbStartFailed'));
     }
   };
 

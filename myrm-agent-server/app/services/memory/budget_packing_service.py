@@ -30,7 +30,6 @@ from myrm_agent_harness.toolkits.memory import (
 from app.schemas.budget_packing import (
     BilledTokenBudgetDTO,
     DroppedCandidateItemDTO,
-    InspectMarginalResponseItem,
     MarginalValueMetricsDTO,
     PackedCandidateItemDTO,
     PackedRecallResultDTO,
@@ -157,27 +156,6 @@ class BudgetPackingService:
             enable_knapsack=enable_knapsack,
         )
         return _packed_result_domain_to_dto(domain_result)
-
-    def inspect_marginal_values(
-        self,
-        candidates: list[RecallCandidateDTO],
-        budget: BilledTokenBudgetDTO | None = None,
-    ) -> list[InspectMarginalResponseItem]:
-        """Inspect sequential marginal value degradation for recall candidates."""
-        domain_candidates = [_candidate_dto_to_domain(c) for c in candidates]
-        domain_budget = _budget_dto_to_domain(budget)
-
-        inspected = self._orchestrator.inspect_marginal_evaluation(
-            domain_candidates,
-            budget=domain_budget,
-        )
-        return [
-            InspectMarginalResponseItem(
-                candidate=_candidate_domain_to_dto(cand),
-                metrics=_metrics_domain_to_dto(m),
-            )
-            for cand, m in inspected
-        ]
 
     def get_default_budget(self) -> BilledTokenBudgetDTO:
         """Return recommended default budget parameters."""

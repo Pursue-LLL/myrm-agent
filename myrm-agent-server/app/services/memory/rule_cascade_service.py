@@ -35,8 +35,6 @@ from app.schemas.rule_cascade import (
     FiveDimEvidenceMetadataDTO,
     PreFilteredEvidenceResponse,
     PreFilterEvidenceRequest,
-    RegisterRuleRequest,
-    RegisterRuleResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,22 +117,6 @@ class RuleCascadeService:
         self._loader = loader or DeterministicRuleCascadeLoader()
         self._decay = decay_calc or TimeDecayCalculator()
         self._filter_engine = filter_engine or FiveDimPreFilterEngine(decay_calculator=self._decay)
-
-    def register_rule(self, req: RegisterRuleRequest) -> RegisterRuleResponse:
-        """Register a deterministic engineering rule."""
-        domain_rule = DeterministicRuleEntry(
-            rule_id=req.rule_id,
-            title=req.title,
-            rule_content=req.rule_content,
-            metadata=_to_meta_domain(req.metadata),
-            is_enforced=req.is_enforced,
-        )
-        self._loader.register_rule(domain_rule)
-        return RegisterRuleResponse(
-            is_success=True,
-            rule_id=req.rule_id,
-            registered_rule=_to_rule_dto(domain_rule),
-        )
 
     def resolve_cascade(self, target_path: str) -> CascadedRuleSetDTO:
         """Resolve hierarchically inherited and overridden rules along target directory path."""

@@ -2,8 +2,9 @@
 
 [INPUT]
 - app.services.agent.stream_session.stream_session_types (POS: 会话上下文数据类)
-- app.services.agent.stream_loop (POS: Agent SSE 主流循环)
-- app.services.agent.stream_finalize (POS: 流错误处理与会话 teardown)
+- app.services.agent.stream_session.stream_loop (POS: Core streaming loop: routes to fast/reasoning/deep-research lanes, handles approval timeouts, compression exhaustion, workflow escalation, and context overflow reset)
+- app.services.agent.stream_session.stream_disconnect (POS: 直连 SSE 断连监控的启停作用域，先于 finalize 退出)
+- app.services.agent.stream_session.stream_finalize (POS: 流错误处理与会话 teardown)
 
 [OUTPUT]
 - generate_cancellable_stream: 可取消的 SSE chunk 异步生成器
@@ -21,6 +22,7 @@ from typing import cast
 from myrm_agent_harness.toolkits.llms.fallback import with_failover_emitter
 
 from app.schemas.streaming import SSEEnvelope
+from app.services.agent.stream_session.stream_disconnect import watch_client_disconnect
 from app.services.agent.stream_session.stream_finalize import (
     finalize_agent_stream_session,
     yield_stream_exception_chunks,
@@ -42,7 +44,7 @@ logger = logging.getLogger(__name__)
 async def generate_cancellable_stream(
     session: AgentStreamSession,
 ) -> AsyncGenerator[str, None]:
-    from myrm_agent_harness.agent.security import (
+    from myrm_agent_harness.agent.security.types import (
         EphemeralUserCredential,
         user_credentials_ctx,
     )
@@ -86,7 +88,7 @@ async def generate_cancellable_stream(
         routing_event_data: dict[str, object] = {
             "type": "routing_decision",
             "messageId": session.params.message_id or "",
-            "data": cast(dict[str, object], routing_data),
+            "data": routing_data,
         }
         session.collector.feed_event(routing_event_data)
         yield SSEEnvelope.from_any(routing_event_data).to_sse_chunk()
@@ -175,12 +177,10 @@ async def generate_cancellable_stream(
             session.collector.feed_event(brief_warm_event)
             yield SSEEnvelope.from_any(brief_warm_event).to_sse_chunk()
 
-    await session.monitor.start()
-
     if isinstance(session.params.query, list) and session.request.resume_value is None:
         from app.core.utils.chat_utils import _process_human_content
 
-        meta = {
+        meta: dict[str, object] = {
             "message_id": session.params.message_id,
             "chat_id": session.params.chat_id,
             "extra_data": {"original_query": session.request.query},
@@ -255,7 +255,7 @@ async def generate_cancellable_stream(
     )
 
     try:
-        async with with_failover_emitter(failover_emitter):
+        async with with_failover_emitter(failover_emitter), watch_client_disconnect(session):
             try:
                 async for chunk in merge_stream_with_emitter(
                     iter_agent_stream_chunks(session, approval, clarification),

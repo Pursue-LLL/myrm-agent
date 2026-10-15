@@ -69,36 +69,28 @@ async def test_four_tier_memory_crud_api(test_app: FastAPI) -> None:
 
         assert len(saved_ids) == 4
 
-        # 2. Get item by ID
-        res_get = await client.get(f"/api/memory/four-tier/items/{saved_ids[0]}?project_hash=proj_1")
-        assert res_get.status_code == 200
-        assert res_get.json()["title"] == "Repo Structure"
-
-        # 3. 404 for unknown item
-        res_404 = await client.get("/api/memory/four-tier/items/non_existent_id?project_hash=proj_1")
-        assert res_404.status_code == 404
-
-        # 4. List items filtered by scope
+        # 2. List items filtered by scope
         res_list_proj = await client.get("/api/memory/four-tier/items?scope=project&project_hash=proj_1")
         assert res_list_proj.status_code == 200
         proj_items = res_list_proj.json()
         assert len(proj_items) == 1
         assert proj_items[0]["title"] == "Repo Structure"
 
-        # 5. List items filtered by session_id
+        # 3. List items filtered by session_id
         res_list_sess = await client.get("/api/memory/four-tier/items?project_hash=proj_1&session_id=sess_1")
         assert res_list_sess.status_code == 200
         sess_items = res_list_sess.json()
         assert len(sess_items) == 2
 
-        # 6. Delete item
+        # 4. Delete item
         del_res = await client.delete(f"/api/memory/four-tier/items/{saved_ids[0]}?project_hash=proj_1")
         assert del_res.status_code == 200
         assert del_res.json()["deleted"] is True
 
         # Verify deleted
-        verify_del = await client.get(f"/api/memory/four-tier/items/{saved_ids[0]}?project_hash=proj_1")
-        assert verify_del.status_code == 404
+        verify_del = await client.get("/api/memory/four-tier/items?scope=project&project_hash=proj_1")
+        assert verify_del.status_code == 200
+        assert verify_del.json() == []
 
 
 @pytest.mark.asyncio
@@ -203,14 +195,10 @@ async def test_four_tier_dream_compaction_api(
         assert report["merged_items_count"] == 1
         assert report["pruned_items_count"] == 1
 
-        # 4. Check merged Build Notes content
+        # 4. Check merged Build Notes content; the stale progress item is gone (only one item remains)
         remaining_items = await client.get(f"/api/memory/four-tier/items?project_hash={proj_hash}")
         assert remaining_items.status_code == 200
         items_data = remaining_items.json()
         assert len(items_data) == 1
         assert "Part 1" in items_data[0]["content"]
         assert "Part 2" in items_data[0]["content"]
-
-        # 5. Check old progress item is gone
-        old_item_res = await client.get(f"/api/memory/four-tier/items/prog_old_01?project_hash={proj_hash}")
-        assert old_item_res.status_code == 404

@@ -56,7 +56,6 @@ def _session(
         research_model_cfg=None,
         registry=object(),
         collector=_FakeCollector(),
-        monitor=cast(object, None),
         is_long_running_task=False,
         goal_provider=None,
         extra_context={},

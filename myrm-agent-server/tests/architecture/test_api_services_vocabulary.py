@@ -20,9 +20,7 @@ API_SERVICES_ALIASES: dict[str, str] = {
     "chats": "chat",
     "projects": "project",
     "events": "event",
-    "mobile": "mobile_adb",
     "background_tasks": "background",
-    "batch_optimization": "skill_optimization",
 }
 
 SAME_NAME_DOMAINS: frozenset[str] = frozenset(
@@ -50,7 +48,6 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "integrations",
         "kanban",
         "memory",
-        "message_filter",
         "migration",
         "ops",
         "plugins",
@@ -82,7 +79,6 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "commerce",
         "credentials",
         "datasets",
-        "dev_gate",
         "dev_ports",
         "eval",
         "goals",
@@ -119,7 +115,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "chat",
         "code_graph",
         "compliance",
-        "continual",
         "copilot",
         "cron_digest",
         "device",
@@ -136,7 +131,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "onboarding",
         "ops",
         "org_model_policy",
-        "power",
         "project",
         "remote_host",
         "repair",

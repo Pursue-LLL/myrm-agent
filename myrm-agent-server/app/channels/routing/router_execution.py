@@ -264,7 +264,7 @@ class RouterExecutionMixin:
 
             if topic_ctx is not None and topic_ctx.holds_reply_for_review:
                 try:
-                    await self._create_outbound_draft(result, msg, chat_id, topic_ctx)
+                    await self._create_outbound_draft(result, msg, chat_id, topic_ctx, placeholder_id)
                 except Exception:
                     # Fail closed: draft review promises that no reply is sent before a human approved it.
                     logger.exception("Failed to hold the reply for review, withholding it")
@@ -314,8 +314,13 @@ class RouterExecutionMixin:
         original_msg: InboundMessage,
         chat_id: str,
         topic_ctx: TopicContext,
+        placeholder_id: str | None,
     ) -> None:
-        """Hold an outbound message as a draft approval for human review."""
+        """Hold an outbound message as a draft approval for human review.
+
+        ``placeholder_id`` is the message the sender sees while the reply is held; it travels with the draft so that
+        whoever decides on it can close that message.
+        """
         from datetime import datetime, timedelta, timezone
 
         from app.services.approvals.registry import ApprovalRegistry
@@ -325,10 +330,11 @@ class RouterExecutionMixin:
 
         payload: dict[str, object] = {
             "draft_content": result.content,
-            # Everything but the text (which the reviewer may edit): attachments, buttons and routing stay as produced.
+            # Everything but the text, which is read from ``draft_content`` when the reply is sent.
             "outbound": dataclasses.replace(result, content="").to_dict(),
             "channel": result.channel,
             "recipient_id": result.recipient_id,
+            "placeholder_id": placeholder_id,
             "original_sender_id": original_msg.sender_id,
             "original_content": (original_msg.content or "")[:500],
             "topic_id": topic_ctx.topic_id,

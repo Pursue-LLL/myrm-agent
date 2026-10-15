@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `background_job_startup.py` | ✅ 核心 | 启动 configure `BackgroundJobStore`（harness_dir/.myrm/background_jobs.db）并 reconcile orphaned running 行 | ✅ |
-| `background_job_finish_handler.py` | ✅ 核心 | Harness 后台 bash 自然退出时的 WebUI 闭环：Store finish 幂等 → locale 双语完成消息 → `append_message` → `goal_wait_background_resume` → `SYSTEM_NOTIFICATION` SSE | ✅ |
+| `background_job_finish_handler.py` | ✅ 核心 | Harness 后台 bash 自然退出时的 WebUI 闭环：Store finish 幂等 → locale 双语完成消息 → `append_message`（带 `BACKGROUND_JOB_NOTICE_KEY` 通知标记，重试不当作回答）→ `goal_wait_background_resume` → `SYSTEM_NOTIFICATION` SSE | ✅ |
 
 ## 依赖
 

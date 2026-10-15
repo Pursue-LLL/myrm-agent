@@ -38,8 +38,6 @@ from app.database.connection import get_session
 from app.schemas.memory.archive import (
     CronImportSummary,
     CronMigrationSkippedPreviewItem,
-    MemoryArchiveDryRunRequest,
-    MemoryArchiveDryRunResponse,
     MemoryArchiveExportResponse,
     MemoryImportConfirmRequest,
     MemoryImportConfirmResponse,
@@ -48,8 +46,6 @@ from app.schemas.memory.archive import (
     MemoryImportReadiness,
     MemoryImportReadinessRecheckRequest,
     MemoryImportReadinessRecheckResponse,
-    MemoryImportRequest,
-    MemoryImportResponse,
     MemoryImportRollbackPreviewResponse,
     MemoryImportRollbackRequest,
     MemoryImportRollbackResponse,
@@ -216,27 +212,6 @@ async def export_memory_archive(
         },
     )
     return MemoryArchiveExportResponse(archive=archive)
-
-
-async def dry_run_memory_archive(
-    body: MemoryArchiveDryRunRequest,
-) -> MemoryArchiveDryRunResponse:
-    """Validate a Myrm memory archive before any restore/import work."""
-
-    async with get_session() as db:
-        result = MemoryArchiveService(db).dry_run_archive(body.archive)
-    return MemoryArchiveDryRunResponse(result=result)
-
-
-async def import_memories(
-    _body: MemoryImportRequest,
-) -> MemoryImportResponse:
-    """Reject direct imports that bypass the server-bound review session."""
-
-    raise HTTPException(
-        status_code=400,
-        detail="Direct memory import is disabled. Use /memory/import/dry-run and /memory/import/confirm.",
-    )
 
 
 async def dry_run_import_memories(

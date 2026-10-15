@@ -139,7 +139,7 @@ async def test_list_only_maintain_no_fix_and_generates_markdown_report() -> None
     assert result.issues_fixed == 0
     assert "Wiki 知识库健康周检报告" in result.summary_text
     assert "严重断链: 1 处" in result.summary_text
-    assert "/settings/knowledge" in result.summary_text
+    assert "(/settings/wiki)" in result.summary_text
     save_mock.assert_awaited_once()
 
 
@@ -168,7 +168,7 @@ async def test_list_only_maintain_all_green_report() -> None:
     assert result.mode == "list_only"
     assert result.issues_found == 0
     assert "全库状态极佳" in result.summary_text
-    assert "/settings/knowledge" in result.summary_text
+    assert "(/settings/wiki)" in result.summary_text
 
 
 def test_state_from_run_result_maps_fields() -> None:

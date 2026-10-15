@@ -1,21 +1,23 @@
 """OAuth token auto-refresh service.
 
-Handles automatic refresh of OAuth tokens for Google Workspace, xAI,
-and Provider OAuth (Anthropic, OpenAI, Copilot) credentials.
-Copilot uses non-standard refresh via GitHub access_token exchange.
+Handles automatic refresh of OAuth tokens for Google Workspace, xAI and
+every other issuer that exposes a standard OAuth2 refresh_token grant.
 
 [INPUT]
 - app.database.models::UserConfig (POS: ORM model for user config storage)
 - app.services.config.encryption (POS: sensitive config encryption/decryption)
-- app.services.integrations.oauth_store (POS: oauthCredentials 加密读写、共享行锁与加密写回原语；extract_copilot_base_url: Copilot JWT proxy-ep parser)
-- myrm_agent_harness.agent.security::EphemeralUserCredential (POS: session-scoped credential)
+- app.services.integrations.oauth_store (POS: oauthCredentials 加密读写、共享行锁与加密写回原语)
+- app.services.agent.oauth_token_policy (POS: expiry resolution and refresh-failure classification)
+- myrm_agent_harness.agent.security.types::EphemeralUserCredential (POS: session-scoped credential)
 
 [OUTPUT]
 - refresh_oauth_token: async refresh for any OAuth issuer, returns EphemeralUserCredential
+- is_refresh_rejected: read-only check whether the provider permanently rejected a stored refresh token
 
 [POS]
 OAuth token refresh service. Manages token lifecycle for all OAuth-connected integrations
-and model providers, with per-issuer locking, shared-row write serialization, and reauth
+and model providers, with per-issuer locking, cancellation shielding, shared-row write
+serialization, failure memory (rejected refresh tokens, transient cooldown) and reauth
 notification.
 """
 
@@ -24,18 +26,25 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Mapping
 
 import httpx
-from myrm_agent_harness.agent.security import EphemeralUserCredential
+from myrm_agent_harness.agent.security.types import EphemeralUserCredential
 from sqlalchemy import select
 
 from app.database.connection import get_session
 from app.database.models import UserConfig
+from app.services.agent.oauth_token_policy import (
+    TOKEN_REFRESH_LEAD_S,
+    classify_refresh_failure,
+    credential_expiry,
+    refresh_token_fingerprint,
+    resolve_expires_at,
+)
 from app.services.config.encryption import get_encryption_service
 from app.services.integrations.oauth_store import (
     CONFIG_KEY,
     decrypt_oauth_credentials,
-    extract_copilot_base_url,
     load_oauth_credentials_row,
     oauth_credentials_lock,
     persist_credentials_locked,
@@ -44,13 +53,36 @@ from app.services.integrations.oauth_store import (
 logger = logging.getLogger(__name__)
 
 GOOGLE_WORKSPACE_ISSUER = "google_workspace"
-COPILOT_ISSUER = "provider_copilot"
 
 _refresh_locks: dict[str, asyncio.Lock] = {}
 _reauth_emitted_at: dict[str, float] = {}
 
+# Issuer -> fingerprint of the refresh token the provider rejected for good.
+# Retrying a rejected (or already rotated) token cannot succeed; only a new
+# login yields a different fingerprint and lifts the block.
+_rejected_refresh_tokens: dict[str, str] = {}
+
+# Issuer -> monotonic deadline before which no new refresh is attempted after a
+# transient failure, so an outage is not hit once per LLM call.
+_retry_not_before: dict[str, float] = {}
+
 _REAUTH_DEDUP_WINDOW_S = 300
-_TOKEN_FRESH_GRACE_S = 300
+_TRANSIENT_COOLDOWN_S = 30.0
+
+
+def is_refresh_rejected(issuer: str, credential: Mapping[str, object]) -> bool:
+    """True when the provider rejected this credential's current refresh token for good.
+
+    Reads the in-process failure memory only: no I/O, no refresh attempt. The
+    memory starts empty with the process, so a rejection is reported again once
+    the next refresh attempt meets it.
+    """
+    refresh_token = credential.get("refresh_token")
+    return (
+        isinstance(refresh_token, str)
+        and bool(refresh_token)
+        and _rejected_refresh_tokens.get(issuer) == refresh_token_fingerprint(refresh_token)
+    )
 
 
 def _emit_reauth_if_needed(issuer: str, reason: str) -> None:
@@ -94,11 +126,11 @@ def _resolve_oauth_client_credentials(
         client_secret = settings.google_client_secret.get_secret_value().strip()
         return (client_id or None, client_secret or None)
 
-    client_id = cred_val.get("client_id")
-    client_secret = cred_val.get("client_secret")
+    stored_client_id = cred_val.get("client_id")
+    stored_client_secret = cred_val.get("client_secret")
     return (
-        str(client_id) if client_id else None,
-        str(client_secret) if client_secret else None,
+        str(stored_client_id) if stored_client_id else None,
+        str(stored_client_secret) if stored_client_secret else None,
     )
 
 
@@ -129,11 +161,57 @@ async def _merge_refreshed_credential(
             await persist_credentials_locked(db, row, credentials)
 
 
+def _as_ephemeral_credential(issuer: str, cred: dict[str, object]) -> EphemeralUserCredential:
+    """Wrap a stored credential entry for session-scoped use."""
+    from app.services.agent.session_credential_assembler import XAI_ISSUER
+
+    scope = cred.get("base_url") if issuer == XAI_ISSUER else cred.get("scope")
+    return EphemeralUserCredential(
+        issuer=issuer,
+        token=str(cred.get("token", "")),
+        scope=str(scope or ""),
+        user_id=str(cred.get("user_id", "")),
+        expires_at=credential_expiry(cred),
+        refresh_callback=lambda: refresh_oauth_token(issuer),
+    )
+
+
+def _response_json(response: httpx.Response) -> object:
+    try:
+        return response.json()
+    except Exception:
+        return None
+
+
+def _reauth_reason(body: object) -> str:
+    """Human-readable reason carried by the reauth event (provider text first)."""
+    if isinstance(body, dict):
+        reason = body.get("error_description") or body.get("error")
+        if reason:
+            return str(reason)
+    return "token_expired"
+
+
+def _consume_task_result(task: asyncio.Task[EphemeralUserCredential | None]) -> None:
+    """Mark the outcome as retrieved: a caller cancelled mid-refresh never reads it."""
+    if not task.cancelled():
+        task.exception()
+
+
 async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
     """Auto-refresh an expired OAuth2 token with DB persistence, encryption and concurrency locks.
 
     Protects against concurrent token refresh stampedes (preventing Refresh Token Rotation lockouts).
+    The exchange runs as its own task shielded from caller cancellation: refresh tokens are
+    single-use for several issuers, so abandoning the exchange after the provider rotated the
+    token would strand the account with a refresh token nobody saved.
     """
+    task = asyncio.ensure_future(_refresh_serialized(issuer))
+    task.add_done_callback(_consume_task_result)
+    return await asyncio.shield(task)
+
+
+async def _refresh_serialized(issuer: str) -> EphemeralUserCredential | None:
     lock = _refresh_locks.setdefault(issuer, asyncio.Lock())
     async with lock:
         async with get_session() as db_session:
@@ -159,28 +237,14 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
 
             # Double-Checked Locking:
             # If another parallel coroutine refreshed this token while we were waiting for the lock,
-            # its expires_at will be greater than now + 300s. We can use it directly!
-            expires_at = cred_val.get("expires_at")
-            if expires_at is not None and expires_at > time.time() + _TOKEN_FRESH_GRACE_S:
+            # its expiry is beyond the refresh lead window. We can use it directly!
+            expires_at = credential_expiry(cred_val)
+            if expires_at is not None and expires_at > time.time() + TOKEN_REFRESH_LEAD_S:
                 logger.info(
                     "refresh_oauth_token: Token for '%s' was already refreshed by a parallel task. Skipping HTTP POST.",
                     issuer,
                 )
-                from app.services.agent.session_credential_assembler import XAI_ISSUER
-
-                scope = str(cred_val.get("base_url", "")) if issuer == XAI_ISSUER else str(cred_val.get("scope", ""))
-                return EphemeralUserCredential(
-                    issuer=issuer,
-                    token=str(cred_val.get("token", "")),
-                    scope=scope,
-                    user_id=str(cred_val.get("user_id", "")),
-                    expires_at=expires_at,
-                    refresh_callback=lambda: refresh_oauth_token(issuer),
-                )
-
-            # Copilot uses non-standard refresh: GitHub access_token → /copilot_internal/v2/token
-            if issuer == COPILOT_ISSUER:
-                return await _refresh_copilot_token(cred_val)
+                return _as_ephemeral_credential(issuer, cred_val)
 
             refresh_token = cred_val.get("refresh_token")
             token_url = cred_val.get("token_url")
@@ -193,6 +257,14 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                 )
                 if not refresh_token:
                     _emit_reauth_if_needed(issuer, "missing_refresh_token")
+                return None
+
+            fingerprint = refresh_token_fingerprint(str(refresh_token))
+            if _rejected_refresh_tokens.get(issuer) == fingerprint:
+                # Keep the user informed (deduplicated) without spending another attempt.
+                _emit_reauth_if_needed(issuer, "token_expired")
+                return None
+            if time.monotonic() < _retry_not_before.get(issuer, 0.0):
                 return None
 
             logger.info(
@@ -212,144 +284,57 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
             try:
                 async with httpx.AsyncClient(timeout=15.0) as client:
                     response = await client.post(token_url, data=data)
-                    if response.status_code == 200:
-                        res_json = response.json()
-                        new_token = res_json.get("access_token")
-                        new_refresh = res_json.get("refresh_token") or refresh_token
-                        expires_in = int(res_json.get("expires_in") or 3600)
-
-                        if not new_token:
-                            logger.error("refresh_oauth_token: response did not contain 'access_token'")
-                            return None
-
-                        # Update and persist
-                        updated_cred = dict(cred_val)
-                        updated_cred["token"] = new_token
-                        updated_cred["refresh_token"] = new_refresh
-                        updated_cred["expires_at"] = time.time() + expires_in
-                        if issuer == GOOGLE_WORKSPACE_ISSUER:
-                            updated_cred.pop("client_id", None)
-                            updated_cred.pop("client_secret", None)
-
-                        await _merge_refreshed_credential(
-                            issuer=issuer,
-                            updated_cred=updated_cred,
-                        )
-
-                        logger.info(
-                            "refresh_oauth_token: successfully refreshed and saved token for '%s'",
-                            issuer,
-                        )
-                        from app.services.agent.session_credential_assembler import (
-                            XAI_ISSUER,
-                        )
-
-                        refresh_scope = (
-                            str(updated_cred.get("base_url", "")) if issuer == XAI_ISSUER else str(updated_cred.get("scope", ""))
-                        )
-                        return EphemeralUserCredential(
-                            issuer=issuer,
-                            token=new_token,
-                            scope=refresh_scope,
-                            user_id=str(updated_cred.get("user_id", "")),
-                            expires_at=updated_cred.get("expires_at"),
-                            refresh_callback=lambda: refresh_oauth_token(issuer),
-                        )
-                    else:
+                    if response.status_code != 200:
+                        body = _response_json(response)
                         logger.error(
                             "refresh_oauth_token: HTTP POST to %s failed (status %d): %s",
                             token_url,
                             response.status_code,
                             response.text,
                         )
-                        if response.status_code < 500:
-                            reason = "token_expired"
-                            try:
-                                err_body = response.json()
-                                reason = err_body.get("error_description") or err_body.get("error") or reason
-                            except Exception:
-                                pass
-                            _emit_reauth_if_needed(issuer, str(reason))
+                        if classify_refresh_failure(response.status_code, body) == "terminal":
+                            _rejected_refresh_tokens[issuer] = fingerprint
+                            _emit_reauth_if_needed(issuer, _reauth_reason(body))
+                        else:
+                            _retry_not_before[issuer] = time.monotonic() + _TRANSIENT_COOLDOWN_S
+                        return None
+
+                    res_json = response.json()
+                    new_token = res_json.get("access_token")
+                    new_refresh = res_json.get("refresh_token") or refresh_token
+
+                    if not new_token:
+                        logger.error("refresh_oauth_token: response did not contain 'access_token'")
+                        _retry_not_before[issuer] = time.monotonic() + _TRANSIENT_COOLDOWN_S
+                        return None
+
+                    # Update and persist
+                    updated_cred = dict(cred_val)
+                    updated_cred["token"] = new_token
+                    updated_cred["refresh_token"] = new_refresh
+                    updated_cred["expires_at"] = resolve_expires_at(new_token, res_json.get("expires_in"), now=time.time())
+                    if issuer == GOOGLE_WORKSPACE_ISSUER:
+                        updated_cred.pop("client_id", None)
+                        updated_cred.pop("client_secret", None)
+
+                    await _merge_refreshed_credential(
+                        issuer=issuer,
+                        updated_cred=updated_cred,
+                    )
+                    _rejected_refresh_tokens.pop(issuer, None)
+                    _retry_not_before.pop(issuer, None)
+
+                    logger.info(
+                        "refresh_oauth_token: successfully refreshed and saved token for '%s'",
+                        issuer,
+                    )
+                    return _as_ephemeral_credential(issuer, updated_cred)
             except Exception as exc:
+                _retry_not_before[issuer] = time.monotonic() + _TRANSIENT_COOLDOWN_S
                 logger.error(
                     "refresh_oauth_token: failed to refresh token for '%s': %s",
                     issuer,
                     exc,
                 )
-
-    return None
-
-
-async def _refresh_copilot_token(
-    cred_val: dict[str, object],
-) -> EphemeralUserCredential | None:
-    """Refresh GitHub Copilot token using GitHub access token.
-
-    Copilot tokens are short-lived (~30min). The refresh_token field
-    stores the long-lived GitHub access token used to acquire new Copilot tokens.
-    """
-    github_access_token = cred_val.get("refresh_token")
-    if not github_access_token:
-        logger.warning("refresh_copilot_token: missing GitHub access token (refresh_token)")
-        _emit_reauth_if_needed(COPILOT_ISSUER, "missing_github_token")
-        return None
-
-    copilot_headers = {
-        "Accept": "application/json",
-        "Authorization": f"Bearer {github_access_token}",
-        "User-Agent": "GitHubCopilotChat/0.35.0",
-        "Editor-Version": "vscode/1.107.0",
-        "Editor-Plugin-Version": "copilot-chat/0.35.0",
-        "Copilot-Integration-Id": "vscode-chat",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(
-                "https://api.github.com/copilot_internal/v2/token",
-                headers=copilot_headers,
-            )
-            if resp.status_code != 200:
-                logger.error(
-                    "refresh_copilot_token: Copilot token exchange failed (%d): %s",
-                    resp.status_code,
-                    resp.text,
-                )
-                if resp.status_code in (401, 403):
-                    _emit_reauth_if_needed(COPILOT_ISSUER, "github_token_expired")
-                return None
-
-            data = resp.json()
-            new_token = data.get("token")
-            new_expires_at = data.get("expires_at")
-
-            if not new_token or not isinstance(new_expires_at, (int, float)):
-                logger.error("refresh_copilot_token: invalid Copilot token response")
-                return None
-
-            base_url = extract_copilot_base_url(new_token)
-
-            updated_cred = dict(cred_val)
-            updated_cred["token"] = new_token
-            updated_cred["expires_at"] = float(new_expires_at)
-            updated_cred["base_url"] = base_url
-
-            await _merge_refreshed_credential(
-                issuer=COPILOT_ISSUER,
-                updated_cred=updated_cred,
-            )
-
-            logger.info("refresh_copilot_token: successfully refreshed Copilot token")
-
-            return EphemeralUserCredential(
-                issuer=COPILOT_ISSUER,
-                token=new_token,
-                scope="copilot",
-                user_id="",
-                expires_at=float(new_expires_at),
-                refresh_callback=lambda: refresh_oauth_token(COPILOT_ISSUER),
-            )
-    except Exception as exc:
-        logger.error("refresh_copilot_token: failed: %s", exc)
 
     return None

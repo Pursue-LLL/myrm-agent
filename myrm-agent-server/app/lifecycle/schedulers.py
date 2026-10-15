@@ -46,32 +46,19 @@ async def _context_cleanup_job() -> None:
         cleanup_orphan_context_files_async,
     )
 
-    checkpointer = None
     access_tracker = None
     try:
         from myrm_agent_harness.runtime.context.file_access_tracker import (
             get_file_access_tracker,
         )
 
-        from app.platform_utils import get_checkpointer
-
-        checkpointer = get_checkpointer()
         access_tracker = await get_file_access_tracker()
     except Exception as exc:
-        logger.debug("Checkpointer/tracker unavailable for cleanup: %s", exc)
+        logger.warning("File access tracker unavailable for cleanup, using modification time only: %s", exc)
 
     try:
-        removed_count = await cleanup_orphan_context_files_async(
-            max_age_days=7,
-            session_active_days=30,
-            file_access_days=14,
-            checkpointer=checkpointer,
-            access_tracker=access_tracker,
-        )
-        logger.info(
-            f"Context cleanup: removed {removed_count} orphan files "
-            f"(strategy: session-aware, active=30d, access=14d, fallback=7d)"
-        )
+        removed_count = await cleanup_orphan_context_files_async(access_tracker=access_tracker)
+        logger.info("Context cleanup: removed %d orphan files", removed_count)
     except Exception as e:
         logger.error(f"Context cleanup failed: {e}", exc_info=True)
 
@@ -134,12 +121,9 @@ _context_cleanup_scheduler_task: asyncio.Task[None] | None = None
 
 
 async def start_context_cleanup_scheduler() -> None:
-    """Start context file cleanup scheduler with session-aware strategy.
+    """Start the context file cleanup scheduler.
 
-    Cleanup strategy:
-    1. If session active within 30 days → keep all files
-    2. Else if file accessed within 14 days → keep file
-    3. Else → remove file
+    A context file is removed once nothing has read or written it for the harness retention window.
 
     Scheduled daily at 3:00 AM.
     """
@@ -160,7 +144,7 @@ async def start_context_cleanup_scheduler() -> None:
                 # Keep scheduler reference for graceful shutdown
                 global _context_cleanup_scheduler
                 _context_cleanup_scheduler = scheduler
-                logger.info("Context cleanup scheduler started (daily at 03:00, session-aware strategy)")
+                logger.info("Context cleanup scheduler started (daily at 03:00)")
                 # Run until cancelled
                 await asyncio.Event().wait()
 
@@ -384,13 +368,13 @@ async def _db_maintenance_job() -> None:
     1. SQLite WAL checkpoint — prevents WAL file unbounded growth
     2. Database backup — disaster recovery snapshot
     3. Qdrant segment optimization — stable query performance
-    4. Browser thread cleanup — zombie detection + old record deletion
-    5. Memory import review cleanup — remove rollback-expired import sessions
-    6. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
-    7. Chat trash auto-purge — permanently delete chats trashed > 30 days
-    8. Kanban data GC — clean old events/runs/workspaces for terminal tasks
-    9. Artifact share registry GC — remove expired share records (TTL + retention)
-    10. Channel data plane GC — prune channel messages older than 30 days
+    4. Memory import review cleanup — remove rollback-expired import sessions
+    5. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
+    6. Chat trash auto-purge — permanently delete chats trashed > 30 days
+    7. Kanban data GC — clean old events/runs/workspaces for terminal tasks
+    8. Artifact share registry GC — remove expired share records (TTL + retention)
+    9. Channel data plane GC — prune channel messages older than 30 days
+    10. Browser session GC — remove expired saved login sessions (global vault + every agent vault)
     """
     # SQLite WAL checkpoint
     try:
@@ -449,14 +433,6 @@ async def _db_maintenance_job() -> None:
     except Exception as e:
         logger.warning("Qdrant segment optimization failed: %s", e)
 
-    # Browser thread cleanup (zombie detection + old record pruning)
-    try:
-        from .browser import cleanup_browser_threads
-
-        await cleanup_browser_threads()
-    except Exception as e:
-        logger.warning("Periodic thread cleanup failed: %s", e)
-
     # Memory import review cleanup
     try:
         from app.platform_utils import session_factory
@@ -485,48 +461,11 @@ async def _db_maintenance_job() -> None:
     except Exception as e:
         logger.warning("Async task cleanup failed: %s", e)
 
-    # Chat trash auto-purge: permanently delete chats trashed > 30 days
+    # Chat trash auto-purge: permanently delete chats trashed past the retention window
     try:
-        from datetime import datetime as dt
-        from datetime import timedelta
+        from app.services.chat.chat_retention import purge_expired_trash
 
-        from app.database.repositories.chat_repo import ChatRepository
-        from app.platform_utils import session_factory
-        from app.services.chat.conversation_recall_index_service import (
-            ConversationRecallIndexService,
-        )
-
-        cutoff = dt.utcnow() - timedelta(days=30)
-        async with session_factory() as session:
-            expired_ids = await ChatRepository.get_expired_trashed_chat_ids(session, cutoff)
-            if expired_ids:
-                for cid in expired_ids:
-                    await ConversationRecallIndexService.delete_chat(session, cid)
-                from sqlalchemy import delete as sa_delete
-
-                from app.database.models import Chat
-
-                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_ids)))
-                await session.commit()
-                logger.info(
-                    "Chat trash auto-purge: %d expired chats permanently deleted",
-                    len(expired_ids),
-                )
-
-        if expired_ids:
-            from app.services.chat.chat_crud import _ChatCrudMixin
-            from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
-
-            for cid in expired_ids:
-                await _ChatCrudMixin._cleanup_checkpointer(cid)
-                try:
-                    await cleanup_chat_workspace(cid)
-                except Exception as ws_err:
-                    logger.warning(
-                        "Chat trash auto-purge workspace cleanup failed (chat=%s): %s",
-                        cid,
-                        ws_err,
-                    )
+        await purge_expired_trash()
     except Exception as e:
         logger.warning("Chat trash auto-purge failed: %s", e)
 
@@ -567,53 +506,23 @@ async def _db_maintenance_job() -> None:
     except Exception as e:
         logger.warning("Channel data plane GC failed: %s", e)
 
+    # Browser session GC: saved login sessions past their TTL are only dropped lazily on read otherwise
+    try:
+        from app.core.security.browser_vault import cleanup_all_vaults
+
+        removed_sessions = await cleanup_all_vaults()
+        if removed_sessions > 0:
+            logger.info("Browser session GC: %d expired saved sessions removed", removed_sessions)
+    except Exception as e:
+        logger.warning("Browser session GC failed: %s", e)
+
 
 async def _incognito_cleanup_job() -> None:
-    """Incognito chat auto-purge: permanently delete incognito chats older than 1 hour"""
+    """Incognito chat auto-purge: permanently delete incognito chats idle past the session window"""
     try:
-        from datetime import datetime as dt
-        from datetime import timedelta
+        from app.services.chat.chat_retention import purge_idle_incognito_chats
 
-        from sqlalchemy import delete as sa_delete
-        from sqlalchemy import select
-
-        from app.database.models import Chat
-        from app.platform_utils import session_factory
-        from app.services.chat.conversation_recall_index_service import (
-            ConversationRecallIndexService,
-        )
-
-        cutoff = dt.utcnow() - timedelta(hours=1)
-        async with session_factory() as session:
-            stmt = select(Chat.id).where(Chat.is_incognito.is_(True), Chat.updated_at < cutoff)
-            result = await session.execute(stmt)
-            expired_incognito_ids = [row[0] for row in result.fetchall()]
-
-            if expired_incognito_ids:
-                for cid in expired_incognito_ids:
-                    await ConversationRecallIndexService.delete_chat(session, cid)
-
-                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids)))
-                await session.commit()
-                logger.info(
-                    "Incognito chat auto-purge: %d expired incognito chats permanently deleted",
-                    len(expired_incognito_ids),
-                )
-
-        if expired_incognito_ids:
-            from app.services.chat.chat_crud import _ChatCrudMixin
-            from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
-
-            for cid in expired_incognito_ids:
-                await _ChatCrudMixin._cleanup_checkpointer(cid)
-                try:
-                    await cleanup_chat_workspace(cid)
-                except Exception as ws_err:
-                    logger.warning(
-                        "Incognito chat auto-purge workspace cleanup failed (chat=%s): %s",
-                        cid,
-                        ws_err,
-                    )
+        await purge_idle_incognito_chats()
     except Exception as e:
         logger.warning("Incognito chat auto-purge failed: %s", e)
 

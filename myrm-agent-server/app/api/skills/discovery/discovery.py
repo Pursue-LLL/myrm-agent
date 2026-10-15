@@ -26,7 +26,6 @@ from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketServic
 from myrm_agent_harness.api.skills import SkillInstallResult
 
 from app.api.skills._deploy_capability import require_local_skills_capability
-from app.core.skills.audit import audit_skill_action as _audit_skill_action
 from app.api.skills.discovery.discovery_schemas import (
     CustomSourceListResponse,
     CustomSourceProbeResponse,
@@ -50,6 +49,7 @@ from app.api.skills.discovery.discovery_schemas import (
     StaticIndexStatusResponse,
     UpdateCheckResponse,
 )
+from app.core.skills.audit import audit_skill_action as _audit_skill_action
 from app.core.skills.discovery.adopt import complete_discovery_adoption
 from app.core.skills.discovery.autoupdate import get_update_checker
 from app.core.skills.discovery.mount import (

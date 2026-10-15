@@ -1,5 +1,12 @@
 """测试config_parsers中的配置提取逻辑"""
 
+import time
+from collections.abc import Iterator
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from app.core.channel_bridge.config_parsers import (
     extract_active_search_config as _extract_active_search_config,
 )
@@ -247,7 +254,7 @@ class TestExtractWebTtsConfig:
 
 
 class TestInjectProviderOAuthTokens:
-    """测试 _inject_provider_oauth_tokens 对各大厂商（含 xAI / Copilot / OpenAI / Anthropic）的注入闭环"""
+    """测试 _inject_provider_oauth_tokens：仅 xAI SuperGrok 订阅 token 会注入到 provider 配置"""
 
     def test_inject_xai_oauth_token_and_base_url(self) -> None:
         from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
@@ -263,9 +270,6 @@ class TestInjectProviderOAuthTokens:
                 "token": "xai-oauth-test-token-12345",
                 "base_url": "https://api.x.ai/v1",
             },
-            "provider_openai": {
-                "token": "openai-oauth-test-token-67890",
-            },
         }
 
         _inject_provider_oauth_tokens(providers_dict, oauth_creds)
@@ -277,48 +281,163 @@ class TestInjectProviderOAuthTokens:
         assert xai_p["_oauthBaseUrl"] == "https://api.x.ai/v1"
 
         openai_p = next(p for p in providers if p["id"] == "openai")
-        assert openai_p["_oauthToken"] == "openai-oauth-test-token-67890"
+        assert "_oauthToken" not in openai_p
 
-    def test_inject_provider_xai_alias(self) -> None:
+    def test_inject_xai_oauth_token_without_base_url(self) -> None:
         from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
 
-        providers_dict: dict[str, object] = {
-            "providers": [
-                {"id": "xai", "name": "xAI", "isEnabled": True, "apiKeys": []},
-            ]
-        }
-        oauth_creds: dict[str, object] = {
-            "provider_xai": {
-                "token": "xai-oauth-alias-token-99999",
-            },
-        }
+        providers_dict: dict[str, object] = {"providers": [{"id": "xai", "isEnabled": True, "apiKeys": []}]}
 
-        _inject_provider_oauth_tokens(providers_dict, oauth_creds)
+        _inject_provider_oauth_tokens(providers_dict, {"xai": {"token": "xai-oauth-token"}})
 
         providers = providers_dict["providers"]
         assert isinstance(providers, list)
-        xai_p = next(p for p in providers if p["id"] == "xai")
-        assert xai_p["_oauthToken"] == "xai-oauth-alias-token-99999"
+        assert providers[0]["_oauthToken"] == "xai-oauth-token"
+        assert "_oauthBaseUrl" not in providers[0]
 
-    def test_inject_copilot_oauth_token_and_base_url(self) -> None:
+    @pytest.mark.parametrize(
+        ("issuer", "provider_id"),
+        [
+            ("provider_anthropic", "anthropic"),
+            ("provider_openai", "openai"),
+            ("provider_copilot", "copilot"),
+        ],
+    )
+    def test_retired_subscription_issuers_are_never_injected(self, issuer: str, provider_id: str) -> None:
+        """Tokens stored under retired provider issuers (Claude / ChatGPT / Copilot) are never injected as API keys."""
         from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
 
-        providers_dict: dict[str, object] = {
-            "providers": [
-                {"id": "copilot", "name": "GitHub Copilot", "isEnabled": True, "apiKeys": []},
-            ]
-        }
-        oauth_creds: dict[str, object] = {
-            "provider_copilot": {
-                "token": "gh-copilot-oauth-token-abcde",
-                "base_url": "https://api.individual.githubcopilot.com",
-            },
-        }
+        providers_dict: dict[str, object] = {"providers": [{"id": provider_id, "isEnabled": True, "apiKeys": []}]}
 
-        _inject_provider_oauth_tokens(providers_dict, oauth_creds)
+        _inject_provider_oauth_tokens(providers_dict, {issuer: {"token": "leftover-token"}})
 
         providers = providers_dict["providers"]
         assert isinstance(providers, list)
-        copilot_p = next(p for p in providers if p["id"] == "copilot")
-        assert copilot_p["_oauthToken"] == "gh-copilot-oauth-token-abcde"
-        assert copilot_p["_oauthBaseUrl"] == "https://api.individual.githubcopilot.com"
+        assert "_oauthToken" not in providers[0]
+
+
+class _FakeSession:
+    """Stands in for ``get_session()``: yields the seeded UserConfig rows."""
+
+    def __init__(self, rows: list[SimpleNamespace]) -> None:
+        self._rows = rows
+
+    async def __aenter__(self) -> "_FakeSession":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+    async def execute(self, statement: object) -> MagicMock:
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = self._rows
+        return result
+
+
+def _row(key: str, value: object) -> SimpleNamespace:
+    return SimpleNamespace(config_key=key, config_value=value, is_encrypted=False)
+
+
+def _subscription_rows(
+    oauth_entry: dict[str, object], *, api_keys: list[dict[str, object]] | None = None
+) -> list[SimpleNamespace]:
+    return [
+        _row("providers", {"providers": [{"id": "xai", "isEnabled": True, "apiKeys": api_keys or []}]}),
+        _row("defaultModelConfig", {"baseModel": {"primary": {"providerId": "xai", "model": "grok-4"}}}),
+        _row("oauthCredentials", {"xai": oauth_entry}),
+    ]
+
+
+def _oauth_entry(token: str, *, expires_in: float) -> dict[str, object]:
+    return {
+        "token": token,
+        "refresh_token": "rt_1",
+        "token_url": "https://auth.x.ai/oauth2/token",
+        "base_url": "https://api.x.ai/v1",
+        "expires_at": time.time() + expires_in,
+    }
+
+
+@pytest.fixture(autouse=True)
+def mock_load_user_configs() -> Iterator[None]:
+    """Run the real loader: the suite-wide autouse mock would hide everything tested here."""
+    yield
+
+
+@pytest.fixture
+def fresh_config_cache() -> Iterator[None]:
+    from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+
+    invalidate_user_configs_cache()
+    yield
+    invalidate_user_configs_cache()
+
+
+@pytest.mark.usefixtures("fresh_config_cache")
+class TestLoadUserConfigsSubscriptionTokens:
+    """load_user_configs resolves the default model from subscription tokens, renewed when due."""
+
+    @staticmethod
+    async def _load(rows: list[SimpleNamespace], refresh: AsyncMock) -> object:
+        from app.core.channel_bridge.config_loader import load_user_configs
+
+        with (
+            patch("app.database.connection.get_session", lambda: _FakeSession(rows)),
+            patch("app.services.agent.provider_oauth_tokens.refresh_oauth_token", refresh),
+        ):
+            return await load_user_configs()
+
+    @pytest.mark.asyncio
+    async def test_subscription_only_user_resolves_the_default_model(self) -> None:
+        refresh = AsyncMock()
+
+        configs = await self._load(_subscription_rows(_oauth_entry("subscription-token", expires_in=3600)), refresh)
+
+        assert configs.model_cfg.api_key == "subscription-token"
+        assert configs.model_cfg.model == "xai/grok-4"
+        assert configs.model_cfg.base_url == "https://api.x.ai/v1"
+        refresh.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_expiring_token_is_renewed_before_it_is_handed_out(self) -> None:
+        refresh = AsyncMock(return_value=SimpleNamespace(token="renewed-token", expires_at=time.time() + 3600))
+
+        configs = await self._load(_subscription_rows(_oauth_entry("stale-token", expires_in=60)), refresh)
+
+        refresh.assert_awaited_once_with("xai")
+        assert configs.model_cfg.api_key == "renewed-token"
+        assert configs.oauth_credentials_dict["xai"]["token"] == "renewed-token"
+        assert configs.providers_dict["providers"][0]["_oauthToken"] == "renewed-token"
+
+    @pytest.mark.asyncio
+    async def test_failed_renewal_still_loads_with_the_stored_token(self) -> None:
+        refresh = AsyncMock(return_value=None)
+
+        configs = await self._load(_subscription_rows(_oauth_entry("stale-token", expires_in=60)), refresh)
+
+        assert configs.model_cfg.api_key == "stale-token"
+
+    @pytest.mark.asyncio
+    async def test_users_own_api_key_keeps_priority_over_the_subscription(self) -> None:
+        rows = _subscription_rows(
+            _oauth_entry("subscription-token", expires_in=3600),
+            api_keys=[{"key": "sk-user", "isActive": True}],
+        )
+
+        configs = await self._load(rows, AsyncMock())
+
+        assert configs.model_cfg.api_key == "sk-user"
+
+    @pytest.mark.asyncio
+    async def test_without_a_connected_subscription_nothing_is_refreshed(self) -> None:
+        rows = [
+            row
+            for row in _subscription_rows({}, api_keys=[{"key": "sk-user", "isActive": True}])
+            if row.config_key != "oauthCredentials"
+        ]
+        refresh = AsyncMock()
+
+        configs = await self._load(rows, refresh)
+
+        assert configs.model_cfg.api_key == "sk-user"
+        refresh.assert_not_awaited()

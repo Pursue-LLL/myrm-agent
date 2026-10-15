@@ -110,7 +110,6 @@
       },
       "runtimeTitle": "런타임",
       "deployMode": "배포 모드",
-      "storageMode": "저장소",
       "vectorStatus": "벡터 인덱스",
       "embeddingStatus": "임베딩",
       "controlPlaneStatus": "컨트롤 플레인",

@@ -228,7 +228,11 @@
     "bundleCategoryOther": "Other Assets",
     "bundleExportSelected": "Export Selected ({count})",
     "bundleSelectAll": "Select All",
-    "bundleClearSelection": "Clear Selection"
+    "bundleClearSelection": "Clear Selection",
+    "subgoalAddFailed": "Failed to add subgoal",
+    "subgoalAddNetworkError": "Network error: failed to add subgoal",
+    "subgoalRemoveFailed": "Failed to remove subgoal",
+    "subgoalRemoveNetworkError": "Network error: failed to remove subgoal"
   },
   "commands": {
     "palette": {
@@ -275,7 +279,7 @@
       "forkStreamingBlocked": "Cannot fork while the agent is responding",
       "forkEmpty": "No messages to fork from",
       "goal": "Set or manage a long-running goal for this conversation",
-      "goalUsage": "Usage: /goal <objective> | status | pause | resume | clear",
+      "goalUsage": "Usage: /goal '<objective>' | status | pause | resume | clear",
       "goalSet": "Goal mode enabled — edit the objective and send to start",
       "goalStatus": "Goal status: {status}",
       "goalNoActive": "No active goal in this conversation",
@@ -284,7 +288,7 @@
       "goalCleared": "Goal cleared",
       "goalActionFailed": "Goal command failed",
       "loop": "Create or manage a recurring scheduled task for this conversation",
-      "loopUsage": "Usage: /loop [interval] [--times N] [--until condition] <prompt>, or /loop stop",
+      "loopUsage": "Usage: /loop [interval] [--times N] [--until condition] '<prompt>', or /loop stop",
       "loopMissingPrompt": "Please provide a task prompt for /loop",
       "loopCreated": "Scheduled loop task created (Interval: {interval}), first run triggered",
       "loopCreateFailed": "Failed to create loop task",
@@ -341,7 +345,6 @@
     "usageAnalytics": "USAGE ANALYTICS",
     "totalCalls": "Calls",
     "totalTokens": "Tokens",
-    "batchOptimization": "Batch Optimization",
     "research": "Research",
     "wikiKnowledgeBase": "Knowledge Base"
   },
@@ -968,7 +971,8 @@
       },
       "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
       "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors.",
-      "atLeastOneEndpoint": "At least one endpoint must remain selected."
+      "atLeastOneEndpoint": "At least one endpoint must remain selected.",
+      "presetAdded": "Added {name} connector"
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -1237,7 +1241,8 @@
         "equippedCountSuffix": "Equipped",
         "pureInstructionNotice": "No skills equipped · Pure instruction mode",
         "emptyExplanation": "No skills are currently equipped. The agent will run in pure instruction mode. Click \"Select All\" above or check skills below to equip them."
-      }
+      },
+      "forcePushSummary": "v{version} → {synced} synced, {skipped} skipped, {failed} failed ({total} total)"
     },
     "validation": {
       "dependencyInvalid": "Agent configuration has issues",
@@ -1567,7 +1572,7 @@
       "delete": "Delete",
       "deleteConfirm": "Delete this FAQ entry?",
       "import": "Bulk Import",
-      "importDesc": "Import FAQ entries from JSON. Format: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "Import FAQ entries from JSON. Format: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "Import",
       "importSuccess": "Imported {count} entries",
       "importFailed": "Import failed",
@@ -1873,6 +1878,22 @@
         "absolute_path": "Local file path",
         "unknown": "Sensitive information"
       }
+    },
+    "errorTitle": "Error",
+    "unknownError": "Unknown error",
+    "apiErrorDetails": "Details",
+    "apiErrorTraceId": "Trace ID",
+    "clipboard": {
+      "copied": "Copied to clipboard",
+      "copyFailed": "Copy failed. Check clipboard permissions.",
+      "readBlocked": "Clipboard access was denied. Change this in settings.",
+      "readRefused": "Clipboard access denied",
+      "readFailed": "Failed to read the clipboard. Check permissions.",
+      "readPermissionTitle": "Clipboard access request",
+      "readPermissionPrompt": "This app wants to read your clipboard. Allow it?",
+      "readPermissionRemember": "You will not be asked again once you allow it.",
+      "readPermissionAllow": "Allow",
+      "readPermissionDeny": "Deny"
     }
   },
   "chat": {
@@ -1992,7 +2013,8 @@
       "privacy": "Security",
       "redacted": "Scrubbed",
       "importAnother": "Import Another",
-      "resumeNow": "Resume Chat Now"
+      "resumeNow": "Resume Chat Now",
+      "importFailed": "Import failed"
     },
     "placeholder": "Ask me anything...",
     "uploading": "Uploading...",
@@ -2341,10 +2363,8 @@
     "subscriptionQuickConnect": "Have subscriptions? Connect in 1-Click",
     "subscriptionModalTitle": "Connect Official Subscriptions",
     "subscriptionModalDesc": "Securely connect via official device-code grants without buying API keys. Credentials encrypted locally.",
-    "subscriptionCopilot": "GitHub Copilot",
-    "subscriptionOpenai": "ChatGPT Plus / Pro",
     "subscriptionXai": "xAI SuperGrok",
-    "subscriptionClaude": "Claude Pro / Max",
+    "subscriptionXaiSummary": "Grok models, no API key needed",
     "subscriptionConnectBtn": "Connect",
     "subscriptionDeviceCodeHint": "Open verification URL in browser and enter user code:",
     "subscriptionCopyCode": "Copy Code",
@@ -2352,6 +2372,10 @@
     "subscriptionOpenAuth": "Open Authorization Page",
     "subscriptionWaiting": "Waiting for authorization...",
     "subscriptionConnected": "Authorized! Provider activated and set as primary default.",
+    "subscriptionFailedStart": "Failed to start authorization. Please try again.",
+    "subscriptionFailedExpired": "Authorization expired. Please try again.",
+    "subscriptionFailedDenied": "Authorization denied. Please try again.",
+    "subscriptionFailedTimeout": "Authorization timed out. Please try again.",
     "subscriptionNotice": "Subscription uses official OAuth protocols. If rate-limited by provider quotas, switch to API keys in Settings anytime.",
     "agentReady": "{agentName} is ready",
     "related": "Related",
@@ -2376,14 +2400,16 @@
     "previewLinks": "Link preview",
     "regenerate": "Regenerate",
     "regenerate_try_again": "Try Again",
-    "regenerate_frontier": "Retry with Stronger Model",
     "regenerate_concise": "More Concise",
     "regenerate_detailed": "More Detailed",
     "regenerate_creative": "More Creative",
     "regenerate_custom": "Custom Instruction...",
     "regenerate_custom_placeholder": "Tell the AI how to respond...",
     "regenerate_submit": "Regenerate",
-    "undo": "Undo",
+    "regenerate_options": "Regenerate options",
+    "attachment_download": "Download",
+    "attachment_document": "{type} Document",
+    "attachment_document_generic": "Document",
     "copiedSuccessfully": "Copied successfully",
     "linkDetected": "Do you want to use external resources?",
     "linkDetectedDescription": "Use @ symbol to reference external resources, otherwise it will be treated as plain text. Do you want to add it?",
@@ -3275,8 +3301,6 @@
       "level": "level",
       "runAffectedTests": "Run {count} Affected Test Suites"
     },
-    "subscriptionPkceNotice": "{providerName} authorization page opened in a new tab. Please complete login and approval, then return here.",
-    "subscriptionPkceReopen": "Reopen Authorization Page",
     "modelPlaybook": {
       "chipTitle": "Model Orchestration Playbook",
       "chipBadge": "Strategy",
@@ -3423,7 +3447,62 @@
       "skillsTools": "Skills & Built-in Tools",
       "disabled": "Disabled",
       "totalBaseline": "Total Baseline Footprint"
-    }
+    },
+    "modelPricing": {
+      "title": "Compute pricing & Prompt Cache transparency",
+      "sourceBadge": "Live authoritative data",
+      "loading": "Loading the price matrix...",
+      "supportsCache": "Prompt Cache supported",
+      "inputPrice": "Input price",
+      "outputPrice": "Output price",
+      "cacheReadPrice": "Cache hit read price",
+      "savings": "Saves",
+      "compareTitle": "Mainstream model price comparison ($ / 1M tokens)",
+      "inPrice": "In: {price}",
+      "outPrice": "Out: {price}",
+      "footnote": "All pricing is converted in real time from the providers' official rates, with zero markup."
+    },
+    "preferenceRadar": {
+      "ariaLabel": "Preference fitting radar panel",
+      "title": "Online preference fitting radar",
+      "subtitle": "Continuous gravity decay and multi-dimensional weight tuning",
+      "lockedTitle": "Locked: automatic AI fitting is paused",
+      "unlockedTitle": "Unlocked: AI adapts the weights from session feedback",
+      "lockedLabel": "Locked",
+      "adaptiveLabel": "Adapting",
+      "modeManual": "Manually pinned",
+      "modeDynamic": "Dynamic learning",
+      "resetBaseline": "Reset baseline (1.0x)",
+      "summaryBalanced": "Balanced preferences: every dimension is recalled evenly for general-purpose collaboration",
+      "summaryFocused": "Focused preferences: boosting \"{first} ({firstValue}x)\" and \"{second} ({secondValue}x)\"",
+      "presetBalanced": "Balanced",
+      "presetCode": "Coding",
+      "presetResearch": "Research",
+      "dimensionRecency": "Recency pulse",
+      "dimensionRecencyHint": "Latest events / intraday resolution",
+      "dimensionActionability": "Hands-on code",
+      "dimensionActionabilityHint": "Runnable scripts / practical steps",
+      "dimensionDepth": "Architectural depth",
+      "dimensionDepthHint": "Underlying principles / root causes of evolution",
+      "dimensionConciseness": "Concise expression",
+      "dimensionConcisenessHint": "Straight to the point / no filler",
+      "dimensionBreadth": "Panoramic view",
+      "dimensionBreadthHint": "Big picture / ecosystem comparison"
+    },
+    "focusFlush": {
+      "ariaLabel": "Focus mode",
+      "tooltip": "Focus mode (clear chat history but keep the sandbox)",
+      "dialogTitle": "Focus Session (Clear History)",
+      "dialogQuestion": "Are you sure you want to clear this conversation's history?",
+      "dialogDetail": "This will give the Agent a fresh context and <cost>save Token costs</cost>, but your <keep>Sandbox environment, files, and installed packages will remain intact</keep>.",
+      "confirm": "Clear History"
+    },
+    "folderDrop": {
+      "grantFailed": "Failed to grant directory access: {path}"
+    },
+    "cacheResetNotice": "Cache reset: {reason}{tokens, plural, =0 {} other {, ~#k tokens uncached}}",
+    "pdfParsedPages": "[PDF] {fileName}: parsed {parsed}/{total} pages",
+    "pdfImageOptimized": "[PDF] Parsing optimized: extracted {kept} key images, filtered out {dropped} visual-noise images"
   },
   "mode": {
     "fast": "Fast Search",
@@ -3688,10 +3767,6 @@
         "title": "About MyrmAgent",
         "description": "View information about the application"
       },
-      "skillQuality": {
-        "title": "Skill Quality",
-        "description": "Skill quality monitoring and management"
-      },
       "evolutionRejection": {
         "title": "Skill Growth Audit",
         "description": "Inspect rejected, locked, and security-failed growth outcomes."
@@ -3699,10 +3774,6 @@
       "toolStability": {
         "title": "Tool Stability",
         "description": "Monitor and manage tool execution stability and reliability"
-      },
-      "toolQuality": {
-        "title": "Execution Quality",
-        "description": "Monitor and analyze the execution quality and stability of skills and tools"
       },
       "memory": {
         "title": "Memory Management Center",
@@ -3727,6 +3798,18 @@
       "brand-studio": {
         "title": "Brand Style",
         "description": "Define your brand identity — colors, font, tone, and rules. Your AI applies it to everything it creates."
+      },
+      "workbench": {
+        "title": "My Workbench",
+        "description": "Overview of the memories, knowledge base, skills, rules, and scheduled tasks in your workspace"
+      },
+      "shares": {
+        "title": "Share Links",
+        "description": "Manage read-only artifact share links. Revoke a link to immediately block public access."
+      },
+      "a2aPeers": {
+        "title": "A2A Remote Peers",
+        "description": "Register and manage trusted remote agents that speak the A2A protocol"
       }
     }
   },
@@ -3762,8 +3845,9 @@
         "isolated": "Isolated",
         "bridge": "Bridge",
         "locate": "Focus",
+        "refresh": "Refresh",
         "cohesion": "Cohesion",
-        "members": "members"
+        "communitySize": "{count, plural, one {# concept} other {# concepts}}"
       },
       "deselectAll": "Toggle All",
       "legend": "Node Types",
@@ -4037,6 +4121,8 @@
     "skillManageRollbackFailed": "Could not undo those skill changes. Try again or roll back a version in Skill settings.",
     "skillManageRollbackCompensationFailed": "Undo could not finish safely. Open Settings → Skills → History and verify versions, then roll back manually if needed.",
     "skillManageRollbackAlreadyConsumed": "This batch was already undone or the rollback link expired. Use Skill settings → History if you still need an older version.",
+    "skillManageUndoHintBody": "The assistant updated one or more skills in this reply. Open Task Steps below to undo those edits and restore the previous content.",
+    "skillManageUndoHintAction": "Open Task Steps",
     "archiveRestoreResultSummary": "Restored {lines} line(s), {tokens} tokens.",
     "archiveRestoreResultRange": "Range: {range}",
     "archiveRestoreResultTokens": "Restored tokens: {tokens}",
@@ -4681,9 +4767,9 @@
       },
       "runtimeTitle": "Runtime",
       "deployMode": "Deploy mode",
-      "storageMode": "Storage",
       "vectorStatus": "Vector index",
       "vectorPersistence": "Vector persistence",
+      "vectorPersistenceHint": "Memory is running in temporary mode. Make sure no other Myrm window or process is using the same data folder and that the folder is writable, then restart.",
       "embeddingStatus": "Embedding",
       "controlPlaneStatus": "Control plane",
       "eventLedgerStatus": "Event ledger",
@@ -5319,6 +5405,9 @@
         "files": "files",
         "noCommits": "No recent commit history detected",
         "gitUnavailable": "No Git repository detected in workspace"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "Delete conclusion \"{id}\"?"
       }
     },
     "createDialog": {
@@ -5943,9 +6032,7 @@
         "title": "Policy",
         "description": "Governance rules for this shared context.",
         "correctionAutoApprove": "Correction Auto-Propagation",
-        "correctionAutoApproveHint": "When an Agent is corrected, the correction is automatically written to this shared context so all bound Agents learn from it.",
-        "goalCompletionAutoApprove": "Goal Completion Auto-Archive",
-        "goalCompletionAutoApproveHint": "When a Goal completes, architectural decisions from the Planner are automatically written to this shared context."
+        "correctionAutoApproveHint": "When an Agent is corrected, the correction is automatically written to this shared context so all bound Agents learn from it."
       },
       "proposals": {
         "title": "Proposal Inbox",
@@ -5953,8 +6040,7 @@
         "contentPlaceholder": "Write a durable shared memory candidate...",
         "create": "Create Proposal",
         "empty": "No proposals yet",
-        "correctionTag": "Correction",
-        "goalCompletionTag": "Goal Completion"
+        "correctionTag": "Correction"
       },
       "proposalStatus": {
         "pending": "Pending",
@@ -6046,7 +6132,15 @@
     "extractionReason": "Extraction Reason",
     "validPermanent": "Permanent",
     "manualReviewRequired": "Manual review required · Never auto-overwrites",
-    "sourceEvidence": "Source Evidence"
+    "sourceEvidence": "Source Evidence",
+    "selectMemory": "Select this memory",
+    "shareRules": {
+      "loadFailed": "Failed to load rules",
+      "selectAtLeastOne": "Please select at least one rule",
+      "exported": "{count, plural, one {Exported # rule successfully} other {Exported # rules successfully}}",
+      "exportFailed": "Export failed",
+      "copied": "{count, plural, one {Copied # rule to clipboard} other {Copied # rules to clipboard}}"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -6633,6 +6727,16 @@
       "download": "Download",
       "exportZip": "Export as ZIP Bundle",
       "emptyDesc": "Deliverables and files generated during agent conversations will automatically appear here"
+    },
+    "architecture": {
+      "jsonCopied": "JSON Copied",
+      "jsonCopiedDesc": "Architecture IR copied to clipboard",
+      "copyFailed": "Copy Failed",
+      "exportFailed": "Export Failed",
+      "viewportNotFound": "Viewport element not found",
+      "exportSuccess": "Export Successful",
+      "svgExported": "Architecture diagram exported as standalone SVG",
+      "pngExported": "Architecture diagram exported as high-res PNG"
     }
   },
   "MessageSources": {
@@ -7151,7 +7255,6 @@
     "createReminderHint": "Delivers this message on schedule without calling an AI model.",
     "chatLinkedTasks": "{count} scheduled",
     "chatLinkedTasksTooltip": "View scheduled tasks linked to this conversation",
-    "suggestionsLink": "Schedule Suggestions",
     "filteredByChat": "Showing tasks linked to conversation {chatId}…",
     "scriptLabel": "Python Script",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('DOWN!' if r.status_code != 200 else '')",
@@ -7530,7 +7633,7 @@
     "triggerWebhookCurl": "cURL Example",
     "triggerWebhookAdd": "Add Webhook",
     "triggerEventLabel": "Event Triggers",
-    "triggerEventDesc": "Fire the job when an incoming message matches the regex pattern",
+    "triggerEventDesc": "Fire the job when an incoming message matches the regex pattern. Messages your access policy ignores (for example from unbound accounts, or in groups that are not enabled) never fire it.",
     "triggerEventPattern": "Pattern (regex)",
     "triggerEventPatternInvalid": "Invalid regex",
     "triggerEventChannel": "Channel (optional)",
@@ -7782,17 +7885,21 @@
     "taskDeleted": "Task deleted",
     "addError": "Failed to add task",
     "moveError": "Failed to move task",
+    "moveBlocked": "This task cannot be moved to that status",
     "promoteSuccess": "Task promoted to Ready",
     "promoteError": "Failed to promote task",
     "promoteUnmetDeps": "Unmet dependencies — force promote?",
     "promoteForce": "Force Promote",
     "deleteError": "Failed to delete task",
+    "archiveConfirmTitle": "Archive this task?",
+    "archiveConfirmDesc": "\"{title}\"\nThe task leaves the board and cannot be restored.",
     "bulkSelected": "{count} selected",
     "bulkArchive": "Archive",
     "bulkMove": "Move to",
     "bulkReassign": "Reassign",
     "bulkDelete": "Delete",
     "bulkDeleteConfirm": "Delete {count} tasks?",
+    "bulkArchiveConfirm": "Archive {count} tasks?",
     "bulkSuccess": "{count} tasks updated",
     "bulkPartialSuccess": "{succeeded} succeeded, {failed} failed",
     "bulkClearSelection": "Clear selection",
@@ -7805,11 +7912,16 @@
     "dropHere": "Drop here",
     "reclaimTitle": "Reclaim Running Task",
     "reclaimDesc": "This will immediately stop the agent executing this task and reset it to Ready.",
-    "reclaimConfirm": "Reclaim",
+    "reclaimAction": "Reclaim",
     "reclaimReasonPlaceholder": "Reason (optional)",
     "reclaimReassignLabel": "Reassign to agent (optional)",
     "reclaimSuccess": "Task reclaimed successfully",
     "reclaimFailed": "Failed to reclaim task",
+    "retryAction": "Retry",
+    "retryTitle": "Retry this task?",
+    "retryDesc": "The task returns to Ready and runs again. Earlier attempts stay in its history and the agent can see them. Tasks that already moved on after its failure are not re-run. Another run uses model quota.",
+    "retrySuccess": "Task queued to run again",
+    "retryError": "Failed to retry task",
     "replanTitle": "DAG Plan Revision Review",
     "replanDescription": "Review proposed modifications to the task graph. All changes will be validated for acyclicity and applied atomically.",
     "replanAdded": "Tasks to Add",
@@ -8139,7 +8251,10 @@
       "actionDispatching": "Queued for next available agent runner",
       "actionBacklog": "Prioritize or schedule for execution",
       "actionDone": "Task completed successfully"
-    }
+    },
+    "cardActions": "Task actions",
+    "deleteConfirmTitle": "Delete this task?",
+    "deleteConfirmDesc": "\"{title}\"\nThe task and its run history are deleted permanently. Tasks waiting on it become Ready if nothing else blocks them, and may start running automatically."
   },
   "channels": {
     "sectionTitle": "Message Channels",
@@ -8189,7 +8304,9 @@
       "clearConfirm": "Are you sure you want to clear all ambient message records for this channel? This action cannot be undone (GDPR compliant).",
       "clearedSuccess": "Successfully cleared records",
       "clearing": "Clearing...",
-      "refresh": "Refresh Metrics"
+      "refresh": "Refresh Metrics",
+      "deletedCount": "{count, plural, one {# message deleted} other {# messages deleted}}",
+      "clearFailed": "Failed to clear channel records"
     },
     "groupsTitle": "Group Management",
     "groupsDesc": "Select which groups the bot should respond in. Unselected groups will be ignored.",
@@ -9593,7 +9710,62 @@
     "humanAttentionTitle": "Action needed",
     "humanAttentionView": "Go to item",
     "humanAttentionMultiple": "{count} items need your input",
-    "humanAttentionKindClarify": "Clarification"
+    "humanAttentionKindClarify": "Clarification",
+    "riskConfirmation": {
+      "tierHighRisk": "Level 3 · High-risk action (confirmation required)",
+      "tierWrite": "Level 2 · State change (dry run available)",
+      "tierRead": "Level 1 · Read-only (auto-approved)",
+      "targetLabel": "Target:",
+      "riskReasonsTitle": "Risk warnings & potential impact",
+      "editingParamsTitle": "Edit execution parameters (JSON)",
+      "paramsSummaryTitle": "Parameter summary",
+      "editParams": "Edit parameters",
+      "noParams": "No input parameters",
+      "invalidJson": "Invalid JSON format",
+      "dryRunResultTitle": "Dry-run simulation result",
+      "rejectReasonPlaceholder": "Optional: enter a rejection reason...",
+      "dryRun": "Dry run",
+      "confirmationToken": "Token: {token}...",
+      "reject": "Reject",
+      "confirmReject": "Confirm rejection",
+      "applyEditsAndRun": "Apply changes and run",
+      "authorizeAndRun": "Authorize and run",
+      "continueRun": "Continue",
+      "approved": "Approved"
+    },
+    "maskedCredentials": {
+      "title": "Ephemeral Credentials & Single-Use Gate",
+      "badgeZeroDisk": "Zero-Disk / Auto-Wipe",
+      "revoke": "Revoke",
+      "description": "Pass sensitive credentials (e.g. database password, OAuth tokens) directly to the sandbox process. Secrets are isolated in ephemeral memory, never written to disk, and never exposed to LLM context or chat logs.",
+      "stagedReady": "Credentials Staged Ready for Execution",
+      "singleUseBadge": "Single-Use",
+      "suggested": "Suggested:",
+      "credentialIndex": "Credential #{index}",
+      "keyLabel": "Variable Key (e.g. DB_PASS)",
+      "secretLabel": "Secret Value (Masked)",
+      "showSecret": "Show secret",
+      "hideSecret": "Hide secret",
+      "removeCredential": "Remove credential",
+      "ttlLabel": "TTL:",
+      "ttl30": "30s",
+      "ttl60": "60s (Default)",
+      "ttl120": "2 mins",
+      "ttl300": "5 mins",
+      "singleUseEnforced": "Single-use ticket enforced",
+      "addRow": "Add Another Key",
+      "stage": "Stage Masked Credentials",
+      "staging": "Securing...",
+      "keyErrorEmpty": "Key name cannot be empty",
+      "keyErrorFormat": "Key must only contain uppercase letters, numbers and underscores",
+      "keyErrorBlocked": "\"{key}\" is a protected system environment variable and is blocked",
+      "toastNoCredential": "Please provide at least one credential with key and secret.",
+      "toastStaged": "Credentials securely masked and staged for single execution.",
+      "toastStageFailed": "Failed to stage credentials: {message}",
+      "toastCleared": "Staged credentials cleared.",
+      "errorUnknown": "Unknown error",
+      "errorServerStatus": "Server responded with {status}"
+    }
   },
   "notifications": {
     "title": "System Notifications",
@@ -9610,7 +9782,6 @@
     "newSkillDraft": "A new skill growth case is ready: {name}",
     "reviewDraft": "Open review",
     "messageDeadLettered": "Message delivery to {channel} failed permanently. Reason: {reason}",
-    "skillGrowthAutoApplied": "\"{name}\" was auto-applied",
     "skillGrowthFailedScan": "\"{name}\" failed the pre-flight security scan",
     "skillGrowthBlockedLocked": "\"{name}\" is protected by evolution lock and requires manual review",
     "openSkillGrowth": "Open Skill Growth",
@@ -9619,11 +9790,13 @@
     "undoEvolve": "Undo",
     "rollbackSuccess": "Successfully rolled back: {name}",
     "rollbackFailed": "Rollback failed, please try again",
+    "skillGrowthUndone": "Archived \"{name}\". Restore it anytime from the skill list.",
+    "skillGrowthUndoBlocked": "\"{name}\" is pinned or in use by an agent or scheduled task, so it can't be archived. Unpin or unbind it first.",
+    "skillGrowthUndoFailed": "Couldn't archive \"{name}\". Please try again.",
     "forcePushReceived": "Agent profile updated by organization",
     "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
     "subagentRebindRequired": "Subagent bindings changed. Start a new chat to use updated delegation tools.",
     "subagentStale": "Subagent stalled",
-    "noProgressFor": "No progress for",
     "viewAgent": "View",
     "approvalRequired": "Agent requires approval: {actionType}",
     "approvalsRecovered": "Recovered {count} pending approval(s)",
@@ -9681,7 +9854,12 @@
     "mcpAuthRequired": "{server} requires re-authorization",
     "oauthReauthRequired": "{issuer} authorization expired. Please reauthorize to restore access.",
     "reauthorize": "Reauthorize",
-    "budgetFinalization": "Budget nearly exhausted — finalizing"
+    "budgetFinalization": "Budget nearly exhausted — finalizing",
+    "healthAlertTip": "Tip: {tip}",
+    "budgetRemaining": "{dimension} — ${remaining} remaining",
+    "subagentStaleDescription": "No progress for {minutes} min · {tokens, number} tokens",
+    "subagentStaleStats": "{minutes} min · {tokens, number} tokens",
+    "agentProfileRollbackSuccess": "Successfully rolled back agent profile."
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",
@@ -10164,32 +10342,6 @@
       "pre_rollback": "Before restore"
     }
   },
-  "SkillOptimization": {
-    "qualityScore": "Quality Score",
-    "successRate": "Success Rate",
-    "tokenEfficiency": "Token Efficiency",
-    "executionTime": "Execution Time",
-    "userSatisfaction": "User Satisfaction",
-    "callFrequency": "Call Frequency",
-    "loading": "Loading...",
-    "noData": "No Data",
-    "overallScore": "Overall Score",
-    "baselineVersion": "Baseline Version",
-    "optimizedVersion": "Optimized Version",
-    "successRateDelta": "Success Rate Delta",
-    "tokenEfficiencyDelta": "Token Efficiency Delta",
-    "executionTimeDelta": "Execution Time Delta",
-    "activeSkills": "Active Skills",
-    "totalCalls": "Total Calls",
-    "avgSuccessRate": "Avg Success Rate",
-    "avgExecutionTime": "Avg Execution Time",
-    "recommendedToOptimize": "Recommended to Optimize",
-    "optimizeAll": "Optimize All",
-    "priorityScore": "Priority Score",
-    "optimize": "Optimize",
-    "optimizing": "Optimizing...",
-    "noRecommendations": "No skills recommended for optimization"
-  },
   "Agent": {
     "list": {
       "title": "My Agents",
@@ -10470,14 +10622,14 @@
       "status": {
         "PENDING_REVIEW": "Pending Review",
         "AUTO_APPLIED": "Auto Applied",
-        "FAILED_SCAN": "Failed Scan",
+        "FAILED_SCAN": "Check Failed",
         "BLOCKED_LOCKED": "Blocked by Lock",
         "APPROVED": "Approved",
         "REJECTED": "Rejected",
         "APPLY_FAILED": "Apply Failed",
         "pendingReview": "Pending Review",
         "autoApplied": "Auto Applied",
-        "failedScan": "Failed Scan",
+        "failedScan": "Check Failed",
         "blockedLocked": "Blocked by Lock",
         "approved": "Approved",
         "rejected": "Rejected",
@@ -10494,88 +10646,6 @@
     "btnFixing": "Fixing with privileges...",
     "btnSuccess": "Fix Successful",
     "btnFix": "Authorize & Fix"
-  },
-  "messageFilter": {
-    "settings": {
-      "title": "Message Filtering",
-      "description": "Configure message filtering rules and PII detection settings.",
-      "enabled": "Enable Filtering",
-      "piiMode": "PII Detection Mode",
-      "piiModeOff": "Off",
-      "piiModeRedact": "Redact",
-      "piiModeBlock": "Block",
-      "whitelistApiKeys": "Whitelist API Keys",
-      "whitelistPlaceholder": "Enter API keys (comma-separated)",
-      "auditEnabled": "Enable Audit Logging",
-      "save": "Save Configuration",
-      "saved": "Configuration saved successfully",
-      "saveFailed": "Failed to save configuration"
-    },
-    "audit": {
-      "title": "Audit Logs",
-      "description": "View message filtering audit logs for security monitoring.",
-      "userId": "User ID",
-      "filterType": "Filter Type",
-      "action": "Action",
-      "reason": "Reason",
-      "timestamp": "Timestamp",
-      "noLogs": "No audit logs found",
-      "refresh": "Refresh",
-      "export": "Export Logs"
-    },
-    "stats": {
-      "title": "Filter Statistics",
-      "description": "View performance metrics and filtering statistics.",
-      "totalEvents": "Total Events",
-      "eventsByAction": "Events by Action",
-      "eventsByFilter": "Events by Filter",
-      "averageTime": "Average Processing Time",
-      "slowestFilter": "Slowest Filter",
-      "refresh": "Refresh Stats"
-    },
-    "rules": {
-      "title": "Filtering Rules",
-      "description": "Manage custom filtering rules.",
-      "add": "Add Rule",
-      "edit": "Edit Rule",
-      "delete": "Delete Rule",
-      "name": "Rule Name",
-      "patternType": "Pattern Type",
-      "pattern": "Pattern",
-      "action": "Action",
-      "enabled": "Enabled",
-      "priority": "Priority",
-      "save": "Save Rule",
-      "cancel": "Cancel",
-      "confirmDelete": "Are you sure you want to delete this rule?"
-    },
-    "templates": {
-      "title": "Rule Templates",
-      "description": "Quick-apply preset filtering rules.",
-      "apply": "Apply Template",
-      "applied": "Template applied successfully",
-      "applyFailed": "Failed to apply template"
-    },
-    "version": {
-      "title": "Version History",
-      "description": "View and rollback configuration changes.",
-      "version": "Version",
-      "updatedBy": "Updated By",
-      "updatedAt": "Updated At",
-      "rollback": "Rollback",
-      "confirmRollback": "Are you sure you want to rollback to version {version}?",
-      "rolledBack": "Rolled back to version {version}",
-      "rollbackFailed": "Failed to rollback"
-    },
-    "messageBox": {
-      "filtered": "This message was filtered by security policy",
-      "reason": "Reason: {reason}",
-      "consensusMetaTitle": "Multi-Model Consensus",
-      "consensusMetaModels": "{succeeded}/{total} models participated",
-      "consensusMetaAggregator": "Aggregator: {model}",
-      "consensusMetaElapsed": "Elapsed: {seconds}s",
-      "consensusActive": "Waiting for remaining models…"
-    }
   },
   "multiPane": {
     "title": "Workspace",
@@ -10650,12 +10720,23 @@
       "retentionHealth": "Quality",
       "coherence": "Coherence"
     },
+    "growthTypes": {
+      "skill_draft": "New skill",
+      "skill_patch": "Skill update",
+      "semantic_memory": "Memory",
+      "fix": "Skill fix",
+      "derived": "Skill refinement",
+      "captured": "Captured skill",
+      "slice_extraction": "Extracted from a task",
+      "optimize_description": "Description refinement",
+      "other": "Other"
+    },
     "skillEvents": {
       "title": "Skill Growth Timeline",
       "empty": "No growth events yet",
       "pendingReview": "Pending Review",
       "autoApplied": "Auto Applied",
-      "failedScan": "Failed Scan",
+      "failedScan": "Check Failed",
       "blockedLocked": "Blocked by Lock",
       "approved": "Approved",
       "rejected": "Rejected",
@@ -10695,27 +10776,27 @@
     "skillHealth": {
       "title": "Skill Health (7D)",
       "description": "Compounding health scores from recent skill usage.",
-      "empty": "No skill usage recorded yet.",
+      "empty": "No skills ran in the last 7 days.",
       "calls7d": "{count} calls (7D)",
       "callsTotal": "{count} total",
       "successRate": "{rate}% success",
       "filterAll": "All",
       "filterAttention": "Needs Attention",
       "filterHealthy": "Healthy & Stars",
-      "noAttentionNeeded": "No at-risk or stale skills requiring governance.",
+      "noAttentionNeeded": "No at-risk skills right now.",
       "recommendationPrefix": "Recommendation:",
       "manageSkill": "Manage",
       "showMore": "Show all ({count})",
       "showLess": "Show less",
-      "recStar": "Star compounding asset! High adoption and zero friction across team.",
-      "recAtRisk": "At-risk asset. High failure/retry rate detected; review prompt and parameters.",
+      "recStar": "Star asset. Nearly every run with a clear result succeeded.",
+      "recAtRisk": "At-risk asset. Many runs with a clear result failed; review the prompt and parameters.",
       "recHealthy": "Healthy asset in active rotation.",
-      "recStale": "Inactive asset. Review for obsolescence or add usage examples.",
+      "recUnproven": "Not enough runs with a clear result yet: {observed} of {required}. A run has a clear result only when it used tools with this skill alone.",
       "status": {
         "STAR": "Star",
         "HEALTHY": "Healthy",
         "AT_RISK": "At Risk",
-        "STALE": "Stale"
+        "UNPROVEN": "Unproven"
       }
     },
     "learningTimeline": {
@@ -10790,6 +10871,7 @@
       "title": "Five-Ring Closed Learning Loop Status",
       "subtitle": "Cross-domain continuous self-evolution topology and health observability",
       "healthScore": "Loop Health Score",
+      "refresh": "Refresh",
       "optimal": "Optimal Operation",
       "warning": "Attention Needed",
       "degraded": "Degraded",
@@ -10844,10 +10926,11 @@
     "skillTrends": {
       "title": "Skill Usage Trends",
       "description": "Track how your skills' performance evolves over time.",
-      "empty": "No skill usage data yet. Skills will show trends after they are used.",
+      "empty": "No skill ran in this period. Trends appear once skills are used.",
+      "observedRuns": "Runs with a clear result: {count}",
+      "truncated": "Only this skill's most recent runs are kept, so earlier runs in this range may be missing.",
       "metric": {
         "success_rate": "Success Rate",
-        "avg_duration_ms": "Avg Duration",
         "call_count": "Usage Count"
       }
     },
@@ -10922,40 +11005,6 @@
       "cache": "Cache Savings",
       "routing": "Routing Savings",
       "totalCost": "Actual Cost"
-    },
-    "manifestPredictions": {
-      "title": "Manifest Predictions & Attribution",
-      "description": "Benchmark evaluation of predicted performance deltas against actual execution metrics",
-      "evaluating": "Evaluating...",
-      "evaluateNow": "Evaluate Benchmark Now",
-      "manifestId": "Manifest ID",
-      "targetComponent": "Target Component",
-      "recommendedAction": "Recommended Action",
-      "rationale": "Rationale",
-      "metricsTitle": "Predicted vs Actual Metrics",
-      "confidence": "Confidence",
-      "metricName": "Metric",
-      "baseline": "Baseline",
-      "predictedTarget": "Predicted",
-      "actualValue": "Actual",
-      "delta": "Delta",
-      "verdict": "Verdict",
-      "explanation": "Explanation",
-      "hideRollbackPatch": "Hide Rollback Patch",
-      "viewRollbackPatch": "View Rollback Patch",
-      "rollbackSuccess": "Rollback patch applied successfully.",
-      "rollbackFailed": "Failed to rollback skill evolution.",
-      "verdicts": {
-        "confirmed": "Confirmed",
-        "regression": "Regression",
-        "refuted": "Refuted",
-        "inconclusive": "Inconclusive"
-      },
-      "actions": {
-        "keep": "Keep",
-        "rollback": "Rollback",
-        "re_evaluate": "Re-evaluate"
-      }
     }
   },
   "subagentDashboard": {
@@ -11070,7 +11119,82 @@
       "yielded": "Yielded",
       "interrupted": "Interrupted",
       "checkpoint": "Checkpoint"
-    }
+    },
+    "detailFallbackAgentType": "Subagent",
+    "detailNoDescription": "No description provided",
+    "detailDuration": "Duration",
+    "detailTokens": "Tokens",
+    "detailCost": "Cost",
+    "detailModelInherited": "Inherited",
+    "detailTabOverview": "Overview",
+    "detailTabJournal": "Run Journal ({count})",
+    "detailTabTools": "Tools ({count})",
+    "detailTabMessages": "Messages ({count})",
+    "detailTabReplay": "Replay",
+    "detailTabViewport": "Viewport",
+    "detailHandoverTitle": "Structured Handover & Evidence",
+    "detailHandoverBadge": "Handover Record",
+    "detailExecutiveSummary": "Executive Summary",
+    "detailKeyFindings": "Key Findings & Evidence ({count})",
+    "detailArtifacts": "Artifacts",
+    "detailCitations": "Citations & Docs",
+    "detailCopy": "Copy",
+    "detailCopiedArtifactPath": "Artifact path copied to clipboard",
+    "detailCopiedCitationUrl": "Citation URL copied to clipboard",
+    "detailCopiedTaskDescription": "Task description copied to clipboard",
+    "detailCompletedChecklist": "Completed Checklist",
+    "detailErrorDiagnostic": "Error Diagnostic",
+    "detailVerificationPassed": "Independent verification: passed",
+    "detailVerificationFailed": "Independent verification: failed",
+    "detailVerificationRounds": "Rounds: {rounds}/{maxRounds}",
+    "detailTaskSpec": "Task Specification & Prompt",
+    "detailMetadata": "Metadata & Governance",
+    "detailTaskId": "Task ID",
+    "detailParentTaskId": "Parent Task ID",
+    "detailRootTask": "Root Task",
+    "detailRoleScope": "Role / Scope",
+    "detailStandardLeaf": "Standard Leaf",
+    "detailProgress": "Progress Status",
+    "detailJournalEmpty": "No run journal entries recorded.",
+    "detailToolsEmpty": "No tool executions recorded.",
+    "detailToolCall": "Tool Call #{index}",
+    "detailMessagesEmpty": "No teammate messages exchanged.",
+    "detailReplayStep": "Step Replay ({current}/{total})",
+    "detailReplayKind": "Kind: {kind}",
+    "detailReplayDuration": "Duration: {ms}ms",
+    "detailReplayEmpty": "No steps available to replay.",
+    "viewportEmptyTitle": "Text / Code Task Viewport",
+    "viewportEmptyDescription": "This subtask is a text or code task and has not produced a sandbox browser snapshot yet.",
+    "viewportOpenDesktop": "Peek at the sandbox desktop",
+    "viewportSwitchingToast": "Switching to the sandbox desktop",
+    "viewportUrlCopied": "URL copied",
+    "viewportLive": "Live",
+    "viewportSnapshot": "Snapshot",
+    "viewportCopyUrl": "Copy URL",
+    "viewportOpenInNewTab": "Open in new tab",
+    "viewportFallbackTitle": "Sandbox browser viewport",
+    "viewportRestoreSize": "Restore size",
+    "viewportFullscreen": "Full-screen zoom",
+    "viewportZoomOut": "Zoom out",
+    "viewportZoomIn": "Zoom in",
+    "viewportTakeover": "Take control",
+    "viewportExitZoom": "Exit zoom",
+    "viewportPreviewAlt": "Subtask viewport preview",
+    "insightsAnomalyStalled": "Stalled without tool or token progress for {seconds}s",
+    "insightsAnomalySlow": "Ran for {duration}s, more than 2x the {average}s average for {type}",
+    "insightsAnomalyAborted": "Stopped by the budget or timeout guard",
+    "insightsAdviceStalled": "Some subagents look stalled. Consider steering them to narrow the task scope, or cancel them.",
+    "insightsAdviceVerification": "{count, plural, one {# task failed independent verification. Review the findings before wrapping up the summary.} other {# tasks failed independent verification. Review the findings before wrapping up the summary.}}",
+    "insightsAdviceFanOut": "Many subagents are running in parallel (more than {limit}). Make sure the final summary step pools their outputs so the context does not overflow.",
+    "insightsEmpty": "No subagent data available for insights.",
+    "insightsAdviceTitle": "Optimization Advice",
+    "insightsAnomaliesTitle": "Anomalies & Outliers ({count})",
+    "insightsAnomaliesEmpty": "All subagents are within normal duration and token baselines.",
+    "insightsTypePerformance": "Performance by Agent Type",
+    "insightsSpawned": "{count} started",
+    "insightsAvgDuration": "Avg Duration",
+    "insightsTotalTokens": "Total Tokens",
+    "insightsTotalCost": "Total Cost"
   },
   "trajectoryDiff": {
     "title": "Cross-Session Trajectory Diff",
@@ -11259,7 +11383,7 @@
       "passed": "Passed",
       "failed": "Failed",
       "pending": "Pending",
-      "multiTurn": "<Multi-turn>",
+      "multiTurn": "'<Multi-turn>'",
       "viewDiff": "View Diff",
       "noReport": "No eval report yet. Click \"Run Eval\" to start.",
       "evalRunning": "Eval task in progress, please wait",
@@ -11485,7 +11609,8 @@
       "description": "Deterministic trajectory failure attribution indicates: expanding Tools/Middleware brings significantly higher ROI than Prompt-only adjustments (Tools/Middleware ≫ Prompt). Optimize your Harness configuration following the prioritized recommendations below.",
       "affectsCases": "Affects {count} failed cases",
       "quickConfig": "Configure"
-    }
+    },
+    "skillAbStartFailed": "Failed to start Skill A/B"
   },
   "vault": {
     "title": "Unlock Security Vault",
@@ -11707,15 +11832,24 @@
   },
   "Catchup": {
     "inboxTitle": "Catchup Inbox",
-    "loading": "Loading...",
+    "openInbox": "Catchup inbox, {count} waiting",
+    "close": "Close",
     "allCaughtUp": "You are all caught up!",
+    "untitledChat": "Untitled conversation",
     "statusCompleted": "Completed",
     "statusWaiting": "Waiting for Approval",
     "statusError": "Error",
     "statusRunning": "Running in Background",
+    "statusStopped": "Stopped",
     "youAsked": "You asked:",
+    "latestReply": "Latest reply",
+    "needsApproval": "Waiting for your approval to continue.",
+    "needsError": "Stopped because of an error.",
+    "needsQuestion": "Asked you a question.",
     "filesChanged": "Files Changed",
+    "moreFiles": "+{count} more",
     "toolsUsed": "Tools Used",
+    "toolCalls": "{count, plural, one {# tool call} other {# tool calls}}",
     "markAsRead": "Dismiss",
     "viewChat": "View Chat"
   },
@@ -11935,7 +12069,6 @@
       "toolsConnect": {
         "pageTitle": "Connect your everyday tools",
         "pageDescription": "Let your assistant access the services you use daily. You can always add more later in Settings.",
-        "connected": "Connected",
         "connectButton": "Connect",
         "moreHint": "30+ integrations available in Settings → Integrations",
         "continueButton": "Continue",
@@ -12261,9 +12394,9 @@
     "mcpTlsHint": "For mTLS: provide client cert and optionally a separate key. Paths support ~ expansion.",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Configured",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "Use '{{secret:KEY_NAME}}' to reference secrets stored in Agent Secrets.",
     "mcpHeaderKeyPlaceholder": "Header name (e.g. Authorization)",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Value or '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
     "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
@@ -12430,6 +12563,10 @@
         "restrict": "Link without trusting",
         "trust": "Trust and link"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "Workspace trusted. Full extensions and tools are now enabled.",
+      "trustFailed": "Failed to trust workspace"
     }
   },
   "milestone": {
@@ -13160,22 +13297,6 @@
     "speakerNotes": "Speaker Notes",
     "noSpeakerNotes": "No notes for this slide"
   },
-  "vibrancy": {
-    "triggerAriaLabel": "Desktop acrylic glassmorphism & liquid vibrancy settings",
-    "triggerTooltip": "Press ⌥⌘V or click to tune desktop acrylic vibrancy and liquid effects",
-    "panelTitle": "Native Vibrancy & Liquid Tuner",
-    "platformTag": "{platform} Native Vibrancy",
-    "quickToggleAriaLabel": "Toggle vibrancy blur on or off",
-    "styleLabel": "Window Glass & Surface Style",
-    "styleMica": "Win11 Mica",
-    "styleAcrylic": "Acrylic Glass",
-    "styleVibrantDark": "macOS Vibrant Dark",
-    "styleUltraThin": "Ultra Thin Crystal",
-    "styleDisabled": "Opaque (Disabled)",
-    "statusDisabled": "Opaque",
-    "intensityLabel": "Blur Depth & Saturation",
-    "platformHint": "Activates hardware-accelerated translucent surface on macOS & Windows 11; graceful CSS fallback on Web."
-  },
   "spreadsheet": {
     "viewerTitle": "Publication-Grade Styled Spreadsheet Hub",
     "themeNavy": "Business Navy",
@@ -13535,17 +13656,6 @@
       "sandbox": "Sandbox"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "Active Overlay",
-    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
-    "rollbackTooltip": "Rollback this session overlay",
-    "rollback": "Rollback",
-    "collapse": "Collapse",
-    "expand": "Expand",
-    "howItWorks": "How It Works",
-    "howItWorksDesc": "Overlays provide zero-reset fault recovery, active for a set turn budget and smoothly retiring afterwards.",
-    "allActiveOverlays": "All Active Overlays ({count})"
-  },
   "taskSpaces": {
     "title": "Parallel Browser Spaces",
     "badgeRunning": "Running",
@@ -13811,6 +13921,27 @@
       "keyTakeawaysTitle": "Derived Core Learnings & Discoveries",
       "warpToSource": "Warp to Source Branch",
       "forkIndicator": "Forked from"
+    },
+    "anchors": {
+      "title": "Verified Anchors",
+      "symbolCount": "{count, plural, one {# symbol} other {# symbols}}",
+      "expandAnchors": "Expand anchors",
+      "collapseAnchors": "Collapse anchors",
+      "collapse": "Collapse",
+      "inspect": "Inspect",
+      "more": "+{count} more",
+      "commits": "Commits ({count})",
+      "files": "Files ({count})",
+      "symbols": "Symbols ({count})",
+      "endpoints": "Endpoints ({count})",
+      "errorSignatures": "Error Signatures ({count})",
+      "copySha": "Click to copy SHA",
+      "copyPath": "Click to copy path",
+      "copySymbol": "Click to copy symbol",
+      "copyEndpoint": "Click to copy endpoint",
+      "copyPathLabel": "Copy path: {path}",
+      "copySymbolLabel": "Copy symbol: {symbol}",
+      "copyEndpointLabel": "Copy endpoint: {endpoint}"
     }
   },
   "extensionUI": {
@@ -14485,9 +14616,7 @@
       "mcp": "MCP",
       "skills": "Skills",
       "compoundingPlaybook": "Compounding Loop",
-      "skillQuality": "Skill Quality",
       "toolStability": "Tool Stability",
-      "toolQuality": "Execution Quality",
       "evolutionPending": "Skill Growth",
       "evolutionRejection": "Skill Growth Audit",
       "eval": "Evaluation",
@@ -14536,7 +14665,8 @@
         "knowledge": "Knowledge & Data",
         "integration": "Communications & Integrations",
         "system": "Security & System"
-      }
+      },
+      "brand-studio": "Brand Style"
     },
     "workbench": {
       "badge": "Asset Retention & Platform Neutrality",
@@ -14580,6 +14710,7 @@
         "subtitle": "Break free from proprietary closed ecosystems. Zero vendor lock-in, all assets transparent and portable.",
         "exportConfig": "Export Workspace Config",
         "exportMemory": "Backup Memories",
+        "exportTakeout": "Export All My Data",
         "points": {
           "decouplingTitle": "Model & Asset Decoupling",
           "decouplingDesc": "Hot-swap between Claude, DeepSeek, GPT, Gemini freely while 100% of your assets and skills remain intact.",
@@ -14608,12 +14739,23 @@
       "tabDescriptions": {
         "followUps": "View and manage proactive follow-ups extracted from conversations",
         "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual",
-        "teamHub": "Shared contexts, wiki, skills, and memory — team setup in one place"
+        "teamHub": "Shared contexts, wiki, skills, and memory — team setup in one place",
+        "explorer": "Browse and manage agent long-term memory",
+        "backup": "Create or restore memory snapshots and backups",
+        "cloudBackup": "Auto-sync backups to cloud storage for cross-device safety"
       },
       "migrationUnavailable": {
         "title": "Assistant import requires Local or Desktop",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, Claude Code, or Codex folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
         "downloadCta": "Go to download page"
+      },
+      "monitor": {
+        "profilingStarted": "Heap profiling started. System may experience slight overhead.",
+        "profilingStartFailed": "Failed to start profiling",
+        "profilingStartNetworkError": "Network error starting profiling",
+        "profilingStopped": "Heap profiling stopped. Results ready.",
+        "profilingStopFailed": "Failed to stop profiling",
+        "profilingStopNetworkError": "Network error stopping profiling"
       }
     },
     "commands": {
@@ -14650,7 +14792,6 @@
         "title": "Tips",
         "usage": "Type / in the input box to trigger command palette",
         "trigger": "Type / in the input box to trigger command palette",
-        "variables": "Template supports variables: '{{input}}', '{{date}}', '{{time}}'",
         "examples": "Examples: /translate for translation, /review for code review",
         "example": "Examples: /translate for translation, /review for code review"
       },
@@ -14683,17 +14824,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "Examples",
-          "translate": {
-            "name": "translate",
-            "template": "Please translate to English: '{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "Please review this code: '{{input}}'"
-          }
         },
         "actions": {
           "cancel": "Cancel",
@@ -14830,6 +14960,20 @@
         "probeRecommendedActionSwitchMode": "Close and switch mode",
         "probeRecommendedActionRetryProbe": "Retry and connect",
         "learnMore": "Learn more"
+      },
+      "disabled": "Disabled",
+      "manage": "Manage",
+      "openWebsite": "Open {name} website",
+      "categories": {
+        "productivity": "Productivity",
+        "development": "Development",
+        "communication": "Communication",
+        "data_storage": "Data & Storage",
+        "browser": "Browser",
+        "web_search": "Web & Search",
+        "docs": "Documentation",
+        "design": "Design",
+        "api": "API Tools"
       }
     },
     "integrationMemory": {
@@ -14884,7 +15028,13 @@
       "endpointDesc": "Use this base URL with any OpenAI-compatible client:",
       "docsTitle": "Quick Start",
       "docsDesc": "Use your API key with the OpenAI SDK or any compatible client. The model field selects an agent (use \"default\" for the primary agent).",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "loadFailed": "Failed to load API keys",
+      "createFailed": "Failed to create API key",
+      "keyRevoked": "API key revoked",
+      "revokeFailed": "Failed to revoke key",
+      "keyDeleted": "API key deleted",
+      "deleteFailed": "Failed to delete key"
     },
     "hosting": {
       "title": "Hosting Targets",
@@ -15075,7 +15225,8 @@
         "installInProgress": "Installing…",
         "installSuccess": "Installed successfully",
         "installing": "Installing {backend}",
-        "installingDesc": "This may take a few minutes. The installation log appears below."
+        "installingDesc": "This may take a few minutes. The installation log appears below.",
+        "installFailed": "Installation failed"
       },
       "showSystemMessages": "Show System Messages",
       "showSystemMessagesDesc": "Display AI system prompts (System Prompts) in chat",
@@ -15086,7 +15237,7 @@
         "refresh": "Refresh",
         "loading": "Loading system health…",
         "loadFailed": "Failed to load system health",
-        "meta": "Deploy: {deploy} · Storage: {storage} · Bundle: {bundle}",
+        "meta": "Deploy: {deploy} · Bundle: {bundle}",
         "warnings": "Warnings",
         "migrationPending": "Layout migration pending",
         "migrationCount": "{count} action(s) required",
@@ -15116,8 +15267,7 @@
         "scenes": {
           "memory": "Memory",
           "workspace": "Workspace",
-          "offload": "Offload",
-          "archive": "Archive"
+          "offload": "Offload"
         }
       },
       "telemetry": {
@@ -15216,13 +15366,27 @@
         "rightsExporting": "Preparing export…",
         "rightsExportSuccess": "Compliance export downloaded",
         "rightsExportFailed": "Export failed — try again from Memory settings",
-        "rightsManageMemory": "Manage memory & deletion"
+        "rightsManageMemory": "Manage memory & deletion",
+        "eraseTitle": "Clear all conversations",
+        "eraseDesc": "Deletes every conversation and the files they produced. Saved memories, agents, API keys and channel settings are kept; Pending Memories and Recent Memory Activity are cleared. Export your data first if you want a copy.",
+        "eraseButton": "Clear conversations",
+        "eraseConfirmTitle": "Clear all conversations?",
+        "eraseConfirmDesc": "This permanently deletes every conversation and the files they produced, and clears Pending Memories and Recent Memory Activity. It cannot be undone.\nSaved memories, agents, API keys and channel settings are not affected. Workspaces with unsaved changes are kept.",
+        "eraseConfirmAction": "Clear conversations",
+        "erasing": "Clearing…",
+        "eraseSuccess": "{count, plural, one {Cleared # conversation} other {Cleared # conversations}}",
+        "eraseKept": "{count, plural, one {# workspace with unsaved changes was kept in your project folder} other {# workspaces with unsaved changes were kept in your project folder}}",
+        "eraseBusy": "A conversation is still running. Stop it or wait for it to finish, then try again.",
+        "eraseFailed": "Could not finish clearing conversations. Try again."
       },
       "profile": {
         "title": "Security Profile",
         "description": "Select a pre-built security profile or customize below.",
         "loading": "Loading profiles...",
-        "selectDefault": "Select Profile"
+        "selectDefault": "Select Profile",
+        "activated": "Activated profile: {name}",
+        "activateFailed": "Failed to activate profile",
+        "loaded": "Profile loaded"
       },
       "modeAllow": "Allow",
       "modeAsk": "Require Approval",
@@ -15287,7 +15451,36 @@
         "actionPseudonymize": "Pseudonymize",
         "actionRedact": "Auto Redact",
         "actionBlock": "Block",
-        "pseudonymizeHint": "Pseudonymize mode replaces PII with typed semantic placeholders before sending to the cloud. The AI retains full semantic understanding while original values are restored locally. Zero privacy leakage, zero quality loss.",
+        "pseudonymizeHint": "Pseudonymize swaps sensitive content for placeholders before sending: the model sees only the placeholders, never the real content, and placeholders in its reply are restored to the original text locally. The model can tell what kind of thing a placeholder stands for, but it cannot answer about the content itself.",
+        "consequence": {
+          "warn": "Nothing is hidden: the original text is sent to the model as it is.",
+          "pseudonymize": "Sent with placeholders instead; the reply shown to you has the originals restored.",
+          "redact": "Masked before sending; the model never sees the original and it cannot be restored.",
+          "block": "A message you send with this kind of content is stopped and not sent; content such as tool results is masked before use."
+        },
+        "coverage": {
+          "title": "What is protected",
+          "covered": "Covered: the messages you send to the model, what tools and web pages return, what is saved to memory, and background model calls such as titles, suggestions and summaries.",
+          "notCovered": "Not covered: images and audio themselves; features that do not go through the chat model, such as image and video generation, reading replies aloud and the search index used to find memory and saved documents.",
+          "matching": "Detection looks at the text itself: a nickname, pinyin or typo may slip through. Use Try it above to check."
+        },
+        "tester": {
+          "title": "Try it",
+          "description": "Type a sentence to see what the model would receive with your current settings.",
+          "placeholder": "e.g. Summarize why Project Phoenix went over budget",
+          "checking": "Checking",
+          "levelNone": "Nothing sensitive found; the text is sent as it is.",
+          "levelS2": "Recognized as sensitive",
+          "levelS3": "Recognized as confidential",
+          "action": "Action: {action}",
+          "modelSees": "The model receives",
+          "blocked": "This message would be stopped and not sent to the model.",
+          "unchanged": "Your setting only warns, so the original text is sent.",
+          "deepScanNote": "Try it does not include deep scan.",
+          "failed": "Unable to try it right now. Please try again later.",
+          "ineffectiveTitle": "These custom patterns can't take effect yet",
+          "ineffectiveHint": "They are written incorrectly, so they hide nothing right now. Fix them and add them again, or remove them."
+        },
         "deepScanLabel": "Deep Scan (LLM-enhanced)",
         "deepScanDesc": "Use LLM to detect non-structured PII (medical history, family relations, workplace, etc.) that regex patterns cannot catch. May increase latency.",
         "routing": {
@@ -15300,7 +15493,7 @@
           "localApiKey": "Local Model API Key",
           "localApiKeyPlaceholder": "Leave empty if not required",
           "s2Strategy": "S2 (Sensitive) Strategy",
-          "s2CloudAfterRedact": "Redact then Cloud",
+          "s2CloudAfterRedact": "Cloud Model",
           "s2Local": "Local Only",
           "s3Strategy": "S3 (Confidential) Strategy",
           "s3Local": "Local Only",
@@ -15311,7 +15504,8 @@
           "testConnection": "Test",
           "testSuccess": "Local model connected",
           "testFailed": "Connection failed",
-          "noLocalModelWarning": "You have selected a local routing strategy but no local model is configured. Routing will fall back to cloud for all requests."
+          "noLocalModelWarning": "You have selected a local routing strategy but no local model is configured. Routing will fall back to cloud for all requests.",
+          "testSuccessLatency": "Local model connected ({latency}ms)"
         },
         "advanced": {
           "title": "Advanced PII Configuration",
@@ -15332,12 +15526,7 @@
           "toolsS2Desc": "Tool calls that should trigger S2 protection.",
           "toolsS3Label": "S3 Sensitive Tools",
           "toolsS3Desc": "Tool calls that should trigger S3 protection.",
-          "invalidRegex": "Invalid regex pattern",
-          "keywordTooShort": "Keyword must be at least 2 characters",
-          "testMatch": "Test Match",
-          "testMatchPlaceholder": "Enter text to test against your rules...",
-          "testMatchResult": "Matched: {level} — {patterns}",
-          "testMatchNoResult": "No custom rules matched"
+          "keywordTooShort": "Keyword must be at least 2 characters"
         }
       },
       "domainAllowlist": {
@@ -15515,14 +15704,11 @@
         "displayName": "Display Name",
         "pattern": "Regex Pattern",
         "severity": "Severity",
-        "action": "Action",
         "category": "Category",
         "sortOrder": "Sort Order",
         "severityLow": "Low",
         "severityMedium": "Medium",
         "severityHigh": "High",
-        "actionAllow": "Allow",
-        "actionBlock": "Block",
         "categoryPersonal": "Personal Info",
         "categoryCompany": "Company Internal",
         "categorySecurity": "Security Credentials",
@@ -15557,10 +15743,12 @@
         "hits": "Audit Log",
         "hitsTitle": "Risk Hit Records",
         "hitsEmpty": "No risk hits recorded",
+        "hitPosition": "Characters {start}–{end}",
+        "hitTimedOut": "Matching timed out; treated as a hit",
+        "blockedTitle": "Message blocked by risk rules",
+        "blockedDescription": "Matched: {rules}. To let it through, turn the rule off in Settings → Security Policy → Risk Rules.",
         "hitsRuleName": "Rule",
         "hitsSeverity": "Severity",
-        "hitsAction": "Action",
-        "hitsMatch": "Match Content",
         "hitsTime": "Time",
         "hitsUser": "User",
         "hitsTotal": "{count} records total",
@@ -15573,6 +15761,8 @@
         "importSuccess": "Successfully imported {count} rules",
         "importError": "Import failed, please check file format",
         "duplicateRule": "Duplicate rule",
+        "duplicatedName": "{name} (copy)",
+        "actionError": "That did not work. Try again.",
         "rules": {
           "email_address": {
             "name": "Email address",
@@ -15619,12 +15809,12 @@
             "desc": "Detect JWT-like bearer tokens."
           },
           "cookie_session_like": {
-            "name": "Cookie / session secret",
-            "desc": "Detect session, cookie, and authorization wording."
+            "name": "Session / access token",
+            "desc": "Detect session IDs, access or refresh tokens, and authorization headers that carry a value."
           },
           "db_connection_string": {
             "name": "Database connection string",
-            "desc": "Detect connection strings for databases, caches, and queues."
+            "desc": "Detect connection strings for databases, caches, and queues that embed a password."
           },
           "kubeconfig_content": {
             "name": "Kubeconfig content",
@@ -15632,7 +15822,7 @@
           },
           "env_file_secret": {
             "name": "Environment secret variable",
-            "desc": "Detect common secret variable names in env-style content."
+            "desc": "Detect secret variables such as SECRET_KEY that are set to a value in env-style content."
           },
           "private_ip": {
             "name": "Private network address",
@@ -16188,7 +16378,8 @@
         "agenticBadge": "64K Agentic",
         "agenticTooltip": "Automatically derived 64K context modelfile for production-ready tool calling and long-term memory",
         "keepAliveTipTitle": "24/7 Keep-Alive & GPU Drain Guide",
-        "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks."
+        "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks.",
+        "downloadFailed": "Download failed"
       },
       "importFromModelsDev": "Import from models.dev",
       "getModels": "Get Models",
@@ -16207,7 +16398,32 @@
       "connectionSuccess": "Connection Successful",
       "connectionFailed": "Connection Failed",
       "vercelGatewaySpendHint": "Track spend, rate limits, and latency on Vercel AI Gateway",
-      "openVercelDashboard": "Open Dashboard"
+      "openVercelDashboard": "Open Dashboard",
+      "oauth": {
+        "title": "Subscription Login",
+        "connected": "Connected",
+        "noticeTitle": "SuperGrok Subscription Notice",
+        "noticeBody": "After SuperGrok authorization, you can directly use Grok models without an API key, with unified X Search and multimodal tool capabilities.",
+        "deviceCodeHint": "Enter this code in your browser to complete authorization:",
+        "copyCode": "Copy code",
+        "openVerificationPage": "Open verification page",
+        "waiting": "Waiting for authorization...",
+        "cancel": "Cancel",
+        "connectedWithApiKey": "Logged in via SuperGrok. Your API key takes priority; the subscription is the fallback.",
+        "connectedWithQuota": "Logged in via SuperGrok. Your subscription quota will be used for AI calls.",
+        "disconnect": "Disconnect",
+        "loginPrompt": "Log in with your SuperGrok subscription to use AI models without an API key.",
+        "loginButton": "Log in with SuperGrok",
+        "toast": {
+          "timeout": "Authorization timed out. Please try again.",
+          "connected": "SuperGrok connected successfully",
+          "expired": "Authorization expired. Please try again.",
+          "denied": "Authorization denied. Please try again.",
+          "startFailed": "Failed to start authorization. Please try again.",
+          "disconnected": "SuperGrok subscription disconnected",
+          "disconnectFailed": "Failed to disconnect"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "Local lightweight models are highly prone to hallucinate or fall into infinite loops when processing complex Agent toolchains. For long tasks, it's recommended to use 30B+ scale models or cloud-based advanced models (like Claude 3.5 Sonnet).",
@@ -16366,7 +16582,7 @@
         "embeddingModel": "Embedding Model",
         "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, web search, and other capabilities",
         "dismiss": "Dismiss",
-        "orphanWarning": "{{count}} memories from a previous model need migration",
+        "orphanWarning": "{count} memories from a previous model need migration",
         "reindex": "Migrate",
         "reindexing": "Migrating...",
         "rerankerModel": "Reranker Model",
@@ -16621,7 +16837,13 @@
       "vaultDeleteDesc": "Are you sure you want to delete the credential \"{label}\"? This action cannot be undone.",
       "vaultEdit": "Edit",
       "tokenRequired": "Token is required",
-      "xaiOauthTimeout": "Authorization timed out"
+      "xaiOauthTimeout": "Authorization timed out",
+      "xaiOauthConnectDesc": "Click the button below to authorize your SuperGrok account in the browser. It will connect automatically once authorized.",
+      "xaiOauthCode": "Code:",
+      "xaiOauthCodeHint": "Enter this code in the browser to complete authorization...",
+      "xaiOauthReopen": "Open authorization page again",
+      "xaiOauthWaiting": "Waiting...",
+      "xaiOauthConnectBtn": "Authorize SuperGrok"
     },
     "skillQuality": {
       "title": "Skill Quality Management",
@@ -16668,39 +16890,6 @@
       }
     },
     "skillOptimization": {
-      "title": "Skill Self-Optimization",
-      "description": "LLM-driven automatic skill optimization system for continuous quality improvement",
-      "dashboard": "Dashboard",
-      "activeOptimizations": "Active Optimizations",
-      "abTestsRunning": "A/B Tests Running",
-      "qualityRanking": "Quality Ranking",
-      "topSkills": "Top 10 Best Skills",
-      "bottomSkills": "Bottom 10 Skills to Optimize",
-      "triggerOptimization": "Trigger Optimization",
-      "viewHistory": "View History",
-      "actions": "Actions",
-      "noData": "No data available",
-      "qualityScore": "Quality Score",
-      "overallScore": "Overall Score",
-      "successRate": "Success Rate",
-      "tokenEfficiency": "Token Efficiency",
-      "executionTime": "Execution Time",
-      "userSatisfaction": "User Satisfaction",
-      "callFrequency": "Call Frequency",
-      "radarChart": "5D Quality Radar Chart",
-      "optimizationHistory": "Optimization History",
-      "status": {
-        "pending": "Pending",
-        "inProgress": "In Progress",
-        "completed": "Completed",
-        "failed": "Failed"
-      },
-      "abTestStatus": {
-        "running": "Running",
-        "baselineWin": "Baseline Win",
-        "candidateWin": "Candidate Win",
-        "noDifference": "No Significant Difference"
-      },
       "versions": {
         "title": "Version History",
         "version": "Version",
@@ -16719,113 +16908,15 @@
         "scoreDelta": "Score Change",
         "contentChanged": "Content Changed",
         "contentUnchanged": "Content Unchanged",
-        "createdByLlm": "LLM Optimization",
+        "createdByLlm": "AI Optimization",
         "createdByManual": "Manual Edit",
         "createdByRollback": "Rollback",
+        "createdByAgent": "Agent Edit",
+        "createdBySkillGrowth": "Skill Growth",
+        "createdByImport": "Import",
         "refresh": "Refresh",
         "confirmAction": "Activate this version"
-      },
-      "guardian": {
-        "idleTitle": "Shadow validation available",
-        "idleDescription": "A candidate version is ready. Start a shadow test to compare live traffic before promoting.",
-        "startShadow": "Start shadow test",
-        "startSuccess": "Shadow test started",
-        "startFailed": "Failed to start shadow test",
-        "runningTitle": "Shadow test: v{baseline} vs v{candidate}",
-        "consistency": "Consistency",
-        "samples": "Samples",
-        "versions": "Versions",
-        "confidence": "Test confidence",
-        "hideSamples": "Hide samples",
-        "reviewDifferences": "Review differences",
-        "stopTest": "Stop test",
-        "stopConfirmTitle": "Stop shadow test?",
-        "stopConfirmDescription": "Shadow test for \"{skillId}\" will stop. Baseline v{baseline} stays active.",
-        "cancel": "Cancel",
-        "promote": "Promote v{version}",
-        "promoteSuccess": "Version v{version} is now active",
-        "promoteFailed": "Failed to promote version",
-        "stopSuccess": "Shadow test stopped",
-        "stopFailed": "Failed to stop test",
-        "networkError": "Network error",
-        "match": "Match",
-        "diverged": "Diverged",
-        "baselineLabel": "Baseline",
-        "candidateLabel": "Candidate"
-      },
-      "batchPage": {
-        "submitConfirmTitle": "Create restore point?",
-        "submitConfirmDescription": "A batch snapshot will be saved before optimization. You can roll back from the batch detail page if results are unsatisfactory.",
-        "submitConfirmAction": "Start batch",
-        "submitCancel": "Cancel",
-        "rollback": "Roll back batch",
-        "rollbackCardDescription": "Restore all skills in this batch to their pre-optimization snapshots.",
-        "rollbackConfirmTitle": "Roll back this batch?",
-        "rollbackConfirmDescription": "All skills in this batch will be restored to their pre-optimization snapshots.",
-        "rollbackSuccess": "Batch rollback completed ({count} skills restored)",
-        "rollbackPartial": "Batch rollback partial — restored {rolled}/{total} skills, {failed} failed",
-        "rollbackFailed": "Batch rollback failed",
-        "cancel": "Cancel batch",
-        "cancelConfirmTitle": "Cancel this batch?",
-        "cancelConfirmDescription": "Choose whether to keep optimizations already applied or restore all skills to their pre-batch snapshots.",
-        "cancelKeepAction": "Cancel only",
-        "cancelRollbackAction": "Cancel and roll back",
-        "cancelSuccess": "Batch cancelled",
-        "cancelRollbackSuccess": "Batch cancelled — {count} skills restored",
-        "cancelRollbackPartial": "Batch cancelled — restored {rolled}/{total} skills, {failed} failed",
-        "cancelRollbackFailed": "Batch cancelled but rollback failed — check skill versions manually",
-        "cancelFailed": "Failed to cancel batch",
-        "statusPending": "Pending",
-        "statusRunning": "Running",
-        "statusCompleted": "Completed",
-        "statusCancelled": "Cancelled",
-        "statusFailed": "Failed",
-        "filterAll": "All",
-        "filterActive": "Active",
-        "filterExecuting": "Executing"
       }
-    },
-    "skillAggregation": {
-      "title": "Skill Quality Aggregation",
-      "description": "Multi-dimensional Skill Quality Analysis & Aggregation Dashboard",
-      "loading": "Loading...",
-      "error": "Error",
-      "errorFetchingMetrics": "Failed to fetch metrics",
-      "connected": "Connected",
-      "disconnected": "Disconnected",
-      "last7Days": "Last 7 Days",
-      "last30Days": "Last 30 Days",
-      "last90Days": "Last 90 Days",
-      "exportCSV": "Export CSV",
-      "exportJSON": "Export JSON",
-      "exportSuccess": "Export Successful",
-      "exportSuccessDescription": "Data exported successfully",
-      "exportFailed": "Export Failed",
-      "exportFailedDescription": "Failed to export data",
-      "avgQuality": "Avg Quality",
-      "median": "Median",
-      "totalSkills": "Total Skills",
-      "executions": "Executions",
-      "optimizationRate": "Optimization Rate",
-      "topSkills": "Top Skills",
-      "bottomSkills": "Bottom Skills",
-      "qualityDistribution": "Quality Distribution",
-      "worstSkills": "Worst Performing Skills",
-      "excellent": "Excellent (≥80%)",
-      "good": "Good (50-80%)",
-      "poor": "Poor (<50%)",
-      "noData": "Insufficient data",
-      "noDataHint": "Quality scores appear after skills run in real conversations—not placeholder defaults.",
-      "refresh": "Refresh",
-      "skillTrend": "Skill Trend",
-      "globalTrend": "Global Quality Trend",
-      "qualityScore": "Quality Score",
-      "successRate": "Success Rate",
-      "tokenEfficiency": "Token Efficiency",
-      "dataPoints": "Data Points",
-      "totalExecutions": "Total Executions",
-      "timeRange": "Time Range",
-      "errorFetchingTrends": "Failed to fetch trend data"
     },
     "wiki": {
       "title": "LLM-Wiki Knowledge Base",
@@ -17405,7 +17496,19 @@
         "renameSuccess": "Renamed successfully",
         "operationFailed": "Operation failed",
         "namePlaceholder": "Enter name...",
-        "confirm": "Confirm"
+        "confirm": "Confirm",
+        "links": {
+          "title": "Links and context",
+          "summary": "Cited by {backlinks} · Links to {outlinks}",
+          "tabBacklinks": "Cited by ({count})",
+          "tabOutlinks": "Links to ({count})",
+          "refresh": "Refresh links",
+          "loadFailed": "Failed to load links",
+          "emptyBacklinks": "Nothing links to this concept yet",
+          "emptyOutlinks": "This concept has no links yet",
+          "missing": "Missing",
+          "jumpToSection": "Click the card to jump to the section: {heading}"
+        }
       },
       "saveToWiki": {
         "buttonTitle": "Compound to Wiki (Pending Review)",
@@ -17626,6 +17729,11 @@
         "skipped": "A review with the same title was already stored today; duplicate skipped",
         "empty": "Please enter your review first",
         "error": "Submission failed; please retry later"
+      },
+      "reviewSlip": {
+        "fetchFailed": "Failed to load the review slip",
+        "applied": "Selective write-back complete: {committed} saved, {discarded} skipped",
+        "applyFailed": "Failed to apply selective write-back"
       }
     },
     "skills": {
@@ -17644,7 +17752,6 @@
         "rollbackFailed": "Rollback failed, please try again",
         "cancel": "Cancel",
         "fetchError": "Failed to fetch skill history",
-        "qualityBefore": "Before",
         "status": {
           "approved": "Applied",
           "rolled_back": "Rolled Back",
@@ -18104,7 +18211,69 @@
         "sourceTab": "Source",
         "saveSource": "Save SKILL.md",
         "sourceSaved": "SKILL.md updated successfully",
-        "sourceSaveFailed": "Failed to save SKILL.md"
+        "sourceSaveFailed": "Failed to save SKILL.md",
+        "forceEnableFailed": "Force enable failed",
+        "securityReviewNote": "Security review: {recommendation}"
+      },
+      "scanRisk": {
+        "severity": {
+          "critical": "Critical",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low",
+          "info": "Info"
+        },
+        "threat": {
+          "prompt_injection": "Prompt injection",
+          "command_injection": "Command injection",
+          "credential_exposure": "Credential exposure",
+          "data_exfiltration": "Data exfiltration",
+          "filesystem_access": "File system access",
+          "process_operation": "Process control",
+          "network_access": "Network access",
+          "screen_input": "Screen and input control",
+          "memory_config_snooping": "Agent memory or config snooping",
+          "code_injection": "Code injection",
+          "privilege_escalation": "Privilege escalation",
+          "environment_manipulation": "Environment tampering",
+          "reflection": "Dynamic code reflection",
+          "deserialization": "Unsafe deserialization",
+          "log_audit_tampering": "Log or audit tampering",
+          "scheduled_task_injection": "Scheduled task injection",
+          "container_escape": "Container escape",
+          "memory_manipulation": "Low-level memory access",
+          "dns_tunneling": "DNS tunneling",
+          "supply_chain": "Supply chain risk",
+          "obfuscation": "Obfuscated content",
+          "destructive": "Destructive action",
+          "persistence": "Persistence mechanism",
+          "path_traversal": "Path traversal",
+          "crypto_mining": "Crypto mining",
+          "reverse_shell": "Reverse shell",
+          "prompt_secret_exfiltration": "Prompt or secret leakage",
+          "invisible_unicode": "Hidden characters",
+          "dangerous_import": "Dangerous module import",
+          "ast_parse_error": "Unparseable code",
+          "llm_audit": "AI audit finding",
+          "invalid_manifest": "Invalid package manifest",
+          "integrity": "Package integrity",
+          "missing_artifact": "Missing package file",
+          "empty_artifact": "Empty package file",
+          "unknown": "Other risk"
+        },
+        "signal": {
+          "newHighFinding": "New high-risk behavior: {threat}",
+          "scanUnavailable": "Security check could not run",
+          "diffRange": "Large rewrite ({percent} changed)",
+          "lowEffectiveRate": "Low past success rate ({rate} over {runs} runs)",
+          "unknown": "Needs review"
+        },
+        "remediation": {
+          "newHighFinding": "This change adds high-risk behavior. Check the flagged lines before approving.",
+          "scanUnavailable": "The security check could not run. Review the change carefully before approving.",
+          "diffRange": "Much of the content changed. Compare the changes to make sure nothing important was lost.",
+          "lowEffectiveRate": "This skill often fails in practice. Check that the change really fixes the problem."
+        }
       },
       "growth": {
         "title": "Skill Growth",
@@ -18142,7 +18311,7 @@
         "status": {
           "PENDING_REVIEW": "Pending Review",
           "AUTO_APPLIED": "Auto Applied",
-          "FAILED_SCAN": "Failed Scan",
+          "FAILED_SCAN": "Check Failed",
           "BLOCKED_LOCKED": "Blocked by Lock",
           "APPROVED": "Approved",
           "REJECTED": "Rejected",
@@ -18150,24 +18319,15 @@
         },
         "source": {
           "backgroundReview": "Background Review",
-          "continualRecovery": "Continual Recovery",
           "manualEvolution": "Manual Evolution",
           "memoryExtraction": "Memory Extraction"
         },
-        "proxyAlignment": {
-          "driftBadge": "Goodhart Drift Risk",
-          "driftTooltip": "Goodhart's Law drift detected: proxies improved but core intent regressed",
-          "alignedBadge": "Metrics Aligned",
-          "alignedTooltip": "Core intent and proxy metrics are well-aligned without corner-cutting"
-        },
         "confidence": "Confidence {value}%",
-        "testPassed": "Validation passed",
-        "testFailed": "Validation failed",
         "verifiedBadge": "Verified",
         "hollowBlockedBadge": "Hollow Test Blocked",
         "targetLayer": "Layer: {layer}",
         "targetPathology": "Pathology: {pathology}",
-        "verificationProofTitle": "Verified Capsule Proof",
+        "verificationProofTitle": "Verification record",
         "blastRadius": "Blast Radius: {files} file(s), {lines} line(s)",
         "noVerificationProof": "No sandbox verification proof available",
         "impactedDependents": {
@@ -18178,23 +18338,29 @@
           "confirmReject": "Confirm Reject",
           "reject": "Reject",
           "approve": "Approve",
-          "approveShadow": "Approve + Shadow",
           "retryApply": "Retry Apply",
           "revise": "Revise",
           "reviseLabel": "Edit Proposed Content",
           "cancelRevise": "Cancel",
-          "saveRevision": "Save Revision",
-          "createCron": "Create Scheduled Task"
+          "saveRevision": "Save Revision"
         },
-        "approveShadowSuccess": "Shadow test started for {name}",
         "reviseSuccess": "\"{name}\" revised successfully",
         "reviseFailed": "Failed to revise \"{name}\"",
         "reviseFailedScan": "\"{name}\" revised but failed security scan. Please fix the flagged issues.",
-        "cronSuggestion": {
-          "title": "Suggested Schedule"
-        },
         "riskInterceptionTitle": "Risk Interception",
         "applyFailureTitle": "Apply Failure",
+        "applyFailureBody": "It couldn't be applied automatically. Check the technical details, then try approving again.",
+        "heldReason": {
+          "title": "Why it needs your review",
+          "similar": "It looks similar to skills you already have: {names}. Approve it only if it adds something new.",
+          "evolutionLocked": "The skill it would change is protected from automatic updates, so it waits for your decision.",
+          "scanFailed": "It didn't pass the automatic safety check. Review the findings above before deciding."
+        },
+        "technical": {
+          "toggle": "Technical details",
+          "findings": "Scanner findings",
+          "advice": "Suggested action"
+        },
         "rejectReasonLabel": "Reason for rejection",
         "rejectReasonPlaceholder": "Describe what should change before this growth case can be applied.",
         "triggerCondition": "Trigger Condition",
@@ -18206,48 +18372,24 @@
           "title": "Runtime Failure Evidence",
           "tool": "Tool: {value}",
           "count": "Failures: {value}",
-          "confidence": "Attribution {value}%",
-          "loopKind": "Loop: {value}"
-        },
-        "manifestPrediction": {
-          "title": "Change Manifest Predictions & Attribution",
-          "baseline": "Baseline",
-          "target": "Target",
-          "predictedDirection": {
-            "INCREASE": "Predicted Increase",
-            "DECREASE": "Predicted Decrease",
-            "NEUTRAL": "Predicted Neutral"
-          },
-          "falsificationConditions": "Falsification Conditions",
-          "attributionVerdict": "Attribution Verdict",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "Generalization Optimal",
-            "overfitting": "Overfitting Alert",
-            "generalization_collapse": "Generalization Collapse",
-            "stable_parity": "Stable Parity",
-            "regression": "Regression Detected",
-            "insufficient_holdout": "Insufficient Holdout"
-          },
-          "metricDeltas": "Observed Metric Deltas",
-          "unpredictedRegressions": "Unpredicted Regressions"
+          "confidence": "Attribution {value}%"
         },
         "securityScan": {
           "title": "Skill Security Static Inspection Details ({count} findings)",
           "score": "Score: {score}/100",
-          "line": "Line: {line}"
+          "line": "Line: {line}",
+          "badgeTitle": "Security score {score}/100",
+          "risk": {
+            "trusted": "Low risk",
+            "installed": "Moderate risk",
+            "untrusted": "High risk",
+            "reject": "Blocked"
+          }
         },
         "empty": {
           "title": "No cases in this view",
           "description": "Recent skill growth activity will appear here after the agent captures or reviews improvements."
-        },
-        "cronCreateFailed": "Failed to schedule recurring review for {name}",
-        "cronCreated": "Recurring review scheduled for {name}"
+        }
       },
       "upload": {
         "title": "Upload Custom Skill",
@@ -18673,7 +18815,13 @@
         "error": "Failed to update permissions",
         "skillEnabled": "Skill enabled",
         "skillNotEnabled": "Skill not enabled",
-        "templateApplied": "Template applied"
+        "templateApplied": "Template applied",
+        "approveFailed": "Failed to approve permissions"
+      },
+      "tabSubtitles": {
+        "inventory": "Manage and discover core agent capabilities",
+        "pending": "Review and approve self-evolved agent skills",
+        "rejections": "Inspect growth blockages and audit trails"
       }
     },
     "language": "Language",
@@ -18957,7 +19105,7 @@
       "recipeImport": {
         "title": "Import recipe from AI skill",
         "hint": "Paste the JSON from generate-myrm-theme, then upload hero media in step 1 if needed.",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "Import recipe",
         "success": "Recipe imported into the editor",
         "errors": {
@@ -19414,7 +19562,7 @@
       "tunnelDockerRunLabel": "Docker run command",
       "tunnelDockerRunCopied": "Docker command copied to clipboard",
       "tunnelUpstreamAuthLabel": "Upstream auth header (optional)",
-      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthPlaceholder": "Bearer '<token>'",
       "tunnelUpstreamAuthHint": "Sent to your internal MCP server when the tunnel agent forwards requests.",
       "tunnelBindMcp": "Add as Org MCP",
       "tunnelBindMcpSuccess": "Tunnel added to organization MCP servers",
@@ -20191,9 +20339,9 @@
     "mcpOAuthConfigured": "Configured",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "Configured",
-    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeadersHint": "Use '{{secret:KEY_NAME}}' to reference secrets stored in Agent Secrets.",
     "mcpHeaderKeyPlaceholder": "Header name (e.g. Authorization)",
-    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "Value or '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "Configuration saved",
     "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime.",
@@ -20227,7 +20375,8 @@
       "hardcoded_secret": "Plaintext secret or token in configuration",
       "credential_exposure": "Potential credential exposure detected",
       "supply_chain": "Supply-chain risk (e.g. unpinned npx package)",
-      "supply_chain_malware": "Package has a known malware advisory"
+      "supply_chain_malware": "Package has a known malware advisory",
+      "dangerous_env_injection": "Dangerous environment variable that can hijack the MCP server"
     },
     "mcpThreatRec": {
       "prompt_injection": "Do not enable this MCP; report to your administrator",
@@ -20240,10 +20389,11 @@
       "risky_mcp_profile": "Restrict scope and acknowledge risk before enabling",
       "suspicious_url": "Remove untrusted external callback URLs",
       "sensitive_path": "Restrict filesystem MCP to non-sensitive directories",
-      "hardcoded_secret": "Use {{secret:KEY}} references instead of plaintext",
-      "credential_exposure": "Use {{secret:KEY}} references instead of plaintext",
+      "hardcoded_secret": "Use '{{secret:KEY}}' references instead of plaintext",
+      "credential_exposure": "Use '{{secret:KEY}}' references instead of plaintext",
       "supply_chain": "Pin package name and version in arguments",
-      "supply_chain_malware": "Remove the flagged package and use verified dependencies"
+      "supply_chain_malware": "Remove the flagged package and use verified dependencies",
+      "dangerous_env_injection": "Remove this environment variable to prevent arbitrary code execution"
     },
     "mcpDeleteFailed": "Delete Failed",
     "mcpDeleteSuccess": "Service Deleted",
@@ -20563,7 +20713,9 @@
       "deleteFromCloud": "Delete",
       "deleteSuccess": "Cloud backup deleted",
       "enabled": "Enable Cloud Backup",
-      "save": "Save Configuration"
+      "save": "Save Configuration",
+      "saveFailed": "Failed to save configuration",
+      "deleteFailed": "Delete failed"
     },
     "sessionAnalytics": {
       "copyMarkdown": "Copy Ledger (MD)",
@@ -21179,7 +21331,7 @@
           "autoSend": "Send automatically",
           "timeoutMinutes": "{minutes} min",
           "timeoutHour": "1 hour",
-          "noNotifyChannel": "No notification delivery is set up, so a reply waiting for review only alerts you inside this app and may expire unseen while you are away.",
+          "noNotifyChannel": "No notification delivery is set up. A reply waiting for review reaches you only inside this app or through background push notifications, so it may expire unseen while you are away.",
           "noNotifyChannelLink": "Set up in Preferences"
         },
         "identity": {
@@ -21616,7 +21768,8 @@
       "policyUpdated": "Security policy updated successfully",
       "tierProd": "Production",
       "tierStaging": "Staging",
-      "tierDev": "Development"
+      "tierDev": "Development",
+      "probeFailed": "Probe failed for {host}: {message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "On-screen approval highlight — red frame on the real display at the click target (macOS and Windows)",
@@ -21625,6 +21778,27 @@
       "headline": "Install the Myrm desktop app for workstation protection",
       "body": "You are in browser mode. Computer Use still works with in-app approvals. Locked Use auto-unlock needs the desktop app on macOS; Privacy Curtain and on-screen approval highlights work on macOS and Windows with the desktop app.",
       "bulletCurtain": "Privacy Curtain — full-screen shield so bystanders cannot see the agent (macOS and Windows)"
+    },
+    "developerCenter": {
+      "tabDescriptions": {
+        "devtools": "Technical diagnostics and LLM benchmarks",
+        "experimental": "Enable preview capabilities and labs flags",
+        "usage": "View detailed usage and billing metrics",
+        "companion": "Adjust desktop mascot interactions",
+        "importExport": "Backup and restore full app configs"
+      }
+    },
+    "systemCenter": {
+      "tabDescriptions": {
+        "settings": "Manage ports, network access, and system runtime",
+        "about": "Inspect system version, changelogs, and team details"
+      }
+    },
+    "modelCenter": {
+      "tabDescriptions": {
+        "providers": "Configure AI Providers and API credentials",
+        "default": "Define default, routing, and fallback models"
+      }
     }
   }
 }

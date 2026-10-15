@@ -34,7 +34,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitive
 import { cn } from '@/lib/utils/classnameUtils';
 import { getLearningLoopStatus, type LearningLoopFiveRingStatusResponse } from '@/services/statistics';
 import { showApiError } from '@/lib/api';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface LearningLoopFiveRingHubProps {
   onNavigateTab?: (tab: string) => void;
@@ -212,7 +211,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
               className="h-8 px-2.5 text-xs"
             >
               <RefreshCw className={cn('h-3.5 w-3.5 mr-1', refreshing && 'animate-spin')} />
-              <span className="sr-only sm:not-sr-only">刷新</span>
+              <span className="sr-only sm:not-sr-only">{t('refresh')}</span>
             </Button>
           </div>
         </div>
@@ -221,52 +220,52 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
       <CardContent className="px-4 pb-5 md:px-6">
         {/* Five Rings Topology Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 relative">
-          {rings.map((ring, idx) => {
+          {rings.map((ring) => {
             const Icon = ring.icon;
             return (
-              <div
+              <button
                 key={ring.id}
-                onClick={() => onNavigateTab && onNavigateTab(ring.targetTab)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={activateOnKey}
+                type="button"
+                onClick={() => onNavigateTab?.(ring.targetTab)}
                 className={cn(
-                  'group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer',
+                  'group relative flex flex-col justify-between p-3.5 rounded-xl border text-start transition-all duration-200 cursor-pointer',
                   'bg-background/60 hover:bg-accent/40 hover:shadow-md hover:border-primary/40',
                   ring.borderColor,
                 )}
               >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                <span>
+                  <span className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-mono font-semibold text-muted-foreground/80 px-1.5 py-0.5 rounded bg-muted/60">
                       {ring.num}
                     </span>
-                    <div className={cn('p-1.5 rounded-lg shrink-0', ring.bgColor, ring.color)}>
+                    <span className={cn('p-1.5 rounded-lg shrink-0', ring.bgColor, ring.color)}>
                       <Icon className="h-4 w-4" />
-                    </div>
-                  </div>
+                    </span>
+                  </span>
 
-                  <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors flex items-center justify-between">
                     <span>{ring.name}</span>
                     <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
-                  </h4>
-                  <p className="text-[11px] font-medium text-muted-foreground mt-0.5 line-clamp-1">{ring.stage}</p>
-                  <p className="text-[11px] text-muted-foreground/75 mt-1.5 leading-relaxed line-clamp-2">
+                  </span>
+                  <span className="text-[11px] font-medium text-muted-foreground mt-0.5 line-clamp-1">
+                    {ring.stage}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground/75 mt-1.5 leading-relaxed line-clamp-2">
                     {ring.desc}
-                  </p>
-                </div>
+                  </span>
+                </span>
 
-                <div className="mt-3 pt-2.5 border-t border-border/40 space-y-1">
+                <span className="mt-3 pt-2.5 border-t border-border/40 space-y-1">
                   {ring.metrics.map((m, mIdx) => (
-                    <div
+                    <span
                       key={mIdx}
                       className="text-[11px] text-foreground/90 font-medium flex items-center justify-between"
                     >
                       <span className="truncate">{m}</span>
-                    </div>
+                    </span>
                   ))}
-                </div>
-              </div>
+                </span>
+              </button>
             );
           })}
         </div>

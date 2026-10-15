@@ -19,12 +19,12 @@ concurrency:
 jobs:
   prepare-frontend:
     name: Prepare frontend (build once)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf37f5f3 # v1.1.1
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
         with:
           bun-version: latest
 
@@ -67,17 +67,17 @@ jobs:
           path: myrm-agent-frontend/.next/standalone
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf37f5f3 # v1.1.1
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
         with:
           bun-version: latest
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@315a2818613462f7f33d8605a23933c15d452189 # stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: aarch64-apple-darwin
 
       - name: Install uv
-        uses: astral-sh/setup-uv@045239a5180f8373305c5dfb5abf865f3a0937a4 # v2.0.0
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
 
       - name: Set up Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
@@ -91,8 +91,6 @@ jobs:
         run: echo "TARGET_ARCH=arm64" >> $GITHUB_ENV
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
 
       - name: Build Sidecars
@@ -101,7 +99,7 @@ jobs:
           python build.py
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@856bdfa67b209e75df6a50fe230878a87b508f71 # v0.5.15
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -146,7 +144,7 @@ jobs:
     name: Publish GitHub Release (macOS ARM)
     needs: build-macos-arm
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-macos-arm.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -162,7 +160,7 @@ jobs:
           find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" \) -exec cp {} release-assets/ \;
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb872386ac524406ce66419 # v2.2.1
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: release-assets/*
           draft: false
@@ -186,17 +184,17 @@ jobs:
           path: myrm-agent-frontend/.next/standalone
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf37f5f3 # v1.1.1
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
         with:
           bun-version: latest
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@315a2818613462f7f33d8605a23933c15d452189 # stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: x86_64-apple-darwin
 
       - name: Install uv
-        uses: astral-sh/setup-uv@045239a5180f8373305c5dfb5abf865f3a0937a4 # v2.0.0
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
 
       - name: Set up Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
@@ -210,8 +208,6 @@ jobs:
         run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
 
       - name: Build Sidecars
@@ -220,7 +216,7 @@ jobs:
           python build.py
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@856bdfa67b209e75df6a50fe230878a87b508f71 # v0.5.15
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -272,15 +268,15 @@ jobs:
           path: myrm-agent-frontend/.next/standalone
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf37f5f3 # v1.1.1
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
         with:
           bun-version: latest
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@315a2818613462f7f33d8605a23933c15d452189 # stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
       - name: Install uv
-        uses: astral-sh/setup-uv@045239a5180f8373305c5dfb5abf865f3a0937a4 # v2.0.0
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
 
       - name: Set up Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
@@ -296,8 +292,6 @@ jobs:
         shell: bash
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
         shell: bash
 
@@ -308,7 +302,7 @@ jobs:
         shell: bash
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@856bdfa67b209e75df6a50fe230878a87b508f71 # v0.5.15
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -379,15 +373,15 @@ jobs:
           echo "NO_STRIP=true" >> "$GITHUB_ENV"
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf37f5f3 # v1.1.1
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
         with:
           bun-version: latest
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@315a2818613462f7f33d8605a23933c15d452189 # stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
       - name: Install uv
-        uses: astral-sh/setup-uv@045239a5180f8373305c5dfb5abf865f3a0937a4 # v2.0.0
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
 
       - name: Set up Python
         uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
@@ -401,8 +395,6 @@ jobs:
         run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
 
       - name: Sync server venv (desktop production)
-        env:
-          MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
 
       - name: Build Sidecars
@@ -414,7 +406,7 @@ jobs:
         run: bash scripts/ci/desktop-release/linux-appimage-sidecar-workaround.sh pre-bundle
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@856bdfa67b209e75df6a50fe230878a87b508f71 # v0.5.15
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -454,7 +446,7 @@ jobs:
       needs.publish-release.result == 'success' &&
       needs.build-macos-x64.result == 'success' &&
       needs.build-windows.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -486,7 +478,7 @@ jobs:
       always() &&
       needs.finalize-release.result == 'success' &&
       needs.build-linux.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 

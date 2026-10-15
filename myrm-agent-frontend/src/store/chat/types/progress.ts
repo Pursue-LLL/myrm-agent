@@ -76,4 +76,6 @@ export type ProgressItem = {
   evicted_stderr_stored_chars?: number; // evicted stderr 文件字节大小（GUI badge）
   evicted_stderr_total_lines?: number; // evicted stderr 文件总行数（GUI badge / 分页）
   evicted_stderr_storage_truncated?: boolean; // stderr 磁盘写入是否被截断
+  /** Pre-mutation rollback id for successful skill_manage_tool batches (server-enriched). */
+  skill_mutation_batch_id?: string;
 };

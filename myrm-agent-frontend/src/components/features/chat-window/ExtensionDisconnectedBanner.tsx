@@ -51,7 +51,7 @@ export default function ExtensionDisconnectedBanner() {
           <p className="text-xs leading-snug text-amber-700 dark:text-amber-300">
             {t('message')}{' '}
             <Link
-              href="/settings/browser"
+              href="/settings/extensionBridge"
               className="font-medium underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-100"
             >
               {t('connect')}

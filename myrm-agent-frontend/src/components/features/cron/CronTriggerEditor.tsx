@@ -231,6 +231,7 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
               <MessageSquare className="h-3 w-3" />
               {t('triggerEventLabel')}
             </div>
+            <p className="text-[10px] text-muted-foreground">{t('triggerEventDesc')}</p>
             {eventDrafts.map((draft, i) => {
               const valid = isValidCronTriggerRegex(draft.pattern);
               return (

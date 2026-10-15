@@ -5,6 +5,7 @@
  * [OUTPUT] useWikiConceptClaimActions: 词条 Claim 状态更新与证据修复操作
  * [POS] Settings Wiki 词条声明与证据链交互 Hook
  */
+import type { RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { wikiService, Concept } from '@/services/wikiService';
@@ -13,6 +14,8 @@ import { getWikiOperationErrorMessage } from './wikiTreeUtils';
 export interface UseWikiConceptClaimActionsProps {
   selectedConcept: Concept | null;
   setSelectedConcept: (concept: Concept | null) => void;
+  /** 详情区正在展示的词条名：操作期间详情已换成别的词条或被重置时，迟到的刷新结果不再写入 */
+  shownConceptNameRef: RefObject<string | null>;
   agentScopeId?: string | null;
   onVaultMutated?: () => void;
 }
@@ -20,10 +23,18 @@ export interface UseWikiConceptClaimActionsProps {
 export function useWikiConceptClaimActions({
   selectedConcept,
   setSelectedConcept,
+  shownConceptNameRef,
   agentScopeId,
   onVaultMutated,
 }: UseWikiConceptClaimActionsProps) {
   const t = useTranslations('settings.wiki.concepts');
+
+  const refreshSelectedConcept = async (name: string) => {
+    const refreshed = await wikiService.getConcept(name, agentScopeId);
+    if (shownConceptNameRef.current === name) {
+      setSelectedConcept(refreshed);
+    }
+  };
 
   const handleUpdateClaimStatus = async (claimId: string, status: 'supported' | 'contested') => {
     if (!selectedConcept) {
@@ -47,8 +58,7 @@ export function useWikiConceptClaimActions({
         agentScopeId,
         'settings',
       );
-      const refreshed = await wikiService.getConcept(selectedConcept.name, agentScopeId);
-      setSelectedConcept(refreshed);
+      await refreshSelectedConcept(selectedConcept.name);
       toast.success(t('claimsStatusUpdated'));
       onVaultMutated?.();
     } catch (error) {
@@ -67,8 +77,7 @@ export function useWikiConceptClaimActions({
       } else {
         toast.info(t('claimsHealNone'));
       }
-      const refreshed = await wikiService.getConcept(selectedConcept.name, agentScopeId);
-      setSelectedConcept(refreshed);
+      await refreshSelectedConcept(selectedConcept.name);
       onVaultMutated?.();
     } catch (error) {
       toast.error(getWikiOperationErrorMessage(error, t('operationFailed')));

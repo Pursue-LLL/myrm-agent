@@ -146,8 +146,6 @@ def init_channel_routes(app: FastAPI) -> None:
     (webhooks, login pages, status endpoints). Should be called after
     channel providers are registered with the gateway.
 
-    Also sets up route health monitoring endpoint.
-
     Args:
         app: FastAPI application instance
     """
@@ -157,7 +155,3 @@ def init_channel_routes(app: FastAPI) -> None:
 
     registry = ChannelRouteRegistry(channel_gateway, auth_dependency=None)
     registry.register_all(app)
-
-    from app.core.channel_bridge.route_registry import set_route_registry
-
-    set_route_registry(registry)

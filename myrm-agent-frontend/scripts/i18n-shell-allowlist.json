@@ -32,9 +32,10 @@
     "Atkinson Hyperlegible",
     "Auth Token",
     "Baseline TTL",
-    "Bearer <token>",
+    "Bearer '<token>'",
     "Bearer Token",
     "Bearer sk-...",
+    "Bearer …",
     "BlueBubbles",
     "BlueBubbles API URL",
     "Bot ID",
@@ -102,6 +103,7 @@
     "Max",
     "Microsoft Teams",
     "MiniMax",
+    "MoA · {preset}",
     "ModelScope",
     "Myrm",
     "Myrm Memory Archive",
@@ -212,8 +214,6 @@
     "settings.languageOptions.german",
     "metadata.appTitle",
     "settings.commands.editor.fields.name.placeholder",
-    "settings.commands.editor.examples.translate.name",
-    "settings.commands.editor.examples.review.name",
     "settings.hosting.webhookAuthHeaderPlaceholder",
     "cron.triggerPollJsonPath",
     "cron.triggerStreamLabel",
@@ -229,9 +229,6 @@
     "settings.modelService.cookbook.kvVram",
     "settings.modelService.cookbook.agenticBadge",
     "settings.shares.table.link",
-    "chat.subscriptionClaude",
-    "chat.subscriptionCopilot",
-    "chat.subscriptionOpenai",
     "chat.subscriptionXai",
     "modelPlaybook.brainExample",
     "modelPlaybook.handsExample",
@@ -247,6 +244,8 @@
     "devPorts.portStatus",
     "workbench.tabPlugins",
     "workbench.tabTerminal",
-    "templateMarketplace.card.team"
+    "templateMarketplace.card.team",
+    "memoryInsight.namespaceAgent",
+    "voice.voiceModeAudioOnly"
   ]
 }

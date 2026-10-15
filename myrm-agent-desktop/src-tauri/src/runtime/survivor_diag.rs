@@ -6,7 +6,7 @@
 //!
 //! [OUTPUT]
 //! - `SurvivorDiagResult`: 诊断结果（Clean / SelfSurvivorReclaimed / ForeignConflict / CheckFailed）
-//! - 自动执行安全进程树 Re-kill 并等待端口完全释放
+//! - 自动经 `kill_process_tree` 强杀占用端口的幸存进程并等待端口完全释放
 //!
 //! [POS]
 //! 解决 Windows 桌面端启动与热重启时，因历史孤儿进程死锁端口导致的闪退问题。

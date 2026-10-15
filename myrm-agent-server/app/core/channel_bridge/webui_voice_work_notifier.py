@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType (POS: global SSE bus)
 - app.services.chat.chat_service::ChatService (POS: message persistence)
+- app.database.models.chat::VOICE_BACKGROUND_TASK_NOTICE_KEY (POS: system-notice marker on the persisted message)
 - app.core.channel_bridge.btw_notifier::_format_notification (POS: i18n notification body)
 - app.core.channel_bridge.persistent_background::BACKGROUND_SOURCE_VOICE (POS: voice spawn marker)
 
@@ -22,6 +23,7 @@ from datetime import datetime, timezone
 
 from app.core.channel_bridge.btw_notifier import _format_notification
 from app.core.channel_bridge.persistent_background import BACKGROUND_SOURCE_VOICE
+from app.database.models.chat import VOICE_BACKGROUND_TASK_NOTICE_KEY
 from app.services.chat.chat_service import ChatService
 from app.services.event.app_event_bus import (
     AppEvent,
@@ -121,7 +123,7 @@ class WebuiVoiceWorkNotifier:
                 sent_timezone="UTC",
                 message_id=message_id,
                 extra_data={
-                    "voice_background_task": True,
+                    VOICE_BACKGROUND_TASK_NOTICE_KEY: True,
                     "task_id": task_id,
                     "status": status,
                 },

@@ -1,9 +1,7 @@
 """In-app chat channel — stores messages in the application database.
 
-Replaces the old ``delivery._deliver_to_chat`` logic with a proper
-Channel implementation. Stores full metadata (progressSteps, sources)
-in ``Message.extra_data`` so the frontend renders the same UI as a
-normal conversation.
+Stores full metadata (progressSteps, sources) in ``Message.extra_data``
+so the frontend renders the same UI as a normal conversation.
 
 [INPUT]
 - core.channel_bridge.base::BaseChannel (POS: Channel 抽象层)
@@ -55,7 +53,6 @@ class ChatChannel(_ChatChannelBase):
         buttons=True,
         quick_replies=True,
         select_menus=True,
-        interactive_callback=True,
         edit=True,
         delete=True,
         reactions=True,

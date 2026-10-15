@@ -47,11 +47,11 @@ async def test_fork_context_branch_missing_snapshot_returns_400(
     tmp_path: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import myrm_agent_harness.runtime.context.context_branches as branches_module
+    from myrm_agent_harness.runtime.paths import execution_paths
 
     root = tmp_path / "persistent"
     root.mkdir()
-    monkeypatch.setattr(branches_module, "PERSISTENT_ROOT", str(root))
+    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(root / ".context"))
 
     chat_id = f"test-branch-missing-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)

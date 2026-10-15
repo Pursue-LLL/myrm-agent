@@ -4,7 +4,8 @@
 - channels.routing.command_defs::CommandDef, CommandKind, SYSTEM_COMMANDS
 
 [OUTPUT]
-- CommandRegistry: Registry that maps command names/aliases to CommandDef
+- CommandRegistry: Registry that maps command names/aliases to CommandDef and renders /help text,
+  leaving out the owner-only commands for a sender who is not the owner
 - ResolvedCommand: Parsed command with extracted arguments
 
 [POS]
@@ -163,11 +164,12 @@ class CommandRegistry:
         """Return commands filtered by kind."""
         return [c for c in self._commands if c.kind == kind]
 
-    def help_lines(self, locale: str | None = None) -> list[str]:
-        """Generate /help text grouped by category."""
+    def help_lines(self, locale: str | None = None, *, owner: bool = True) -> list[str]:
+        """Generate /help text grouped by category, leaving out the commands a non-owner sender may not run."""
         by_category: dict[str, list[CommandDef]] = {}
         for cmd in self._commands:
-            by_category.setdefault(cmd.category, []).append(cmd)
+            if owner or not cmd.owner_only:
+                by_category.setdefault(cmd.category, []).append(cmd)
 
         lines: list[str] = []
         for category in sorted(by_category):

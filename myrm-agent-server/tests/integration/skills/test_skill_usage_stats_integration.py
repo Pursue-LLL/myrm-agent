@@ -66,10 +66,9 @@ def test_skill_usage_stats_recorded_on_invocation(
     assert not stats_file.exists(), "Stats file should not exist initially"
 
     # Exercise the collector directly (the unit that records each invocation).
-    collector = SkillStatsCollector(temp_workspace)
+    collector = SkillStatsCollector()
 
     collector.record_use(test_mcp_skill_dir, success=True)
-    collector.flush()
 
     # Verify: Stats file should now exist
     assert stats_file.exists(), "Stats file should be created after invocation"
@@ -94,11 +93,10 @@ def test_skill_usage_stats_accumulation(
     test_mcp_skill_dir: Path,
 ) -> None:
     """Test that multiple skill invocations accumulate stats correctly."""
-    collector = SkillStatsCollector(temp_workspace)
+    collector = SkillStatsCollector()
 
     # First invocation (success)
     collector.record_use(test_mcp_skill_dir, success=True)
-    collector.flush()
 
     stats = collector.get_stats(test_mcp_skill_dir)
     assert stats.call_count == 1
@@ -106,7 +104,6 @@ def test_skill_usage_stats_accumulation(
 
     # Second invocation (success)
     collector.record_use(test_mcp_skill_dir, success=True)
-    collector.flush()
 
     stats = collector.get_stats(test_mcp_skill_dir)
     assert stats.call_count == 2
@@ -115,7 +112,6 @@ def test_skill_usage_stats_accumulation(
 
     # Third invocation (failure)
     collector.record_use(test_mcp_skill_dir, success=False)
-    collector.flush()
 
     stats = collector.get_stats(test_mcp_skill_dir)
     assert stats.call_count == 3
@@ -131,22 +127,20 @@ def test_skill_stats_persistence_across_collectors(
 ) -> None:
     """Test that skill stats persist across different SkillStatsCollector instances."""
     # First collector: record some usage
-    collector1 = SkillStatsCollector(temp_workspace)
+    collector1 = SkillStatsCollector()
     collector1.record_use(test_mcp_skill_dir, success=True)
-    collector1.flush()
 
     # Second collector: should load existing stats
-    collector2 = SkillStatsCollector(temp_workspace)
+    collector2 = SkillStatsCollector()
     stats = collector2.get_stats(test_mcp_skill_dir)
     assert stats.call_count == 1
     assert stats.success_count == 1
 
     # Add more usage with second collector
     collector2.record_use(test_mcp_skill_dir, success=True)
-    collector2.flush()
 
     # Third collector: verify accumulated stats
-    collector3 = SkillStatsCollector(temp_workspace)
+    collector3 = SkillStatsCollector()
     stats = collector3.get_stats(test_mcp_skill_dir)
     assert stats.call_count == 2
     assert stats.success_count == 2

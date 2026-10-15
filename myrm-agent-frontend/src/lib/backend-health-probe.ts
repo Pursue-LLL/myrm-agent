@@ -2,6 +2,7 @@
  * [INPUT]
  * - `@/lib/deploy-mode` runtime mode and page-local backend base URL
  * - `@/lib/tauri` desktop sidecar health bridge
+ * - `@/lib/utils/networkResilience` abortable poll wait
  *
  * [OUTPUT]
  * Stateless backend health probes and bounded polling primitives.
@@ -11,6 +12,7 @@
  */
 import { getBackendBaseUrl, getDeployMode } from '@/lib/deploy-mode';
 import { isTauriEnvironment, tauriBackend } from '@/lib/tauri';
+import { abortableDelay } from '@/lib/utils/networkResilience';
 
 export type BackendDevMode = 'split_dev' | 'standalone_webui';
 
@@ -72,25 +74,6 @@ export async function checkBackendReadyOnce(): Promise<boolean> {
   return probeBackendReadyOnce();
 }
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new DOMException('Aborted', 'AbortError'));
-      return;
-    }
-
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(new DOMException('Aborted', 'AbortError'));
-      },
-      { once: true },
-    );
-  });
-}
-
 const TAURI_RUNTIME_POLL_INTERVAL_MS = 50;
 const TAURI_RUNTIME_MAX_ATTEMPTS = 60;
 
@@ -112,7 +95,7 @@ export async function waitForTauriRuntime(options: WaitForBackendReadyOptions = 
     }
     if (attempt < maxAttempts - 1) {
       try {
-        await sleep(pollIntervalMs, options.signal);
+        await abortableDelay(pollIntervalMs, options.signal);
       } catch {
         return false;
       }
@@ -140,7 +123,7 @@ export async function waitForBackendReady(options: WaitForBackendReadyOptions = 
     }
     if (attempt < maxAttempts - 1) {
       try {
-        await sleep(pollIntervalMs, options.signal);
+        await abortableDelay(pollIntervalMs, options.signal);
       } catch {
         return false;
       }

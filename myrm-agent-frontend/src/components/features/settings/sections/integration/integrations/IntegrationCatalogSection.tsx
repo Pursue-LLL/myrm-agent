@@ -1,35 +1,29 @@
 'use client';
 
 import { memo, useState, useCallback, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { cn } from '@/lib/utils/classnameUtils';
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Skeleton } from '@/components/primitives/skeleton';
+import { IconArrowRight } from '@/components/features/icons/PremiumIcons';
 import { apiRequest } from '@/lib/api';
 import { IconSearch, IconExternalLink } from './catalog-icons';
 import SettingsSection from '../../SettingsSection';
+import { CatalogConnectionStatus } from './CatalogConnectionStatus';
 import { IntegrationConnectDialog } from './IntegrationConnectDialog';
 import { SERVICE_ICONS } from './service-icons';
 import { LifecycleWebhookSection } from './LifecycleWebhookSection';
 import { A2APeerRegistrySection } from './A2APeerRegistrySection';
+import { useCatalogConnectionState, type CatalogConnectionState } from './catalog-connection';
+import { useCatalogLocale } from './catalog-locale';
 import type { CatalogEntry, CatalogResponse } from './catalog-types';
-
-const CATEGORY_LABELS: Record<string, { en: string; zh: string }> = {
-  productivity: { en: 'Productivity', zh: '效率工具' },
-  development: { en: 'Development', zh: '开发工具' },
-  communication: { en: 'Communication', zh: '通信协作' },
-  data_storage: { en: 'Data & Storage', zh: '数据存储' },
-  browser: { en: 'Browser', zh: '浏览器' },
-  web_search: { en: 'Web & Search', zh: '网页搜索' },
-  docs: { en: 'Documentation', zh: '文档' },
-  design: { en: 'Design', zh: '设计' },
-  api: { en: 'API Tools', zh: 'API 工具' },
-};
 
 const IntegrationCatalogSection = memo(() => {
   const t = useTranslations('settings.integrationCatalog');
+  const locale = useCatalogLocale();
+  const resolveConnectionState = useCatalogConnectionState();
   const [allEntries, setAllEntries] = useState<CatalogEntry[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,13 +65,6 @@ const IntegrationCatalogSection = memo(() => {
     }
     return filtered;
   }, [allEntries, activeCategory, searchQuery]);
-
-  const locale = useMemo(() => {
-    if (typeof window !== 'undefined') {
-      return document.documentElement.lang?.startsWith('zh') ? 'zh' : 'en';
-    }
-    return 'en';
-  }, []);
 
   const getName = useCallback(
     (entry: CatalogEntry) => (locale === 'zh' && entry.nameZh ? entry.nameZh : entry.name),
@@ -132,7 +119,7 @@ const IntegrationCatalogSection = memo(() => {
                 className="cursor-pointer transition-colors"
                 onClick={() => setActiveCategory(cat)}
               >
-                {locale === 'zh' ? CATEGORY_LABELS[cat]?.zh || cat : CATEGORY_LABELS[cat]?.en || cat}
+                {t.has(`categories.${cat}`) ? t(`categories.${cat}`) : cat}
               </Badge>
             ))}
           </div>
@@ -144,6 +131,7 @@ const IntegrationCatalogSection = memo(() => {
             <IntegrationCard
               key={entry.id}
               entry={entry}
+              connectionState={resolveConnectionState(entry)}
               getName={getName}
               getDescription={getDescription}
               onConnect={setConnectEntry}
@@ -170,10 +158,7 @@ const IntegrationCatalogSection = memo(() => {
           entry={connectEntry}
           locale={locale}
           onClose={() => setConnectEntry(null)}
-          onConnected={() => {
-            setConnectEntry(null);
-            fetchCatalog();
-          }}
+          onConnected={() => setConnectEntry(null)}
         />
       )}
     </div>
@@ -188,22 +173,19 @@ export default IntegrationCatalogSection;
 
 interface IntegrationCardProps {
   entry: CatalogEntry;
+  connectionState: CatalogConnectionState;
   getName: (entry: CatalogEntry) => string;
   getDescription: (entry: CatalogEntry) => string;
   onConnect: (entry: CatalogEntry) => void;
 }
 
-const IntegrationCard = memo<IntegrationCardProps>(({ entry, getName, getDescription, onConnect }) => {
+const IntegrationCard = memo<IntegrationCardProps>(({ entry, connectionState, getName, getDescription, onConnect }) => {
   const t = useTranslations('settings.integrationCatalog');
   const IconComponent = SERVICE_ICONS[entry.icon];
+  const name = getName(entry);
 
   return (
-    <div
-      className={cn(
-        'border-border bg-card group relative flex flex-col rounded-xl border p-4 transition-all',
-        'hover:border-primary/30 hover:',
-      )}
-    >
+    <div className="border-border bg-card hover:border-primary/30 group relative flex flex-col rounded-xl border p-4 transition-all">
       <div className="mb-3 flex items-start justify-between">
         <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-lg">
           {IconComponent ? (
@@ -213,23 +195,38 @@ const IntegrationCard = memo<IntegrationCardProps>(({ entry, getName, getDescrip
           )}
         </div>
         {entry.website && (
+          // Hover-capable pointers reveal the link on hover or keyboard focus; touch screens always show it.
           <a
             href={entry.website}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label={t('openWebsite', { name })}
+            className="text-muted-foreground hover:text-foreground -m-1.5 p-1.5 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
           >
             <IconExternalLink className="h-3.5 w-3.5" />
           </a>
         )}
       </div>
 
-      <h4 className="text-foreground mb-1 text-sm font-medium">{getName(entry)}</h4>
+      <h4 className="text-foreground mb-1 text-sm font-medium">{name}</h4>
       <p className="text-muted-foreground mb-4 line-clamp-2 flex-1 text-xs">{getDescription(entry)}</p>
 
-      <Button size="sm" variant="outline" className="w-full" onClick={() => onConnect(entry)}>
-        {t('connect')}
-      </Button>
+      {connectionState === 'available' ? (
+        <Button size="sm" variant="outline" className="w-full" onClick={() => onConnect(entry)}>
+          {t('connect')}
+        </Button>
+      ) : (
+        <div className="flex h-8 items-center justify-between gap-2">
+          <CatalogConnectionStatus state={connectionState} />
+          <Link
+            href="/settings/mcp"
+            className="text-muted-foreground hover:text-foreground inline-flex h-8 items-center gap-1 px-2.5 text-xs font-medium transition-colors"
+          >
+            {t('manage')}
+            <IconArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      )}
     </div>
   );
 });

@@ -21,6 +21,10 @@
 | `adapters/BaseAdapter.ts`      | 适配 | deviceId、版本号基类                                                                                                                                               | ✅    |
 | `index.ts`                     | 核心 | ConfigSync 公共 API barrel（`@/services/config`）                                                                                                                  | ✅    |
 
+## 内置 provider 合并
+
+`configNormalizer.ts` 的 `BUILT_IN_FIELD_OWNER` 为 `ProviderConfig` 的每个字段声明归属（出厂定义 / 用户保存值），类型上对全部字段穷举，新增字段时编译期强制作出决定；`mergeBuiltInProvider` 据此保留用户字段（启用状态、密钥、基址、模型选择、密钥池策略、订阅登录标志 `oauthConnected`、出口代理），其余取出厂定义。漏掉的字段会在每次启动被重置为出厂值。
+
 ## 主题持久化 fast-path
 
 `personalSettings` 内 `activeThemeProfileId` / `themeProfiles` / `themeFontOverride` 变更时：

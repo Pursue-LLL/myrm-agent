@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from fastapi import APIRouter
 
-__all__ = ["profiles_router", "tainted_egress_router"]
+__all__ = ["profiles_router"]
 
 
 def __getattr__(name: str) -> APIRouter:
@@ -25,8 +25,4 @@ def __getattr__(name: str) -> APIRouter:
         from .profiles import router as profiles_router_inst
 
         return profiles_router_inst
-    if name == "tainted_egress_router":
-        from .tainted_egress import router as tainted_egress_router_inst
-
-        return tainted_egress_router_inst
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

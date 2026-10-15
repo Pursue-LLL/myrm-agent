@@ -1,19 +1,25 @@
 """Per-chat routing memory for the Smart Routing block of the parameter converter.
 
 [INPUT]
-- app.database.repositories.chat_repo::ChatRepository.get_recent_routing_tiers (POS: persisted `routingTier` history)
+- app.database.repositories.chat_repo::ChatRepository.get_recent_routing_tiers / get_last_turn_routing_tier
+  (POS: persisted `routingTier` history; the tier recorded by the latest user turn)
 - app.services.agent.params.models::AgentRequest / ModelSelection (POS: request DTO and key-free model choice)
 - myrm_agent_harness.toolkits.llms.routing::RoutingTier / TaskSpecialty (POS: complexity tiers and domain specialties)
 
 [OUTPUT]
 - RecentRouting / load_recent_routing(): recent routing history of a chat, split into the momentum inputs of the
   complexity router (tiers) and the specialty router (specialties)
+- load_retry_baseline() / complaint_floor(): complexity tier of the answer turn a retry replaces, and the tier floor of
+  that retry, climbing to the first rung that runs a different model config than the answer being retried
 - remember_turn_routing() / resolve_turn_routing(): routing outcome of the latest user turn, reused when that turn
   is resumed after a human-in-the-loop interrupt
 
 [POS]
 Routing context that survives across requests of one chat. `routingTier` is persisted as either a complexity tier or a
-specialty slot hit, so history parsing partitions it by enum. Resume requests (tool approval, plan confirmation) carry
+specialty slot hit, so history parsing partitions it by enum. The tier recorded by the answer turn being retried is
+the baseline a retry climbs from; rows the system appended to that turn (background-job notices, auto-continue) are not
+answers and are skipped, and a turn that records no complexity tier (fast mode, pinned model, deep research without
+escalation) ran the main model. Resume requests (tool approval, plan confirmation) carry
 only the main model selection, so without this memory they would be re-routed and silently continue the interrupted
 turn on a different model with a cold prompt cache. The memory is process-local, like the in-process HITL timeout
 scheduler it complements; losing it (restart, LRU eviction) degrades to re-routing the resume request.
@@ -47,16 +53,18 @@ class RecentRouting:
     specialties: list[TaskSpecialty] = field(default_factory=list)
 
 
+_TIER_BY_VALUE = {tier.value: tier for tier in RoutingTier}
+_SPECIALTY_BY_VALUE = {specialty.value: specialty for specialty in TaskSpecialty}
+
+
 def split_recent_routing(values: Sequence[str]) -> RecentRouting:
     """Partition persisted `routingTier` values by the enum that recognises them.
 
     `reasoning` belongs to both enums; the turn was reasoning-class either way, so it feeds both histories.
     """
-    tier_by_value = {tier.value: tier for tier in RoutingTier}
-    specialty_by_value = {specialty.value: specialty for specialty in TaskSpecialty}
     return RecentRouting(
-        tiers=[tier_by_value[value] for value in values if value in tier_by_value],
-        specialties=[specialty_by_value[value] for value in values if value in specialty_by_value],
+        tiers=[_TIER_BY_VALUE[value] for value in values if value in _TIER_BY_VALUE],
+        specialties=[_SPECIALTY_BY_VALUE[value] for value in values if value in _SPECIALTY_BY_VALUE],
     )
 
 
@@ -74,6 +82,61 @@ async def load_recent_routing(chat_id: str | None) -> RecentRouting:
         logger.warning("Failed to load recent routing history, routing without momentum: %s", exc)
         return RecentRouting()
     return split_recent_routing(values)
+
+
+async def load_retry_baseline(chat_id: str | None) -> RoutingTier | None:
+    """Complexity tier recorded by the answer turn a retry replaces.
+
+    None when that turn recorded no complexity tier (it ran the main model or a specialty slot) or when there is no
+    chat or the lookup fails; `complaint_floor` then climbs from the standard rung.
+    """
+    if not chat_id:
+        return None
+    try:
+        from app.database.connection import get_session
+        from app.database.repositories.chat_repo import ChatRepository
+
+        async with get_session() as db:
+            value = await ChatRepository.get_last_turn_routing_tier(db, chat_id)
+    except Exception as exc:
+        logger.warning("Failed to load the retry baseline, climbing from the main model: %s", exc)
+        return None
+    return _TIER_BY_VALUE.get(value) if value is not None else None
+
+
+_TIER_LADDER = (RoutingTier.SIMPLE, RoutingTier.STANDARD, RoutingTier.REASONING)
+
+
+def _answer_config(cfg: ModelConfig) -> tuple[object, ...]:
+    """Fields that change what a request returns; credentials, context budget and capability flags do not."""
+    return (cfg.model, cfg.base_url, cfg.temperature, cfg.reasoning_effort, cfg.model_kwargs, cfg.wire_protocol)
+
+
+def complaint_floor(
+    last_tier: RoutingTier | None,
+    *,
+    standard: ModelConfig,
+    light: ModelConfig | None,
+    reasoning: ModelConfig | None,
+) -> tuple[RoutingTier, bool]:
+    """Lowest tier a retry may run on, and whether it moves to a different model config than the last answer.
+
+    Auto-picked slots do not exclude the main model, so a rung can run the very config that just answered. The climb
+    therefore skips such rungs instead of stepping one tier name at a time. When no rung above the last tier differs,
+    the floor holds at the last tier (it never drops) and the caller must not report an upgrade. An answer that
+    recorded no complexity tier (*last_tier* None) ran the main model, so the climb starts from the standard rung.
+    """
+    baseline = RoutingTier.STANDARD if last_tier is None else last_tier
+    rungs = {
+        RoutingTier.SIMPLE: standard if light is None else light,
+        RoutingTier.STANDARD: standard,
+        RoutingTier.REASONING: standard if reasoning is None else reasoning,
+    }
+    last_answer = _answer_config(rungs[baseline])
+    for tier in _TIER_LADDER[_TIER_LADDER.index(baseline) + 1 :]:
+        if _answer_config(rungs[tier]) != last_answer:
+            return tier, True
+    return baseline, False
 
 
 @dataclass(frozen=True, slots=True)

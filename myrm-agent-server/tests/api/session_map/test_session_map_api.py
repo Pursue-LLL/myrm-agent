@@ -15,7 +15,9 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
+from app.api.session_map.routes import _infer_session_state
 from app.api.session_map.routes import router as session_map_router
+from app.database.models.chat import Chat
 
 
 @pytest.fixture
@@ -124,3 +126,22 @@ def test_search_session_map_no_match(session_map_client: TestClient):
     data = response.json()
     assert data["total_hits"] == 0
     assert data["hits"] == []
+
+
+def _chat(chat_id: str) -> Chat:
+    return Chat(id=chat_id, total_calls=5, last_read_at=None, compression_ineffective_streak=0, compacted_before_id=None)
+
+
+def test_a_chat_is_working_exactly_while_the_gateway_has_a_turn_in_flight():
+    """Past usage never makes a chat look busy; only a live turn does."""
+    chat = _chat("chat-state-1")
+
+    assert _infer_session_state(chat, frozenset({"chat-state-1"})) == "working"
+    assert _infer_session_state(chat, frozenset()) == "ready"
+
+
+def test_a_failing_compaction_streak_outranks_a_live_turn():
+    chat = _chat("chat-state-2")
+    chat.compression_ineffective_streak = 4
+
+    assert _infer_session_state(chat, frozenset({"chat-state-2"})) == "error"

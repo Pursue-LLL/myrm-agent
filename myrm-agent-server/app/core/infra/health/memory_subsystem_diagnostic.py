@@ -18,13 +18,12 @@ from app.services.ops.snapshot_service import OpsAggregatedSnapshotService
 
 
 class MemorySubsystemDiagnostic(DiagnosticProtocol):
-    """Surface memory ledger health, extract retry backlog, and storage mode in Doctor."""
+    """Surface memory ledger health and extract retry backlog in Doctor."""
 
     async def check_health(self) -> HealthReport:
         info = await OpsAggregatedSnapshotService._collect_memory_info()
         meta = {
             "health_status": info.health_status,
-            "storage_mode": info.storage_mode,
             "event_count": info.event_count,
             "failed_event_count": info.failed_event_count,
             "queue_backlog": info.queue_backlog,
@@ -71,5 +70,5 @@ class MemorySubsystemDiagnostic(DiagnosticProtocol):
             meta_data=meta,
             metrics=metrics,
             message="Memory subsystem is healthy.",
-            detail=f"Storage mode: {info.storage_mode}. Ledger events: {info.event_count}.",
+            detail=f"Ledger events: {info.event_count}.",
         )

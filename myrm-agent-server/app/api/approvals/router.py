@@ -32,11 +32,7 @@ from pydantic import BaseModel
 
 from app.api.approvals.batch import router as batch_router
 from app.api.approvals.credentials import router as credentials_router
-from app.api.approvals.docket import router as docket_router
-from app.api.approvals.financial import router as financial_router
-from app.api.approvals.side_effect import router as side_effect_router
 from app.api.approvals.test_routes import router as test_routes_router
-from app.api.approvals.tiered_risk import router as tiered_risk_router
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.audit_ledger import get_audit_ledger
 from app.services.approvals.docket_service import DocketService
@@ -48,20 +44,6 @@ router = APIRouter(prefix="/approvals", tags=["approvals"])
 router.include_router(credentials_router)
 router.include_router(test_routes_router)
 router.include_router(batch_router)
-router.include_router(docket_router)
-router.include_router(financial_router)
-router.include_router(side_effect_router)
-router.include_router(tiered_risk_router)
-
-
-async def _handle_outbound_draft_resolution(record: ApprovalRecord, decision: str) -> None:
-    """Send or discard a held outbound draft message based on the approval decision."""
-    if decision == "approve":
-        from app.services.approvals.registry import send_outbound_draft_payload
-
-        await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
-    else:
-        logger.info("Outbound draft %s rejected, message discarded", record.id)
 
 
 async def _handle_knowledge_patch_resolution(record: ApprovalRecord, decision: str) -> None:
@@ -297,7 +279,7 @@ async def resolve_approval(
             logger.warning("[APPROVAL_ROUTER] Failed to wipe handles on denial: %s", e)
 
     if record.action_type == "outbound_draft":
-        await _handle_outbound_draft_resolution(record, normalized_decision)
+        # Resolving it already sent or released the held reply, and no agent run waits on it.
         return ApprovalRecordResponse.from_orm(record)
 
     if record.action_type == "knowledge_patch":

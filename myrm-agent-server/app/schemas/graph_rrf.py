@@ -1,7 +1,7 @@
 """
 [POS] app/schemas/graph_rrf.py
 [INPUT] pydantic
-[OUTPUT] EntityNodeCreateRequest, RelationEdgeCreateRequest, MemoryAssociationRequest, GraphTraverseRequest, VectorHitInput, DualChannelSearchRequest, EntityNodeResponse, RelationEdgeResponse, GraphTraverseResponse, FusedMemoryHitResponse, DualChannelSearchResponse
+[OUTPUT] EntityNodeCreateRequest, GraphTraverseRequest, VectorHitInput, DualChannelSearchRequest, EntityNodeResponse, RelationEdgeResponse, GraphTraverseResponse, FusedMemoryHitResponse, DualChannelSearchResponse
 """
 
 from __future__ import annotations
@@ -19,33 +19,6 @@ class EntityNodeCreateRequest(BaseModel):
     entity_type: str = Field(..., min_length=1, description="Entity classification")
     properties: dict[str, str] = Field(
         default_factory=dict, description="Custom key-value attributes"
-    )
-
-
-class RelationEdgeCreateRequest(BaseModel):
-    """Payload to create or update a directional relationship edge."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    id: str = Field(..., min_length=1, description="Unique edge identifier")
-    source_id: str = Field(..., min_length=1, description="Source entity ID")
-    target_id: str = Field(..., min_length=1, description="Target entity ID")
-    relation_type: str = Field(..., min_length=1, description="Relation predicate")
-    weight: float = Field(default=1.0, ge=0.0, description="Edge strength weight")
-    properties: dict[str, str] = Field(
-        default_factory=dict, description="Custom key-value attributes"
-    )
-
-
-class MemoryAssociationRequest(BaseModel):
-    """Payload to link a memory unit with an entity node."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    memory_id: str = Field(..., min_length=1, description="Memory item ID")
-    entity_id: str = Field(..., min_length=1, description="Entity node ID")
-    content: str = Field(
-        default="", description="Optional stored memory content preview"
     )
 
 

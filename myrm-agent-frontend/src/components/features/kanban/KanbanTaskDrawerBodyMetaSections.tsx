@@ -6,12 +6,13 @@ import type { TaskDepInfo } from './kanban-styles';
 import { STATUS_DOT } from './kanban-styles';
 import type { KanbanTask } from '@/services/kanban';
 import KanbanMarkdown from './KanbanMarkdown';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 // --- Dependencies Section ---
 
 interface DependenciesSectionProps {
   parents: TaskDepInfo[];
-  children: TaskDepInfo[];
+  dependents: TaskDepInfo[];
   showAddDep: boolean;
   setShowAddDep: (v: boolean) => void;
   addingDep: boolean;
@@ -25,7 +26,7 @@ interface DependenciesSectionProps {
 
 export function DependenciesSection({
   parents,
-  children,
+  dependents,
   showAddDep,
   setShowAddDep,
   addingDep,
@@ -77,7 +78,10 @@ export function DependenciesSection({
                 </button>
                 <button
                   onClick={() => handleRemoveDep(parent.task_id)}
-                  className="text-[9px] text-destructive/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  className={cn(
+                    'text-[9px] text-destructive/50 hover:text-destructive transition-opacity shrink-0',
+                    REVEAL_ON_HOVER,
+                  )}
                 >
                   &times;
                 </button>
@@ -113,7 +117,7 @@ export function DependenciesSection({
         )}
       </section>
 
-      {children.length > 0 && (
+      {dependents.length > 0 && (
         <section>
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
             {t('dependents')}
@@ -131,7 +135,7 @@ export function DependenciesSection({
             )}
           </h4>
           <div className="space-y-1">
-            {children.map((child) => (
+            {dependents.map((child) => (
               <button
                 key={child.task_id}
                 onClick={() => onNavigateTask?.(child.task_id)}

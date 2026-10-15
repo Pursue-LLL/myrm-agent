@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
 from app.channels.routing.router_host import RouterCommandsHost
@@ -28,9 +29,19 @@ from app.channels.types import InboundMessage, OutboundMessage
 
 from .commands import ApprovalDecision, DenyWithReason
 
+if TYPE_CHECKING:
+    from app.channels.core.bus import MessageBus
+
 logger = logging.getLogger("app.channels.routing.router")
 
 _OUTBOUND_DRAFT = "outbound_draft"
+
+
+async def _show_outcome_on_card(bus: MessageBus, msg: InboundMessage, chat_id: str, text_key: str, **params: str) -> None:
+    """Replace the approval card a button was clicked on with its outcome, so a settled card stops offering buttons."""
+    origin_message_id = msg.metadata.get("origin_message_id")
+    if origin_message_id and chat_id:
+        await bus.edit_channel_message(msg.channel, chat_id, str(origin_message_id), get_text(msg, text_key, **params))
 
 
 class RouterCommandsApprovalMixin:
@@ -244,12 +255,14 @@ class RouterCommandsApprovalMixin:
              is decided by the owner alone; for any other approval, group
              bystanders are ignored unless they are the task's requester or a
              co-approver.
-          3. Resolve via ``ApprovalRegistry`` (only PENDING records; already-
-             resolved approvals return ``None`` and the handler exits).
+          3. Resolve via ``ApprovalRegistry`` (only PENDING records; for an
+             already-resolved approval the card is edited to say so and the
+             handler exits). Resolving a held reply also sends or releases it.
           4. Edit the original IM message to show the outcome and prevent
              further button clicks from appearing actionable.
           5. Convert the decision into a ``resume_value`` and submit to
-             ``SessionGate`` so the interrupted LangGraph agent resumes.
+             ``SessionGate`` so the interrupted LangGraph agent resumes
+             (a held reply has no agent run waiting, so it ends at step 4).
         """
         content = msg.content or ""
         parts = content.split(":", 2)
@@ -306,6 +319,7 @@ class RouterCommandsApprovalMixin:
 
         if record is None:
             logger.warning("Action button approval: not found or already resolved id=%s", approval_id[:12])
+            await _show_outcome_on_card(self._bus, msg, chat_id, "approval_already_resolved")
             return
 
         logger.info(
@@ -317,20 +331,12 @@ class RouterCommandsApprovalMixin:
         )
 
         # --- Edit original IM message to show result ---
-        origin_message_id = msg.metadata.get("origin_message_id")
-        if origin_message_id and chat_id:
-            sender_display = msg.metadata.get("username") or msg.sender_id or ""
-            outcome_key = "approval_resolved_approved" if action_raw == "approve" else "approval_resolved_denied"
-            await self._bus.edit_channel_message(
-                msg.channel,
-                chat_id,
-                str(origin_message_id),
-                get_text(msg, outcome_key, user=sender_display),
-            )
+        outcome_key = "approval_resolved_approved" if action_raw == "approve" else "approval_resolved_denied"
+        sender_display = str(msg.metadata.get("username") or msg.sender_id or "")
+        await _show_outcome_on_card(self._bus, msg, chat_id, outcome_key, user=sender_display)
 
-        # --- Outbound draft: send or discard the held message ---
+        # A held reply has no agent run to resume: resolving it has already sent or released it.
         if record.action_type == _OUTBOUND_DRAFT:
-            await self._resolve_outbound_draft(record, action_raw)
             return
 
         # --- Resume the interrupted Agent ---
@@ -368,23 +374,6 @@ class RouterCommandsApprovalMixin:
                         },
                     )
                 )
-
-    async def _resolve_outbound_draft(
-        self: RouterCommandsHost,
-        record: object,
-        decision: str,
-    ) -> None:
-        """Send or discard a held outbound channel draft message."""
-        from app.database.models.approval import ApprovalRecord as ApprovalRecordModel
-
-        if not isinstance(record, ApprovalRecordModel):
-            return
-        if decision == "approve":
-            from app.services.approvals.registry import send_outbound_draft_payload
-
-            await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
-        else:
-            logger.info("Outbound draft %s rejected via channel button, discarded", record.id[:12])
 
     @staticmethod
     def _build_decision_entry(

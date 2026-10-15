@@ -18,7 +18,6 @@
 | `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级（启动时执行） | ✅ |
 | `key_consolidation.py` | 核心 | 合并分裂的 providers 子键（defaultModelConfig/customModelInfo）到 providers bundle | ✅ |
 | `onboarding.py` | 核心 | 首次配置 onboarding：检查状态、标记完成、推荐 provider、probe 本地模型与搜索（SearXNG/DuckDuckGo） | ✅ |
-| `health_monitor.py` | 核心 | 配置健康监控（周期性检查 provider 配置，proactive 通知用户） | ✅ |
 | `searxng_setup.py` | 辅助 | 本地 SearXNG 启动（Docker Compose，local/tauri deploy only）+ 启动后轮询探测可用性 | ✅ |
 
 ---
@@ -33,6 +32,7 @@
 - `set_config()`：写入配置（自动加密敏感字段）
 - `get_config()` / `get_all_configs()`：读取配置（自动解密）
 - `sync_configs()`：批量同步（含版本冲突检测；内容相同则幂等接受）
+- `_apply_runtime_effects()`：提交后让配置的运行时副作用生效（`personalSettings` → 重新发布 harness 进程级隐私策略；`set` / `delete` / `sync` 共用写入口，因此 PUT、`/config/sync`、回滚都覆盖）
 - `_encrypt_if_sensitive()`：写入前条件加密（含双重加密防护）
 - `_decrypt_if_needed()`：读取后解密（含旧 key fallback 迁移 + 双重加密修复）
 

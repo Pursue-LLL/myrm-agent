@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.security.browser_vault::get_global_session_vault (POS: global SessionVault singleton)
+- app.core.security.browser_vault::cleanup_all_vaults (POS: expired-session sweep over the global and agent vaults)
 
 [OUTPUT]
 - router: FastAPI APIRouter with session management endpoints
@@ -77,11 +78,10 @@ async def delete_session(domain: str) -> dict[str, bool]:
 
 @router.post("/sessions/cleanup", response_model=CleanupResponse)
 async def cleanup_expired_sessions() -> CleanupResponse:
-    """Remove all expired browser sessions."""
-    from app.core.security.browser_vault import get_global_session_vault
+    """Remove all expired browser sessions, from the global vault and every agent vault."""
+    from app.core.security.browser_vault import cleanup_all_vaults
 
-    vault = get_global_session_vault()
-    removed = await vault.cleanup_expired()
+    removed = await cleanup_all_vaults()
     if removed > 0:
         logger.info("Cleaned up %d expired browser sessions", removed)
     return CleanupResponse(removed=removed)

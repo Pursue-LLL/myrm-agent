@@ -36,17 +36,16 @@ from app.services.locked_use.curtain_bridge import (
 from app.services.locked_use.service import MacScreenUnlocker
 
 
-def _repo_root() -> Path:
-    """向上定位 monorepo 根（含桌面端源码树的锚点目录）。"""
+def _desktop_dir() -> Path:
+    """向上定位与 server 同级的桌面端源码目录（本仓根或其上层工作区皆可）。"""
     for parent in Path(__file__).resolve().parents:
-        if (parent / "myrm-agent" / "myrm-agent-desktop").is_dir():
-            return parent
-    raise AssertionError("monorepo root not found from tests/services/locked_use")
+        if (parent / "myrm-agent-desktop" / "src-tauri").is_dir():
+            return parent / "myrm-agent-desktop"
+    raise AssertionError("myrm-agent-desktop not found from tests/services/locked_use")
 
 
 def _tauri_source(relative: str) -> str:
-    path = _repo_root() / "myrm-agent" / "myrm-agent-desktop" / "src-tauri" / relative
-    return path.read_text(encoding="utf-8")
+    return (_desktop_dir() / "src-tauri" / relative).read_text(encoding="utf-8")
 
 
 def test_keychain_service_contract_aligned() -> None:

@@ -5,8 +5,8 @@ import RegenerateMenu from '../RegenerateMenu';
 const stableT = (key: string) => {
   const translations: Record<string, string> = {
     regenerate: 'Regenerate',
+    regenerate_options: 'Regenerate options',
     regenerate_try_again: 'Try Again',
-    regenerate_frontier: '✨ Retry with Frontier Model',
     regenerate_concise: 'More Concise',
     regenerate_detailed: 'More Detailed',
     regenerate_creative: 'More Creative',
@@ -37,16 +37,24 @@ describe('RegenerateMenu', () => {
     expect(onRegenerateMock).toHaveBeenCalledWith(undefined);
   });
 
-  it('opens dropdown menu and shows frontier model retry option with highlighted CTA', () => {
+  it.each<[string, string | undefined]>([
+    ['Try Again', undefined],
+    ['More Concise', 'Be more concise and to the point'],
+  ])('sends the matching instruction for the "%s" preset', (label, instruction) => {
     render(<RegenerateMenu onRegenerate={onRegenerateMock} />);
-    const expandBtn = screen.getByLabelText('Regenerate options');
-    fireEvent.click(expandBtn);
+    fireEvent.click(screen.getByLabelText('Regenerate options'));
 
-    const frontierBtn = screen.getByText('✨ Retry with Frontier Model');
-    expect(frontierBtn).toBeInTheDocument();
+    fireEvent.click(screen.getByText(label));
 
-    fireEvent.click(frontierBtn);
-    expect(onRegenerateMock).toHaveBeenCalledWith('__complaint_up__');
+    expect(onRegenerateMock).toHaveBeenCalledWith(instruction);
+  });
+
+  it('keeps a single plain retry instead of a separate stronger-model entry', () => {
+    render(<RegenerateMenu onRegenerate={onRegenerateMock} />);
+    fireEvent.click(screen.getByLabelText('Regenerate options'));
+
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).not.toContain('regenerate_frontier');
+    expect(screen.getByText('Try Again')).toBeInTheDocument();
   });
 
   it('allows custom instruction submission', () => {

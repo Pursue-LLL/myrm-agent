@@ -7,6 +7,13 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.toolkits.memory import (
+    DeterministicRuleEntry,
+    EvidencePermissionLevel,
+    EvidenceScopeKind,
+    EvidenceSourceKind,
+    FiveDimEvidenceMetadata,
+)
 
 from app.api.memory.rule_cascade_router import router as rule_cascade_router
 from app.services.memory.rule_cascade_service import (
@@ -30,61 +37,72 @@ def test_app(isolated_service: RuleCascadeService) -> FastAPI:
     return app
 
 
+def _rule(
+    rule_id: str,
+    title: str,
+    rule_content: str,
+    *,
+    scope: EvidenceScopeKind,
+    scope_path: str,
+    source: EvidenceSourceKind,
+    source_authority: float,
+    permission: EvidencePermissionLevel,
+) -> DeterministicRuleEntry:
+    return DeterministicRuleEntry(
+        rule_id=rule_id,
+        title=title,
+        rule_content=rule_content,
+        metadata=FiveDimEvidenceMetadata(
+            scope=scope,
+            scope_path=scope_path,
+            source=source,
+            source_authority=source_authority,
+            permission=permission,
+        ),
+    )
+
+
 @pytest.mark.asyncio
-async def test_rule_registration_and_hierarchical_cascade_api(test_app: FastAPI) -> None:
-    """Validate registering rules and resolving deterministic hierarchical cascade via REST APIs."""
+async def test_hierarchical_cascade_api(test_app: FastAPI, isolated_service: RuleCascadeService) -> None:
+    """Validate deterministic hierarchical cascade resolution and rule listing via REST APIs."""
+    for rule in (
+        _rule(
+            "rule-root-pep8",
+            "Code Formatting",
+            "Standard PEP-8 line length 100",
+            scope=EvidenceScopeKind.GLOBAL,
+            scope_path="/",
+            source=EvidenceSourceKind.AGENT_INFERRED,
+            source_authority=0.4,
+            permission=EvidencePermissionLevel.PUBLIC,
+        ),
+        _rule(
+            "rule-ws-test",
+            "Testing Standard",
+            "Mandatory pytest with 90% coverage",
+            scope=EvidenceScopeKind.WORKSPACE,
+            scope_path="/workspace",
+            source=EvidenceSourceKind.TOOL_VERIFIED,
+            source_authority=0.8,
+            permission=EvidencePermissionLevel.WORKSPACE_INTERNAL,
+        ),
+        # Billing leaf rule overrides Code Formatting with stricter rules
+        _rule(
+            "rule-billing-strict",
+            "Code Formatting",
+            "Strict zero-warning Ruff checks required",
+            scope=EvidenceScopeKind.DIRECTORY,
+            scope_path="/workspace/packages/billing",
+            source=EvidenceSourceKind.USER_EXPLICIT,
+            source_authority=1.0,
+            permission=EvidencePermissionLevel.WORKSPACE_INTERNAL,
+        ),
+    ):
+        isolated_service._loader.register_rule(rule)
+
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Register root rule
-        r1_payload = {
-            "rule_id": "rule-root-pep8",
-            "title": "Code Formatting",
-            "rule_content": "Standard PEP-8 line length 100",
-            "metadata": {
-                "scope": "global",
-                "scope_path": "/",
-                "source": "agent_inferred",
-                "source_authority": 0.4,
-                "permission": "public",
-            },
-        }
-        res1 = await client.post("/api/memory/rules/register", json=r1_payload)
-        assert res1.status_code == 200
-        assert res1.json()["is_success"] is True
-
-        # 2. Register workspace rule
-        r2_payload = {
-            "rule_id": "rule-ws-test",
-            "title": "Testing Standard",
-            "rule_content": "Mandatory pytest with 90% coverage",
-            "metadata": {
-                "scope": "workspace",
-                "scope_path": "/workspace",
-                "source": "tool_verified",
-                "source_authority": 0.8,
-                "permission": "workspace_internal",
-            },
-        }
-        res2 = await client.post("/api/memory/rules/register", json=r2_payload)
-        assert res2.status_code == 200
-
-        # 3. Register billing leaf rule (overrides Code Formatting with stricter rules)
-        r3_payload = {
-            "rule_id": "rule-billing-strict",
-            "title": "Code Formatting",
-            "rule_content": "Strict zero-warning Ruff checks required",
-            "metadata": {
-                "scope": "directory",
-                "scope_path": "/workspace/packages/billing",
-                "source": "user_explicit",
-                "source_authority": 1.0,
-                "permission": "workspace_internal",
-            },
-        }
-        res3 = await client.post("/api/memory/rules/register", json=r3_payload)
-        assert res3.status_code == 200
-
-        # 4. Resolve cascade for nested path inside billing
+        # 1. Resolve cascade for nested path inside billing
         cascade_req = {
             "target_path": "/workspace/packages/billing/controllers",
         }
@@ -102,7 +120,7 @@ async def test_rule_registration_and_hierarchical_cascade_api(test_app: FastAPI)
         assert by_title["Code Formatting"]["rule_id"] == "rule-billing-strict"
         assert "Strict zero-warning Ruff" in by_title["Code Formatting"]["rule_content"]
 
-        # 5. List all rules
+        # 2. List all rules
         list_res = await client.get("/api/memory/rules/list")
         assert list_res.status_code == 200
         all_rules = list_res.json()

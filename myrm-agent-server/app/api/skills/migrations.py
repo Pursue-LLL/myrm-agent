@@ -19,6 +19,7 @@ from app.database.connection import get_session
 from app.database.models import PendingMigration
 from app.schemas.memory.archive import MemoryImportRequest
 from app.schemas.memory.crud import MEMORY_EXPORT_VERSION
+from app.services.migration.skill_bundle_writer import apply_skill_migration
 from app.services.migration.workbuddy_skills_mapping import (
     WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP,
     WorkBuddySkillMappingItem,
@@ -37,97 +38,6 @@ router = APIRouter(prefix="/migrations", tags=["migrations"])
 async def get_workbuddy_skills_mapping() -> list[WorkBuddySkillMappingItem]:
     """Retrieve canonical WorkBuddy Top 20 essential skills migration mapping."""
     return WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP
-
-
-async def _apply_skill_migration(skills_raw: list[object]) -> dict[str, int]:
-    """Write competitor skill bundles into the default local skills directory."""
-
-    import json
-    import shutil
-    from pathlib import Path
-
-    from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
-
-    base = Path(DEFAULT_LOCAL_SKILL_PATHS[0]).expanduser()
-    base.mkdir(parents=True, exist_ok=True)
-    imported = 0
-    overwritten = 0
-    usage_preserved = 0
-
-    for item in skills_raw:
-        if not isinstance(item, dict):
-            continue
-        name_raw = item.get("name")
-        content_raw = item.get("content")
-        if not isinstance(name_raw, str) or not isinstance(content_raw, str):
-            continue
-        name = name_raw.strip()
-        content = content_raw.strip()
-        if not name or not content:
-            continue
-        skill_dir = base / name
-        skill_md = skill_dir / "SKILL.md"
-        if skill_md.is_file():
-            backup = skill_md.with_name(f"{skill_md.name}.bak-migration")
-            shutil.copy2(skill_md, backup)
-            overwritten += 1
-        skill_dir.mkdir(parents=True, exist_ok=True)
-        skill_md.write_text(content, encoding="utf-8")
-        imported += 1
-
-        usage_stats = item.get("usage_stats")
-        if isinstance(usage_stats, dict):
-            stats_json = _build_stats_json(usage_stats)
-            if stats_json:
-                stats_file = skill_dir / ".stats.json"
-                stats_file.write_text(json.dumps(stats_json, indent=2), encoding="utf-8")
-                usage_preserved += 1
-
-    result: dict[str, int] = {
-        "skills_imported": imported,
-        "skills_overwritten": overwritten,
-    }
-    if usage_preserved:
-        result["usage_preserved"] = usage_preserved
-    return result
-
-
-def _build_stats_json(hermes_usage: dict[str, object]) -> dict[str, object] | None:
-    """Map Hermes .usage.json record to Myrm .stats.json format.
-
-    Mapping: use_count→call_count, last_used_at→last_used_at,
-    created_at→created_at, state→lifecycle_status, pinned→pinned.
-    Hermes records no run outcomes, so the success/failure counters stay empty instead of inventing evidence.
-    """
-    call_count = hermes_usage.get("use_count", 0)
-    if not isinstance(call_count, int):
-        try:
-            call_count = int(call_count)
-        except (TypeError, ValueError):
-            call_count = 0
-
-    last_used_at = hermes_usage.get("last_used_at")
-    created_at = hermes_usage.get("created_at")
-    state = hermes_usage.get("state", "active")
-    pinned = bool(hermes_usage.get("pinned", False))
-
-    lifecycle_map = {"active": "active", "stale": "stale", "archived": "archived"}
-    lifecycle_status = lifecycle_map.get(str(state), "active")
-
-    if call_count == 0 and not last_used_at and not created_at:
-        return None
-
-    return {
-        "call_count": call_count,
-        "success_count": 0,
-        "failure_count": 0,
-        "last_used_at": last_used_at if isinstance(last_used_at, str) else None,
-        "total_duration_ms": 0.0,
-        "lifecycle_status": lifecycle_status,
-        "pinned": pinned,
-        "merged_into": None,
-        "created_at": created_at if isinstance(created_at, str) else None,
-    }
 
 
 def _migration_lineage_id(migration_id: str) -> str:
@@ -308,7 +218,7 @@ async def approve_pending_migration_record(
             skills_raw = payload.get("skills")
             if not isinstance(skills_raw, list):
                 raise HTTPException(status_code=400, detail="Pending skill migration payload is invalid")
-            counts = await _apply_skill_migration(skills_raw)
+            counts = await apply_skill_migration(skills_raw)
             target_agent_id = payload.get("target_agent_id")
             if isinstance(target_agent_id, str) and target_agent_id.strip():
                 from app.services.migration.skill_binding import (

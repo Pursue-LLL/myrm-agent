@@ -121,7 +121,7 @@ When manual user intervention is mandatory (e.g. initial authorization or revoke
 
 | 服务名称 | 对应 MCP 工具群 | 当前状态 | 剩余有效时间 | 解决操作 |
 |---|---|---|---|---|
-| **Google Workspace** | `google_drive_*`, `gmail_*` | 需要重新授权 | 0 分钟 (已过期) | [点击前往设置立即连接](/settings/integrations?focus=google-workspace) |
+| **Google Workspace** | `google_drive_*`, `gmail_*` | 需要重新授权 | 0 分钟 (已过期) | [点击前往设置立即连接](/settings/mcp) |
 | **Figma** | `get_design_context`, `use_figma` | 临期需刷新 | 8 分钟 (自动刷新中) | 无需操作 (后台静默刷新) |
 
 > 💡 完成授权后，回复「已连接」即可无缝继续当前任务，历史上下文保持完整。

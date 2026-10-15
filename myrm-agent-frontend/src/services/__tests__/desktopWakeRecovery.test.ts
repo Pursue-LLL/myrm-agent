@@ -1,7 +1,22 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { handleWakePhaseTransition, setupDesktopWakeRecovery, type WakeEventPayload } from '../desktopWakeRecovery';
 import * as deployMode from '@/lib/deploy-mode';
+import { cancelActiveChatAgent, getChatDetail, getMessages } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+
+vi.mock('@/services/chat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/chat')>();
+  return { ...actual, cancelActiveChatAgent: vi.fn(), getChatDetail: vi.fn(), getMessages: vi.fn() };
+});
+
+vi.mock('@/services/i18nToastService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/i18nToastService')>();
+  return { ...actual, showI18nToast: vi.fn() };
+});
+
+vi.mock('@/lib/inspector/releaseTurnInspectorControls', () => ({
+  releaseTurnInspectorControls: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe('desktopWakeRecovery', () => {
   beforeEach(() => {
@@ -35,7 +50,7 @@ describe('desktopWakeRecovery', () => {
       expect(notifyBackgroundTasks).not.toHaveBeenCalled();
     });
 
-    it('handles phase "ready" by recovering stuck loading session, refreshing history, and syncing background tasks', async () => {
+    it('handles phase "ready" by re-syncing a loading session that owns no turn, refreshing history, and syncing background tasks', async () => {
       const loadMessages = vi.fn().mockResolvedValue(undefined);
       const loadChatHistory = vi.fn().mockResolvedValue(undefined);
       const setLoading = vi.fn();
@@ -44,6 +59,7 @@ describe('desktopWakeRecovery', () => {
       const mockState = {
         chatId: 'chat-active',
         loading: true,
+        abortController: null,
         loadMessages,
         loadChatHistory,
         setLoading,
@@ -62,12 +78,44 @@ describe('desktopWakeRecovery', () => {
       });
 
       expect(loadMessages).toHaveBeenCalledWith('chat-active');
-      expect(setLoading).toHaveBeenCalledWith(false);
+      // loadMessages releases the loading flag once the transcript is reconciled; the wake handler never clears it.
+      expect(setLoading).not.toHaveBeenCalled();
       expect(loadChatHistory).toHaveBeenCalledWith(1);
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
 
-    it('guarantees setLoading(false) even if loadMessages throws on network recovery lag', async () => {
+    it('leaves a running turn alone: a loading session that owns an abort controller is neither re-synced nor released', async () => {
+      const turn = new AbortController();
+      const loadMessages = vi.fn().mockResolvedValue(undefined);
+      const loadChatHistory = vi.fn().mockResolvedValue(undefined);
+      const setLoading = vi.fn();
+      const notifyBackgroundTasks = vi.fn();
+
+      const mockState = {
+        chatId: 'chat-live',
+        loading: true,
+        abortController: turn,
+        loadMessages,
+        loadChatHistory,
+        setLoading,
+      };
+
+      await handleWakePhaseTransition(
+        { phase: 'ready', timestamp: Date.now(), sidecar_alive: true },
+        {
+          getState: () => mockState as unknown as ReturnType<typeof useChatStore.getState>,
+          notifyBackgroundTasks,
+        },
+      );
+
+      expect(loadMessages).not.toHaveBeenCalled();
+      expect(setLoading).not.toHaveBeenCalled();
+      expect(turn.signal.aborted).toBe(false);
+      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps refreshing history and background tasks when re-syncing the messages throws', async () => {
       const loadMessages = vi.fn().mockRejectedValue(new Error('Network offline'));
       const loadChatHistory = vi.fn().mockResolvedValue(undefined);
       const setLoading = vi.fn();
@@ -76,6 +124,7 @@ describe('desktopWakeRecovery', () => {
       const mockState = {
         chatId: 'chat-flaky',
         loading: true,
+        abortController: null,
         loadMessages,
         loadChatHistory,
         setLoading,
@@ -92,7 +141,8 @@ describe('desktopWakeRecovery', () => {
         notifyBackgroundTasks,
       });
 
-      expect(setLoading).toHaveBeenCalledWith(false);
+      expect(loadMessages).toHaveBeenCalledWith('chat-flaky');
+      expect(setLoading).not.toHaveBeenCalled();
       expect(loadChatHistory).toHaveBeenCalledWith(1);
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
@@ -315,6 +365,96 @@ describe('desktopWakeRecovery', () => {
 
       unlisten();
       expect(mockTauriUnlisten).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // The real store and the real loadMessages; only the network is replaced.
+  describe('against the real chat store', () => {
+    const CHAT_ID = 'chat-wake-store';
+    const READY: WakeEventPayload = { phase: 'ready', timestamp: 0, sidecar_alive: true };
+    const answeredTranscript = (): unknown[] => [
+      { messageId: 'u-1', chatId: CHAT_ID, createdAt: new Date(), role: 'user', content: 'question', metadata: {} },
+      { messageId: 'a-1', chatId: CHAT_ID, createdAt: new Date(), role: 'assistant', content: 'answer', metadata: {} },
+    ];
+    const wake = () =>
+      handleWakePhaseTransition(READY, { getState: useChatStore.getState, notifyBackgroundTasks: vi.fn() });
+
+    beforeEach(() => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      vi.mocked(getChatDetail)
+        .mockReset()
+        .mockResolvedValue({
+          chat: {
+            agent_id: null,
+            workspace_dir: null,
+            actionMode: 'agent',
+            is_incognito: false,
+            compacted_summary: null,
+            compacted_before_id: null,
+            session_loaded_skill_names: null,
+          },
+        } as never);
+      vi.mocked(getMessages)
+        .mockReset()
+        .mockResolvedValue({ messages: answeredTranscript(), has_more: false, next_cursor: null } as never);
+      vi.mocked(cancelActiveChatAgent).mockReset().mockResolvedValue({ cancelled: true, chat_id: CHAT_ID });
+      useChatStore.setState({
+        chatId: CHAT_ID,
+        messages: [],
+        loading: false,
+        abortController: null,
+        currentSessionMessageId: null,
+        loadChatHistory: vi.fn().mockResolvedValue(undefined),
+      });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('re-syncs a residual loading flag that owns no turn, and the real loadMessages releases it', async () => {
+      useChatStore.setState({ loading: true });
+
+      await wake();
+
+      expect(getMessages).toHaveBeenCalledWith(CHAT_ID, expect.anything());
+      expect(useChatStore.getState().loading).toBe(false);
+      expect(useChatStore.getState().messages.map((message) => message.messageId)).toEqual(['u-1', 'a-1']);
+    });
+
+    it('still ends with the loading flag released when the re-sync cannot reach the backend', async () => {
+      vi.useFakeTimers();
+      vi.mocked(getMessages).mockRejectedValue(new Error('backend unreachable'));
+      useChatStore.setState({ loading: true });
+
+      const waking = wake();
+      // loadMessages retries the failed fetch with a growing delay before it gives up.
+      await vi.advanceTimersByTimeAsync(5_000);
+      await waking;
+
+      expect(getMessages).toHaveBeenCalledTimes(3);
+      expect(useChatStore.getState().loading).toBe(false);
+      expect(useChatStore.getState().loadError).toBe(true);
+    });
+
+    it('leaves a running turn untouched, and Stop still reaches it afterwards', async () => {
+      const turn = new AbortController();
+      useChatStore.setState({ loading: true, abortController: turn, currentSessionMessageId: 'a-live' });
+
+      await wake();
+
+      expect(useChatStore.getState().loading).toBe(true);
+      expect(useChatStore.getState().abortController).toBe(turn);
+      expect(turn.signal.aborted).toBe(false);
+      expect(getMessages).not.toHaveBeenCalled();
+
+      useChatStore.getState().stopMessage();
+
+      expect(turn.signal.aborted).toBe(true);
+      expect(useChatStore.getState().loading).toBe(false);
+      expect(cancelActiveChatAgent).toHaveBeenCalledWith(CHAT_ID);
     });
   });
 });

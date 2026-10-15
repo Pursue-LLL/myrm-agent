@@ -3,8 +3,8 @@
 [INPUT]
 myrm_agent_harness.toolkits.vector (POS: 向量存储抽象层)
 myrm_agent_harness.toolkits.vector.qdrant (POS: Qdrant 向量存储实现)
+myrm_agent_harness.toolkits.vector.pool (POS: 向量存储连接池)
 app.core.retriever.vector.defaults (POS: 业务层向量存储默认配置)
-app.core.retriever.vector.pool (POS: 向量存储连接池)
 
 [OUTPUT]
 Re-exports: VectorStore, VectorDocument, SearchResult, CollectionInfo,
@@ -13,7 +13,7 @@ Re-exports: VectorStore, VectorDocument, SearchResult, CollectionInfo,
     get_default_vector_store_config, create_default_vector_store
 
 [POS]
-业务层向量存储入口。重新导出框架层的向量存储 API，并提供业务特定的默认配置和连接池。
+业务层向量存储入口。重新导出框架层的向量存储 API（含连接池），并提供业务特定的默认配置。
 """
 
 from myrm_agent_harness.toolkits.vector import (

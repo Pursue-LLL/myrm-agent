@@ -15,6 +15,7 @@
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ShieldAlert, ShieldCheck, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -35,6 +36,7 @@ export interface WorkspaceTrustBannerProps {
 }
 
 export const WorkspaceTrustBanner = memo(({ workspacePath, onTrustChanged, className }: WorkspaceTrustBannerProps) => {
+  const t = useTranslations('project.workspaceTrust');
   const [manifest, setManifest] = useState<WorkspaceTrustManifest | null>(null);
   const [loading, setLoading] = useState(false);
   const [trusting, setTrusting] = useState(false);
@@ -67,15 +69,15 @@ export const WorkspaceTrustBanner = memo(({ workspacePath, onTrustChanged, class
     setTrusting(true);
     try {
       await decideWorkspaceTrust(workspacePath, 'TRUSTED');
-      toast({ title: 'Workspace trusted. Full extensions and tools are now enabled.' });
+      toast({ title: t('trusted') });
       onTrustChanged?.('TRUSTED');
       await loadManifest();
     } catch {
-      toast({ title: 'Failed to trust workspace', variant: 'destructive' });
+      toast({ title: t('trustFailed'), variant: 'destructive' });
     } finally {
       setTrusting(false);
     }
-  }, [loadManifest, onTrustChanged, workspacePath]);
+  }, [loadManifest, onTrustChanged, workspacePath, t]);
 
   // Only render when the workspace is explicitly restricted and has isolated resources
   if (!workspacePath || loading || !manifest || manifest.current_level === 'TRUSTED' || !manifest.requires_trust) {

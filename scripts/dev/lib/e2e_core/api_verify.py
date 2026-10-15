@@ -473,6 +473,18 @@ def _resolve_candidate_fingerprint(
     return epoch, stored_fp
 
 
+def _pinned_state_dir_for_api_base(api_base: str) -> str:
+    """Resolve the registry stateDir for ``api_base`` before falling back to shared."""
+    explicit = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
+    if explicit:
+        return explicit
+    port = _port_from_api_base(api_base)
+    for _, reg_port, state_dir_raw, _ in _enumerate_registry_candidates():
+        if reg_port == port and state_dir_raw:
+            return state_dir_raw
+    return str(shared_dev_state_dir())
+
+
 def _epoch_matches(*, stored_fp: str, workspace_fp: str) -> bool:
     if not workspace_fp:
         return False
@@ -596,12 +608,11 @@ def enumerate_backend_candidates(*, workspace_fp: str) -> list[BackendCandidate]
     pinned_api = os.environ.get("E2E_API_BASE", "").strip().rstrip("/")
     if pinned_api:
         pinned_port = _port_from_api_base(pinned_api)
-        pinned_state = os.environ.get("MYRM_DEV_STATE_DIR", "").strip()
         specs.append(
             (
                 pinned_api,
                 pinned_port,
-                pinned_state or str(shared_dev_state_dir()),
+                _pinned_state_dir_for_api_base(pinned_api),
                 "pinned_e2e_api_base",
             )
         )

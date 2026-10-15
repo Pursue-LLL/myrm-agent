@@ -40,9 +40,6 @@ class SkillVersionModel(Base):
     # 版本内容
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # 质量评分（JSON存储，允许为空）
-    quality_score: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-
     # 创建信息
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

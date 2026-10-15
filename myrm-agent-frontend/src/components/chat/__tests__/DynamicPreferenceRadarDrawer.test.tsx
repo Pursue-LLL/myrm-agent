@@ -2,7 +2,14 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DynamicPreferenceRadarDrawer, RadarDimensionValues } from '../DynamicPreferenceRadarDrawer';
+import { DynamicPreferenceRadarDrawer, RADAR_PRESETS, RadarDimensionValues } from '../DynamicPreferenceRadarDrawer';
+
+// 带参数回显：同时验证翻译键与插值参数
+const stableT = (key: string, values?: Record<string, unknown>) => (values ? `${key}:${JSON.stringify(values)}` : key);
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
 
 const mockDefaultValues: RadarDimensionValues = {
   recency: 1.0,
@@ -43,7 +50,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
 
     expect(screen.getByTestId('preference-radar-drawer')).toBeInTheDocument();
     expect(screen.getByTestId('radar-data-polygon')).toBeInTheDocument();
-    expect(screen.getByText('在线偏好拟合雷达')).toBeInTheDocument();
+    expect(screen.getByText('title')).toBeInTheDocument();
     expect(screen.getByText('1.50x')).toBeInTheDocument();
     expect(screen.getByText('2.00x')).toBeInTheDocument();
   });
@@ -139,10 +146,87 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
       />,
     );
 
-    expect(screen.getByText(/偏好聚焦/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'summaryFocused:{"first":"dimensionDepth","firstValue":"2.0","second":"dimensionActionability","secondValue":"1.5"}',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('presetCode')).toBeInTheDocument();
     const codePresetBtn = screen.getByTestId('preset-code');
     expect(codePresetBtn).toBeInTheDocument();
     fireEvent.click(codePresetBtn);
     expect(onSelectPreset).toHaveBeenCalledWith('code');
+  });
+
+  it('shows the balanced summary when every dimension is near the baseline', () => {
+    render(
+      <DynamicPreferenceRadarDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        values={RADAR_PRESETS.balanced.values}
+        locked={false}
+        onValueChange={vi.fn()}
+        onToggleLock={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('summaryBalanced')).toBeInTheDocument();
+  });
+
+  it('applies preset values dimension by dimension when no preset handler is supplied', () => {
+    const onValueChange = vi.fn();
+    render(
+      <DynamicPreferenceRadarDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        values={mockDefaultValues}
+        locked={false}
+        onValueChange={onValueChange}
+        onToggleLock={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('preset-research'));
+
+    expect(onValueChange).toHaveBeenCalledTimes(5);
+    expect(onValueChange).toHaveBeenCalledWith('technical_depth', RADAR_PRESETS.research.values.technical_depth);
+  });
+
+  it('reflects the locked state in labels and disables presets and sliders', () => {
+    render(
+      <DynamicPreferenceRadarDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        values={mockDefaultValues}
+        locked={true}
+        onValueChange={vi.fn()}
+        onToggleLock={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('lockedLabel')).toBeInTheDocument();
+    expect(screen.getByText('modeManual')).toBeInTheDocument();
+    expect(screen.getByTestId('radar-toggle-lock')).toHaveAttribute('title', 'lockedTitle');
+    expect(screen.getByTestId('preset-code')).toBeDisabled();
+    expect(screen.getByTestId('slider-recency')).toBeDisabled();
+  });
+
+  it('gives the icon-only close button a translated accessible name', () => {
+    render(
+      <DynamicPreferenceRadarDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        values={mockDefaultValues}
+        locked={false}
+        onValueChange={vi.fn()}
+        onToggleLock={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'close' })).toBe(screen.getByTestId('radar-close-button'));
   });
 });

@@ -5,6 +5,7 @@
 - app.core.skills.curator.service::get_stats_collector, resolve_skill_path (POS: Curator 使用账本 .stats.json)
 - app.services.skills.evolution_reviews (POS: 统一的 evolution 审核生命周期服务)
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
+- app.services.skills.scan_risk_policy::assess_scan_risk (POS: 后台学习的高危新增复核策略)
 [OUTPUT]
 - ApprovalResult: 审批流结果（含风控降级原因）
 - ConfidenceApprovalFlow: 多信号风控审批流
@@ -15,10 +16,13 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionProposal, SkillRecord
+
+from app.services.skills.scan_risk_policy import NEW_FINDING_SIGNAL_PREFIX, SCAN_UNAVAILABLE_SIGNAL, assess_scan_risk
 
 if TYPE_CHECKING:
     from app.services.skills.evolution_reviews import RuntimeFailureEvidence
@@ -28,6 +32,7 @@ logger = logging.getLogger(__name__)
 DIFF_CHANGE_THRESHOLD = 0.5
 EFFECTIVE_RATE_THRESHOLD = 0.5
 MIN_OBSERVED_FOR_RATE_SIGNAL = 3
+_NGRAM_SIZE = 3
 
 
 @dataclass
@@ -58,8 +63,9 @@ class ConfidenceApprovalFlow:
 
         Auto-merge requires ALL conditions:
         1. score >= threshold AND is_general (existing LLM signals)
-        2. diff change ratio <= 50% (prevents silent large-scale rewrites)
+        2. changed-content ratio <= 50% (prevents silent large-scale rewrites)
         3. historical success rate over observed runs >= 50% or insufficient data (prevents risky fixes on low-quality skills)
+        4. no new HIGH-level security finding versus the original content (prevents silently adding outbound or privileged behavior)
         """
         from app.core.skills.store.evolution_store import get_evolution_skill_store
         from app.services.skills.evolution_reviews import (
@@ -81,10 +87,11 @@ class ConfidenceApprovalFlow:
         skill_name = skill_record.name if skill_record else proposal.skill_id
 
         risk_signals = self._evaluate_risk_signals(proposal, skill_record)
+        risk_signals.extend(await self._scan_risk_signals(proposal, skill_name))
 
         should_auto_approve = (
             proposal.score >= self._auto_approve_threshold
-            and getattr(proposal, "is_general", False)
+            and proposal.is_general
             and len(risk_signals) == 0
             and not force_manual_review
         )
@@ -114,7 +121,7 @@ class ConfidenceApprovalFlow:
             )
 
         review_record = await create_evolution_review_record(
-            agent_id=getattr(proposal, "agent_id", None) or "default",
+            agent_id=proposal.agent_id or "default",
             chat_id=None,
             proposal_skill_id=proposal.skill_id,
             skill_name=skill_name,
@@ -124,15 +131,14 @@ class ConfidenceApprovalFlow:
             original_content=proposal.original_content,
             evolved_content=proposal.proposed_content,
             confidence=proposal.score,
-            test_passed=proposal.score > 0,
+            test_passed=_scan_outcome(proposal),
             task_context=proposal.task_context,
             trajectory=proposal.trajectory,
             reason_code=reason_code,
             remediation=remediation,
             runtime_failure=runtime_failure,
             eval_cases=proposal.updated_eval_cases,
-            change_manifest=getattr(proposal, "change_manifest", None),
-            security_scan_summary=getattr(proposal, "security_scan_summary", None),
+            security_scan_summary=proposal.security_scan_summary,
         )
 
         approved = False
@@ -151,7 +157,7 @@ class ConfidenceApprovalFlow:
 
                 publish_skill_evolved_event(
                     skill_name=skill_name,
-                    evolution_type=getattr(proposal.evolution_type, "value", proposal.evolution_type),
+                    evolution_type=proposal.evolution_type.value,
                     description="Auto-learned skill from background evolution.",
                     evolution_id=review_record.id,
                 )
@@ -179,7 +185,17 @@ class ConfidenceApprovalFlow:
                 parts.append("Change exceeds 50% threshold — carefully review the diff to confirm correctness.")
             elif signal.startswith("low_effective_rate:"):
                 parts.append("This skill has low historical success rate — verify the improvement direction is correct.")
+            elif signal.startswith(NEW_FINDING_SIGNAL_PREFIX):
+                parts.append("The change adds high-risk behavior — review the flagged lines before approving.")
+            elif signal == SCAN_UNAVAILABLE_SIGNAL:
+                parts.append("The security scan could not run — review the change manually.")
         return " ".join(parts) if parts else "Review the diff and approve or reject the proposal."
+
+    @staticmethod
+    async def _scan_risk_signals(proposal: EvolutionProposal, skill_name: str) -> list[str]:
+        """Signals for HIGH-level findings the proposal adds on top of the original content."""
+        original = proposal.original_content or None
+        return (await assess_scan_risk(skill_name, proposal.proposed_content, original=original)).signals
 
     @staticmethod
     def _evaluate_risk_signals(
@@ -189,11 +205,9 @@ class ConfidenceApprovalFlow:
         """Evaluate deterministic risk signals. Returns list of triggered signal names."""
         signals: list[str] = []
 
-        # Signal 1: Diff change ratio — large rewrites should not auto-merge
-        original_len = len(proposal.original_content)
-        proposed_len = len(proposal.proposed_content)
-        if original_len > 0:
-            change_ratio = abs(proposed_len - original_len) / original_len
+        # Signal 1: Changed-content ratio — large rewrites should not auto-merge
+        if proposal.original_content:
+            change_ratio = _changed_content_ratio(proposal.original_content, proposal.proposed_content)
             if change_ratio > DIFF_CHANGE_THRESHOLD:
                 signals.append(f"diff_range:{change_ratio:.0%}")
 
@@ -202,6 +216,41 @@ class ConfidenceApprovalFlow:
             signals.append(low_rate)
 
         return signals
+
+
+def _scan_outcome(proposal: EvolutionProposal) -> bool | None:
+    """Whether the security scan of the proposed content found nothing; None when no scan ran.
+
+    A scan rejects only critical findings, so a proposal that reaches review may
+    still carry findings: a recorded summary alone does not mean the content is clean.
+    """
+    summary = proposal.security_scan_summary
+    if summary is None:
+        return None
+    return summary.get("total_findings") == 0
+
+
+def _ngram_counts(text: str) -> Counter[str]:
+    if len(text) < _NGRAM_SIZE:
+        return Counter([text]) if text else Counter()
+    return Counter(text[i : i + _NGRAM_SIZE] for i in range(len(text) - _NGRAM_SIZE + 1))
+
+
+def _changed_content_ratio(original: str, proposed: str) -> float:
+    """Share of the original's content that was rewritten, removed, or outgrown by additions.
+
+    Compares character n-gram multisets, so a same-length rewrite counts as a
+    full rewrite (a plain length comparison reports 0%). N-grams keep the
+    measure meaningful for one-line descriptions and for text without
+    whitespace such as Chinese, and the comparison is linear time, unlike
+    sequence alignment, which degrades badly on repetitive text. ``original``
+    must be non-empty.
+    """
+    original_grams = _ngram_counts(original)
+    proposed_grams = _ngram_counts(proposed)
+    unchanged = sum((original_grams & proposed_grams).values())
+    changed = max(original_grams.total(), proposed_grams.total()) - unchanged
+    return changed / original_grams.total()
 
 
 def _low_success_rate_signal(skill_name: str) -> str | None:

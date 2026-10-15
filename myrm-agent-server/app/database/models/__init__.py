@@ -22,7 +22,6 @@ from .chat import (
     ConversationFork,
     InterruptedTurnMarker,
     Message,
-    OfflineDurableTask,
 )
 from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
@@ -51,12 +50,6 @@ from .memory import (
     SharedContextModel,
     SharedContextWriteProposalModel,
 )
-from .message_filter import (
-    MessageFilterAudit,
-    MessageFilterConfig,
-    MessageFilterConfigHistory,
-    MessageFilterRule,
-)
 from .milestone import Milestone
 from .notification import SystemNotification
 from .project import Project
@@ -73,15 +66,10 @@ from .security import (
     SkillPermissionUsageLog,
     UserToolAllowlist,
 )
-from .skill import ExperienceLedgerEvent, PendingEvolution, PendingMigration
+from .skill import ExperienceLedgerEvent, PendingMigration
 from .skill_optimization import (
-    ABTestResultModel,
-    BatchAuditLog,
-    BatchOptimizationTask,
     BatchSnapshot,
-    OptimizationRecord,
-    ShadowSampleModel,
-    SkillQualityHistory,
+    SkillPackageRevision,
     SkillVersionModel,
 )
 from .turn_capability_metric import TurnCapabilityMetricEvent
@@ -103,7 +91,6 @@ __all__ = [
     "Chat",
     "Message",
     "ConversationFork",
-    "OfflineDurableTask",
     "InterruptedTurnMarker",
     # Agent
     "Agent",
@@ -156,7 +143,6 @@ __all__ = [
     "SkillPermissionUsageLog",
     "VaultCredential",
     # Skill
-    "PendingEvolution",
     "PendingMigration",
     "ExperienceLedgerEvent",
     # Approval
@@ -171,19 +157,10 @@ __all__ = [
     # Web Push
     "WebPushSubscription",
     # Message Filter
-    "MessageFilterConfig",
-    "MessageFilterRule",
-    "MessageFilterAudit",
-    "MessageFilterConfigHistory",
     # Skill Optimization
-    "OptimizationRecord",
-    "ABTestResultModel",
-    "ShadowSampleModel",
-    "SkillQualityHistory",
     "SkillVersionModel",
-    "BatchOptimizationTask",
     "BatchSnapshot",
-    "BatchAuditLog",
+    "SkillPackageRevision",
     # Artifact
     "Artifact",
     "ArtifactVersion",

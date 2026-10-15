@@ -9,11 +9,13 @@
 - Aggregate facade re-exporting every public name of the ``commands`` subpackage:
   - commands: argument parsers (yolo/personality/memory/approval/topic) + slash-command
     handlers (new_session/compact/retry/undo/topic_command) + DenyWithReason/TopicCommand DTOs
-  - router_commands: RouterCommandsMixin composed from the five feature mixins below
+  - router_commands: RouterCommandsMixin composed from the feature mixins below
   - router_commands_approval: RouterCommandsApprovalMixin (emoji/button/reaction approval)
+  - router_commands_draft: RouterCommandsDraftMixin + parse_draft_args (/draft: decide a held reply from chat)
   - router_commands_goals: RouterCommandsGoalsMixin (/goal lifecycle)
   - router_commands_memory: RouterCommandsMemoryMixin (/memory review)
   - router_commands_modes: RouterCommandsModesMixin (/yolo, /personality, /topic)
+  - router_commands_quota: RouterCommandsQuotaMixin (/quota)
   - router_commands_session: RouterCommandsSessionMixin (/new, /compact, /retry, /undo)
 
 [POS]
@@ -42,6 +44,11 @@ from app.channels.routing.commands.commands import (
 )
 from app.channels.routing.commands.router_commands import RouterCommandsMixin
 from app.channels.routing.commands.router_commands_approval import RouterCommandsApprovalMixin
+from app.channels.routing.commands.router_commands_draft import (
+    DraftAction,
+    RouterCommandsDraftMixin,
+    parse_draft_args,
+)
 from app.channels.routing.commands.router_commands_goals import RouterCommandsGoalsMixin
 from app.channels.routing.commands.router_commands_memory import RouterCommandsMemoryMixin
 from app.channels.routing.commands.router_commands_modes import RouterCommandsModesMixin
@@ -51,8 +58,10 @@ from app.channels.routing.commands.router_commands_session import RouterCommands
 __all__ = [
     "ApprovalDecision",
     "DenyWithReason",
+    "DraftAction",
     "MemoryAction",
     "RouterCommandsApprovalMixin",
+    "RouterCommandsDraftMixin",
     "RouterCommandsGoalsMixin",
     "RouterCommandsMemoryMixin",
     "RouterCommandsMixin",
@@ -68,6 +77,7 @@ __all__ = [
     "is_explicit_approval_command",
     "normalize_approval_emoji",
     "parse_approval_command",
+    "parse_draft_args",
     "parse_memory_args",
     "parse_personality_args",
     "parse_topic_args",

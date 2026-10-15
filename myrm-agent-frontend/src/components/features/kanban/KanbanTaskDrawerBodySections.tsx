@@ -104,7 +104,7 @@ export function AttachmentsSection({
                 )}
                 <button
                   onClick={() => handleRemoveAttachment(att.file_id)}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center opacity-0 group-hover/att:opacity-100 transition-opacity"
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-destructive/80 text-destructive-foreground flex items-center justify-center transition-opacity opacity-0 group-hover/att:opacity-100 group-focus-within/att:opacity-100 pointer-coarse:opacity-100"
                   title={t('removeAttachment')}
                 >
                   <X className="w-2.5 h-2.5" />

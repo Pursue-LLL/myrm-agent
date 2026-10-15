@@ -318,34 +318,6 @@ async def test_get_or_create_legacy_team_context_is_deterministic(
 
 
 @pytest.mark.asyncio
-async def test_goal_completion_proposal_is_idempotent_by_source(
-    db_session: AsyncSession,
-) -> None:
-    service = SharedContextService(db_session)
-    context = await service.create_context(name="Team Memory")
-
-    first = await service.create_write_proposal(
-        context_id=context.id,
-        memory_type="semantic",
-        content="Use PostgreSQL for persistence.",
-        source_type="goal_completion",
-        source_id="goal-1",
-    )
-    second = await service.create_write_proposal(
-        context_id=context.id,
-        memory_type="semantic",
-        content="Different content should not create duplicate.",
-        source_type="goal_completion",
-        source_id="goal-1",
-    )
-
-    assert first is not None
-    assert second is not None
-    assert first.id == second.id
-    assert first.content == "Use PostgreSQL for persistence."
-
-
-@pytest.mark.asyncio
 async def test_correction_proposal_is_idempotent_by_source(
     db_session: AsyncSession,
 ) -> None:

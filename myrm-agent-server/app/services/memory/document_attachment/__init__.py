@@ -1,1 +1,0 @@
-"""Document attachment service package."""

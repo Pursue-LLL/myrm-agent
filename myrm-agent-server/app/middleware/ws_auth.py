@@ -23,7 +23,7 @@ class WsAuthMiddleware:
             return
 
         path = scope.get("path", "")
-        if is_public_path(path):
+        if is_public_path(path, "GET"):
             await self.app(scope, receive, send)
             return
 

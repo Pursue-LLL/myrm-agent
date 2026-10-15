@@ -152,18 +152,21 @@ export interface WikiGraphResponse {
 
 export interface ConceptLinkItem {
   name: string;
-  weight: number;
   exists: boolean;
+}
+
+export interface ConceptBacklinkItem extends ConceptLinkItem {
   context_snippet: string | null;
-  line_number?: number | null;
-  heading?: string | null;
+  heading: string | null;
 }
 
 export interface ConceptLinksResponse {
   concept_name: string;
   outlinks: ConceptLinkItem[];
-  backlinks: ConceptLinkItem[];
-  ego_graph: WikiGraphResponse;
+  backlinks: ConceptBacklinkItem[];
+  /** 该方向的链接被服务端截断，实际数量多于 outlinks / backlinks 返回的条数 */
+  outlinks_has_more: boolean;
+  backlinks_has_more: boolean;
 }
 
 export interface WikiGraphInsights {
@@ -693,16 +696,9 @@ export const wikiService = {
     });
   },
 
-  getPendingEdits: async (
-    agentId?: string | null,
-    limit?: number,
-    offset?: number
-  ): Promise<PendingEditsResponse> => {
+  getPendingEdits: async (agentId?: string | null, limit?: number, offset?: number): Promise<PendingEditsResponse> => {
     const base = buildWikiApiPath('/wiki/pending', agentId);
-    const params = [
-      limit !== undefined ? `limit=${limit}` : null,
-      offset !== undefined ? `offset=${offset}` : null,
-    ]
+    const params = [limit !== undefined ? `limit=${limit}` : null, offset !== undefined ? `offset=${offset}` : null]
       .filter((part): part is string => part !== null)
       .join('&');
     const path = params ? `${base}${base.includes('?') ? '&' : '?'}${params}` : base;
@@ -892,16 +888,9 @@ export const wikiService = {
     return apiRequest<WikiGraphResponse>(buildWikiApiPath(`/wiki/graph${query}`, agentId));
   },
 
-  getConceptLinks: async (
-    conceptName: string,
-    depth: number = 1,
-    agentId?: string | null,
-  ): Promise<ConceptLinksResponse> => {
+  getConceptLinks: async (conceptName: string, agentId?: string | null): Promise<ConceptLinksResponse> => {
     const encodedName = encodeURIComponent(conceptName.trim());
-    const params = new URLSearchParams({ depth: String(depth) });
-    return apiRequest<ConceptLinksResponse>(
-      buildWikiApiPath(`/wiki/concepts/${encodedName}/links?${params.toString()}`, agentId),
-    );
+    return apiRequest<ConceptLinksResponse>(buildWikiApiPath(`/wiki/concepts/${encodedName}/links`, agentId));
   },
 
   getGraphInsights: async (agentId?: string | null): Promise<WikiGraphInsights> => {

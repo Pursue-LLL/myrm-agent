@@ -28,7 +28,6 @@ def build_config_incomplete_reply(msg: InboundMessage, exc: ConfigIncompleteErro
     error_metadata = {
         "error_type": exc.error_code,
         "resolution_steps": exc.resolution_steps,
-        "config_url": "/settings/model-service",
     }
     steps_text = "\n".join(f"• {step}" for step in exc.resolution_steps[:3])
     return msg.get_or_create_correlation_context().create_reply(

@@ -13,6 +13,8 @@ import type { GoalState } from './goalStatusTypes';
 import { formatEta, formatBurnRate, getProgressColor } from './goalStatusUtils';
 import { notificationService } from '@/services/notification';
 import { TaskDeliverableBundle } from './TaskDeliverableBundle';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface GoalStatusExpandedProps {
   goal: GoalState;
@@ -92,7 +94,7 @@ export function GoalStatusExpanded({
               <p className="text-xs text-foreground/80 leading-relaxed flex-1 break-words">{goal.objective}</p>
               {canEditObjective && (
                 <button
-                  className="flex-shrink-0 mt-0.5 p-1 rounded hover:bg-muted transition-colors opacity-60 sm:opacity-0 sm:group-hover/obj:opacity-100"
+                  className="flex-shrink-0 mt-0.5 p-1 rounded hover:bg-muted transition-colors opacity-0 group-hover/obj:opacity-100 group-focus-within/obj:opacity-100 pointer-coarse:opacity-100"
                   onClick={onStartEditObjective}
                   title={t('editObjective')}
                   aria-label={t('editObjective')}
@@ -355,7 +357,7 @@ function SubgoalsSection({
                     e.stopPropagation();
                     onRemoveSubgoal(idx);
                   }}
-                  className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                  className={cn('text-muted-foreground hover:text-destructive transition-opacity', REVEAL_ON_HOVER)}
                   aria-label="Remove subgoal"
                 >
                   <XCircleIcon className="h-3.5 w-3.5" />

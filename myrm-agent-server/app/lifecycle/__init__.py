@@ -2,10 +2,7 @@
 
 from .auto_continue import auto_continue_interrupted_turns
 from .browser import (
-    cleanup_and_warmup_browser_threads,
-    cleanup_browser_threads,
     shutdown_global_browser_pool,
-    warmup_browser_sessions,
     warmup_global_browser_pool,
 )
 from .memory_guardian import start_memory_guardian_scheduler, stop_memory_guardian_scheduler
@@ -42,21 +39,16 @@ from .schedulers import (
     stop_memory_guardian_guard_telemetry_dispatcher,
     stop_remote_backup_scheduler,
 )
-from .skills import shutdown_skill_optimization_listeners, start_skill_optimization_listeners
 from .system import (
     init_allowlist_store,
     init_workspace_trust_store,
     pause_orphaned_active_goals,
-    resume_durable_offline_tasks,
     start_channel_gateway,
     start_idle_task_listeners,
 )
 
 __all__ = [
-    "cleanup_and_warmup_browser_threads",
-    "cleanup_browser_threads",
     "shutdown_global_browser_pool",
-    "warmup_browser_sessions",
     "warmup_global_browser_pool",
     "start_auth_alert_monitor",
     "start_maintenance_scheduler",
@@ -88,14 +80,11 @@ __all__ = [
     "stop_remote_backup_scheduler",
     "start_memory_guardian_scheduler",
     "stop_memory_guardian_scheduler",
-    "shutdown_skill_optimization_listeners",
-    "start_skill_optimization_listeners",
     "auto_continue_interrupted_turns",
     "init_allowlist_store",
     "init_risk_rules",
     "init_workspace_trust_store",
     "pause_orphaned_active_goals",
-    "resume_durable_offline_tasks",
     "start_channel_gateway",
     "start_idle_task_listeners",
 ]

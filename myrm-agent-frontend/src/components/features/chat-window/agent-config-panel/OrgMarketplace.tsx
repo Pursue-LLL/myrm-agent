@@ -156,7 +156,13 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
       try {
         const result: ForcePushResult = await forcePushUpdate(entry.id);
         toast.success(t('forcePushSuccess'), {
-          description: `v${result.version} → ${result.synced} synced, ${result.skipped} skipped, ${result.failed} failed (${result.total} total)`,
+          description: t('forcePushSummary', {
+            version: result.version,
+            synced: result.synced,
+            skipped: result.skipped,
+            failed: result.failed,
+            total: result.total,
+          }),
           duration: 8_000,
         });
       } catch (e) {

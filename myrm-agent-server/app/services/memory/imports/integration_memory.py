@@ -123,17 +123,6 @@ class IntegrationMemoryService:
     def list_trees(self, *, provider: str = "") -> list[IntegrationTree]:
         return self._tree_manager.list_trees(provider=provider)
 
-    async def get_tree_structure(self, tree_id: str) -> list[IntegrationTreeNodeDTO]:
-        nodes = await self._tree_manager.get_tree_structure(tree_id)
-        return [
-            IntegrationTreeNodeDTO(
-                id=n.id,
-                labels=n.labels,
-                properties={k: v for k, v in n.properties.items() if isinstance(v, (str, int, float, bool))},
-            )
-            for n in nodes
-        ]
-
     async def remove_tree(self, tree_id: str) -> int:
         try:
             await self._vector_store.delete_by_filter(self._VECTOR_COLLECTION, {"tree_id": tree_id})

@@ -631,6 +631,36 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents ADD COLUMN acceptance_criteria JSON",
     # Session tags (ChatModel.tags): new DBs get the column from create_all; existing DBs need it appended.
     "ALTER TABLE chats ADD COLUMN tags JSON NOT NULL DEFAULT '[]'",
+    # message_filter_config.pii_mode has no ORM field: an existing NOT NULL column without a default rejects ORM inserts, so drop it.
+    "ALTER TABLE message_filter_config DROP COLUMN pii_mode",
+    # Manus Scheduled Tasks 2.0: project binding for cron_jobs
+    "ALTER TABLE cron_jobs ADD COLUMN project_id VARCHAR(255) REFERENCES projects(id) ON DELETE SET NULL",
+    # The message-filter admin tables have no ORM model or reader: the live filter reads MESSAGE_FILTER_ENABLED / ADMIN_API_KEYS.
+    "DROP TABLE IF EXISTS message_filter_config",
+    "DROP TABLE IF EXISTS message_filter_rules",
+    "DROP TABLE IF EXISTS message_filter_audit",
+    "DROP TABLE IF EXISTS message_filter_config_history",
+    # Retired batch-optimization tables: no model, route or page reads or writes them.
+    "DROP TABLE IF EXISTS batch_audit_logs",
+    "DROP TABLE IF EXISTS batch_optimization_tasks",
+    # The offline durable-task table has no model, route or startup hook that reads or writes it.
+    "DROP TABLE IF EXISTS offline_durable_tasks",
+    # No model, route or page reads or writes the shadow A/B tables or the per-version quality score.
+    "DROP TABLE IF EXISTS skill_shadow_samples",
+    "DROP TABLE IF EXISTS skill_ab_test_results",
+    "DROP TABLE IF EXISTS skill_optimization_records",
+    "DROP TABLE IF EXISTS skill_quality_history",
+    "ALTER TABLE skill_versions DROP COLUMN quality_score",
+    # Evolution proposals live in approval_records; no model, route or page reads or writes pending_evolutions.
+    "DROP TABLE IF EXISTS pending_evolutions",
+    # A risk rule only blocks, so neither table keeps an ``action`` column. A rule stored with another action held nothing:
+    # it is disabled before the column goes, because left enabled it would hold messages its author never meant to hold.
+    "UPDATE risk_rules SET is_enabled = 0 WHERE action != 'block'",
+    "ALTER TABLE risk_rules DROP COLUMN action",
+    "ALTER TABLE risk_hits DROP COLUMN action",
+    # A hit log holds a position or the timeout marker, never the matched text (a key, a number, an address).
+    """UPDATE risk_hits SET match_summary = ''
+    WHERE match_summary != '' AND match_summary != '(matching timed out)' AND match_summary NOT LIKE 'chars:%'""",
 ]
 
 # 创建索引的SQL语句列表

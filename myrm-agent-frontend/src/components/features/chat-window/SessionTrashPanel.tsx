@@ -8,6 +8,7 @@ import { toast } from '@/hooks/shared/useToast';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import type { CascadeInfo, TrashedChatItem } from '@/services/chatTrash';
 import { emptyTrash, getCascadeInfo, getTrashedChats, permanentlyDeleteChat, restoreChat } from '@/services/chatTrash';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface SessionTrashPanelProps {
   onRestored?: () => void;
@@ -190,7 +191,7 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
+              <div className={cn('flex items-center gap-1 transition-opacity shrink-0', REVEAL_ON_HOVER)}>
                 <button
                   onClick={() => handleRestore(chat.id)}
                   className={cn(

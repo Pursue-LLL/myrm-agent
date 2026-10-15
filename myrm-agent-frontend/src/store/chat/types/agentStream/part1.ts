@@ -195,6 +195,7 @@ export interface TasksStepsStreamEvent extends BaseAgentEvent {
   partial_success?: boolean;
   duration_ms?: number;
   metadata?: Record<string, unknown>;
+  skill_mutation_batch_id?: string;
 }
 
 export interface ToolHeartbeatStreamEvent extends BaseAgentEvent {
@@ -306,7 +307,6 @@ export interface ArtifactFocusStreamEvent extends BaseAgentEvent {
 export interface RiskBlockedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.RISK_BLOCKED;
   data?: {
-    message: string;
     rules?: Array<{ rule_id: string; display_name: string; severity: string }>;
   };
 }
@@ -345,6 +345,8 @@ export interface ToolEndStreamEvent extends BaseAgentEvent {
     degraded?: boolean;
     id?: string;
   };
+  /** skill_manage 批次提交事件携带的撤销批次 id（服务端 ServerSkillManageBatchHook 广播；步骤仅含调用参数，不含结果）。 */
+  skill_mutation_batch_id?: string;
 }
 
 export interface ToolFailureStreamEvent extends BaseAgentEvent {

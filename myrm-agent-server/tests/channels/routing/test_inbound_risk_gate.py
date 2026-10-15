@@ -35,9 +35,8 @@ def _blocked_result(display_name: str = "API Key Pattern") -> DetectionResult:
         rule_id="r1",
         display_name=display_name,
         severity="critical",
-        action="block",
         category="security",
-        match_summary="sk-proj-abc123",
+        match_summary="chars:0-14",
     )
     return DetectionResult(blocked=True, matches=(match,))
 
@@ -71,9 +70,8 @@ class TestRecordInboundRiskHits:
             rule_id="r1",
             display_name="API Key",
             severity="critical",
-            action="block",
             category="security",
-            match_summary="sk-proj-abc123",
+            match_summary="chars:0-14",
         )
 
         mock_service = MagicMock()
@@ -108,9 +106,8 @@ class TestRecordInboundRiskHits:
             rule_id="r1",
             display_name="API Key",
             severity="critical",
-            action="block",
             category="security",
-            match_summary="sk-proj-abc123",
+            match_summary="chars:0-14",
         )
 
         with patch(

@@ -16,7 +16,7 @@
 ## 集成点
 
 - `message-box/ToolImageGallery.tsx` — Lightbox 顶部 toolbar 的"标注"按钮
-- `message-input-actions/AttachList.tsx` — 附件缩略图 hover「编辑」按钮
+- `message-input-actions/AttachList.tsx` — 附件缩略图「编辑」按钮（`REVEAL_ON_HOVER`：触屏常显，桌面悬停或键盘聚焦显示）
 - `artifacts/renderers/MediaPreview.tsx` — ImagePreview 悬浮"标注"按钮
 
 ## 依赖

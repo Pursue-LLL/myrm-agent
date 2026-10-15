@@ -5,6 +5,7 @@ types (POS: preamble 数据结构)
 app.ai_agents.agents::AgentFactory (POS: GeneralAgent 工厂)
 app.services.agent.session_credential_assembler (POS: 会话凭证装配)
 app.channels.routing.identity_scope::TurnMemoryScope (POS: 渠道 turn 记忆 compartment 解析)
+app.core.security.privacy_settings::privacy_agent_params (POS: 持久化隐私开关 → agent 隐私参数)
 
 [OUTPUT]
 build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）。
@@ -30,6 +31,7 @@ from app.channels.routing.identity_scope import TurnMemoryScope
 from app.channels.types import InboundMessage, ProgressUpdate
 from app.core.channel_bridge.config_loader import UserConfigs
 from app.core.channel_bridge.config_parsers import verify_search_service_available
+from app.core.security.privacy_settings import privacy_agent_params
 from app.core.types import MCPServerConfig
 from app.core.types.business import ModelConfig
 from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
@@ -257,6 +259,7 @@ async def build_channel_execution_agent(
         timezone=user_timezone,
         external_agents_config=extract_external_agents(configs.external_agents_dict),
         code_execution_allow_network=_extract_code_exec_network(memory_settings),
+        **privacy_agent_params(memory_settings),
         notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
         force_skill_manage=is_learn_skill_authoring_prompt(query),
         locale=resolve_message_locale(msg),

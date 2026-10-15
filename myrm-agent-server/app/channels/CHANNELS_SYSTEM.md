@@ -239,13 +239,15 @@ components: []
 
 **处理流程**：
 1. **去重**：message_id + TTL 防重复
-2. **命令检测**：`/stop` / `/new` / `/compact` / `/topic` / `/agent` / 审批命令
+2. **命令检测**：`/stop` / `/new` / `/compact` / `/topic` / `/agent` / `/draft` / 审批命令；系统命令默认仅 owner 可用，只有限定在发送者自己会话内的命令（`CommandDef.any_sender`，如 `/stop`、`/new`、`/help`）对所有发送者开放（见 `routing/_ARCH.md`）
 3. **策略解析**：DM/群聊策略 + 身份解析 + 群组启用检查
 4. **Debounce**：连发消息合并（SessionGate，默认 300ms 窗口）
 5. **入站附件增强**（`_handle_merged`，在 Agent 执行前）：语音转写 → 贴纸描述 → 视频元数据 → 图片 base64（`image_data_list`）→ **PDF/Office 文本**（`document_text_blocks`，受 `personalSettings.extractDocumentText` 控制，默认开启；解析复用 `services/files/content_extraction`）
 6. **并发控制**：`asyncio.Semaphore` 限制同时执行的 Agent 任务数
 7. **Agent 执行**：`AgentExecutor.execute_stream()` + CancellationToken；`build_channel_inbound_query` 将文档块拼入 user 正文
 8. **流式回复**：Placeholder 编辑 + 自适应节流 + 智能分块
+
+**Cron 事件触发**：命令检测之后、进入会话队列之前，入站文本会匹配 Cron 事件触发器（`core/cron/adapters/inbound_event_dispatch.py`）。事件触发会以所有者身份无人值守地启动任务，因此只对访问策略会放行的发送者生效：所有者与控制面转发始终放行；陌生人（ALLOWLIST/PAIRING 策略下）、已拉黑或待审批的配对、未启用的群聊（访客模式下直接 @ 机器人的消息除外，它按一次性请求放行）不会触发。判定由只读的 `routing/sender_admission.py` 完成（不绑定、不记账、不回复），查询失败即拒绝并记 WARNING（详见 `routing/_ARCH.md` 的 Event-Trigger Admission）。
 
 **前端联动**：设置 → 偏好 → **提取附件文本**（`extractDocumentText`）同步影响 Web 聊天、IM 渠道与看板任务附件。
 
@@ -273,9 +275,12 @@ Discord / Signal / Feishu / iMessage / **Mattermost** / **Matrix**）会把
 **审批按钮（ActionButton）**：审批请求以 `approval:{approve|deny}:{record_id}` 按钮发往 IM。
 目前只有 Telegram 入站解析器会把点击转成 `callback_prefix="act"` 的消息并交给
 `_handle_action_button_approval`，其他渠道的按钮点击不会进入该处理器，因此 owner 通知卡片
-只在 Telegram 附带按钮，其余渠道提示打开应用审核。被拦截的回复（`outbound_draft`）只有 owner
+只在 Telegram 附带按钮，其余渠道提示打开应用审核；被拦截的回复还会附上 `/draft approve <code>` /
+`/draft reject <code>`（`<code>` 为审批 ID 前 8 位，命令接受 6 位及以上），owner 可直接在聊天里决定。
+被拦截的回复（`outbound_draft`）只有 owner
 （控制面转发或 ADMIN 配对）可批准/拒绝，详见 `routing/_ARCH.md` 的 *ActionButton Callback Approval*
-与 *Owner Check*。
+与 *Owner Check*。无论由 WebUI、IM 按钮、批量审批还是 TTL 到期定案，发送或释放、关闭对话方会话里的
+“待审核”占位消息、发不出去时告知 owner，都由 `services/approvals/outbound_draft.py` 统一收尾。
 
 ---
 

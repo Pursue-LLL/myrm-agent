@@ -34,8 +34,6 @@ class BuiltExecutionUnit:
     skill_agent: SkillAgent
     browser_session: object | None = None
     desktop_session: object | None = None
-    checkpoint_helper: object | None = None
-    current_thread_id: str | None = None
 
     async def teardown(self) -> None:
         """Fully close resources when evicting or deleting a chat scope."""
@@ -67,6 +65,3 @@ class BuiltExecutionUnit:
             await self.skill_agent.close()
         except Exception:
             pass
-
-        self.checkpoint_helper = None
-        self.current_thread_id = None

@@ -15,7 +15,6 @@ from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from myrm_agent_harness.backends.skills.usage_recorder import (
     begin_skill_run_usage,
     commit_skill_run_usage,
-    flush_skill_usage_stats,
     get_injected_stats_collector,
     record_skill_selection,
     set_stats_collector,
@@ -199,7 +198,7 @@ async def test_usage_recorder_to_curator_via_api_client(
     )
 
     update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
-    collector = get_stats_collector()
+    get_stats_collector()  # wires the production collector into the run recorder
     begin_skill_run_usage()
     record_skill_selection(
         SkillMetadata(
@@ -209,7 +208,6 @@ async def test_usage_recorder_to_curator_via_api_client(
         ),
     )
     commit_skill_run_usage()
-    flush_skill_usage_stats()
 
     stats = json.loads((skill_dir / ".stats.json").read_text())
     assert stats["call_count"] == 1
@@ -217,7 +215,6 @@ async def test_usage_recorder_to_curator_via_api_client(
     # Age last_used_at on disk so sweep marks stale (recorder just wrote fresh timestamp)
     stats["last_used_at"] = old_date.isoformat()
     (skill_dir / ".stats.json").write_text(json.dumps(stats), encoding="utf-8")
-    collector._pending_updates.clear()  # noqa: SLF001 — force reload from disk
 
     from fastapi import FastAPI
 
@@ -276,3 +273,36 @@ async def test_sweep_spares_skill_bound_by_a_cron_job(curator_workspace: Path) -
     assert result.skipped_protected == 1
     assert json.loads((bound_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
     assert json.loads((free_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.STALE
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_archiving_a_skill_refreshes_warm_chats(
+    curator_workspace: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An archived skill must leave warm chats too, so a sweep that archives bumps the config version."""
+    from app.core.skills.config_version import get_skill_config_version
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path / "version-root"))
+    long_idle = (datetime.now(UTC) - timedelta(days=400)).isoformat()
+    skill_dir = _write_skill(
+        curator_workspace,
+        "long-idle",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": long_idle,
+            "created_at": long_idle,
+            "lifecycle_status": "stale",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "archive_after_days": 90, "grace_period_days": 0, "enabled": True})
+    assert get_skill_config_version() == 0.0
+
+    result = await run_curator_sweep(force=True, trigger="manual")
+
+    assert result.archived_count == 1
+    assert json.loads((skill_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ARCHIVED
+    assert get_skill_config_version() > 0.0

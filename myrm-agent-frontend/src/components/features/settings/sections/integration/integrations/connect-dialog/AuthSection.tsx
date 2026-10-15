@@ -16,11 +16,12 @@ import { useTranslations } from 'next-intl';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { IconExternalLink } from '../catalog-icons';
+import type { CatalogLocale } from '../catalog-locale';
 import type { CatalogEntry, CredentialField } from '../catalog-types';
 
 interface AuthSectionProps {
   entry: CatalogEntry;
-  locale: string;
+  locale: CatalogLocale;
   credentialFields: CredentialField[];
   credential: string;
   fieldValues: Record<string, string>;

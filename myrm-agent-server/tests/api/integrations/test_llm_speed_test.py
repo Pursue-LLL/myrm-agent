@@ -16,6 +16,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.integrations.llms import _ttft_sort_key
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
@@ -55,6 +56,21 @@ class TestSpeedTestSchema:
         """Invalid request body should return 422."""
         response = client.post("/api/v1/integrations/llm/speed-test", json={"invalid": True})
         assert response.status_code == 422
+
+
+class TestSpeedTestOrdering:
+    """Offline checks of the result order — no LLM required."""
+
+    def test_fastest_first_token_leads_and_runs_without_one_trail(self) -> None:
+        results: list[dict[str, object]] = [
+            {"model": "failed", "ttft_ms": None, "status": "error"},
+            {"model": "slow", "ttft_ms": 900, "status": "ok"},
+            {"model": "fast", "ttft_ms": 120, "status": "ok"},
+        ]
+
+        results.sort(key=_ttft_sort_key)
+
+        assert [item["model"] for item in results] == ["fast", "slow", "failed"]
 
 
 class TestSpeedTestErrorHandling:

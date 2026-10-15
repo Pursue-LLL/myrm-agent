@@ -26,7 +26,6 @@ import {
   ExternalLink,
   GitBranch,
   Paperclip,
-  Sparkles,
   User,
   ShieldAlert,
   ShieldCheck,
@@ -35,7 +34,6 @@ import {
 } from 'lucide-react';
 import { deriveTaskDecisionFrame } from '@/lib/kanban/kanbanDecisionFrame';
 import {
-  NEXT_STATUSES,
   OUTCOME_STYLES,
   EVENT_KIND_STYLES,
   PRIORITY_INDICATORS,
@@ -45,6 +43,7 @@ import {
   formatTime,
   type TaskDepInfo,
 } from './kanban-styles';
+import KanbanTaskCardActions from './KanbanTaskCardActions';
 import KanbanSpecifyDialog from './KanbanSpecifyDialog';
 import KanbanDecomposeDialog from './KanbanDecomposeDialog';
 import KanbanMarkdown from './KanbanMarkdown';
@@ -99,7 +98,6 @@ export default function KanbanTaskCard({
   const t = useTranslations('kanban');
   const agentName = useAgentName(task.agent_id);
   const decisionFrame = useMemo(() => deriveTaskDecisionFrame(task), [task]);
-  const [showActions, setShowActions] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [runs, setRuns] = useState<TaskRun[]>([]);
   const [events, setEvents] = useState<TaskEvent[]>([]);
@@ -250,8 +248,6 @@ export default function KanbanTaskCard({
       id={`kanban-task-${task.task_id}`}
       data-theme-shell="surface"
       className="relative group rounded-full border bg-background hover:shadow transition-shadow"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
     >
       <div className="p-2.5">
         <div className={cn('absolute left-0 top-2 bottom-2 w-0.5 rounded-full', PRIORITY_INDICATORS[task.priority])} />
@@ -259,6 +255,15 @@ export default function KanbanTaskCard({
         <div className="pl-2">
           <div className="flex items-start justify-between gap-1">
             <p className="text-sm font-medium leading-tight line-clamp-2 flex-1">{task.title}</p>
+            <KanbanTaskCardActions
+              task={task}
+              onMove={onMove}
+              onDelete={onDelete}
+              onReclaim={onReclaim}
+              onOpenTaskDrawer={onOpenTaskDrawer}
+              onSpecify={() => setSpecifyOpen(true)}
+              onDecompose={() => setDecomposeOpen(true)}
+            />
             <button
               onClick={toggleExpand}
               className="p-0.5 rounded hover:bg-muted shrink-0 text-muted-foreground text-xs"
@@ -447,56 +452,6 @@ export default function KanbanTaskCard({
             <p className="text-[9px] text-muted-foreground/70 mt-0.5">{t('openDetailsHint')}</p>
           )}
         </div>
-
-        {showActions && (
-          <div className="absolute top-1 right-6 flex gap-0.5">
-            {task.status === 'triage' && (
-              <>
-                <button
-                  onClick={() => setSpecifyOpen(true)}
-                  className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-colors inline-flex items-center gap-0.5"
-                  title={t('specifyHint')}
-                >
-                  <Sparkles className="w-2.5 h-2.5" />
-                  {t('specify')}
-                </button>
-                <button
-                  onClick={() => setDecomposeOpen(true)}
-                  className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors inline-flex items-center gap-0.5"
-                  title={t('decomposeHint')}
-                >
-                  <GitBranch className="w-2.5 h-2.5" />
-                  {t('decompose')}
-                </button>
-              </>
-            )}
-            {NEXT_STATUSES[task.status]?.map((ns) => (
-              <button
-                key={ns}
-                onClick={() => onMove(task.task_id, ns)}
-                className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted-foreground/20 transition-colors"
-                title={t(`moveTo.${ns}`)}
-              >
-                {t(`status.${ns}`)}
-              </button>
-            ))}
-            {task.status === 'running' && onReclaim && (
-              <button
-                onClick={() => onReclaim(task.task_id)}
-                className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                title={t('reclaimConfirm')}
-              >
-                {t('reclaimConfirm')}
-              </button>
-            )}
-            <button
-              onClick={() => onDelete(task.task_id)}
-              className="text-[10px] px-1.5 py-0.5 rounded hover:bg-destructive/10 text-destructive/60 hover:text-destructive transition-colors"
-            >
-              {t('deleteAction')}
-            </button>
-          </div>
-        )}
       </div>
 
       <KanbanSpecifyDialog
@@ -551,7 +506,7 @@ export default function KanbanTaskCard({
                         </div>
                         <button
                           onClick={() => handleRemoveDep(parent.task_id)}
-                          className="text-[9px] text-destructive/50 hover:text-destructive opacity-0 group-hover/dep:opacity-100 transition-opacity shrink-0"
+                          className="text-[9px] text-destructive/50 hover:text-destructive transition-opacity shrink-0 opacity-0 group-hover/dep:opacity-100 group-focus-within/dep:opacity-100 pointer-coarse:opacity-100"
                           title={t('removeDep')}
                         >
                           &times;

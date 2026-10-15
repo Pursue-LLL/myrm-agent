@@ -71,7 +71,7 @@ export interface ApprovalPayloadData {
   tournament?: boolean;
   tasks?: Array<{ agent_type: string; objective: string }>;
   draft_content?: string;
-  /** Held channel reply (outbound_draft): everything but the editable text. */
+  /** Held channel reply (outbound_draft): everything but the text, which is `draft_content`. */
   outbound?: { media?: OutboundDraftAttachment[] };
   channel?: string;
   recipient_id?: string;

@@ -3,14 +3,18 @@
 [INPUT]
 - app.services.integrations.oauth_store (POS: encrypted oauthCredentials persistence)
 - app.services.agent.session_credential_assembler::XAI_ISSUER (POS: canonical issuer key)
+- app.services.agent.oauth_token_policy::resolve_expires_at (POS: expiry of the issued access token)
 
 [OUTPUT]
-xAI OAuth API under /integrations/xai/oauth
+xAI device-code login API under /integrations/xai/oauth
+  - /start POST → request a device code
+  - /poll  POST → exchange the approved device code for tokens
 
 [POS]
 HTTP routes for xAI device-code OAuth. Allows SuperGrok subscribers to authorize
 access to xAI services (X Search, Image/Video Gen, TTS, STT) without an API Key.
 Tokens are persisted via the shared oauth_store infrastructure with auto-refresh.
+Connection status and disconnect are served by ``provider_oauth`` (/integrations/provider-oauth).
 """
 
 from __future__ import annotations
@@ -27,14 +31,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
+from app.services.agent.oauth_token_policy import resolve_expires_at
 from app.services.agent.session_credential_assembler import XAI_ISSUER
-from app.services.integrations.oauth_store import (
-    decrypt_oauth_credentials,
-    delete_oauth_credential,
-    is_oauth_issuer_connected,
-    load_oauth_credentials_row,
-    upsert_oauth_credential,
-)
+from app.services.integrations.oauth_store import upsert_oauth_credential
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +58,8 @@ class _DeviceCodePending(BaseModel):
     interval: int
 
 
+# Process-local: a login has to start and finish on the same server process. A poll that reaches a process
+# without the flow (restart, eviction, a second worker) answers 404.
 _pending_flows: dict[str, _DeviceCodePending] = {}
 
 
@@ -164,7 +165,6 @@ async def poll_xai_oauth(
             return success_response(data={"status": "pending", "error": "missing_token"})
 
         refresh_token = token_data.get("refresh_token", "")
-        expires_in = int(token_data.get("expires_in", 21600))
         scope = str(token_data.get("scope", XAI_OAUTH_SCOPE))
 
         await upsert_oauth_credential(
@@ -177,7 +177,7 @@ async def poll_xai_oauth(
                 "client_id": XAI_OAUTH_CLIENT_ID,
                 "user_id": "",
                 "scope": scope,
-                "expires_at": time.time() + expires_in,
+                "expires_at": resolve_expires_at(access_token, token_data.get("expires_in"), now=time.time()),
                 "base_url": XAI_OAUTH_BASE_URL,
             },
         )
@@ -193,52 +193,12 @@ async def poll_xai_oauth(
         return success_response(data={"status": "pending"})
     if error_code == "slow_down":
         return success_response(data={"status": "pending", "slow_down": True})
-    if error_code in ("expired_token", "access_denied"):
+    if error_code == "expired_token":
+        _pending_flows.pop(user_code, None)
+        return success_response(data={"status": "expired"})
+    if error_code == "access_denied":
         _pending_flows.pop(user_code, None)
         return success_response(data={"status": "denied", "error": error_code})
 
     logger.warning("xAI token poll unexpected response: %d %s", resp.status_code, body)
     return success_response(data={"status": "pending", "error": error_code or "unknown"})
-
-
-@router.get("/status")
-async def get_xai_oauth_status(db: AsyncSession = Depends(get_db)) -> JSONResponse:
-    """Return xAI OAuth connection status."""
-    connected = await is_oauth_issuer_connected(db, XAI_ISSUER)
-    if not connected:
-        return success_response(
-            data={
-                "issuer": XAI_ISSUER,
-                "connected": False,
-                "scope": None,
-                "expires_at": None,
-            }
-        )
-
-    row = await load_oauth_credentials_row(db)
-    if row is None:
-        return success_response(data={"issuer": XAI_ISSUER, "connected": False, "scope": None, "expires_at": None})
-
-    credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
-    cred_val = credentials.get(XAI_ISSUER)
-    if not isinstance(cred_val, dict):
-        return success_response(data={"issuer": XAI_ISSUER, "connected": False, "scope": None, "expires_at": None})
-
-    return success_response(
-        data={
-            "issuer": XAI_ISSUER,
-            "connected": True,
-            "scope": cred_val.get("scope"),
-            "expires_at": cred_val.get("expires_at"),
-        }
-    )
-
-
-@router.delete("")
-async def disconnect_xai_oauth(db: AsyncSession = Depends(get_db)) -> JSONResponse:
-    """Disconnect xAI OAuth credentials."""
-    deleted = await delete_oauth_credential(db, XAI_ISSUER)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="xAI SuperGrok is not connected")
-    logger.info("xAI OAuth disconnected")
-    return success_response(data={"issuer": XAI_ISSUER, "connected": False})

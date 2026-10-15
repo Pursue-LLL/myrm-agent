@@ -6,12 +6,10 @@ from .derive import router as derive_router
 from .fix import router as fix_router
 from .history import router as history_router
 from .pending import router as pending_router
-from .rejections import router as rejections_router
 
 router = APIRouter(prefix="/evolution", tags=["evolution"])
 
 router.include_router(pending_router)
-router.include_router(rejections_router)
 router.include_router(history_router)
 router.include_router(derive_router)
 router.include_router(fix_router)

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import type { SettingsTab } from '@/components/features/settings/SettingsMenu';
+import type { SettingsTab } from '@/components/features/settings/settingsRoutes';
 import useSettingsDirtyStore from '@/store/useSettingsDirtyStore';
 
 interface UseDirtyGuardOptions {

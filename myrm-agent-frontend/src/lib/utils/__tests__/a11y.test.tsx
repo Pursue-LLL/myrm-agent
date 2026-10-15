@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { activateOnKey } from '../a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '../a11y';
 
 function Fixture({ onClick }: { onClick: () => void }) {
   return (
@@ -79,5 +79,19 @@ describe('activateOnKey', () => {
 
     expect(onClick).not.toHaveBeenCalled();
     expect(notPrevented).toBe(true);
+  });
+});
+
+describe('REVEAL_ON_HOVER', () => {
+  it('默认透明，鼠标悬停、键盘聚焦、触屏、浮层打开四条路径各自能让控件可见', () => {
+    expect(REVEAL_ON_HOVER.split(' ').sort()).toEqual(
+      [
+        'data-[state=open]:opacity-100',
+        'group-focus-within:opacity-100',
+        'group-hover:opacity-100',
+        'opacity-0',
+        'pointer-coarse:opacity-100',
+      ].sort(),
+    );
   });
 });

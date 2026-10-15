@@ -15,17 +15,18 @@ from pathlib import Path
 from typing import TypeVar
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent
-_HARNESS_SRC = _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src"
+_HARNESS_SRC = _SERVER_ROOT.parent / "myrm-agent-harness" / "src"
 if _HARNESS_SRC.exists() and str(_HARNESS_SRC) not in sys.path:
     sys.path.insert(0, str(_HARNESS_SRC))
 
-# Re-exported shared fixtures from sub-tree conftests. pytest 9 requires
-# pytest_plugins at the top-level conftest only; the referenced modules define
-# explicit-request fixtures (db_session/fts_db) and an artifact-upsert autouse
-# mock that is inert for tests that never touch the artifact pipeline.
+# Shared fixtures re-exported to every suite. pytest 9 requires pytest_plugins at the
+# top-level conftest only; the referenced modules define explicit-request fixtures
+# (db_session/fts_db) and an artifact-upsert autouse mock that is inert for tests that
+# never touch the artifact pipeline. The first two are plain support modules: a conftest
+# that is also listed here is registered twice, and a run targeting its directory aborts.
 pytest_plugins = (
-    "tests.services.chat.conftest",
-    "tests.core.artifacts.conftest",
+    "tests.support.chat_db_fixtures",
+    "tests.support.artifact_upsert_fixture",
     "tests.api.agent.conftest",
 )
 
@@ -35,6 +36,7 @@ import pytest
 from blockbuster import BlockBuster
 from dotenv import load_dotenv
 
+from tests.support.e2e_fixture_stamps import FixtureStamps
 from tests.support.e2e_runtime_guard import (
     E2EResourceLedger,
     assert_e2e_runtime_unchanged,
@@ -88,7 +90,7 @@ def _prepend_monorepo_pythonpath() -> None:
     import sys
 
     candidates = (
-        _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src",
+        _SERVER_ROOT.parent / "myrm-agent-harness" / "src",
         _SERVER_ROOT / "src",
     )
     extra = [str(path) for path in candidates if path.is_dir()]
@@ -438,6 +440,36 @@ def _reset_subagent_checkpointer_if_loaded() -> None:
         module.reset_subagent_checkpointer()
 
 
+_OAUTH_STATE_REGISTRIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "app.services.agent.oauth_refresher",
+        ("_refresh_locks", "_reauth_emitted_at", "_rejected_refresh_tokens", "_retry_not_before"),
+    ),
+    ("app.services.agent.provider_oauth_tokens", ("_issued_tokens",)),
+)
+
+
+def _clear_oauth_token_state() -> None:
+    for module_name, registry_names in _OAUTH_STATE_REGISTRIES:
+        module = sys.modules.get(module_name)
+        if module is not None:
+            for registry_name in registry_names:
+                getattr(module, registry_name).clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_oauth_token_state() -> Iterator[None]:
+    """Forget OAuth refresh bookkeeping between tests.
+
+    Failure memory, reauth dedup and per-issuer locks are keyed by issuer name,
+    which tests reuse with different fake credentials; a rejection recorded by
+    one test must not short-circuit the refresh another test exercises.
+    """
+    _clear_oauth_token_state()
+    yield
+    _clear_oauth_token_state()
+
+
 @pytest.fixture(autouse=True)
 def _isolate_subagent_checkpointer() -> Iterator[None]:
     """Give every test its own sub-agent checkpointer.
@@ -569,7 +601,19 @@ def _chrome_e2e_epoch_pin(
         f"seeded={'yes' if outcome.seeded else 'no'} detail={outcome.detail}",
         flush=True,
     )
-    yield
+    try:
+        yield
+    finally:
+        try:
+            from e2e_core.epoch_backend_pool import release_epoch_backend_holder
+            from e2e_core.verify_backend_seed import _isolated_registry_root
+
+            release_epoch_backend_holder(
+                isolated_root=_isolated_registry_root(),
+                runtime_id=outcome.runtime_id,
+            )
+        except Exception:
+            pass
 
 
 @pytest.fixture(autouse=True)
@@ -650,6 +694,8 @@ def _require_live_e2e_lease(
         reap_chrome_e2e_session_hygiene,
     )
 
+    stamps = FixtureStamps()
+    stamps.mark("entry")
     runtime_cell_id: str | None = None
     _release_runtime_cell = None
     try:
@@ -660,12 +706,18 @@ def _require_live_e2e_lease(
         _release_runtime_cell = release_runtime_cell
     except ImportError:
         pass
+    stamps.mark("cell")
 
     try:
         _epoch_drift_entry_skip_if_shared(request)
+        stamps.mark("epoch_skip")
         reap_chrome_e2e_session_hygiene()
-        _heal_stale_e2e_lease()
+        stamps.mark("reap")
+        heal_branch = _heal_stale_e2e_lease()
+        stamps.mark("heal")
+        print(f"E2E_LEASE_HEAL: branch={heal_branch}", flush=True)
         lease = require_e2e_runtime_lease()
+        stamps.mark("lease")
 
         dev_infra = _SERVER_ROOT.parents[1] / "scripts/dev"
         if str(dev_infra) not in sys.path:
@@ -687,9 +739,13 @@ def _require_live_e2e_lease(
                 )
         except RuntimeError as exc:
             pytest.fail(str(exc))
+        stamps.mark("health")
         from e2e_core.orchestrator import begin_bootstrap_phase
 
+        stamps.mark("orchestrator_import")
         begin_bootstrap_phase(phase_label=request.node.name)
+        stamps.mark("phase")
+        stamps.emit()
         from e2e_session_runtime.snapshot import write_session_snapshot
 
         write_session_snapshot(

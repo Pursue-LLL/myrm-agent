@@ -26,17 +26,15 @@ def _make_session(
     is_long_running: bool = True,
     is_cancelled: bool = False,
     is_disconnected: bool = True,
-    durable_registered: bool = False,
     chat_id: str = "test-chat-123",
     message_id: str = "test-msg-456",
 ) -> MagicMock:
     session = MagicMock()
     session.is_long_running_task = is_long_running
     session.cancel_token.is_cancelled = is_cancelled
-    session.durable_registered = durable_registered
     session.had_fatal_error = False
     session.request.chat_id = chat_id
-    session.params.message_id = message_id
+    session.request.message_id = message_id
     session.params.project_id = None
     session.collector = MagicMock()
     session.http_request.is_disconnected = AsyncMock(return_value=is_disconnected)

@@ -7,7 +7,6 @@ safe messages pass through to command resolution / agent execution.
 
 from __future__ import annotations
 
-import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,6 +16,7 @@ from app.channels.types import InboundMessage
 from app.services.risk.detection import (
     RiskDetectionService,
     _CompiledRule,
+    compile_pattern,
 )
 
 
@@ -47,18 +47,16 @@ API_KEY_RULE = _CompiledRule(
     rule_id="r-apikey",
     display_name="API Key Leak",
     severity="critical",
-    action="block",
     category="credential",
-    compiled=re.compile(r"sk-[A-Za-z0-9]{20,}", re.DOTALL),
+    compiled=compile_pattern(r"sk-[A-Za-z0-9]{20,}"),
 )
 
 PHONE_RULE = _CompiledRule(
     rule_id="r-phone",
     display_name="CN Mobile",
     severity="high",
-    action="block",
     category="pii",
-    compiled=re.compile(r"1[3-9]\d{9}", re.DOTALL),
+    compiled=compile_pattern(r"1[3-9]\d{9}"),
 )
 
 

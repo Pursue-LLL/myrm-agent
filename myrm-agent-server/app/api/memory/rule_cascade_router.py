@@ -23,8 +23,6 @@ from app.schemas.rule_cascade import (
     PreFilteredEvidenceResponse,
     PreFilterEvidenceRequest,
     QueryCascadedRulesRequest,
-    RegisterRuleRequest,
-    RegisterRuleResponse,
 )
 from app.services.memory.rule_cascade_service import (
     RuleCascadeService,
@@ -34,19 +32,6 @@ from app.services.memory.rule_cascade_service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/rules", tags=["Deterministic Rule Cascade & Pre-Filter"])
-
-
-@router.post(
-    "/register",
-    response_model=RegisterRuleResponse,
-    summary="Register a deterministic engineering rule",
-)
-async def register_rule(
-    request: RegisterRuleRequest,
-    service: Annotated[RuleCascadeService, Depends(get_rule_cascade_service)],
-) -> RegisterRuleResponse:
-    """Register a deterministic engineering constraint across global, workspace, or directory scopes."""
-    return service.register_rule(request)
 
 
 @router.post(

@@ -23,7 +23,6 @@ from ..evolution_reviews import RuntimeFailureEvidence
 class SkillGrowthCaseSource(StrEnum):
     DRAFT = "draft"
     EVOLUTION = "evolution"
-    CONTINUAL = "continual"
 
 
 class SkillGrowthCaseStatus(StrEnum):
@@ -54,7 +53,6 @@ class SkillGrowthCaseSummaryRead:
     summary: str
     description: str | None
     confidence: float | None
-    test_passed: bool | None
     apply_status: str | None
     apply_error: str | None
     reason_code: str | None
@@ -70,9 +68,6 @@ class SkillGrowthCaseSummaryRead:
     verification_proof: dict[str, object] | None = None
     target_layer: str | None = None
     target_pathology: str | None = None
-    prediction_manifest: dict[str, object] | None = None
-    attribution_result: dict[str, object] | None = None
-    proxy_alignment: dict[str, object] | None = None
     security_scan_summary: dict[str, object] | None = None
 
 
@@ -92,7 +87,6 @@ class SkillGrowthCaseDetailRead:
     original_content: str | None
     proposed_content: str | None
     confidence: float | None
-    test_passed: bool | None
     apply_status: str | None
     apply_error: str | None
     reason_code: str | None
@@ -105,9 +99,6 @@ class SkillGrowthCaseDetailRead:
     verification_proof: dict[str, object] | None = None
     target_layer: str | None = None
     target_pathology: str | None = None
-    prediction_manifest: dict[str, object] | None = None
-    attribution_result: dict[str, object] | None = None
-    proxy_alignment: dict[str, object] | None = None
     security_scan_summary: dict[str, object] | None = None
 
 

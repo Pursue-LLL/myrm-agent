@@ -490,9 +490,8 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         original.verification_steps.append({"step": "run", "expected": "ok"})
         store._save_skill_sync(original)  # noqa: SLF001 - harness 同步落盘入口，避免引入 event loop
         skill_dir = store.db_path.parent / "skills" / existing_skill_id
-        collector = SkillStatsCollector(skill_dir.parent)
+        collector = SkillStatsCollector()
         collector.record_use(skill_dir, success=True)
-        collector.flush()
     finally:
         reset_evolution_skill_store()
 
@@ -547,7 +546,7 @@ def test_batch_import_replace_preserves_evolution_metadata() -> None:
         assert replaced.lineage.version == 3
         assert replaced.is_active is False
         assert replaced.evolution_locked is True
-        replaced_stats = SkillStatsCollector(skill_dir.parent).get_stats(skill_dir)
+        replaced_stats = SkillStatsCollector().get_stats(skill_dir)
         assert (replaced_stats.call_count, replaced_stats.success_count) == (1, 1)
         assert replaced.verification_steps == [{"step": "run", "expected": "ok"}]
         assert len(replaced.eval_cases) == 1

@@ -18,12 +18,12 @@ from myrm_agent_harness.agent.security.approval_flow import (
     get_allowlist,
 )
 
-from app.services.chat.chat_crud import _ChatCrudMixin
+from app.services.chat import chat_disposal
 
 
 @pytest.mark.asyncio
-async def test_cleanup_checkpointer_purges_session_allowlist_and_denial_counter() -> None:
-    """_cleanup_checkpointer must purge session-scoped allowlist grants and reset denial counters."""
+async def test_clear_conversation_state_purges_session_allowlist_and_denial_counter() -> None:
+    """clear_conversation_state must purge session-scoped allowlist grants and reset denial counters."""
     user_id = "sandbox"
     target_chat = "chat_test_purge_101"
     other_chat = "chat_test_preserve_202"
@@ -59,7 +59,7 @@ async def test_cleanup_checkpointer_purges_session_allowlist_and_denial_counter(
     mock_cp.adelete_thread = AsyncMock()
 
     with patch("app.platform_utils.get_checkpointer", return_value=mock_cp):
-        await _ChatCrudMixin._cleanup_checkpointer(target_chat)
+        await chat_disposal.clear_conversation_state(target_chat)
 
     # 4. Verify target chat grants are purged, other chat remains intact
     assert al.check(user_id, "shell_exec", "bash_test", session_id=target_chat) is False

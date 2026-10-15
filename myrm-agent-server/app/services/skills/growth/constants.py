@@ -12,9 +12,9 @@ Single source of truth for skill-growth approval action_type strings shared by
 drafts API queries and approval registry global-recovery filtering.
 """
 
-GROWTH_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch", "semantic_memory", "continual_overlay")
+GROWTH_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch", "semantic_memory")
 
-LEDGER_GROWTH_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch", "continual_overlay")
+LEDGER_GROWTH_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch")
 
 
 def is_background_growth_approval(action_type: str, thread_id: str | None) -> bool:

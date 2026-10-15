@@ -45,7 +45,7 @@ class PendingEvolutionSummaryResponse(BaseModel):
     evolution_type: str
     reason: str
     confidence: float
-    test_passed: bool
+    test_passed: bool | None
     status: str
     approval_status: str
     apply_status: str
@@ -57,8 +57,6 @@ class PendingEvolutionSummaryResponse(BaseModel):
     chat_id: str | None = None
     created_at: str
     impacted_dependents: list[str] = Field(default_factory=list)
-    prediction_manifest: dict[str, object] | None = None
-    attribution_result: dict[str, object] | None = None
     security_scan_summary: dict[str, object] | None = None
 
 
@@ -95,8 +93,6 @@ def _summary_from_record(
         chat_id=record.chat_id,
         created_at=record.created_at.isoformat(),
         impacted_dependents=impacted_dependents or [],
-        prediction_manifest=(record.change_manifest if isinstance(record.change_manifest, dict) else None),
-        attribution_result=(record.attribution_result if isinstance(record.attribution_result, dict) else None),
         security_scan_summary=(record.security_scan_summary if isinstance(record.security_scan_summary, dict) else None),
     )
 
@@ -125,10 +121,6 @@ class RejectEvolutionRequest(BaseModel):
     reason: str | None = None
 
 
-class ApproveEvolutionRequest(BaseModel):
-    apply_mode: str = "immediate"
-
-
 class ReviseEvolutionRequest(BaseModel):
     evolved_content: str
 
@@ -141,13 +133,9 @@ async def count_pending_evolution_records() -> int:
     return await count_evolution_review_records(pending_only=True)
 
 
-async def approve_pending_evolution_record(
-    evolution_id: str,
-    *,
-    apply_mode: str = "immediate",
-) -> EvolutionReviewRecord:
+async def approve_pending_evolution_record(evolution_id: str) -> EvolutionReviewRecord:
     try:
-        return await approve_evolution_review_record(evolution_id, apply_mode=apply_mode)
+        return await approve_evolution_review_record(evolution_id)
     except EvolutionApplyError as exc:
         if "not found" not in str(exc).lower():
             latest_record = await get_evolution_review_record(evolution_id)
@@ -193,14 +181,8 @@ async def get_pending_evolution(evolution_id: str) -> PendingEvolutionDetailResp
 
 
 @router.post("/pending/{evolution_id}/approve")
-async def approve_pending_evolution(
-    evolution_id: str,
-    request: ApproveEvolutionRequest | None = None,
-) -> dict[str, str | None]:
-    apply_mode = request.apply_mode if request is not None else "immediate"
-    if apply_mode not in {"immediate", "shadow"}:
-        raise HTTPException(status_code=400, detail="apply_mode must be 'immediate' or 'shadow'")
-    record = await approve_pending_evolution_record(evolution_id=evolution_id, apply_mode=apply_mode)
+async def approve_pending_evolution(evolution_id: str) -> dict[str, str | None]:
+    record = await approve_pending_evolution_record(evolution_id)
     await record_experience_event(
         ExperienceLedgerWrite(
             event_type=ExperienceEventType.REVIEW_APPROVED,

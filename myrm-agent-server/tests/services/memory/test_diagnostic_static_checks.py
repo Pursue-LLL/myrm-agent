@@ -37,7 +37,6 @@ def _runtime(
 ) -> MemoryCommandRuntimeStatus:
     return MemoryCommandRuntimeStatus(
         deploy_mode="local",
-        storage_mode="local",
         memory_base_path="/tmp/memory",
         relational_status=relational_status,
         vector_status=vector_status,

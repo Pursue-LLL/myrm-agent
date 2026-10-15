@@ -10,7 +10,7 @@
 | -------------- | --------------------- | ---------------------------------------------------------------------------------- |
 | `personal/`    | personal              | 账户、偏好、个性化                                                                 |
 | `ai-core/`     | ai-core               | 模型、搜索、Agent（含 `agent/` 子组件）                                            |
-| `ai-tools/`    | ai-tools              | MCP、技能、工具质量                                                                |
+| `ai-tools/`    | ai-tools              | MCP、技能、工具稳定性                                                              |
 | `knowledge/`   | knowledge             | 记忆、Wiki（含 `wiki/`）、迁移向导                                                 |
 | `integration/` | integration           | 凭证、外部 Agent、浏览器扩展桥、渠道（含 `channels/`、`integrations/`）            |
 | `system/`      | system                | 安全、健康、开发者、关于（见 [system/_ARCH.md](system/_ARCH.md)）                  |

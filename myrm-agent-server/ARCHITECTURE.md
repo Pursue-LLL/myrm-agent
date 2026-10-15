@@ -101,7 +101,7 @@
 | `app/config/`         | 配置层       | 环境变量、设置、部署模式检测、预检                                                                                               |
 | `tests/`              | 测试套件     | 单元/集成/API 测试；默认 `pytest -m 'not e2e'`；WebUI E2E 用 MCP chrome-devtools（禁止 `@playwright/test`）；CI 见 `scripts/ci/run_default_tests.sh`                                                                                                     |
 | `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁（`check_fractal_docs.py`：`--strict-headers` + `--no-stub`；见 `scripts/ci/run_architecture_gates.sh`） |
-| `docker/`             | 容器构建     | Server runtime：`Dockerfile.official`（源码双 wheel）；`../Dockerfile`（PyPI / 预构建 wheel）；`sandbox/` 技能沙箱镜像 |
+| `docker/`             | 容器构建     | Server runtime：`../Dockerfile`（自托管）与 `Dockerfile.official`（云托管，非 root），均由仓库内 harness 源码构建 wheel；`sandbox/` 技能沙箱镜像 |
 | `deployments/`        | 部署配置     | Prometheus 规则等运维配置                                                                                                        |
 | `searxng/`            | 搜索引擎配置 | SearXNG 搜索引擎部署配置                                                                                                         |
 
@@ -174,7 +174,7 @@
 - **Server API**：`app/api/extension/` — `ws://…/api/v1/ws/extension` 持久连接（`chrome-extension://` origin 守卫；remote 模式强制 token）；REST `/api/v1/extension/status|domains|tabs|disconnect|setup-hints`。
 - **服务层**：`app/services/extension/bridge.py` — 连接生命周期、`hello.capabilities` 四动作合同门禁（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、`ExtensionStatus.handshake_ready` 握手可见性、extension 模式 CDP relay fail-closed（无 local direct CDP fallback）、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
 - **认证**：`settings.extension_auth_token`（SecretStr）；WS 查询参数 `token` 校验，remote 模式未配置 token 时拒绝连接。
-- **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制、Token/CDP 状态、握手三态与 relay 能力矩阵）；API 客户端 `src/services/extension.ts`（**`apiRequest('/extension/...')` 相对路径**，禁止 `getApiUrl()` 二次前缀）。Tab 路由 SSOT：`page.tsx` `VALID_TABS` + `SettingsLayout.tsx` `BASE_TABS` + `SettingsMenu` + `locales/*/metadata.settingsTabs`。
+- **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制、Token/CDP 状态、握手三态与 relay 能力矩阵）；API 客户端 `src/services/extension.ts`（**`apiRequest('/extension/...')` 相对路径**，禁止 `getApiUrl()` 二次前缀）。Tab 路由 SSOT：前端 `settingsRoutes.ts`（`SETTINGS_TABS` / `SETTINGS_TAB_REDIRECTS`），`page.tsx`、`SettingsLayout.tsx`、`SettingsMenu` 均由它派生；`locales/*` 的 `metadata.settingsTabs` / `settings.menu` 由 `verify-i18n` 对账，服务端写死的 `/settings/<tab>` 深链由 `tests/architecture/test_settings_deep_links.py` 守门。
 
 ### 0.09 Harness 集成契约（Integration Contract）
 
@@ -195,7 +195,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 | --- | --- | --- |
 | **禁止 inversion** | `app/core/`、`app/services/`、`app/lifecycle/` **不得** import `app.api.*`（DTO、Depends、router 模块状态） | `tests/architecture/test_no_core_services_api_imports.py` |
 | **共享 DTO** | HTTP 与 services 共用的 Pydantic 模型放在 `app/schemas/` | 例：`schemas/security/dashboard.py` |
-| **跨层单例** | 进程级 registry / store 放在 `core/*`、`channels/storage/*` 或 `services/*/bootstrap.py`，**不得**挂在 router 模块上 | 例：`login_session_registry.py`、`route_registry.py` |
+| **跨层单例** | 进程级 registry / store 放在 `core/*`、`channels/storage/*` 或 `services/*/bootstrap.py`，**不得**挂在 router 模块上 | 例：`login_session_registry.py` |
 | **API 层职责** | `app/api/` 仅做路由、Depends 装配、请求/响应映射；业务编排调用 `services/` | `tests/architecture/test_api_services_vocabulary.py` |
 
 违反上述规则会导致：lifecycle 清理 job 依赖 router 懒加载、services 单测被迫 import FastAPI 包、OpenAPI DTO 与业务层双路径漂移。
@@ -204,14 +204,14 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 
 在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：
 
-- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`myrm-agent-harness[...,computer-use]`（`litellm`/`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、monorepo `install_harness.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
+- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`regex>=2026.4.4`（风险规则引擎对每条规则的单次匹配设时间预算，标准库 `re` 做不到）、`myrm-agent-harness[...,computer-use]`（`litellm`/`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、dev `setup.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
 - **执行运行时绘图栈隔离**：`matplotlib`/`pandas`（`data-viz` extra 锁定 pandas 2.3.x，避开 yanked 的 3.0.4）收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
 - **动态监控隔离 (Metrics)**：`/metrics` 路由、内存直方图、数据库连接池采集器在 **local 与 sandbox 默认均关闭**；仅当 `METRICS_ENABLED=true` 时启用（见 `app/core/monitoring/__init__.py` + `DeploymentCapabilities.default_metrics_enabled`）。
 - **全链路追踪纯净化 (Tracing)**：依赖 Harness 层的 No-Op 降级机制，Server 层在本地模式下绝不初始化 OpenTelemetry SDK，彻底消除不必要的后台序列化与网络发送开销。
 
 ### 0.1 统一本地存储架构 (Unified Local Storage)
 
-无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup/backup_remote.py` lazy import）及沙箱存储适配，未配置 S3 时不加载。
+无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup/backup_remote.py` lazy import），未配置 S3 时不加载。
 
 **持久化分层（Agent-in-Sandbox）**：
 
@@ -229,14 +229,11 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 针对单机环境（Sandbox/Local）中可能存在的跨进程资源竞争，系统拒绝引入 Redis 等外部锁服务，转而采用 **OS 原生文件锁 (File Locks)** 实现「精钢级」并发安全：
 
 - **跨进程互斥**：使用 `fcntl.flock` 实现内核级文件锁，确保多个 Server 实例或 Cron 进程在访问同一技能文件、SQLite WAL 日志时，具备微秒级的互斥性能且零基础设施开销。
-- **无感适配**：通过 `StandaloneLockProvider` 桥接 `myrm-agent-harness` 锁协议，实现业务逻辑对多进程安全性的透明支持。
-
 ### 0.3 LLM 前缀缓存优化 (LLM Prefix Caching Optimization)
 
 为了极致降低持续进化的 LLM 调用成本（减少 90%+ 成本及延迟）：
 
 - **稳定前缀架构**：遵循「指令首发、数据居中、采样垫后」的 Prompt 构建原则，确保 Agent 优化指令等高频、大体积文本在 LLM 侧被高效识别为 **Prompt Cache Prefix**。
-- **冷热数据分离**：在 `SkillOptimizer` 提示词中，将高变动的性能遥测数据（Success Rate, Tokens）放置在 prompt 尾部，从而最大化静态指令集的缓存命中率。
 - **Context Health 聚合**：`app/api/statistics/context_health.py` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。
 - **入账 Human 路由一致性**：`app/core/utils/delivery_provenance.py`。Server 在 GeneralAgent **`stream_pipeline`：INFO 记下 `general_agent_delivery_labels`** 后以 `apply_delivery_banner` 落横幅；FastLane/DeepResearch（`general_agent/streaming`，`apply_general_agent_pipeline_banner`/`params.channel_name`）；Fast Search 通过 `prompt_mode="search"` 统一走 GeneralAgent 路径（等价 `web_chat`→GUI 横幅）；IM `prepend_plain_banner`；Headless wakeup（`services/agent/wakeup_handler.py` 将 **`channel_name=headless_wakeup`** 且 **`memory_channel_id` 缺省时锁 `web_chat`**，防记忆命名空间漂移）。`web_chat` 仍映射 http_gui/browser_sse；`cron`/`eval`/其它见 `resolve_general_agent_pipeline_labels`。用户以 `[use skill]` 显式调用技能时，横幅落在该标签之后（`decorate_behind_skill_tag`，harness 只认位于文本最开头的标签）。
 
@@ -244,13 +241,9 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 为了支持 Agent 技能的持续迭代与安全灰度：
 
-- **无感上下文追踪 (Context Tracking)**：利用 `ContextVar` 实现跨 Harness 和 Server 的版本号随路追踪，确保每一笔请求的来源版本可回溯、可审计，性能损耗控制在微秒级。
-- **零风险影子验证 (Shadow Testing)**：`ShadowTester` 引擎是纯粹的"执行+比对"引擎，利用沙箱的 `isolated_mode` 在后台静默执行候选版本，返回 `ShadowTestResult` 而不操作 DB。所有副作用在影子模式下均被自动拦截或 Mock。
-- **托管队列 (Managed Queue)**：`ABTestManager` 作为中枢控制器，通过 `asyncio.Queue` + worker pool 统一管理影子测试的调度、重试（指数退避）、优雅关机，替代裸 `create_task` 的不可靠方式。
-- **智能判官 (Result Comparator)**：Harness 层提供 `ResultComparator` Protocol + `StructuredComparator`（JSON 结构化 + Jaccard 文本相似度，零 LLM 成本）；Server 层实现 `SemanticComparator`（基于原始分数均值判断是否触发 LLM 语义判定，仅在 local_avg < 0.7 且 > 0.1 的中间地带调用 LLM）。
-- **侧边比对证据链 (Side-by-Side Evidence)**：`ShadowSampleModel` 记录真实请求下的输入输出快照，包含 `similarity_score` 和 `diff_summary`。前端 `SkillQualityGuardian` 展示 SimilarityBar、diff 摘要、可展开 JSON diff，支持数据驱动的版本晋升。
-- **原子计数与保留策略**：`atomic_increment_sample_size` 确保并发安全；分歧样本 100% 保留，一致样本 20% 采样；`cap_samples_per_test` 优先保留分歧样本；`cleanup_old_samples` 按 TTL 清理已完成测试。
-- **Auto-Promote**：样本量达标 + 成功率 > 95% + 延迟无回归时自动转正，通过 EventEmitter 通知前端。
+- **版本快照双写 (Dual-Write Snapshots)**：每次技能写入由 `write_orchestrator` 落 DB `skill_versions` 快照并原子同步磁盘 `SKILL.md`；`VersionAwareSkillBackend` 仅在载入技能正文时返回激活快照，系统提示词中的技能清单不经版本路由，前缀稳定、Prompt Cache 不受影响。
+- **回归守卫与安全扫描**：进化变体先经 harness 基线相对回归门（仅原版通过的 EvalCase 计入守卫，丢失按比例扣分，守卫用例全部丢失才淘汰），再经安全扫描；审批卡片只展示实际执行过的扫描结果（未扫描即无结论），由用户决定是否应用。
+- **原子应用与一键回滚**：应用前写前快照，`/skill-optimization/rollback/{skill_id}` 与 `/skill-optimization/mutations/{batch_id}/rollback` 分别回到指定版本与撤销整批技能修改。
 - **技能免疫闭环**：订阅 Harness `SkillFailureEvent`，在 Server 单机业务层完成运行时失败分类、幂等去重、修复提案生成与 GUI 审批落地，Control Plane 不参与技能业务。
 
 ### 0.5 Shared Context 共享记忆治理 (Shared Memory Governance)
@@ -261,7 +254,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 - **运行时解析**：Web、Channel、Cron、Eval 入口在创建 Agent 前解析 Shared Context 绑定，通过 `memory_shared_context_ids` 下传给 GeneralAgent，再由 memory adapter 追加到 recall namespaces。
 - **写入安全**：共享记忆默认走 proposal_required 流程，批准后由 `SharedContextProposalMaterializer` 幂等写入对应 shared namespace，并携带 proposal/source 审计元数据；私有记忆仍写入 agent/channel/conversation/task 边界，避免共享上下文污染个人记忆。
 - **隐式反馈纠错**：`correction_propagation.py::make_correction_propagation_callback` 在会话结束时通过两阶段管道检测用户纠正信号（Stage 1: regex 快速筛 → Stage 2: LLM 隐式矛盾检测），由 `strategies/implicit_feedback.py` 生成结构化 `CorrectionProposal`（add/update/delete），双目标路由：①Agent 个人记忆 → 先召回相关记忆作为 planner 目标上下文，再经 `MemoryManager.submit_pending` 写入 Harness `pending_records` 审批队列（`resolution_action` 分派 STORE/CORRECT/DELETE，与记忆 Governance 面同一真相源；批准 DELETE 即归档目标记忆（回收站可恢复），审批者可改写提案文本）；②绑定的 SharedContext → 写入提案（仅 add/update 且为语义/情景类型；policy `correction_auto_approve` 控制自动物化）。以 `chat_id:content_hash` 作为 proposal source_id 实现幂等 dedup。实现"Agent 从对话信号自我纠错，纠正一个 Agent 所有 Agent 同步学习"。
-- **Goal 完成决策归档**：`goal_registry.py::ServerGoalManager._consolidate_decisions_on_completion` 在 Goal COMPLETE 时从 `planner_` 前缀 Planner 存储读取 `DecisionRecord`，通过 `_resolve_shared_context_ids_for_goal`（agent_id + web_chat + conversation_id）解析绑定，为 SharedContext 创建 `goal_completion` 写入提案（同 goal_id 幂等 dedup）；当 policy 的 `goal_completion_auto_approve=true` 时由 `SharedContextProposalMaterializer` 自动物化并推送 `memory_operation` toast，否则进入 Proposal Inbox；失败时发布 `goal_completion_consolidation_failed` event。实现跨 Agent 架构决策持久共享。
+- **Goal 完成交付物汇总**：`goal_registry.py::ServerGoalManager._collect_deliverables_on_completion` 在 Goal COMPLETE 时汇总本会话未删除的 Artifact（id 与文件名），写入 `goal.metadata["deliverables"]` 并保存，供前端交付物 bundle 展示；汇总失败只记 warning，不影响 Goal 状态流转。
 - **历史证据提升**：`app/services/memory/shared_context/shared_context_history.py` 复用 ChatService 的 FTS5 会话搜索，把用户选中的历史消息转换为可审批写入提案，而不是直接污染共享记忆。
 - **历史会话召回**：`app/services/chat/conversation_search_service.py` 实现 Harness `ConversationSearchProtocol`，按当前 `chat_id` 排除本会话，并用 Server scope policy 和 `agent_id` 做硬过滤/排序加权；FTS5 命中来自消息段索引并同时带出 `compacted_summary`，空查询返回最近会话列表，semantic 路径必须经 Server 索引 hydration 后才返回可核验 snippet/source_ref，并与 FTS/recent/消息级历史搜索共享 active、excluded、scope/source/fork lineage 过滤。
 - **外部记忆导入治理**：`app/services/memory/imports/import_sessions.py` 持久化 dry-run 审查会话、payload hash、过期时间、normalized data 和 plan hash；确认导入只接受 `dry_run_id` 并校验计划一致性，写入时追加 `import_batch_id/import_source/import_payload_hash/import_item_id` 元数据，并把实际写入 id 映射为 item-level transaction ledger。服务端记录 profile 导入前后 revision snapshot，确认后自动运行内容安全 Memory Doctor 并回写迁移来源；回滚前提供 dry-run 摘要和 profile revision 覆盖风险提示，确认后先持久化 rollback journal，再按 `dry_run_id` 或 `import_batch_id` 删除本批次 semantic/episodic/conversation/procedural 记忆并恢复 profile，启动预热会恢复未完成回滚，回滚响应返回 deleted/missing/forbidden/failed refs 和完整性状态，已完成审查会话按保留窗口清理。Command Center 通过 adapter registry 展示 native-json/agentmemory 等来源状态、最近导入批次、自动诊断状态、导入审查清理指标、导入后验证建议和回滚预演入口，metadata-only plane summary 暴露导入回滚健康计数供控制平面读取。

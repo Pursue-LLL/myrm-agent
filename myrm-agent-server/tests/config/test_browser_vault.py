@@ -6,6 +6,7 @@
 - BV3: agent vault 按 agent_id 子目录隔离
 - BV4: agent vault 缓存复用
 - BV5: cleanup_all_agent_vaults 遍历所有子目录
+- BV6: cleanup_all_vaults 用真实加密文件 vault 清理全局与全部 agent vault 的过期 session
 """
 
 from pathlib import Path
@@ -225,3 +226,48 @@ class TestCleanupAllAgentVaults:
 
         assert total == 5
         mock_cls.assert_not_called()
+
+
+class TestCleanupAllVaults:
+    def setup_method(self) -> None:
+        vault_module._global_vault = None
+        vault_module._agent_vaults.clear()
+
+    def teardown_method(self) -> None:
+        vault_module._global_vault = None
+        vault_module._agent_vaults.clear()
+
+    @pytest.mark.asyncio
+    async def test_removes_expired_sessions_and_keeps_live_ones_in_every_vault(self, tmp_path: Path) -> None:
+        """Real encrypted vaults: expired sessions go from the global vault, cached and uncached agent vaults."""
+        mock_settings = MagicMock()
+        mock_settings.database.state_dir = str(tmp_path)
+
+        with patch("app.config.settings.settings", mock_settings):
+            global_vault = vault_module.get_global_session_vault()
+            cached_agent_vault = vault_module.get_agent_session_vault("agent_cached")
+            await global_vault.save("global-expired.test", {"cookies": []}, ttl_days=-1)
+            await global_vault.save("global-live.test", {"cookies": []})
+            await cached_agent_vault.save("cached-expired.test", {"cookies": []}, ttl_days=-1)
+            await cached_agent_vault.save("cached-live.test", {"cookies": []})
+
+            # An agent vault that exists only on disk, as after a server restart
+            restarted_agent_vault = vault_module.get_agent_session_vault("agent_restarted")
+            await restarted_agent_vault.save("restarted-expired.test", {"cookies": []}, ttl_days=-1)
+            await restarted_agent_vault.save("restarted-live.test", {"cookies": []})
+            del vault_module._agent_vaults["agent_restarted"]
+
+            removed = await vault_module.cleanup_all_vaults()
+
+            assert removed == 3
+            assert set(await global_vault.list_domains()) == {"global-live.test"}
+            assert set(await cached_agent_vault.list_domains()) == {"cached-live.test"}
+            assert set(await vault_module.get_agent_session_vault("agent_restarted").list_domains()) == {"restarted-live.test"}
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_nothing_is_saved(self, tmp_path: Path) -> None:
+        mock_settings = MagicMock()
+        mock_settings.database.state_dir = str(tmp_path)
+
+        with patch("app.config.settings.settings", mock_settings):
+            assert await vault_module.cleanup_all_vaults() == 0

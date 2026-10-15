@@ -36,18 +36,6 @@ async def save_node(
         raise HTTPException(status_code=400, detail=str(err)) from err
 
 
-@router.get("/nodes/{node_id}", response_model=TemporalEntityNodeDTO)
-async def get_node(
-    node_id: str,
-    service: TemporalGraphService = Depends(get_temporal_graph_service),
-) -> TemporalEntityNodeDTO:
-    """Retrieves an entity node by ID."""
-    node = service.get_node(node_id)
-    if node is None:
-        raise HTTPException(status_code=404, detail=f"Entity node '{node_id}' not found")
-    return node
-
-
 @router.get("/nodes", response_model=list[TemporalEntityNodeDTO])
 async def list_nodes(
     entity_type: str | None = Query(default=None, description="Optional entity type filter"),
@@ -80,18 +68,6 @@ async def save_fact_edge(
         raise HTTPException(status_code=400, detail=str(err)) from err
 
 
-@router.get("/edges/{edge_id}", response_model=TemporalFactEdgeDTO)
-async def get_edge(
-    edge_id: str,
-    service: TemporalGraphService = Depends(get_temporal_graph_service),
-) -> TemporalFactEdgeDTO:
-    """Retrieves a relationship edge by ID."""
-    edge = service.get_edge(edge_id)
-    if edge is None:
-        raise HTTPException(status_code=404, detail=f"Fact edge '{edge_id}' not found")
-    return edge
-
-
 @router.get("/edges", response_model=list[TemporalFactEdgeDTO])
 async def list_edges(
     predicate: str | None = Query(default=None, description="Optional predicate filter"),
@@ -112,7 +88,6 @@ async def get_lineage(
     return service.get_lineage(edge_id)
 
 
-@router.get("/facts/search", response_model=list[TemporalFactHitDTO])
 @router.get("/query", response_model=list[TemporalFactHitDTO])
 async def query_facts(
     source_id: str | None = Query(default=None, description="Optional source entity filter"),

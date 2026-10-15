@@ -100,11 +100,7 @@ export default function DailyReviewCard() {
           className="w-full sm:w-auto"
           data-testid="daily-review-submit-btn"
         >
-          {submitting ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <NotebookPen className="w-4 h-4" />
-          )}
+          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <NotebookPen className="w-4 h-4" />}
           {submitting ? t('dailyReview.submitting') : t('dailyReview.submitButton')}
         </Button>
 
@@ -115,14 +111,11 @@ export default function DailyReviewCard() {
         )}
 
         {result && (
-          <div
-            className="rounded-lg border border-border/60 bg-muted/40 p-4 text-sm"
-            data-testid="daily-review-result"
-          >
+          <div className="rounded-lg border border-border/60 bg-muted/40 p-4 text-sm" data-testid="daily-review-result">
             {result.skipped ? t('dailyReview.skipped') : t('dailyReview.staged')}
             {!result.skipped && (
               <Link
-                href="/settings/knowledge?wikiTab=pendingEdits"
+                href="/settings/wiki?wikiTab=pendingEdits"
                 className="ml-2 font-medium text-primary underline-offset-4 hover:underline"
                 data-testid="daily-review-goto-pending"
               >

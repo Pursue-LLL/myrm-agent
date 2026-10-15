@@ -129,19 +129,19 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.TOOL_IMAGE_OUTPUT) {
-    const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-    if (messageIndex === -1) {
-      return done(ctx);
-    }
-
-    const message = state.messages[messageIndex];
     const imgEntry: import('@/store/chat/types').ToolImageOutput = {
       ...(data.data.base64 ? { base64: data.data.base64 } : {}),
       ...(data.data.url ? { url: data.data.url } : {}),
       mimeType: data.data.mime_type,
       toolName: data.tool_name,
     };
-    message.toolImages = [...(message.toolImages ?? []), imgEntry];
+    actions.setMessages((draft) => {
+      const messageIndex = H.findAssistantMessageIndex(draft.messages, data.messageId);
+      if (messageIndex !== -1) {
+        const message = draft.messages[messageIndex];
+        message.toolImages = [...(message.toolImages ?? []), imgEntry];
+      }
+    });
     return done(ctx);
   }
 

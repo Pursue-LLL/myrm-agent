@@ -2,7 +2,7 @@
 // Run: node --test scripts/dev/chrome-agent/tests/request-watch.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RequestWatch } from '../request-watch.mjs';
+import { RequestWatch, describeScript } from '../request-watch.mjs';
 
 function setup() {
     const pendingRequests = new Map();
@@ -116,7 +116,7 @@ test('stats report the slow count, load and cpu count for /proxy/status', () => 
     add(2, { method: 'Page.reload' });
     clock.t += 15_000;
     watch.sweep();
-    assert.deepEqual(watch.stats(), { slowRequests: 2, slowRequestsOnUnknownSession: 2, loadavg1: 97.4, cpus: 12 });
+    assert.deepEqual(watch.stats(), { slowRequests: 2, slowRequestsOnUnknownSession: 2, scriptWaits: 0, loadavg1: 97.4, cpus: 12 });
 });
 
 test('the first stall of a burst logs one renderer snapshot; the next burst waits out the cooldown', async () => {
@@ -159,4 +159,46 @@ test('a failing or empty snapshot adds no line and does not break the sweep', as
     await Promise.resolve();
     assert.equal(logs.length, 1);
     assert.match(logs[0], /^slow request/);
+});
+
+test('a request waiting on a page script (awaitPromise) is logged as a script wait, not as a slow request', () => {
+    const { watch, pendingRequests, logs, clock, add } = setup();
+    let snapshots = 0;
+    watch.stallSnapshot = async () => { snapshots++; return 'x'; };
+    add(1, { method: 'Runtime.callFunctionOn', awaitsScript: true });
+    clock.t += 12_000;
+    watch.sweep();
+    pendingRequests.delete(1);
+    watch.sweep();
+    assert.deepEqual(logs, [
+        'script wait c7 Runtime.callFunctionOn (awaitPromise) still running after 12s',
+        'script wait c7 Runtime.callFunctionOn left the pending set after at least 12s (answered, or timed out by the 60 s reaper)',
+    ]);
+    assert.equal(snapshots, 0);
+    assert.equal(watch.stats().slowRequests, 0);
+    assert.equal(watch.stats().scriptWaits, 1);
+});
+
+test('a slow request names the head of the script it runs', () => {
+    const { watch, logs, clock, add } = setup();
+    add(1, { script: 'document.querySelectorAll(...)' });
+    clock.t += 10_000;
+    watch.sweep();
+    assert.match(logs[0], /slow request c7 Runtime\.evaluate sess=ABCDEF12 \[session unknown to the proxy\] script "document\.querySelectorAll\(\.\.\.\)" unanswered for 10s/);
+});
+
+test('a request without a script (non-Runtime method) logs no script clause', () => {
+    const { watch, logs, clock, add } = setup();
+    add(1, { method: 'Page.navigate' });
+    clock.t += 10_000;
+    watch.sweep();
+    assert.doesNotMatch(logs[0], /script "/);
+});
+
+test('describeScript keeps a whitespace-collapsed 60-char head of an expression or function declaration', () => {
+    assert.equal(describeScript({ expression: '  a\n\n  b  ' }), 'a b');
+    assert.equal(describeScript({ functionDeclaration: 'function () {\n return 1 }' }), 'function () { return 1 }');
+    assert.equal(describeScript({ expression: 'x'.repeat(61) }), `${'x'.repeat(60)}...`);
+    assert.equal(describeScript({ url: 'https://x.com' }), null);
+    assert.equal(describeScript(undefined), null);
 });

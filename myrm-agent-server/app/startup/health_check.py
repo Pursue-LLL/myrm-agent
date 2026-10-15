@@ -12,14 +12,12 @@ import os
 def run_startup_health_check(
     skip_health_check: bool = False,
     auto_recovery: bool = True,
-    force_recovery: bool = False,
 ) -> None:
     """Run health checks before starting the server.
 
     Args:
         skip_health_check: Skip health checks entirely
         auto_recovery: Enable automatic recovery on failure
-        force_recovery: Allow dangerous recovery actions (SQLite WAL deletion)
     """
     if skip_health_check or os.getenv("SKIP_HEALTH_CHECK", "").lower() == "true":
         print("[Health] Health checks skipped (--skip-health-check or SKIP_HEALTH_CHECK=true)")
@@ -35,7 +33,6 @@ def run_startup_health_check(
         all_healthy, results = asyncio.run(
             run_all_health_checks(
                 auto_recover=auto_recovery,
-                force_sqlite_wal_cleanup=force_recovery,
                 max_retries=1,
             )
         )

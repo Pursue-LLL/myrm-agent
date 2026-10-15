@@ -9,6 +9,13 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
+const apiRequestMock = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  apiRequest: apiRequestMock,
+}));
+
+import { ApiError } from '@/lib/api';
 import BrowserDoctorCard from '../BrowserDoctorCard';
 
 interface DoctorCheck {
@@ -51,17 +58,14 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
+  apiRequestMock.mockReset();
+  apiRequestMock.mockResolvedValue({ killed: 0, dry_run: true });
   vi.stubGlobal('fetch', fetchMock);
 });
 
 describe('BrowserDoctorCard', () => {
   it('renders a cleanup button when orphan processes are detected', async () => {
-    fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/browser/doctor')) {
-        return Promise.resolve(jsonResponse(doctorReport('warning')));
-      }
-      return Promise.resolve(jsonResponse({ killed: 0, dry_run: true }));
-    });
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(doctorReport('warning'))));
 
     render(<BrowserDoctorCard />);
 
@@ -69,12 +73,7 @@ describe('BrowserDoctorCard', () => {
   });
 
   it('hides the cleanup button when there are no orphan processes', async () => {
-    fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/browser/doctor')) {
-        return Promise.resolve(jsonResponse(doctorReport('ok')));
-      }
-      return Promise.resolve(jsonResponse({ killed: 0, dry_run: true }));
-    });
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(doctorReport('ok'))));
 
     render(<BrowserDoctorCard />);
 
@@ -83,16 +82,12 @@ describe('BrowserDoctorCard', () => {
   });
 
   it('confirms cleanup, calls DELETE endpoint and refreshes the report', async () => {
-    const deleteMock = vi.fn(() => Promise.resolve(jsonResponse({ killed: 2, dry_run: false })));
+    apiRequestMock.mockResolvedValue({ killed: 2, dry_run: false });
     let doctorCalls = 0;
-    const doctorMock = vi.fn((url: string) => {
-      if (url.includes('/browser/doctor')) {
-        doctorCalls += 1;
-        return Promise.resolve(jsonResponse(doctorReport(doctorCalls === 1 ? 'warning' : 'ok')));
-      }
-      return deleteMock();
+    fetchMock.mockImplementation(() => {
+      doctorCalls += 1;
+      return Promise.resolve(jsonResponse(doctorReport(doctorCalls === 1 ? 'warning' : 'ok')));
     });
-    fetchMock.mockImplementation(doctorMock);
 
     render(<BrowserDoctorCard />);
 
@@ -105,11 +100,12 @@ describe('BrowserDoctorCard', () => {
     await userEvent.click(confirmBtn);
 
     await vi.waitFor(() => {
-      expect(deleteMock).toHaveBeenCalledTimes(1);
+      expect(apiRequestMock).toHaveBeenCalledTimes(1);
     });
-    const deleteCall = deleteMock.mock.calls[0];
-    expect(deleteCall).toBeDefined();
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/browser/orphans'))).toHaveLength(1);
+    expect(apiRequestMock).toHaveBeenCalledWith('/health/browser/orphans?confirm=true', {
+      method: 'DELETE',
+      silent: true,
+    });
 
     // After cleanup the report refreshes: the button disappears and the result is shown.
     await vi.waitFor(() => {
@@ -119,24 +115,16 @@ describe('BrowserDoctorCard', () => {
   });
 
   it('shows a partial-failure message when some processes could not be killed', async () => {
-    const deleteMock = vi.fn(() =>
-      Promise.resolve(
-        jsonResponse({
-          killed: 1,
-          dry_run: false,
-          failed: [{ pid: 4242, reason: 'permission_denied' }],
-        }),
-      ),
-    );
-    let doctorCalls = 0;
-    const doctorMock = vi.fn((url: string) => {
-      if (url.includes('/browser/doctor')) {
-        doctorCalls += 1;
-        return Promise.resolve(jsonResponse(doctorReport(doctorCalls === 1 ? 'warning' : 'ok')));
-      }
-      return deleteMock();
+    apiRequestMock.mockResolvedValue({
+      killed: 1,
+      dry_run: false,
+      failed: [{ pid: 4242, reason: 'permission_denied' }],
     });
-    fetchMock.mockImplementation(doctorMock);
+    let doctorCalls = 0;
+    fetchMock.mockImplementation(() => {
+      doctorCalls += 1;
+      return Promise.resolve(jsonResponse(doctorReport(doctorCalls === 1 ? 'warning' : 'ok')));
+    });
 
     render(<BrowserDoctorCard />);
 
@@ -148,7 +136,7 @@ describe('BrowserDoctorCard', () => {
     await userEvent.click(confirmBtn);
 
     await vi.waitFor(() => {
-      expect(deleteMock).toHaveBeenCalledTimes(1);
+      expect(apiRequestMock).toHaveBeenCalledTimes(1);
     });
     await vi.waitFor(() => {
       expect(screen.queryByText('cleanupOrphans')).not.toBeInTheDocument();
@@ -158,15 +146,12 @@ describe('BrowserDoctorCard', () => {
 
   it('clears the previous cleanup message when running a fresh diagnosis', async () => {
     let doctorCalls = 0;
-    const doctorMock = vi.fn((_url: string) => {
+    fetchMock.mockImplementation(() => {
       doctorCalls += 1;
       const orphanStatus = doctorCalls === 1 ? 'warning' : 'ok';
       return Promise.resolve(jsonResponse(doctorReport(orphanStatus)));
     });
-    const deleteMock = vi.fn(() => Promise.resolve(jsonResponse({ killed: 2, dry_run: false, failed: [] })));
-    fetchMock.mockImplementation((_url: string) =>
-      String(_url).includes('/browser/doctor') ? doctorMock(_url) : deleteMock(),
-    );
+    apiRequestMock.mockResolvedValue({ killed: 2, dry_run: false, failed: [] });
 
     render(<BrowserDoctorCard />);
 
@@ -188,21 +173,10 @@ describe('BrowserDoctorCard', () => {
   });
 
   it('drops a previous success message when a later cleanup fails', async () => {
-    let deleteCalls = 0;
-    const deleteMock = vi.fn(() => {
-      deleteCalls += 1;
-      if (deleteCalls === 1) {
-        return Promise.resolve(jsonResponse({ killed: 2, dry_run: false, failed: [] }));
-      }
-      return Promise.resolve(jsonResponse({ detail: 'Failed to process orphans' }, false));
-    });
-    const doctorMock = vi.fn((url: string) => {
-      if (url.includes('/browser/doctor')) {
-        return Promise.resolve(jsonResponse(doctorReport('warning')));
-      }
-      return deleteMock();
-    });
-    fetchMock.mockImplementation(doctorMock);
+    apiRequestMock
+      .mockResolvedValueOnce({ killed: 2, dry_run: false, failed: [] })
+      .mockRejectedValueOnce(new ApiError('Failed to process orphans', 500));
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(doctorReport('warning'))));
 
     render(<BrowserDoctorCard />);
 
@@ -238,11 +212,8 @@ describe('BrowserDoctorCard', () => {
   });
 
   it('shows the server error detail instead of a raw JSON string when cleanup fails', async () => {
-    const doctorMock = vi.fn((_url: string) => Promise.resolve(jsonResponse(doctorReport('warning'))));
-    const deleteMock = vi.fn(() => Promise.resolve(jsonResponse({ detail: 'Failed to process orphans' }, false)));
-    fetchMock.mockImplementation((_url: string) =>
-      String(_url).includes('/browser/doctor') ? doctorMock(_url) : deleteMock(),
-    );
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(doctorReport('warning'))));
+    apiRequestMock.mockRejectedValue(new ApiError('Failed to process orphans', 500));
 
     render(<BrowserDoctorCard />);
 

@@ -10,16 +10,22 @@
 import type React from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import en from '../../../../../locales/en.json';
 
 import SkillGrowthCaseCard from '../SkillGrowthCaseCard';
+import { SCAN_RISK_NAMESPACE, scanRiskT } from './scanRiskTranslator';
 import type { SkillGrowthCaseSummary } from '@/services/skill/growth';
 
 const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.source.manualEvolution': 'Manual Evolution',
   'settings.skills.growth.source.memoryExtraction': 'Memory Extraction',
   'settings.skills.growth.source.backgroundReview': 'Background Review',
-  'settings.skills.growth.source.continualRecovery': 'Continual Recovery',
 };
+
+const growthTypeNames: Record<string, string> = en.growthDashboard.growthTypes;
+const growthTypeT = Object.assign((key: string) => growthTypeNames[key] ?? key, {
+  has: (key: string) => key in growthTypeNames,
+});
 
 const stableT = (key: string): string => {
   const shortKey = key.replace(/^settings\.skills\.growth\./, '');
@@ -27,7 +33,12 @@ const stableT = (key: string): string => {
 };
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
+  useTranslations: (namespace?: string) => {
+    if (namespace === 'growthDashboard.growthTypes') {
+      return growthTypeT;
+    }
+    return namespace === SCAN_RISK_NAMESPACE ? scanRiskT : stableT;
+  },
   useLocale: () => 'en',
 }));
 
@@ -63,14 +74,12 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     summary: 'A proposal',
     description: null,
     confidence: 0.9,
-    testPassed: null,
     applyStatus: null,
     applyError: null,
     reasonCode: null,
     remediation: null,
     runtimeFailure: null,
     chatId: 'chat-1',
-    formMetadata: null,
     hasDiff: false,
     hasTrajectory: false,
     hasTriggerCondition: false,
@@ -100,18 +109,6 @@ describe('SkillGrowthCaseCard A2 source label', () => {
     expect(screen.getByText('Manual Evolution')).toBeInTheDocument();
   });
 
-  it('continual source renders "Continual Recovery" label', () => {
-    render(
-      <SkillGrowthCaseCard
-        item={makeItem({ source: 'continual' })}
-        isProcessing={false}
-        onApprove={noop}
-        onReject={noop}
-      />,
-    );
-    expect(screen.getByText('Continual Recovery')).toBeInTheDocument();
-  });
-
   it('semantic_memory growthType renders "Memory Extraction" label without growthType badge', () => {
     render(
       <SkillGrowthCaseCard
@@ -135,6 +132,6 @@ describe('SkillGrowthCaseCard A2 source label', () => {
       />,
     );
     expect(screen.getByText('Background Review')).toBeInTheDocument();
-    expect(screen.getByText('skill_draft')).toBeInTheDocument();
+    expect(screen.getByText(growthTypeNames.skill_draft)).toBeInTheDocument();
   });
 });

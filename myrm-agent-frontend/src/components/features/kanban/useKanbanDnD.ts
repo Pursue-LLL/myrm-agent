@@ -2,12 +2,14 @@
  * [INPUT]
  * - @dnd-kit/core::PointerSensor, TouchSensor, KeyboardSensor (POS: 跨平台拖拽传感器)
  * - @/services/kanban::TaskStatus, KanbanTask (POS: 看板 API 类型定义)
+ * - ./kanban-transitions::resolveMoveIntent (POS: 看板状态流转判定)
  *
  * [OUTPUT]
- * - useKanbanDnD: 看板卡片拖拽状态管理 hook（传感器配置、拖拽事件处理、破坏性操作确认）
+ * - useKanbanDnD: 看板卡片拖拽状态管理 hook（传感器配置、拖拽事件处理、终态确认、不可达流转拦截）
  *
  * [POS]
  * 看板拖拽逻辑层。封装 @dnd-kit 多模式传感器（鼠标/触屏/键盘）、批量拖拽、终态确认弹窗等交互状态。
+ * 服务端必拒的流转在落点就拦下并提示；批量拖拽只搬能直接流转的卡片，重试与归档由单卡片流程各自确认。
  */
 'use client';
 
@@ -23,11 +25,13 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import type { TaskStatus, KanbanTask } from '@/services/kanban';
+import { resolveMoveIntent } from './kanban-transitions';
 
-const DESTRUCTIVE_STATUSES: TaskStatus[] = ['completed', 'failed', 'archived'];
+// 归档有自己的二次确认（见 KanbanTaskActionConfirm），不在此重复弹窗。
+const DESTRUCTIVE_STATUSES: TaskStatus[] = ['completed', 'failed'];
 
 interface DropConfirmState {
-  taskId: string;
+  taskIds: string[];
   targetStatus: TaskStatus;
 }
 
@@ -36,9 +40,11 @@ interface UseKanbanDnDOptions {
   selectedTaskIds: string[];
   onMoveTask: (taskId: string, targetStatus: TaskStatus) => void;
   onBulkMove?: (taskIds: string[], targetStatus: TaskStatus) => void;
+  /** 有卡片因流转不可达没被搬动时调用，每次落点至多一次。 */
+  onMoveBlocked: () => void;
 }
 
-export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove }: UseKanbanDnDOptions) {
+export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove, onMoveBlocked }: UseKanbanDnDOptions) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
   const [dropConfirmState, setDropConfirmState] = useState<DropConfirmState | null>(null);
@@ -64,6 +70,17 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove }:
     }
   }, []);
 
+  const dispatchMove = useCallback(
+    (taskIds: string[], targetStatus: TaskStatus) => {
+      if (taskIds.length > 1 && onBulkMove) {
+        onBulkMove(taskIds, targetStatus);
+      } else {
+        taskIds.forEach((id) => onMoveTask(id, targetStatus));
+      }
+    },
+    [onMoveTask, onBulkMove],
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const taskId = String(event.active.id);
@@ -81,25 +98,31 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove }:
         return;
       }
 
-      // IN_REVIEW is an approval-gate state: no drag source/target escapes it.
-      if (task.status === 'in_review' || targetStatus === 'in_review') {
+      const statusOf = (id: string) => tasks.find((tk) => tk.task_id === id)?.status;
+      const dragged = selectedTaskIds.includes(taskId) && selectedTaskIds.length > 1 ? selectedTaskIds : [taskId];
+      // 已经在目标列的卡片本来就不用动，不算被拦下。
+      const selection = dragged.filter((id) => statusOf(id) !== targetStatus);
+      // 单卡片：重试、归档交给 onMoveTask 的确认流程；批量：只搬能直接流转的卡片。
+      const movingIds = selection.filter((id) => {
+        const status = statusOf(id);
+        const intent = status ? resolveMoveIntent(status, targetStatus) : 'blocked';
+        return intent === 'move' || (selection.length === 1 && intent !== 'blocked');
+      });
+      if (movingIds.length < selection.length) {
+        onMoveBlocked();
+      }
+      if (movingIds.length === 0) {
         return;
       }
-
-      const movingIds = selectedTaskIds.includes(taskId) && selectedTaskIds.length > 1 ? selectedTaskIds : [taskId];
 
       if (DESTRUCTIVE_STATUSES.includes(targetStatus)) {
-        setDropConfirmState({ taskId: movingIds[0], targetStatus });
+        setDropConfirmState({ taskIds: movingIds, targetStatus });
         return;
       }
 
-      if (movingIds.length > 1 && onBulkMove) {
-        onBulkMove(movingIds, targetStatus);
-      } else {
-        onMoveTask(taskId, targetStatus);
-      }
+      dispatchMove(movingIds, targetStatus);
     },
-    [tasks, selectedTaskIds, onMoveTask, onBulkMove],
+    [tasks, selectedTaskIds, dispatchMove, onMoveBlocked],
   );
 
   const handleDragCancel = useCallback(() => {
@@ -111,17 +134,9 @@ export function useKanbanDnD({ tasks, selectedTaskIds, onMoveTask, onBulkMove }:
     if (!dropConfirmState) {
       return;
     }
-    const { taskId, targetStatus } = dropConfirmState;
     setDropConfirmState(null);
-
-    const movingIds = selectedTaskIds.includes(taskId) && selectedTaskIds.length > 1 ? selectedTaskIds : [taskId];
-
-    if (movingIds.length > 1 && onBulkMove) {
-      onBulkMove(movingIds, targetStatus);
-    } else {
-      onMoveTask(taskId, targetStatus);
-    }
-  }, [dropConfirmState, selectedTaskIds, onMoveTask, onBulkMove]);
+    dispatchMove(dropConfirmState.taskIds, dropConfirmState.targetStatus);
+  }, [dropConfirmState, dispatchMove]);
 
   const dismissDropConfirm = useCallback(() => {
     setDropConfirmState(null);

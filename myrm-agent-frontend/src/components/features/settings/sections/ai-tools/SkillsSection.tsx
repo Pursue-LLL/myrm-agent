@@ -16,6 +16,7 @@ import {
   IconArchive,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
+import { matchesSkillSearch } from '@/lib/utils/skillUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -64,7 +65,12 @@ import SettingsSection from '../SettingsSection';
 
 type TabValue = 'discover' | 'installed' | 'permissions';
 
-const SkillsSection = memo(() => {
+interface SkillsSectionProps {
+  /** Opens the installed tab with this search applied (deep link from the skill health panel). */
+  initialSearch?: string;
+}
+
+const SkillsSection = memo(({ initialSearch }: SkillsSectionProps) => {
   const t = useTranslations('settings.skills');
   const tPlugins = useTranslations('settings.plugins.import');
   const tPluginManager = useTranslations('settings.plugins.manager');
@@ -95,9 +101,9 @@ const SkillsSection = memo(() => {
 
   const { unreviewedCount, fetchUnreviewedCount } = useSkillDraftStore();
 
-  const [activeTab, setActiveTab] = useState<TabValue>(() => (isSandbox() ? 'installed' : 'discover'));
+  const [activeTab, setActiveTab] = useState<TabValue>(() => (initialSearch || isSandbox() ? 'installed' : 'discover'));
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
-  const [installedSearch, setInstalledSearch] = useState('');
+  const [installedSearch, setInstalledSearch] = useState(initialSearch ?? '');
   const [sourceFilter, setSourceFilter] = useState<SkillSourceFilter>('all');
   const [statusFilter, setStatusFilter] = useState<SkillStatusFilter>('all');
   const [localPathsOpen, setLocalPathsOpen] = useState(false);
@@ -147,7 +153,7 @@ const SkillsSection = memo(() => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch {
-      toast({ title: t('installed.exportFailed') || 'Export failed', variant: 'destructive' });
+      toast({ title: t('installed.exportFailed'), variant: 'destructive' });
     } finally {
       setIsSyncing(false);
     }
@@ -227,13 +233,7 @@ const SkillsSection = memo(() => {
     }
 
     if (installedSearch.trim()) {
-      const q = installedSearch.toLowerCase();
-      skills = skills.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.description.toLowerCase().includes(q) ||
-          s.tags.some((tag) => tag.toLowerCase().includes(q)),
-      );
+      skills = skills.filter((s) => matchesSkillSearch(s, installedSearch));
     }
 
     // Sort by usage stats (last_used_at DESC, then call_count DESC, then updated_at DESC)
@@ -497,7 +497,7 @@ const SkillsSection = memo(() => {
       } catch (error) {
         toast({
           title: t('permissions.error'),
-          description: error instanceof Error ? error.message : 'Failed to approve permissions',
+          description: error instanceof Error ? error.message : t('permissions.approveFailed'),
           variant: 'destructive',
         });
       }
@@ -533,7 +533,7 @@ const SkillsSection = memo(() => {
     } catch (error) {
       toast({
         title: t('detail.toggleFailed'),
-        description: error instanceof Error ? error.message : 'Force enable failed',
+        description: error instanceof Error ? error.message : t('detail.forceEnableFailed'),
         variant: 'destructive',
       });
     }

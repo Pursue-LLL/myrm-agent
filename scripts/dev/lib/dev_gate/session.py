@@ -168,3 +168,26 @@ def initial_state(policy: SessionPolicy) -> SessionState:
     if policy.execution_mode is ExecutionMode.PRIVATE:
         return SessionState.PRIVATE_ADMIT
     return SessionState.PREPARING
+
+
+# Observability facts a client may attach to SUBMIT: the source epoch the session
+# ran against and when the user's command actually started (the wait the user
+# feels begins before the coordinator ever sees the session).
+SUBMIT_META_KEYS = frozenset({"source_fingerprint", "command_started_at"})
+_SUBMIT_META_MAX_LEN = 64
+
+
+def parse_submit_meta(raw: object) -> dict[str, str]:
+    """Keep only well-formed submit metadata.
+
+    Metadata is observability, not policy: a malformed entry is dropped instead of
+    rejecting the submit, so a bad client can never block admission.
+    """
+    if not isinstance(raw, dict):
+        return {}
+    meta: dict[str, str] = {}
+    for key in SUBMIT_META_KEYS:
+        value = raw.get(key)
+        if isinstance(value, str) and value.strip() and len(value) <= _SUBMIT_META_MAX_LEN:
+            meta[key] = value.strip()
+    return meta

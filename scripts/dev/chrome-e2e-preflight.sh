@@ -587,6 +587,7 @@ _attach_epoch_pin_fast_path() {
       return 1
     fi
     if [[ "${pin_api}" != "${SHARED_API_BASE}" ]] \
+      && ! curl -sf --max-time 3 "${pin_api%/}/api/v1/health" >/dev/null 2>&1 \
       && curl -sf --max-time 5 "${SHARED_API_BASE%/}/api/v1/health" >/dev/null 2>&1; then
       echo "CHROME_E2E_ATTACH: epoch pin early fallback to shared api=${SHARED_API_BASE} (isolated ${pin_api} not ready)" >&2
       unset MYRM_E2E_EPOCH_PIN

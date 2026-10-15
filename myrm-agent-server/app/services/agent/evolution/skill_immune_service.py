@@ -306,7 +306,7 @@ async def _create_blocked_case(
         original_content=original_content,
         evolved_content=original_content,
         confidence=0.0,
-        test_passed=False,
+        test_passed=None,
         task_context=None,
         trajectory=None,
         reason_code=reason_code,

@@ -423,14 +423,6 @@ export function useSharedContextPanel() {
     return value !== false;
   }, [selectedContext]);
 
-  const goalCompletionAutoApprove = useMemo(() => {
-    if (!selectedContext?.policy) {
-      return true;
-    }
-    const value = selectedContext.policy.goal_completion_auto_approve;
-    return value !== false;
-  }, [selectedContext]);
-
   const handleToggleCorrectionAutoApprove = useCallback(async () => {
     if (!selectedContextId || !selectedContextIsActive) {
       return;
@@ -451,30 +443,6 @@ export function useSharedContextPanel() {
       setActionId(null);
     }
   }, [correctionAutoApprove, selectedContext, selectedContextId, selectedContextIsActive, t, tMemory]);
-
-  const handleToggleGoalCompletionAutoApprove = useCallback(async () => {
-    if (!selectedContextId || !selectedContextIsActive) {
-      return;
-    }
-    setActionId('toggle-goal-completion');
-    try {
-      const newPolicy = {
-        ...selectedContext?.policy,
-        goal_completion_auto_approve: !goalCompletionAutoApprove,
-      };
-      const updated = await updateSharedContext(selectedContextId, { policy: newPolicy });
-      setContexts((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-      toast({ title: t('toasts.policyUpdated') });
-    } catch (error) {
-      toast({
-        title: t('errors.updatePolicy'),
-        description: error instanceof Error ? error.message : tMemory('unknownError'),
-        variant: 'destructive',
-      });
-    } finally {
-      setActionId(null);
-    }
-  }, [goalCompletionAutoApprove, selectedContext, selectedContextId, selectedContextIsActive, t, tMemory]);
 
   return {
     contexts,
@@ -523,7 +491,5 @@ export function useSharedContextPanel() {
     handlePromoteHistory,
     correctionAutoApprove,
     handleToggleCorrectionAutoApprove,
-    goalCompletionAutoApprove,
-    handleToggleGoalCompletionAutoApprove,
   };
 }

@@ -73,7 +73,9 @@ class EvolutionApprovalPayload(BaseModel):
     original_content: str
     evolved_content: str
     confidence: float
-    test_passed: bool
+    # True when the security scan of the evolved content found nothing, False when it reported
+    # findings, None when no scan ran.
+    test_passed: bool | None = None
     task_context: str | None = None
     trajectory: str | None = None
     growth_status: EvolutionGrowthStatus = EvolutionGrowthStatus.PENDING_REVIEW
@@ -84,8 +86,6 @@ class EvolutionApprovalPayload(BaseModel):
     remediation: str | None = "Review the diff and approve or reject the proposal."
     runtime_failure: RuntimeFailureEvidence | None = None
     eval_cases: list[dict[str, object]] = Field(default_factory=list)
-    change_manifest: dict[str, object] | None = None
-    attribution_result: dict[str, object] | None = None
     security_scan_summary: dict[str, object] | None = None
 
 
@@ -101,7 +101,7 @@ class EvolutionReviewRecord:
     original_content: str
     evolved_content: str
     confidence: float
-    test_passed: bool
+    test_passed: bool | None
     status: EvolutionGrowthStatus
     approval_status: str
     apply_status: EvolutionApplyStatus
@@ -114,8 +114,6 @@ class EvolutionReviewRecord:
     task_context: str | None
     created_at: datetime
     resolved_at: datetime | None
-    change_manifest: dict[str, object] | None = None
-    attribution_result: dict[str, object] | None = None
     security_scan_summary: dict[str, object] | None = None
 
 
@@ -174,8 +172,6 @@ def approval_to_evolution_review_record(
         task_context=payload.task_context,
         created_at=record.created_at,
         resolved_at=record.resolved_at,
-        change_manifest=payload.change_manifest,
-        attribution_result=payload.attribution_result,
         security_scan_summary=payload.security_scan_summary,
     )
 

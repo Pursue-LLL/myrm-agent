@@ -129,6 +129,7 @@ def _attach(client: ChromeMcpClient, page: McpPage, chat_url: str, chat_id: str)
     assert attached.get("ready") is True, json.dumps(attached, ensure_ascii=False)
 
 
+# exclusive_backend reason: configured_retrieval_embedding mutates global /api/v1/config/retrieval and polls instance-wide /api/v1/memory/pending + semantic memory store.
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -170,6 +171,7 @@ def test_memory_pending_dialog_edit_then_accept_chrome_e2e() -> None:
         assert pending_id not in _pending_ids(api_url)
 
 
+# exclusive_backend reason: configured_retrieval_embedding mutates global /api/v1/config/retrieval and polls instance-wide /api/v1/memory/pending + semantic memory store.
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",

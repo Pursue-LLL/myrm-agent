@@ -53,8 +53,8 @@ def evaluate_epoch_pin_eligibility(
     load = workload.strip().upper()
     if mode != "SHARED":
         return EpochPinEligibility(False, "execution_mode_not_shared")
-    if scope != "NAMESPACE_WRITE":
-        return EpochPinEligibility(False, "access_scope_not_namespace_write")
+    if scope not in ("NAMESPACE_WRITE", "READ"):
+        return EpochPinEligibility(False, "access_scope_not_epoch_pin_eligible")
     if load not in ("LIVE", "STANDARD"):
         return EpochPinEligibility(False, "workload_not_pin_eligible")
     return EpochPinEligibility(True, "eligible")
@@ -79,7 +79,7 @@ def needs_epoch_pin_backend(ctx: object) -> bool:
 def _health_runtime_id(api_base: str) -> str:
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(url, timeout=3.0) as response:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=3.0) as response:
             payload = json.loads(response.read())
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
         return ""
@@ -129,12 +129,17 @@ def _outcome_from_api_base(
 def apply_epoch_pin_for_shared_live(
     *,
     monorepo: Path,
-    node_id: str,  # noqa: ARG001 — reserved for structured logs
+    node_id: str,
     workload: str = "",
 ) -> EpochPinOutcome:
     """Resolve or seed an epoch-matched backend; never consumes private ADMIT credit."""
-    _ = workload  # eligibility is decided by the caller before this resolver
-    from e2e_core.api_verify import resolve_e2e_api_context  # noqa: PLC0415
+    _ = (node_id, workload)
+    from e2e_core.api_verify import resolve_e2e_api_context
+    from e2e_core.epoch_backend_pool import (
+        invalidate_epoch_backend,
+        register_epoch_backend_holder,
+    )
+    from e2e_core.verify_backend_seed import _isolated_registry_root
 
     ctx = resolve_e2e_api_context(retry_after_apply=False)
     if not needs_epoch_pin_backend(ctx):
@@ -148,13 +153,16 @@ def apply_epoch_pin_for_shared_live(
             seeded=False,
         )
 
+    isolated_root = _isolated_registry_root()
+    raw_fp = getattr(ctx, "workspace_fingerprint", "")
+    workspace_fp = raw_fp.strip() if isinstance(raw_fp, str) else ""
     shared = str(getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080").strip()
     verify_base = str(getattr(ctx, "verify_api_base", "") or "").strip()
     # A stale shared backend is never a valid namespace-write target, even when
     # its health endpoint is reachable. Reuse only a distinct, healthy verify
     # candidate; otherwise seed an epoch-matched backend before the test starts.
     if verify_base and verify_base.rstrip("/") != shared.rstrip("/"):
-        from e2e_core.verify_backend_seed import ensure_verify_backend_providers  # noqa: PLC0415
+        from e2e_core.verify_backend_seed import ensure_verify_backend_providers
 
         ensure_verify_backend_providers(api_base=verify_base, monorepo=monorepo.resolve())
         port = urlsplit(verify_base).port
@@ -164,9 +172,19 @@ def apply_epoch_pin_for_shared_live(
             seeded=False,
         )
         if reused.applied:
+            register_epoch_backend_holder(
+                isolated_root=isolated_root,
+                runtime_id=reused.runtime_id,
+                api_base=reused.api_base,
+                fingerprint=workspace_fp,
+            )
             return reused
+        invalidate_epoch_backend(
+            isolated_root=isolated_root,
+            api_base=verify_base,
+        )
 
-    from e2e_core.verify_backend_seed import ensure_verify_backend_seed  # noqa: PLC0415
+    from e2e_core.verify_backend_seed import ensure_verify_backend_seed
 
     seed = ensure_verify_backend_seed(monorepo=monorepo.resolve())
     if not seed.ok:
@@ -183,9 +201,18 @@ def apply_epoch_pin_for_shared_live(
         detail=seed.detail,
         seeded=True,
     )
+    if outcome.applied:
+        register_epoch_backend_holder(
+            isolated_root=isolated_root,
+            runtime_id=outcome.runtime_id,
+            api_base=outcome.api_base,
+            fingerprint=workspace_fp,
+            owner_token=getattr(seed, "owner_token", ""),
+        )
     if outcome.seeded:
         try:
             from cdp_chat.support import get_e2e_ui_url
+
             from e2e_core.warm_shell_registry import seal_platform_shell
 
             seal_platform_shell(ui_url=get_e2e_ui_url(), route_path="/")

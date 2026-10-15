@@ -25,6 +25,7 @@ import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { ArtifactVersion } from '@/store/chat/types';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface VersionHistoryProps {
   /** 版本列表 */
@@ -183,7 +184,7 @@ const VersionHistory: React.FC<VersionHistoryProps> = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className={cn('h-6 w-6 transition-opacity', REVEAL_ON_HOVER)}
                         onClick={(e) => handleRollbackClick(actualIndex, e)}
                         aria-label={t('versions.rollback')}
                       >

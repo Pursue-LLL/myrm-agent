@@ -13,7 +13,7 @@
 | `base.py` | 核心 | DeclarativeBase 基类 | ✅ |
 | `api_key.py` | 域模块 | APIKey（OpenAI 兼容 API Key 模型） | ✅ |
 | `batch_directory.py` | 域模块 | BatchDirectoryProjectModel（Batch 目录并行 prompt 项目） | ✅ |
-| `chat.py` | 域模块 | Chat, Message, ConversationFork, OfflineDurableTask, InterruptedTurnMarker（crash auto-continue write-ahead marker） | ✅ |
+| `chat.py` | 域模块 | Chat, Message, ConversationFork, InterruptedTurnMarker（crash auto-continue write-ahead marker）；系统通知行的 `extra_data` 标记键 `SYSTEM_NOTICE_EXTRA_KEYS`（后台任务完成、语音任务完成），写入方与重试读取同一份定义 | ✅ |
 | `commitment.py` | 域模块 | CommitmentModel（隐式承诺/跟进追踪） | ✅ |
 | `agent.py` | 域模块 | Agent (含 tool_gateway_config, cron_post_run_verify 列), AgentSecret, AgentProfileSnapshot（WebUI rollback SSOT） | ✅ |
 | `agent_history.py` | 域模块 | AgentProfileHistory（乐观锁 version 审计 + Prompt 浏览，非 rollback SSOT） | ✅ |
@@ -30,7 +30,7 @@
 | `channel_message.py` | 域模块 | ChannelMessageModel（多渠道入站明细持久化实体，支撑凭据脱敏、打标与记忆候选） | ✅ |
 | `media.py` | 域模块 | BatchImageJob, MediaLibrary | ✅ |
 | `security.py` | 域模块 | UserToolAllowlist, RiskRule, RiskHit, SecurityProfile, SkillPermissionGrant, SkillPermissionUsageLog | ✅ |
-| `skill.py` | 域模块 | PendingEvolution (deprecated), PendingMigration, ExperienceLedgerEvent | ✅ |
+| `skill.py` | 域模块 | PendingMigration, ExperienceLedgerEvent | ✅ |
 | `approval.py` | 域模块 | ApprovalRecord | ✅ |
 | `notification.py` | 域模块 | SystemNotification | ✅ |
 | `assessment_import.py` | 域模块 | AssessmentImportLedger（评估导入幂等台账，`project_id+artifact_version_id` 唯一约束） | ✅ |
@@ -38,7 +38,6 @@
 | `project.py` | 域模块 | Project（会话项目分组及工作区，含 workspace_path/description/goal_summary/default_agent_id 字段） | ✅ |
 | `milestone.py` | 域模块 | Milestone（项目里程碑，阶段性目标追踪和状态流转） | ✅ |
 | `kanban.py` | 域模块 | KanbanBoardModel, KanbanTaskModel（看板/任务 ORM，含 project_id/milestone_id 关联和 attachment_ids_json） | ✅ |
-| `message_filter.py` | 域模块 | MessageFilterConfig, MessageFilterRule, MessageFilterAudit, MessageFilterConfigHistory | ✅ |
 | `widget_kv.py` | 域模块 | WidgetKVEntry（沙箱 widget iframe KV 持久化存储） | ✅ |
 | `daily_wrap.py` | 域模块 | DailyWrapCache（AI 生成的每日战报缓存） | ✅ |
 | `expert_summon_metric.py` | 域模块 | ExpertSummonMetricEvent（专家召唤漏斗观测事件：曝光/搜索/召唤尝试与结果/路由应用/首条发送/丢样，含 `surface`、`trigger`、`from_search`、`used_use_case` 口径字段） | ✅ |

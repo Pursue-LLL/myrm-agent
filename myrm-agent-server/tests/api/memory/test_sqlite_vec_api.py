@@ -40,20 +40,12 @@ def test_app(isolated_provider: SqliteVecProvider) -> FastAPI:
 
 
 @pytest.mark.asyncio
-async def test_sqlite_vec_stats_and_health(
+async def test_sqlite_vec_stats(
     test_app: FastAPI, isolated_provider: SqliteVecProvider
 ) -> None:
-    """Verify stats and health probe endpoints."""
+    """Verify the stats endpoint."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Health check
-        health_resp = await client.get("/api/memory/sqlite-vec/health")
-        assert health_resp.status_code == 200
-        health_data = health_resp.json()
-        assert health_data["healthy"] is True
-        assert health_data["engine"] == "sqlite-vec"
-
-        # 2. Stats
         stats_resp = await client.get("/api/memory/sqlite-vec/stats")
         assert stats_resp.status_code == 200
         stats_data = stats_resp.json()

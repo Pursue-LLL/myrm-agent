@@ -29,7 +29,8 @@ async def _seed_and_load_risk_rules() -> None:
     from app.services.risk.rule_service import RiskRuleService
 
     async with get_session_factory()() as db:
-        inserted = await RiskRuleService().seed_builtin_rules(db)
+        service = RiskRuleService()
+        inserted = await service.seed_builtin_rules(db)
         await db.commit()
         if inserted > 0:
             logger.info("Seeded %d built-in risk rules on startup", inserted)

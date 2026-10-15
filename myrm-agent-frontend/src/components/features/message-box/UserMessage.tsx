@@ -1,7 +1,9 @@
 /**
  * [INPUT]
  * - ./SendFailedNotice::SendFailedNotice (POS: Failed-send line of a user bubble)
+ * - ./UserMessageAttachments::HistoryImageItem, FileContentBlock (POS: Attachment previews of a sent user bubble)
  * - ./QuoteToolbar::QuoteToolbar, useQuoteSelection (POS: Text-selection toolbar of a message)
+ * - @/lib/utils/a11y::REVEAL_ON_HOVER (POS: Hover/focus/touch reveal contract of the action row)
  * - @/lib/utils/messageUtils (POS: Message text cleanup helpers, explicit skill activation wire format)
  * - @/lib/utils/urlUtils::splitTextWithAtLinks (POS: URL helpers, splits message text at @links)
  *
@@ -12,15 +14,16 @@
  * Renders one user message of the transcript. Edit submit and retry are handed to the caller through callbacks.
  */
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Copy, Check, Pencil, FileText, ImageOff, Download } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Copy, Check, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
 import { SkillActivationChips } from './SkillActivationChips';
 import { SendFailedNotice } from './SendFailedNotice';
+import { HistoryImageItem, FileContentBlock } from './UserMessageAttachments';
 import { splitTextWithAtLinks } from '@/lib/utils/urlUtils';
 import { File as FileType } from '@/store/chat/types';
-import { isImageFile, getDisplayUrl } from '@/lib/utils/fileUtils';
+import { isImageFile } from '@/lib/utils/fileUtils';
 import { useLocale, useTranslations } from 'next-intl';
 import { localizeReactNode } from '@/lib/utils/locale';
 import { QuoteToolbar, useQuoteSelection } from './QuoteToolbar';
@@ -30,7 +33,6 @@ import { isImeComposing } from '@/lib/utils/imeUtils';
 import { ImageLightbox } from '../message-input-actions/ImageLightbox';
 import { ForkButton } from '../chat-window/ForkButton';
 import { RewindButton } from '../chat-window/RewindButton';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface UserMessageProps {
   content: string;
@@ -49,107 +51,6 @@ interface UserMessageProps {
   sendFailed?: boolean;
   files?: FileType[];
 }
-
-const HistoryImageItem = ({
-  file,
-  messageId,
-  onPreview,
-}: {
-  file: FileType;
-  messageId: string;
-  onPreview: () => void;
-}) => {
-  const [loadFailed, setLoadFailed] = useState(false);
-  const src = useMemo(() => getDisplayUrl(file), [file]);
-
-  if (!src || loadFailed) {
-    return (
-      <div
-        className="flex-shrink-0 w-20 h-20 rounded-xl border border-border/40 bg-muted/50 flex items-center justify-center"
-        title={file.fileName}
-      >
-        <ImageOff size={18} className="text-muted-foreground/60" />
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onPreview}
-      className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border border-border/40 hover:border-primary/50 transition-all duration-200 hover:shadow-md cursor-zoom-in relative"
-      title={file.fileName}
-    >
-      <motion.img
-        layoutId={`image-${messageId}-${file.fileName}`}
-        src={src}
-        alt={file.fileName}
-        onError={() => setLoadFailed(true)}
-        className="object-cover w-full h-full"
-      />
-    </button>
-  );
-};
-
-const FileContentBlock = ({ file }: { file: FileType }) => {
-  const src = useMemo(() => getDisplayUrl(file), [file]);
-
-  const handleDownload = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (src) {
-      const a = document.createElement('a');
-      a.href = src;
-      a.download = file.fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
-  };
-
-  const handleOpen = () => {
-    if (src) {
-      window.open(src, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  return (
-    <div
-      onClick={handleOpen}
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
-      role="button"
-      tabIndex={0}
-      onKeyDown={activateOnKey}
-      className={cn(
-        'group flex items-center justify-between w-64 p-3 rounded-xl border border-border/40',
-        'bg-card hover:bg-secondary/40 hover:border-primary/30',
-        'transition-all duration-200 cursor-pointer flex-shrink-0',
-      )}
-      title={file.fileName}
-      aria-label={file.fileName}
-    >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <FileText size={20} className="text-primary" />
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-sm font-medium text-foreground truncate">{file.fileName}</span>
-          <span className="text-xs text-muted-foreground uppercase">
-            {file.fileExtension ? file.fileExtension.replace('.', '') : 'FILE'} Document
-          </span>
-        </div>
-      </div>
-      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-        <button
-          onClick={handleDownload}
-          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
-          title="Download"
-        >
-          <Download size={16} />
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const EDIT_TEXTAREA_MAX_HEIGHT = 300;
 
@@ -322,7 +223,12 @@ const UserMessage = React.memo(
                   })}
                 </h2>
 
-                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
+                <div
+                  className={cn(
+                    'flex items-center gap-1 transition-opacity duration-200 flex-shrink-0',
+                    REVEAL_ON_HOVER,
+                  )}
+                >
                   {timestamp && (
                     <span className="text-xs text-muted-foreground/60 mr-1 select-none" title={timestamp.title}>
                       {timestamp.label}

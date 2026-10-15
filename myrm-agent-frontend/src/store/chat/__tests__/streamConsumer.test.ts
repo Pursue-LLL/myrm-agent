@@ -1,13 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatActionsMethods, ChatActionsState } from '../messageRequest';
 import type { Message } from '@/store/chat/types';
-import {
-  AgentBusyError,
-  FatalNetworkError,
-  RequestRefusedError,
-  consumeStream,
-  executeStreamWithRetry,
-} from '../streamConsumer';
+import { FatalNetworkError } from '@/lib/utils/networkResilience';
+import { consumeStream } from '../consumeStream';
+import { AgentBusyError, RequestRefusedError } from '../streamErrors';
+import { executeStreamWithRetry } from '../streamConsumer';
 
 const mockParseSseEnvelope = vi.hoisted(() => vi.fn());
 const mockHandleMessageStream = vi.hoisted(() => vi.fn());
@@ -165,6 +162,53 @@ function createChunkStream(raw: string): ReadableStream<Uint8Array> {
       controller.close();
     },
   });
+}
+
+const STOP_TEST_EVENT = 'data: {"type":"message","messageId":"m-stop","data":"hi"}\n\n';
+
+/** One event, then silence: like the multiplex bridge, it neither closes nor errors by itself once its turn is stopped. */
+function createSilentResponse(onCancel: () => void = () => undefined): Response {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(textEncoder.encode(STOP_TEST_EVENT));
+    },
+    cancel: onCancel,
+  });
+  return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+/** One event, then a read failure the moment the turn is stopped: how an aborted fetch body behaves. */
+function createAbortFailingResponse(signal: AbortSignal): Response {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(textEncoder.encode(STOP_TEST_EVENT));
+      signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), {
+        once: true,
+      });
+    },
+  });
+  return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+/** Watches a promise without awaiting it, so a test can assert that it has (not) settled yet. */
+function observe(promise: Promise<unknown>): { isSettled: () => boolean; error: () => unknown } {
+  let settled = false;
+  let failure: unknown;
+  promise.then(
+    () => {
+      settled = true;
+    },
+    (error: unknown) => {
+      settled = true;
+      failure = error;
+    },
+  );
+  return { isSettled: () => settled, error: () => failure };
+}
+
+/** Polls an expectation; the generous timeout keeps these timer-driven tests stable on a loaded machine. */
+function eventually(assertion: () => void): Promise<void> {
+  return vi.waitFor(assertion, { timeout: 5_000 });
 }
 
 describe('streamConsumer resilience paths', () => {
@@ -658,5 +702,247 @@ describe('streamConsumer resilience paths', () => {
     } finally {
       nowSpy.mockRestore();
     }
+  });
+
+  describe('when the user stops the turn', () => {
+    function armStreamHandlers(): void {
+      mockParseSseEnvelope.mockReturnValue({ type: 'message', messageId: 'm-stop', data: 'hi' });
+      mockHandleMessageStream.mockResolvedValue({ added: true, recievedMessage: 'hi' });
+    }
+
+    it('never starts reading for a turn that was already stopped, and raises a genuine AbortError', async () => {
+      const state = createBaseState();
+      const abortController = new AbortController();
+      abortController.abort();
+      armStreamHandlers();
+      // A stream without data would keep a started read waiting for good: no abort event fires for a signal that is
+      // already aborted.
+      const response = new Response(new ReadableStream<Uint8Array>({ start: () => undefined }), {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+
+      const run = observe(consumeStream(response, 'hello', state, createActions(state), abortController, false, ''));
+      await eventually(() => expect(run.isSettled()).toBe(true));
+
+      expect(run.error()).toMatchObject({ name: 'AbortError' });
+      expect(mockHandleMessageStream).not.toHaveBeenCalled();
+    });
+
+    it('ends a pending read at once and leaves no watchdog heal behind', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const onCancel = vi.fn();
+      const state = createBaseState();
+      const actions = createActions(state);
+      const abortController = new AbortController();
+      armStreamHandlers();
+
+      const run = observe(
+        consumeStream(createSilentResponse(onCancel), 'hello', state, actions, abortController, false, ''),
+      );
+      // The first event arms the silence watchdog; the consumer then waits for the next one.
+      await eventually(() => expect(mockHandleMessageStream).toHaveBeenCalledTimes(1));
+
+      abortController.abort();
+      // Far below the 3.5 s silence threshold: only the stop itself can end the consumer this early.
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(run.isSettled()).toBe(true);
+      expect(run.error()).toMatchObject({ name: 'AbortError' });
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(actions.setLoading).not.toHaveBeenCalled();
+      expect(actions._processSuggestions).not.toHaveBeenCalled();
+    });
+
+    it('reports a read that failed because of the stop as the stop itself, not as an interrupted stream', async () => {
+      const state = createBaseState();
+      const abortController = new AbortController();
+      armStreamHandlers();
+
+      const run = observe(
+        consumeStream(
+          createAbortFailingResponse(abortController.signal),
+          'hello',
+          state,
+          createActions(state),
+          abortController,
+          false,
+          '',
+        ),
+      );
+      await eventually(() => expect(mockHandleMessageStream).toHaveBeenCalledTimes(1));
+
+      abortController.abort();
+      await eventually(() => expect(run.isSettled()).toBe(true));
+
+      expect(run.error()).toMatchObject({ name: 'AbortError' });
+    });
+
+    it('detaches its abort listener once the stream has been consumed', async () => {
+      const state = createBaseState();
+      const abortController = new AbortController();
+      const detach = vi.spyOn(abortController.signal, 'removeEventListener');
+      armStreamHandlers();
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      try {
+        await consumeStream(
+          createSseResponse(STOP_TEST_EVENT),
+          'hello',
+          state,
+          createActions(state),
+          abortController,
+          false,
+          '',
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
+
+      expect(detach).toHaveBeenCalledWith('abort', expect.any(Function));
+    });
+
+    it('does not re-attach to a stream whose read failed because of the stop', async () => {
+      const state = createBaseState({ chatId: 'chat-stop-attach', actionMode: 'agent' });
+      const abortController = new AbortController();
+      mockCreateMessageRequest.mockResolvedValue(createAbortFailingResponse(abortController.signal));
+      armStreamHandlers();
+
+      const run = observe(
+        executeStreamWithRetry(
+          'hello',
+          'msg-stop-attach',
+          state,
+          createActions(state),
+          null,
+          abortController,
+          false,
+          '',
+        ),
+      );
+      await eventually(() => expect(mockHandleMessageStream).toHaveBeenCalledTimes(1));
+
+      abortController.abort();
+      await eventually(() => expect(run.isSettled()).toBe(true));
+
+      expect(run.error()).toMatchObject({ name: 'AbortError' });
+      expect(mockAttachToChat).not.toHaveBeenCalled();
+    });
+
+    it('ends the wait before a request retry as soon as the turn is stopped', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const state = createBaseState();
+      const abortController = new AbortController();
+      mockCreateMessageRequest.mockResolvedValue(new Response('temporary', { status: 503 }));
+
+      try {
+        const run = observe(
+          executeStreamWithRetry(
+            'hello',
+            'msg-stop-retry',
+            state,
+            createActions(state),
+            null,
+            abortController,
+            false,
+            '',
+          ),
+        );
+        // The first attempt failed transiently and the loop is backing off before the next one.
+        await eventually(() => expect(vi.getTimerCount()).toBe(1));
+
+        abortController.abort();
+        // The backoff lasts at least 1.6 s: only the stop can end the turn this early.
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(run.isSettled()).toBe(true);
+        expect(run.error()).toMatchObject({ name: 'AbortError' });
+        expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('ends the wait before an attach retry as soon as the turn is stopped', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const state = createBaseState({ chatId: 'chat-stop-attach-wait', actionMode: 'agent' });
+      const abortController = new AbortController();
+      mockCreateMessageRequest.mockResolvedValue(createInterruptedResponse(STOP_TEST_EVENT));
+      armStreamHandlers();
+      mockAttachToChat.mockRejectedValue(new Error('attach network down'));
+
+      try {
+        const run = observe(
+          executeStreamWithRetry(
+            'hello',
+            'msg-stop-attach-wait',
+            state,
+            createActions(state),
+            null,
+            abortController,
+            false,
+            '',
+          ),
+        );
+        // The interrupted stream's first re-attach failed and the loop is backing off before the next one.
+        await eventually(() => expect(vi.getTimerCount()).toBe(1));
+
+        abortController.abort();
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(run.isSettled()).toBe(true);
+        expect(run.error()).toMatchObject({ name: 'AbortError' });
+        expect(mockAttachToChat).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        warnSpy.mockRestore();
+        errorSpy.mockRestore();
+      }
+    });
+
+    it.each([
+      ['gives up', { ok: false, err: 'workspace-stream-ready-timeout' }],
+      ['comes up', { ok: true }],
+    ])(
+      'ends quietly and posts nothing when the stop arrives before the workspace stream %s',
+      async (_outcome, gateResult) => {
+        (window as Window & { __MYRM_E2E_DIRECT_SSE__?: boolean }).__MYRM_E2E_DIRECT_SSE__ = false;
+        const state = createBaseState();
+        const abortController = new AbortController();
+        let settleGate: (result: { ok: boolean; err?: string }) => void = () => undefined;
+        mockWaitUntilReady.mockReturnValue(
+          new Promise((resolve) => {
+            settleGate = resolve;
+          }),
+        );
+
+        const run = observe(
+          executeStreamWithRetry(
+            'hello',
+            'msg-stop-gate',
+            state,
+            createActions(state),
+            null,
+            abortController,
+            false,
+            '',
+          ),
+        );
+        await eventually(() => expect(mockWaitUntilReady).toHaveBeenCalledTimes(1));
+
+        abortController.abort();
+        // The gate cannot be interrupted; its verdict only arrives after the stop.
+        settleGate(gateResult);
+        await eventually(() => expect(run.isSettled()).toBe(true));
+
+        expect(run.error()).toMatchObject({ name: 'AbortError' });
+        expect(mockCreateMessageRequest).not.toHaveBeenCalled();
+      },
+    );
   });
 });

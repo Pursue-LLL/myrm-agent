@@ -52,7 +52,6 @@ def start_with_uvicorn(
     no_qrcode: bool = False,
     skip_health_check: bool = False,
     no_auto_recovery: bool = False,
-    force_recovery: bool = False,
 ) -> None:
     """使用 uvicorn 启动（本地单进程模式）。
 
@@ -66,13 +65,11 @@ def start_with_uvicorn(
         no_qrcode: 是否禁止显示二维码
         skip_health_check: 是否跳过健康检查
         no_auto_recovery: 是否禁用自动恢复
-        force_recovery: 是否允许危险的恢复操作（SQLite WAL删除）
     """
     # 运行健康检查
     run_startup_health_check(
         skip_health_check=skip_health_check,
         auto_recovery=not no_auto_recovery,
-        force_recovery=force_recovery,
     )
 
     frontend_launcher_instance = None

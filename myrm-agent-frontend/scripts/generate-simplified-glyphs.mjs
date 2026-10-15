@@ -3,8 +3,8 @@
  * 从 zh.json（简体 SSOT）语料生成 zh-TW / ja 的简体独有字形集合。
  *
  * 输出：
- * - scripts/zh-simplified-glyphs.txt：简体→繁体独有字形，供 verify-i18n.mjs 9h（zh-TW 纯净门禁）
- * - scripts/ja-simplified-glyphs.txt：简体→日文新字体独有字形，供 verify-i18n.mjs 9j（ja 纯净门禁）
+ * - scripts/zh-simplified-glyphs.txt：简体→繁体独有字形，供 verify-i18n/ 的 9h（zh-TW 纯净门禁）
+ * - scripts/ja-simplified-glyphs.txt：简体→日文新字体独有字形，供 verify-i18n/ 的 9j（ja 纯净门禁）
  *
  * 残留源头是 zh（简体）文案复制到 zh-TW / ja，覆盖 zh 语料中的全部简繁/简日
  * 异形字即对项目文案完备。各目标语言存在合法的同形字（如繁体「台/准/于」、

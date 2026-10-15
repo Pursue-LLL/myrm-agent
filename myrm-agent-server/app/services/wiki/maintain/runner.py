@@ -43,7 +43,7 @@ def _build_list_only_report(*, issues: list[object]) -> str:
         return (
             "## 📋 Wiki 知识库健康周检报告\n\n"
             "✅ **全库状态极佳**：未发现断链、陈旧事实或格式异常。\n\n"
-            "— [在知识库治理面板中查看详情](/settings/knowledge)"
+            "— [在知识库治理面板中查看详情](/settings/wiki)"
         )
 
     broken_links = [i for i in lint_issues if i.issue_type in ("broken_link", "broken_wikilink")]
@@ -93,7 +93,7 @@ def _build_list_only_report(*, issues: list[object]) -> str:
     if len(lint_issues) > 10:
         lines.append(f"\n*(其余 {len(lint_issues) - 10} 项已收拢)*")
 
-    lines.append("\n👉 [在知识库设置中查看全量诊断与治理](/settings/knowledge)")
+    lines.append("\n👉 [在知识库设置中查看全量诊断与治理](/settings/wiki)")
     return "\n".join(lines)
 
 

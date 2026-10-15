@@ -1,64 +1,50 @@
-"""PWA disconnect tolerance and offline guardian registration."""
+"""Disconnect tolerance for direct-SSE agent turns.
+
+[INPUT]
+- app.services.agent.stream_session.stream_session_types (POS: AgentStreamSession state and the grace-period constant)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationMonitor (POS: polls the checker and cancels the turn token)
+
+[OUTPUT]
+- build_disconnect_checker: predicate that turns a client absent past the grace period into True
+- watch_client_disconnect: async context manager owning the monitor of one direct-SSE turn
+
+[POS]
+A direct-SSE client that stays away past ``GRACE_PERIOD_SECONDS`` cancels its turn.
+Long-running turns are never cancelled for a disconnect: they finish in the
+background and ``stream_pump`` notifies the user. Multiplexed turns are decoupled
+from the HTTP request, so there is no connection to watch.
+"""
 
 from __future__ import annotations
 
 import logging
 import time
-import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Callable, Coroutine
+from contextlib import asynccontextmanager
 
-from sqlalchemy import select
+from myrm_agent_harness.utils.runtime.cancellation import CancellationMonitor
 
-from app.database.models.chat import OfflineDurableTask
-from app.platform_utils import get_session_factory
 from app.services.agent.stream_session.stream_session_types import (
     GRACE_PERIOD_SECONDS,
     AgentStreamSession,
 )
-from app.services.power.manager import acquire_power_lock
 
 logger = logging.getLogger(__name__)
 
+_CHECK_INTERVAL_SECONDS = 0.5
 
-def build_disconnect_checker(session: AgentStreamSession) -> Callable[[], Awaitable[bool]]:
+
+def build_disconnect_checker(session: AgentStreamSession) -> Callable[[], Coroutine[None, None, bool]]:
+    """Build the predicate the turn's monitor polls: True once the client stayed away past the grace period."""
+
     async def _check() -> bool:
-        # If multiplexed, we don't rely on the HTTP request connection state
-        if getattr(session.request, "multiplexed", False):
-            return False
-
         disconnected = await session.http_request.is_disconnected()
-        has_active_subscribers = session.collector.has_subscribers
 
-        if not disconnected or has_active_subscribers:
+        if not disconnected or session.collector.has_subscribers:
             session.disconnect_time = None
             return False
 
         if session.is_long_running_task:
-            if not session.durable_registered and session.request.chat_id:
-                try:
-                    session_factory = get_session_factory()
-                    async with session_factory() as db:
-                        exists = await db.execute(
-                            select(OfflineDurableTask).where(OfflineDurableTask.chat_id == session.request.chat_id)
-                        )
-                        if not exists.scalars().first():
-                            task = OfflineDurableTask(
-                                id=str(uuid.uuid4()),
-                                chat_id=session.request.chat_id,
-                                action_mode=session.request.action_mode,
-                                serialized_params=session.params.model_dump(mode="json"),
-                            )
-                            db.add(task)
-                            await db.commit()
-                            logger.info(
-                                "Offline Durable Guardian activated: chat_id=%s",
-                                session.request.chat_id,
-                            )
-                            acquire_power_lock(session.request.chat_id)
-                except Exception as e:
-                    logger.error("Failed to register durable task: %s", e)
-                session.durable_registered = True
-            logger.debug("Offline Guardian took over task: %s", session.params.message_id)
             return False
 
         if session.disconnect_time is None:
@@ -82,3 +68,26 @@ def build_disconnect_checker(session: AgentStreamSession) -> Callable[[], Awaita
         return True
 
     return _check
+
+
+@asynccontextmanager
+async def watch_client_disconnect(session: AgentStreamSession) -> AsyncIterator[None]:
+    """Watch a direct-SSE turn's client for the duration of the ``async with`` body.
+
+    The monitor is created, started and stopped inside this one scope, so a
+    finished turn can never leave its polling task behind.
+    """
+    if session.request.multiplexed:
+        yield
+        return
+
+    monitor = CancellationMonitor(
+        token=session.cancel_token,
+        disconnect_checker=build_disconnect_checker(session),
+        check_interval=_CHECK_INTERVAL_SECONDS,
+    )
+    await monitor.start()
+    try:
+        yield
+    finally:
+        await monitor.stop()

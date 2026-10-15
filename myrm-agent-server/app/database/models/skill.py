@@ -1,42 +1,16 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] PendingEvolution, PendingMigration, ExperienceLedgerEvent
-[POS] 技能域模型。管理技能进化审批、迁移审批、学习资产事件。
+[OUTPUT] PendingMigration, ExperienceLedgerEvent
+[POS] 技能域模型。管理迁移审批、学习资产事件（技能进化审批统一落 ApprovalRecord）。
 """
 
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
-
-
-class PendingEvolution(Base):
-    """@deprecated: 历史遗留表，新数据统一写入 ApprovalRecord。ORM 模型保留仅为避免 DB migration 删表。"""
-
-    __tablename__ = "pending_evolutions"
-
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
-
-    skill_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    skill_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    skill_path: Mapped[str] = mapped_column(String(1000), nullable=False)
-
-    evolution_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    reason: Mapped[str] = mapped_column(Text, nullable=False)
-
-    original_content: Mapped[str] = mapped_column(Text, nullable=False)
-    evolved_content: Mapped[str] = mapped_column(Text, nullable=False)
-
-    confidence: Mapped[float] = mapped_column(Float, nullable=False)
-    test_passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
-
-    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class PendingMigration(Base):

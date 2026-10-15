@@ -26,9 +26,7 @@ from app.config.settings import settings
 from app.database.repositories.uow import UnitOfWork
 from app.lifecycle import (
     auto_continue_interrupted_turns,
-    cleanup_browser_threads,
     init_risk_rules,
-    resume_durable_offline_tasks,
     start_approval_ttl_scheduler,
     start_auth_alert_monitor,
     start_auth_log_cleanup_scheduler,
@@ -43,8 +41,6 @@ from app.lifecycle import (
     start_memory_guardian_guard_telemetry_dispatcher,
     start_memory_guardian_scheduler,
     start_memory_pressure_monitor,
-    start_skill_optimization_listeners,
-    warmup_browser_sessions,
     warmup_global_browser_pool,
 )
 from app.services.agent.evolution.evolution_runtime import init_evolution_runtime
@@ -242,13 +238,11 @@ async def run_async_warmup() -> None:
             start_login_session_cleanup_scheduler(),
             start_maintenance_scheduler(),
             _start_rate_limiter_cleanup(),
-            start_skill_optimization_listeners(),
             start_approval_ttl_scheduler(),
             start_cancellation_cleanup_scheduler(),
             start_memory_guardian_scheduler(),
             start_idle_task_listeners(),
             init_evolution_runtime(),
-            resume_durable_offline_tasks(),
             auto_continue_interrupted_turns(),
             cleanup_old_notifications(),
         ]
@@ -283,14 +277,6 @@ async def run_async_warmup() -> None:
         await warmup_global_browser_pool()
     except Exception as exc:
         logger.error("[Startup] Browser pool initialization failed: %s", exc, exc_info=True)
-
-    # Thread cleanup always runs (zombie detection + old record deletion)
-    warmup_tasks.append(cleanup_browser_threads())
-
-    if settings.browser_auto_warmup:
-        warmup_tasks.append(warmup_browser_sessions())
-    else:
-        logger.debug("[Startup] Browser session warmup skipped (browser_auto_warmup=False)")
 
     try:
         from app.core.media.batch.orchestrator import batch_orchestrator
@@ -353,27 +339,19 @@ async def run_async_warmup() -> None:
                 warmer = VectorStoreWarmer(store)
                 all_collections = await store.list_collections()
 
-                if hasattr(store, "ensure_payload_indexes"):
+                # Optional per-collection maintenance that only some vector stores implement.
+                for hook_name, failure_label in (
+                    ("ensure_payload_indexes", "Payload index creation"),
+                    ("backfill_epoch_timestamps", "Epoch timestamp backfill"),
+                ):
+                    maintenance = getattr(store, hook_name, None)
+                    if maintenance is None:
+                        continue
                     for coll in all_collections:
                         try:
-                            await store.ensure_payload_indexes(coll)
-                        except Exception as idx_err:
-                            logger.warning(
-                                "[Startup] Payload index creation failed for %s: %s",
-                                coll,
-                                idx_err,
-                            )
-
-                if hasattr(store, "backfill_epoch_timestamps"):
-                    for coll in all_collections:
-                        try:
-                            await store.backfill_epoch_timestamps(coll)
-                        except Exception as bf_err:
-                            logger.warning(
-                                "[Startup] Epoch timestamp backfill failed for %s: %s",
-                                coll,
-                                bf_err,
-                            )
+                            await maintenance(coll)
+                        except Exception as maintenance_err:
+                            logger.warning("[Startup] %s failed for %s: %s", failure_label, coll, maintenance_err)
 
                 kb_collections = [(coll, 1536) for coll in all_collections if isinstance(coll, str) and coll.startswith("kb_")]
 

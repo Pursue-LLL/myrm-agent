@@ -57,9 +57,7 @@ def _race_error_to_http(exc: RaceError) -> HTTPException:
     "/boards/{board_id}/tasks/{task_id}/race/estimate",
     response_model=RaceEstimateResponse,
 )
-async def race_estimate(
-    board_id: str, task_id: str, lanes: int = 3
-) -> RaceEstimateResponse:
+async def race_estimate(board_id: str, task_id: str, lanes: int = 3) -> RaceEstimateResponse:
     _ = task_id
     svc = get_kanban_service()
     estimate = await estimate_race_cost(svc, board_id, min(max(lanes, 2), 5))
@@ -71,9 +69,7 @@ async def race_estimate(
     response_model=RaceStartResponse,
     status_code=201,
 )
-async def race_start(
-    board_id: str, task_id: str, body: RaceStartRequest
-) -> RaceStartResponse:
+async def race_start(board_id: str, task_id: str, body: RaceStartRequest) -> RaceStartResponse:
     svc = get_kanban_service()
     try:
         outcome = await start_race(
@@ -120,9 +116,7 @@ async def race_lanes(board_id: str, task_id: str) -> RaceLanesResponse:
             runs = []
         for run in runs:
             usage = run.token_usage or {}
-            total_tokens += sum(
-                value for value in usage.values() if isinstance(value, int)
-            )
+            total_tokens += sum(value for value in usage.values() if isinstance(value, int))
         responses.append(
             RaceLaneResponse(
                 task_id=lane.task_id,
@@ -141,15 +135,11 @@ async def race_lanes(board_id: str, task_id: str) -> RaceLanesResponse:
     "/boards/{board_id}/tasks/{task_id}/race/decide",
     response_model=RaceDecideResponse,
 )
-async def race_decide(
-    board_id: str, task_id: str, body: RaceDecideRequest
-) -> RaceDecideResponse:
+async def race_decide(board_id: str, task_id: str, body: RaceDecideRequest) -> RaceDecideResponse:
     _ = board_id
     svc = get_kanban_service()
     try:
-        outcome = await pick_race_winner(
-            svc, task_id, body.winner_task_id, approver=body.approver
-        )
+        outcome = await pick_race_winner(svc, task_id, body.winner_task_id, approver=body.approver)
     except RaceError as exc:
         raise _race_error_to_http(exc) from None
     return RaceDecideResponse(**outcome)
@@ -159,9 +149,7 @@ async def race_decide(
     "/boards/{board_id}/tasks/{task_id}/race/lanes/{lane_task_id}/changes",
     response_model=RaceLaneChangesResponse,
 )
-async def race_lane_changes(
-    board_id: str, task_id: str, lane_task_id: str
-) -> RaceLaneChangesResponse:
+async def race_lane_changes(board_id: str, task_id: str, lane_task_id: str) -> RaceLaneChangesResponse:
     """List files changed by a lane against the race target branch."""
     svc = get_kanban_service()
     try:
@@ -175,9 +163,7 @@ async def race_lane_changes(
     "/boards/{board_id}/tasks/{task_id}/race/lanes/{lane_task_id}/file",
     response_model=RaceLaneFileResponse,
 )
-async def race_lane_file(
-    board_id: str, task_id: str, lane_task_id: str, path: str
-) -> RaceLaneFileResponse:
+async def race_lane_file(board_id: str, task_id: str, lane_task_id: str, path: str) -> RaceLaneFileResponse:
     """Return target vs lane file contents for side-by-side review."""
     svc = get_kanban_service()
     try:

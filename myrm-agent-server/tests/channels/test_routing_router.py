@@ -681,7 +681,7 @@ def _pairing_of(detail: tuple[PairingStatus, PairingRole, int | None] | None) ->
 
 
 class TestAdminPermission:
-    """``requires_admin`` commands belong to the sandbox owner: an ACTIVE ADMIN pairing or a control-plane message."""
+    """Owner-only commands belong to the sandbox owner: an ACTIVE ADMIN pairing or a control-plane message."""
 
     @pytest.mark.asyncio
     async def test_active_admin_pairing_is_the_owner(self) -> None:
@@ -738,7 +738,6 @@ class TestAdminPermission:
             name="yolo",
             kind=CommandKind.SYSTEM,
             description="Toggle YOLO mode",
-            requires_admin=True,
         )
         resolved = ResolvedCommand(command_def=cmd, raw_args="on")
         msg = _msg(content="/yolo on")
@@ -764,7 +763,6 @@ class TestAdminPermission:
             kind=CommandKind.SYSTEM,
             action=CommandAction.YOLO,
             description="Toggle YOLO mode",
-            requires_admin=True,
         )
         resolved = ResolvedCommand(command_def=cmd, raw_args="on")
         msg = _msg(content="/yolo on")

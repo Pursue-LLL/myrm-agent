@@ -4,6 +4,7 @@
 - app.channels.i18n::channel_t (POS: localized channel copy catalog)
 - app.channels.types::DraftTimeoutAction (POS: what happens when a held reply expires)
 - app.channels.types.components::ActionButton, ButtonStyle, ComponentRow (POS: interactive card components)
+- app.services.approvals.outbound_draft::draft_code (POS: how a held reply is named in chat)
 
 [OUTPUT]
 - APPROVAL_CLICK_CHANNELS: channels whose button clicks are resolved by the router
@@ -12,7 +13,8 @@
 [POS]
 Presentation of approval requests for IM notification targets. Pure functions over the event data.
 A held channel reply (``outbound_draft``) shows the incoming message and the drafted text, so the
-reviewer can decide without opening the app.
+reviewer can decide without opening the app; where there are no buttons it also spells out the
+``/draft`` commands that decide it in chat.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from pathlib import PurePath
 from app.channels.i18n import channel_t
 from app.channels.types import DraftTimeoutAction
 from app.channels.types.components import ActionButton, ButtonStyle, ComponentRow
+from app.services.approvals.outbound_draft import draft_code
 
 # Telegram is the only channel whose inbound parser turns a button click into the ``approval:<decision>:<id>``
 # message that the router resolves; a button on any other channel would do nothing when pressed.
@@ -44,7 +47,8 @@ def build_approval_card(
     """Render one approval request for ``channel``.
 
     Approve/Deny buttons are attached only where a click can be resolved; every other channel gets a
-    pointer to the app, since a click there never reaches the approval handler.
+    pointer to the app, since a click there never reaches the approval handler. A held reply additionally
+    names the ``/draft`` commands there, so the owner can decide by typing.
     """
     approval_id = str(data.get("approval_id") or "")
     action_type = str(data.get("action_type") or "action")
@@ -55,8 +59,10 @@ def build_approval_card(
 
     if approval_id and channel in APPROVAL_CLICK_CHANNELS:
         return content, (_decision_buttons(approval_id, locale),)
-    hint = _t(locale, "approval_card_open_app")
-    return f"{content}\n\n{hint}", ()
+    hints = [_t(locale, "approval_card_open_app")]
+    if approval_id and action_type == _OUTBOUND_DRAFT:
+        hints.insert(0, _t(locale, "approval_draft_commands", code=draft_code(approval_id)))
+    return "\n\n".join((content, *hints)), ()
 
 
 def _t(locale: str | None, key: str, **kwargs: object) -> str:

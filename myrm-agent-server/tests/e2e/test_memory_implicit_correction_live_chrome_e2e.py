@@ -98,8 +98,8 @@ def _await_employer_proposal(api_url: str) -> dict[str, object]:
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
-    workload="STANDARD",
-    private_reason="exclusive_backend",
+    workload="LIVE",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

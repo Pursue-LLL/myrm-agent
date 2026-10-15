@@ -43,7 +43,7 @@ import { isLocalMode } from '@/lib/deploy-mode';
 import CloneAgentDialog from './CloneAgentDialog';
 import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
 import BulkExportDialog from '@/components/features/plugins/BulkExportDialog';
-import { activateOnKey } from '@/lib/utils/a11y';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 // 预设头像颜色方案
 const avatarGradients = [
@@ -331,12 +331,7 @@ export default function AgentsSection() {
                     })()}
 
                     {/* 操作按钮 */}
-                    <div
-                      className={cn(
-                        'flex items-center gap-1',
-                        'opacity-0 group-hover:opacity-100 transition-opacity duration-200',
-                      )}
-                    >
+                    <div className={cn('flex items-center gap-1', REVEAL_ON_HOVER, 'transition-opacity duration-200')}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

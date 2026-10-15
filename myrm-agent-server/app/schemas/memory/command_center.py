@@ -176,7 +176,6 @@ class MemoryCommandEconomicsDashboard(BaseModel):
     recommendations: list[str] = Field(default_factory=list)
 
 
-
 class MemoryCommandConflictItem(BaseModel):
     """Claim, correction, supersession, and pending-conflict visibility item."""
 
@@ -435,7 +434,6 @@ class MemoryCommandPlaneSummary(BaseModel):
     archive_restore_rollback_failed: int = 0
     archive_restore_missing_items: int = 0
     archive_restore_failed_items: int = 0
-    storage_mode: str
     last_event_at: datetime | None = None
     redaction_scope: Literal["metadata_only"]
     sandbox_isolation: Literal["local_or_per_user_sandbox"]
@@ -481,7 +479,6 @@ class MemoryCommandRuntimeStatus(BaseModel):
     """Deployment and storage status visible to the local memory UI."""
 
     deploy_mode: str
-    storage_mode: str
     memory_base_path: str
     relational_status: Literal["available", "unavailable"]
     vector_status: Literal["available", "unavailable"]
@@ -608,20 +605,6 @@ class MemoryCommandActionResponse(BaseModel):
     target_kind: str
     target_id: str
     action: str
-
-
-class MemoryCommandDiagnosticActionRequest(BaseModel):
-    """Executable Memory Doctor action request."""
-
-    action: Literal["run_diagnostics", "run_health_refresh", "restore_disciplined_defaults"]
-
-
-class MemoryCommandDiagnosticActionResponse(BaseModel):
-    """Executable Memory Doctor action result."""
-
-    status: Literal["completed", "completed_with_findings", "failed"]
-    action: str
-    run: MemoryCommandDiagnosticRun
 
 
 class MemoryCommandRepairActionRequest(BaseModel):

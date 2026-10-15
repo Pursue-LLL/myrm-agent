@@ -125,28 +125,22 @@ async def apply_content_update(
 
     await store.save_skill(skill_record)
 
-    try:
-        from app.services.skill_optimization.bootstrap import (
-            get_skill_optimization_storage as get_storage,
-        )
-        from app.services.skill_optimization.skill_version_sync import (
-            persist_skill_version,
-        )
+    from app.services.skills.write_orchestrator import (
+        persist_skill_md_snapshot,
+        restore_skill_md_from_active_version,
+    )
 
-        opt_storage = get_storage()
-        await persist_skill_version(
-            opt_storage,
+    try:
+        await persist_skill_md_snapshot(
             payload.skill_id,
             content_to_write,
             created_by="evolution_engine",
+            sync_disk=False,
             disk_path=skill_path,
         )
-    except Exception as exc:
-        logger.warning(
-            "Failed to persist skill version snapshot for %s: %s",
-            payload.skill_id,
-            exc,
-        )
+    except Exception:
+        await restore_skill_md_from_active_version(payload.skill_id)
+        raise
 
     if is_fork and agent_id:
         try:

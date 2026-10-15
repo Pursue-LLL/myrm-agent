@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore, SkillVersion
+from myrm_agent_harness.agent.skills.optimization.types import SkillVersion
 
 from app.services.skill_optimization.skill_version_sync import (
     activate_version_with_disk_sync,
@@ -21,13 +21,6 @@ def _sample_version(skill_id: str, version: int, content: str) -> SkillVersion:
         skill_id=skill_id,
         version=version,
         content=content,
-        quality_score=SkillQualityScore(
-            success_rate=0.9,
-            token_efficiency=0.8,
-            execution_time=0.7,
-            user_satisfaction=0.85,
-            call_frequency=0.6,
-        ),
         created_at=datetime(2026, 1, 1),
         created_by="test",
         optimization_id=None,

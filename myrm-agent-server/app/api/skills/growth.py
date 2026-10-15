@@ -46,7 +46,6 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     summary: str
     description: str | None = None
     confidence: float | None = None
-    test_passed: bool | None = None
     apply_status: str | None = None
     apply_error: str | None = None
     reason_code: str | None = None
@@ -63,8 +62,6 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     verification_proof: dict[str, object] | None = None
     target_layer: str | None = None
     target_pathology: str | None = None
-    prediction_manifest: dict[str, object] | None = None
-    attribution_result: dict[str, object] | None = None
     security_scan_summary: dict[str, object] | None = None
 
 
@@ -141,6 +138,10 @@ def _form_metadata_response(
     )
 
 
+def _dependents_for(dependents_map: dict[str, list[str]], skill_id: str | None) -> list[str] | None:
+    return dependents_map.get(skill_id) if skill_id else None
+
+
 def _summary_response(
     item: SkillGrowthCaseSummaryRead,
     impacted_dependents: list[str] | None = None,
@@ -156,7 +157,6 @@ def _summary_response(
         summary=item.summary,
         description=item.description,
         confidence=item.confidence,
-        test_passed=item.test_passed,
         apply_status=item.apply_status,
         apply_error=item.apply_error,
         reason_code=item.reason_code,
@@ -173,8 +173,6 @@ def _summary_response(
         verification_proof=item.verification_proof,
         target_layer=item.target_layer,
         target_pathology=item.target_pathology,
-        prediction_manifest=item.prediction_manifest,
-        attribution_result=item.attribution_result,
         security_scan_summary=item.security_scan_summary,
     )
 
@@ -250,7 +248,7 @@ async def get_skill_growth_cases(
     items, total = await list_skill_growth_cases(limit=limit, offset=offset, status=status)
     dependents_map = await get_dependents_map([item.skill_id for item in items if item.skill_id])
     payload = SkillGrowthCaseListResponse(
-        items=[_summary_response(item, dependents_map.get(item.skill_id)) for item in items],
+        items=[_summary_response(item, _dependents_for(dependents_map, item.skill_id)) for item in items],
         total=total,
     )
     return success_response(data=payload.model_dump())
@@ -262,54 +260,7 @@ async def get_skill_growth_case(case_id: str) -> JSONResponse:
     if item is None:
         raise HTTPException(status_code=404, detail=f"Skill growth case not found: {case_id}")
     dependents = await get_dependents_map([item.skill_id]) if item.skill_id else {}
-    return success_response(data=_detail_response(item, dependents.get(item.skill_id)).model_dump())
-
-
-class EvaluatePredictionManifestBody(BaseModel):
-    manifest_id: str
-    target_component: str
-    rationale: str
-    predictions: list[dict[str, object]] = Field(default_factory=list)
-    actual_metrics: dict[str, float] = Field(default_factory=dict)
-    rollback_patch: str | None = None
-
-
-@router.post("/manifest-attribution")
-async def evaluate_manifest_attribution_endpoint(
-    body: EvaluatePredictionManifestBody,
-) -> JSONResponse:
-    """Evaluate and attribute actual test/eval metrics back to a change prediction manifest."""
-    from myrm_agent_harness.eval import (
-        ChangePredictionManifest,
-        MetricPrediction,
-        PredictionDirection,
-        evaluate_manifest_attribution,
-    )
-
-    preds: list[MetricPrediction] = []
-    for p in body.predictions:
-        rel_tol = p.get("relative_tolerance")
-        preds.append(
-            MetricPrediction(
-                metric_name=str(p.get("metric_name", "")),
-                direction=PredictionDirection(str(p.get("direction", "increase"))),
-                baseline_value=float(p.get("baseline_value", 0.0)),
-                target_value=float(p.get("target_value", 0.0)),
-                tolerance=float(p.get("tolerance", 0.02)),
-                relative_tolerance=float(rel_tol) if rel_tol is not None else None,
-            )
-        )
-
-    manifest = ChangePredictionManifest(
-        manifest_id=body.manifest_id,
-        target_component=body.target_component,
-        rationale=body.rationale,
-        predictions=preds,
-        rollback_patch=body.rollback_patch,
-    )
-
-    result = evaluate_manifest_attribution(manifest, body.actual_metrics)
-    return success_response(data=result.to_dict())
+    return success_response(data=_detail_response(item, _dependents_for(dependents, item.skill_id)).model_dump())
 
 
 @router.get("/stats")

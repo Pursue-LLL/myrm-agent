@@ -58,7 +58,6 @@ class SkillUsageStatsResponse(BaseModel):
     failure_count: int = 0
     last_used_at: str | None = None
     success_rate: float = 0.0
-    avg_duration_ms: float = 0.0
     lifecycle_status: str = "active"
     pinned: bool = False
 

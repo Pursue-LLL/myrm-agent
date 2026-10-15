@@ -218,4 +218,3 @@ async def test_build_moa_overlay_middleware_supports_risk_triggered_fanout() -> 
                 assert config.risk_trigger_immune_turns == 4
                 assert config.risk_trigger_max_per_session == 5
                 assert config.risk_trigger_timeout == 8.0
-

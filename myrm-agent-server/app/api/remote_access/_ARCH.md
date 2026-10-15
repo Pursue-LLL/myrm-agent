@@ -9,7 +9,6 @@
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
 | `router.py` | 路由 | `/api/v1/remote-access/*` REST 核心端点与子路由挂载 | ✅ |
-| `ssh_routes.py` | 路由 | `/api/v1/remote-access/hosts/*` SSH 主机资产管理端点 | ✅ |
 | `schemas.py` | 契约 | 远程访问与主机资产管理 Pydantic 数据模型 | ✅ |
 
 ## 端点

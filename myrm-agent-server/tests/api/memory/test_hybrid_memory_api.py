@@ -1,6 +1,6 @@
 # [POS]: tests/api/memory/test_hybrid_memory_api.py
 # [INPUT]: Isolated FastAPI test application, AsyncClient, and temporary SQLite database file.
-# [OUTPUT]: Integration tests verifying FTS5 CRUD, synonym expansion, hybrid search, and telemetry APIs.
+# [OUTPUT]: Integration tests verifying FTS5 CRUD, FTS-only search, and engine stats APIs.
 
 from __future__ import annotations
 
@@ -74,22 +74,10 @@ async def test_insert_get_delete_hybrid_memory_api(test_app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_synonym_registration_and_hybrid_search_api(test_app: FastAPI) -> None:
-    """Verifies synonym cluster registration and semantic recall without exact keyword matching."""
+async def test_fts_only_search_and_engine_stats_api(test_app: FastAPI) -> None:
+    """Verifies FTS5-only search recall and the engine stats endpoint."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Register a custom domain synonym
-        res_syn = await client.post(
-            "/api/memory/hybrid/synonyms",
-            json={
-                "primary_term": "沙箱",
-                "synonyms": ["sandbox", "isolation_env", "enclave"],
-            },
-        )
-        assert res_syn.status_code == 200
-        assert res_syn.json()["is_success"] is True
-
-        # 2. Insert an item containing "enclave"
         await client.post(
             "/api/memory/hybrid/items",
             json={
@@ -102,21 +90,16 @@ async def test_synonym_registration_and_hybrid_search_api(test_app: FastAPI) -> 
             },
         )
 
-        # 3. Search using the term "沙箱" -> should recall the item containing "enclave"
         res_search = await client.post(
             "/api/memory/hybrid/items/search",
-            json={"query": "沙箱", "limit": 5, "enable_vector": False},
+            json={"query": "enclave", "limit": 5, "enable_vector": False},
         )
         assert res_search.status_code == 200
         search_data = res_search.json()
         assert search_data["total_hits"] >= 1
         assert search_data["mode"] == "fts_only"
         assert search_data["results"][0]["item_id"] == "mem_env_002"
-        assert any("enclave" in term for term in search_data["results"][0]["matched_terms"])
 
-        # 4. Check telemetry endpoint
         res_stats = await client.get("/api/memory/hybrid/stats")
         assert res_stats.status_code == 200
-        stats_data = res_stats.json()
-        assert stats_data["total_items"] >= 1
-        assert stats_data["synonym_terms_count"] > 0
+        assert res_stats.json()["total_items"] >= 1

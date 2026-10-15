@@ -76,7 +76,7 @@ export function useWikiConceptsList(options?: {
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
+  const [selectedConcept, setSelectedConceptState] = useState<Concept | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editTab, setEditTab] = useState<WikiEditTab>('truth');
   const [editContent, setEditContent] = useState('');
@@ -101,6 +101,14 @@ export function useWikiConceptsList(options?: {
 
   const treeRef = useRef<TreeApi<TreeNode> | null>(null);
   const lastHighlightedConceptRef = useRef<string | null>(null);
+  // 词条选择只认最后一次发起的请求：快速连点或切换 Agent 范围时，较早发起的响应（含失败）一律丢弃
+  const selectRequestRef = useRef(0);
+  // 详情区正在展示的词条名：操作回调里的 selectedConcept 是发起时的快照，await 之后要以这里的最新值判断结果是否还属于当前详情
+  const shownConceptNameRef = useRef<string | null>(null);
+  const setSelectedConcept = useCallback((concept: Concept | null) => {
+    shownConceptNameRef.current = concept?.name ?? null;
+    setSelectedConceptState(concept);
+  }, []);
 
   const fetchTree = useCallback(async () => {
     try {
@@ -116,6 +124,7 @@ export function useWikiConceptsList(options?: {
   }, [agentScopeId, t]);
 
   useEffect(() => {
+    selectRequestRef.current += 1;
     setSelectedConcept(null);
     setIsEditing(false);
     setEditContent('');
@@ -125,7 +134,7 @@ export function useWikiConceptsList(options?: {
     setTreeData([]);
     lastHighlightedConceptRef.current = null;
     void fetchTree();
-  }, [fetchTree, options?.treeSyncNonce, agentScopeId]);
+  }, [fetchTree, options?.treeSyncNonce, agentScopeId, setSelectedConcept]);
 
   const hasUnsavedEdits = Boolean(
     editBaseline &&
@@ -138,16 +147,22 @@ export function useWikiConceptsList(options?: {
 
   const handleSelectConcept = useCallback(
     async (id: string) => {
+      const requestId = ++selectRequestRef.current;
       try {
         const data = await wikiService.getConcept(id, agentScopeId);
+        if (requestId !== selectRequestRef.current) {
+          return;
+        }
         setSelectedConcept(data);
         setIsEditing(false);
         setEditBaseline(null);
       } catch {
-        toast.error(t('loadFailed'));
+        if (requestId === selectRequestRef.current) {
+          toast.error(t('loadFailed'));
+        }
       }
     },
-    [agentScopeId, t],
+    [agentScopeId, setSelectedConcept, t],
   );
 
   const requestSelectConcept = useCallback(
@@ -326,20 +341,23 @@ export function useWikiConceptsList(options?: {
       }
 
       const refreshed = await wikiService.getConcept(selectedConcept.name, agentScopeId);
-      setSelectedConcept(refreshed);
-      const sections = refreshed.editor_sections;
-      if (sections) {
-        setEditCompiledTruth(sections.compiled_truth);
-        setEditTimelineDisplay(sections.timeline);
-        setEditTags(sections.tags.join(', '));
-        setEditAliases(sections.aliases.join(', '));
+      // 保存期间详情已换成别的词条：写入已成功，但这份刷新结果不属于当前详情，也不再属于任何编辑会话
+      if (shownConceptNameRef.current === selectedConcept.name) {
+        setSelectedConcept(refreshed);
+        const sections = refreshed.editor_sections;
+        if (sections) {
+          setEditCompiledTruth(sections.compiled_truth);
+          setEditTimelineDisplay(sections.timeline);
+          setEditTags(sections.tags.join(', '));
+          setEditAliases(sections.aliases.join(', '));
+        }
+        setEditContentHash(refreshed.content_hash);
+        if (editTab === 'timeline') {
+          setEditTimelineAppend('');
+        }
+        setIsEditing(false);
+        setEditBaseline(null);
       }
-      setEditContentHash(refreshed.content_hash);
-      if (editTab === 'timeline') {
-        setEditTimelineAppend('');
-      }
-      setIsEditing(false);
-      setEditBaseline(null);
       toast.success(t('updateSuccess'));
       onVaultMutated?.();
     } catch (error) {
@@ -357,6 +375,7 @@ export function useWikiConceptsList(options?: {
   const { handleUpdateClaimStatus, handleHealClaims } = useWikiConceptClaimActions({
     selectedConcept,
     setSelectedConcept,
+    shownConceptNameRef,
     agentScopeId,
     onVaultMutated,
   });
@@ -374,7 +393,8 @@ export function useWikiConceptsList(options?: {
       } else {
         await wikiService.deleteConcept(name, agentScopeId);
       }
-      if (selectedConcept?.name === name || selectedConcept?.name.startsWith(`${name}/`)) {
+      const shown = shownConceptNameRef.current;
+      if (shown === name || shown?.startsWith(`${name}/`)) {
         setSelectedConcept(null);
       }
       toast.success(t('deleteSuccess'));

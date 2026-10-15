@@ -1,6 +1,7 @@
 """Skill creation service.
 
 [INPUT]
+- app.core.skills.models::LOCAL_SKILLS_DIR (POS: single definition of the primary local skills root)
 - creation_protocols::SkillWriteBackend, SkillSaveResult, SkillDeleteResult, SkillResourceWriteResult
 - myrm_agent_harness.agent.skills.packaging.validator::parse_skill_md
 - myrm_agent_harness.agent.skills.market.sanitizer::SKILL_MD_FILE, SKILL_NAME_PATTERN
@@ -11,7 +12,7 @@
 
 [POS]
 Business-layer implementation of SkillWriteBackend protocol.
-Stores skills and their resource files in /workspace/skills/{name}/, with syntax validation for .py, .json, and .yaml/.yml resources.
+Stores skills and their resource files in LOCAL_SKILLS_DIR/{name}/ (the catalog's primary scan root), with syntax validation for .py, .json, and .yaml/.yml resources.
 Handles auto-enable/disable in user config on save/delete.
 Security scanning is handled by the framework-layer ScanningSkillWriteBackend wrapper.
 """
@@ -37,22 +38,20 @@ from myrm_agent_harness.backends.skills.creation_protocols import (
     SkillSaveResult,
 )
 
-from app.config.settings import settings
+from app.core.skills.models import LOCAL_SKILLS_DIR
 
 logger = logging.getLogger(__name__)
-
-LOCAL_SKILLS_DIR = Path(settings.database.state_dir) / "skills"
 
 
 class SkillCreationService:
     """Local filesystem implementation of SkillWriteBackend protocol.
 
-    Storage layout:
-        ~/.myrm/skills/{name}/SKILL.md          — skill definition
-        ~/.myrm/skills/{name}/scripts/...        — supporting scripts
-        ~/.myrm/skills/{name}/references/...     — reference documents
-        ~/.myrm/skills/{name}/templates/...      — templates
-        ~/.myrm/skills/{name}/assets/...         — static assets
+    Storage layout under LOCAL_SKILLS_DIR (``~/.myrm/skills`` unless MYRM_DATA_DIR relocates it):
+        {name}/SKILL.md          — skill definition
+        {name}/scripts/...        — supporting scripts
+        {name}/references/...     — reference documents
+        {name}/templates/...      — templates
+        {name}/assets/...         — static assets
     """
 
     def __init__(self, base_path: Path | None = None) -> None:

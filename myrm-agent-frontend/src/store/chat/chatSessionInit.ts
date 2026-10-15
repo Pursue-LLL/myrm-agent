@@ -147,12 +147,7 @@ export const initializeChat = (
             if (draft.chatId !== id) {
               return;
             }
-            const lockStreamingLoading = snapshot.loading;
-            const lockedLoading = lockStreamingLoading ? draft.loading : null;
             updater(draft);
-            if (lockStreamingLoading && lockedLoading !== null) {
-              draft.loading = lockedLoading;
-            }
             // isMessagesLoaded: never preserve — loadMessages Hydration Readiness Gate owns it.
           });
         },

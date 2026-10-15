@@ -5,7 +5,7 @@
  * [OUTPUT]
  * Transparent Inspectable Model Private Notebook DTOs & API clients:
  * - listNotes, searchNotes, getNote, appendNote, rewriteNote, deleteNote (Notes 5 tools)
- * - listContexts, listEntries, searchHistory, recordTurn (History 4 tools)
+ * - listContexts, searchHistory (History tools)
  * - switchToNewContext (Cross-context smooth handover)
  *
  * [POS]
@@ -62,11 +62,6 @@ export interface HistoryEntryItemDTO {
   role: string;
   content: string;
   created_at: string;
-}
-
-export interface RecordTurnRequestDTO {
-  role: string;
-  content: string;
 }
 
 export interface NewContextRequestDTO {
@@ -155,15 +150,6 @@ export async function listContexts(): Promise<HistoryContextItemDTO[]> {
 }
 
 /**
- * Lists interaction turns archived under a historical context window.
- */
-export async function listEntries(contextId: string): Promise<HistoryEntryItemDTO[]> {
-  return apiRequest<HistoryEntryItemDTO[]>(
-    `/memory/notebook/history/entries/${encodeURIComponent(contextId)}`
-  );
-}
-
-/**
  * Searches past execution history across all archived contexts.
  */
 export async function searchHistory(
@@ -173,18 +159,6 @@ export async function searchHistory(
   return apiRequest<HistoryEntryItemDTO[]>(
     `/memory/notebook/history/search?q=${encodeURIComponent(query)}&max_results=${maxResults}`
   );
-}
-
-/**
- * Records an ongoing interaction turn into active context history.
- */
-export async function recordTurn(
-  request: RecordTurnRequestDTO
-): Promise<{ status: string }> {
-  return apiRequest<{ status: string }>('/memory/notebook/turn', {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
 }
 
 /**

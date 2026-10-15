@@ -65,13 +65,6 @@ class FourTierFtsService:
         saved = self._engine.save_item(item)
         return self._item_to_dto(saved)
 
-    def get_item(self, item_id: str, project_hash: str = "default") -> FourTierMemoryItemDTO | None:
-        """Retrieves a memory item by ID."""
-        item = self._engine.get_item(item_id, project_hash=project_hash)
-        if item is None:
-            return None
-        return self._item_to_dto(item)
-
     def delete_item(self, item_id: str, project_hash: str = "default") -> bool:
         """Deletes a memory item by ID."""
         return self._engine.delete_item(item_id, project_hash=project_hash)

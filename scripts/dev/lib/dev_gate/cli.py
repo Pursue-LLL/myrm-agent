@@ -13,9 +13,9 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 # This module imports dev_gate.* at module scope and is invoked directly as a
 # script (`python .../dev_gate/cli.py ...`) by test.sh / e2e_bootstrap.sh. When
@@ -429,11 +429,15 @@ def ensure_coordinator(
                 pid_path=pid_path,
             )
             live_pid = None
-    if live_pid is not None and _pid_alive(live_pid):
-        if _ping(socket_target) or _wait_for_ping(
-            socket_target, budget_sec=_PING_WAIT_SEC
-        ):
-            return socket_target
+    if (
+        live_pid is not None
+        and _pid_alive(live_pid)
+        and (
+            _ping(socket_target)
+            or _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC)
+        )
+    ):
+        return socket_target
     if _ping(socket_target):
         return socket_target
     if socket_target.exists() and _wait_for_ping(
@@ -444,20 +448,27 @@ def ensure_coordinator(
         if not _clear_stale_coordinator_pid(pid_path):
             return None
         live_pid = _read_coordinator_pid(pid_path)
-        if live_pid is not None and _pid_alive(live_pid):
-            if _ping(socket_target) or _wait_for_ping(
-                socket_target, budget_sec=_PING_WAIT_SEC
-            ):
-                return socket_target
+        if (
+            live_pid is not None
+            and _pid_alive(live_pid)
+            and (
+                _ping(socket_target)
+                or _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC)
+            )
+        ):
+            return socket_target
         if _ping(socket_target):
             return socket_target
         if socket_target.exists():
             if _wait_for_ping(socket_target, budget_sec=2.0):
                 return socket_target
             live_pid = _read_coordinator_pid(pid_path)
-            if live_pid is not None and _pid_alive(live_pid):
-                if _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC):
-                    return socket_target
+            if (
+                live_pid is not None
+                and _pid_alive(live_pid)
+                and _wait_for_ping(socket_target, budget_sec=_PING_WAIT_SEC)
+            ):
+                return socket_target
             # R273: stale socket blocks all waiters — remove and spawn one coordinator.
             _eliminate_coordinator_herd(
                 socket_target=socket_target,
@@ -696,9 +707,14 @@ def _submit(args: argparse.Namespace) -> int:
     namespace = args.namespace
     if args.access_scope == "NAMESPACE_WRITE" and not namespace:
         namespace = args.session_id
+    meta = {
+        "source_fingerprint": args.source_fingerprint,
+        "command_started_at": args.command_started_at,
+    }
     response = send(
         {
             "operation": "submit",
+            "meta": {key: value for key, value in meta.items() if value},
             "session_id": args.session_id,
             "owner_pid": args.owner_pid,
             "owner_token": owner_token,
@@ -1049,7 +1065,7 @@ def _simple_operation(args: argparse.Namespace) -> int:
 def _coordinator_reap(_args: argparse.Namespace) -> int:
     """P0-A: sole entry for hung/stale pytest SIGINT and store deadline reap."""
     os.environ["MYRM_DEV_GATE_COORDINATOR_REAP"] = "1"
-    from e2e_core.stale_lease_reap import (  # noqa: PLC0415
+    from e2e_core.stale_lease_reap import (
         maybe_reap_excess_wave_leases,
         maybe_reap_hung_chrome_e2e_pytest,
         maybe_reap_stale_empty_mux_contexts,
@@ -1130,6 +1146,8 @@ def _parser() -> argparse.ArgumentParser:
     submit.add_argument("--priority", type=int, default=0)
     submit.add_argument("--private-credits", type=int, default=1)
     submit.add_argument("--hard-timeout-sec", type=float, default=600.0)
+    submit.add_argument("--source-fingerprint", default="")
+    submit.add_argument("--command-started-at", default="")
     submit.set_defaults(handler=_submit)
 
     private_admit = commands.add_parser("private_admit")

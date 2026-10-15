@@ -16,6 +16,7 @@ import useConfigStore from '@/store/useConfigStore';
 import { MCPScanAckDialog } from '@/components/features/settings/mcp/MCPScanAckDialog';
 import type { MCPServiceConfig } from '@/store/config/types';
 import { getDocsUrl, isSandbox } from '@/lib/deploy-mode';
+import type { CatalogLocale } from './catalog-locale';
 import type { CatalogEntry, CatalogMcpDialogConfig } from './catalog-types';
 import { shouldBlockLocalOnlyInSandbox } from './deploymentGuard';
 import { AuthSection } from './connect-dialog/AuthSection';
@@ -26,7 +27,7 @@ import { useConnectivityProbe } from './connect-dialog/useConnectivityProbe';
 
 interface IntegrationConnectDialogProps {
   entry: CatalogEntry;
-  locale: string;
+  locale: CatalogLocale;
   onClose: () => void;
   onConnected: () => void;
 }
@@ -104,7 +105,6 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             if (probeUrl && options?.skipProbe !== true) {
               const probeOk = await runProbe();
               if (!probeOk) {
-                setConnecting(false);
                 return;
               }
             }
@@ -145,11 +145,10 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             const exists = mcpConfigs.some((c) => c.name === newConfig.name);
             if (exists) {
               toast({ title: t('alreadyConnected'), variant: 'destructive' });
-              setConnecting(false);
               return;
             }
 
-            setConnecting(false);
+            // Stay in the connecting state until the security scan settles so the button cannot start a second run.
             await runCatalogSecurityGate(newConfig);
             return;
           }

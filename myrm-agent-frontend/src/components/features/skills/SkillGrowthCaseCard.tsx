@@ -1,34 +1,20 @@
 /**
- * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; detail fetched on expand
+ * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; detail fetched on expand; ./growth-card (头部徽章、证据面板、修订编辑器)
  * [OUTPUT] SkillGrowthCaseCard: 技能进化提案卡片（Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝）; SkillGrowthViewMode type
- * [POS] features/skills 单个技能进化提案的展示与交互卡片
+ * [POS] features/skills 单个技能进化提案的展示与交互卡片；持有展开、详情加载、修订与拒绝的交互状态
  */
 'use client';
 
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import {
-  AlertTriangle,
-  CalendarClock,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Clock3,
-  Edit3,
-  ExternalLink,
-  Loader2,
-  ShieldAlert,
-  ShieldCheck,
-  TrendingUp,
-  X,
-  XCircle,
-} from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Clock3, Edit3, ExternalLink, Loader2, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
+import { GrowthCaseEvidence } from '@/components/features/skills/growth-card/GrowthCaseEvidence';
+import { GrowthCaseTitleRow } from '@/components/features/skills/growth-card/GrowthCaseTitleRow';
+import { GrowthRevisionEditor } from '@/components/features/skills/growth-card/GrowthRevisionEditor';
 import { TextDiffViewer } from '@/lib/diff/TextDiffViewer';
 import { useTheme } from 'next-themes';
-import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -36,7 +22,6 @@ import {
   type SkillGrowthCaseDetail,
   type SkillGrowthCaseSummary,
 } from '@/services/skill/growth';
-import { LazyMonacoDiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import type { DiffOnMount } from '@monaco-editor/react';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 
@@ -47,46 +32,17 @@ interface SkillGrowthCaseCardProps {
   isProcessing: boolean;
   viewMode?: SkillGrowthViewMode;
   onApprove: () => Promise<void>;
-  onApproveShadow?: () => Promise<void>;
   onReject: (reason?: string) => Promise<void>;
   onRevise?: (evolvedContent: string) => Promise<void>;
-  onCreateCron?: (scheduleHint: string) => Promise<void>;
 }
-
-const STATUS_STYLES: Record<
-  SkillGrowthCaseSummary['status'],
-  { badge: string; tone: 'default' | 'secondary' | 'destructive' | 'outline' }
-> = {
-  PENDING_REVIEW: {
-    badge: 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300',
-    tone: 'outline',
-  },
-  AUTO_APPLIED: {
-    badge: 'border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-300',
-    tone: 'outline',
-  },
-  FAILED_SCAN: { badge: 'border-red-300 text-red-700 dark:border-red-700 dark:text-red-300', tone: 'outline' },
-  BLOCKED_LOCKED: {
-    badge: 'border-slate-300 text-slate-700 dark:border-slate-700 dark:text-slate-300',
-    tone: 'outline',
-  },
-  APPROVED: { badge: 'border-sky-300 text-sky-700 dark:border-sky-700 dark:text-sky-300', tone: 'outline' },
-  REJECTED: { badge: 'border-rose-300 text-rose-700 dark:border-rose-700 dark:text-rose-300', tone: 'outline' },
-  APPLY_FAILED: {
-    badge: 'border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-300',
-    tone: 'outline',
-  },
-};
 
 export default function SkillGrowthCaseCard({
   item,
   isProcessing,
   viewMode = 'detailed',
   onApprove,
-  onApproveShadow,
   onReject,
   onRevise,
-  onCreateCron,
 }: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
   const { theme } = useTheme();
@@ -103,21 +59,12 @@ export default function SkillGrowthCaseCard({
 
   const isDark = theme === 'dark';
   const isMobile = useIsMobile();
-  const statusStyle = STATUS_STYLES[item.status];
-  const statusLabel = t(`status.${item.status}` as Parameters<typeof t>[0]);
-  const sourceLabel =
-    item.source === 'continual'
-      ? t('source.continualRecovery')
-      : item.source === 'evolution'
-        ? t('source.manualEvolution')
-        : item.growthType === 'semantic_memory'
-          ? t('source.memoryExtraction')
-          : t('source.backgroundReview');
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
-  const runtimeFailure = item.runtimeFailure;
   const canRevise = showReviewActions && item.source === 'evolution' && onRevise;
+  // Only revision proposals record why they were turned down; a new-skill draft is simply discarded.
+  const collectsRejectReason = item.source === 'evolution';
 
   const hasExpandableContent = item.hasDiff || item.hasTrajectory || item.hasTriggerCondition || item.hasSkillSteps;
 
@@ -165,11 +112,11 @@ export default function SkillGrowthCaseCard({
   }, [contentExpanded, hasExpandableContent, loadDetail]);
 
   const handleReject = async () => {
-    if (!showRejectInput) {
+    if (collectsRejectReason && !showRejectInput) {
       setShowRejectInput(true);
       return;
     }
-    await onReject(rejectionReason.trim() || undefined);
+    await onReject(collectsRejectReason ? rejectionReason.trim() || undefined : undefined);
     setShowRejectInput(false);
     setRejectionReason('');
   };
@@ -211,121 +158,12 @@ export default function SkillGrowthCaseCard({
   }, [onRevise, editedContent]);
 
   const showContentPanel = !isSimple || contentExpanded;
-  const cronScheduleHint = item.formMetadata?.scheduleHint;
 
   return (
     <div className="rounded-2xl border bg-background p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-foreground">{item.skillName}</h3>
-            <Badge variant={statusStyle.tone} className={cn('text-[11px]', statusStyle.badge)}>
-              {statusLabel}
-            </Badge>
-            <Badge
-              variant={item.source === 'continual' ? 'outline' : 'secondary'}
-              className={cn(
-                'text-[11px]',
-                item.source === 'continual' &&
-                  'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:border-violet-500/40 dark:text-violet-300 font-medium',
-              )}
-            >
-              {sourceLabel}
-            </Badge>
-            {item.growthType !== 'semantic_memory' && (
-              <Badge variant="outline" className="text-[11px]">
-                {item.growthType}
-              </Badge>
-            )}
-            {item.impactedDependents.length > 0 && (
-              <Badge
-                variant="outline"
-                className="text-[11px] border-amber-400/70 text-amber-700 dark:border-amber-700 dark:text-amber-300"
-                title={t('impactedDependents.tooltip', { count: item.impactedDependents.length })}
-              >
-                {t('impactedDependents.label', { count: item.impactedDependents.length })}
-              </Badge>
-            )}
-            {item.proxyAlignment && item.proxyAlignment.verdict === 'goodhart_drift' && (
-              <Badge
-                variant="outline"
-                className="text-[11px] border-amber-500/50 bg-amber-500/10 text-amber-700 dark:border-amber-500/60 dark:text-amber-300 inline-flex items-center gap-1 font-medium"
-                title={item.proxyAlignment.warning_message || t('proxyAlignment.driftTooltip')}
-              >
-                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                <span>{t('proxyAlignment.driftBadge')}</span>
-              </Badge>
-            )}
-            {item.proxyAlignment && item.proxyAlignment.verdict === 'aligned' && (
-              <Badge
-                variant="outline"
-                className="text-[11px] border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/50 dark:text-emerald-300 inline-flex items-center gap-1 font-medium"
-                title={t('proxyAlignment.alignedTooltip')}
-              >
-                <ShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                <span>{t('proxyAlignment.alignedBadge')}</span>
-              </Badge>
-            )}
-            {item.verificationProof?.is_verified && (
-              <Badge
-                variant="outline"
-                className="text-[11px] border-emerald-500/70 bg-emerald-50/50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300 inline-flex items-center gap-1"
-              >
-                <ShieldCheck className="h-3 w-3" />
-                {t('verifiedBadge')}
-              </Badge>
-            )}
-            {item.targetLayer && (
-              <Badge
-                variant="outline"
-                className="text-[11px] font-mono bg-indigo-50/50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
-              >
-                {t('targetLayer', { layer: item.targetLayer })}
-              </Badge>
-            )}
-            {item.targetPathology && (
-              <Badge
-                variant="outline"
-                className="text-[11px] font-mono bg-purple-50/50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-              >
-                {t('targetPathology', { pathology: item.targetPathology })}
-              </Badge>
-            )}
-            {item.verificationProof?.hollow_detected && (
-              <Badge
-                variant="outline"
-                className="text-[11px] border-rose-500/70 bg-rose-50/50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/20 dark:text-rose-300 inline-flex items-center gap-1"
-              >
-                <ShieldAlert className="h-3 w-3" />
-                {t('hollowBlockedBadge')}
-              </Badge>
-            )}
-            {item.securityScanSummary && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  'text-[11px] inline-flex items-center gap-1 font-medium',
-                  item.securityScanSummary.trust_recommendation === 'trusted'
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/50 dark:text-emerald-300'
-                    : item.securityScanSummary.trust_recommendation === 'installed'
-                      ? 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:border-sky-500/50 dark:text-sky-300'
-                      : item.securityScanSummary.trust_recommendation === 'untrusted'
-                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:border-amber-500/50 dark:text-amber-300'
-                        : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:border-rose-500/50 dark:text-rose-300',
-                )}
-                title={`Security Score: ${item.securityScanSummary.score}/100 [${item.securityScanSummary.trust_recommendation}]`}
-              >
-                {item.securityScanSummary.score >= 50 ? (
-                  <ShieldCheck className="h-3 w-3" />
-                ) : (
-                  <ShieldAlert className="h-3 w-3" />
-                )}
-                <span>
-                  {item.securityScanSummary.score}/100 {item.securityScanSummary.trust_recommendation.toUpperCase()}
-                </span>
-              </Badge>
-            )}
-          </div>
+          <GrowthCaseTitleRow item={item} isSimple={isSimple} />
           <p className={cn('text-muted-foreground', isSimple ? 'text-base font-medium text-foreground' : 'text-sm')}>
             {item.summary}
           </p>
@@ -358,18 +196,6 @@ export default function SkillGrowthCaseCard({
                 {t('confidence', { value: (item.confidence * 100).toFixed(1) })}
               </span>
             )}
-            {item.testPassed !== null && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1',
-                  isSimple &&
-                    (item.testPassed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'),
-                )}
-              >
-                <ShieldAlert className="h-3.5 w-3.5" />
-                {item.testPassed ? t('testPassed') : t('testFailed')}
-              </span>
-            )}
           </div>
         </div>
 
@@ -397,286 +223,15 @@ export default function SkillGrowthCaseCard({
               <X className="mr-2 h-4 w-4" />
               {showRejectInput ? t('actions.confirmReject') : t('actions.reject')}
             </Button>
-            {item.source === 'evolution' && onApproveShadow && (
-              <Button variant="secondary" size="sm" onClick={onApproveShadow} disabled={isProcessing}>
-                <Check className="mr-2 h-4 w-4" />
-                {t('actions.approveShadow')}
-              </Button>
-            )}
-            {item.growthType === 'cron_suggestion' && onCreateCron && cronScheduleHint ? (
-              <Button
-                size="sm"
-                className="bg-violet-600 hover:bg-violet-700 text-white"
-                onClick={() => onCreateCron(cronScheduleHint)}
-                disabled={isProcessing}
-              >
-                <CalendarClock className="mr-2 h-4 w-4" />
-                {t('actions.createCron')}
-              </Button>
-            ) : (
-              <Button size="sm" onClick={onApprove} disabled={isProcessing}>
-                <Check className="mr-2 h-4 w-4" />
-                {approveLabel}
-              </Button>
-            )}
+            <Button size="sm" onClick={onApprove} disabled={isProcessing}>
+              <Check className="mr-2 h-4 w-4" />
+              {approveLabel}
+            </Button>
           </div>
         )}
       </div>
 
-      {item.growthType === 'cron_suggestion' && item.formMetadata?.scheduleHint && (
-        <div className="mt-4 rounded-xl border border-violet-300/50 bg-violet-50/60 p-3 dark:border-violet-900/40 dark:bg-violet-950/20">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t('cronSuggestion.title')}
-          </p>
-          <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-            <CalendarClock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-            <span>{item.formMetadata.scheduleHint}</span>
-          </div>
-          {item.formMetadata.formReasoning && (
-            <p className="mt-2 text-xs text-muted-foreground">{item.formMetadata.formReasoning}</p>
-          )}
-        </div>
-      )}
-
-      {item.verificationProof && (
-        <div className="mt-4 rounded-xl border border-emerald-300/50 bg-emerald-50/50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              {t('verificationProofTitle')}
-            </p>
-            {item.verificationProof.blast_radius && (
-              <span className="text-[11px] text-muted-foreground">
-                {t('blastRadius', {
-                  files: item.verificationProof.blast_radius.files ?? 1,
-                  lines: item.verificationProof.blast_radius.lines ?? 0,
-                })}
-              </span>
-            )}
-          </div>
-          {item.verificationProof.verification_summary && (
-            <p className="mt-1.5 text-xs text-foreground font-medium">{item.verificationProof.verification_summary}</p>
-          )}
-        </div>
-      )}
-
-      {(item.predictionManifest || item.attributionResult) && (
-        <div className="mt-4 rounded-xl border border-indigo-300/50 bg-indigo-50/50 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              {t('manifestPrediction.title')}
-            </p>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {item.predictionManifest?.pareto_generalization_verdict && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-[11px] font-medium inline-flex items-center gap-1',
-                    item.predictionManifest.pareto_generalization_verdict === 'pareto_optimal'
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      : item.predictionManifest.pareto_generalization_verdict === 'overfitting'
-                        ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                        : 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-                  )}
-                >
-                  {item.predictionManifest.pareto_generalization_verdict === 'pareto_optimal' ? (
-                    <ShieldCheck className="h-3 w-3" />
-                  ) : item.predictionManifest.pareto_generalization_verdict === 'overfitting' ? (
-                    <AlertTriangle className="h-3 w-3" />
-                  ) : (
-                    <Clock3 className="h-3 w-3" />
-                  )}
-                  {t(
-                    `manifestPrediction.paretoVerdict.${item.predictionManifest.pareto_generalization_verdict}` as Parameters<
-                      typeof t
-                    >[0],
-                  )}
-                </Badge>
-              )}
-              {item.attributionResult && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-[11px] font-medium inline-flex items-center gap-1',
-                    item.attributionResult.verdict === 'CONFIRMED'
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      : item.attributionResult.verdict === 'REGRESSION'
-                        ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                        : 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-                  )}
-                >
-                  {item.attributionResult.verdict === 'CONFIRMED' ? (
-                    <CheckCircle2 className="h-3 w-3" />
-                  ) : item.attributionResult.verdict === 'REGRESSION' ? (
-                    <XCircle className="h-3 w-3" />
-                  ) : (
-                    <AlertTriangle className="h-3 w-3" />
-                  )}
-                  {t(`manifestPrediction.verdictBadge.${item.attributionResult.verdict}` as Parameters<typeof t>[0])}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {item.predictionManifest?.predictions && item.predictionManifest.predictions.length > 0 && (
-            <div className="mt-2.5 space-y-2">
-              {item.predictionManifest.predictions.map((pred, idx) => (
-                <div
-                  key={`${pred.metric_name}-${idx}`}
-                  className="rounded-lg bg-background/80 p-2 text-xs border border-indigo-200/40 dark:border-indigo-900/40"
-                >
-                  <div className="flex items-center justify-between font-mono font-medium text-foreground">
-                    <span>{pred.metric_name}</span>
-                    <span className="text-muted-foreground font-sans">
-                      {t('manifestPrediction.baseline')}: {(pred.baseline_value * 100).toFixed(0)}% →{' '}
-                      <span className="font-semibold text-foreground">
-                        {t('manifestPrediction.target')}: {(pred.target_value * 100).toFixed(0)}%
-                      </span>
-                    </span>
-                  </div>
-                  {pred.rationale && <p className="mt-1 text-muted-foreground">{pred.rationale}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {item.attributionResult && (
-            <div className="mt-2.5 rounded-lg bg-background/80 p-2 text-xs border border-indigo-200/40 dark:border-indigo-900/40">
-              <p className="text-foreground font-medium">{item.attributionResult.details}</p>
-              {item.attributionResult.unpredicted_regressions &&
-                item.attributionResult.unpredicted_regressions.length > 0 && (
-                  <div className="mt-1.5 flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      {t('manifestPrediction.unpredictedRegressions')}:{' '}
-                      {item.attributionResult.unpredicted_regressions.join(', ')}
-                    </span>
-                  </div>
-                )}
-            </div>
-          )}
-
-          {item.predictionManifest?.falsification_conditions &&
-            item.predictionManifest.falsification_conditions.length > 0 && (
-              <div className="mt-2 text-[11px] text-muted-foreground">
-                <span className="font-medium text-foreground/80">
-                  {t('manifestPrediction.falsificationConditions')}:{' '}
-                </span>
-                {item.predictionManifest.falsification_conditions.join('；')}
-              </div>
-            )}
-        </div>
-      )}
-
-      {item.securityScanSummary &&
-        item.securityScanSummary.findings &&
-        item.securityScanSummary.findings.length > 0 && (
-          <div className="mt-4 rounded-xl border border-indigo-300/50 bg-indigo-50/40 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wide text-indigo-700 dark:text-indigo-300 inline-flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <span>{t('securityScan.title', { count: item.securityScanSummary.findings.length })}</span>
-              </p>
-              <span className="font-mono text-xs font-semibold text-muted-foreground">
-                {t('securityScan.score', { score: item.securityScanSummary.score })}
-              </span>
-            </div>
-            <div className="mt-2 space-y-1.5">
-              {item.securityScanSummary.findings.map((finding, idx) => (
-                <div
-                  key={`${finding.threat_type}-${idx}`}
-                  className="flex items-start justify-between rounded-lg bg-background/60 p-2 text-xs"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                        {finding.threat_type}
-                      </Badge>
-                      <span className="font-medium text-foreground">{finding.description}</span>
-                    </div>
-                    {finding.line_number && (
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {t('securityScan.line', { line: finding.line_number })}
-                      </span>
-                    )}
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-[10px] capitalize font-mono shrink-0',
-                      finding.severity === 'critical' || finding.severity === 'high'
-                        ? 'border-rose-500/50 text-rose-700 dark:text-rose-300'
-                        : 'border-amber-500/50 text-amber-700 dark:text-amber-300',
-                    )}
-                  >
-                    {finding.severity}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-      {runtimeFailure && (
-        <div className="mt-4 rounded-xl border border-sky-300/50 bg-sky-50/60 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t('runtimeFailure.title')}
-          </p>
-          <div className="mt-2 grid gap-2 text-sm text-foreground md:grid-cols-2">
-            <span className="min-w-0 truncate">{t('runtimeFailure.tool', { value: runtimeFailure.tool_name })}</span>
-            <span className="min-w-0 truncate">
-              {t('runtimeFailure.count', { value: runtimeFailure.failure_count })}
-            </span>
-            <span className="min-w-0 truncate">
-              {t('runtimeFailure.confidence', {
-                value: (runtimeFailure.attribution_confidence * 100).toFixed(0),
-              })}
-            </span>
-            {runtimeFailure.loop_kind && (
-              <span className="min-w-0 truncate">
-                {t('runtimeFailure.loopKind', { value: runtimeFailure.loop_kind })}
-              </span>
-            )}
-          </div>
-          <p className="mt-2 break-words font-mono text-xs text-sky-900 dark:text-sky-100">
-            {runtimeFailure.error_signature}
-          </p>
-        </div>
-      )}
-
-      {item.reasonCode?.startsWith('risk:') && (
-        <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t('riskInterceptionTitle')}
-          </p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {item.reasonCode
-              .slice(5)
-              .split(',')
-              .map((signal) => (
-                <Badge
-                  key={signal}
-                  variant="outline"
-                  className="text-[11px] border-amber-400 text-amber-700 dark:border-amber-700 dark:text-amber-300"
-                >
-                  {signal}
-                </Badge>
-              ))}
-          </div>
-          {item.remediation && <p className="mt-2 text-sm text-muted-foreground">{item.remediation}</p>}
-        </div>
-      )}
-
-      {item.applyError && (
-        <div className="mt-4 rounded-xl border border-orange-300/50 bg-orange-50/60 p-3 dark:border-orange-900/40 dark:bg-orange-950/20">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('applyFailureTitle')}</p>
-          <p className="mt-1 text-sm text-foreground">{item.applyError}</p>
-          {item.remediation && !item.reasonCode?.startsWith('risk:') && (
-            <p className="mt-2 text-sm text-muted-foreground">{item.remediation}</p>
-          )}
-        </div>
-      )}
+      <GrowthCaseEvidence item={item} />
 
       {hasExpandableContent && !contentExpanded && (
         <button
@@ -740,46 +295,16 @@ export default function SkillGrowthCaseCard({
       )}
 
       {isEditing && detail && (
-        <div className="mt-4 rounded-xl border bg-muted/20 p-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('actions.reviseLabel')}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isProcessing}>
-                <X className="mr-1 h-3.5 w-3.5" />
-                {t('actions.cancelRevise')}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => void handleSaveRevision()}
-                disabled={isProcessing || !editedContent.trim()}
-              >
-                <Check className="mr-1 h-3.5 w-3.5" />
-                {t('actions.saveRevision')}
-              </Button>
-            </div>
-          </div>
-          <div className="rounded-xl border overflow-hidden bg-background h-[300px] md:h-[400px]">
-            <LazyMonacoDiffEditor
-              height="100%"
-              original={originalContent ?? ''}
-              modified={editedContent}
-              theme={isDark ? 'vs-dark' : 'light'}
-              onMount={handleDiffEditorMount}
-              options={{
-                readOnly: false,
-                renderSideBySide: !isMobile,
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                wordWrap: 'on',
-                lineNumbersMinChars: 3,
-                padding: { top: 12, bottom: 12 },
-                originalEditable: false,
-              }}
-            />
-          </div>
-        </div>
+        <GrowthRevisionEditor
+          originalContent={originalContent ?? ''}
+          editedContent={editedContent}
+          isProcessing={isProcessing}
+          isDark={isDark}
+          isMobile={isMobile}
+          onMount={handleDiffEditorMount}
+          onCancel={handleCancelEdit}
+          onSave={() => void handleSaveRevision()}
+        />
       )}
 
       {showContentPanel && !isEditing && detail && showDiff && (

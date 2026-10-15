@@ -38,6 +38,22 @@ async def test_get_context_bundle_health(context_app: FastAPI, tmp_path: Path) -
 
 
 @pytest.mark.asyncio
+async def test_context_bundle_health_reports_offload_at_the_runtime_context_root(
+    context_app: FastAPI, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from myrm_agent_harness.runtime.paths import execution_paths
+
+    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(tmp_path / ".context"))
+    transport = ASGITransport(app=context_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/api/v1/context-bundle")
+    scenes = {scene["scene"]: scene for scene in response.json()["scenes"]}
+    assert set(scenes) == {"memory", "workspace", "offload"}
+    assert scenes["offload"]["path"] == str(tmp_path / ".context")
+    assert scenes["offload"]["index_status"] == "ready"
+
+
+@pytest.mark.asyncio
 async def test_apply_context_bundle_migration(context_app: FastAPI, tmp_path: Path) -> None:
     transport = ASGITransport(app=context_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

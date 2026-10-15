@@ -12,8 +12,9 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import useSettingsDirtyStore from '@/store/useSettingsDirtyStore';
-import SettingsMenu, { SettingsTab } from './SettingsMenu';
+import SettingsMenu from './SettingsMenu';
 import { SettingsSkeleton } from './common/SettingsSkeleton';
+import { SETTINGS_TABS, TAURI_ONLY_TABS, isSettingsTab, type SettingsTab } from './settingsRoutes';
 import { trySettingsSubviewBack } from './settingsSubviewBack';
 
 // 设置区块组件 (动态加载)
@@ -94,7 +95,7 @@ const ModelSettingsSection = dynamic(() => import('./sections/ai-core/ModelSetti
 const UnifiedSkillsSection = dynamic(() => import('./sections/ai-tools/UnifiedSkillsSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const ToolQualitySection = dynamic(() => import('./sections/ai-tools/ToolQualitySection'), {
+const ToolStabilitySection = dynamic(() => import('./sections/ai-tools/ToolStabilitySection'), {
   loading: () => <SettingsSkeleton />,
 });
 const MemoryCenterSection = dynamic(() => import('./sections/knowledge/MemoryCenterSection'), {
@@ -127,76 +128,6 @@ const BrandStudioSettingsSection = dynamic(() => import('./sections/knowledge/Br
 
 const DEFAULT_TAB: SettingsTab = 'account';
 
-const BASE_TABS: SettingsTab[] = [
-  'account',
-  'workbench',
-  'preferences',
-  'theme-studio',
-  'personalization',
-  'agents',
-  'security',
-  'riskRules',
-  'shares',
-  'models',
-  'defaultModel',
-  'search',
-  'mcp',
-  'skills',
-  'skillQuality',
-  'toolStability',
-  'toolQuality',
-  'evolutionPending',
-  'evolutionRejection',
-  'credentials',
-  'wiki',
-  'memory',
-  'brand-studio',
-  'cron',
-  'kanban',
-  'checkpoint',
-  'openaiApi',
-  'hosting',
-  'integrationCatalog',
-  'integrationMemory',
-  'extensionBridge',
-  'connect',
-  'a2aPeers',
-  'workspaceRules',
-  'developer',
-  'importExport',
-  'companion',
-  'usageStatistics',
-  'experimentalFeatures',
-  'memory-backup',
-  'memory-cloud-backup',
-  'memory-migration',
-  'enterprise',
-  'system',
-  'about',
-];
-
-const TAURI_ONLY_TABS: SettingsTab[] = ['channels', 'channelRouting', 'voice'];
-
-// 扁平路由自动分发到整合后的父组件并携带 sub 参数，实现路由多层兼容
-const DEPRECATED_TAB_MAP: Record<string, { parent: SettingsTab; sub?: string }> = {
-  defaultModel: { parent: 'models', sub: 'default' },
-  evolutionPending: { parent: 'skills', sub: 'pending' },
-  evolutionRejection: { parent: 'skills', sub: 'rejections' },
-  skillQuality: { parent: 'toolQuality', sub: 'quality' },
-  toolStability: { parent: 'toolQuality', sub: 'stability' },
-  'memory-backup': { parent: 'memory', sub: 'backup' },
-  'memory-cloud-backup': { parent: 'memory', sub: 'cloud-backup' },
-  'memory-migration': { parent: 'memory', sub: 'migration' },
-  channelRouting: { parent: 'channels', sub: 'routing' },
-  voice: { parent: 'channels', sub: 'voice' },
-  experimentalFeatures: { parent: 'developer', sub: 'experimental' },
-  usageStatistics: { parent: 'developer', sub: 'usage' },
-  companion: { parent: 'developer', sub: 'companion' },
-  importExport: { parent: 'developer', sub: 'importExport' },
-  eval: { parent: 'developer' },
-  about: { parent: 'system', sub: 'about' },
-};
-
 // Section 组件映射表
 const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   account: AccountSection,
@@ -213,9 +144,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   search: SearchSection,
   mcp: MCPSection,
   skills: UnifiedSkillsSection,
-  skillQuality: ToolQualitySection,
-  toolStability: ToolQualitySection,
-  toolQuality: ToolQualitySection,
+  toolStability: ToolStabilitySection,
   evolutionPending: UnifiedSkillsSection,
   evolutionRejection: UnifiedSkillsSection,
   credentials: CredentialsSection,
@@ -259,32 +188,24 @@ function SettingsLayout() {
   const userRole = useAuthStore((s) => s.user?.role);
   const isAdmin = userRole === 'admin';
 
-  const validTabs = useMemo<SettingsTab[]>(() => {
-    const extra = showsLocalIntegrationTabs() ? TAURI_ONLY_TABS : [];
-    return [...BASE_TABS.slice(0, 12), ...extra, ...BASE_TABS.slice(12)];
-  }, []);
+  // 别名路由已由服务端页面重定向到父级 Tab，这里只需按部署形态过滤桌面端专属 Tab
+  const visibleTabs = useMemo<readonly SettingsTab[]>(
+    () => (showsLocalIntegrationTabs() ? SETTINGS_TABS : SETTINGS_TABS.filter((tab) => !TAURI_ONLY_TABS.includes(tab))),
+    [],
+  );
+  const resolveVisibleTab = useCallback(
+    (raw: string | null | undefined): SettingsTab | null =>
+      raw && isSettingsTab(raw) && visibleTabs.includes(raw) ? raw : null,
+    [visibleTabs],
+  );
 
   // 即时切换：pendingTab 在点击时立即设置，URL 更新后自动清除
   const [pendingTab, setPendingTab] = useState<SettingsTab | null>(null);
 
-  const urlTab = useMemo<SettingsTab>(() => {
-    const raw = (params?.tab as string) || null;
-    // 如果是废弃的扁平路由，在渲染时返回其父路由以防白屏，然后由下面的 useEffect 完成实际 URL 跳转
-    if (raw && DEPRECATED_TAB_MAP[raw]) {
-      return DEPRECATED_TAB_MAP[raw].parent;
-    }
-    return raw && validTabs.includes(raw as SettingsTab) ? (raw as SettingsTab) : DEFAULT_TAB;
-  }, [params?.tab, validTabs]);
-
-  // 自动将扁平子路由转换映射并进行 URL 路由跳转，确保后向兼容性
-  useEffect(() => {
-    const raw = (params?.tab as string) || null;
-    if (raw && DEPRECATED_TAB_MAP[raw]) {
-      const mapping = DEPRECATED_TAB_MAP[raw];
-      const nextUrl = `/settings/${mapping.parent}${mapping.sub ? `?sub=${mapping.sub}` : ''}`;
-      router.replace(nextUrl);
-    }
-  }, [params?.tab, router]);
+  const urlTab = useMemo<SettingsTab>(
+    () => resolveVisibleTab(params?.tab as string | undefined) ?? DEFAULT_TAB,
+    [params?.tab, resolveVisibleTab],
+  );
 
   // URL 更新后清除 pendingTab
   useEffect(() => {
@@ -309,16 +230,15 @@ function SettingsLayout() {
     setVisitedTabs((prev) => new Set([...prev, activeTab]));
   }, [activeTab]);
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(() => {
-    const initialTab = (params?.tab as string) || null;
-    return !(initialTab && validTabs.includes(initialTab as SettingsTab));
-  });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(
+    () => resolveVisibleTab(params?.tab as string | undefined) === null,
+  );
 
   useEffect(() => {
-    if (params?.tab && validTabs.includes(params.tab as SettingsTab)) {
+    if (resolveVisibleTab(params?.tab as string | undefined)) {
       setIsMobileMenuOpen(false);
     }
-  }, [params?.tab, validTabs]);
+  }, [params?.tab, resolveVisibleTab]);
 
   const isSavingRef = useRef(false);
 

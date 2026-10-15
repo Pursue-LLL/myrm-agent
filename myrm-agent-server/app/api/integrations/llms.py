@@ -20,6 +20,7 @@ from app.core.utils.chat_utils import extract_answer_text
 from app.core.utils.errors import handle_llm_exception
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
+from app.services.agent.provider_oauth_tokens import resolve_oauth_marker
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -229,8 +230,8 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
 
     candidates = _build_models_candidates(normalized_api_url)
     last_error: str | None = None
-    allow_internal_host = bool(parsed.hostname and is_split_stack and is_local_mode())
-    allowed_hosts = [parsed.hostname] if allow_internal_host else None
+    hostname = parsed.hostname
+    allowed_hosts = [hostname] if hostname and is_split_stack and is_local_mode() else None
 
     async with create_httpx_client(timeout=_MODELS_DISCOVERY_TIMEOUT_S, follow_redirects=False) as client:
         for models_url in candidates:
@@ -317,6 +318,7 @@ async def verify_llm_connection(request: LLMVerifyRequest) -> JSONResponse:
         from langchain_core.messages import HumanMessage
         from myrm_agent_harness.toolkits.llms import llm_manager as llm_tools
 
+        await resolve_oauth_marker(kwargs)
         llm = await llm_tools.get_llm(**kwargs)
 
         test_message = HumanMessage(content="Hello")
@@ -386,6 +388,7 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
             lightweight_health_check,
         )
 
+        await resolve_oauth_marker(kwargs)
         llm = await llm_tools.get_llm(**kwargs)
         start = time.monotonic()
         ok = await lightweight_health_check(llm, timeout_s=5.0)
@@ -611,6 +614,12 @@ class SpeedTestRequest(BaseModel):
     models: list[ModelConfig] = Field(..., description="List of model configs to test")
 
 
+def _ttft_sort_key(result: dict[str, object]) -> int:
+    """Fastest first token first; runs that produced none (failed or timed out) sort last."""
+    ttft_ms = result.get("ttft_ms")
+    return ttft_ms if isinstance(ttft_ms, int) else 999_999
+
+
 @router.post("/speed-test", response_model=StandardSuccessResponse)
 async def speed_test(request: SpeedTestRequest) -> JSONResponse:
     """Batch speed test for configured models.
@@ -630,6 +639,7 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
     for model_config in request.models:
         kwargs = model_config.model_dump(exclude_none=True)
         try:
+            await resolve_oauth_marker(kwargs)
             llm = await llm_tools.get_llm(**kwargs)
             message = HumanMessage(content="Count from 1 to 20")
 
@@ -690,7 +700,7 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
                 ).model_dump()
             )
 
-    results.sort(key=lambda r: 999999 if r.get("ttft_ms") is None else int(r["ttft_ms"]))
+    results.sort(key=_ttft_sort_key)
     return success_response(data=results)
 
 

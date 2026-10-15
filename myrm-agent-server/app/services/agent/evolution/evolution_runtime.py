@@ -2,13 +2,12 @@
 [INPUT]
 - myrm_agent_harness.agent.skills.evolution.infra.integration::EvolutionIntegration (POS: Integration helpers for skill evolution system. Provides EvolutionIntegration singleton with 15-Call Sliding Window trigger, execution ledger recording, and background queue orchestration.)
 - app.services.agent.confidence_approval_flow::ConfidenceApprovalFlow (POS: 基于置信度+客观风控信号的智能审批流。高分且低风险静默自动合并，任何风控红灯即降级人工 Diff Review。)
-- app.services.skills.ws_hub::broadcast_message, broadcast_proposal (POS: Evolution 提案 WebSocket 中枢：服务层维护按 user_key 分组的连接池，向前端广播 NEW_EVOLUTION_PROPOSAL 消息。)
 [OUTPUT]
-- handle_new_proposal: 将后台进化队列产出的提案交给审批流落地，并按结果向前端推送。
+- handle_new_proposal: 将后台进化队列产出的提案交给审批流落地（自动合并发布 SKILL_EVOLVED，其余进入审核队列）。
 - init_evolution_runtime: 启动期构建全局 EvolutionIntegration（进化模型、筛选器、后台队列）。
 - shutdown_evolution_runtime: 停止本模块启动的后台进化队列。
 [POS]
-技能进化运行时装配。把 Harness 的后台进化队列接到业务审批流与 WebSocket 推送。
+技能进化运行时装配。把 Harness 的后台进化队列接到业务审批流。
 """
 
 from __future__ import annotations
@@ -28,7 +27,6 @@ from app.config.settings import settings
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 from app.services.agent.platform_config import load_platform_evolution_model_config
-from app.services.skills.ws_hub import broadcast_message, broadcast_proposal
 
 logger = logging.getLogger(__name__)
 
@@ -36,20 +34,13 @@ _started_integration: EvolutionIntegration | None = None
 
 
 async def handle_new_proposal(proposal: EvolutionProposal) -> None:
-    """Persist a queue-produced proposal through the approval flow and notify clients."""
+    """Persist a queue-produced proposal: auto-merged ones publish SKILL_EVOLVED, the rest wait in the review queue."""
     logger.info("New evolution proposal received for skill: %s (Score: %s)", proposal.skill_id, proposal.score)
 
     try:
-        result = await ConfidenceApprovalFlow().process_evolution(proposal)
+        await ConfidenceApprovalFlow().process_evolution(proposal)
     except Exception as e:
         logger.error("Failed to persist EvolutionProposal for skill %s: %s", proposal.skill_id, e)
-        return
-
-    proposal_dict = proposal.to_dict()
-    if result.approved:
-        await broadcast_message("AUTO_MERGED_EVOLUTION", proposal_dict)
-    else:
-        await broadcast_proposal(proposal_dict)
 
 
 async def init_evolution_runtime() -> None:

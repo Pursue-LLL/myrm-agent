@@ -1,0 +1,59 @@
+name: Harness architecture gates
+
+on:
+  pull_request:
+    paths:
+      - 'myrm-agent-harness/**'
+      - '.github/workflows/harness-boundary.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-boundary-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+defaults:
+  run:
+    working-directory: myrm-agent-harness
+
+jobs:
+  boundary-check:
+    name: Boundary, fractal docs, layout and architecture tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
+        with:
+          version: "0.12.7"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --python 3.13 --locked --dev
+
+      - name: Run boundary check (full scan)
+        run: uv run --no-sync python scripts/boundary_check.py
+
+      - name: Run fractal docs check
+        run: uv run --no-sync python scripts/check_fractal_docs.py --strict-headers --header-baseline scripts/fractal_header_baseline.txt --no-stub
+
+      - name: Run _ARCH inventory check (full harness)
+        run: |
+          uv run --no-sync python scripts/validate_arch_inventory.py --root src/myrm_agent_harness
+          uv run --no-sync python scripts/validate_arch_inventory.py --root . --md-refs
+
+      - name: Run package root layout gate
+        run: uv run --no-sync python scripts/check_package_root_layout.py
+
+      - name: Run architecture tests
+        run: uv run --no-sync pytest tests/architecture/ -m "architecture and not slow" -n0 -v --tb=short

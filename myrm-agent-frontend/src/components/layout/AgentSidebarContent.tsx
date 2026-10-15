@@ -48,6 +48,7 @@ import {
   AlertDialogTitle,
 } from '@/components/primitives/alert-dialog';
 import type { AgentListItem } from '@/services/agent';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 export interface AgentSidebarContentProps {
   selectedId?: string;
@@ -244,7 +245,7 @@ export const AgentSidebarContent = memo<AgentSidebarContentProps>(
                         <button
                           aria-label={t('common.more')}
                           className={cn(
-                            'opacity-0 group-hover:opacity-100',
+                            REVEAL_ON_HOVER,
                             'p-1.5 rounded-full hover:bg-background/80',
                             'transition-all duration-200',
                           )}

@@ -8,6 +8,8 @@ import sqlite3
 import time
 from pathlib import Path
 
+from e2e_core.real_user_home import real_user_home
+
 from dev_gate.session import (
     TERMINAL_STATES,
     AccessScope,
@@ -23,7 +25,6 @@ from dev_gate.session import (
     assert_transition,
     initial_state,
 )
-from e2e_core.real_user_home import real_user_home
 
 
 def _cleanup_dict_from_row(row: sqlite3.Row) -> dict[str, object]:
@@ -262,11 +263,13 @@ class DevGateStore:
         test_node_id: str,
         policy: SessionPolicy,
         hard_deadline: float,
+        meta: dict[str, str] | None = None,
         now: float | None = None,
     ) -> SessionRecord:
         policy.validate()
         if not session_id.strip() or owner_pid <= 0 or not owner_token.strip():
             raise ValueError("session_id, owner_pid, and owner_token are required")
+        submit_meta = dict(meta or {})
         created_at = time.time() if now is None else now
         state = initial_state(policy)
         with self._connect() as connection:
@@ -329,7 +332,7 @@ class DevGateStore:
                         version=version,
                         event_type="RESUBMIT",
                         state=state,
-                        detail={"prior_state": record.state.value},
+                        detail={"prior_state": record.state.value, **submit_meta},
                         now=created_at,
                     )
                     row = connection.execute(
@@ -399,7 +402,7 @@ class DevGateStore:
                 version=1,
                 event_type="SUBMIT",
                 state=state,
-                detail={},
+                detail=submit_meta,
                 now=created_at,
             )
             row = connection.execute(

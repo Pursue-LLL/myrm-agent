@@ -1,7 +1,7 @@
 """Support helpers for inbound policy resolution: cooldown and follow-up tracking, group sender arbitration, owner check.
 
 [INPUT]
-- app.channels.protocols.pairing::PairingRole, PairingStatus (POS: storage protocol for channel user identity binding)
+- app.channels.protocols.pairing::DmPolicy, GroupPolicy, PairingRole, PairingStatus (POS: storage protocol for channel user identity binding)
 - app.channels.types::METADATA_GUEST_TURN_KEY (POS: channel notification and message-metadata constants)
 
 [OUTPUT]
@@ -9,11 +9,15 @@
 - GroupFollowUpTracker: active group thread tracker for mention-exempt follow-up
 - query_dm_policy, query_group_policy, query_group_trigger, query_enabled_groups, check_guest_mention_allowed: Policy provider query delegates
 - resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support: Group RBAC arbitration, diagnostic bypass check, and trigger evaluation helpers
+- resolve_lid_fallback_helper: binds a WhatsApp LID to its verified phone-number pairing, inheriting that pairing's role
+- lid_mapped_phone: the phone number a WhatsApp LID sender is verified to map to
+- resolve_paired_user: a sender's identity from its ACTIVE pairing, directly or through its verified LID mapping
 - is_admin_sender: the one owner rule, shared by admin-only commands and the decision on a held channel reply
+- is_control_plane_forward: whether the control plane forwarded the message after resolving the sender's identity itself
 
 [POS]
-PolicyResolver helpers split out to keep the resolver module under its line budget, plus the owner rule that
-AgentRouter applies to admin-only commands and held-reply decisions.
+Helpers of PolicyResolver (policy lookups, cooldown and follow-up tracking, group sender arbitration), plus the owner
+rule that AgentRouter applies to admin-only commands and held-reply decisions.
 """
 
 from __future__ import annotations
@@ -23,14 +27,12 @@ import logging
 import time
 from typing import TYPE_CHECKING, Callable
 
-from app.channels.protocols.pairing import PairingRole, PairingStatus
+from app.channels.protocols.pairing import DmPolicy, GroupPolicy, PairingRole, PairingStatus
 from app.channels.types import METADATA_GUEST_TURN_KEY
 
 if TYPE_CHECKING:
     from app.channels.protocols.pairing import (
         ChannelPolicyProvider,
-        DmPolicy,
-        GroupPolicy,
         GroupTriggerMode,
         PairingStore,
     )
@@ -111,8 +113,6 @@ class GroupFollowUpTracker:
 
 async def query_dm_policy(policy_provider: ChannelPolicyProvider | None, channel: str) -> DmPolicy:
     """Resolve DM policy with fallback to ALLOWLIST."""
-    from app.channels.protocols.pairing import DmPolicy
-
     if policy_provider:
         return await policy_provider.get_dm_policy(channel)
     return DmPolicy.ALLOWLIST
@@ -120,8 +120,6 @@ async def query_dm_policy(policy_provider: ChannelPolicyProvider | None, channel
 
 async def query_group_policy(policy_provider: ChannelPolicyProvider | None, channel: str) -> GroupPolicy:
     """Resolve group policy with fallback to DISABLED."""
-    from app.channels.protocols.pairing import GroupPolicy
-
     if policy_provider:
         return await policy_provider.get_group_policy(channel)
     return GroupPolicy.DISABLED
@@ -158,48 +156,60 @@ async def check_guest_mention_allowed(policy_provider: ChannelPolicyProvider | N
     return meta.get(METADATA_EXPLICIT_MENTION_KEY) == "1"
 
 
+def lid_mapped_phone(channel_lookup: Callable[[str], object | None], msg: InboundMessage) -> str | None:
+    """The phone number the adapter has verified for a WhatsApp LID sender, if any."""
+    lid_cache: dict[str, str] = getattr(channel_lookup(msg.channel), "_lid_to_pn", {})
+    return lid_cache.get(msg.sender_id)
+
+
 async def resolve_lid_fallback_helper(
     pairing: PairingStore,
-    policy_provider: ChannelPolicyProvider | None,
     channel_lookup: Callable[[str], object | None],
     msg: InboundMessage,
-    *,
-    allow_default_fallback: bool = False,
 ) -> str | None:
-    """Resolve a WhatsApp LID sender via verified LID→PN mapping."""
-    ch = channel_lookup(msg.channel)
-    lid_cache: dict[str, str] = getattr(ch, "_lid_to_pn", {})
-    if lid_cache:
-        pn = lid_cache.get(msg.sender_id)
-        if pn:
-            user_id = await pairing.resolve(msg.channel, pn)
-            if user_id:
-                await pairing.bind(
-                    msg.channel,
-                    msg.sender_id,
-                    user_id,
-                    display_name=msg.sender_name,
-                )
-                logger.warning(
-                    "PolicyResolver: LID auto-bound via mapping %s → %s",
-                    msg.sender_id,
-                    pn,
-                )
-                return user_id
+    """Resolve a WhatsApp LID sender via the verified LID→PN mapping.
 
-    if not allow_default_fallback or not policy_provider:
-        return None
-    default_uid = await policy_provider.get_default_user_id()
-    if not default_uid:
+    The LID is bound with the phone-number pairing's own status, role and quota: it is the same person, so a
+    sender that reaches the bot as its owner through a LID stays the owner instead of being demoted to a member.
+    """
+    pn = lid_mapped_phone(channel_lookup, msg)
+    if not pn:
         return None
 
-    await pairing.bind(msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name)
-    logger.warning(
-        "PolicyResolver: LID auto-bound to default user %s → %s",
+    user_id = await pairing.resolve(msg.channel, pn)
+    detail = await pairing.get_pairing_detail(msg.channel, pn)
+    if not user_id or detail is None:
+        return None
+
+    status, role, daily_quota = detail
+    await pairing.bind(
+        msg.channel,
         msg.sender_id,
-        default_uid,
+        user_id,
+        status=status,
+        display_name=msg.sender_name,
+        role=role,
+        daily_quota=daily_quota,
     )
-    return default_uid
+    logger.warning(
+        "PolicyResolver: LID auto-bound via mapping %s → %s (role=%s)",
+        msg.sender_id,
+        pn,
+        role.value,
+    )
+    return user_id
+
+
+async def resolve_paired_user(
+    pairing: PairingStore,
+    channel_lookup: Callable[[str], object | None],
+    msg: InboundMessage,
+) -> str | None:
+    """The sender's identity from its ACTIVE pairing, directly or through its verified WhatsApp LID mapping."""
+    user_id = await pairing.resolve(msg.channel, msg.sender_id)
+    if not user_id and msg.sender_id.endswith("@lid"):
+        user_id = await resolve_lid_fallback_helper(pairing, channel_lookup, msg)
+    return user_id
 
 
 async def check_sender_daily_quota(
@@ -230,13 +240,18 @@ async def check_sender_daily_quota(
     return False, daily_quota, usage_count
 
 
+def is_control_plane_forward(msg: InboundMessage) -> bool:
+    """Whether the control plane forwarded ``msg`` after resolving the sender's identity itself."""
+    return msg.metadata.get("trusted_inbound") == "control_plane"
+
+
 async def is_admin_sender(pairing: PairingStore, msg: InboundMessage) -> bool:
     """Whether ``msg`` comes from the sandbox owner.
 
     The owner is whoever the control plane forwarded (it has already resolved the identity), or a sender
     with an ACTIVE ADMIN pairing, the same pairing ``PairingStore.resolve`` maps to the owner's identity.
     """
-    if msg.metadata.get("trusted_inbound") == "control_plane":
+    if is_control_plane_forward(msg):
         return True
     detail = await pairing.get_pairing_detail(msg.channel, msg.sender_id)
     return detail is not None and detail[0] == PairingStatus.ACTIVE and detail[1] == PairingRole.ADMIN

@@ -32,14 +32,12 @@ logger = logging.getLogger(__name__)
 
 async def run_all_health_checks(
     auto_recover: bool = True,
-    force_sqlite_wal_cleanup: bool = False,
     max_retries: int = 1,
 ) -> tuple[bool, list[tuple[str, HealthCheckResult, RecoveryResult | None]]]:
     """Run all business-level health checks.
 
     Args:
         auto_recover: Whether to automatically attempt recovery on failure
-        force_sqlite_wal_cleanup: Whether to allow SQLite WAL file deletion (DANGEROUS)
         max_retries: Maximum number of recovery retries
 
     Returns:
@@ -47,7 +45,7 @@ async def run_all_health_checks(
     """
     checkers = [
         QdrantHealthChecker(),
-        SQLiteHealthChecker(force_wal_cleanup=force_sqlite_wal_cleanup),
+        SQLiteHealthChecker(),
         BrowserHealthChecker(),
     ]
 

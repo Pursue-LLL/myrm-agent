@@ -2,16 +2,18 @@
  * [INPUT]
  * @/services/chat::createAISearchStream (POS: Chat streaming API client)
  * @/lib/model-binding::resolveActiveModelConfig (POS: Frontend model selection resolver)
+ * @/lib/model-routing::resolveSmartRouting (POS: Single decision point for smart routing activation and slots)
  * @/store/useConfigStore::useConfigStore (POS: Chat configuration state store)
  *
  * [OUTPUT]
  * getModelSelection: Resolve the active model for chat requests.
+ * getRoutingModelSelections: Resolve the light / reasoning routing slots a request carries (empty when smart routing does not apply).
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
- * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, queued messages send their own attachments.
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, queued messages send their own attachments, a turn that ends after a newer one took over leaves the turn state (loading, Stop handle, request id, attachments) to the newer one.
  * createSmartUpdater: Route state updates to active store or background snapshot.
- * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn.
+ * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn; ending never resets the turn state of a newer turn.
  *
  * [POS]
  * Chat message request assembly layer. It prepares payloads and acts as the MMU (Memory Management Unit) routing stream updates to the correct store.
@@ -42,25 +44,25 @@ import useRetrievalStore from '../useRetrievalStore';
 import useQuoteStore from '../useQuoteStore';
 import { showI18nToast } from '@/services/i18nToastService';
 import { supportsProviderNoAuth } from '@/store/config/providerTypes';
-import {
-  isTransientNetworkError,
-  executeStreamWithRetry,
-  AgentBusyError,
-  FatalNetworkError,
-  RequestRefusedError,
-  consumeStream,
-} from './streamConsumer';
-import { resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
+import { executeStreamWithRetry, shouldUseMultiplexedAgentStream } from './streamConsumer';
+import { consumeStream } from './consumeStream';
+import { AgentBusyError, RequestRefusedError, isTransientNetworkError } from './streamErrors';
+import { isHeldByOtherTurn, resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
 import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
 import useToolApprovalStore from '../useToolApprovalStore';
 import { useProjectStore } from '@/store/useProjectStore';
-import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
+import {
+  FatalNetworkError,
+  isArchiveRestoreActionInvalidError,
+  isRetryableHttpStatus,
+} from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
 import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
 import { createAISearchStream, type StreamRequestBody } from '@/services/chat';
 import { inSessionMentionDeduplicator } from './inSessionMentionDeduplicator';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
+import { resolveSmartRouting } from '@/lib/model-routing';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
@@ -72,25 +74,11 @@ import {
 import useCompanionStore from '../useCompanionStore';
 import { fetchWithTimeout } from '@/lib/api';
 import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
-import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
 import { consumeMigrationReadinessAnchorForAgent, peekMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
-
-function shouldUseMultiplexedAgentStream(): boolean {
-  if (typeof window === 'undefined') {
-    return true;
-  }
-  if (window.__MYRM_E2E_DIRECT_SSE__) {
-    return false;
-  }
-  if (resolveE2eApiBase()) {
-    return true;
-  }
-  return true;
-}
 
 function resolveKanbanProjectScope(migrationBoundProjectId: string | null | undefined): string | null {
   const migrationScope = migrationBoundProjectId?.trim();
@@ -431,129 +419,39 @@ export const getFallbackLiteModelSelection = (): ModelSelection | null => {
   return resolveSelectionToModelSelection(defaultModelConfig?.liteModel?.fallback);
 };
 
+export interface RoutingModelSelections {
+  light: ModelSelection | null;
+  fallbackLight: ModelSelection | null;
+  reasoning: ModelSelection | null;
+  fallbackReasoning: ModelSelection | null;
+}
+
+const NO_ROUTING_SELECTIONS: RoutingModelSelections = {
+  light: null,
+  fallbackLight: null,
+  reasoning: null,
+  fallbackReasoning: null,
+};
+
 /**
- * Auto-select a model from enabled providers by input cost.
- * `cheapest=true` picks lowest cost; `cheapest=false` picks highest cost.
- * Models known to lack function calling are skipped: a routed turn drives the full tool loop.
- * Returns null when fewer than 2 distinct-cost models exist (routing would be pointless).
+ * Light / reasoning slots sent with the request. Empty unless smart routing applies to this turn, so the
+ * server never routes a turn that the UI presents as un-routed (see `resolveSmartRouting`).
  */
-const autoSelectModelByCost = (cheapest: boolean): ModelSelection | null => {
-  const { providers, customModelInfo } = useProviderStore.getState();
-  const candidates: Array<{ providerId: string; model: string; cost: number }> = [];
-
-  for (const provider of providers) {
-    if (!provider.isEnabled) {
-      continue;
-    }
-    if (!hasUsableProviderAuth(provider)) {
-      continue;
-    }
-    for (const model of provider.enabledModels || []) {
-      const info = customModelInfo[`${provider.id}/${model}`];
-      if (info?.supports_function_calling === false) {
-        continue;
-      }
-      if (info?.input_cost_per_million !== null && info?.input_cost_per_million !== undefined) {
-        candidates.push({ providerId: provider.id, model, cost: info.input_cost_per_million });
-      }
-    }
+export const getRoutingModelSelections = (
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+): RoutingModelSelections => {
+  const { providers, customModelInfo, defaultModelConfig } = useProviderStore.getState();
+  const routing = resolveSmartRouting(actionMode, agentConfig, defaultModelConfig, providers, customModelInfo);
+  if (!routing.active) {
+    return NO_ROUTING_SELECTIONS;
   }
-
-  if (candidates.length < 2) {
-    return null;
-  }
-
-  candidates.sort((a, b) => (cheapest ? a.cost - b.cost : b.cost - a.cost));
-  const pick = candidates[0];
-  return resolveSelectionToModelSelection({ providerId: pick.providerId, model: pick.model });
-};
-
-export const getLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.lightModel?.primary) {
-      const slotKwargs = agentRouting.lightModel.modelKwargs ?? {};
-      return resolveSelectionToModelSelection(agentRouting.lightModel.primary, slotKwargs);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.lightModel?.primary) {
-    const slotKwargs = routing.lightModel.modelKwargs ?? {};
-    return resolveSelectionToModelSelection(routing.lightModel.primary, slotKwargs);
-  }
-  return autoSelectModelByCost(true);
-};
-
-export const getFallbackLightModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.lightModel?.fallback) {
-      return resolveSelectionToModelSelection(agentRouting.lightModel.fallback);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.lightModel?.fallback) {
-    return resolveSelectionToModelSelection(routing.lightModel.fallback);
-  }
-  return null;
-};
-
-export const getReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.reasoningModel?.primary) {
-      const slotKwargs = agentRouting.reasoningModel.modelKwargs ?? {};
-      return resolveSelectionToModelSelection(agentRouting.reasoningModel.primary, slotKwargs);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.reasoningModel?.primary) {
-    const slotKwargs = routing.reasoningModel.modelKwargs ?? {};
-    return resolveSelectionToModelSelection(routing.reasoningModel.primary, slotKwargs);
-  }
-  return autoSelectModelByCost(false);
-};
-
-export const getFallbackReasoningModelSelection = (agentConfig?: AgentConfig | null): ModelSelection | null => {
-  const agentRouting = agentConfig?.routingConfig;
-  if (agentRouting !== undefined && agentRouting !== null) {
-    if (agentRouting.enabled === false) {
-      return null;
-    }
-    if (agentRouting.reasoningModel?.fallback) {
-      return resolveSelectionToModelSelection(agentRouting.reasoningModel.fallback);
-    }
-  }
-  const { defaultModelConfig } = useProviderStore.getState();
-  const routing = defaultModelConfig?.routingConfig;
-  if (routing?.enabled === false) {
-    return null;
-  }
-  if (routing?.reasoningModel?.fallback) {
-    return resolveSelectionToModelSelection(routing.reasoningModel.fallback);
-  }
-  return null;
+  return {
+    light: resolveSelectionToModelSelection(routing.light.primary, routing.light.modelKwargs),
+    fallbackLight: resolveSelectionToModelSelection(routing.light.fallback),
+    reasoning: resolveSelectionToModelSelection(routing.reasoning.primary, routing.reasoning.modelKwargs),
+    fallbackReasoning: resolveSelectionToModelSelection(routing.reasoning.fallback),
+  };
 };
 
 export const getVisionFallbackModelSelection = (): ModelSelection | null => {
@@ -717,10 +615,12 @@ export const createMessageRequest = async (
   const fallbackModelSelection = getFallbackModelSelection(actionMode, agentConfig);
   const safetyFallbackModelSelection = getSafetyFallbackModelSelection(actionMode, agentConfig);
   const fallbackLiteModelSelection = getFallbackLiteModelSelection();
-  const lightModelSelection = getLightModelSelection(agentConfig);
-  const fallbackLightModelSelection = getFallbackLightModelSelection(agentConfig);
-  const reasoningModelSelection = getReasoningModelSelection(agentConfig);
-  const fallbackReasoningModelSelection = getFallbackReasoningModelSelection(agentConfig);
+  const {
+    light: lightModelSelection,
+    fallbackLight: fallbackLightModelSelection,
+    reasoning: reasoningModelSelection,
+    fallbackReasoning: fallbackReasoningModelSelection,
+  } = getRoutingModelSelections(actionMode, agentConfig);
   const visionFallbackModelSelection = getVisionFallbackModelSelection();
   const codeModelSelection = getCodeModelSelection();
   const fallbackCodeModelSelection = getFallbackCodeModelSelection();
@@ -1133,6 +1033,8 @@ export const sendMessage = async (
 
   let pushedUserBubble = false;
   let dispatched = false;
+  // The abort handle identifies this turn: whoever holds it owns the shared turn state until the turn ends.
+  const abortController = new AbortController();
 
   try {
     // 搜索服务检查：
@@ -1159,9 +1061,7 @@ export const sendMessage = async (
       actions.setIsWorkflowMode(false);
     }
 
-    // 创建 AbortController 并设置 loading 状态
-    const abortController = new AbortController();
-
+    // 登记 AbortController 并设置 loading 状态
     // Save the abort controller to the workspace store for the current pane
     if (state.chatId) {
       const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
@@ -1287,7 +1187,14 @@ export const sendMessage = async (
     }
   } finally {
     const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+    // This turn can end after the next one took over (it was still reconciling with the server, or a stop reached it
+    // while it waited for the workspace stream): the turn state then belongs to that turn and stays untouched.
+    let heldByOtherTurn = false;
     smartSetMessages((innerState) => {
+      heldByOtherTurn = isHeldByOtherTurn(innerState.abortController, abortController);
+      if (heldByOtherTurn) {
+        return;
+      }
       innerState.loading = false;
       innerState.abortController = null;
       innerState.currentSessionMessageId = null;
@@ -1298,19 +1205,14 @@ export const sendMessage = async (
       }
     });
 
-    if (state.chatId) {
-      const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
-      if (paneId) {
-        useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+    if (!heldByOtherTurn) {
+      if (state.chatId) {
+        const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
+        if (paneId) {
+          useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+        }
       }
-    }
-
-    actions.setHideAttachList(false);
-    // A terminal transport can finish after the user has already started the
-    // next turn.  Only clear the request id that this invocation owns; an
-    // unconditional clear would detach the next turn from its stream.
-    if (useChatStore.getState().currentSessionMessageId === requestMessageId) {
-      actions.clearCurrentSessionMessageId();
+      actions.setHideAttachList(false);
     }
     actions.scheduleAutoSave();
 
@@ -1586,11 +1488,17 @@ export const attachToChat = async (
     }
     return false;
   } finally {
+    // The attach can end after a newer turn took over (it was still reconciling with the server): that turn owns the state.
+    let heldByOtherTurn = false;
     smartActions.setMessages((draft) => {
+      heldByOtherTurn = isHeldByOtherTurn(draft.abortController, abortController);
+      if (heldByOtherTurn) {
+        return;
+      }
       draft.loading = false;
       draft.abortController = null;
     });
-    if (paneId) {
+    if (paneId && !heldByOtherTurn) {
       useWorkspaceStore.getState().setPaneAbortController(paneId, null);
     }
   }

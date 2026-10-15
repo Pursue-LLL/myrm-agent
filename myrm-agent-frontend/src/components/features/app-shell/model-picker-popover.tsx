@@ -16,6 +16,7 @@
 
 import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { Search, X } from 'lucide-react';
+import { ArrowsSplit } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { useTranslations } from 'next-intl';
@@ -514,8 +515,8 @@ export default function ModelPickerPopover({
                       isSmartRoutingActive && 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium',
                     )}
                   >
-                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-bold shadow-sm">
-                      ✨
+                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-sm">
+                      <ArrowsSplit size={14} weight="bold" aria-hidden="true" />
                     </span>
                     <div className="flex flex-col text-left truncate flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">

@@ -4,8 +4,9 @@ Consumes InboundMessage from the MessageBus, applies DM/group policy,
 resolves the sender's identity, executes the Agent via AgentExecutor,
 and publishes the result as an OutboundMessage.
 
-Supports slash commands (/stop, /new, /compact, /retry, /undo, /bind, /unbind, /topic, /goal, /steer, /queue, /kanban, /learn)
-and voice STT/TTS via voice_handler module.
+Supports slash commands (see command_defs.SYSTEM_COMMANDS). Those that act on the owner's sandbox (/memory, /goal, /bind,
+/draft, ...) run only for the owner; the few marked ``any_sender`` (/stop, /new, /help, ...) stay open to every sender.
+Also supports voice STT/TTS via voice_handler module.
 
 
 [INPUT]
@@ -18,7 +19,7 @@ and voice STT/TTS via voice_handler module.
 - channels.routing.session_gate::SessionGate (POS: message debounce and concurrency control)
 - channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
 - channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)
-- channels.routing.router_commands::RouterCommandsMixin (POS: /stop, approval, and topic command handling)
+- channels.routing.commands.router_commands::RouterCommandsMixin (POS: slash-command handlers, including /stop, approval, topic and /draft)
 - channels.routing.router_execution::RouterExecutionMixin (POS: execution lifecycle — prepare/effects/stream/deliver/cleanup)
 - channels.routing.router_constants::limits (POS: concurrency, dedup, throttle, cleanup TTL)
 - channels.routing.router_host::RouterStreamHost, (POS: Typing protocols: host instance attributes required by Router Mixins.)
@@ -647,11 +648,14 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 asyncio.create_task(self._handle_bang_command(msg))
                 continue
 
-            await dispatch_cron_event_for_inbound_message(
-                msg.content,
-                msg.channel,
-                msg.user_id or "",
-            )
+            # Event triggers start unattended jobs on the owner's account, so they follow the same sender policy as a
+            # chat turn. The resolvers that enforce it run later and have side effects, hence the read-only check.
+            if await self._is_sender_admitted(msg):
+                await dispatch_cron_event_for_inbound_message(
+                    msg.content,
+                    msg.channel,
+                    msg.user_id or "",
+                )
 
             # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
             chat_id = msg.chat_id or msg.sender_id
@@ -687,10 +691,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     asyncio.create_task(self._bus.publish_outbound(reply))
                     continue
 
-            # Check for Mobile-to-Desktop Asynchronous Task Delegation
+            # Mobile-to-Desktop Asynchronous Task Delegation. A delegated run and its in-flight steering skip the
+            # per-turn identity pipeline (no DM policy, no untrusted-ingress fence), so only the owner may use them;
+            # anyone else's message continues as an ordinary turn below.
             if msg.content and isinstance(msg.content, str):
                 is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
-                if is_delegated and confidence >= 0.85:
+                if is_delegated and confidence >= 0.85 and await self._check_admin_permission(msg):
                     if not clean_prompt:
                         reply = OutboundMessage(
                             channel=msg.channel,
@@ -714,6 +720,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 and isinstance(msg.content, str)
                 and not msg.content.startswith("/")
                 and not self._active_tasks.get(session_key)
+                and await self._check_admin_permission(msg)
             ):
                 injected = self._delegation_coordinator.inject_steering(active_del.task_id, msg.content.strip(), user_id)
                 if injected:
@@ -839,7 +846,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         return dataclasses.replace(msg, metadata=meta)
 
     async def _check_admin_permission(self, msg: InboundMessage) -> bool:
-        """Whether the sender is the sandbox owner, which ``requires_admin`` commands and held-reply decisions need.
+        """Whether the sender is the sandbox owner, which owner-only commands, delegation and held-reply decisions need.
 
         A DM sender is not automatically the owner: an open DM policy admits any account. Fails closed, because
         this runs on the consume loop, where a store error must neither raise nor grant access.
@@ -848,6 +855,14 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             return await is_admin_sender(self._resolver.pairing, msg)
         except Exception:
             logger.warning("Admin check failed for %s/%s, denying", msg.channel, msg.sender_id, exc_info=True)
+            return False
+
+    async def _is_sender_admitted(self, msg: InboundMessage) -> bool:
+        """Whether the access policy admits the sender. Fails closed: the consume loop has no per-message guard."""
+        try:
+            return await self._resolver.is_sender_admitted(msg)
+        except Exception:
+            logger.warning("Admission check failed for %s/%s, denying", msg.channel, msg.sender_id, exc_info=True)
             return False
 
     async def _dispatch_resolved(
@@ -859,7 +874,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         cmd = resolved.command_def
         action = cmd.action
 
-        if cmd.requires_admin and not await self._check_admin_permission(msg):
+        if cmd.owner_only and not await self._check_admin_permission(msg):
             chat_id = msg.chat_id or msg.sender_id
             reply = OutboundMessage(
                 channel=msg.channel,
@@ -938,6 +953,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             action_name = action.value
             topic_cmd = parse_topic_args(action_name, raw_args)
             asyncio.create_task(self._handle_topic_command(msg, topic_cmd))
+            return True
+
+        if action == CommandAction.DRAFT:
+            asyncio.create_task(self._handle_draft_command(msg, raw_args))
             return True
 
         if action == CommandAction.GOAL:
@@ -1068,7 +1087,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         """Handle /help command: show available commands."""
         chat_id = msg.chat_id or msg.sender_id
         locale = resolve_message_locale(msg)
-        lines = self._registry.help_lines(locale)
+        lines = self._registry.help_lines(locale, owner=await self._check_admin_permission(msg))
         content = get_text(msg, "help_header") + "\n" + "\n".join(lines)
         reply = OutboundMessage(
             channel=msg.channel,

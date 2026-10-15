@@ -2,7 +2,7 @@
 
 [INPUT]
 - DynamicPreferenceVector, DynamicPreferenceFitter from harness
-- UpdatePreferenceRadarRequest, RecordImplicitFeedbackRequest from schemas
+- UpdatePreferenceRadarRequest from schemas
 
 [OUTPUT]
 - PreferenceRadarStateResponse DTO
@@ -26,13 +26,11 @@ from typing import Final
 from myrm_agent_harness.toolkits.memory import (
     DynamicPreferenceFitter,
     DynamicPreferenceVector,
-    FeedbackAction,
     PreferenceDimension,
 )
 
 from app.schemas.memory.radar import (
     PreferenceRadarStateResponse,
-    RecordImplicitFeedbackRequest,
     UpdatePreferenceRadarRequest,
 )
 
@@ -74,6 +72,7 @@ class PreferenceRadarService:
         except Exception as exc:
             logger.warning("Could not create radar storage directory %s: %s, falling back to temp", candidate_dir, exc)
             import tempfile
+
             candidate_dir = Path(tempfile.gettempdir()) / "myrm" / "memories"
             candidate_dir.mkdir(parents=True, exist_ok=True)
 
@@ -205,40 +204,6 @@ class PreferenceRadarService:
             if req.locked is not None:
                 vec.locked = req.locked
 
-            effective_weights = self._derive_signal_weights(vec)
-            self._persist_state()
-
-            return PreferenceRadarStateResponse(
-                session_id=session_id or _DEFAULT_SESSION_KEY,
-                recency=round(vec.recency, 3),
-                actionability=round(vec.actionability, 3),
-                technical_depth=round(vec.technical_depth, 3),
-                conciseness=round(vec.conciseness, 3),
-                breadth=round(vec.breadth, 3),
-                locked=vec.locked,
-                last_updated=now,
-                effective_signal_weights=effective_weights,
-            )
-
-    async def record_feedback(
-        self,
-        session_id: str,
-        req: RecordImplicitFeedbackRequest,
-    ) -> PreferenceRadarStateResponse:
-        """Process an implicit interaction event to fit preference weights."""
-        async with self._lock:
-            vec, _ = self._get_or_create_vector(session_id)
-            now = datetime.now(UTC)
-            self._timestamps[session_id or _DEFAULT_SESSION_KEY] = now
-
-            action_to_apply: FeedbackAction
-            if req.raw_prompt:
-                heuristic = self._fitter.detect_implicit_action(req.raw_prompt)
-                action_to_apply = heuristic if heuristic else FeedbackAction(req.action.value)
-            else:
-                action_to_apply = FeedbackAction(req.action.value)
-
-            self._fitter.fit_step(vec, action_to_apply)
             effective_weights = self._derive_signal_weights(vec)
             self._persist_state()
 

@@ -14,6 +14,8 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 | `toolIcons.tsx`                | 辅助 | 步骤图标与 agent 主题色                                                                  | ✅                             |
 | `ArchiveRestoreStepAction.tsx` | 组件 | 归档恢复步骤操作                                                                         | ✅                             |
 | `ArchiveRestoreResultChip.tsx` | 组件 | 归档恢复结果 chip                                                                        | ✅                             |
+| `SkillManageBatchRollbackAction.tsx` | 组件 | skill_manage 成功批次撤销（调用 `/skill-optimization/mutations/{id}/rollback`） | ✅                             |
+| `skillManageBatch.ts`          | 辅助 | 读取 step `skill_mutation_batch_id`（server SSE enrich）                                 | ✅                             |
 | `useScrollbarStyles.ts`        | 辅助 | 展开面板滚动条样式                                                                       | ✅                             |
 | `StepDetailModal.tsx`          | 组件 | 步骤详情下钻弹窗（查看出入参、诊断建议、stdout 终端流与 Raw JSON）                       | ✅                             |
 | `renderers/`                   | 目录 | 步骤叶子渲染（终端、代码、evicted drawer 等）                                            | [_ARCH.md](renderers/_ARCH.md) |

@@ -1,6 +1,6 @@
 """Batch Snapshot Model
 
-SQLAlchemy model for batch optimization snapshots (for rollback).
+SQLAlchemy model for the pre-mutation snapshots a skill-modification batch can be undone from.
 """
 
 from datetime import datetime
@@ -12,18 +12,18 @@ from app.database.models.base import Base
 
 
 class BatchSnapshot(Base):
-    """批量优化快照表
+    """技能修改批次快照表
 
-    在批量优化开始前，保存所有 skill 的当前状态快照，
-    支持一键回滚到优化前的状态。
+    在一批技能修改（skill_manage 等）落盘前，保存被改技能的当前内容快照，
+    供撤销该批次时恢复。
 
     Fields:
         snapshot_id: Unique snapshot identifier
-        batch_id: Associated batch task ID
+        batch_id: Skill-modification batch ID
         skill_id: Skill ID
-        skill_content_before: Skill content before optimization (YAML/JSON)
-        skill_version_before: Skill version before optimization
-        skill_metadata: Additional metadata (quality scores, etc.)
+        skill_content_before: Skill content before the modification
+        skill_version_before: Skill version before the modification
+        skill_metadata: Additional metadata captured with the snapshot
         created_at: Snapshot creation timestamp
     """
 

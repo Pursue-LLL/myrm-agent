@@ -25,6 +25,7 @@ import { BACKEND_UNREACHABLE_CODE, resolveBackendUnreachableMessage } from '@/li
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
+import { translateI18nKey } from '@/services/i18nToastService';
 import { redactErrorMessage } from '@/lib/utils/error-handling';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 
@@ -609,11 +610,11 @@ function displayApiErrorToast(error: unknown, duration: number | undefined, dedu
           return `${fieldStr}${redactErrorMessage(detail.issue)}`;
         })
         .join('; ');
-      description = `${message}\n详情: ${details}`;
+      description = `${message}\n${translateI18nKey('common.apiErrorDetails')}: ${details}`;
     }
 
     if (error.traceId) {
-      description += `\n追踪ID: ${error.traceId}`;
+      description += `\n${translateI18nKey('common.apiErrorTraceId')}: ${error.traceId}`;
     }
 
     const severity = error.severity || 'medium';
@@ -637,7 +638,7 @@ function displayApiErrorToast(error: unknown, duration: number | undefined, dedu
 
     const toastAction = error.retriable
       ? {
-          label: '重试',
+          label: translateI18nKey('common.retry'),
           onClick: () => {
             retryLastRequest().catch((retryError) => {
               console.warn('重试失败:', retryError);
@@ -662,7 +663,7 @@ function displayApiErrorToast(error: unknown, duration: number | undefined, dedu
 
   if (error instanceof Error) {
     toast({
-      title: '错误',
+      title: translateI18nKey('common.errorTitle'),
       description: redactErrorMessage(error.message),
       duration: duration || 5000,
       variant: 'destructive',
@@ -671,8 +672,8 @@ function displayApiErrorToast(error: unknown, duration: number | undefined, dedu
   }
 
   toast({
-    title: '错误',
-    description: '未知错误',
+    title: translateI18nKey('common.errorTitle'),
+    description: translateI18nKey('common.unknownError'),
     duration: duration || 5000,
     variant: 'destructive',
   });

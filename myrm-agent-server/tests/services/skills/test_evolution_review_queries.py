@@ -11,6 +11,12 @@ from app.database.connection import get_session
 from app.database.models import ApprovalRecord, Base, ExperienceLedgerEvent
 from app.platform_utils import get_database_engine
 from app.services.approvals.registry import ApprovalRegistry
+from app.services.skills.evolution_review.types import (
+    EVOLUTION_ACTION_TYPE,
+    EvolutionApprovalPayload,
+    approval_payload,
+    approval_to_evolution_review_record,
+)
 from app.services.skills.evolution_reviews import (
     EvolutionGrowthStatus,
     EvolutionReviewRecord,
@@ -156,58 +162,58 @@ async def test_eval_cases_persisted_in_review_payload() -> None:
 
 
 @pytest.mark.asyncio
-async def test_change_manifest_and_attribution_persisted_in_review_payload() -> None:
-    manifest = {
-        "manifest_id": "pred_test_123",
-        "target_component": "skills/test_skill",
-        "rationale": "Improve assertion pass rate",
-        "predictions": [
-            {
-                "metric_name": "pass_rate",
-                "direction": "increase",
-                "baseline_value": 0.0,
-                "target_value": 1.0,
-            }
-        ],
-    }
-    attribution = {
-        "manifest_id": "pred_test_123",
-        "verdict": "CONFIRMED",
-        "attributed_at": "2026-09-01T12:00:00Z",
-        "metric_deltas": {"pass_rate": 1.0},
-        "unpredicted_regressions": [],
-        "details": "All predictions confirmed",
-    }
+async def test_unscanned_proposal_persists_null_test_passed() -> None:
     record = await create_evolution_review_record(
         agent_id="test-agent",
         chat_id=None,
-        proposal_skill_id="skill_test",
+        proposal_skill_id="skill_unscanned",
         skill_name="test_skill",
         skill_path="/tmp/test_skill.md",
         evolution_type="fix",
-        reason="Test change manifest persistence",
+        reason="No security scan ran for this proposal",
         original_content="def test(): pass",
         evolved_content="def test(): return 1",
         confidence=0.9,
-        test_passed=True,
+        test_passed=None,
         task_context="evolution review query test",
-        change_manifest=manifest,
-        attribution_result=attribution,
     )
 
-    from app.database.connection import get_session as db_session
-    from app.database.models import ApprovalRecord
-    from app.services.skills.evolution_review.types import approval_payload
-
-    async with db_session() as db:
+    async with get_session() as db:
         stored = await db.get(ApprovalRecord, record.id)
         assert stored is not None
         payload = approval_payload(stored)
         assert payload is not None
-        assert payload.change_manifest == manifest
-        assert payload.attribution_result == attribution
-        assert record.change_manifest == manifest
-        assert record.attribution_result == attribution
+        assert payload.test_passed is None
+        assert record.test_passed is None
+
+
+@pytest.mark.asyncio
+async def test_payload_with_undeclared_keys_still_loads() -> None:
+    """Stored payloads may carry keys the model does not declare; they are ignored, not rejected."""
+    payload = EvolutionApprovalPayload(
+        skill_id="skill_extra_keys",
+        skill_name="extra_keys_skill",
+        skill_path="/tmp/extra_keys_skill.md",
+        evolution_type="fix",
+        reason="Payload with undeclared keys",
+        original_content="a",
+        evolved_content="b",
+        confidence=0.9,
+        test_passed=True,
+    ).model_dump(mode="json")
+    payload["change_manifest"] = {"manifest_id": "pred_old", "predictions": []}
+    payload["attribution_result"] = {"verdict": "CONFIRMED"}
+    approval = await ApprovalRegistry.create_approval(
+        agent_id="test-agent",
+        action_type=EVOLUTION_ACTION_TYPE,
+        payload=payload,
+    )
+
+    record = approval_to_evolution_review_record(approval)
+
+    assert record is not None
+    assert record.skill_id == "skill_extra_keys"
+    assert record.test_passed is True
 
 
 @pytest.mark.asyncio

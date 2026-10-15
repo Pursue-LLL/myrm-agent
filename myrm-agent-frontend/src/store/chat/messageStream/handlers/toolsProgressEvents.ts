@@ -89,6 +89,8 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       recovery_actions: data.recovery_actions,
       fault_side: data.fault_side,
       progress_percent: data.progress_percent,
+      skill_mutation_batch_id:
+        typeof data.skill_mutation_batch_id === 'string' ? data.skill_mutation_batch_id : undefined,
     };
 
     if (data.error_category) {

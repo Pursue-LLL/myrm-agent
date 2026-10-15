@@ -21,11 +21,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from myrm_agent_harness.agent.skills.optimization.types import (
-    SkillQualityScore,
-    SkillVersion,
-)
-from sqlalchemy import delete, desc, select, update
+from myrm_agent_harness.agent.skills.optimization.types import SkillVersion
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.skill_optimization import SkillVersionModel
@@ -47,7 +44,6 @@ class SnapshotRepository:
         skill_id: str,
         version: int,
         content: str,
-        quality_score: SkillQualityScore | None = None,
         created_by: str = "llm",
         optimization_id: str | None = None,
         metadata: dict[str, object] | None = None,
@@ -58,7 +54,6 @@ class SnapshotRepository:
             skill_id: Skill ID
             version: 版本号
             content: Skill内容
-            quality_score: 质量评分
             created_by: 创建者
             optimization_id: 关联的优化ID
             metadata: 额外元数据
@@ -66,25 +61,10 @@ class SnapshotRepository:
         Returns:
             SkillVersion: 创建的版本对象
         """
-        quality_score_dict = None
-        if quality_score:
-            quality_score_dict = {
-                "success_rate": quality_score.success_rate,
-                "token_efficiency": quality_score.token_efficiency,
-                "execution_time": quality_score.execution_time,
-                "user_satisfaction": quality_score.user_satisfaction,
-                "call_frequency": quality_score.call_frequency,
-                "prompt_tokens": quality_score.prompt_tokens,
-                "completion_tokens": quality_score.completion_tokens,
-                "total_tokens": quality_score.total_tokens,
-                "llm_cost_usd": quality_score.llm_cost_usd,
-            }
-
         model = SkillVersionModel(
             skill_id=skill_id,
             version=version,
             content=content,
-            quality_score=quality_score_dict,
             created_at=datetime.utcnow(),
             created_by=created_by,
             optimization_id=optimization_id,
@@ -161,7 +141,7 @@ class SnapshotRepository:
         result = await self.session.execute(
             select(SkillVersionModel)
             .where(SkillVersionModel.skill_id == skill_id)
-            .order_by(desc(SkillVersionModel.version))
+            .order_by(SkillVersionModel.version.desc())
             .limit(limit)
         )
         models = result.scalars().all()
@@ -228,7 +208,7 @@ class SnapshotRepository:
             int: 删除的版本数量
         """
         result = await self.session.execute(
-            select(SkillVersionModel).where(SkillVersionModel.skill_id == skill_id).order_by(desc(SkillVersionModel.version))
+            select(SkillVersionModel).where(SkillVersionModel.skill_id == skill_id).order_by(SkillVersionModel.version.desc())
         )
         all_versions = list(result.scalars().all())
 
@@ -269,25 +249,10 @@ class SnapshotRepository:
         Returns:
             SkillVersion: 领域对象
         """
-        quality_score = None
-        if model.quality_score:
-            quality_score = SkillQualityScore(
-                success_rate=model.quality_score["success_rate"],
-                token_efficiency=model.quality_score["token_efficiency"],
-                execution_time=model.quality_score["execution_time"],
-                user_satisfaction=model.quality_score["user_satisfaction"],
-                call_frequency=model.quality_score["call_frequency"],
-                prompt_tokens=model.quality_score.get("prompt_tokens", 0),
-                completion_tokens=model.quality_score.get("completion_tokens", 0),
-                total_tokens=model.quality_score.get("total_tokens", 0),
-                llm_cost_usd=model.quality_score.get("llm_cost_usd", 0.0),
-            )
-
         return SkillVersion(
             skill_id=model.skill_id,
             version=model.version,
             content=model.content,
-            quality_score=quality_score,
             created_at=model.created_at,
             created_by=model.created_by,
             optimization_id=model.optimization_id,

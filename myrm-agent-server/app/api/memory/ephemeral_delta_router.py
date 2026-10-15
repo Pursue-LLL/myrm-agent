@@ -23,7 +23,6 @@ from app.schemas.ephemeral_delta import (
     PreviewDeltaInjectionRequestDTO,
     PreviewDeltaInjectionResponseDTO,
     PromptCacheMetricsDTO,
-    ReconcileSessionResponse,
     RecordEphemeralDeltaRequest,
 )
 from app.services.memory.ephemeral_delta_service import (
@@ -73,19 +72,6 @@ async def get_snapshot(
 ) -> EphemeralDeltaBufferSnapshotDTO:
     """Get snapshot of current session ephemeral buffer state."""
     return service.get_snapshot(session_id)
-
-
-@router.post(
-    "/reconcile/{session_id}",
-    response_model=ReconcileSessionResponse,
-    summary="Report active session tail deltas (durable writes use memory store on turns)",
-)
-async def reconcile_session(
-    session_id: Annotated[str, Path(description="Target session identifier")],
-    service: Annotated[EphemeralDeltaService, Depends(get_ephemeral_delta_service)],
-) -> ReconcileSessionResponse:
-    """Return active delta count; tail injection continues until the chat buffer is cleared."""
-    return service.reconcile_session(session_id)
 
 
 @router.post(

@@ -4,7 +4,7 @@ Validates the end-to-end chain without mocking key paths:
   1. Hermes directory with skills + .usage.json
   2. load_source_payload() loads usage into skill payload
   3. extract_pending_skills() returns skills with usage_stats
-  4. _apply_skill_migration() writes .stats.json
+  4. apply_skill_migration() writes .stats.json
   5. Harness SkillStatsCollector._load_stats() reads and parses correctly
 """
 
@@ -111,16 +111,16 @@ class TestUsageSidecarIntegration:
         loaded = load_source_payload(discovery)
         skills = extract_pending_skills(loaded)
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
-        result = await _apply_skill_migration(skills)
+        result = await apply_skill_migration(skills)
 
         assert result["skills_imported"] == 2
         assert result["usage_preserved"] == 2
 
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         code_review_dir = skills_dest / "code-review"
         deploy_helper_dir = skills_dest / "deploy-helper"
 
@@ -210,9 +210,9 @@ class TestUsageSidecarIntegration:
         loaded = load_source_payload(discovery)
         skills = extract_pending_skills(loaded)
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
-        result = await _apply_skill_migration(skills)
+        result = await apply_skill_migration(skills)
 
         assert result["skills_imported"] == 2
         assert result["usage_preserved"] == 1
@@ -268,9 +268,9 @@ class TestUsageSidecarIntegration:
         loaded = load_source_payload(discovery)
         skills = extract_pending_skills(loaded)
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
-        await _apply_skill_migration(skills)
+        await apply_skill_migration(skills)
 
         from myrm_agent_harness.backends.skills.forgetting_strategy import (
             CuratorConfig,
@@ -279,7 +279,7 @@ class TestUsageSidecarIntegration:
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "production-deploy")
 
         assert stats.call_count == 50
@@ -331,9 +331,9 @@ class TestUsageSidecarIntegration:
         loaded = load_source_payload(discovery)
         skills = extract_pending_skills(loaded)
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
-        await _apply_skill_migration(skills)
+        await apply_skill_migration(skills)
 
         from myrm_agent_harness.backends.skills.forgetting_strategy import (
             CuratorConfig,
@@ -342,7 +342,7 @@ class TestUsageSidecarIntegration:
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "edge-skill")
 
         assert stats.call_count == 15
@@ -395,9 +395,9 @@ class TestUsageSidecarIntegration:
         loaded = load_source_payload(discovery)
         skills = extract_pending_skills(loaded)
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
-        await _apply_skill_migration(skills)
+        await apply_skill_migration(skills)
 
         from myrm_agent_harness.backends.skills.forgetting_strategy import (
             CuratorConfig,
@@ -406,7 +406,7 @@ class TestUsageSidecarIntegration:
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
         from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "pinned-skill")
 
         assert stats.pinned is True
@@ -466,13 +466,13 @@ class TestUsageSidecarIntegration:
         loaded = load_source_payload(discovery)
         skills = extract_pending_skills(loaded)
 
-        from app.api.skills.migrations import _apply_skill_migration
+        from app.services.migration.skill_bundle_writer import apply_skill_migration
 
-        await _apply_skill_migration(skills)
+        await apply_skill_migration(skills)
 
         from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 
-        collector = SkillStatsCollector(workspace_root=skills_dest)
+        collector = SkillStatsCollector()
         stats = collector._load_stats(skills_dest / "heavy-usage")
         assert stats.call_count == 999999
         assert stats.observed_count == 0

@@ -9,7 +9,6 @@ from app.api.agents import (
     ai_build,
     general_agent,
     generate_prompt,
-    media,
     providers,
     subagents,
     suggestions,
@@ -25,12 +24,9 @@ from app.api.agents.readiness import router as readiness_router
 from app.api.agents.recovery import router as agent_recovery_router
 from app.api.api_keys import router as api_keys_router
 from app.api.approvals import router as approvals_router
-from app.api.audit.auth_router import router as auth_audit_router
 from app.api.audit.bash_router import router as audit_router
-from app.api.audit.local_action_router import router as local_action_router
 from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_directory import router as batch_directory_router
-from app.api.batch_optimization import router as batch_optimization_router
 from app.api.browser_domain_skills import router as browser_domain_skills_router
 from app.api.browser_recording import router as browser_recording_router
 from app.api.browser_sessions import router as browser_sessions_router
@@ -40,7 +36,6 @@ from app.api.chats import router as chat_router
 from app.api.chats.chat.share import public_router as chat_share_public_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
-from app.api.commerce.evals import router as commerce_evals_router
 from app.api.commerce.spending_router import router as commerce_spending_router
 from app.api.companion.doctor_router import router as companion_doctor_router
 from app.api.companion.router import router as companion_router
@@ -66,17 +61,14 @@ from app.api.files.artifact_share_api import (
 from app.api.files.router import router as files_router
 from app.api.files.vault_proxy import router as vault_proxy_router
 from app.api.goals.router import router as goals_router
-from app.api.health.diagnostic import router as diagnostic_router
 from app.api.health.router import router as health_router
 from app.api.integrations import router as integrations_router
 from app.api.kanban.pipeline_router import pipeline_router as kanban_pipeline_router
 from app.api.kanban.router import router as kanban_router
 from app.api.media import media_router
 from app.api.memory.router import router as memory_router
-from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
 from app.api.migration.upload import router as migration_upload_router
-from app.api.mobile.router import router as mobile_router
 from app.api.notifications.router import router as notifications_router
 from app.api.ops.router import router as ops_router
 from app.api.plugins import export_router as plugins_export_router
@@ -84,9 +76,6 @@ from app.api.plugins import import_router as plugins_import_router
 from app.api.presentation import router as presentation_router
 from app.api.progression import router as progression_router
 from app.api.projects import router as project_router
-from app.api.projects.dependency_expansion import (
-    router as dependency_expansion_router,
-)
 from app.api.projects.project_state import router as project_state_router
 from app.api.providers import provider_balance_router
 from app.api.remote_access.router import router as remote_access_router
@@ -98,21 +87,16 @@ from app.api.security.generate import router as security_generate_router
 from app.api.security.managed_policy import router as security_managed_policy_router
 from app.api.security.profiles import router as security_profiles_router
 from app.api.security.router import router as security_dashboard_router
-from app.api.security.tainted_egress import router as tainted_egress_router
 from app.api.security.vault import router as vault_router
 from app.api.security.vault_credentials import router as vault_credentials_router
 from app.api.security.workspace_trust import router as workspace_trust_router
 from app.api.self_evolution import router as self_evolution_router
 from app.api.session_map import router as session_map_router
 from app.api.skill_optimization import router as skill_optimization_router
-from app.api.skill_optimization import ws_router as skill_optimization_ws_router
 from app.api.skills import router as skills_router
 from app.api.skills.evolution import router as evolution_router
-from app.api.skills.experience_ledger import router as experience_ledger_router
 from app.api.skills.growth import router as skill_growth_router
 from app.api.skills.migrations import router as migrations_router
-from app.api.skills.quality import router as skill_quality_router
-from app.api.skills.ws_evolution import router as evolution_ws_router
 from app.api.spreadsheet import router as spreadsheet_router
 from app.api.ssh_vault.router import router as ssh_vault_router
 from app.api.statistics import build_statistics_router
@@ -149,7 +133,6 @@ api_router.include_router(web_push_router)
 api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
 api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
-api_router.include_router(media.router, prefix="/agents", tags=["agents"])
 api_router.include_router(subagents.router, prefix="/chats", tags=["subagents"])
 api_router.include_router(user_agent.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(generate_prompt.router, prefix="/user-agents", tags=["user-agents"])
@@ -175,7 +158,6 @@ api_router.include_router(approvals_router)
 api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
 api_router.include_router(project_router, prefix="/projects", tags=["projects"])
 api_router.include_router(project_state_router)
-api_router.include_router(dependency_expansion_router)
 api_router.include_router(files_router, prefix="/files", tags=["files"])
 api_router.include_router(theme_router)
 api_router.include_router(
@@ -196,15 +178,11 @@ api_router.include_router(browser_recording_router, prefix="/browser", tags=["br
 api_router.include_router(browser_sessions_router, prefix="/browser", tags=["browser-sessions"])
 api_router.include_router(browser_spaces_router, prefix="/browser", tags=["browser-spaces"])
 api_router.include_router(skill_growth_router, tags=["skill-growth"])
-api_router.include_router(skill_quality_router, tags=["skill-quality"])
 api_router.include_router(evolution_router, tags=["evolution"])
-api_router.include_router(evolution_ws_router, prefix="/ws", tags=["evolution"])
-api_router.include_router(experience_ledger_router, tags=["experience-ledger"])
 api_router.include_router(migration_discovery_router, tags=["migration"])
 api_router.include_router(migration_upload_router, tags=["migration"])
 api_router.include_router(migrations_router, tags=["migrations"])
 api_router.include_router(skill_optimization_router, tags=["skill-optimization"])
-api_router.include_router(batch_optimization_router, tags=["batch-optimization"])
 api_router.include_router(batch_directory_router, tags=["batch-directories"])
 api_router.include_router(credentials_router, prefix="/credentials", tags=["credentials"])
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
@@ -221,7 +199,6 @@ api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
 api_router.include_router(runs_router)
 api_router.include_router(eval_router, tags=["eval"])
-api_router.include_router(commerce_evals_router)
 api_router.include_router(commerce_spending_router)
 
 api_router.include_router(datasets_router, prefix="/datasets", tags=["datasets"])
@@ -241,7 +218,6 @@ if is_local_mode():
         router as channels_bitable_copilot_router,
     )
     from app.api.channels.data_plane import router as channels_data_plane_router
-    from app.api.channels.dlq import router as channels_dlq_router
     from app.api.channels.feishu_register import router as feishu_register_router
     from app.api.channels.instances import router as channels_instances_router
     from app.api.channels.instances_credentials import (
@@ -249,7 +225,6 @@ if is_local_mode():
     )
     from app.api.channels.login import router as channels_login_router
     from app.api.channels.router import router as channels_manage_router
-    from app.api.channels.routes_management import router as routes_management_router
     from app.api.channels.test_connections import router as channels_test_router
     from app.api.channels.topics import router as channels_topics_router
     from app.api.channels.wechat import router as channels_wechat_router
@@ -272,8 +247,6 @@ if is_local_mode():
     api_router.include_router(channels_data_plane_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(channels_bitable_copilot_router, tags=["channels"])
     api_router.include_router(channels_topics_router, prefix="/channels/manage", tags=["channels"])
-    api_router.include_router(routes_management_router, prefix="/channels/routes", tags=["channels"])
-    api_router.include_router(channels_dlq_router, prefix="/channels/dlq", tags=["channels"])
 
 # Feature Flags
 api_router.include_router(features_router, prefix="/features", tags=["features"])
@@ -301,23 +274,13 @@ api_router.include_router(security_profiles_router, tags=["security"])
 api_router.include_router(security_managed_policy_router, tags=["security"])
 api_router.include_router(vault_router, prefix="/security", tags=["security"])
 api_router.include_router(vault_credentials_router, prefix="/security", tags=["security"])
-api_router.include_router(tainted_egress_router, prefix="/security", tags=["security"])
-api_router.include_router(message_filter_router, tags=["message-filter"])
 api_router.include_router(risk_router, prefix="/risk", tags=["risk"])
-api_router.include_router(auth_audit_router, tags=["audit"])
 api_router.include_router(audit_router, tags=["audit"])
-api_router.include_router(local_action_router)
 api_router.include_router(health_router, prefix="/health", tags=["health"])
 api_router.include_router(ops_router)
-api_router.include_router(diagnostic_router, prefix="/diagnostic", tags=["diagnostic"])
 api_router.include_router(checkpoint_router, tags=["checkpoint"])
 api_router.include_router(stt_router, prefix="/stt", tags=["stt"])
 api_router.include_router(stt_ws_router, prefix="/ws/stt", tags=["stt"])
-api_router.include_router(
-    skill_optimization_ws_router,
-    prefix="/ws/skill-optimization",
-    tags=["skill-optimization"],
-)
 api_router.include_router(tts_router, prefix="/tts", tags=["tts"])
 api_router.include_router(voice_ws_router, prefix="/ws/voice", tags=["voice"])
 api_router.include_router(voice_realtime_router, prefix="/voice", tags=["voice"])
@@ -336,16 +299,13 @@ api_router.include_router(companion_doctor_router, prefix="/companion", tags=["c
 api_router.include_router(compounding_playbook_router, tags=["compounding-playbook"])
 api_router.include_router(workflow_templates_router, tags=["workflow-templates"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])
-api_router.include_router(mobile_router, prefix="/mobile", tags=["mobile"])
 api_router.include_router(client_logs_router, tags=["logs"])
 api_router.include_router(a2a_router, prefix="/a2a", tags=["a2a"])
 
-# 本地模式：dev-gate + 事件通知/权限审批（SSE + 权限 API）
+# 本地模式：事件通知（SSE）
 if is_local_mode():
-    from app.api.dev_gate.readiness import router as dev_gate_router
     from app.api.events import router as events_router
 
-    api_router.include_router(dev_gate_router, prefix="/dev-gate", tags=["dev-gate"])
     api_router.include_router(events_router, tags=["events"])
 
 api_router.include_router(extension_router, tags=["extension"])

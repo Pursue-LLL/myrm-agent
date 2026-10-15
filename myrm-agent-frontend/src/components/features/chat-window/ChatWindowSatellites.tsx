@@ -7,6 +7,7 @@ import SubagentDashboard from './subagent/SubagentDashboard';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import useChatStore from '@/store/useChatStore';
 import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import { usePresenceReadMark } from '@/hooks/chat/usePresenceReadMark';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useDeviceInspectorStore from '@/store/useDeviceInspectorStore';
@@ -115,11 +116,6 @@ const PetOverlay = dynamic(() => import('../companion/sprite/PetOverlay'), { ssr
 
 const PetPalette = dynamic(() => import('../companion/PetPalette'), { ssr: false });
 
-const ContinualOverlayWatcher = dynamic(
-  () => import('./ContinualOverlayWatcher').then((m) => ({ default: m.ContinualOverlayWatcher })),
-  { ssr: false },
-);
-
 const PreferenceRadarToggle = dynamic(
   () => import('./PreferenceRadarToggle').then((m) => ({ default: m.PreferenceRadarToggle })),
   { ssr: false },
@@ -210,12 +206,13 @@ export default function ChatWindowSatellites({
           <PetPalette />
         </>
       ) : null}
-      {chatId ? <ContinualOverlayWatcher chatId={chatId} /> : null}
       <ContextFootprintInspector
         open={isContextInspectorOpen}
         onClose={() => setIsContextInspectorOpen(false)}
       />
     </>
+  const hasMessages = useChatStore((s) => s.messages.length > 0);
+  usePresenceReadMark(effectiveChatId, hasMessages);
   );
 }
 

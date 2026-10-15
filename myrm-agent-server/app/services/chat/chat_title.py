@@ -3,6 +3,7 @@
 [INPUT]
 - core.utils.chat_utils::extract_answer_text (POS: LLM response content extraction)
 - database.dto::_TitleModelConfig (POS: Title generation model configuration)
+- myrm_agent_harness.api.security::sanitize_outbound_text (POS: Wire-level half of the privacy layer: the guardrail middleware covers the agent loop, this guard covers every other ChatLiteLLM call.)
 
 [OUTPUT]
 - generate_chat_title: Generates concise chat title with resilience fallback
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
 from app.core.utils.chat_utils import extract_answer_text
@@ -37,6 +39,7 @@ def generate_fallback_title(content: str) -> str:
 async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> str:
     """Call LLM to summarize conversation into a concise title."""
     from langchain_core.messages import HumanMessage
+    from myrm_agent_harness.api.security import sanitize_outbound_text
     from myrm_agent_harness.toolkits.llms import llm_manager
 
     from app.core.types import ModelConfig
@@ -56,10 +59,13 @@ async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> 
         )
     )
     llm = await llm_manager.get_llm_from_config(cfg, streaming=False)
+    # Masked before the cut to the prompt window: a PII span straddling the cut would otherwise reach the model as
+    # half a number that no pattern matches.
+    visible = sanitize_outbound_text(content)
     prompt = (
         "Summarize this conversation into a short title (5-15 characters). "
         "Reply strictly in the SAME LANGUAGE as the user input. Output ONLY the title:\n"
-        f"<user_input>\n{content[:200]}\n</user_input>"
+        f"<user_input>\n{visible[:200]}\n</user_input>"
     )
     response = await llm.ainvoke([HumanMessage(content=prompt)])
     raw_answer = extract_answer_text(response)
@@ -78,7 +84,7 @@ async def call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> 
 
 
 async def generate_chat_title(
-    messages: list,
+    messages: Sequence[object],
     title_model: "_TitleModelConfig | None" = None,
     fallback_title_model: "_TitleModelConfig | None" = None,
 ) -> str:

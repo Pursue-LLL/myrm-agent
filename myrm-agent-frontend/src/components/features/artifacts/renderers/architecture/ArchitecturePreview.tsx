@@ -1,6 +1,7 @@
 'use client';
 
 import React, { memo, useState, useMemo, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ReactFlow,
   Controls,
@@ -58,6 +59,7 @@ interface ArchitecturePreviewProps {
 
 export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
   ({ content, versions, viewingVersionIndex = -1, initialDiffMode = false }) => {
+    const t = useTranslations('artifacts.architecture');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [targetNodeId, setTargetNodeId] = useState<string | null>(null);
@@ -256,9 +258,9 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
         await navigator.clipboard.writeText(JSON.stringify(activeIR, null, 2));
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
-        toast({ title: 'JSON Copied', description: 'Architecture IR copied to clipboard' });
+        toast({ title: t('jsonCopied'), description: t('jsonCopiedDesc') });
       } catch (e) {
-        toast({ variant: 'destructive', title: 'Copy Failed', description: String(e) });
+        toast({ variant: 'destructive', title: t('copyFailed'), description: String(e) });
       }
     };
 
@@ -269,7 +271,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
       try {
         const viewportEl = containerRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) {
-          toast({ variant: 'destructive', title: 'Export Failed', description: 'Viewport element not found' });
+          toast({ variant: 'destructive', title: t('exportFailed'), description: t('viewportNotFound') });
           return;
         }
 
@@ -297,9 +299,9 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
         link.href = url;
         link.click();
         URL.revokeObjectURL(url);
-        toast({ title: 'Export Successful', description: 'Architecture diagram exported as standalone SVG' });
+        toast({ title: t('exportSuccess'), description: t('svgExported') });
       } catch (e) {
-        toast({ variant: 'destructive', title: 'Export Failed', description: String(e) });
+        toast({ variant: 'destructive', title: t('exportFailed'), description: String(e) });
       }
     };
 
@@ -333,9 +335,9 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
         link.download = `${activeIR?.title || 'architecture-diagram'}.png`;
         link.href = url;
         link.click();
-        toast({ title: 'Export Successful', description: 'Architecture diagram exported as high-res PNG' });
+        toast({ title: t('exportSuccess'), description: t('pngExported') });
       } catch (e) {
-        toast({ variant: 'destructive', title: 'Export Failed', description: String(e) });
+        toast({ variant: 'destructive', title: t('exportFailed'), description: String(e) });
       }
     };
 

@@ -1,3 +1,18 @@
+"""Chat turn HTTP routes: regenerate, sibling switching and edit-resend truncation.
+
+[INPUT]
+- app.services.chat.chat_service::ChatService (POS: chat business facade)
+- app.services.chat.session_continuity_service::ContinuitySyncError (POS: DB-to-checkpoint continuity failure)
+
+[OUTPUT]
+- router: POST /{chat_id}/regenerate, POST /{chat_id}/switch-sibling, GET /{chat_id}/siblings/{sibling_group_id},
+  POST /{chat_id}/truncate-after
+
+[POS]
+Turn-level mutation endpoints of the chat API. Going back to an earlier message is `rewind.py`; IM retry and undo
+call the service layer directly.
+"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -26,35 +41,6 @@ class TruncateAfterRequest(BaseModel):
 class SwitchSiblingRequest(BaseModel):
     sibling_group_id: str
     target_message_id: str
-
-
-@router.post("/{chat_id}/retry", response_model=StandardSuccessResponse)
-async def retry_last_turn(
-    chat_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Delete the last assistant turn so the original query can be re-sent.
-
-    Returns the original user query and the number of deleted messages.
-    Idempotent: safe to call multiple times.
-    """
-    try:
-        chat = await ChatService.get_chat_metadata(chat_id)
-        if not chat:
-            raise not_found_error("Chat session")
-
-        result = await ChatService.retry_last_turn(chat_id)
-        return success_response(
-            data={
-                "success": result.success,
-                "query": result.query,
-                "deleted_count": result.deleted_count,
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_error(operation="Retry last turn", exception=e) from e
 
 
 @router.post("/{chat_id}/regenerate", response_model=StandardSuccessResponse)
@@ -163,53 +149,3 @@ async def truncate_after_message(
         raise internal_error(operation="Truncate after message", exception=exc) from exc
     except Exception as e:
         raise internal_error(operation="Truncate after message", exception=e) from e
-
-
-@router.get("/{chat_id}/outline", response_model=StandardSuccessResponse)
-async def get_chat_outline(
-    chat_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Get lightweight session projection turn outline for navigation rails."""
-    try:
-        chat = await ChatService.get_chat_metadata(chat_id)
-        if not chat:
-            raise not_found_error("Chat session")
-
-        from app.services.chat.turn_outline_service import (
-            TurnOutlineProjectionService,
-        )
-
-        turn_outline = await TurnOutlineProjectionService.get_chat_turn_outline(chat_id)
-        return success_response(data=[item.model_dump(mode="json") for item in turn_outline])
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_error(operation="Get chat turn outline", exception=e) from e
-
-
-@router.post("/{chat_id}/undo", response_model=StandardSuccessResponse)
-async def undo_last_turn(
-    chat_id: str,
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Delete the entire last turn (user message + assistant responses).
-
-    Idempotent: safe to call on an empty chat.
-    """
-    try:
-        chat = await ChatService.get_chat_metadata(chat_id)
-        if not chat:
-            raise not_found_error("Chat session")
-
-        result = await ChatService.undo_last_turn(chat_id)
-        return success_response(
-            data={
-                "success": result.success,
-                "deleted_count": result.deleted_count,
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_error(operation="Undo last turn", exception=e) from e

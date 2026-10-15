@@ -23,7 +23,7 @@ from app.services.event.app_event_bus import AppEvent, AppEventType
 _DEFAULT_URL = "/"
 _SETTINGS_SYSTEM = "/settings/system"
 _SETTINGS_CHANNELS = "/settings/channels"
-_SETTINGS_INTEGRATIONS = "/settings/integrationCatalog"
+_SETTINGS_CREDENTIALS = "/settings/credentials"
 
 
 def _chat_path(chat_id: str) -> str | None:
@@ -101,6 +101,6 @@ def resolve_push_url(event: AppEvent) -> str:
         return _SETTINGS_CHANNELS
 
     if event_type == AppEventType.OAUTH_REAUTH_REQUIRED:
-        return _SETTINGS_INTEGRATIONS
+        return _SETTINGS_CREDENTIALS
 
     return _DEFAULT_URL

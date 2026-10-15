@@ -22,6 +22,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
+from typing import cast
 
 from sqlalchemy import select, update
 
@@ -248,7 +249,7 @@ class ProfileManager:
                 key = str(builtin["profile_key"])
                 result = await session.execute(select(SecurityProfile).where(SecurityProfile.profile_key == key))
                 existing = result.scalar_one_or_none()
-                seed_config = _serialize_config(dict(builtin["config_json"]))  # type: ignore[arg-type]
+                seed_config = _serialize_config(cast("dict[str, object]", builtin["config_json"]))
                 if existing is None:
                     profile = SecurityProfile(
                         id=str(uuid.uuid4()),

@@ -96,21 +96,6 @@ class HybridSearchResponseDTO(BaseModel):
     results: list[HybridSearchResultDTO] = Field(default_factory=list, description="Ranked result list")
 
 
-class RegisterSynonymsRequestDTO(BaseModel):
-    """Payload to register an offline synonym cluster."""
-
-    primary_term: str = Field(min_length=1, description="Anchor keyword")
-    synonyms: list[str] = Field(min_length=1, description="List of synonym expressions")
-
-
-class RegisterSynonymsResponseDTO(BaseModel):
-    """Confirmation of synonym registration."""
-
-    primary_term: str = Field(description="Anchor keyword")
-    total_synonyms: int = Field(ge=0, description="Total active synonyms associated with this term")
-    is_success: bool = Field(description="True if registered successfully")
-
-
 class HybridEngineStatsDTO(BaseModel):
     """Operational telemetry and status snapshot."""
 

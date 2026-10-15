@@ -1,12 +1,14 @@
-"""Integration tests for cron event dispatch hook placement in AgentRouter."""
+"""Integration tests for cron event dispatch hook placement and sender admission in AgentRouter."""
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.channels.protocols.pairing import DmPolicy
 from app.channels.routing.router import AgentRouter
 from app.channels.routing.session_gate import SessionGateConfig
 from app.channels.types import InboundMessage
@@ -174,3 +176,81 @@ async def test_duplicate_message_dispatches_cron_once(router: AgentRouter) -> No
             assert dispatch.await_count == 1
         finally:
             await router.stop()
+
+
+def _dm_from(sender_id: str, content: str, *, message_id: str) -> InboundMessage:
+    """A DM whose sender the router has not resolved yet, as the adapters deliver it."""
+    return InboundMessage(
+        channel="feishu",
+        sender_id=sender_id,
+        chat_id=sender_id,
+        content=content,
+        metadata={"message_id": message_id},
+        message_id=message_id,
+    )
+
+
+def _allowlist_router(bus: MagicMock, *, active_pairing: str | None) -> AgentRouter:
+    """A router with an ALLOWLIST DM policy whose pairing store knows the one sender, if ``active_pairing`` is given."""
+    pairing = MagicMock()
+    pairing.resolve = AsyncMock(return_value=active_pairing)
+    pairing.get_pairing_detail = AsyncMock(return_value=None)
+    policy = MagicMock()
+    policy.get_dm_policy = AsyncMock(return_value=DmPolicy.ALLOWLIST)
+    return AgentRouter(
+        bus=bus,
+        pairing_store=pairing,
+        agent_executor=AsyncMock(),
+        policy_provider=policy,
+        session_gate_config=SessionGateConfig(debounce_window_ms=0),
+    )
+
+
+async def _deliver(router: AgentRouter, *messages: InboundMessage) -> AsyncMock:
+    """Route the messages through the real consume loop and return the patched event dispatch."""
+    dispatch = AsyncMock(return_value=0)
+    with (
+        patch("app.channels.routing.router.dispatch_cron_event_for_inbound_message", dispatch),
+        patch.object(router._gate, "submit"),
+    ):
+        await router.start()
+        try:
+            for msg in messages:
+                await router._bus._handle_inbound(msg)
+                await asyncio.sleep(0.15)
+        finally:
+            await router.stop()
+    return dispatch
+
+
+@pytest.mark.asyncio
+async def test_sender_the_policy_ignores_does_not_fire_event_triggers(bus: MagicMock) -> None:
+    router = _allowlist_router(bus, active_pairing=None)
+
+    dispatch = await _deliver(router, _dm_from("stranger", "server down alert", message_id="stranger-1"))
+
+    dispatch.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_paired_sender_fires_event_triggers(bus: MagicMock) -> None:
+    router = _allowlist_router(bus, active_pairing="paired_member_feishu_member")
+
+    dispatch = await _deliver(router, _dm_from("member", "server down alert", message_id="member-1"))
+
+    dispatch.assert_awaited_once_with("server down alert", "feishu", "")
+
+
+@pytest.mark.asyncio
+async def test_failed_admission_check_skips_dispatch_and_keeps_routing(
+    router: AgentRouter, caplog: pytest.LogCaptureFixture
+) -> None:
+    check = AsyncMock(side_effect=[RuntimeError("store down"), True])
+    with (
+        patch.object(router._resolver, "is_sender_admitted", check),
+        caplog.at_level(logging.WARNING, logger="app.channels.routing.router"),
+    ):
+        dispatch = await _deliver(router, _msg("first alert", message_id="fail-1"), _msg("second alert", message_id="fail-2"))
+
+    dispatch.assert_awaited_once_with("second alert", "feishu", "owner-1")
+    assert "Admission check failed for feishu/user1, denying" in caplog.text

@@ -7,7 +7,7 @@ data-loss guarantees of sandbox session lifecycle:
    pre-merge auto-commit must not treat a clean worktree as "cannot commit".
 2. A dirty sandbox worktree (agent edited files without committing) is
    auto-committed and merged, so the edits land on the parent branch.
-3. Safe cleanup preserves a dirty worktree; force cleanup removes it.
+3. Safe cleanup preserves a dirty worktree and the branch of unmerged commits; force cleanup removes both.
 
 The first two reproduce a merge-blocking bug: ``_auto_commit_dirty_worktree``
 returned False for a clean worktree, which made ``merge_sandbox_to_parent``
@@ -26,13 +26,14 @@ from app.core.utils.git_worktree import (
     _auto_commit_dirty_worktree,
 )
 from app.services.chat.sandbox_worktree import (
+    _sandbox_branch_name,
     cleanup_sandbox_worktree,
     create_sandbox_worktree,
     merge_sandbox_to_parent,
 )
 
 
-def _run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
+def _run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
         cwd=str(cwd),
@@ -132,3 +133,45 @@ async def test_force_cleanup_removes_dirty_worktree(git_repo: Path) -> None:
     removed = await cleanup_sandbox_worktree(str(git_repo), chat_id, force=True)
     assert removed is True
     assert not wt.exists()
+
+
+def _branch_exists(repo: Path, chat_id: str) -> bool:
+    return bool(_run_git(repo, "branch", "--list", _sandbox_branch_name(chat_id)).stdout.strip())
+
+
+@pytest.mark.asyncio
+async def test_safe_cleanup_removes_a_sandbox_that_has_nothing_to_lose(git_repo: Path) -> None:
+    """A worktree without edits or commits is removed together with its branch."""
+    chat_id = "chat-empty-m5"
+    created = await create_sandbox_worktree(str(git_repo), chat_id)
+    assert isinstance(created, str)
+
+    assert await cleanup_sandbox_worktree(str(git_repo), chat_id) is True
+
+    assert not Path(created).exists()
+    assert not _branch_exists(git_repo, chat_id)
+
+
+@pytest.mark.asyncio
+async def test_safe_cleanup_keeps_the_branch_that_holds_unmerged_commits(git_repo: Path) -> None:
+    """A clean worktree is removed, but commits that never reached the parent branch stay reachable."""
+    chat_id = "chat-commits-m6"
+    wt = await _create_worktree_with_commit(git_repo, chat_id, "work.txt", "COMMITTED_WORK\n")
+
+    assert await cleanup_sandbox_worktree(str(git_repo), chat_id) is True
+
+    assert not wt.exists()
+    assert _branch_exists(git_repo, chat_id)
+    assert _run_git(git_repo, "show", f"{_sandbox_branch_name(chat_id)}:work.txt").stdout == "COMMITTED_WORK\n"
+
+
+@pytest.mark.asyncio
+async def test_force_cleanup_deletes_the_branch_even_with_unmerged_commits(git_repo: Path) -> None:
+    """The explicit discard drops the branch as well; only the safe mode protects unmerged commits."""
+    chat_id = "chat-discard-m7"
+    wt = await _create_worktree_with_commit(git_repo, chat_id, "work.txt", "DISCARDED\n")
+
+    assert await cleanup_sandbox_worktree(str(git_repo), chat_id, force=True) is True
+
+    assert not wt.exists()
+    assert not _branch_exists(git_repo, chat_id)

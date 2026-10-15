@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiRequest } from '@/lib/api';
 import {
-  getMemoryHealth,
   getMemoryGuardianOverview,
-  getMemoryGuardianMorningDigest,
   triggerMemoryMaintenance,
   type MemoryGuardianPolicy,
   updateMemoryGuardianPolicy,
@@ -59,33 +57,6 @@ describe('memory guardian service api', () => {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(policy),
-    });
-  });
-
-  it('loads morning digest using silent mode', async () => {
-    apiRequestMock.mockResolvedValue({ available: false });
-    const timezoneOffsetMinutes = -new Date().getTimezoneOffset();
-
-    await getMemoryGuardianMorningDigest();
-
-    expect(apiRequestMock).toHaveBeenCalledWith('/memory/guardian/morning-digest', {
-      silent: true,
-      headers: { 'x-client-timezone-offset-minutes': String(timezoneOffsetMinutes) },
-    });
-  });
-
-  it('loads health with client timezone header', async () => {
-    apiRequestMock.mockResolvedValue({
-      health: { total: 80, dimensions: {}, suggestions: [], has_graph: false },
-      guardian: {},
-      policy: {},
-    });
-    const timezoneOffsetMinutes = -new Date().getTimezoneOffset();
-
-    await getMemoryHealth();
-
-    expect(apiRequestMock).toHaveBeenCalledWith('/memory/guardian/health', {
-      headers: { 'x-client-timezone-offset-minutes': String(timezoneOffsetMinutes) },
     });
   });
 

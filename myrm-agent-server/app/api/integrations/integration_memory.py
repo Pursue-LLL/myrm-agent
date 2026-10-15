@@ -52,10 +52,6 @@ class RemoveTreeResponse(BaseModel):
     deleted_elements: int
 
 
-class ProvidersResponse(BaseModel):
-    providers: list[str]
-
-
 async def _get_service() -> IntegrationMemoryService:
     svc = await get_integration_memory_service()
     if svc is None:
@@ -119,26 +115,9 @@ async def list_trees(provider: str = "") -> list[IntegrationTreeNodeDTO]:
     ]
 
 
-@router.get("/trees/{tree_id}", response_model=list[IntegrationTreeNodeDTO])
-async def get_tree_structure(tree_id: str) -> list[IntegrationTreeNodeDTO]:
-    """Get the full tree structure for a specific integration tree."""
-    svc = await _get_service()
-    nodes = await svc.get_tree_structure(tree_id)
-    if not nodes:
-        raise HTTPException(status_code=404, detail=f"Tree '{tree_id}' not found")
-    return nodes
-
-
 @router.delete("/trees/{tree_id}", response_model=RemoveTreeResponse)
 async def remove_tree(tree_id: str) -> RemoveTreeResponse:
     """Remove an integration tree and all its indexed data."""
     svc = await _get_service()
     deleted = await svc.remove_tree(tree_id)
     return RemoveTreeResponse(tree_id=tree_id, deleted_elements=deleted)
-
-
-@router.get("/providers", response_model=ProvidersResponse)
-async def list_providers() -> ProvidersResponse:
-    """List registered integration providers."""
-    svc = await _get_service()
-    return ProvidersResponse(providers=svc.provider_ids)

@@ -66,7 +66,6 @@ class RiskRule(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     pattern: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
-    action: Mapped[str] = mapped_column(String(50), nullable=False)
     category: Mapped[str] = mapped_column(String(50), nullable=False, default="custom", index=True)
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     is_builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -86,7 +85,6 @@ class RiskHit(Base):
     rule_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     rule_name: Mapped[str] = mapped_column(String(255), nullable=False)
     severity: Mapped[str] = mapped_column(String(20), nullable=False)
-    action: Mapped[str] = mapped_column(String(50), nullable=False)
     match_summary: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
@@ -135,7 +133,7 @@ class SecurityProfile(Base):
     profile_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    config_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    config_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     is_builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

@@ -13,9 +13,8 @@ import { useStoreSnapshot } from '@/hooks/shared/useStoreSnapshot';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getAgent } from '@/services/agent';
-import { AgentConfig } from '@/store/chat/types';
 import { useSkillStore } from '@/store/skill';
-import { validateAgentDependencies, buildMissingDependenciesParts } from '@/lib/utils/agent-config';
+import { buildAgentConfig, validateAgentDependencies, buildMissingDependenciesParts } from '@/lib/utils/agent-config';
 import { toast } from '@/hooks/shared/useToast';
 import { usePendingMemoryToast } from '@/hooks/shared/usePendingMemoryToast';
 import { useTranslations } from 'next-intl';
@@ -52,6 +51,7 @@ import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import Chat from './Chat';
+import { isChatRouteHydratedForId, subscribeChatRouteHydrated } from './chatRouteHydration';
 import { DualModeContainer } from '../work-layout';
 import { ExtensionUIModal } from '../extension-ui';
 import { TieredRiskGateContainer } from '../risk-approval';
@@ -97,34 +97,6 @@ interface ChatWindowProps {
   id?: string;
 }
 
-function isChatRouteHydratedForId(chatId: string | undefined): boolean {
-  if (!chatId) {
-    return false;
-  }
-  const state = useChatStore.getState();
-  return (
-    state.chatId === chatId &&
-    state.isMessagesLoaded &&
-    (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
-  );
-}
-
-function subscribeChatRouteHydrated(chatId: string | undefined, onStoreChange: () => void): () => void {
-  if (!chatId) {
-    return () => {};
-  }
-  return useChatStore.subscribe((state, prevState) => {
-    const nextReady = isChatRouteHydratedForId(chatId);
-    const prevReady =
-      prevState.chatId === chatId &&
-      prevState.isMessagesLoaded &&
-      (prevState.messages.length > 0 || Boolean(prevState.compactedSummary?.trim()));
-    if (nextReady !== prevReady) {
-      onStoreChange();
-    }
-  });
-}
-
 const ChatWindow = ({ id }: ChatWindowProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -148,20 +120,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const [activeTab, setActiveTab] = useState<'chat' | 'trace'>('chat');
   const recoveryT = useTranslations('recovery');
 
-  useEffect(() => {
-    if (!id) {
-      return;
-    }
-    return useChatStore.subscribe((state) => {
-      if (
-        state.chatId === id &&
-        state.isMessagesLoaded &&
-        (state.messages.length > 0 || Boolean(state.compactedSummary?.trim()))
-      ) {
-        setRouteHydrationEpoch((epoch) => epoch + 1);
-      }
-    });
-  }, [id]);
+  // The chat view is re-created when the conversation finishes loading; any other store write must leave it mounted.
+  useEffect(() => subscribeChatRouteHydrated(id, () => setRouteHydrationEpoch((epoch) => epoch + 1)), [id]);
 
   useEffect(() => {
     useExtensionUIStore.getState().setChatId(id || null);
@@ -509,26 +469,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           // 切换到智能代理模式
           setActionMode('agent');
 
-          // 应用智能体配置
-          const config: AgentConfig = {
-            selectedSkillIds: agent.skill_ids || [],
-            skillConfigs: agent.skill_configs || {},
-            selectedMcpNames: agent.mcp_ids || [],
-            systemPrompt: agent.system_prompt || '',
-            useGlobalInstruction: true,
-            autoRestoreDomains: agent.auto_restore_domains || [],
-            agentId: agent.id,
-            agentName: agent.name,
-            agentDescription: agent.description || '',
-            avatarUrl: agent.avatar_url,
-            suggestionPrompts: agent.suggestion_prompts || undefined,
-            memoryDecayProfile: agent.memory_decay_profile || 'normal',
-            memoryExtractionPreset: agent.memory_extraction_preset || 'auto',
-            browserSource: agent.browser_source || undefined,
-            promptMode: agent.prompt_mode || undefined,
-            defaultSecurityPreset: agent.default_security_preset ?? undefined,
-          };
-          setAgentConfig(config);
+          // 应用智能体配置：与会话恢复共用同一 Agent→AgentConfig 映射，
+          // 内置工具、模型选择、MCP 工具选择等字段不会在 URL 入口被遗漏
+          setAgentConfig(buildAgentConfig(agent));
 
           // 标记已应用
           hasAppliedAgentRef.current = agentIdFromUrl;

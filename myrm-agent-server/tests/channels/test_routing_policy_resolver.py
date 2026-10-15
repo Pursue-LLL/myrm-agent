@@ -11,6 +11,7 @@ from app.channels.protocols.pairing import (
     DmPolicy,
     GroupPolicy,
     GroupTriggerMode,
+    PairingRole,
     PairingStatus,
 )
 from app.channels.routing.bot_loop_guard import BotLoopGuard
@@ -119,7 +120,7 @@ class TestResolveDmUser:
         assert result == "uid-1"
 
     @pytest.mark.asyncio
-    async def test_open_policy_lid_fallback(self) -> None:
+    async def test_open_policy_unmapped_lid_becomes_guest(self) -> None:
         pairing = MagicMock()
         pairing.resolve = AsyncMock(return_value=None)
         pairing.bind = AsyncMock()
@@ -136,10 +137,12 @@ class TestResolveDmUser:
             get_channel=MagicMock(return_value=ch_mock),
         )
         result = await r.resolve_dm_user(_msg(sender_id="123@lid"))
-        assert result == "default-uid"
+        assert result == "guest_test_123@lid"
+        pairing.bind.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_open_policy_default_fallback(self) -> None:
+    async def test_open_policy_unpaired_sender_becomes_guest(self) -> None:
+        """An open DM policy admits any account, never as the default (owner) user."""
         pairing = MagicMock()
         pairing.resolve = AsyncMock(return_value=None)
         policy = MagicMock()
@@ -147,18 +150,8 @@ class TestResolveDmUser:
         policy.get_default_user_id = AsyncMock(return_value="default-uid")
         r = _make_resolver(pairing=pairing, policy=policy)
         result = await r.resolve_dm_user(_msg())
-        assert result == "default-uid"
-
-    @pytest.mark.asyncio
-    async def test_open_policy_no_default(self) -> None:
-        pairing = MagicMock()
-        pairing.resolve = AsyncMock(return_value=None)
-        policy = MagicMock()
-        policy.get_dm_policy = AsyncMock(return_value=DmPolicy.OPEN)
-        policy.get_default_user_id = AsyncMock(return_value=None)
-        r = _make_resolver(pairing=pairing, policy=policy)
-        result = await r.resolve_dm_user(_msg())
-        assert result is None
+        assert result == "guest_test_u1"
+        policy.get_default_user_id.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_pairing_mode_resolves(self) -> None:
@@ -307,9 +300,9 @@ class TestResolveGroupUser:
             ),
         )
         assert result is not None
-        assert result[0] == "default-uid"
+        assert result[0] == "guest_test_u1"
         assert result[1].metadata.get("guest_turn") == "1"
-        assert not r._tracker.is_active("test:grp-guest:t1")
+        assert r._tracker.is_active("test:grp-guest:t1")
 
     @pytest.mark.asyncio
     async def test_guest_requires_explicit_mention(self) -> None:
@@ -340,10 +333,25 @@ class TestResolveGroupUser:
         policy.get_enabled_groups = AsyncMock(return_value={"grp-1"})
         policy.get_group_trigger = AsyncMock(return_value=(GroupTriggerMode.MENTION_ONLY, []))
         policy.get_default_user_id = AsyncMock(return_value="default-uid")
-        r = _make_resolver(policy=policy)
+        pairing = MagicMock()
+        pairing.resolve = AsyncMock(return_value="default-uid")
+        r = _make_resolver(pairing=pairing, policy=policy)
         result = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True))
         assert result is not None
         assert result[0] == "default-uid"
+
+    @pytest.mark.asyncio
+    async def test_unpaired_sender_in_enabled_group_is_guest(self) -> None:
+        policy = MagicMock()
+        policy.get_group_policy = AsyncMock(return_value=GroupPolicy.OPEN)
+        policy.get_enabled_groups = AsyncMock(return_value={"grp-1"})
+        policy.get_group_trigger = AsyncMock(return_value=(GroupTriggerMode.MENTION_ONLY, []))
+        policy.get_default_user_id = AsyncMock(return_value="default-uid")
+        r = _make_resolver(policy=policy)
+        result = await r.resolve_group_user(_msg(is_group=True, chat_id="grp-1", mentioned=True))
+        assert result is not None
+        assert result[0] == "guest_test_u1"
+        assert result[1].metadata.get("guest_turn") == "1"
 
     @pytest.mark.asyncio
     async def test_not_mentioned_buffers(self) -> None:
@@ -407,26 +415,52 @@ class TestResolveGroupUser:
 
 
 class TestLidFallback:
+    @staticmethod
+    def _lid_resolver(pairing: MagicMock) -> PolicyResolver:
+        policy = MagicMock()
+        policy.get_dm_policy = AsyncMock(return_value=DmPolicy.OPEN)
+        ch_mock = MagicMock()
+        ch_mock._lid_to_pn = {"123@lid": "+1234567890"}
+        return _make_resolver(pairing=pairing, policy=policy, get_channel=MagicMock(return_value=ch_mock))
+
     @pytest.mark.asyncio
     async def test_lid_resolved_via_cache(self) -> None:
         pairing = MagicMock()
         pairing.resolve = AsyncMock(side_effect=[None, "uid-from-pn"])
+        pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.ADMIN, None))
         pairing.bind = AsyncMock()
-        policy = MagicMock()
-        policy.get_dm_policy = AsyncMock(return_value=DmPolicy.OPEN)
-        policy.get_default_user_id = AsyncMock(return_value=None)
 
-        ch_mock = MagicMock()
-        ch_mock._lid_to_pn = {"123@lid": "+1234567890"}
+        result = await self._lid_resolver(pairing).resolve_dm_user(_msg(sender_id="123@lid"))
 
-        r = _make_resolver(
-            pairing=pairing,
-            policy=policy,
-            get_channel=MagicMock(return_value=ch_mock),
-        )
-        result = await r.resolve_dm_user(_msg(sender_id="123@lid"))
         assert result == "uid-from-pn"
-        pairing.bind.assert_called_once()
+        pairing.bind.assert_awaited_once()
+        args, kwargs = pairing.bind.await_args
+        assert args == ("test", "123@lid", "uid-from-pn")
+        assert kwargs["role"] == PairingRole.ADMIN
+
+    @pytest.mark.asyncio
+    async def test_lid_inherits_status_role_and_quota_of_its_phone_number(self) -> None:
+        pairing = MagicMock()
+        pairing.resolve = AsyncMock(side_effect=[None, "paired_member_test_+1234567890"])
+        pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 7))
+        pairing.bind = AsyncMock()
+
+        await self._lid_resolver(pairing).resolve_dm_user(_msg(sender_id="123@lid"))
+
+        kwargs = pairing.bind.await_args.kwargs
+        assert (kwargs["status"], kwargs["role"], kwargs["daily_quota"]) == (PairingStatus.ACTIVE, PairingRole.MEMBER, 7)
+
+    @pytest.mark.asyncio
+    async def test_lid_of_unpaired_phone_number_is_not_bound(self) -> None:
+        pairing = MagicMock()
+        pairing.resolve = AsyncMock(return_value=None)
+        pairing.get_pairing_detail = AsyncMock(return_value=None)
+        pairing.bind = AsyncMock()
+
+        result = await self._lid_resolver(pairing).resolve_dm_user(_msg(sender_id="123@lid"))
+
+        assert result == "guest_test_123@lid"
+        pairing.bind.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_lid_cache_miss_no_default(self) -> None:
@@ -489,8 +523,10 @@ class TestGroupFollowUpExemption:
         policy.get_group_trigger = AsyncMock(return_value=(GroupTriggerMode.MENTION_ONLY, []))
         policy.get_default_user_id = AsyncMock(return_value="user1")
         policy.get_free_response_chats = AsyncMock(return_value=set())
+        pairing = MagicMock()
+        pairing.resolve = AsyncMock(return_value="user1")
 
-        r = _make_resolver(policy=policy)
+        r = _make_resolver(pairing=pairing, policy=policy)
 
         # 1. In MENTION_ONLY mode, inbound messages without mention or active thread should be ignored
         msg1 = InboundMessage(channel="test", sender_id="u1", chat_id="chat-123", content="hello", is_group=True, mentioned=False)
@@ -564,8 +600,10 @@ class TestGroupFollowUpExemption:
         policy.get_default_user_id = AsyncMock(return_value="user1")
         # Configure chat-123 in free response whitelist
         policy.get_free_response_chats = AsyncMock(return_value={"chat-123"})
+        pairing = MagicMock()
+        pairing.resolve = AsyncMock(return_value="user1")
 
-        r = _make_resolver(policy=policy)
+        r = _make_resolver(pairing=pairing, policy=policy)
 
         msg = InboundMessage(channel="test", sender_id="u1", chat_id="chat-123", content="hello", is_group=True, mentioned=False)
         res = await r.resolve_group_user(msg)

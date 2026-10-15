@@ -22,11 +22,10 @@ from pathlib import Path
 
 from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
 
+from app.core.skills.models import LOCAL_SKILLS_DIR
 from app.core.skills.store.service import skills_service
 
 logger = logging.getLogger(__name__)
-
-_LOCAL_INSTALL_DIR = Path("~/.myrm/skills").expanduser()
 
 
 def is_canonical_local_skill_id(skill_id: str) -> bool:
@@ -51,7 +50,7 @@ def normalize_local_skill_id(
         return skill_id
 
     legacy_name = skill_id.removeprefix("local::")
-    roots = install_roots if install_roots is not None else [_LOCAL_INSTALL_DIR]
+    roots = install_roots if install_roots is not None else [LOCAL_SKILLS_DIR]
     for root in roots:
         candidate = root / legacy_name
         if candidate.is_dir():
@@ -60,7 +59,7 @@ def normalize_local_skill_id(
 
 
 def _legacy_install_roots(local_skill_paths: list[str]) -> list[Path]:
-    roots = [_LOCAL_INSTALL_DIR]
+    roots = [LOCAL_SKILLS_DIR]
     for path_str in local_skill_paths:
         expanded = Path(path_str).expanduser()
         if expanded not in roots:

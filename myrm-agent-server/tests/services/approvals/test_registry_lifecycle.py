@@ -1,13 +1,11 @@
 """Unit tests for ApprovalRegistry lifecycle branches.
 
-Covers TTL expiry cleanup, outbound draft auto-send, browser takeover
-resolution and pending-count guard — the registry capabilities exercised
+Covers TTL expiry cleanup, the single finalize step every decision on a held channel reply goes through,
+browser takeover resolution and pending-count guard — the registry capabilities exercised
 by the event-branching refactor (Optimization B).
 """
 
-import dataclasses
-import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -22,16 +20,12 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.channels.types import ActionButton, MediaAttachment, MediaType, OutboundMessage
+from app.channels.types import MediaAttachment
 from app.database.models.approval import ApprovalRecord
 from app.database.models.base import Base
-from app.services.approvals.registry import (
-    ApprovalRegistry,
-    send_outbound_draft_payload,
-)
+from app.services.approvals.registry import ApprovalRegistry
 from tests.channels.core.outbound_testkit import make_ephemeral_doc
-
-_HANDOFF_BUTTON = ActionButton(label="Continue in browser", action_id="web:continue_chat", url="https://example.test/chat/abc")
+from tests.services.approvals.draft_testkit import draft_payload, held_reply
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -160,7 +154,7 @@ class TestCleanupExpiredApprovals:
         with (
             patch("app.services.approvals.registry.get_event_bus", return_value=bus),
             patch(
-                "app.services.approvals.registry.send_outbound_draft_payload",
+                "app.services.approvals.outbound_draft.send_outbound_draft_payload",
                 new=AsyncMock(return_value=True),
             ) as send_mock,
         ):
@@ -170,88 +164,6 @@ class TestCleanupExpiredApprovals:
         send_mock.assert_awaited_once()
 
 
-def _held_reply(*media: MediaAttachment, content: str = "hello") -> OutboundMessage:
-    return OutboundMessage(
-        channel="telegram",
-        recipient_id="peer-1",
-        content=content,
-        user_id="owner-1",
-        media=media,
-        components=((_HANDOFF_BUTTON,),),
-        reply_to_id="m-1",
-        thread_id="th-1",
-        metadata={"locale": "zh"},
-    )
-
-
-def _draft_payload(reply: OutboundMessage, *, draft_content: str | None = None, **extra: object) -> dict[str, object]:
-    """Payload as the router stores it: the text stays editable, the rest of the reply is frozen."""
-    return {"draft_content": reply.content if draft_content is None else draft_content, "outbound": reply.to_dict(), **extra}
-
-
-class TestSendOutboundDraftPayload:
-    @pytest.mark.asyncio
-    async def test_blank_draft_without_attachments_is_skipped(self) -> None:
-        gateway = AsyncMock()
-        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
-            sent = await send_outbound_draft_payload(_draft_payload(_held_reply(), draft_content="  "), "agent-1", "rec-1")
-
-        assert sent is False
-        gateway.publish.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_sends_the_held_reply_with_the_reviewed_text(self, tmp_path: Path) -> None:
-        report = MediaAttachment(media_type=MediaType.DOCUMENT, path=str(tmp_path / "report.pdf"), filename="report.pdf")
-        reply = _held_reply(report)
-        gateway = AsyncMock()
-        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
-            sent = await send_outbound_draft_payload(
-                _draft_payload(reply, draft_content="edited by reviewer"), "agent-1", "rec-2"
-            )
-
-        assert sent is True
-        gateway.publish.assert_awaited_once()
-        assert gateway.publish.await_args.args[0] == dataclasses.replace(reply, content="edited by reviewer")
-
-    @pytest.mark.asyncio
-    async def test_attachment_only_draft_is_sent(self, tmp_path: Path) -> None:
-        reply = _held_reply(MediaAttachment(media_type=MediaType.DOCUMENT, path=str(tmp_path / "a.pdf")), content="")
-        gateway = AsyncMock()
-        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway):
-            sent = await send_outbound_draft_payload(_draft_payload(reply), "agent-1", "rec-3")
-
-        assert sent is True
-        assert gateway.publish.await_args.args[0] == reply
-
-    @pytest.mark.asyncio
-    async def test_payload_without_a_snapshot_is_not_sent(self, caplog: pytest.LogCaptureFixture) -> None:
-        pre_snapshot = {
-            "draft_content": "hello",
-            "channel": "telegram",
-            "recipient_id": "peer-1",
-            "draft_media": [{"url": "https://x/a.png", "type": "image"}],
-        }
-        gateway = AsyncMock()
-        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway), caplog.at_level(logging.WARNING):
-            sent = await send_outbound_draft_payload(pre_snapshot, "agent-1", "rec-4")
-
-        assert sent is False
-        gateway.publish.assert_not_awaited()
-        assert any(r.levelno == logging.WARNING and "rec-4" in r.getMessage() for r in caplog.records)
-
-    @pytest.mark.asyncio
-    async def test_undecodable_snapshot_is_not_sent(self, caplog: pytest.LogCaptureFixture) -> None:
-        gateway = AsyncMock()
-        with patch("app.core.channel_bridge.get_channel_gateway", return_value=gateway), caplog.at_level(logging.WARNING):
-            sent = await send_outbound_draft_payload(
-                {"draft_content": "hello", "outbound": {"channel": "telegram"}}, "agent-1", "rec-5"
-            )
-
-        assert sent is False
-        gateway.publish.assert_not_awaited()
-        assert any("rec-5" in r.getMessage() for r in caplog.records)
-
-
 class TestOutboundDraftRelease:
     """A draft that will never be sent must not leave its temp attachments behind."""
 
@@ -259,7 +171,7 @@ class TestOutboundDraftRelease:
     async def _seed_draft(
         record_id: str, shot: MediaAttachment, *, timeout_action: str = "auto_reject", **kwargs: object
     ) -> None:
-        payload = _draft_payload(_held_reply(shot), draft_timeout_action=timeout_action)
+        payload = draft_payload(held_reply(shot), draft_timeout_action=timeout_action)
         await _seed(record_id, action_type="outbound_draft", thread_id=None, payload=payload, **kwargs)  # type: ignore[arg-type]
 
     @pytest.mark.asyncio
@@ -277,9 +189,11 @@ class TestOutboundDraftRelease:
         shot = make_ephemeral_doc("shot.png")
         await self._seed_draft("od-approve", shot)
 
-        await ApprovalRegistry.resolve_approval("od-approve", "approve")
+        with patch("app.services.approvals.outbound_draft.send_outbound_draft_payload", new=AsyncMock(return_value=True)) as send:
+            await ApprovalRegistry.resolve_approval("od-approve", "approve")
 
         try:
+            send.assert_awaited_once()
             assert Path(shot.path).exists()
         finally:
             Path(shot.path).unlink(missing_ok=True)
@@ -303,7 +217,7 @@ class TestOutboundDraftRelease:
 
         with (
             patch("app.services.approvals.registry.get_event_bus", return_value=MagicMock()),
-            patch("app.services.approvals.registry.send_outbound_draft_payload", new=AsyncMock(return_value=True)),
+            patch("app.services.approvals.outbound_draft.send_outbound_draft_payload", new=AsyncMock(return_value=True)),
         ):
             assert await ApprovalRegistry.cleanup_expired_approvals() == 1
 
@@ -311,6 +225,115 @@ class TestOutboundDraftRelease:
             assert Path(shot.path).exists()
         finally:
             Path(shot.path).unlink(missing_ok=True)
+
+
+class TestHeldReplyFunnel:
+    """Every door that decides on a held reply (WebUI, IM button, batch, TTL sweeper) reaches one finalize step, once."""
+
+    @pytest.fixture
+    def finalize(self) -> Iterator[AsyncMock]:
+        with patch("app.services.approvals.registry.finalize_outbound_draft", new_callable=AsyncMock) as finalize:
+            yield finalize
+
+    @staticmethod
+    async def _seed_draft(record_id: str, **kwargs: object) -> None:
+        await _seed(record_id, action_type="outbound_draft", thread_id=None, payload=draft_payload(held_reply()), **kwargs)  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("decision", "status"), [("approve", "APPROVED"), ("deny", "REJECTED")])
+    async def test_a_decision_is_finalized_with_its_outcome(self, finalize: AsyncMock, decision: str, status: str) -> None:
+        await self._seed_draft(f"fn-{decision}")
+
+        record = await ApprovalRegistry.resolve_approval(f"fn-{decision}", decision)
+
+        assert record is not None and record.status == status
+        finalize.assert_awaited_once_with(record)
+
+    @pytest.mark.asyncio
+    async def test_a_second_decision_finalizes_nothing(self, finalize: AsyncMock) -> None:
+        await self._seed_draft("fn-twice")
+        await ApprovalRegistry.resolve_approval("fn-twice", "approve")
+
+        assert await ApprovalRegistry.resolve_approval("fn-twice", "deny") is None
+
+        finalize.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_the_reviewers_edit_is_what_gets_sent(self) -> None:
+        await self._seed_draft("fn-edit")
+
+        with patch("app.services.approvals.outbound_draft.send_outbound_draft_payload", new=AsyncMock(return_value=True)) as send:
+            await ApprovalRegistry.resolve_approval("fn-edit", "approve", edited_payload={"draft_content": "edited by reviewer"})
+
+        assert send.await_args.args[0]["draft_content"] == "edited by reviewer"
+
+    @pytest.mark.asyncio
+    async def test_other_approvals_are_not_finalized_as_held_replies(self, finalize: AsyncMock) -> None:
+        await _seed("fn-tool")
+
+        await ApprovalRegistry.resolve_approval("fn-tool", "approve")
+
+        finalize.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_expired_drafts_are_finalized_with_their_timeout_outcome(self, finalize: AsyncMock) -> None:
+        past = datetime.now(timezone.utc) - timedelta(minutes=5)
+        for record_id, action in (("fn-auto-send", "auto_send"), ("fn-auto-reject", "auto_reject")):
+            await _seed(
+                record_id,
+                action_type="outbound_draft",
+                thread_id=None,
+                payload={**draft_payload(held_reply()), "draft_timeout_action": action},
+                expires_at=past,
+            )
+        await _seed("fn-tool-expired", expires_at=past)
+
+        with patch("app.services.approvals.registry.get_event_bus", return_value=MagicMock()):
+            assert await ApprovalRegistry.cleanup_expired_approvals() == 3
+
+        outcomes = {call.args[0].id: call.args[0].status for call in finalize.await_args_list}
+        assert outcomes == {"fn-auto-send": "APPROVED", "fn-auto-reject": "TIMEOUT"}
+
+
+class TestFindPendingOutboundDrafts:
+    """``/draft`` finds a held reply by the start of its id, and can reach nothing else."""
+
+    @staticmethod
+    async def _seed_draft(record_id: str, **kwargs: object) -> None:
+        await _seed(record_id, action_type="outbound_draft", thread_id=None, payload=draft_payload(held_reply()), **kwargs)  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    async def test_a_prefix_finds_the_pending_held_reply(self) -> None:
+        await self._seed_draft("3f9a1c2e5b7d4a6f8c0e1b2d3a4f5e6d")
+
+        found = await ApprovalRegistry.find_pending_outbound_drafts("3f9a1c")
+
+        assert [record.id for record in found] == ["3f9a1c2e5b7d4a6f8c0e1b2d3a4f5e6d"]
+
+    @pytest.mark.asyncio
+    async def test_only_pending_held_replies_match(self) -> None:
+        await self._seed_draft("aaaa0001", status="APPROVED")
+        await self._seed_draft("aaaa0002", status="TIMEOUT")
+        await _seed("aaaa0003")
+        await self._seed_draft("aaaa0004")
+
+        found = await ApprovalRegistry.find_pending_outbound_drafts("aaaa")
+
+        assert [record.id for record in found] == ["aaaa0004"]
+
+    @pytest.mark.asyncio
+    async def test_a_prefix_shared_by_many_yields_two_which_is_enough_to_call_it_ambiguous(self) -> None:
+        for suffix in "123":
+            await self._seed_draft(f"bbbb000{suffix}")
+
+        assert len(await ApprovalRegistry.find_pending_outbound_drafts("bbbb")) == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("wildcard", ["%", "_", "cccc_00_", "cccc%"])
+    async def test_like_wildcards_match_literally(self, wildcard: str) -> None:
+        await self._seed_draft("cccc0001")
+
+        assert await ApprovalRegistry.find_pending_outbound_drafts(wildcard) == []
 
 
 class TestResolveBrowserTakeover:

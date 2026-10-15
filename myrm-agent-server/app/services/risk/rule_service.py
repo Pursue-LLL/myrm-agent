@@ -7,7 +7,6 @@ for risk rules. Built-in rules can only be toggled, not deleted or pattern-modif
 from __future__ import annotations
 
 import logging
-import re
 from collections.abc import Sequence
 
 from sqlalchemy import func, select, update
@@ -16,13 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import RiskHit, RiskRule
 
-from .constants import RiskAction, RiskCategory, RiskSeverity, builtin_risk_rules
-from .detection import MAX_PATTERN_LENGTH
+from .builtin_rules import builtin_risk_rules
+from .constants import DEFAULT_ENABLED_CATEGORIES, RiskCategory, RiskSeverity
+from .detection import compile_pattern
 
 logger = logging.getLogger(__name__)
 
 VALID_SEVERITIES = frozenset({RiskSeverity.LOW, RiskSeverity.MEDIUM, RiskSeverity.HIGH})
-VALID_ACTIONS = frozenset({RiskAction.ALLOW, RiskAction.BLOCK})
 VALID_CATEGORIES = frozenset(
     {
         RiskCategory.PERSONAL,
@@ -41,27 +40,19 @@ class RuleValidationError(Exception):
 
 
 def _validate_pattern(pattern: str) -> None:
-    """Validate regex pattern: syntax and length."""
+    """Validate regex pattern: it must be one the detection engine can use."""
     if not pattern or not pattern.strip():
         raise RuleValidationError("Pattern cannot be empty")
-    if len(pattern) > MAX_PATTERN_LENGTH:
-        raise RuleValidationError(f"Pattern length {len(pattern)} exceeds limit {MAX_PATTERN_LENGTH}")
     try:
-        re.compile(pattern)
-    except re.error as exc:
-        raise RuleValidationError(f"Invalid regex pattern: {exc}") from exc
+        compile_pattern(pattern)
+    except ValueError as exc:
+        raise RuleValidationError(str(exc)) from exc
 
 
-def _validate_fields(
-    severity: str,
-    action: str,
-    category: str,
-) -> None:
+def _validate_fields(severity: str, category: str) -> None:
     """Validate enum-like fields."""
     if severity not in VALID_SEVERITIES:
         raise RuleValidationError(f"Invalid severity '{severity}', must be one of {sorted(VALID_SEVERITIES)}")
-    if action not in VALID_ACTIONS:
-        raise RuleValidationError(f"Invalid action '{action}', must be one of {sorted(VALID_ACTIONS)}")
     if category not in VALID_CATEGORIES:
         raise RuleValidationError(f"Invalid category '{category}', must be one of {sorted(VALID_CATEGORIES)}")
 
@@ -97,14 +88,13 @@ class RiskRuleService:
         display_name: str,
         pattern: str,
         severity: str,
-        action: str,
         category: str = RiskCategory.CUSTOM,
         description: str | None = None,
         sort_order: int = 0,
     ) -> RiskRule:
         """Create a custom risk rule."""
         _validate_pattern(pattern)
-        _validate_fields(severity, action, category)
+        _validate_fields(severity, category)
 
         existing = await self.get_rule(session, rule_id)
         if existing is not None:
@@ -116,7 +106,6 @@ class RiskRuleService:
             description=description,
             pattern=pattern,
             severity=severity,
-            action=action,
             category=category,
             is_enabled=True,
             is_builtin=False,
@@ -135,7 +124,6 @@ class RiskRuleService:
         description: str | None = None,
         pattern: str | None = None,
         severity: str | None = None,
-        action: str | None = None,
         category: str | None = None,
         is_enabled: bool | None = None,
         sort_order: int | None = None,
@@ -155,10 +143,6 @@ class RiskRuleService:
             if severity not in VALID_SEVERITIES:
                 raise RuleValidationError(f"Invalid severity '{severity}'")
             rule.severity = severity
-        if action is not None:
-            if action not in VALID_ACTIONS:
-                raise RuleValidationError(f"Invalid action '{action}'")
-            rule.action = action
         if category is not None:
             if category not in VALID_CATEGORIES:
                 raise RuleValidationError(f"Invalid category '{category}'")
@@ -224,11 +208,7 @@ class RiskRuleService:
                 continue
 
             _validate_pattern(str(data["pattern"]))
-            _validate_fields(
-                str(data.get("severity", "medium")),
-                str(data.get("action", "block")),
-                str(data.get("category", "custom")),
-            )
+            _validate_fields(str(data.get("severity", "medium")), str(data.get("category", "custom")))
 
             rule = RiskRule(
                 rule_id=rule_id,
@@ -236,7 +216,6 @@ class RiskRuleService:
                 description=data.get("description"),
                 pattern=str(data["pattern"]),
                 severity=str(data.get("severity", "medium")),
-                action=str(data.get("action", "block")),
                 category=str(data.get("category", "custom")),
                 is_enabled=True,
                 is_builtin=False,
@@ -250,19 +229,26 @@ class RiskRuleService:
         return imported, skipped
 
     async def seed_builtin_rules(self, session: AsyncSession) -> int:
-        """Seed built-in rules into DB. Skips rules that already exist.
+        """Seed built-in rules into DB and bring the pattern of the stored ones up to date.
+
+        A new rule starts enabled when its category is in ``DEFAULT_ENABLED_CATEGORIES``. Nobody can edit the pattern of
+        a built-in rule, so replacing it loses nothing; everything else a user may have changed (severity, name,
+        enabled) is left as it is.
 
         Returns the number of newly inserted rules.
         """
         defaults = builtin_risk_rules()
-        existing_result = await session.execute(
-            select(RiskRule.rule_id).where(RiskRule.rule_id.in_([d["rule_id"] for d in defaults]))
-        )
-        existing_ids = set(existing_result.scalars().all())
+        existing_result = await session.execute(select(RiskRule).where(RiskRule.rule_id.in_([d["rule_id"] for d in defaults])))
+        existing = {rule.rule_id: rule for rule in existing_result.scalars().all()}
 
         inserted = 0
+        refreshed = 0
         for d in defaults:
-            if d["rule_id"] in existing_ids:
+            stored = existing.get(str(d["rule_id"]))
+            if stored is not None:
+                if stored.is_builtin and stored.pattern != d["pattern"]:
+                    stored.pattern = str(d["pattern"])
+                    refreshed += 1
                 continue
             rule = RiskRule(
                 rule_id=d["rule_id"],
@@ -270,18 +256,20 @@ class RiskRuleService:
                 description=d.get("description"),
                 pattern=d["pattern"],
                 severity=d["severity"],
-                action=d["action"],
                 category=d["category"],
-                is_enabled=True,
+                is_enabled=d["category"] in DEFAULT_ENABLED_CATEGORIES,
                 is_builtin=True,
                 sort_order=d.get("sort_order", 0),
             )
             session.add(rule)
             inserted += 1
 
-        if inserted > 0:
+        if inserted > 0 or refreshed > 0:
             await session.flush()
+        if inserted > 0:
             logger.info("Seeded %d built-in risk rules", inserted)
+        if refreshed > 0:
+            logger.info("Refreshed the pattern of %d built-in risk rules", refreshed)
         return inserted
 
     async def get_hits(

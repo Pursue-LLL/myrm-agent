@@ -2,15 +2,24 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { KanbanTask, TaskStatus, PromoteResult } from '@/services/kanban';
 import { moveTask, promoteTask, reclaimTask, approveTask, rejectTask } from '@/services/kanban';
+import { resolveMoveIntent } from './kanban-transitions';
 
 interface UseKanbanTaskDrawerWorkflowParams {
   task: KanbanTask | null;
   onRefresh: () => void;
   onOpenChange: (open: boolean) => void;
+  /** 重试与归档需要二次确认，交给看板统一的确认流程。 */
+  onRequestMove: (taskId: string, targetStatus: TaskStatus) => void;
   t: (key: string) => string;
 }
 
-export function useKanbanTaskDrawerWorkflow({ task, onRefresh, onOpenChange, t }: UseKanbanTaskDrawerWorkflowParams) {
+export function useKanbanTaskDrawerWorkflow({
+  task,
+  onRefresh,
+  onOpenChange,
+  onRequestMove,
+  t,
+}: UseKanbanTaskDrawerWorkflowParams) {
   const [promoteConfirm, setPromoteConfirm] = useState<PromoteResult | null>(null);
   const [promoting, setPromoting] = useState(false);
   const [showReclaimDialog, setShowReclaimDialog] = useState(false);
@@ -65,6 +74,12 @@ export function useKanbanTaskDrawerWorkflow({ task, onRefresh, onOpenChange, t }
       if (!task) {
         return;
       }
+      const intent = resolveMoveIntent(task.status, targetStatus);
+      if (intent === 'retry' || intent === 'archive') {
+        onOpenChange(false);
+        onRequestMove(task.task_id, targetStatus);
+        return;
+      }
       if (task.status === 'backlog' && targetStatus === 'ready') {
         setPromoting(true);
         try {
@@ -90,7 +105,7 @@ export function useKanbanTaskDrawerWorkflow({ task, onRefresh, onOpenChange, t }
         toast.error(t('moveError'));
       }
     },
-    [task, onRefresh, onOpenChange, t],
+    [task, onRefresh, onOpenChange, onRequestMove, t],
   );
 
   const handleForcePromote = useCallback(async () => {

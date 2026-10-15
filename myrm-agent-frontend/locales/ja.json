@@ -204,7 +204,11 @@
     "bundleCategoryOther": "その他のアセット",
     "bundleExportSelected": "選択した項目をエクスポート ({count})",
     "bundleSelectAll": "すべて選択",
-    "bundleClearSelection": "選択を解除"
+    "bundleClearSelection": "選択を解除",
+    "subgoalAddFailed": "子ゴールの追加に失敗しました",
+    "subgoalAddNetworkError": "ネットワークエラー：子ゴールを追加できませんでした",
+    "subgoalRemoveFailed": "子ゴールの削除に失敗しました",
+    "subgoalRemoveNetworkError": "ネットワークエラー：子ゴールを削除できませんでした"
   },
   "commands": {
     "palette": {
@@ -317,7 +321,6 @@
     "usageAnalytics": "統計分析",
     "totalCalls": "呼び出し回数",
     "totalTokens": "トークン",
-    "batchOptimization": "一括最適化",
     "research": "研究ワークスペース",
     "wikiKnowledgeBase": "ナレッジベース"
   },
@@ -478,8 +481,8 @@
   },
   "loadout": {
     "title": "エージェント配装",
-    "subtitle": "What this agent inherits — team memory, wiki, skills, and memory policy at a glance.",
-    "loading": "Loading loadout…",
+    "subtitle": "このエージェントが継承する内容 — チームメモリ、Wiki、スキル、メモリポリシーを一目で確認できます。",
+    "loading": "配装を読み込み中…",
     "saveAgentFirst": "ロードアウトを確認するには、先にエージェントを保存してください。",
     "fix": "修正",
     "openTeamAssets": "チーム資産",
@@ -508,11 +511,11 @@
     "memoryPolicy": {
       "on": "メモリオン",
       "off": "メモリオフ",
-      "onWithPreCompact": "On · pre-compact {tokens} tok"
+      "onWithPreCompact": "オン · 事前圧縮 {tokens} tok"
     },
     "teamHub": {
       "title": "チーム資産",
-      "subtitle": "Shared contexts, wiki, skills, and chat memory — one place for team setup and review.",
+      "subtitle": "共有コンテキスト、Wiki、スキル、チャットメモリ — チームの設定とレビューをひとつの場所で。",
       "builtIn": "組み込み",
       "wikiTitle": "Wiki",
       "wikiDesc": "ナレッジベースとエージェントスコープのノート",
@@ -944,7 +947,8 @@
       },
       "turn1BudgetWarning": "推定Turn1スキーマ（約{tokens}トークン）が直接バインド予算（{budget}）を超えています。選択エンドポイントを減らさないとエージェントはこれらのAPIツールを使用できません。",
       "turn1BudgetServiceWarning": "このサービスの選択エンドポイントがTurn1バインド予算を超える可能性があります。エージェント起動エラーを避けるため選択を減らしてください。",
-      "atLeastOneEndpoint": "エンドポイントを少なくとも1つ選択してください。"
+      "atLeastOneEndpoint": "エンドポイントを少なくとも1つ選択してください。",
+      "presetAdded": "{name} コネクターを追加しました"
     },
     "sharedContexts": {
       "targetLabel": "エージェント",
@@ -1213,7 +1217,8 @@
         "equippedCountSuffix": "装備済み",
         "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
         "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
-      }
+      },
+      "forcePushSummary": "v{version} → 同期 {synced} 件、スキップ {skipped} 件、失敗 {failed} 件（合計 {total} 件）"
     },
     "validation": {
       "dependencyInvalid": "エージェント設定存で質問",
@@ -1543,7 +1548,7 @@
       "delete": "削除",
       "deleteConfirm": "このFAQエントリを削除しますか？",
       "import": "一括インポート",
-      "importDesc": "JSONからFAQエントリをインポート。形式: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "JSONからFAQエントリをインポート。形式: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "インポート",
       "importSuccess": "{count} 件のエントリをインポートしました",
       "importFailed": "インポートに失敗しました",
@@ -1576,7 +1581,7 @@
       "noStatus": "タスクステータスなし",
       "stopTask": "タスクを停止",
       "stopTaskSuccess": "タスクの停止をリクエストしました",
-      "stopTaskFailed": "ない実行中のタスク",
+      "stopTaskFailed": "停止できる実行中のタスクがありません",
       "pendingApprovals": "待承認操作",
       "approve": "承認",
       "reject": "拒否",
@@ -1849,6 +1854,22 @@
         "absolute_path": "ローカルのファイルパス",
         "unknown": "機密情報"
       }
+    },
+    "errorTitle": "エラー",
+    "unknownError": "不明なエラー",
+    "apiErrorDetails": "詳細",
+    "apiErrorTraceId": "トレースID",
+    "clipboard": {
+      "copied": "クリップボードにコピーしました",
+      "copyFailed": "コピーに失敗しました。クリップボードの権限を確認してください。",
+      "readBlocked": "クリップボードの読み取りが拒否されました。設定で変更してください。",
+      "readRefused": "クリップボードの読み取りを拒否しました",
+      "readFailed": "クリップボードの読み取りに失敗しました。権限を確認してください。",
+      "readPermissionTitle": "クリップボードへのアクセス許可",
+      "readPermissionPrompt": "アプリがクリップボードの内容の読み取りを求めています。許可しますか？",
+      "readPermissionRemember": "許可すると、次回からは確認されません。",
+      "readPermissionAllow": "許可",
+      "readPermissionDeny": "拒否"
     }
   },
   "chat": {
@@ -1933,7 +1954,8 @@
       "privacy": "機密保護",
       "redacted": "自動マスキング",
       "importAnother": "他の会話をインポート",
-      "resumeNow": "対話を再開"
+      "resumeNow": "対話を再開",
+      "importFailed": "インポートに失敗しました"
     },
     "placeholder": "何でも質問してください......",
     "uploading": "アップロード中...",
@@ -2273,10 +2295,8 @@
     "subscriptionQuickConnect": "サブスクリプションをお持ちですか？ワンクリック連携",
     "subscriptionModalTitle": "公式サブスクリプション連携",
     "subscriptionModalDesc": "公式デバイスコードによる安全な直接連携。APIキーを購入せずに利用可能、認証情報はローカルに暗号化保存されます。",
-    "subscriptionCopilot": "GitHub Copilot サブスクリプション",
-    "subscriptionOpenai": "ChatGPT Plus / Pro サブスクリプション",
     "subscriptionXai": "xAI SuperGrok サブスクリプション",
-    "subscriptionClaude": "Claude Pro / Max サブスクリプション",
+    "subscriptionXaiSummary": "Grok モデル、API キー不要",
     "subscriptionConnectBtn": "接続",
     "subscriptionDeviceCodeHint": "ブラウザで確認用URLを開き、ユーザーコードを入力してください：",
     "subscriptionCopyCode": "コードをコピー",
@@ -2284,6 +2304,10 @@
     "subscriptionOpenAuth": "認証ページを開く",
     "subscriptionWaiting": "認証を待機中...",
     "subscriptionConnected": "認証成功！プロバイダーが有効化されデフォルトに設定されました。",
+    "subscriptionFailedStart": "認証を開始できませんでした。もう一度お試しください。",
+    "subscriptionFailedExpired": "認証の有効期限が切れました。もう一度お試しください。",
+    "subscriptionFailedDenied": "認証が拒否されました。もう一度お試しください。",
+    "subscriptionFailedTimeout": "認証がタイムアウトしました。もう一度お試しください。",
     "subscriptionNotice": "サブスクリプション連携は公式OAuthプロトコルに基づきます。利用制限が発生した場合は設定でAPIキーに切り替え可能です。",
     "agentReady": "{agentName} の準備ができました",
     "related": "関連の",
@@ -2308,14 +2332,16 @@
     "previewLinks": "リンクプレビュー",
     "regenerate": "再生成",
     "regenerate_try_again": "再試行",
-    "regenerate_frontier": "より強力なモデルで再試行",
     "regenerate_concise": "より簡潔に",
     "regenerate_detailed": "より詳細に",
     "regenerate_creative": "より創造的に",
     "regenerate_custom": "カスタム指示...",
     "regenerate_custom_placeholder": "AI に回答方法を指示...",
     "regenerate_submit": "再生成",
-    "undo": "元に戻す",
+    "regenerate_options": "再生成オプション",
+    "attachment_download": "ダウンロード",
+    "attachment_document": "{type} ドキュメント",
+    "attachment_document_generic": "ドキュメント",
     "copiedSuccessfully": "コピーしました",
     "linkDetected": "外部リソースを使用しますか？",
     "linkDetectedDescription": "外部リソースを参照するには @ 記号を使用してください。そうでない場合は通常テキストとして扱われます。追加しますか？",
@@ -3063,7 +3089,7 @@
     },
     "personalClosedLoop": {
       "badge": "トリニティループ",
-      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "title": "個人ワークフローループ：ToDo · ログ · 週次レポート",
       "desc": "カンバンのタスクを入力として日々の事実ログを記録し、構造化された週次レビューへ自動集約して、洗練された個人の成果につなげます。",
       "step1Title": "ToDo の分解",
       "step1Desc": "カンバンのタスク計画とフェーズ追跡",
@@ -3207,8 +3233,6 @@
       "level": "階層",
       "runAffectedTests": "影響を受ける {count} 件のテストを実行"
     },
-    "subscriptionPkceNotice": "{providerName} の認証ページが新しいタブで開きました。ログインと承認を完了後、このページに戻ってください。",
-    "subscriptionPkceReopen": "認証ページを再度開く",
     "modelPlaybook": {
       "chipTitle": "モデルオーケストレーション方針",
       "chipBadge": "推奨戦略",
@@ -3355,7 +3379,62 @@
       "skillsTools": "スキルと組み込みツール",
       "disabled": "無効",
       "totalBaseline": "ベースライン合計"
-    }
+    },
+    "modelPricing": {
+      "title": "計算単価とプロンプトキャッシュの内訳",
+      "sourceBadge": "公式のリアルタイムデータ",
+      "loading": "単価表を読み込み中...",
+      "supportsCache": "プロンプトキャッシュ対応",
+      "inputPrice": "入力単価",
+      "outputPrice": "出力単価",
+      "cacheReadPrice": "キャッシュヒット時の読み取り単価",
+      "savings": "節約",
+      "compareTitle": "主要モデルの単価比較（$ / 100万トークン）",
+      "inPrice": "入力：{price}",
+      "outPrice": "出力：{price}",
+      "footnote": "すべての料金は各プロバイダーの公式料金をリアルタイムで換算したもので、上乗せはありません。"
+    },
+    "preferenceRadar": {
+      "ariaLabel": "嗜好フィッティングレーダーパネル",
+      "title": "オンライン嗜好フィッティングレーダー",
+      "subtitle": "連続的な重力減衰と多次元ウェイトの微調整",
+      "lockedTitle": "ロック中：AIの自動フィッティングは一時停止中",
+      "unlockedTitle": "ロック解除中：AIがセッションのフィードバックに応じて自動調整",
+      "lockedLabel": "ロック中",
+      "adaptiveLabel": "自動調整中",
+      "modeManual": "手動固定モード",
+      "modeDynamic": "動的学習モード",
+      "resetBaseline": "ベースラインにリセット (1.0x)",
+      "summaryBalanced": "嗜好はバランス型：各次元を均等に呼び出し、汎用的に協調します",
+      "summaryFocused": "嗜好フォーカス：「{first} ({firstValue}x)」と「{second} ({secondValue}x)」を強化",
+      "presetBalanced": "バランス",
+      "presetCode": "コーディング",
+      "presetResearch": "リサーチ",
+      "dimensionRecency": "鮮度パルス",
+      "dimensionRecencyHint": "最新イベント／日内の粒度",
+      "dimensionActionability": "コード実践",
+      "dimensionActionabilityHint": "実行可能なスクリプト／実践手順",
+      "dimensionDepth": "アーキテクチャの深さ",
+      "dimensionDepthHint": "基礎原理／進化の根本原因",
+      "dimensionConciseness": "簡潔な表現",
+      "dimensionConcisenessHint": "要点を突く／決まり文句を排除",
+      "dimensionBreadth": "全体視野",
+      "dimensionBreadthHint": "全体像／エコシステム比較"
+    },
+    "focusFlush": {
+      "ariaLabel": "フォーカスモード",
+      "tooltip": "フォーカスモード（チャット履歴をクリアしてサンドボックスは保持）",
+      "dialogTitle": "フォーカスセッション（履歴をクリア）",
+      "dialogQuestion": "この会話の履歴を本当にクリアしますか？",
+      "dialogDetail": "これによりエージェントは新しいコンテキストで動作し、<cost>トークンコストを節約</cost>できます。<keep>サンドボックス環境、ファイル、インストール済みパッケージはそのまま保持されます</keep>。",
+      "confirm": "履歴をクリア"
+    },
+    "folderDrop": {
+      "grantFailed": "ディレクトリへのアクセス許可に失敗しました：{path}"
+    },
+    "cacheResetNotice": "キャッシュをリセットしました：{reason}{tokens, plural, =0 {} other {、約 #k トークンがキャッシュ外}}",
+    "pdfParsedPages": "[PDF] {fileName}：{parsed}/{total} ページを解析しました",
+    "pdfImageOptimized": "[PDF] 解析を最適化しました：主要な画像 {kept} 枚を抽出（視覚ノイズ {dropped} 枚を除外）"
   },
   "mode": {
     "fast": "高速検索",
@@ -3620,10 +3699,6 @@
         "title": "について MyrmAgent",
         "description": "アプリケーションに関する情報を表示します"
       },
-      "skillQuality": {
-        "title": "スキル品質",
-        "description": "スキル品質の監視と管理"
-      },
       "evolutionRejection": {
         "title": "進化拒否ログ",
         "description": "LLM確認段階で拒否された進化リクエストを表示し、システムがなぜ動かなかったのかを説明します。"
@@ -3631,10 +3706,6 @@
       "toolStability": {
         "title": "ツール安定性",
         "description": "ツール実行の安定性と信頼性を監視・管理"
-      },
-      "toolQuality": {
-        "title": "実行品質",
-        "description": "スキルとツールの実行品質と安定性を監視・分析します"
       },
       "memory": {
         "title": "メモリ管理センター",
@@ -3659,6 +3730,18 @@
       "brand-studio": {
         "title": "ブランドスタジオ",
         "description": "配色、フォント、トーンとルールでブランドを定義します。AIは作成するすべてのコンテンツでこれに従います。"
+      },
+      "workbench": {
+        "title": "マイワークベンチ",
+        "description": "ワークスペースに蓄積されたメモリ、ナレッジベース、スキル、ルール、定期タスクなどの主要アセットを一覧表示"
+      },
+      "shares": {
+        "title": "共有リンク",
+        "description": "読み取り専用 Artifact 共有リンクを管理します。リンクを失効させると、即座に公開アクセスをブロックします。"
+      },
+      "a2aPeers": {
+        "title": "A2A リモートピア",
+        "description": "A2A プロトコルに対応した信頼済みのリモートエージェントを登録・管理します"
       }
     }
   },
@@ -3694,8 +3777,9 @@
         "isolated": "孤立ノード",
         "bridge": "ブリッジ",
         "locate": "フォーカス",
+        "refresh": "更新",
         "cohesion": "凝集度",
-        "members": "個の概念"
+        "communitySize": "{count, plural, other {# 個の概念}}"
       },
       "deselectAll": "すべて切り替え",
       "legend": "ノードタイプ",
@@ -3873,7 +3957,7 @@
       "prev": "前へ",
       "next": "次へ",
       "lineCount": "{count} 行",
-      "sizeBadge": "{lines} lines · {size}",
+      "sizeBadge": "{lines} 行 · {size}",
       "storageTruncated": "ストレージ上限に達しました。ファイルは不完全な可能性があります",
       "loadingPage": "ページを読み込み中...",
       "searchPagePlaceholder": "現在のページを検索...",
@@ -4140,7 +4224,20 @@
       "copyRaw": "生 JSON をコピー",
       "copied": "コピー完了",
       "close": "閉じる"
-    }
+    },
+    "skillManageRollbackDescription": "このステップで 1 つ以上のスキルが変更されました。一括で元に戻せます。",
+    "skillManageRollbackConfirmTitle": "スキル変更を元に戻しますか？",
+    "skillManageRollbackConfirmDescription": "このバッチ内のすべてのスキルを、エージェントが編集する前の内容に戻します。ここから再度元に戻すことはできません。",
+    "skillManageRollbackConfirmAction": "変更前の内容に戻す",
+    "skillManageRollbackButton": "スキル変更を元に戻す",
+    "skillManageRollbackSubmitting": "復元中…",
+    "skillManageRollbackDone": "変更を元に戻しました",
+    "skillManageRollbackSuccess": "{count} 件のスキルを変更前の内容に戻しました。",
+    "skillManageRollbackFailed": "スキル変更を元に戻せませんでした。再試行するか、スキル設定でバージョンをロールバックしてください。",
+    "skillManageRollbackCompensationFailed": "安全に元に戻せませんでした。設定 → スキル → 履歴でバージョンを確認し、必要なら手動でロールバックしてください。",
+    "skillManageRollbackAlreadyConsumed": "このバッチはすでに元に戻されたか、リンクの有効期限が切れています。古いバージョンが必要な場合はスキル設定 → 履歴をご利用ください。",
+    "skillManageUndoHintBody": "この返信でアシスタントがスキルを更新しました。下のタスクステップから編集を元に戻せます。",
+    "skillManageUndoHintAction": "タスクステップを開く"
   },
   "memory": {
     "mesh": {
@@ -4602,9 +4699,9 @@
       },
       "runtimeTitle": "実行ステータス",
       "deployMode": "デプロイモード",
-      "storageMode": "ストレージ",
       "vectorStatus": "ベクトルインデックス",
       "vectorPersistence": "ベクトルストレージの永続化",
+      "vectorPersistenceHint": "記憶は一時モードで動作しています。ほかの Myrm のウィンドウやプロセスが同じデータフォルダーを使用しておらず、フォルダーが書き込み可能であることを確認してから再起動してください。",
       "embeddingStatus": "エンベディングモデル",
       "controlPlaneStatus": "制御平面",
       "eventLedgerStatus": "イベント台帳",
@@ -4702,7 +4799,7 @@
           "layer2CadenceLabel": "Layer 2 弁証法周期",
           "conflictPatrol": "矛盾パトロール",
           "dialecticDepthLabel": "弁証法深度 / 算力",
-          "passDepthLevel": "Pass {depth} · {level}",
+          "passDepthLevel": "第 {depth} パス · {level}",
           "refreshTelemetryAria": "テレメトリを更新",
           "resetCadenceAria": "セッション周期をリセット"
         }
@@ -5240,6 +5337,9 @@
         "files": "ファイル",
         "noCommits": "最近のコミット履歴が検出されませんでした",
         "gitUnavailable": "現在のワークスペースに Git リポジトリが検出されませんでした"
+      },
+      "conclusionAttribution": {
+        "deleteConfirm": "結論「{id}」を削除しますか？"
       }
     },
     "createDialog": {
@@ -5864,9 +5964,7 @@
         "title": "ガバナンスポリシー",
         "description": "この共有コンテキストのガバナンスルール。",
         "correctionAutoApprove": "修正の自動伝播",
-        "correctionAutoApproveHint": "エージェントが修正されたとき、修正内容はこの共有コンテキストに自動的に書き込まれ、バインドされたすべてのエージェントが同期学習します。",
-        "goalCompletionAutoApprove": "Goal 完了時に自動アーカイブ",
-        "goalCompletionAutoApproveHint": "ゴールが完了すると、Planner のアーキテクチャ決定がこの共有コンテキストに自動的に書き込まれ、チームエージェントが再利用できます。"
+        "correctionAutoApproveHint": "エージェントが修正されたとき、修正内容はこの共有コンテキストに自動的に書き込まれ、バインドされたすべてのエージェントが同期学習します。"
       },
       "proposals": {
         "title": "提案受信トレイ",
@@ -5874,8 +5972,7 @@
         "contentPlaceholder": "再利用可能な共有メモリの候補を書き込み...",
         "create": "提案を作成",
         "empty": "提案はまだありません",
-        "correctionTag": "修正",
-        "goalCompletionTag": "Goal 完了"
+        "correctionTag": "修正"
       },
       "proposalStatus": {
         "pending": "待承認",
@@ -5967,7 +6064,15 @@
     "extractionReason": "抽出理由",
     "validPermanent": "無期限",
     "manualReviewRequired": "手動確認が必要 · 自動上書きなし",
-    "sourceEvidence": "根拠となる発言"
+    "sourceEvidence": "根拠となる発言",
+    "selectMemory": "このメモリを選択",
+    "shareRules": {
+      "loadFailed": "ルールの読み込みに失敗しました",
+      "selectAtLeastOne": "少なくとも 1 つのルールを選択してください",
+      "exported": "{count} 件のルールをエクスポートしました",
+      "exportFailed": "エクスポートに失敗しました",
+      "copied": "{count} 件のルールをクリップボードにコピーしました"
+    }
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",
@@ -6554,6 +6659,16 @@
       "download": "ダウンロード",
       "exportZip": "ZIPバンドルとしてエクスポート",
       "emptyDesc": "エージェントとの会話で生成された成果物とファイルがここに自動的に蓄積されます"
+    },
+    "architecture": {
+      "jsonCopied": "JSON をコピーしました",
+      "jsonCopiedDesc": "アーキテクチャ IR をクリップボードにコピーしました",
+      "copyFailed": "コピーに失敗しました",
+      "exportFailed": "エクスポートに失敗しました",
+      "viewportNotFound": "ビューポート要素が見つかりません",
+      "exportSuccess": "エクスポートしました",
+      "svgExported": "アーキテクチャ図を単体の SVG としてエクスポートしました",
+      "pngExported": "アーキテクチャ図を高解像度 PNG としてエクスポートしました"
     }
   },
   "MessageSources": {
@@ -7072,7 +7187,6 @@
     "createReminderHint": "スケジュール通りにこのメッセージを配信します（AI モデルは使用しません）。",
     "chatLinkedTasks": "{count} 個スケジュール",
     "chatLinkedTasksTooltip": "この会話に紐づく定期タスクを表示",
-    "suggestionsLink": "スケジュール提案",
     "filteredByChat": "会話 {chatId}… に紐づくタスクのみ表示",
     "scriptLabel": "Python スクリプト",
     "scriptPlaceholder": "import requests\nr = requests.get('https://example.com')\nprint('異常!' if r.status_code != 200 else '')",
@@ -7451,7 +7565,7 @@
     "triggerWebhookCurl": "cURL サンプル",
     "triggerWebhookAdd": "Webhook を追加",
     "triggerEventLabel": "イベントトリガー",
-    "triggerEventDesc": "イベント駆動 — 指定したチャネルの新しいメッセージでトリガー",
+    "triggerEventDesc": "受信メッセージが正規表現パターンに一致したときにジョブを実行します。アクセスポリシーで無視されるメッセージ（未バインドのアカウントからのものや、有効化されていないグループ内のものなど）では実行されません。",
     "triggerEventPattern": "パターン（正規表現）",
     "triggerEventPatternInvalid": "イベントパターンが無効です",
     "triggerEventChannel": "チャンネル（任意）",
@@ -7703,17 +7817,21 @@
     "taskDeleted": "タスクを削除しました",
     "addError": "タスクの追加に失敗",
     "moveError": "タスクの移動に失敗しました",
+    "moveBlocked": "このタスクはそのステータスには移動できません",
     "promoteSuccess": "タスクを準備完了に昇格しました",
     "promoteError": "タスクの昇格に失敗しました",
     "promoteUnmetDeps": "未完の依存関係があります — 強制昇格しますか？",
     "promoteForce": "強制昇格",
     "deleteError": "タスクの削除に失敗",
+    "archiveConfirmTitle": "このタスクをアーカイブしますか？",
+    "archiveConfirmDesc": "「{title}」\nタスクはボードから外れ、元に戻すことはできません。",
     "bulkSelected": "{count} 選択済み",
     "bulkArchive": "アーカイブ",
     "bulkMove": "移動まで",
     "bulkReassign": "再割り当て",
     "bulkDelete": "削除",
     "bulkDeleteConfirm": "{count} 件のタスクを削除しますか？",
+    "bulkArchiveConfirm": "{count} 件のタスクをアーカイブしますか？",
     "bulkSuccess": "{count} 件のタスクを更新しました",
     "bulkPartialSuccess": "{succeeded} 件成功、{failed} 件失敗",
     "bulkClearSelection": "選択をクリア",
@@ -7726,11 +7844,16 @@
     "dropHere": "ここにドロップ",
     "reclaimTitle": "実行中タスクの回収",
     "reclaimDesc": "このタスクを実行中のエージェントを即座に停止し、準備完了状態にリセットします。",
-    "reclaimConfirm": "回収",
+    "reclaimAction": "回収",
     "reclaimReasonPlaceholder": "理由（任意）",
     "reclaimReassignLabel": "エージェントに再割り当て（任意）",
     "reclaimSuccess": "タスクの回収に成功しました",
     "reclaimFailed": "タスクの回収に失敗しました",
+    "retryAction": "再試行",
+    "retryTitle": "このタスクを再試行しますか？",
+    "retryDesc": "タスクは準備完了に戻り、もう一度実行されます。これまでの試行は履歴に残り、エージェントも参照できます。失敗後にすでに先へ進んだ後続タスクは再実行されません。再実行するとモデルの利用枠を消費します。",
+    "retrySuccess": "タスクを再実行キューに追加しました",
+    "retryError": "タスクの再試行に失敗しました",
     "replanTitle": "DAG 計画変更レビュー",
     "replanDescription": "タスク依存関係グラフの変更提案をレビューします。変更は非巡回性が検証され、コミット時にアトミックに適用されます。",
     "replanAdded": "追加予定のタスク",
@@ -8060,7 +8183,10 @@
       "actionDispatching": "待機中の実行エージェントにキューイング",
       "actionBacklog": "優先度を設定して実行をスケジュール",
       "actionDone": "タスクは正常に完了しました"
-    }
+    },
+    "cardActions": "タスクの操作",
+    "deleteConfirmTitle": "このタスクを削除しますか？",
+    "deleteConfirmDesc": "「{title}」\nタスクと実行履歴は完全に削除されます。このタスクを待っていたタスクは、他に待機要因がなければ準備完了になり、自動的に実行が始まることがあります。"
   },
   "channels": {
     "sectionTitle": "メッセージチャネル",
@@ -8110,7 +8236,9 @@
       "clearConfirm": "このチャンネルのすべての背景コンテキスト記録を消去しますか？この操作は取り消せません（GDPR準拠）。",
       "clearedSuccess": "履歴レコードを正常に消去しました",
       "clearing": "消去中...",
-      "refresh": "メトリクス更新"
+      "refresh": "メトリクス更新",
+      "deletedCount": "{count} 件のメッセージを削除しました",
+      "clearFailed": "チャネル記録の消去に失敗しました"
     },
     "groupsTitle": "グループ管理",
     "groupsDesc": "ボットが応答すべきグループを選択します。選択されていないグループは無視されます。",
@@ -9514,7 +9642,62 @@
     "humanAttentionTitle": "対応が必要です",
     "humanAttentionView": "項目へ移動",
     "humanAttentionMultiple": "{count} 件の入力待ち",
-    "humanAttentionKindClarify": "確認質問"
+    "humanAttentionKindClarify": "確認質問",
+    "riskConfirmation": {
+      "tierHighRisk": "レベル3 · 高リスク操作（確認必須）",
+      "tierWrite": "レベル2 · 状態の書き込み（ドライラン対応）",
+      "tierRead": "レベル1 · 読み取り専用（自動承認）",
+      "targetLabel": "対象：",
+      "riskReasonsTitle": "リスク警告と想定される影響",
+      "editingParamsTitle": "実行パラメータを編集（JSON）",
+      "paramsSummaryTitle": "パラメータの概要",
+      "editParams": "パラメータを編集",
+      "noParams": "入力パラメータはありません",
+      "invalidJson": "JSONの形式が正しくありません",
+      "dryRunResultTitle": "ドライランのシミュレーション結果",
+      "rejectReasonPlaceholder": "任意：却下の理由を入力...",
+      "dryRun": "ドライラン",
+      "confirmationToken": "トークン：{token}...",
+      "reject": "却下",
+      "confirmReject": "却下を確定",
+      "applyEditsAndRun": "変更を適用して実行",
+      "authorizeAndRun": "承認して実行",
+      "continueRun": "続行",
+      "approved": "承認済み"
+    },
+    "maskedCredentials": {
+      "title": "一時的な認証情報とワンタイムゲート",
+      "badgeZeroDisk": "ディスク非保存 / 自動消去",
+      "revoke": "取り消し",
+      "description": "機密性の高い認証情報（データベースのパスワードやOAuthトークンなど）をサンドボックスのプロセスへ直接渡します。シークレットは一時メモリ内で隔離され、ディスクには書き込まれず、LLMのコンテキストやチャットログにも公開されません。",
+      "stagedReady": "認証情報をステージ済み・実行可能",
+      "singleUseBadge": "ワンタイム",
+      "suggested": "候補：",
+      "credentialIndex": "認証情報 #{index}",
+      "keyLabel": "変数名（例：DB_PASS）",
+      "secretLabel": "シークレット値（マスク済み）",
+      "showSecret": "シークレットを表示",
+      "hideSecret": "シークレットを非表示",
+      "removeCredential": "認証情報を削除",
+      "ttlLabel": "有効期間：",
+      "ttl30": "30秒",
+      "ttl60": "60秒（デフォルト）",
+      "ttl120": "2分",
+      "ttl300": "5分",
+      "singleUseEnforced": "ワンタイムチケットを強制",
+      "addRow": "キーを追加",
+      "stage": "マスク済み認証情報をステージ",
+      "staging": "保護中...",
+      "keyErrorEmpty": "変数名を空にすることはできません",
+      "keyErrorFormat": "変数名には大文字、数字、アンダースコアのみ使用できます",
+      "keyErrorBlocked": "「{key}」は保護されたシステム環境変数のためブロックされました",
+      "toastNoCredential": "変数名とシークレット値を含む認証情報を少なくとも1件入力してください。",
+      "toastStaged": "認証情報を安全にマスクし、1回の実行用にステージしました。",
+      "toastStageFailed": "認証情報のステージに失敗しました：{message}",
+      "toastCleared": "ステージ済みの認証情報をクリアしました。",
+      "errorUnknown": "不明なエラー",
+      "errorServerStatus": "サーバーが {status} を返しました"
+    }
   },
   "notifications": {
     "title": "システム通知",
@@ -9531,20 +9714,21 @@
     "newSkillDraft": "新しいスキル成長ケースが作成されました：{name}",
     "reviewDraft": "今すぐ表示",
     "messageDeadLettered": "{channel} へのメッセージ配信が永続的に失敗しました。理由：{reason}",
-    "skillGrowthAutoApplied": "「{name}」を自動適用しました",
     "skillGrowthFailedScan": "「{name}」は事前セキュリティスキャンに合格しませんでした",
     "skillGrowthBlockedLocked": "「{name}」は進化ロックで保護されており、手動レビューが必要です",
     "openSkillGrowth": "スキル成長を開く",
     "skillEvolvedNew": "Agent が新しいスキルを学習しました：{name}",
     "skillEvolvedPatch": "Agent 最適化スキル：{name}",
-    "undoEvolve": "元に戻す (Undo)",
+    "undoEvolve": "元に戻す",
     "rollbackSuccess": "{name} をロールバックしました",
     "rollbackFailed": "ロールバックに失敗しました。再試行してください",
+    "skillGrowthUndone": "「{name}」をアーカイブしました。スキル一覧からいつでも復元できます",
+    "skillGrowthUndoBlocked": "「{name}」は固定されているか、エージェントや定期タスクで使用中のためアーカイブできません。先に固定またはバインドを解除してください",
+    "skillGrowthUndoFailed": "「{name}」をアーカイブできませんでした。再試行してください",
     "forcePushReceived": "エージェント設定が組織によって更新されました",
     "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
     "subagentRebindRequired": "サブエージェントのバインドが変更されました。更新後の委譲ツールを使用するには新しいチャットを開始してください。",
     "subagentStale": "サブエージェントが停滞",
-    "noProgressFor": "進捗なし",
     "viewAgent": "表示",
     "approvalRequired": "Agent に承認が必要です：{actionType}",
     "approvalsRecovered": "{count} 件の保留中の承認を復元しました",
@@ -9602,7 +9786,12 @@
     "mcpAuthRequired": "{server} の再認証が必須です",
     "oauthReauthRequired": "{issuer} の認証が期限切れです。アクセスを復元するには再認証してください。",
     "reauthorize": "今すぐ認可",
-    "budgetFinalization": "予算が間もなく尽きます — 最終処理中"
+    "budgetFinalization": "予算が間もなく尽きます — 最終処理中",
+    "healthAlertTip": "ヒント：{tip}",
+    "budgetRemaining": "{dimension} — 残り ${remaining}",
+    "subagentStaleDescription": "{minutes} 分間進捗なし · {tokens, number} トークン",
+    "subagentStaleStats": "{minutes} 分 · {tokens, number} トークン",
+    "agentProfileRollbackSuccess": "エージェントの設定を正常にロールバックしました。"
   },
   "configConflict": {
     "title": "設定の競合を検出",
@@ -10085,32 +10274,6 @@
       "pre_rollback": "復元前"
     }
   },
-  "SkillOptimization": {
-    "qualityScore": "品質スコア",
-    "successRate": "成功率",
-    "tokenEfficiency": "Token効率",
-    "executionTime": "実行時間",
-    "userSatisfaction": "ユーザー満足度",
-    "callFrequency": "呼び出し頻度",
-    "loading": "読み込み中...",
-    "noData": "データなし",
-    "overallScore": "総合スコア",
-    "baselineVersion": "ベースライン版",
-    "optimizedVersion": "最適化バージョン",
-    "successRateDelta": "成功率の変化",
-    "tokenEfficiencyDelta": "トークン効率の変化",
-    "executionTimeDelta": "実行時間の変化",
-    "activeSkills": "アクティブスキル数",
-    "totalCalls": "合計呼び出し回数",
-    "avgSuccessRate": "平均成功率",
-    "avgExecutionTime": "平均実行時間",
-    "recommendedToOptimize": "おすすめ最適化スキル",
-    "optimizeAll": "すべて最適化",
-    "priorityScore": "優先度スコア",
-    "optimize": "最適化",
-    "optimizing": "最適化中...",
-    "noRecommendations": "最適化を推奨されるスキルはありません"
-  },
   "Agent": {
     "list": {
       "title": "マイエージェント",
@@ -10391,14 +10554,14 @@
       "status": {
         "PENDING_REVIEW": "レビュー待ち",
         "AUTO_APPLIED": "自動適用済み",
-        "FAILED_SCAN": "セキュリティスキャン失敗",
+        "FAILED_SCAN": "チェック不合格",
         "BLOCKED_LOCKED": "ロックによりブロック",
         "APPROVED": "承認済み",
         "REJECTED": "拒否済み",
         "APPLY_FAILED": "適用に失敗しました",
         "pendingReview": "レビュー待ち",
         "autoApplied": "自動適用済み",
-        "failedScan": "セキュリティスキャン失敗",
+        "failedScan": "チェック不合格",
         "blockedLocked": "ロックによりブロック",
         "approved": "承認済み",
         "rejected": "拒否済み",
@@ -10415,88 +10578,6 @@
     "btnFixing": "権限で修正中...",
     "btnSuccess": "修正しました",
     "btnFix": "認可して修正"
-  },
-  "messageFilter": {
-    "settings": {
-      "title": "メッセージフィルター",
-      "description": "メッセージフィルタリングルールと PII 検出設定を構成します。",
-      "enabled": "フィルターを有効化",
-      "piiMode": "PII 検出モード",
-      "piiModeOff": "閉じる",
-      "piiModeRedact": "匿名化",
-      "piiModeBlock": "ブロック",
-      "whitelistApiKeys": "API キーのホワイトリスト",
-      "whitelistPlaceholder": "API キーを入力（カンマ区切り）",
-      "auditEnabled": "監査ログを有効にする",
-      "save": "設定を保存",
-      "saved": "設定を保存しました",
-      "saveFailed": "設定の保存に失敗しました"
-    },
-    "audit": {
-      "title": "監査ログ",
-      "description": "メッセージフィルターの監査ログを表示し、セキュリティ監視に使用します。",
-      "userId": "ユーザー ID",
-      "filterType": "フィルター器タイプ",
-      "action": "操作",
-      "reason": "理由",
-      "timestamp": "時間戳",
-      "noLogs": "監査ログは見つかりません",
-      "refresh": "更新",
-      "export": "ログをエクスポート"
-    },
-    "stats": {
-      "title": "フィルター統計",
-      "description": "パフォーマンス指標とフィルター統計を表示します。",
-      "totalEvents": "総イベント数",
-      "eventsByAction": "操作別の統計",
-      "eventsByFilter": "フィルター別の統計",
-      "averageTime": "平均処理時間",
-      "slowestFilter": "最慢フィルター器",
-      "refresh": "統計を更新"
-    },
-    "rules": {
-      "title": "カスタムルール",
-      "description": "カスタムフィルタールールを管理します。",
-      "add": "ルールを追加",
-      "edit": "編集ルール",
-      "delete": "ルールを削除",
-      "name": "ルール名前",
-      "patternType": "パターンタイプ",
-      "pattern": "マッチパターン",
-      "action": "操作",
-      "enabled": "有効",
-      "priority": "優先度",
-      "save": "ルールを保存",
-      "cancel": "キャンセル",
-      "confirmDelete": "このルールを削除しますか？"
-    },
-    "templates": {
-      "title": "ルールテンプレート",
-      "description": "プリセットフィルタールールをすばやく適用します。",
-      "apply": "テンプレートを適用",
-      "applied": "テンプレートを適用しました",
-      "applyFailed": "テンプレートの適用に失敗しました"
-    },
-    "version": {
-      "title": "バージョン履歴",
-      "description": "設定変更履歴を表示・ロールバックします。",
-      "version": "バージョン",
-      "updatedBy": "更新者",
-      "updatedAt": "更新日時",
-      "rollback": "ロールバック",
-      "confirmRollback": "バージョン {version} にロールバックしますか？",
-      "rolledBack": "バージョン {version} にロールバックしました",
-      "rollbackFailed": "ロールバックに失敗しました"
-    },
-    "messageBox": {
-      "filtered": "このメッセージはセキュリティポリシーによってフィルターされました",
-      "reason": "理由：{reason}",
-      "consensusMetaTitle": "マルチモデルコンセンサス",
-      "consensusMetaModels": "{succeeded}/{total} 個モデル参と",
-      "consensusMetaAggregator": "集約モデル: {model}",
-      "consensusMetaElapsed": "総所要時間: {seconds}s",
-      "consensusActive": "残りのモデルを待っています…"
-    }
   },
   "multiPane": {
     "title": "ワークスペース",
@@ -10571,12 +10652,23 @@
       "retentionHealth": "品質",
       "coherence": "一貫性"
     },
+    "growthTypes": {
+      "skill_draft": "新しいスキル",
+      "skill_patch": "スキルの更新",
+      "semantic_memory": "記憶",
+      "fix": "スキルの修正",
+      "derived": "スキルの改善",
+      "captured": "抽出したスキル",
+      "slice_extraction": "タスクからの抽出",
+      "optimize_description": "説明の改善",
+      "other": "その他"
+    },
     "skillEvents": {
       "title": "スキル成長タイムライン",
       "empty": "成長イベントはまだありません",
       "pendingReview": "レビュー待ち",
       "autoApplied": "自動適用済み",
-      "failedScan": "スキャン失敗",
+      "failedScan": "チェック不合格",
       "blockedLocked": "ロックによりブロック",
       "approved": "承認済み",
       "rejected": "拒否済み",
@@ -10616,27 +10708,27 @@
     "skillHealth": {
       "title": "スキル健全性 (7日間)",
       "description": "最近のスキル使用状況に基づく複利健全性スコア。",
-      "empty": "スキルの使用履歴はまだありません。",
+      "empty": "過去 7 日間に実行されたスキルはありません。",
       "calls7d": "7日間 {count} 回呼び出し",
       "callsTotal": "累計 {count} 回",
       "successRate": "成功率 {rate}%",
       "filterAll": "すべて",
       "filterAttention": "対応が必要",
       "filterHealthy": "健全・スター",
-      "noAttentionNeeded": "現在対応が必要な休眠またはリスクスキルはありません。",
+      "noAttentionNeeded": "現在対応が必要なリスクスキルはありません。",
       "recommendationPrefix": "対応推奨:",
       "manageSkill": "管理へ",
       "showMore": "すべて表示 ({count})",
       "showLess": "折りたたむ",
-      "recStar": "高複利スターアセット、チーム全体で摩擦なく高頻度再利用",
-      "recAtRisk": "高リスクアセット。高い失敗/再試行率が検出されました。プロンプトとパラメータを確認してください",
+      "recStar": "スターアセット。結果が明確な実行のほぼすべてが成功しています",
+      "recAtRisk": "リスクのあるアセット。結果が明確な実行の失敗が多いため、プロンプトとパラメータを確認してください",
       "recHealthy": "健全に稼働しているアセット、アクティブにローテーション中",
-      "recStale": "非アクティブなアセット。陳腐化を確認するか、使用例を追加してください",
+      "recUnproven": "結果が明確な実行がまだ足りません（現在 {observed}/{required} 回）。このスキルだけでツールを使った実行のみ、結果が明確になります。",
       "status": {
         "STAR": "スター",
         "HEALTHY": "健全",
         "AT_RISK": "リスクあり",
-        "STALE": "休眠"
+        "UNPROVEN": "未検証"
       }
     },
     "learningTimeline": {
@@ -10711,6 +10803,7 @@
       "title": "5環閉ループ学習ステータスセンター",
       "subtitle": "クロスドメイン継続的自己進化トポロジーと健全性可観測性ダッシュボード",
       "healthScore": "ループ健全性スコア",
+      "refresh": "更新",
       "optimal": "最適稼働",
       "warning": "要対応",
       "degraded": "低下",
@@ -10765,10 +10858,11 @@
     "skillTrends": {
       "title": "スキル使用トレンド",
       "description": "スキルのパフォーマンスが時間とともにどう進化するかを追跡します。",
-      "empty": "スキル使用データがまだありません。スキルが使用されるとトレンドが表示されます。",
+      "empty": "選択した期間に使用されたスキルはありません。スキルが使用されるとトレンドが表示されます。",
+      "observedRuns": "結果が明確な実行: {count}",
+      "truncated": "このスキルは直近の実行記録のみ保持されているため、選択した期間のそれ以前の実行はグラフに表示されない場合があります。",
       "metric": {
         "success_rate": "成功率",
-        "avg_duration_ms": "平均所要時間",
         "call_count": "使用回数"
       }
     },
@@ -10843,40 +10937,6 @@
       "cache": "キャッシュ節約",
       "routing": "ルーティング節約",
       "totalCost": "実際コスト"
-    },
-    "manifestPredictions": {
-      "title": "マニフェスト予測と帰属",
-      "description": "予測されたパフォーマンス差分と実際の実行メトリクスを比較するベンチマーク評価",
-      "evaluating": "評価中...",
-      "evaluateNow": "今すぐベンチマークを評価",
-      "manifestId": "マニフェスト ID",
-      "targetComponent": "対象コンポーネント",
-      "recommendedAction": "推奨アクション",
-      "rationale": "根拠",
-      "metricsTitle": "予測と実際のメトリクス",
-      "confidence": "信頼度",
-      "metricName": "メトリクス名",
-      "baseline": "ベースライン",
-      "predictedTarget": "予測値",
-      "actualValue": "実測値",
-      "delta": "差分",
-      "verdict": "判定",
-      "explanation": "説明",
-      "hideRollbackPatch": "ロールバックパッチを非表示",
-      "viewRollbackPatch": "ロールバックパッチを表示",
-      "rollbackSuccess": "ロールバックパッチが正常に適用されました。",
-      "rollbackFailed": "スキルのロールバックに失敗しました。",
-      "verdicts": {
-        "confirmed": "確認済み",
-        "regression": "リグレッション",
-        "refuted": "未達成",
-        "inconclusive": "判定不能"
-      },
-      "actions": {
-        "keep": "維持",
-        "rollback": "ロールバック",
-        "re_evaluate": "再評価"
-      }
     }
   },
   "subagentDashboard": {
@@ -10991,7 +11051,82 @@
       "yielded": "譲渡済み",
       "interrupted": "中断済み",
       "checkpoint": "チェックポイント"
-    }
+    },
+    "detailFallbackAgentType": "サブエージェント",
+    "detailNoDescription": "説明がありません",
+    "detailDuration": "所要時間",
+    "detailTokens": "トークン",
+    "detailCost": "コスト",
+    "detailModelInherited": "継承",
+    "detailTabOverview": "概要",
+    "detailTabJournal": "実行ジャーナル（{count}）",
+    "detailTabTools": "ツール（{count}）",
+    "detailTabMessages": "メッセージ（{count}）",
+    "detailTabReplay": "再生",
+    "detailTabViewport": "ビューポート",
+    "detailHandoverTitle": "構造化された引き継ぎと証拠",
+    "detailHandoverBadge": "引き継ぎ記録",
+    "detailExecutiveSummary": "要約",
+    "detailKeyFindings": "主な発見と証拠（{count}）",
+    "detailArtifacts": "成果物",
+    "detailCitations": "引用とドキュメント",
+    "detailCopy": "コピー",
+    "detailCopiedArtifactPath": "成果物のパスをクリップボードにコピーしました",
+    "detailCopiedCitationUrl": "引用のURLをクリップボードにコピーしました",
+    "detailCopiedTaskDescription": "タスクの説明をクリップボードにコピーしました",
+    "detailCompletedChecklist": "完了したチェックリスト",
+    "detailErrorDiagnostic": "エラー診断",
+    "detailVerificationPassed": "独立検証：合格",
+    "detailVerificationFailed": "独立検証：不合格",
+    "detailVerificationRounds": "ラウンド：{rounds}/{maxRounds}",
+    "detailTaskSpec": "タスク仕様とプロンプト",
+    "detailMetadata": "メタデータとガバナンス",
+    "detailTaskId": "タスクID",
+    "detailParentTaskId": "親タスクID",
+    "detailRootTask": "ルートタスク",
+    "detailRoleScope": "ロール / スコープ",
+    "detailStandardLeaf": "標準リーフ",
+    "detailProgress": "進捗状況",
+    "detailJournalEmpty": "実行ジャーナルの記録はありません。",
+    "detailToolsEmpty": "ツール実行の記録はありません。",
+    "detailToolCall": "ツール呼び出し #{index}",
+    "detailMessagesEmpty": "チームメイト間のメッセージはありません。",
+    "detailReplayStep": "ステップ再生（{current}/{total}）",
+    "detailReplayKind": "種類：{kind}",
+    "detailReplayDuration": "所要時間：{ms}ms",
+    "detailReplayEmpty": "再生できるステップがありません。",
+    "viewportEmptyTitle": "テキスト/コードタスクのビューポート",
+    "viewportEmptyDescription": "このサブタスクはテキストまたはコードのタスクで、サンドボックスブラウザのスナップショットはまだありません。",
+    "viewportOpenDesktop": "サンドボックスのデスクトップを開く",
+    "viewportSwitchingToast": "サンドボックスのデスクトップに切り替えています",
+    "viewportUrlCopied": "URLをコピーしました",
+    "viewportLive": "ライブ",
+    "viewportSnapshot": "スナップショット",
+    "viewportCopyUrl": "URLをコピー",
+    "viewportOpenInNewTab": "新しいタブで開く",
+    "viewportFallbackTitle": "サンドボックスブラウザのビューポート",
+    "viewportRestoreSize": "サイズを元に戻す",
+    "viewportFullscreen": "全画面で拡大",
+    "viewportZoomOut": "縮小",
+    "viewportZoomIn": "拡大",
+    "viewportTakeover": "操作を引き継ぐ",
+    "viewportExitZoom": "拡大を終了",
+    "viewportPreviewAlt": "サブタスクのビューポートプレビュー",
+    "insightsAnomalyStalled": "{seconds}秒間、ツールやトークンの進捗がなく停止しています",
+    "insightsAnomalySlow": "{duration}秒実行され、{type}の平均{average}秒の2倍を超えています",
+    "insightsAnomalyAborted": "予算またはタイムアウトの保護により停止されました",
+    "insightsAdviceStalled": "一部のサブエージェントが停止しているようです。操作でタスクの範囲を絞るか、キャンセルすることを検討してください。",
+    "insightsAdviceVerification": "{count, plural, =1 {# 件のタスクが独立検証に合格しませんでした。まとめを完了する前に検証結果を確認してください。} other {# 件のタスクが独立検証に合格しませんでした。まとめを完了する前に検証結果を確認してください。}}",
+    "insightsAdviceFanOut": "並列で動作しているサブエージェントが多すぎます（{limit}個超）。コンテキストがあふれないよう、最終的なまとめの段階で各出力を集約してください。",
+    "insightsEmpty": "インサイトに使えるサブエージェントのデータがありません。",
+    "insightsAdviceTitle": "最適化のアドバイス",
+    "insightsAnomaliesTitle": "異常と外れ値（{count}）",
+    "insightsAnomaliesEmpty": "すべてのサブエージェントが通常の所要時間とトークン使用量の基準内です。",
+    "insightsTypePerformance": "エージェントタイプ別のパフォーマンス",
+    "insightsSpawned": "{count}件起動",
+    "insightsAvgDuration": "平均所要時間",
+    "insightsTotalTokens": "トークン合計",
+    "insightsTotalCost": "合計コスト"
   },
   "trajectoryDiff": {
     "title": "セッション間実行軌跡の比較 (Trajectory Diff)",
@@ -11406,7 +11541,8 @@
       "description": "評価失敗トレースの決定論的帰属分析に基づきます。アブレーション実証により、ツールやミドルウェアの拡張はプロンプトの微調整よりも遥かに高い投資対効果（ROI）をもたらします（Tools/Middleware ≫ Prompt）。以下の優先順位に従って設定を最適化することをお勧めします。",
       "affectsCases": "{count} 件の失敗ケースに関連",
       "quickConfig": "設定へ移動"
-    }
+    },
+    "skillAbStartFailed": "スキル A/B テストの開始に失敗しました"
   },
   "vault": {
     "title": "セキュリティ金庫のロック解除",
@@ -11628,17 +11764,26 @@
   },
   "Catchup": {
     "inboxTitle": "キャッチアップ受信トレイ",
-    "loading": "読み込み中...",
-    "allCaughtUp": "すべてのブリーフを確認しました！",
+    "openInbox": "キャッチアップ受信トレイ、未確認 {count} 件",
+    "close": "閉じる",
+    "allCaughtUp": "すべて確認済みです！",
+    "untitledChat": "無題のセッション",
     "statusCompleted": "完了",
-    "statusWaiting": "待機承認",
+    "statusWaiting": "承認待ち",
     "statusError": "エラー",
     "statusRunning": "バックグラウンド実行中",
+    "statusStopped": "停止",
     "youAsked": "あなたの依頼：",
+    "latestReply": "最新の返信",
+    "needsApproval": "続行するにはあなたの承認が必要です。",
+    "needsError": "エラーのため停止しました。",
+    "needsQuestion": "あなたへの質問があります。",
     "filesChanged": "変更されたファイル",
+    "moreFiles": "ほか {count} 件",
     "toolsUsed": "使用したツール",
-    "markAsRead": "閉じる",
-    "viewChat": "表示セッション"
+    "toolCalls": "ツール呼び出し {count} 回",
+    "markAsRead": "確認済みにする",
+    "viewChat": "セッションを表示"
   },
   "backgroundTasks": {
     "title": "バックグラウンドタスク",
@@ -11856,7 +12001,6 @@
       "toolsConnect": {
         "pageTitle": "日常のツールを接続",
         "pageDescription": "毎日使うサービスにアシスタントがアクセスできるようにします。設定から後でいつでも追加できます。",
-        "connected": "接続済み",
         "connectButton": "接続",
         "moreHint": "設定 → 統合 に30以上の統合があります",
         "continueButton": "続行",
@@ -12182,9 +12326,9 @@
     "mcpTlsHint": "mTLS: クライアント証明書と、必要に応じて別のキーを指定してください。パスは ~ 展開をサポートします。",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "設定済み",
-    "mcpHeadersHint": "{{secret:KEY_NAME}} を使用して Agent Secrets に保存されたシークレットを参照します。",
+    "mcpHeadersHint": "'{{secret:KEY_NAME}}' を使用して Agent Secrets に保存されたシークレットを参照します。",
     "mcpHeaderKeyPlaceholder": "ヘッダー名（例: Authorization）",
-    "mcpHeaderValuePlaceholder": "値または {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "値または '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "Add Header",
     "mcpSecretRefSaveHint": "設定を保存しました",
     "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。",
@@ -12338,7 +12482,7 @@
       "folderGate": {
         "title": "このフォルダを信頼しますか？",
         "description": "このフォルダには、本機で実行されるスキル・ルール・ローカルツールが含まれる可能性があります。関連付けの前に信頼度を選択してください",
-        "loading": "Scanning folder…",
+        "loading": "フォルダをスキャン中…",
         "loadFailed": "フォルダをスキャンできませんでした。再試行するか別のパスを選択してください",
         "decideFailed": "選択を保存できませんでした。もう一度お試しください",
         "disclosureTitle": "このフォルダで検出",
@@ -12351,6 +12495,10 @@
         "restrict": "信頼せずに関連付け",
         "trust": "信頼して関連付け"
       }
+    },
+    "workspaceTrust": {
+      "trusted": "ワークスペースを信頼しました。拡張機能とツールがすべて有効になりました。",
+      "trustFailed": "ワークスペースを信頼できませんでした"
     }
   },
   "milestone": {
@@ -12489,7 +12637,7 @@
       "title": "ライセンスと著作権",
       "type": "MITライセンス（コア製品）",
       "description": "このリポジトリの Server、Frontend、Desktop は MIT ライセンスでリリースされています。",
-      "copyright": "© {year} MyrmAgent. All rights reserved."
+      "copyright": "© {year} MyrmAgent. 無断複写・転載を禁じます。"
     }
   },
   "budget": {
@@ -12813,7 +12961,7 @@
       "speed": "再生速度",
       "scrubber": "タイムラインスクラバー",
       "errorMarker": "エラー",
-      "keyboardHint": "Space: play/pause · ←/→: step frame",
+      "keyboardHint": "Space: 再生/一時停止 · ←/→: コマ送り",
       "running": "実行中...",
       "latestTool": "最新ツール：{name}",
       "result": "結果",
@@ -13080,22 +13228,6 @@
     "slideCounter": "スライド {current} / {total}",
     "speakerNotes": "スピーカーノート",
     "noSpeakerNotes": "このスライドにノートはありません"
-  },
-  "vibrancy": {
-    "triggerAriaLabel": "デスクトップのアクリル・ガラス質感と液体バイブランシーの設定",
-    "triggerTooltip": "⌥⌘V を押すかクリックすると、デスクトップのアクリル効果と液体効果を調整します",
-    "panelTitle": "ネイティブバイブランシー＆リキッドチューナー",
-    "platformTag": "{platform} ネイティブバイブランシー",
-    "quickToggleAriaLabel": "バイブランシーのぼかしを切り替え",
-    "styleLabel": "ウィンドウのガラスと表面スタイル",
-    "styleMica": "Win11 Mica",
-    "styleAcrylic": "アクリルガラス",
-    "styleVibrantDark": "macOS バイブラントダーク",
-    "styleUltraThin": "ウルトラシンクリスタル",
-    "styleDisabled": "不透明（無効）",
-    "statusDisabled": "不透明",
-    "intensityLabel": "ぼかしの深さと彩度",
-    "platformHint": "macOS と Windows 11 でハードウェアアクセラレーションによる半透明サーフェスを有効にします。Web では CSS に自然にフォールバックします。"
   },
   "spreadsheet": {
     "viewerTitle": "出版品質スタイル付きスプレッドシートハブ",
@@ -13456,17 +13588,6 @@
       "sandbox": "サンドボックス"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "アクティブなオーバーレイ",
-    "remainingTurns": "{count, plural, =1 {残り 1 ターン} other {残り # ターン}}",
-    "rollbackTooltip": "このセッションオーバーレイをロールバック",
-    "rollback": "ロールバック",
-    "collapse": "折りたたむ",
-    "expand": "展開",
-    "howItWorks": "仕組み",
-    "howItWorksDesc": "オーバーレイはゼロリセットの障害回復を提供し、指定されたターン予算内で自動的に有効になり、期限切れ後はスムーズに終了します。",
-    "allActiveOverlays": "すべてのアクティブオーバーレイ ({count})"
-  },
   "taskSpaces": {
     "title": "並列ブラウザタスク空間",
     "badgeRunning": "実行中",
@@ -13820,9 +13941,7 @@
       "mcp": "MCP",
       "skills": "スキル管理",
       "compoundingPlaybook": "複利ループ",
-      "skillQuality": "スキル品質",
       "toolStability": "ツール安定性",
-      "toolQuality": "実行品質",
       "evolutionPending": "スキル成長",
       "evolutionRejection": "進化拒絶ログ",
       "eval": "評価",
@@ -13871,7 +13990,8 @@
         "knowledge": "ナレッジ",
         "integration": "通信とインテグレーション",
         "system": "システム"
-      }
+      },
+      "brand-studio": "ブランドスタイル"
     },
     "workbench": {
       "badge": "資産保持とプラットフォーム中立性",
@@ -13915,6 +14035,7 @@
         "subtitle": "独自のクローズドエコシステムによる拘束を打破。ベンダーロックインの心配がなく、すべての資産が透過的でポータブルです。",
         "exportConfig": "ワークスペース設定をエクスポート",
         "exportMemory": "メモリ資産をバックアップ",
+        "exportTakeout": "すべてのデータをエクスポート",
         "points": {
           "decouplingTitle": "モデルと資産の疎結合",
           "decouplingDesc": "Claude、DeepSeek、GPT、Gemini など任意の大規模モデルへいつでもシームレスに切り替え可能。過去の資産やスキルは 100% 維持されます。",
@@ -13943,12 +14064,23 @@
       "tabDescriptions": {
         "followUps": "会話から抽出されたプロアクティブなフォローアップを表示・管理",
         "migration": "Hermes、OpenClaw、Claude Code、Codex をスキャン — プレビューインポート、スキルはレビューが必要、MCP とチャンネルは手動設定",
-        "teamHub": "共有コンテキスト、Wiki、スキル、メモリ — チーム設定を一画面で確認"
+        "teamHub": "共有コンテキスト、Wiki、スキル、メモリ — チーム設定を一画面で確認",
+        "explorer": "エージェントの長期メモリ・事実・経験と、エージェント間で共有するコンテキストを管理",
+        "backup": "メモリの安全なバックアップを作成し、いつでも復元・スナップショットでバージョン管理",
+        "cloudBackup": "バックアップをクラウドストレージ（WebDAV/S3）へ自動同期し、端末をまたいでデータを保護"
       },
       "migrationUnavailable": {
         "title": "アシスタントのインポートは Local または Desktop のみでサポートされています",
         "description": "SaaS クラウドサンドボックスは、お使いのマシン上の Hermes、OpenClaw、Claude Code、Codex フォルダを読み取れません。Tauri デスクトップアプリをダウンロードするか Local WebUI を実行してから、設定 → メモリ → 移行を開いてください。",
         "downloadCta": "ダウンロードページへ移動"
+      },
+      "monitor": {
+        "profilingStarted": "ヒーププロファイリングを開始しました。システムにわずかな負荷がかかる場合があります。",
+        "profilingStartFailed": "プロファイリングの開始に失敗しました",
+        "profilingStartNetworkError": "プロファイリング開始中にネットワークエラーが発生しました",
+        "profilingStopped": "ヒーププロファイリングを停止しました。結果を確認できます。",
+        "profilingStopFailed": "プロファイリングの停止に失敗しました",
+        "profilingStopNetworkError": "プロファイリング停止中にネットワークエラーが発生しました"
       }
     },
     "commands": {
@@ -13985,7 +14117,6 @@
         "title": "ヒント",
         "usage": "入力ボックスに / を入力するとコマンドパレットが起動します",
         "trigger": "入力ボックスに / を入力するとコマンドパレットが起動します",
-        "variables": "テンプレートは変数をサポート：'{{input}}', '{{date}}', '{{time}}'",
         "examples": "例：/translate 翻訳、/review コードレビュー",
         "example": "例：/translate 翻訳、/review コードレビュー"
       },
@@ -14018,17 +14149,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "サンプル",
-          "translate": {
-            "name": "translate",
-            "template": "以下を英語に翻訳してください：'{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "このコードをレビューしてください：'{{input}}'"
-          }
         },
         "actions": {
           "cancel": "キャンセル",
@@ -14165,6 +14285,20 @@
         "probeRecommendedActionSwitchMode": "閉じてモードを切り替え",
         "probeRecommendedActionRetryProbe": "再試行して接続",
         "learnMore": "詳しく見る"
+      },
+      "disabled": "無効",
+      "manage": "管理",
+      "openWebsite": "{name} の公式サイトを開く",
+      "categories": {
+        "productivity": "生産性",
+        "development": "開発",
+        "communication": "コミュニケーション",
+        "data_storage": "データとストレージ",
+        "browser": "ブラウザ",
+        "web_search": "ウェブと検索",
+        "docs": "ドキュメント",
+        "design": "デザイン",
+        "api": "API ツール"
       }
     },
     "integrationMemory": {
@@ -14219,7 +14353,13 @@
       "endpointDesc": "この Base URL はあらゆる OpenAI 互換クライアントで使用できます：",
       "docsTitle": "クイックスタート",
       "docsDesc": "API キーを OpenAI SDK または任意の互換クライアントで使用します。",
-      "createdAt": "作成時間"
+      "createdAt": "作成時間",
+      "loadFailed": "APIキーの読み込みに失敗しました",
+      "createFailed": "APIキーの作成に失敗しました",
+      "keyRevoked": "APIキーを失効させました",
+      "revokeFailed": "キーの失効に失敗しました",
+      "keyDeleted": "APIキーを削除しました",
+      "deleteFailed": "キーの削除に失敗しました"
     },
     "hosting": {
       "title": "ホスティング先",
@@ -14410,7 +14550,8 @@
         "installInProgress": "インストール中…",
         "installSuccess": "インストールに成功しました",
         "installing": "{backend} をインストール中",
-        "installingDesc": "数分かかる場合があります。インストールログは下に表示されます。"
+        "installingDesc": "数分かかる場合があります。インストールログは下に表示されます。",
+        "installFailed": "インストールに失敗しました"
       },
       "showSystemMessages": "システムメッセージを表示",
       "showSystemMessagesDesc": "チャット内に AI のシステムプロンプト（System Prompts）を表示",
@@ -14421,7 +14562,7 @@
         "refresh": "更新",
         "loading": "システムヘルスステータスを読み込み中…",
         "loadFailed": "システムヘルスステータスの読み込みに失敗",
-        "meta": "デプロイ：{deploy} · ストレージ：{storage} · Bundle：{bundle}",
+        "meta": "デプロイ：{deploy} · Bundle：{bundle}",
         "warnings": "警告",
         "migrationPending": "待実行レイアウト移行",
         "migrationCount": "対応が必要な項目 {count} 件",
@@ -14451,8 +14592,7 @@
         "scenes": {
           "memory": "メモリ",
           "workspace": "ワークスペース",
-          "offload": "アンインストール",
-          "archive": "アーカイブ"
+          "offload": "アンインストール"
         }
       },
       "telemetry": {
@@ -14551,13 +14691,27 @@
         "rightsExporting": "エクスポートを準備中…",
         "rightsExportSuccess": "コンプライアンスエクスポートをダウンロードしました",
         "rightsExportFailed": "エクスポートに失敗 — メモリ設定から再試行してください",
-        "rightsManageMemory": "メモリと削除を管理"
+        "rightsManageMemory": "メモリと削除を管理",
+        "eraseTitle": "すべての会話を消去",
+        "eraseDesc": "すべての会話と、それらが生成したファイルを削除します。保存済みのメモリ、エージェント、APIキー、チャンネル設定は保持され、未確認メモリと最近のメモリアクティビティは消去されます。コピーが必要な場合は、先にデータをエクスポートしてください。",
+        "eraseButton": "会話を消去",
+        "eraseConfirmTitle": "すべての会話を消去しますか？",
+        "eraseConfirmDesc": "すべての会話と、それらが生成したファイルを完全に削除し、未確認メモリと最近のメモリアクティビティも消去します。この操作は取り消せません。\n保存済みのメモリ、エージェント、APIキー、チャンネル設定には影響しません。未保存の変更があるワークスペースも残ります。",
+        "eraseConfirmAction": "会話を消去",
+        "erasing": "消去中…",
+        "eraseSuccess": "{count} 件の会話を消去しました",
+        "eraseKept": "未保存の変更がある {count} 件のワークスペースをプロジェクトフォルダーに残しました",
+        "eraseBusy": "実行中の会話があります。停止するか完了を待ってから、もう一度お試しください。",
+        "eraseFailed": "消去を完了できませんでした。もう一度お試しください。"
       },
       "profile": {
         "title": "セキュリティ設定集",
         "description": "ビルトインのセキュリティプロファイルを選択するか、以下でカスタマイズしてください。",
         "loading": "設定集を読み込み中...",
-        "selectDefault": "設定集を選択"
+        "selectDefault": "設定集を選択",
+        "activated": "設定集を有効にしました：{name}",
+        "activateFailed": "設定集の有効化に失敗しました",
+        "loaded": "設定集を読み込みました"
       },
       "modeAllow": "許可",
       "modeAsk": "承認が必要",
@@ -14622,7 +14776,36 @@
         "actionPseudonymize": "疑似匿名化",
         "actionRedact": "自動匿名化",
         "actionBlock": "ブロック",
-        "pseudonymizeHint": "疑似匿名化モードでは、個人情報をセマンティックタグ付きのプレースホルダーに置き換えてからクラウドに送信します。AI はセマンティックな理解力を保持し、元の値はローカルで復元されます。プライバシー漏洩ゼロ、品質低下ゼロ。",
+        "pseudonymizeHint": "疑似匿名化では、機密性のある内容をプレースホルダーに置き換えて送信します。モデルに見えるのはプレースホルダーだけで、実際の内容は見えません。返信内のプレースホルダーはローカルで元の文章に戻されます。モデルはプレースホルダーの種類は判別できますが、内容そのものに基づく回答はできません。",
+        "consequence": {
+          "warn": "隠す処理は行わず、元の文章がそのままモデルに送られます。",
+          "pseudonymize": "プレースホルダーに置き換えて送信し、あなたに表示する返信では元の内容に戻します。",
+          "redact": "伏せ字にして送信します。モデルは元の内容を見られず、後から元に戻すこともできません。",
+          "block": "あなたが送るメッセージにこの種の内容が含まれると、送信されずにブロックされます。ツールの返答などは伏せ字にしてから使われます。"
+        },
+        "coverage": {
+          "title": "保護の範囲",
+          "covered": "対象：モデルに送るメッセージ、ツールやWebページが返す内容、メモリに保存する内容、タイトル・提案・要約などのバックグラウンドのモデル呼び出し。",
+          "notCovered": "対象外：画像と音声そのもの。画像・動画の生成、音声読み上げ、記憶や文書を探すための検索インデックスなど、会話モデルを通らない機能。",
+          "matching": "検出は文字そのものを見ます。略称・ピンイン・誤字など別の書き方は検出されないことがあります。上の「試してみる」で確認できます。"
+        },
+        "tester": {
+          "title": "試してみる",
+          "description": "文を入力すると、現在の設定でモデルに何が届くかを確認できます。",
+          "placeholder": "例：フェニックス計画の予算超過の理由を要約して",
+          "checking": "確認中",
+          "levelNone": "機密性のある内容は見つかりませんでした。そのまま送信されます。",
+          "levelS2": "センシティブ情報と判定",
+          "levelS3": "機密情報と判定",
+          "action": "処理：{action}",
+          "modelSees": "モデルに届く内容",
+          "blocked": "このメッセージはブロックされ、モデルには送信されません。",
+          "unchanged": "現在の設定は警告のみのため、元の文章がそのまま送信されます。",
+          "deepScanNote": "「試してみる」にはディープスキャンは含まれません。",
+          "failed": "現在は試せません。しばらくしてからもう一度お試しください。",
+          "ineffectiveTitle": "次のカスタムパターンは現在有効になりません",
+          "ineffectiveHint": "書き方に誤りがあるため、今は何も隠せません。修正して追加し直すか、削除してください。"
+        },
         "deepScanLabel": "ディープスキャン（LLM 強化）",
         "deepScanDesc": "LLM を使用して、正規表現在は捕捉できない非構造化 PII（病歴、家族関係、勤務先など）を検出します。レイテンシが増加する可能性があります。",
         "routing": {
@@ -14635,7 +14818,7 @@
           "localApiKey": "ローカルモデル API Key",
           "localApiKeyPlaceholder": "必要な場合は入力（不要なら空欄のまま）",
           "s2Strategy": "S2（機密）ポリシー",
-          "s2CloudAfterRedact": "マスキング後にクラウドへ",
+          "s2CloudAfterRedact": "クラウドモデル",
           "s2Local": "ローカルのみ",
           "s3Strategy": "S3（極秘）ポリシー",
           "s3Local": "ローカルのみ",
@@ -14646,7 +14829,8 @@
           "testConnection": "テスト",
           "testSuccess": "ローカルモデルに接続しました",
           "testFailed": "接続失敗",
-          "noLocalModelWarning": "ローカルルーティング戦略を選択しましたが、ローカルモデルが設定されていません。すべてのリクエストはクラウドにフォールバックします。"
+          "noLocalModelWarning": "ローカルルーティング戦略を選択しましたが、ローカルモデルが設定されていません。すべてのリクエストはクラウドにフォールバックします。",
+          "testSuccessLatency": "ローカルモデルに接続しました ({latency}ms)"
         },
         "advanced": {
           "title": "PII 詳細設定",
@@ -14667,12 +14851,7 @@
           "toolsS2Desc": "S2 保護をトリガーするツール呼び出し。",
           "toolsS3Label": "S3 機密ツール",
           "toolsS3Desc": "S3 保護をトリガーするツール呼び出し。",
-          "invalidRegex": "無効な正規表現",
-          "keywordTooShort": "キーワードは少なくとも 2 文字必要です",
-          "testMatch": "一致テスト",
-          "testMatchPlaceholder": "ルールをテストするテキストを入力...",
-          "testMatchResult": "マッチ: {level} — {patterns}",
-          "testMatchNoResult": "カスタムルールに一致するものはありません"
+          "keywordTooShort": "キーワードは少なくとも 2 文字必要です"
         }
       },
       "domainAllowlist": {
@@ -14789,7 +14968,7 @@
         "description": "プロジェクトワークスペースの関連付け時に明示的に信頼したフォルダです。信頼を取り消すと、フォルダ内のローカルスキル・ルール・MCP サービスが無効になります",
         "totalEntries": "全 {count} フォルダ",
         "refresh": "更新",
-        "loading": "Loading…",
+        "loading": "読み込み中…",
         "empty": "信頼済みフォルダはありません",
         "loadError": "読み込み失敗",
         "revokeSuccess": "信頼を取り消しました",
@@ -14817,7 +14996,7 @@
         "enableDesc": "有効にすると、LLM が割り込み前に危険な可能性のあるツール呼び出しを評価します。",
         "saved": "スマート意図ガード設定を保存しました",
         "modelSaved": "スマート意図ガードモデルを保存しました",
-        "modelCleared": "Reviewer model cleared — using default model as fallback.",
+        "modelCleared": "レビュアーモデルをクリアしました — 既定のモデルをフォールバックとして使用します。",
         "selectModel": "審査モデルを選択",
         "selectModelPlaceholder": "高速モデルを選択（例: GPT-4o-mini）",
         "modelRecommendation": "推奨: 高速かつ低コストのモデル（GPT-4o-mini や Claude 3 Haiku など）で最適なレイテンシを実現します。",
@@ -14850,14 +15029,11 @@
         "displayName": "表示名",
         "pattern": "正規表現",
         "severity": "重大度",
-        "action": "アクション",
         "category": "カテゴリ",
         "sortOrder": "並び替え",
         "severityLow": "低",
         "severityMedium": "中",
         "severityHigh": "高",
-        "actionAllow": "許可",
-        "actionBlock": "ブロック",
         "categoryPersonal": "個人情報",
         "categoryCompany": "社内",
         "categorySecurity": "セキュリティ認証情報",
@@ -14892,10 +15068,12 @@
         "hits": "監査ログ",
         "hitsTitle": "リスクヒット記録",
         "hitsEmpty": "リスクヒットの記録はありません",
+        "hitPosition": "{start}～{end} 文字目",
+        "hitTimedOut": "照合がタイムアウトしたため、一致として扱いました",
+        "blockedTitle": "メッセージがリスクルールによりブロックされました",
+        "blockedDescription": "一致したルール：{rules}。許可するには、「設定 → セキュリティポリシー → リスクルール」で該当ルールをオフにしてください。",
         "hitsRuleName": "ルール",
         "hitsSeverity": "重大度",
-        "hitsAction": "アクション",
-        "hitsMatch": "一致した内容",
         "hitsTime": "時間",
         "hitsUser": "ユーザー",
         "hitsTotal": "合計 {count} 件",
@@ -14908,6 +15086,8 @@
         "importSuccess": "{count} 件のルールをインポートしました",
         "importError": "インポートに失敗しました。ファイル形式を確認してください",
         "duplicateRule": "コピールール",
+        "duplicatedName": "{name}（コピー）",
+        "actionError": "操作に失敗しました。もう一度お試しください",
         "rules": {
           "email_address": {
             "name": "メールアドレス",
@@ -14954,12 +15134,12 @@
             "desc": "JWT 形式の Bearer Token を検出"
           },
           "cookie_session_like": {
-            "name": "Cookie / Session 認証情報",
-            "desc": "Session、Cookie、Authorization 関連の表現を検出します。"
+            "name": "セッション / アクセストークン",
+            "desc": "値を伴うセッション ID、アクセス／リフレッシュトークン、Authorization ヘッダーを検出します。"
           },
           "db_connection_string": {
             "name": "データベース接続文字列",
-            "desc": "データベース、キャッシュ、キューの接続文字列を検出します。"
+            "desc": "パスワードを含むデータベース、キャッシュ、キューの接続文字列を検出"
           },
           "kubeconfig_content": {
             "name": "Kubeconfig 設定",
@@ -14967,7 +15147,7 @@
           },
           "env_file_secret": {
             "name": "環境変数キー",
-            "desc": "env 形式のコンテンツ内の一般的なシークレット変数名を検出"
+            "desc": "env 形式のコンテンツで値が設定されたシークレット変数（SECRET_KEY など）を検出"
           },
           "private_ip": {
             "name": "プライベートネットワーク IP アドレス",
@@ -15523,7 +15703,8 @@
         "agenticBadge": "64K Agentic 強化",
         "agenticTooltip": "本番環境レベルのツール呼び出しと長期記憶要件を満たす自動生成された 64K コンテキスト modelfile",
         "keepAliveTipTitle": "24/7 常駐とメモリ解放ガイド",
-        "keepAliveTipDesc": "モデルをメモリに保持してバックグラウンドボットを常時稼働させるか、重いタスク時にメモリを解放します。"
+        "keepAliveTipDesc": "モデルをメモリに保持してバックグラウンドボットを常時稼働させるか、重いタスク時にメモリを解放します。",
+        "downloadFailed": "ダウンロードに失敗しました"
       },
       "importFromModelsDev": "から models.dev インポート",
       "getModels": "モデルを取得",
@@ -15542,7 +15723,32 @@
       "connectionSuccess": "接続しました",
       "connectionFailed": "接続失敗",
       "vercelGatewaySpendHint": "Vercel AI Gateway ダッシュボードでコスト、レート制限、レイテンシを確認",
-      "openVercelDashboard": "ダッシュボードを開く"
+      "openVercelDashboard": "ダッシュボードを開く",
+      "oauth": {
+        "title": "サブスクリプションログイン",
+        "connected": "接続済み",
+        "noticeTitle": "SuperGrok サブスクリプションについて",
+        "noticeBody": "SuperGrok で認証すると、API キーなしで Grok シリーズのモデルを Myrm のエージェントタスクに利用でき、X（Twitter）のリアルタイム検索やマルチモーダル機能も共有されます。",
+        "deviceCodeHint": "ブラウザで次のコードを入力して認証を完了してください:",
+        "copyCode": "コードをコピー",
+        "openVerificationPage": "認証ページを開く",
+        "waiting": "認証の完了を待っています...",
+        "cancel": "キャンセル",
+        "connectedWithApiKey": "SuperGrok サブスクリプションでログイン済みです。API キーが優先され、サブスクリプションはフォールバックとして使われます。",
+        "connectedWithQuota": "SuperGrok サブスクリプションでログイン済みです。AI 呼び出しにはサブスクリプションの利用枠が使われます。",
+        "disconnect": "切断",
+        "loginPrompt": "SuperGrok サブスクリプションでログインすると、API キーなしで AI モデルを利用できます。",
+        "loginButton": "SuperGrok でログイン",
+        "toast": {
+          "timeout": "認証がタイムアウトしました。もう一度お試しください。",
+          "connected": "SuperGrok の接続に成功しました",
+          "expired": "認証の有効期限が切れました。もう一度お試しください。",
+          "denied": "認証が拒否されました。もう一度お試しください。",
+          "startFailed": "認証を開始できませんでした。もう一度お試しください。",
+          "disconnected": "SuperGrok サブスクリプションを切断しました",
+          "disconnectFailed": "切断に失敗しました"
+        }
+      }
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",
@@ -15701,7 +15907,7 @@
         "embeddingModel": "エンベディングモデル",
         "embeddingModelDescription": "ナレッジベース、メモリ、ウェブ検索などのセマンティック検索用のテキストベクトル化モデル",
         "dismiss": "閉じる",
-        "orphanWarning": "以前のモデルの {{count}} 件のメモリを新しいモデルに移行する必要があります",
+        "orphanWarning": "以前のモデルの {count} 件のメモリを新しいモデルに移行する必要があります",
         "reindex": "移行",
         "reindexing": "移行中...",
         "rerankerModel": "リランカーモデル",
@@ -15956,7 +16162,13 @@
       "vaultDeleteDesc": "資格情報「{label}」を削除してもよろしいですか？この操作は元に戻せません。",
       "vaultEdit": "編集",
       "tokenRequired": "トークンが必要です",
-      "xaiOauthTimeout": "認証がタイムアウトしました"
+      "xaiOauthTimeout": "認証がタイムアウトしました",
+      "xaiOauthConnectDesc": "下のボタンをクリックして、ブラウザで SuperGrok アカウントを認証してください。認証が完了すると自動的に接続されます。",
+      "xaiOauthCode": "認証コード:",
+      "xaiOauthCodeHint": "ブラウザでこのコードを入力して認証を完了してください...",
+      "xaiOauthReopen": "認証ページをもう一度開く",
+      "xaiOauthWaiting": "認証を待機中...",
+      "xaiOauthConnectBtn": "SuperGrok を認証"
     },
     "skillQuality": {
       "title": "スキル品質管理",
@@ -16003,39 +16215,6 @@
       }
     },
     "skillOptimization": {
-      "title": "スキル自最適化",
-      "description": "LLM 駆動のスキル自動最適化システム。継続的にスキル品質を向上させます",
-      "dashboard": "ダッシュボード",
-      "activeOptimizations": "進行中の最適化",
-      "abTestsRunning": "A/Bテスト実行中",
-      "qualityRanking": "品質ランキング",
-      "topSkills": "Top 10 スキル",
-      "bottomSkills": "最適化待ちスキル Top 10",
-      "triggerOptimization": "手動トリガー最適化",
-      "viewHistory": "表示履歴",
-      "actions": "操作",
-      "noData": "利用可能なデータがありません",
-      "qualityScore": "品質スコア",
-      "overallScore": "総合スコア",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token効率",
-      "executionTime": "実行時間",
-      "userSatisfaction": "ユーザー満足度",
-      "callFrequency": "呼び出し頻度",
-      "radarChart": "5 次元品質レーダーチャート",
-      "optimizationHistory": "最適化履歴",
-      "status": {
-        "pending": "未処理",
-        "inProgress": "進行中",
-        "completed": "完了",
-        "failed": "失敗"
-      },
-      "abTestStatus": {
-        "running": "実行中",
-        "baselineWin": "Baseline 勝利",
-        "candidateWin": "Candidate 勝利",
-        "noDifference": "有意差なし"
-      },
       "versions": {
         "title": "バージョン履歴",
         "version": "バージョン",
@@ -16054,112 +16233,15 @@
         "scoreDelta": "スコア変化",
         "contentChanged": "内容変更済み",
         "contentUnchanged": "内容変更なし",
-        "createdByLlm": "LLM最適化",
+        "createdByLlm": "AI 最適化",
         "createdByManual": "手動編集",
         "createdByRollback": "ロールバック",
+        "createdByAgent": "Agent による編集",
+        "createdBySkillGrowth": "スキル成長",
+        "createdByImport": "インポート",
         "refresh": "更新",
         "confirmAction": "このバージョンを有効化"
-      },
-      "guardian": {
-        "idleTitle": "Shadow 検証が可能",
-        "idleDescription": "候補バージョンが準備できました。Shadow テストを開始して、全量リリース前に実トラフィックと比較できます。",
-        "startShadow": "Shadow テストを起動",
-        "startSuccess": "Shadow テストを開始しました",
-        "startFailed": "Shadow テストの起動に失敗",
-        "runningTitle": "Shadow テスト：v{baseline} vs v{candidate}",
-        "consistency": "一貫性",
-        "samples": "サンプル数",
-        "versions": "バージョン",
-        "confidence": "テスト置信度",
-        "hideSamples": "非表示サンプル",
-        "reviewDifferences": "差分を表示",
-        "stopTest": "テストを停止",
-        "stopConfirmTitle": "Shadow テストを停止しますか？",
-        "stopConfirmDescription": "スキル「{skillId}」の Shadow テストを停止します。ベースライン v{baseline} は有効のままです。",
-        "cancel": "キャンセル",
-        "promote": "v{version} に昇格",
-        "promoteSuccess": "バージョン v{version} が現在のバージョンになりました",
-        "promoteFailed": "バージョンの昇格に失敗しました",
-        "stopSuccess": "Shadow テスト停止済み",
-        "stopFailed": "テストの停止に失敗しました",
-        "networkError": "ネットワークエラー",
-        "match": "一致",
-        "diverged": "相違",
-        "baselineLabel": "ベースライン",
-        "candidateLabel": "候補"
-      },
-      "batchPage": {
-        "submitConfirmTitle": "復元ポイントを作成しますか？",
-        "submitConfirmDescription": "最適化前にバッチスナップショットが自動保存されます。結果が不満な場合はバッチ詳細ページからロールバックできます。",
-        "submitConfirmAction": "一括最適化を開始",
-        "submitCancel": "キャンセル",
-        "rollback": "バッチタスクをロールバック",
-        "rollbackCardDescription": "このバッチ内のすべてのスキルを最適化前のスナップショット状態に復元します。",
-        "rollbackConfirmTitle": "このバッチタスクをロールバックしますか？",
-        "rollbackConfirmDescription": "このバッチ内のすべてのスキルが最適化前のスナップショット状態に復元されます。",
-        "rollbackSuccess": "バッチロールバックが完了しました（{count} 個のスキルを復元）",
-        "rollbackPartial": "バッチロールバックが部分的に完了しました — {rolled}/{total} 個のスキルを復元、{failed} 個失敗",
-        "rollbackFailed": "バッチロールバックに失敗しました",
-        "cancel": "一括タスクをキャンセル",
-        "cancelConfirmTitle": "このバッチタスクをキャンセルしますか？",
-        "cancelConfirmDescription": "適用済みの最適化を保持するか、すべてのスキルを一括最適化前のスナップショットに復元するかを選択できます。",
-        "cancelKeepAction": "のみキャンセル",
-        "cancelRollbackAction": "キャンセルしてロールバック",
-        "cancelSuccess": "一括タスクをキャンセルしました",
-        "cancelRollbackSuccess": "一括タスクをキャンセルし、{count} 個のスキルを復元しました",
-        "cancelRollbackPartial": "一括タスクをキャンセルしました — {rolled}/{total} 個のスキルを復元、{failed} 個失敗",
-        "cancelRollbackFailed": "一括タスクはキャンセルされましたが、ロールバックに失敗しました — スキルバージョンを手動で確認してください",
-        "cancelFailed": "一括タスクのキャンセルに失敗",
-        "statusPending": "キュー待ち中",
-        "statusRunning": "実行中",
-        "statusCompleted": "完了",
-        "statusCancelled": "キャンセル済み",
-        "statusFailed": "失敗",
-        "filterAll": "すべて",
-        "filterActive": "実行中",
-        "filterExecuting": "実行中"
       }
-    },
-    "skillAggregation": {
-      "title": "スキル品質集約",
-      "description": "多次元のスキル品質分析と集約ダッシュボード",
-      "loading": "読み込み中...",
-      "error": "エラー",
-      "errorFetchingMetrics": "メトリクスの取得に失敗しました",
-      "connected": "接続済み",
-      "disconnected": "未接続",
-      "last7Days": "最近 7 日",
-      "last30Days": "最近 30 日",
-      "last90Days": "最近 90 日",
-      "exportCSV": "CSV をエクスポート",
-      "exportJSON": "JSON をエクスポート",
-      "exportSuccess": "エクスポートしました",
-      "exportSuccessDescription": "データをエクスポートしました",
-      "exportFailed": "エクスポートに失敗しました",
-      "exportFailedDescription": "データのエクスポートに失敗",
-      "avgQuality": "平均品質",
-      "median": "中央値",
-      "totalSkills": "全 Skill 数",
-      "executions": "実行回数",
-      "optimizationRate": "最適化率",
-      "topSkills": "ベスト Skills",
-      "bottomSkills": "ワースト Skills",
-      "qualityDistribution": "品質分布",
-      "worstSkills": "パフォーマンス最下位のスキル",
-      "excellent": "優秀 (≥80%)",
-      "good": "良好 (50-80%)",
-      "poor": "不良 (<50%)",
-      "noData": "データなし",
-      "refresh": "更新",
-      "skillTrend": "スキルトレンド",
-      "globalTrend": "全体品質トレンド",
-      "qualityScore": "品質スコア",
-      "successRate": "成功率",
-      "tokenEfficiency": "Token効率",
-      "dataPoints": "データポイント数",
-      "totalExecutions": "総実行回数",
-      "timeRange": "時間範囲",
-      "errorFetchingTrends": "トレンドデータの取得に失敗しました"
     },
     "wiki": {
       "title": "LLM-Wiki ナレッジベース",
@@ -16739,7 +16821,19 @@
         "renameSuccess": "名前を変更しました",
         "operationFailed": "操作に失敗しました",
         "namePlaceholder": "名前を入力...",
-        "confirm": "確認"
+        "confirm": "確認",
+        "links": {
+          "title": "リンクと文脈",
+          "summary": "{backlinks} 件から参照 · {outlinks} 件を参照",
+          "tabBacklinks": "参照元 ({count})",
+          "tabOutlinks": "参照先 ({count})",
+          "refresh": "リンクを更新",
+          "loadFailed": "リンクの読み込みに失敗しました",
+          "emptyBacklinks": "この概念を参照しているものはまだありません",
+          "emptyOutlinks": "この概念はまだ他のものを参照していません",
+          "missing": "見つかりません",
+          "jumpToSection": "カードをクリックすると該当セクションへ移動します: {heading}"
+        }
       },
       "saveToWiki": {
         "buttonTitle": "保存まで Wiki",
@@ -16960,6 +17054,11 @@
         "skipped": "本日同名の振り返りが既に保存されているため、重複をスキップしました",
         "empty": "まず振り返りを入力してください",
         "error": "送信に失敗しました。後でもう一度お試しください"
+      },
+      "reviewSlip": {
+        "fetchFailed": "レビュー一覧の取得に失敗しました",
+        "applied": "選択的な書き戻しが完了しました：{committed} 件を反映、{discarded} 件をスキップ",
+        "applyFailed": "選択的な書き戻しの適用に失敗しました"
       }
     },
     "skills": {
@@ -16978,7 +17077,6 @@
         "rollbackFailed": "ロールバックに失敗しました。再試行してください",
         "cancel": "キャンセル",
         "fetchError": "スキル履歴の取得に失敗しました",
-        "qualityBefore": "変更前",
         "status": {
           "approved": "適用済み",
           "rolled_back": "ロールバック済み",
@@ -17415,7 +17513,69 @@
         "sourceTab": "ソース",
         "saveSource": "SKILL.md を保存",
         "sourceSaved": "SKILL.md を正常に保存しました",
-        "sourceSaveFailed": "SKILL.md の保存に失敗しました"
+        "sourceSaveFailed": "SKILL.md の保存に失敗しました",
+        "forceEnableFailed": "強制有効化に失敗しました",
+        "securityReviewNote": "セキュリティレビュー：{recommendation}"
+      },
+      "scanRisk": {
+        "severity": {
+          "critical": "重大",
+          "high": "高",
+          "medium": "中",
+          "low": "低",
+          "info": "情報"
+        },
+        "threat": {
+          "prompt_injection": "プロンプトインジェクション",
+          "command_injection": "コマンドインジェクション",
+          "credential_exposure": "認証情報の漏えい",
+          "data_exfiltration": "データの外部送信",
+          "filesystem_access": "ファイルシステムへのアクセス",
+          "process_operation": "プロセス操作",
+          "network_access": "ネットワークアクセス",
+          "screen_input": "画面・入力の制御",
+          "memory_config_snooping": "エージェントのメモリ・設定の盗み見",
+          "code_injection": "コードインジェクション",
+          "privilege_escalation": "権限昇格",
+          "environment_manipulation": "環境の改ざん",
+          "reflection": "動的コードのリフレクション",
+          "deserialization": "安全でないデシリアライズ",
+          "log_audit_tampering": "ログ・監査の改ざん",
+          "scheduled_task_injection": "スケジュールタスクの挿入",
+          "container_escape": "コンテナ脱出",
+          "memory_manipulation": "低レベルのメモリアクセス",
+          "dns_tunneling": "DNS トンネリング",
+          "supply_chain": "サプライチェーンリスク",
+          "obfuscation": "コンテンツの難読化",
+          "destructive": "破壊的な操作",
+          "persistence": "常駐化の仕組み",
+          "path_traversal": "パストラバーサル",
+          "crypto_mining": "暗号資産マイニング",
+          "reverse_shell": "リバースシェル",
+          "prompt_secret_exfiltration": "プロンプト・機密情報の漏えい",
+          "invisible_unicode": "不可視文字",
+          "dangerous_import": "危険なモジュールのインポート",
+          "ast_parse_error": "解析できないコード",
+          "llm_audit": "AI 監査の指摘",
+          "invalid_manifest": "無効なパッケージマニフェスト",
+          "integrity": "パッケージの整合性",
+          "missing_artifact": "パッケージファイルの欠落",
+          "empty_artifact": "空のパッケージファイル",
+          "unknown": "その他のリスク"
+        },
+        "signal": {
+          "newHighFinding": "新たな高リスクの動作: {threat}",
+          "scanUnavailable": "セキュリティチェックを実行できませんでした",
+          "diffRange": "大幅な書き換え（{percent} が変更）",
+          "lowEffectiveRate": "過去の成功率が低い（{runs} 回中 {rate}）",
+          "unknown": "確認が必要"
+        },
+        "remediation": {
+          "newHighFinding": "この変更には高リスクの動作が追加されています。承認する前に、指摘された箇所を確認してください。",
+          "scanUnavailable": "セキュリティチェックを実行できませんでした。承認する前に変更内容をよく確認してください。",
+          "diffRange": "内容の大部分が変更されています。変更前後を比較して、重要な内容が失われていないか確認してください。",
+          "lowEffectiveRate": "このスキルは実際の利用でよく失敗しています。この変更で問題が本当に解消されるか確認してください。"
+        }
       },
       "growth": {
         "title": "スキル成長",
@@ -17453,7 +17613,7 @@
         "status": {
           "PENDING_REVIEW": "レビュー待ち",
           "AUTO_APPLIED": "自動適用済み",
-          "FAILED_SCAN": "セキュリティスキャン失敗",
+          "FAILED_SCAN": "チェック不合格",
           "BLOCKED_LOCKED": "ロックによりブロック",
           "APPROVED": "承認済み",
           "REJECTED": "拒否済み",
@@ -17461,24 +17621,15 @@
         },
         "source": {
           "backgroundReview": "バックグラウンドレビュー",
-          "continualRecovery": "継続的自己修復",
           "manualEvolution": "手動最適化",
           "memoryExtraction": "記憶抽出"
         },
-        "proxyAlignment": {
-          "driftBadge": "指標乖離リスク",
-          "driftTooltip": "グッドハートの法則による乖離を検知：プロキシ指標は向上しましたが、コア精度が低下しています",
-          "alignedBadge": "指標整合性確認済",
-          "alignedTooltip": "コア意図と効率指標が正常に整合しており、手抜きはありません"
-        },
         "confidence": "信頼度 {value}%",
-        "testPassed": "検証合格",
-        "testFailed": "検証失敗",
         "verifiedBadge": "検証済み",
         "hollowBlockedBadge": "空洞テストをブロックしました",
         "targetLayer": "対象層: {layer}",
         "targetPathology": "病理特性: {pathology}",
-        "verificationProofTitle": "サンドボックスカプセル検証証明",
+        "verificationProofTitle": "検証記録",
         "blastRadius": "影響範囲: {files} ファイル, {lines} 行",
         "noVerificationProof": "サンドボックス検証証明はありません",
         "impactedDependents": {
@@ -17489,23 +17640,29 @@
           "confirmReject": "拒否を確認",
           "reject": "拒否",
           "approve": "合格",
-          "approveShadow": "Shadow を承認",
           "retryApply": "適用を再試行",
           "revise": "改訂",
           "reviseLabel": "編集提案内容",
           "cancelRevise": "キャンセル",
-          "saveRevision": "改訂を保存",
-          "createCron": "スケジュールタスクを作成"
+          "saveRevision": "改訂を保存"
         },
-        "approveShadowSuccess": "{name} の Shadow テストを開始しました",
         "reviseSuccess": "「{name}」の改訂に成功しました",
         "reviseFailed": "「{name}」の改訂に失敗しました",
         "reviseFailedScan": "「{name}」は改訂されましたが、セキュリティスキャンに合格しませんでした。フラグされた問題を修正してください。",
-        "cronSuggestion": {
-          "title": "推奨の実行プラン"
-        },
         "riskInterceptionTitle": "リスク阻止",
         "applyFailureTitle": "適用に失敗しました",
+        "applyFailureBody": "自動で適用できませんでした。技術的な詳細を確認してから、もう一度承認してください。",
+        "heldReason": {
+          "title": "確認が必要な理由",
+          "similar": "すでにあるスキルと似ています：{names}。新しい内容がある場合のみ承認してください。",
+          "evolutionLocked": "変更対象のスキルは自動更新から保護されているため、あなたの判断を待っています。",
+          "scanFailed": "自動セキュリティチェックを通過できませんでした。上の検出結果を確認してから判断してください。"
+        },
+        "technical": {
+          "toggle": "技術的な詳細",
+          "findings": "スキャナーの検出項目",
+          "advice": "推奨される対応"
+        },
         "rejectReasonLabel": "拒否理由",
         "rejectReasonPlaceholder": "このスキル成長ケースを適用するために何を変更すべきか説明してください。",
         "triggerCondition": "トリガー条件",
@@ -17517,48 +17674,24 @@
           "title": "実行時失敗の証拠",
           "tool": "ツール：{value}",
           "count": "失敗回数：{value}",
-          "confidence": "帰属信頼度 {value}%",
-          "loopKind": "ループタイプ：{value}"
-        },
-        "manifestPrediction": {
-          "title": "反証可能な変更の予測と帰属",
-          "baseline": "ベースライン",
-          "target": "目標値",
-          "predictedDirection": {
-            "INCREASE": "上昇予測",
-            "DECREASE": "低下予測",
-            "NEUTRAL": "変化なし予測"
-          },
-          "falsificationConditions": "反証条件",
-          "attributionVerdict": "帰属判定",
-          "verdictBadge": {
-            "CONFIRMED": "CONFIRMED",
-            "REFUTED": "REFUTED",
-            "REGRESSION": "REGRESSION",
-            "INCONCLUSIVE": "INCONCLUSIVE"
-          },
-          "paretoVerdict": {
-            "pareto_optimal": "汎化性能向上 (Pareto 最適)",
-            "overfitting": "過学習警告",
-            "generalization_collapse": "汎化崩壊の深刻な劣化",
-            "stable_parity": "両軸安定",
-            "regression": "両軸リグレッション",
-            "insufficient_holdout": "検証セットのサンプル不足"
-          },
-          "metricDeltas": "観測された指標の変化",
-          "unpredictedRegressions": "予期しないリグレッション警告"
+          "confidence": "帰属信頼度 {value}%"
         },
         "securityScan": {
           "title": "スキルセキュリティ静的検証詳細 ({count} 件の検出)",
           "score": "セキュリティスコア：{score}/100",
-          "line": "{line} 行目"
+          "line": "{line} 行目",
+          "badgeTitle": "セキュリティスコア {score}/100",
+          "risk": {
+            "trusted": "低リスク",
+            "installed": "中リスク",
+            "untrusted": "高リスク",
+            "reject": "ブロック済み"
+          }
         },
         "empty": {
           "title": "このビューにはケースがありません",
           "description": "Agent が新しい経験を捕捉するか、改善をレビューした後、関連する記録がここに表示されます。"
-        },
-        "cronCreateFailed": "{name} の定期レビューをスケジュールできませんでした",
-        "cronCreated": "{name} の定期レビューをスケジュールしました"
+        }
       },
       "upload": {
         "title": "カスタムスキルをアップロード",
@@ -17984,7 +18117,13 @@
         "error": "権限の更新に失敗しました",
         "skillEnabled": "スキルが有効になりました",
         "skillNotEnabled": "スキルは有効になっていません",
-        "templateApplied": "テンプレートが適用されました"
+        "templateApplied": "テンプレートが適用されました",
+        "approveFailed": "権限の承認に失敗しました"
+      },
+      "tabSubtitles": {
+        "inventory": "エージェントの中核となるスキルと手法を管理・発見",
+        "pending": "エージェントが自動で成長・進化して生み出した新しいスキルを確認して承認",
+        "rejections": "スキルの成長監査と、進化の過程で発生した異常ブロックの記録を確認"
       }
     },
     "language": "言語",
@@ -18268,7 +18407,7 @@
       "recipeImport": {
         "title": "AIスキルからレシピをインポート",
         "hint": "generate-myrm-theme のJSONを貼り付け、必要に応じてステップ1でヒーローメディアをアップロードしてください。",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "レシピをインポート",
         "success": "レシピをエディタにインポートしました",
         "errors": {
@@ -19502,9 +19641,9 @@
     "mcpOAuthConfigured": "設定済み",
     "mcpHeadersSection": "HTTP Headers",
     "mcpHeadersConfigured": "設定済み",
-    "mcpHeadersHint": "Agent Secrets に保存された秘密鍵を参照するには {{secret:KEY_NAME}} を使用します。",
+    "mcpHeadersHint": "Agent Secrets に保存された秘密鍵を参照するには '{{secret:KEY_NAME}}' を使用します。",
     "mcpHeaderKeyPlaceholder": "ヘッダー名（例：Authorization）",
-    "mcpHeaderValuePlaceholder": "値または {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "値または '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "ヘッダーを追加",
     "mcpSecretRefSaveHint": "設定を保存しました",
     "mcpSecretRefSaveHintDesc": "ヘッダー内のシークレット参照は実行時に解決されます。",
@@ -19538,7 +19677,8 @@
       "hardcoded_secret": "設定に平文のシークレットまたはトークンが含まれています",
       "credential_exposure": "認証情報の漏えいの可能性を検出",
       "supply_chain": "サプライチェーンリスク（例: pin されていない npx パッケージ）",
-      "supply_chain_malware": "パッケージに既知のマルウェアアドバイザリがあります"
+      "supply_chain_malware": "パッケージに既知のマルウェアアドバイザリがあります",
+      "dangerous_env_injection": "MCPサーバーを乗っ取り得る危険な環境変数を検出"
     },
     "mcpThreatRec": {
       "prompt_injection": "この MCP を有効にしないでください。管理者に連絡してください",
@@ -19551,10 +19691,11 @@
       "risky_mcp_profile": "アクセス範囲を制限し、リスクを解決してから有効化を確認してください",
       "suspicious_url": "信頼できない外部コールバック URL を削除してください",
       "sensitive_path": "ファイルシステム MCP を非機密ディレクトリに制限してください",
-      "hardcoded_secret": "平文ではなく {{secret:KEY}} 参照を使用してください",
-      "credential_exposure": "平文ではなく {{secret:KEY}} 参照を使用してください",
+      "hardcoded_secret": "平文ではなく '{{secret:KEY}}' 参照を使用してください",
+      "credential_exposure": "平文ではなく '{{secret:KEY}}' 参照を使用してください",
       "supply_chain": "引数でパッケージ名とバージョンを固定（pin）してください",
-      "supply_chain_malware": "フラグされたパッケージを削除し、検証済みの依存関係を使用してください"
+      "supply_chain_malware": "フラグされたパッケージを削除し、検証済みの依存関係を使用してください",
+      "dangerous_env_injection": "任意コード実行を防ぐため、この環境変数を削除してください"
     },
     "mcpDeleteFailed": "削除に失敗しました",
     "mcpDeleteSuccess": "サービスを削除しました",
@@ -19874,7 +20015,9 @@
       "deleteFromCloud": "削除",
       "deleteSuccess": "クラウドバックアップを削除しました",
       "enabled": "クラウドバックアップを有効にする",
-      "save": "設定を保存"
+      "save": "設定を保存",
+      "saveFailed": "設定の保存に失敗しました",
+      "deleteFailed": "削除に失敗しました"
     },
     "sessionAnalytics": {
       "copyMarkdown": "台帳コピー (MD)",
@@ -20487,7 +20630,11 @@
           "timeout": "タイムアウト時間",
           "onExpiry": "タイムアウトポリシー",
           "autoReject": "自動破棄",
-          "autoSend": "自動送信"
+          "autoSend": "自動送信",
+          "timeoutMinutes": "{minutes} 分",
+          "timeoutHour": "1 時間",
+          "noNotifyChannel": "通知配信が設定されていません。レビュー待ちの返信は、このアプリ内かバックグラウンド プッシュ通知でしか届かないため、不在の間に確認されないまま期限切れになる可能性があります。",
+          "noNotifyChannelLink": "環境設定を開く"
         },
         "identity": {
           "label": "チームアイデンティティ",
@@ -20923,7 +21070,8 @@
       "policyUpdated": "セキュリティポリシーが更新されました",
       "tierProd": "本番環境",
       "tierStaging": "ステージング",
-      "tierDev": "開発環境"
+      "tierDev": "開発環境",
+      "probeFailed": "{host} の接続確認に失敗しました：{message}"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "画面上の承認ハイライト — クリック対象の実ディスプレイに赤い枠を表示（macOS と Windows）",
@@ -20932,6 +21080,27 @@
       "headline": "ワークステーション保護のため Myrm デスクトップアプリをインストールしてください",
       "body": "現在ブラウザモードです。Computer Use はアプリ内の承認でそのまま利用できます。ロック中の利用の自動ロック解除には macOS のデスクトップアプリが必要です。プライバシーカーテンと画面上の承認ハイライトは、デスクトップアプリで macOS と Windows に対応します。",
       "bulletCurtain": "プライバシーカーテン — 全画面のシールドで、周囲の人にエージェントの操作が見えません（macOS と Windows）"
+    },
+    "developerCenter": {
+      "tabDescriptions": {
+        "devtools": "システムのデバッグモードとエージェント評価の診断設定",
+        "experimental": "開発・検証中の先行機能とラボフラグの有効化／無効化",
+        "usage": "モデル呼び出し回数・使用量の分布・費用の内訳・実行台帳を詳しく確認",
+        "companion": "デスクトップのペットパートナーとのやり取り、音声応答、振る舞いの設定",
+        "importExport": "アプリ全体の設定をインポート／エクスポートして端末間で簡単に同期"
+      }
+    },
+    "systemCenter": {
+      "tabDescriptions": {
+        "settings": "ローカルポート、リモートサービスへのアクセス、システムプロセスの状態を管理",
+        "about": "現在のバージョン、開発チーム情報、アップデート履歴の確認"
+      }
+    },
+    "modelCenter": {
+      "tabDescriptions": {
+        "providers": "AI モデルプロバイダーと API キーの設定",
+        "default": "既定モデルとフォールバックモデル、ルーティング方針、サードパーティモデルの設定"
+      }
     }
   },
   "workLayout": {
@@ -20999,6 +21168,27 @@
       "keyTakeawaysTitle": "導き出された主要な学びと発見",
       "warpToSource": "元のブランチへワープ",
       "forkIndicator": "分岐元"
+    },
+    "anchors": {
+      "title": "検証済みアンカー",
+      "symbolCount": "{count, plural, =1 {# 件のシンボル} other {# 件のシンボル}}",
+      "expandAnchors": "アンカーを展開",
+      "collapseAnchors": "アンカーを折りたたむ",
+      "collapse": "折りたたむ",
+      "inspect": "詳細を表示",
+      "more": "ほか{count}件",
+      "commits": "コミット（{count}）",
+      "files": "ファイル（{count}）",
+      "symbols": "シンボル（{count}）",
+      "endpoints": "エンドポイント（{count}）",
+      "errorSignatures": "エラーシグネチャ（{count}）",
+      "copySha": "クリックしてSHAをコピー",
+      "copyPath": "クリックしてパスをコピー",
+      "copySymbol": "クリックしてシンボルをコピー",
+      "copyEndpoint": "クリックしてエンドポイントをコピー",
+      "copyPathLabel": "パスをコピー：{path}",
+      "copySymbolLabel": "シンボルをコピー：{symbol}",
+      "copyEndpointLabel": "エンドポイントをコピー：{endpoint}"
     }
   },
   "extensionUI": {

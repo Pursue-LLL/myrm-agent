@@ -38,7 +38,7 @@ def test_app(isolated_service: TemporalGraphService) -> FastAPI:
 
 @pytest.mark.asyncio
 async def test_temporal_graph_entity_nodes_crud_api(test_app: FastAPI) -> None:
-    """Verifies creating, retrieving, listing, and deleting entity nodes."""
+    """Verifies creating, listing, and deleting entity nodes."""
     transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Create two entity nodes
@@ -66,21 +66,12 @@ async def test_temporal_graph_entity_nodes_crud_api(test_app: FastAPI) -> None:
         assert res2.status_code == 200
         node2 = res2.json()
 
-        # 2. Get by ID
-        res_get = await client.get(f"/api/memory/temporal-graph/nodes/{node1['node_id']}")
-        assert res_get.status_code == 200
-        assert res_get.json()["name"] == "Alice Developer"
-
-        # 3. 404 for unknown ID
-        res_404 = await client.get("/api/memory/temporal-graph/nodes/unknown_node")
-        assert res_404.status_code == 404
-
-        # 4. List nodes
+        # 2. List nodes
         res_list = await client.get("/api/memory/temporal-graph/nodes")
         assert res_list.status_code == 200
         assert len(res_list.json()) == 2
 
-        # 5. Delete node
+        # 3. Delete node
         res_del = await client.delete(f"/api/memory/temporal-graph/nodes/{node2['node_id']}")
         assert res_del.status_code == 200
         assert res_del.json()["deleted"] is True

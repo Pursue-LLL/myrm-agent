@@ -8,7 +8,7 @@
  *        CognitiveConsolidationRequestDTO, HypotheticalDeductionDTO,
  *        DreamCognitiveActionDTO, GrowthDiaryEntryDTO, CognitiveConsolidationReportDTO,
  *        DreamCognitiveOverviewDTO
- * Functions: triggerCognitiveConsolidation, listGrowthDiaries, getGrowthDiaryEntry,
+ * Functions: triggerCognitiveConsolidation, listGrowthDiaries,
  *            getGrowthDiaryMarkdown, getDreamCognitiveOverview
  *
  * [POS]
@@ -114,12 +114,6 @@ export async function listGrowthDiaries(cubeId?: string, limit: number = 20): Pr
   }
   params.append('limit', limit.toString());
   return apiRequest<GrowthDiaryEntryDTO[]>(`/memory/dream-cognitive/diaries?${params.toString()}`, {
-    method: 'GET',
-  });
-}
-
-export async function getGrowthDiaryEntry(diaryId: string): Promise<GrowthDiaryEntryDTO> {
-  return apiRequest<GrowthDiaryEntryDTO>(`/memory/dream-cognitive/diaries/${encodeURIComponent(diaryId)}`, {
     method: 'GET',
   });
 }

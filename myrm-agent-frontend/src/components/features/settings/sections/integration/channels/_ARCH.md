@@ -13,7 +13,7 @@
 | `ChannelsSection.tsx`                                                         | 渠道总览、安装依赖、各 Provider 配置卡片                                                                                                                   |
 | `ChannelRoutingSection.tsx`                                                   | 渠道路由页壳与布局                                                                                                                                         |
 | `useChannelRouting.ts`                                                        | 渠道路由状态与 API 绑定 handlers；暴露 `channelBindableAgents`（`filterChannelBindableAgents(agents)` 结果，General-only）                                 |
-| `ChannelRoutingTopicRow.tsx`                                                  | 单 Topic 绑定行（Agent / Project workspace / 线程共享 / 回复模式 / 团队身份名·作用域·冻结 / 主动跟进两档开关）；展示 `{项目名} · {路径}`                   |
+| `ChannelRoutingTopicRow.tsx`                                                  | 单 Topic 绑定行（Agent / Project workspace / 线程共享 / 回复模式 / 团队身份名·作用域·冻结 / 主动跟进两档开关）；展示 `{项目名} · {路径}`；草稿审核通知提示 |
 | `topicWorkspaceLabel.ts`                                                      | `resolveTopicWorkspaceDisplayLabel`：从已加载 projects 解析人类可读 workspace 路径                                                                         |
 | `VoiceSection.tsx`                                                            | 语音输入输出设置                                                                                                                                           |
 | `ChannelList.tsx` / `ChannelIcon.tsx`                                         | 渠道列表与图标                                                                                                                                             |
@@ -35,6 +35,7 @@
 ## 测试
 
 - `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
+- `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文（如德语）不撑出卡片
 - `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
 - `__tests__/WeChatConfigCard.test.tsx` — 微信卡片删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
 - `__tests__/WeChatRiskDisclosureBanner.test.tsx` — 个人微信风控告示展开/收起/本地持久化记忆与企微跳转

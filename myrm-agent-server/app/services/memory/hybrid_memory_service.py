@@ -76,11 +76,6 @@ class HybridMemoryService:
             override_rrf_config=override_rrf_config,
         )
 
-    def register_synonyms(self, primary_term: str, synonyms: list[str]) -> int:
-        """Register a synonym cluster and return total synonyms for the term."""
-        self._engine.synonym_expander.register_synonyms(primary_term, synonyms)
-        return len(self._engine.synonym_expander.get_synonyms(primary_term))
-
     def trip_circuit_breaker(self, reason: str = "manual") -> tuple[str, int]:
         """Force trip the embedding circuit breaker for disaster testing."""
         self._engine.trip_circuit_breaker(reason=reason)

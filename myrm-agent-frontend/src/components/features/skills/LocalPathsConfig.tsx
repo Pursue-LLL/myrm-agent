@@ -14,6 +14,7 @@ import { toast } from '@/hooks/shared/useToast';
 import { previewLocalSkillPath } from '@/services/skill';
 import type { LocalSkillPathPreviewResponse } from '@/store/skill/types';
 import { LocalSkillPathScanPreviewBeforeAdoptDialog } from './LocalSkillPathScanPreviewBeforeAdoptDialog';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 interface LocalPathsConfigProps {
   className?: string;
@@ -21,6 +22,7 @@ interface LocalPathsConfigProps {
 
 const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
   const t = useTranslations('settings.skills.local');
+  const tCommon = useTranslations('common');
 
   const {
     localSkillPaths,
@@ -110,13 +112,13 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     } catch (error) {
       toast({
         title: t('error.previewFailed'),
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : tCommon('unknownError'),
         variant: 'destructive',
       });
     } finally {
       setIsAdding(false);
     }
-  }, [newPath, localSkillPaths, t]);
+  }, [newPath, localSkillPaths, t, tCommon]);
 
   // 确认采纳路径并持久化（调用原子采纳接口，启用用户勾选的技能）
   const handleConfirmAdopt = useCallback(
@@ -139,14 +141,14 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
       } catch (error) {
         toast({
           title: t('error.addFailed'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : tCommon('unknownError'),
           variant: 'destructive',
         });
       } finally {
         setIsAdopting(false);
       }
     },
-    [previewData, newPath, adoptLocalSkillPath, t],
+    [previewData, newPath, adoptLocalSkillPath, t, tCommon],
   );
 
   // 仅添加路径（不采纳启用任何技能）
@@ -169,13 +171,13 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     } catch (error) {
       toast({
         title: t('error.addFailed'),
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : tCommon('unknownError'),
         variant: 'destructive',
       });
     } finally {
       setIsAdopting(false);
     }
-  }, [previewData, newPath, adoptLocalSkillPath, t]);
+  }, [previewData, newPath, adoptLocalSkillPath, t, tCommon]);
 
   // 复制路径到剪贴板
   const handleCopyPath = useCallback(
@@ -205,12 +207,12 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
       } catch (error) {
         toast({
           title: t('error.removeFailed'),
-          description: error instanceof Error ? error.message : 'Unknown error',
+          description: error instanceof Error ? error.message : tCommon('unknownError'),
           variant: 'destructive',
         });
       }
     },
-    [removeLocalSkillPath, t],
+    [removeLocalSkillPath, t, tCommon],
   );
 
   // 扫描技能
@@ -225,13 +227,13 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     } catch (error) {
       toast({
         title: t('error.scanFailed'),
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : tCommon('unknownError'),
         variant: 'destructive',
       });
     } finally {
       setIsScanning(false);
     }
-  }, [scanLocalSkills, localSkills.length, t]);
+  }, [scanLocalSkills, localSkills.length, t, tCommon]);
 
   if (!isMounted) {
     return null;
@@ -308,7 +310,10 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                        className={cn(
+                          'h-8 w-8 transition-opacity text-muted-foreground hover:text-foreground',
+                          REVEAL_ON_HOVER,
+                        )}
                         title={t('copyPath')}
                         onClick={() => handleCopyPath(path)}
                       >
@@ -321,7 +326,10 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                        className={cn(
+                          'h-8 w-8 transition-opacity text-destructive hover:text-destructive',
+                          REVEAL_ON_HOVER,
+                        )}
                         onClick={() => handleRemovePath(path)}
                       >
                         <Trash2 className="h-4 w-4" />

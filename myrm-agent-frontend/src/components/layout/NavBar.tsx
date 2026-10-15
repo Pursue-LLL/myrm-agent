@@ -463,7 +463,7 @@ function NavBarInner({
         <Tooltip>
           <TooltipTrigger asChild>
             <Link
-              href="/settings/browser"
+              href="/settings/extensionBridge"
               onClick={closeMobileSidebar}
               className="inline-flex items-center justify-center w-10 h-10 rounded-xl transition-transform hover:scale-105"
               aria-label={badges.extensionConnected ? t('nav.extensionConnected') : t('nav.extensionDisconnected')}

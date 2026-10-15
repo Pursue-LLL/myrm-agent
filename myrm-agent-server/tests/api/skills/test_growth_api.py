@@ -94,6 +94,7 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
     assert evolution_item["apply_status"] == "NOT_APPLIED"
     assert evolution_item["has_diff"] is True
     assert evolution_item["security_scan_summary"] == {"score": 100, "trust_recommendation": "trusted", "total_findings": 0}
+    assert "test_passed" not in evolution_item
     assert "original_content" not in evolution_item
     assert "proposed_content" not in evolution_item
 
@@ -102,8 +103,8 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
     detail = detail_response.json()["data"]
     assert detail["original_content"] == "def current():\n    pass\n"
     assert detail["proposed_content"] == "def current():\n    return 1\n"
+    assert "test_passed" not in detail
     assert detail["security_scan_summary"] == {"score": 100, "trust_recommendation": "trusted", "total_findings": 0}
-
 
 
 @pytest.mark.asyncio
@@ -239,41 +240,3 @@ async def test_skill_growth_case_includes_verification_proof(
     assert data["verification_proof"]["blast_radius"]["lines"] == 25
     assert data["target_layer"] == "prompt"
     assert data["target_pathology"] == "unhandled_exception"
-
-
-def test_manifest_attribution_endpoint(client: TestClient) -> None:
-    """Verify POST /api/v1/skill-growth/manifest-attribution returns structured attribution."""
-    payload = {
-        "manifest_id": "manifest-001",
-        "target_component": "skills/web_search",
-        "rationale": "Improve query reformulation pass rate",
-        "predictions": [
-            {
-                "metric_name": "pass_rate",
-                "direction": "increase",
-                "baseline_value": 0.60,
-                "target_value": 0.85,
-                "tolerance": 0.05,
-            },
-            {
-                "metric_name": "total_cost",
-                "direction": "preserve_min",
-                "baseline_value": 0.01,
-                "target_value": 0.01,
-                "tolerance": 0.02,
-            },
-        ],
-        "actual_metrics": {
-            "pass_rate": 0.90,
-            "total_cost": 0.01,
-        },
-    }
-
-    response = client.post("/api/v1/skill-growth/manifest-attribution", json=payload)
-    assert response.status_code == 200
-    data = response.json()["data"]
-    assert data["manifest_id"] == "manifest-001"
-    assert data["overall_verdict"] == "confirmed"
-    assert data["recommended_action"] == "keep"
-    assert len(data["metric_attributions"]) == 2
-    assert data["metric_attributions"][0]["verdict"] == "confirmed"

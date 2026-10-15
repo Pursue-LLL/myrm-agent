@@ -6,9 +6,11 @@ import asyncio
 import logging
 import uuid
 from collections.abc import AsyncGenerator
+from contextvars import Token
 
 from myrm_agent_harness.agent.config.exceptions import ConfigIncompleteError
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
+from myrm_agent_harness.core.security.types import EphemeralUserCredential, user_credentials_ctx
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
@@ -407,7 +409,7 @@ async def yield_stream_exception_chunks(
             },
         }
         if exc.context and "cooldown_remaining_ms" in exc.context:
-            error_data["retry_after_ms"] = exc.context["cooldown_remaining_ms"]
+            error_data["cooldown_remaining_ms"] = exc.context["cooldown_remaining_ms"]
         yield SSEEnvelope.from_any(error_data).to_sse_chunk()
         await _record_turn_capability_failed_once(
             session,
@@ -426,12 +428,10 @@ async def yield_stream_exception_chunks(
 
 async def finalize_agent_stream_session(
     session: AgentStreamSession,
-    token_ctx: object,
+    token_ctx: Token[tuple[EphemeralUserCredential, ...]],
     approval: ApprovalTimeoutHolder,
     clarification: ClarificationTimeoutHolder,
 ) -> None:
-    from myrm_agent_harness.agent.security import user_credentials_ctx
-
     user_credentials_ctx.reset(token_ctx)
     draft = getattr(session, "pending_session_draft", None)
     if draft is not None and not draft.committed:
@@ -448,11 +448,9 @@ async def finalize_agent_stream_session(
             await commit_lazy_session_barrier(session)
 
     if session.collector.has_persistable_turn and session.request.chat_id and (draft is None or draft.committed):
-        import asyncio
         import re
 
         from myrm_agent_harness.api.hooks import (
-            get_memory_manager,
             get_memory_runtime_budget,
             get_memory_runtime_injection,
         )
@@ -476,13 +474,6 @@ async def finalize_agent_stream_session(
             content = re.sub(r"<cite:[^>]+>", "", content)
             extra_data["citations"] = citations
 
-        injection: dict[str, str] | None = None
-        manager = None
-        if citations:
-            try:
-                manager = get_memory_manager()
-            except Exception as e:
-                logger.warning("Failed to resolve memory manager in finalize: %s", e)
         try:
             budget = get_memory_runtime_budget()
         except Exception as e:
@@ -495,8 +486,6 @@ async def finalize_agent_stream_session(
         except Exception as e:
             logger.warning("Failed to read memory injection in finalize: %s", e)
             injection = None
-        if citations and manager and hasattr(manager, "record_citations"):
-            asyncio.create_task(manager.record_citations(citations))
         status_payload = build_memory_brief_status_payload(brief_status, injection)
         status_payload = enrich_memory_brief_status_with_session_ephemeral_deltas(
             status_payload,
@@ -596,30 +585,7 @@ async def finalize_agent_stream_session(
     params = getattr(session, "params", None)
     enable_skill_manage = getattr(params, "enable_skill_manage", False) if params is not None else False
 
-    if (
-        session.collector.has_content
-        and session.request.chat_id
-        and not is_cancelled
-        and enable_skill_manage
-    ):
-        try:
-            from app.services.agent.evolution.engine import trigger_skill_evolution
-
-            tool_steps = len(session.collector._progress_steps)
-            dw_text: str | None = None
-            if session.request.use_workflow and session.collector.content:
-                dw_text = session.collector.content
-
-            trigger_skill_evolution(
-                chat_id=session.request.chat_id,
-                model_cfg=session.params.model_cfg,
-                tool_steps_count=tool_steps,
-                conversation_text=dw_text,
-                agent_id=getattr(session.request, "agent_id", None),
-            )
-        except Exception as evo_exc:
-            logger.debug("Skill evolution trigger skipped: %s", evo_exc)
-
+    if session.collector.has_content and session.request.chat_id and not is_cancelled and enable_skill_manage:
         # Flush remaining sliding window slice (sub-threshold residual)
         try:
             from myrm_agent_harness.agent.skills.evolution.core.types import (

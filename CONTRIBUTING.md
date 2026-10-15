@@ -1,12 +1,12 @@
 # Contributing to myrm-agent
 
-Thank you for helping improve MyrmAgent. This repository is the MIT-licensed product monorepo (server, Web UI, desktop).
+Thank you for helping improve MyrmAgent. This repository is the MIT-licensed monorepo: the Agent framework (`myrm-agent-harness`), the product server, Web UI and desktop client.
 
 ## Before you start
 
-1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for five-repo boundaries and deployment modes.
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for repository boundaries and deployment modes.
 2. Read [_ARCH.md](_ARCH.md) for directory responsibilities.
-3. Agent execution lives in the closed-source PyPI package `myrm-agent-harness` — do not vendor harness source here.
+3. Agent execution lives in [myrm-agent-harness/](myrm-agent-harness/) (the framework, also published to PyPI as `myrm-agent-harness`). It must never import from the product server — see [myrm-agent-harness/FRAMEWORK_DESIGN_PRINCIPLES.md](myrm-agent-harness/FRAMEWORK_DESIGN_PRINCIPLES.md).
 
 ## Documentation reading path (~30 min)
 
@@ -14,7 +14,7 @@ Use this order on your first contribution — you do not need to read all 300+ `
 
 | Step | Read | Why |
 |------|------|-----|
-| 1 | [ARCHITECTURE.md](ARCHITECTURE.md) | Five-repo boundaries, three deployment modes, harness vs server split |
+| 1 | [ARCHITECTURE.md](ARCHITECTURE.md) | Repository boundaries, three deployment modes, harness vs server split |
 | 2 | [_ARCH.md](_ARCH.md) | Top-level package map (server / frontend / desktop / extension / shared) |
 | 3 | Area you will touch | Server: [app/_ARCH.md](myrm-agent-server/app/_ARCH.md) · Frontend: [src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md) · Desktop: [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md) · Extension: [myrm-agent-extension/_ARCH.md](myrm-agent-extension/_ARCH.md) |
 | 4 | Target subdirectory `_ARCH.md` | File table for the module you are editing (CI requires keeping it in sync) |
@@ -58,12 +58,10 @@ For channels work, use [task path C](#c--channels-im--webhook) below (three-laye
 ## Development setup
 
 ```bash
-# From repo root (OSS-only: PyPI harness via uv sync)
+# From repo root (the in-repo harness is installed editable via uv sync)
 bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
-
-Monorepo maintainers with a sibling harness checkout: `setup` auto-installs editable; see [scripts/_ARCH.md](scripts/_ARCH.md).
 
 Manual split:
 
@@ -100,7 +98,7 @@ See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.
 
 ## Harness vs product boundaries (read before adding tools or skills)
 
-Myrm splits **Agent framework** (`myrm-agent-harness` on PyPI) from **product** (`myrm-agent-server`).
+Myrm splits **Agent framework** (`myrm-agent-harness/`, published to PyPI) from **product** (`myrm-agent-server`).
 
 | Want to add… | Put it here | Do **not** put it here |
 |--------------|-------------|-------------------------|
@@ -129,7 +127,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`a2a` · `approvals` · `audit` · `batch_directory` · `browser_recording` · `browser_spaces` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `message_filter` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
+`a2a` · `approvals` · `audit` · `batch_directory` · `browser_recording` · `browser_spaces` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `features` · `files` · `integrations` · `kanban` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 
@@ -139,12 +137,10 @@ These domains use matching names under both layers:
 | `chats/` | `chat/` | Session CRUD, compaction, message handling |
 | `projects/` | `project/` | Project CRUD and chat assignment |
 | `events/` | `event/` | Agent runtime event persistence |
-| `mobile/` | `mobile_adb/` | Mobile device management, wireless ADB pairing and actions |
 | `background_tasks/` | `background/` | Long-running worker jobs (UI panel) |
-| `batch_optimization/` | `skill_optimization/` | Batch skill optimization flows |
 | `credentials/` | `integrations/` (+ `config/`) | OAuth / MCP credential slots |
 | `api_keys/` | `config/` | API key storage and rotation |
-| `system/` · `health/` | `infra/` · `power/` | Ops, shutdown, sleep inhibition |
+| `system/` · `health/` | `infra/` | Ops, shutdown, sleep inhibition |
 | `files/` (HTTP upload) | `files/` (bytes→text) + `artifacts/` | Deploy bundles and share tokens often touch `services/artifacts/` |
 
 ### `api/` only — no sibling `services/<same-name>/`
@@ -190,16 +186,12 @@ Called from other HTTP trees or lifecycle hooks:
 | `observability/` | Runtime quota metrics and meter service (`api/statistics/quota_runtime_router.py`) |
 | `repair/` | `api/health/` repair-action endpoints |
 | `locked_use/` | Computer Use / Tauri IPC orchestration |
-| `cron_digest/` | Natural language to Cron compilation and entity-clustered timeline reports |
 | `bitable_copilot/` | Multidimensional table copilot and field extraction engine |
 | `event/` | `api/events/`, agent stream persistence |
-| `host_assets/` | Remote server assets synchronization and status polling |
-| `remote_host/` | SSH bridge and remote execution management |
 | `rules/` | TTSR zero-tax stream rules and boundary guards |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
-| `templates/` | Preset agent application templates: persona asset discovery, parsing and one-click instantiation |
 | `ui_interaction/` | Reverse UI handshake between harness `ExtensionUIContext` and clients (`api/chats/chat/ui_interaction.py`) |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.

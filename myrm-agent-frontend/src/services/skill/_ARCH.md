@@ -9,8 +9,8 @@
 | 文件              | 职责                                                                                                                         |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `core.ts`         | `/skills/*` CRUD、生命周期、用户配置、扫描、本机路径；`approveSkillDraft` / `rejectSkillDraft`；导出预览摘要 `review_digest` 与带错误码的 `SkillExportError`                               |
-| `growth.ts`       | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit                                                                 |
-| `optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；`/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
+| `growth.ts`       | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit；`/evolution/*` 审批、修订与回滚（`rollbackSkillEvolution`）       |
+| `optimization.ts` | `/skill-optimization/*` 版本列表/对比/回滚、skill_manage 批次撤销（`/mutations/{id}/rollback`） |
 | `migration.ts`    | External assistant skill migration staging 与 review client                                                                  |
 
 ## 依赖

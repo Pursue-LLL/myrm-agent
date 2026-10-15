@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 /** Reference model picker shared by MoA overlay settings. */
 export function ConsensusRefModels({
@@ -32,7 +34,7 @@ export function ConsensusRefModels({
             <span className="text-foreground/80 max-w-[120px] truncate">{sel.model}</span>
             <button
               type="button"
-              className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              className={cn('ml-0.5 transition-opacity text-muted-foreground hover:text-destructive', REVEAL_ON_HOVER)}
               onClick={() => {
                 const next = [...refs];
                 next.splice(idx, 1);

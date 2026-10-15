@@ -10,7 +10,7 @@
  * handleWakePhaseTransition: 处理两阶段唤醒自愈纯逻辑（供单测使用）。
  *
  * [POS]
- * 桌面端系统唤醒自愈服务，消除开盖假死与半开死连接。
+ * 桌面端系统唤醒自愈服务：重新同步残留 loading 的会话、刷新历史与后台任务；仍在运行的轮次不被唤醒打断。
  */
 
 import useChatStore from '@/store/useChatStore';
@@ -46,17 +46,16 @@ export async function handleWakePhaseTransition(
 
   if (payload.phase === 'ready') {
     const store = dependencies.getState();
-    const { chatId, loading, loadMessages, loadChatHistory, setLoading } = store;
+    const { chatId, loading, abortController, loadMessages, loadChatHistory } = store;
 
-    // 1. 若当前活跃会话处于流式 loading 状态，执行断点探活同步
-    if (chatId && loading) {
+    // 1. 残留的 loading（没有轮次句柄）重新同步消息，由 loadMessages 自行结束 loading。
+    // 持有 abortController 的轮次归它自己的流管理（终止事件 / 看门狗 / Stop），唤醒不得抢先释放，
+    // 否则仍在运行的轮次会失去停止按钮。
+    if (chatId && loading && !abortController) {
       try {
         await loadMessages(chatId);
       } catch (err) {
         console.warn('[WakeRecovery] Failed to synchronize messages after wake:', err);
-      } finally {
-        // 解除假死转圈状态，让用户能够继续交互或查看已落盘消息
-        setLoading(false);
       }
     }
 

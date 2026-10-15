@@ -81,7 +81,6 @@ class FeishuChannel(FeishuOutboundMixin, FeishuInboundMixin, BaseChannel):
         buttons=True,
         quick_replies=True,
         select_menus=True,
-        interactive_callback=True,
         threads=True,
         edit=True,
         delete=True,

@@ -32,7 +32,7 @@ def test_client():
     """Create a test client with noop lifespan and auth bypass.
 
     Uses noop lifespan to avoid event-loop binding conflicts with module-level
-    Queue singletons (e.g. MaintenanceDaemon, ABTestManager) initialized during
+    Queue singletons (e.g. MaintenanceDaemon) initialized during
     app startup. Monkeypatches resolve_identity to bypass auth.
     """
     from contextlib import asynccontextmanager

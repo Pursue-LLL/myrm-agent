@@ -93,38 +93,6 @@ async def test_offline_guardian_error_notification_full_chain(test_client: TestC
 
 
 @pytest.mark.asyncio
-async def test_offline_guardian_resume_failure_notification_full_chain(test_client: TestClient) -> None:
-    """Full chain: durable resume failure notification → API returns correct fields."""
-    from app.services.infra.system_notification import SystemNotificationService
-
-    nid = await SystemNotificationService.create_notification(
-        title="Task Resume Failed",
-        message="A background task could not be resumed after a server restart. Please retry from the chat.",
-        type="error",
-        source="offline_guardian",
-        meta_data={
-            "chat_id": "e2e-chat-resume",
-            "action_url": "/e2e-chat-resume",
-        },
-    )
-    assert nid
-
-    resp = test_client.get("/api/v1/notifications")
-    assert resp.status_code == 200
-    data = resp.json()
-
-    items = data["items"]
-    matched = [n for n in items if n["id"] == nid]
-    assert len(matched) == 1
-
-    notif = matched[0]
-    assert notif["title"] == "Task Resume Failed"
-    assert notif["type"] == "error"
-    assert notif["source"] == "offline_guardian"
-    assert notif["meta_data"]["action_url"] == "/e2e-chat-resume"
-
-
-@pytest.mark.asyncio
 async def test_notification_mark_read_works_for_offline_guardian(test_client: TestClient) -> None:
     """Offline guardian notifications can be marked as read via API."""
     from app.services.infra.system_notification import SystemNotificationService

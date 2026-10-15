@@ -3,27 +3,22 @@
 [INPUT]
 - app.core.channel_bridge.setup::start_channel_gateway (POS: 渠道网关启动器)
 - app.database.allowlist_store::DBAllowlistStore (POS: HITL 白名单持久化存储)
-- app.database.models.chat::OfflineDurableTask (POS: 离线持久任务表模型)
-- app.services.agent.streaming::ai_agent_service_stream (POS: Agent 流式服务层)
-- app.services.agent.runtime_context::build_agent_runtime_context (POS: 运行时上下文注入 helper)
 - myrm_agent_harness.agent.goals.storage::GoalStorage (POS: 目标存储)
 - app.services.event.app_event_bus::AppEventBus (POS: 业务层 SSE 应用级事件总线)
 
 [OUTPUT]
 - start_channel_gateway: 启动渠道网关（多聊天平台集成）
 - init_allowlist_store: 初始化 HITL 白名单持久化存储
-- resume_durable_offline_tasks: 恢复中断的后台任务（LangGraph 断点续跑）
 - pause_orphaned_active_goals: 重启后暂停孤儿活跃目标
 - start_idle_task_listeners: 转发 IdleTask 进度事件到 ServerEventBus
 
 [POS]
-启动编排层。聚合渠道网关、HITL 白名单、离线任务恢复、孤儿 Goal 暂停、
+启动编排层。聚合渠道网关、HITL 白名单、孤儿 Goal 暂停、
 空闲任务监听等系统组件在启动时的初始化与编排。
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -62,162 +57,6 @@ async def init_workspace_trust_store() -> None:
         await _init()
     except Exception as e:
         logger.error("Workspace trust store initialization failed: %s", e)
-
-
-async def resume_durable_offline_tasks() -> None:
-    """Resume interrupted background tasks on server startup.
-
-    Reads from the offline_durable_tasks table and uses the LangGraph
-    checkpointer to restart the state machines for tasks that were
-    abandoned due to a server crash or restart.
-    """
-    try:
-        from sqlalchemy import select
-
-        from app.database.models.chat import OfflineDurableTask
-        from app.platform_utils import get_checkpointer, get_session_factory
-
-        checkpointer = get_checkpointer()
-        if not checkpointer:
-            logger.warning("Checkpointer not available, skipping durable task resume")
-            return
-
-        session_factory = get_session_factory()
-        async with session_factory() as db:
-            result = await db.execute(select(OfflineDurableTask))
-            tasks = result.scalars().all()
-
-            if not tasks:
-                return
-
-            logger.info(f"🔄 Found {len(tasks)} interrupted offline tasks. Attempting resume...")
-
-            for task in tasks:
-                logger.info(f"▶️ Resuming durable task for chat: {task.chat_id} (action: {task.action_mode})")
-
-                # Construct params from serialized state, dispatch to a background
-                # task and consume the stream silently (Offline Guardian mode).
-                from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
-
-                from app.ai_agents import GeneralAgentParams
-
-                async def _background_resume_worker(task_record: OfflineDurableTask) -> None:
-                    try:
-                        # Construct minimal params to resume from checkpoint
-                        from typing import cast
-
-                        from app.services.agent.params import _extract_text_from_query
-                        from app.services.agent.params.models import MultimodalQuery
-
-                        if not task_record.serialized_params:
-                            logger.warning(
-                                "Skipping offline resume for task %s: missing serialized_params",
-                                task_record.id,
-                            )
-                            return
-
-                        params = GeneralAgentParams.model_validate(task_record.serialized_params)
-                        params.message_id = task_record.id  # Use task ID as trace
-
-                        if not params.model_cfg:
-                            logger.warning(
-                                "Skipping offline resume for task %s: missing model_cfg in serialized params",
-                                task_record.id,
-                            )
-                            return
-
-                        token = CancellationToken(request_id=task_record.id)
-
-                        if task_record.action_mode in ("deep_research", "agentic_search"):
-                            from myrm_agent_harness.toolkits.llms import llm_manager
-
-                            from app.services.agent.streaming import ai_deep_research_service_stream
-
-                            llm = await llm_manager.get_llm_from_config(params.model_cfg)
-
-                            raw_q = params.query
-                            if isinstance(raw_q, str) or isinstance(raw_q, list):
-                                text_query = _extract_text_from_query(cast(MultimodalQuery, raw_q))
-                            else:
-                                text_query = ""
-
-                            stream = ai_deep_research_service_stream(
-                                llm=llm,
-                                query=text_query,
-                                message_id=params.message_id or "",
-                                chat_history=[],
-                                parent_tools=[],
-                                cancel_token=token,
-                                context={"session_id": params.chat_id or ""},
-                            )
-                        else:
-                            from app.services.agent.execution_cache.types import ExecutionMode
-                            from app.services.agent.runtime_context import build_agent_runtime_context
-                            from app.services.agent.streaming import ai_agent_service_stream
-
-                            runtime_context = await build_agent_runtime_context(
-                                execution_mode=ExecutionMode.POOLED,
-                            )
-                            stream = ai_agent_service_stream(
-                                params=params,
-                                cancel_token=token,
-                                extra_context=runtime_context,
-                            )
-
-                        # Consume stream silently
-                        async for _chunk in stream:
-                            pass
-
-                        logger.info(f"✅ Resumed task completed for chat: {task_record.chat_id}")
-
-                        # Notify user
-                        from app.services.infra.system_notification import SystemNotificationService
-
-                        await SystemNotificationService.create_notification(
-                            title="Task Completed (Offline Guardian Resume)",
-                            message="Your background task has successfully completed after a server restart.",
-                            type="success",
-                            source="offline_guardian",
-                            meta_data={
-                                "chat_id": task_record.chat_id,
-                                "action_url": f"/{task_record.chat_id}",
-                            },
-                        )
-
-                    except Exception as e:
-                        logger.error(f"❌ Failed to resume task {task_record.chat_id}: {e}", exc_info=True)
-                        try:
-                            from app.services.infra.system_notification import SystemNotificationService
-
-                            await SystemNotificationService.create_notification(
-                                title="Task Resume Failed",
-                                message="A background task could not be resumed after a server restart. Please retry from the chat.",
-                                type="error",
-                                source="offline_guardian",
-                                meta_data={
-                                    "chat_id": task_record.chat_id,
-                                    "action_url": f"/{task_record.chat_id}",
-                                },
-                            )
-                        except Exception as notif_err:
-                            logger.error("Failed to create resume failure notification: %s", notif_err)
-                    finally:
-                        # Cleanup the registration
-                        try:
-                            from sqlalchemy import delete
-
-                            async with session_factory() as cleanup_db:
-                                await cleanup_db.execute(
-                                    delete(OfflineDurableTask).where(OfflineDurableTask.id == task_record.id)
-                                )
-                                await cleanup_db.commit()
-                        except Exception as e:
-                            logger.error(f"Failed to cleanup task record {task_record.chat_id}: {e}")
-
-                asyncio.create_task(_background_resume_worker(task))
-
-    except Exception as e:
-        logger.error(f"Failed to initialize durable offline tasks: {e}", exc_info=True)
 
 
 async def pause_orphaned_active_goals() -> None:

@@ -40,7 +40,6 @@ from app.lifecycle import (
     init_workspace_trust_store,
     pause_orphaned_active_goals,
     shutdown_global_browser_pool,
-    shutdown_skill_optimization_listeners,
     start_channel_gateway,
     start_cron_scheduler,
     start_kanban_dispatchers,
@@ -417,11 +416,41 @@ async def _phase_1a_sequential() -> None:
         logger.warning("[Startup] Providers key consolidation failed (non-critical): %s", e)
 
     try:
+        from app.database.connection import get_session
+        from app.services.integrations.retired_provider_oauth_purge import (
+            purge_retired_provider_credentials,
+        )
+
+        async with get_session() as db:
+            await purge_retired_provider_credentials(db)
+    except Exception as e:
+        logger.warning("[Startup] Retired provider OAuth credential purge failed (non-critical): %s", e)
+
+    # Subscription access tokens are short-lived, so a model instance that outlives one renews it per request.
+    try:
+        from myrm_agent_harness.api.hooks import set_api_key_refresher
+
+        from app.services.agent.provider_oauth_tokens import freshen_api_key
+
+        set_api_key_refresher(freshen_api_key)
+    except Exception as e:
+        logger.error("[Startup] Subscription token refresher registration failed: %s", e)
+
+    try:
         from app.core.infra.tls_config import apply_tls_config_from_db
 
         await apply_tls_config_from_db()
     except Exception as e:
         logger.debug("[Startup] TLS config from DB skipped: %s", e)
+
+    # Privacy protection must cover model calls that have no agent run (titles, summaries, memory extraction)
+    # from the first request, so the saved policy is published before any of them can happen.
+    try:
+        from app.core.security.privacy_policy_sync import apply_privacy_policy_from_db
+
+        await apply_privacy_policy_from_db()
+    except Exception as e:
+        logger.error("[Startup] Privacy policy from saved settings failed to apply: %s", e)
 
     # Register Control Plane URL to Harness SSRF dynamic blocklist
     try:
@@ -549,20 +578,6 @@ async def _phase_1b_parallel() -> None:
                 sandboxes_root,
             )
 
-    async def _init_optimization_scheduler_task() -> None:
-        from app.core.infra.server_globals import set_optimization_scheduler
-        from app.services.skill_optimization.scheduler_factory import (
-            create_optimization_scheduler,
-        )
-
-        optimization_scheduler = await create_optimization_scheduler()
-        if optimization_scheduler:
-            set_optimization_scheduler(optimization_scheduler)
-            await optimization_scheduler.start_monitoring()
-            logger.info("[Startup] OptimizationScheduler initialized and worker started successfully")
-        else:
-            logger.warning("[Startup] OptimizationScheduler initialization skipped (dependencies missing)")
-
     async def _init_idle_handlers_task() -> None:
         from app.core.infra.idle_handlers import register_all_idle_handlers
 
@@ -646,7 +661,6 @@ async def _phase_1b_parallel() -> None:
         _init_permission_logger_task(),
         _init_context_cleanup_task(),
         _init_context_guard_sweeper_task(),
-        _init_optimization_scheduler_task(),
         _init_idle_handlers_task(),
         _init_prebuilt_skills(),
         _init_builtin_agents(),
@@ -668,7 +682,6 @@ async def _phase_1b_parallel() -> None:
         "Permission logger",
         "Context cleanup",
         "ContextGuard sweep",
-        "Optimization scheduler",
         "Idle handlers",
         "Prebuilt skills",
         "Built-in agents",
@@ -717,14 +730,6 @@ async def _shutdown(app_instance: FastAPI) -> None:
             logger.info("[Shutdown] Frontend server stopped")
         except Exception as e:
             logger.error("[Shutdown] Frontend stop failed: %s", e)
-
-    try:
-        from app.core.storage.lifecycle import shutdown_all_storages
-
-        await shutdown_all_storages(timeout=60.0, force=False)
-        logger.info("[Shutdown] Storage instances closed")
-    except Exception as e:
-        logger.error("[Shutdown] Storage shutdown failed: %s", e)
 
     if _context_cleanup_scheduler_instance is not None:
         try:
@@ -815,7 +820,6 @@ async def _shutdown(app_instance: FastAPI) -> None:
         stop_rate_limiter_cleanup(),
         safe_wait_background_tasks(),
         safe_shutdown_observability(),
-        shutdown_skill_optimization_listeners(),
         shutdown_evolution_runtime(),
         stop_integration_sync_daemon(),
         harness_bridge_task,

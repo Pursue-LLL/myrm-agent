@@ -2,33 +2,35 @@
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 审批持久化模型)
 - app.services.event.app_event_bus::AppEvent (POS: 服务器级 SSE 总线)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
+- app.services.approvals.outbound_draft::finalize_outbound_draft (POS: 被扣留回复定案后的发送/释放/收尾)
 - app.services.skills.growth.constants::is_background_growth_approval (POS: growth draft 分流 SSOT)
 
 [OUTPUT]
 - ApprovalRegistry: 统一的拦截审批注册与唤醒中枢
 - list_pending_growth: PENDING 背景成长草稿查询（去重/上限 SSOT）
-- send_outbound_draft_payload: Outbound draft 整条回复重建与发送（WebUI/Channel/TTL 共享）
-- discard_outbound_draft_payload: 被拒绝/过期不发送的 outbound draft 释放其临时附件
+- find_pending_outbound_drafts: 按 ID 前缀查找待审核的被扣留回复（/draft 命令入口，仅 outbound_draft）
 
 [POS]
 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。
+outbound_draft 的定案（WebUI/IM 按钮/`/draft`/批量/TTL）统一在此收口：状态提交后调用 finalize_outbound_draft。
+定案是读后写（resolve_approval、TTL 清理），事务起始先取 SQLite 写锁：并发的定案只有一方生效，另一方等待后读到已定案状态
+（resolve_approval 返回 None），不会重复发送，也不会以 "database is locked" 失败。
 """
 
-import dataclasses
+import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import and_, func, or_, select
 
 from app.database.connection import get_session
+from app.database.factory import acquire_write_lock
 from app.database.models.approval import ApprovalRecord
+from app.services.approvals.outbound_draft import finalize_outbound_draft
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 from app.services.skills.growth.constants import GROWTH_ACTION_TYPES, is_background_growth_approval
-
-if TYPE_CHECKING:
-    from app.channels.types import OutboundMessage
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ class ApprovalRegistry:
             The number of approvals that were auto-rejected.
         """
         async with get_session() as db:
+            await acquire_write_lock(db)  # as in resolve_approval: a click racing the sweep decides the record only once
             stmt = select(ApprovalRecord).where(
                 and_(
                     ApprovalRecord.status == "PENDING",
@@ -57,8 +60,7 @@ class ApprovalRegistry:
             if not expired_records:
                 return 0
 
-            outbound_auto_send_records: list[ApprovalRecord] = []
-            outbound_unsent_records: list[ApprovalRecord] = []
+            expired_drafts: list[ApprovalRecord] = []
 
             for record in expired_records:
                 record.resolved_at = datetime.now(timezone.utc)
@@ -68,11 +70,10 @@ class ApprovalRegistry:
                     if timeout_action == "auto_send":
                         record.status = "APPROVED"
                         record.reason = (record.reason or "") + "\n\n[Auto-Sent: TTL Expired]"
-                        outbound_auto_send_records.append(record)
-                        continue
-                    record.status = "TIMEOUT"
-                    record.reason = (record.reason or "") + "\n\n[Auto-Rejected: TTL Expired]"
-                    outbound_unsent_records.append(record)
+                    else:
+                        record.status = "TIMEOUT"
+                        record.reason = (record.reason or "") + "\n\n[Auto-Rejected: TTL Expired]"
+                    expired_drafts.append(record)
                     continue
 
                 record.status = "TIMEOUT"
@@ -101,21 +102,10 @@ class ApprovalRegistry:
 
             await db.commit()
 
-        for record in outbound_auto_send_records:
-            try:
-                await cls._send_outbound_draft(record)
-            except Exception as e:
-                logger.error("Failed to auto-send expired outbound draft %s: %s", record.id, e)
-
-        for record in outbound_unsent_records:
-            discard_outbound_draft_payload(record.payload or {}, record.id)
+        # Finalizing never raises; running the drafts together keeps one slow platform call from holding up the rest.
+        await asyncio.gather(*(finalize_outbound_draft(record) for record in expired_drafts))
 
         return len(expired_records)
-
-    @classmethod
-    async def _send_outbound_draft(cls, record: ApprovalRecord) -> None:
-        """Send the held outbound draft message to the channel."""
-        await send_outbound_draft_payload(record.payload or {}, record.agent_id, record.id)
 
     @classmethod
     async def create_approval(
@@ -252,6 +242,10 @@ class ApprovalRegistry:
             decision: 'approve' or 'deny'
         """
         async with get_session() as db:
+            # Check-then-update on one record: with the write lock taken first, a resolver racing this one waits
+            # here and then finds the record decided (None), instead of both deciding it or the loser failing
+            # with "database is locked" once the winner commits.
+            await acquire_write_lock(db)
             stmt = select(ApprovalRecord).where(ApprovalRecord.id == approval_id)
             result = await db.execute(stmt)
             record = result.scalar_one_or_none()
@@ -273,11 +267,14 @@ class ApprovalRegistry:
 
             await db.commit()
             await db.refresh(record)
-            if record.status == "REJECTED" and record.action_type == "outbound_draft":
-                # Here rather than in each resolver (WebUI, IM button, batch), so a rejected draft always frees its files.
-                discard_outbound_draft_payload(record.payload or {}, record.id)
-            await cls._sync_copilot_pending(record.chat_id)
-            return record
+
+        if record.action_type == "outbound_draft":
+            # Here rather than in each resolver (WebUI, IM button, ``/draft``, batch), so every decision on a held
+            # reply sends or releases it and closes the sender's placeholder, whichever door it came through.
+            # After the session is released: sending talks to the channel and must not hold a connection.
+            await finalize_outbound_draft(record)
+        await cls._sync_copilot_pending(record.chat_id)
+        return record
 
     @classmethod
     async def get_approval(cls, approval_id: str) -> ApprovalRecord | None:
@@ -286,6 +283,24 @@ class ApprovalRegistry:
             stmt = select(ApprovalRecord).where(ApprovalRecord.id == approval_id)
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
+
+    @classmethod
+    async def find_pending_outbound_drafts(cls, id_prefix: str) -> list[ApprovalRecord]:
+        """Held replies still awaiting a decision whose id starts with ``id_prefix`` (how ``/draft`` finds one).
+
+        At most two are returned, which is all it takes to tell a unique match from an ambiguous one. Only held
+        replies match, so a code typed in chat can never decide any other kind of approval.
+        """
+        async with get_session() as db:
+            stmt = (
+                select(ApprovalRecord)
+                .where(ApprovalRecord.status == "PENDING")
+                .where(ApprovalRecord.action_type == "outbound_draft")
+                .where(ApprovalRecord.id.startswith(id_prefix, autoescape=True))
+                .limit(2)
+            )
+            result = await db.execute(stmt)
+            return list(result.scalars().all())
 
     @classmethod
     async def count_pending_for_chat(cls, chat_id: str) -> int:
@@ -397,55 +412,3 @@ class ApprovalRegistry:
                 normalized,
             )
         return resolved_count
-
-
-def _decode_held_reply(payload: dict[str, object], record_id: str) -> "OutboundMessage | None":
-    """Rebuild the reply a draft holds (its text lives in ``draft_content``); None without a readable snapshot."""
-    from app.channels.types import OutboundMessage
-
-    snapshot = payload.get("outbound")
-    if not isinstance(snapshot, dict):
-        return None
-    try:
-        return OutboundMessage.from_dict(snapshot)
-    except Exception:
-        logger.warning("Outbound draft %s has an unreadable message snapshot", record_id[:12], exc_info=True)
-        return None
-
-
-async def send_outbound_draft_payload(
-    payload: dict[str, object],
-    agent_id: str | None,
-    record_id: str,
-) -> bool:
-    """Publish the reply a draft approval holds, carrying the (possibly edited) reviewed text.
-
-    Shared by WebUI resolve, Channel ActionButton, and TTL auto-send. The reply goes out exactly as the agent
-    produced it (attachments, buttons, thread); ``agent_id`` only stands in for an unknown owner.
-    Returns True if the message was sent, False if skipped (no readable snapshot, or nothing to send).
-    """
-    from app.core.channel_bridge import get_channel_gateway
-
-    held = _decode_held_reply(payload, record_id)
-    if held is None:
-        logger.warning("Outbound draft %s send skipped: no readable message snapshot", record_id[:12])
-        return False
-
-    content = str(payload.get("draft_content", ""))
-    if not content.strip() and not held.media:
-        logger.warning("Outbound draft %s send skipped: empty content", record_id[:12])
-        return False
-
-    outbound = dataclasses.replace(held, content=content, user_id=held.user_id or agent_id or "system")
-    await get_channel_gateway().publish(outbound)
-    logger.info("Outbound draft %s sent", record_id[:12])
-    return True
-
-
-def discard_outbound_draft_payload(payload: dict[str, object], record_id: str) -> None:
-    """Release the temp attachments of a draft that will never be sent (rejected or expired)."""
-    from app.channels.core.outbound_media import discard_ephemeral_media
-
-    held = _decode_held_reply(payload, record_id)
-    if held is not None:
-        discard_ephemeral_media(held.media)

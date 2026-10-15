@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useId } from 'react';
+import { useTranslations } from 'next-intl';
 import { Key, ShieldCheck, Eye, EyeOff, Plus, Trash2, Clock, AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -48,22 +49,26 @@ export interface MaskedCredentialInputCardProps {
   className?: string;
 }
 
-function validateKeyName(key: string): { isValid: boolean; error?: string } {
+type KeyErrorCode = 'empty' | 'format' | 'blocked';
+type KeyValidation = { isValid: true } | { isValid: false; error: KeyErrorCode };
+
+const TTL_OPTIONS = [
+  { seconds: 30, labelKey: 'ttl30' },
+  { seconds: 60, labelKey: 'ttl60' },
+  { seconds: 120, labelKey: 'ttl120' },
+  { seconds: 300, labelKey: 'ttl300' },
+] as const;
+
+function validateKeyName(key: string): KeyValidation {
   const trimmed = key.trim().toUpperCase();
   if (!trimmed) {
-    return { isValid: false, error: 'Key name cannot be empty' };
+    return { isValid: false, error: 'empty' };
   }
   if (!/^[A-Z_][A-Z0-9_]*$/.test(trimmed)) {
-    return {
-      isValid: false,
-      error: 'Key must only contain uppercase letters, numbers and underscores',
-    };
+    return { isValid: false, error: 'format' };
   }
   if (BLOCKED_SYSTEM_KEYS.has(trimmed)) {
-    return {
-      isValid: false,
-      error: `"${trimmed}" is a protected system environment variable and is blocked`,
-    };
+    return { isValid: false, error: 'blocked' };
   }
   return { isValid: true };
 }
@@ -76,6 +81,7 @@ export function MaskedCredentialInputCard({
   disabled = false,
   className = '',
 }: MaskedCredentialInputCardProps) {
+  const t = useTranslations('toolApproval.maskedCredentials');
   const initialId = useId();
   const [drafts, setDrafts] = useState<CredentialDraft[]>(() => [
     {
@@ -115,18 +121,29 @@ export function MaskedCredentialInputCard({
     [],
   );
 
+  const keyErrorMessage = (error: KeyErrorCode, key: string): string => {
+    switch (error) {
+      case 'empty':
+        return t('keyErrorEmpty');
+      case 'format':
+        return t('keyErrorFormat');
+      case 'blocked':
+        return t('keyErrorBlocked', { key: key.trim().toUpperCase() });
+    }
+  };
+
   const handleStageCredentials = async () => {
     // Validate all drafts
     const validDrafts = drafts.filter((d) => d.key.trim() && d.secret);
     if (validDrafts.length === 0) {
-      toast.warning('Please provide at least one credential with key and secret.');
+      toast.warning(t('toastNoCredential'));
       return;
     }
 
     for (const d of validDrafts) {
       const val = validateKeyName(d.key);
       if (!val.isValid) {
-        toast.error(val.error || 'Invalid credential key name');
+        toast.error(keyErrorMessage(val.error, d.key));
         return;
       }
     }
@@ -151,7 +168,7 @@ export function MaskedCredentialInputCard({
 
       if (!resp.ok) {
         const errorData = (await resp.json().catch(() => ({}))) as { detail?: string };
-        throw new Error(errorData.detail || `Server responded with ${resp.status}`);
+        throw new Error(errorData.detail || t('errorServerStatus', { status: resp.status }));
       }
 
       const resData = (await resp.json()) as {
@@ -175,10 +192,10 @@ export function MaskedCredentialInputCard({
       setDrafts([]);
       setStagedSummaries(newSummaries);
       onStagedChange([...stagedHandles, ...newHandles]);
-      toast.success('Credentials securely masked and staged for single execution.');
+      toast.success(t('toastStaged'));
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      toast.error(`Failed to stage credentials: ${message}`);
+      const message = err instanceof Error ? err.message : t('errorUnknown');
+      toast.error(t('toastStageFailed', { message }));
     } finally {
       setIsStaging(false);
     }
@@ -197,7 +214,7 @@ export function MaskedCredentialInputCard({
         showSecret: false,
       },
     ]);
-    toast.info('Staged credentials cleared.');
+    toast.info(t('toastCleared'));
   };
 
   const hasStaged = stagedSummaries.length > 0;
@@ -210,13 +227,13 @@ export function MaskedCredentialInputCard({
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-amber-500/20">
         <div className="flex items-center gap-2">
           <Key className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <span className="text-sm font-medium text-foreground">Ephemeral Credentials & Single-Use Gate</span>
+          <span className="text-sm font-medium text-foreground">{t('title')}</span>
           <Badge
             variant="outline"
             className="flex items-center gap-1 border-amber-500/40 text-[11px] text-amber-700 dark:text-amber-300"
           >
             <ShieldCheck className="h-3 w-3" />
-            Zero-Disk / Auto-Wipe
+            {t('badgeZeroDisk')}
           </Badge>
         </div>
 
@@ -230,15 +247,12 @@ export function MaskedCredentialInputCard({
             className="h-7 text-xs text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5 mr-1" />
-            Revoke
+            {t('revoke')}
           </Button>
         )}
       </div>
 
-      <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-        Pass sensitive credentials (e.g. database password, OAuth tokens) directly to the sandbox process. Secrets are
-        isolated in ephemeral memory, never written to disk, and never exposed to LLM context or chat logs.
-      </p>
+      <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{t('description')}</p>
 
       {/* Staged summaries view */}
       {hasStaged ? (
@@ -246,7 +260,7 @@ export function MaskedCredentialInputCard({
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-950/30 p-2.5">
             <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 mb-1.5">
               <CheckCircle2 className="h-4 w-4" />
-              Credentials Staged Ready for Execution
+              {t('stagedReady')}
             </div>
             <ul className="space-y-1">
               {stagedSummaries.map((s) => (
@@ -259,7 +273,7 @@ export function MaskedCredentialInputCard({
                     {s.handleId.slice(0, 20)}...
                   </span>
                   <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4">
-                    Single-Use
+                    {t('singleUseBadge')}
                   </Badge>
                 </li>
               ))}
@@ -273,7 +287,7 @@ export function MaskedCredentialInputCard({
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <Key className="h-3 w-3 text-amber-500" />
-                Suggested:
+                {t('suggested')}
               </span>
               {suggestedKeys.map((sKey) => (
                 <button
@@ -309,17 +323,20 @@ export function MaskedCredentialInputCard({
           {/* Input drafts form */}
           <div className="mt-3 space-y-3">
             {drafts.map((draft, idx) => {
-              const keyValidation = draft.key ? validateKeyName(draft.key) : { isValid: true };
+              const keyValidation: KeyValidation = draft.key ? validateKeyName(draft.key) : { isValid: true };
               return (
                 <div key={draft.id} className="rounded-md border border-border/60 bg-background/80 p-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-medium text-muted-foreground">Credential #{idx + 1}</span>
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {t('credentialIndex', { index: idx + 1 })}
+                    </span>
                     {drafts.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveRow(draft.id)}
+                        aria-label={t('removeCredential')}
                         className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                         disabled={disabled}
                       >
@@ -335,7 +352,7 @@ export function MaskedCredentialInputCard({
                         htmlFor={`cred-key-${draft.id}`}
                         className="text-[11px] text-muted-foreground block mb-0.5"
                       >
-                        Variable Key (e.g. DB_PASS)
+                        {t('keyLabel')}
                       </label>
                       <Input
                         id={`cred-key-${draft.id}`}
@@ -349,7 +366,7 @@ export function MaskedCredentialInputCard({
                       {!keyValidation.isValid && (
                         <p className="mt-1 text-[10px] text-destructive flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3 shrink-0" />
-                          {keyValidation.error}
+                          {keyErrorMessage(keyValidation.error, draft.key)}
                         </p>
                       )}
                     </div>
@@ -360,7 +377,7 @@ export function MaskedCredentialInputCard({
                         htmlFor={`cred-secret-${draft.id}`}
                         className="text-[11px] text-muted-foreground block mb-0.5"
                       >
-                        Secret Value (Masked)
+                        {t('secretLabel')}
                       </label>
                       <div className="relative">
                         <Input
@@ -375,6 +392,7 @@ export function MaskedCredentialInputCard({
                         <button
                           type="button"
                           onClick={() => handleUpdateDraft(draft.id, 'showSecret', !draft.showSecret)}
+                          aria-label={draft.showSecret ? t('hideSecret') : t('showSecret')}
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
                           tabIndex={-1}
                         >
@@ -388,23 +406,24 @@ export function MaskedCredentialInputCard({
                   <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      <span>TTL:</span>
+                      <span>{t('ttlLabel')}</span>
                       <select
                         value={draft.ttlSeconds}
                         onChange={(e) => handleUpdateDraft(draft.id, 'ttlSeconds', Number(e.target.value))}
                         disabled={disabled || isStaging}
                         className="bg-transparent border border-border/60 rounded px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none"
                       >
-                        <option value={30}>30s</option>
-                        <option value={60}>60s (Default)</option>
-                        <option value={120}>2 mins</option>
-                        <option value={300}>5 mins</option>
+                        {TTL_OPTIONS.map(({ seconds, labelKey }) => (
+                          <option key={seconds} value={seconds}>
+                            {t(labelKey)}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Lock className="h-3 w-3 text-amber-500" />
-                      <span>Single-use ticket enforced</span>
+                      <span>{t('singleUseEnforced')}</span>
                     </div>
                   </div>
                 </div>
@@ -422,7 +441,7 @@ export function MaskedCredentialInputCard({
                 className="h-7 text-xs"
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
-                Add Another Key
+                {t('addRow')}
               </Button>
 
               <Button
@@ -433,7 +452,7 @@ export function MaskedCredentialInputCard({
                 className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
               >
                 <ShieldCheck className="h-3.5 w-3.5 mr-1" />
-                {isStaging ? 'Securing...' : 'Stage Masked Credentials'}
+                {isStaging ? t('staging') : t('stage')}
               </Button>
             </div>
           </div>

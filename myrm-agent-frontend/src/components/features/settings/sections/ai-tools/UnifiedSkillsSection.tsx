@@ -45,10 +45,10 @@ const UnifiedSkillsSection = memo(() => {
       : activeTab === 'compounding'
         ? t('skills.compounding.subtitle')
         : activeTab === 'inventory'
-          ? '管理和发现智能体的核心技能与方法 / Manage and discover core agent capabilities'
+          ? t('skills.tabSubtitles.inventory')
           : activeTab === 'pending'
-            ? '审查和批准智能体自动成长并进化出的新技能 / Review and approve self-evolved agent skills'
-            : '查看技能成长审计与进化过程中的异常阻断记录 / Inspect growth blockages and audit trails';
+            ? t('skills.tabSubtitles.pending')
+            : t('skills.tabSubtitles.rejections');
 
   return (
     <div className="space-y-6">
@@ -97,7 +97,7 @@ const UnifiedSkillsSection = memo(() => {
         </TabsList>
 
         <TabsContent value="inventory">
-          <SkillsSection />
+          <SkillsSection initialSearch={searchParams.get('search') ?? undefined} />
         </TabsContent>
         <TabsContent value="compounding">
           <CompoundingChecklistSection />

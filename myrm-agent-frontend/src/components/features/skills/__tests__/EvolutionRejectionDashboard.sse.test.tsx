@@ -3,6 +3,7 @@
 import type React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import en from '../../../../../locales/en.json';
 
 const mockListSkillGrowthAudit = vi.hoisted(() => vi.fn());
 const mockGetSkillGrowthAuditStats = vi.hoisted(() => vi.fn());
@@ -17,10 +18,15 @@ vi.mock('sonner', () => ({
   toast: { error: mockToastError },
 }));
 
+const growthTypeNames: Record<string, string> = en.growthDashboard.growthTypes;
+const growthTypeT = Object.assign((key: string) => growthTypeNames[key] ?? key, {
+  has: (key: string) => key in growthTypeNames,
+});
+
 const stableT = (key: string) => key;
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
+  useTranslations: (namespace?: string) => (namespace === 'growthDashboard.growthTypes' ? growthTypeT : stableT),
   useLocale: () => 'en',
 }));
 

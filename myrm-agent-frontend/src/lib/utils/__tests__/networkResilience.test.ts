@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ARCHIVE_RESTORE_ACTION_INVALID,
   FatalNetworkError,
+  abortableDelay,
   isArchiveRestoreActionInvalidError,
   isRetryableHttpStatus,
   isRetryableWebSocketClose,
@@ -49,5 +50,62 @@ describe('networkResilience', () => {
     expect(error.status).toBe(422);
     expect(error.detail).toBe('Archive restore range is outside the archive.');
     expect(error.responseBody).toContain('archive_restore_action_invalid');
+  });
+});
+
+describe('abortableDelay', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('resolves once the delay has elapsed', async () => {
+    vi.useFakeTimers();
+    let settled = false;
+    const wait = abortableDelay(1_000).then(() => {
+      settled = true;
+    });
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await wait;
+
+    expect(settled).toBe(true);
+  });
+
+  it('rejects with an AbortError at once when the signal is already aborted, without starting a timer', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(abortableDelay(1_000, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('ends the wait with an AbortError as soon as the signal aborts, and its timer never outlives it', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const outcome = abortableDelay(60_000, controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+
+    controller.abort();
+
+    await expect(outcome).resolves.toMatchObject({ name: 'AbortError' });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('detaches from the signal once the delay has elapsed', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const detach = vi.spyOn(controller.signal, 'removeEventListener');
+    const wait = abortableDelay(10, controller.signal);
+
+    await vi.advanceTimersByTimeAsync(10);
+    await wait;
+
+    expect(detach).toHaveBeenCalledWith('abort', expect.any(Function));
   });
 });

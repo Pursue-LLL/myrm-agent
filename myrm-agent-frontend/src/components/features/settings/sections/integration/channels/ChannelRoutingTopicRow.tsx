@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Users, ShieldCheck, Zap, BadgeCheck, Ban, Undo2 } from 'lucide-react';
@@ -15,6 +16,7 @@ import type {
   ThreadSharingMode,
   TopicBinding,
 } from '@/services/channels';
+import useConfigStore from '@/store/useConfigStore';
 import { resolveTopicWorkspaceDisplayLabel } from './topicWorkspaceLabel';
 
 interface ChannelRoutingTopicRowProps {
@@ -33,6 +35,8 @@ interface ChannelRoutingTopicRowProps {
 }
 
 const IDENTITY_SCOPES: IdentityScopeMode[] = ['inherit', 'shared', 'private'];
+const DRAFT_TIMEOUT_MINUTES = [1, 3, 5, 10, 15, 30, 60] as const;
+const MINUTES_PER_HOUR = 60;
 
 export function ChannelRoutingTopicRow({
   agents,
@@ -54,12 +58,19 @@ export function ChannelRoutingTopicRow({
   const [identityDraft, setIdentityDraft] = useState<string | null>(null);
   const identityValue = identityDraft ?? topic.identityName ?? '';
   const identityScope = topic.identityScope ?? 'inherit';
+  // Until settings are loaded the answer is unknown, and a warning that flashes and vanishes is worse than none.
+  const hasNotificationDelivery = useConfigStore(
+    (state) => !state._configStoreReady || (state.personalSettings?.notificationDeliveries?.length ?? 0) > 0,
+  );
+  const timeoutLabel = (minutes: number) =>
+    minutes === MINUTES_PER_HOUR ? t('replyMode.timeoutHour') : t('replyMode.timeoutMinutes', { minutes });
 
   return (
     <div className="flex flex-col gap-3 p-3 bg-background border rounded-lg hover:border-primary/30 transition-colors">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           {topic.avatarUrl ? (
+            // oxlint-disable-next-line next/no-img-element -- avatars are arbitrary channel-platform URLs that next/image cannot optimize
             <img
               src={topic.avatarUrl}
               alt={topic.displayName || topic.topicId}
@@ -82,7 +93,7 @@ export function ChannelRoutingTopicRow({
             value={topic.agentId || 'none'}
             onChange={(event) => onBindTopic(topic.topicId, event.target.value)}
             disabled={isSaving}
-            className="bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none"
+            className="min-w-0 bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none"
           >
             <option value="none">{t('inheritGlobalDefault')}</option>
             {agents.map((agent) => (
@@ -128,7 +139,7 @@ export function ChannelRoutingTopicRow({
         {projects.length === 0 && <span className="text-xs text-muted-foreground">{t('workspace.emptyProjects')}</span>}
       </div>
 
-      <div className="flex items-center gap-2 pl-11">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -140,7 +151,7 @@ export function ChannelRoutingTopicRow({
           </Tooltip>
         </TooltipProvider>
         <span className="text-xs text-muted-foreground">{t('threadSharing.label')}:</span>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           <button
             onClick={() => onSetThreadSharingMode(topic.topicId, 'isolated')}
             disabled={isSaving}
@@ -168,7 +179,7 @@ export function ChannelRoutingTopicRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 pl-11">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -180,7 +191,7 @@ export function ChannelRoutingTopicRow({
           </Tooltip>
         </TooltipProvider>
         <span className="text-xs text-muted-foreground">{t('replyMode.label')}:</span>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           <button
             onClick={() => onSetReplyMode(topic.topicId, 'auto')}
             disabled={isSaving}
@@ -217,13 +228,11 @@ export function ChannelRoutingTopicRow({
             disabled={isSaving}
             className="bg-background border border-input rounded text-xs px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none"
           >
-            <option value={1}>1 min</option>
-            <option value={3}>3 min</option>
-            <option value={5}>5 min</option>
-            <option value={10}>10 min</option>
-            <option value={15}>15 min</option>
-            <option value={30}>30 min</option>
-            <option value={60}>1 hour</option>
+            {DRAFT_TIMEOUT_MINUTES.map((minutes) => (
+              <option key={minutes} value={minutes}>
+                {timeoutLabel(minutes)}
+              </option>
+            ))}
           </select>
           <span className="text-xs text-muted-foreground">{t('replyMode.onExpiry')}:</span>
           <select
@@ -238,6 +247,18 @@ export function ChannelRoutingTopicRow({
             <option value="auto_send">{t('replyMode.autoSend')}</option>
           </select>
         </div>
+      )}
+
+      {topic.replyMode === 'draft_review' && !hasNotificationDelivery && (
+        <p className="flex items-start gap-1.5 pl-11 text-xs text-amber-600 dark:text-amber-400">
+          <IconAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            {t('replyMode.noNotifyChannel')}{' '}
+            <Link href="/settings/preferences" className="font-medium underline underline-offset-2 hover:opacity-80">
+              {t('replyMode.noNotifyChannelLink')}
+            </Link>
+          </span>
+        </p>
       )}
 
       <div className="flex flex-col gap-2 pl-11">
@@ -286,7 +307,7 @@ export function ChannelRoutingTopicRow({
             maxLength={32}
             className="bg-background border border-input rounded-full text-xs px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none w-40 placeholder:text-muted-foreground/60"
           />
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {IDENTITY_SCOPES.map((scope) => (
               <button
                 key={scope}

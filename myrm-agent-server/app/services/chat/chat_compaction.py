@@ -17,11 +17,15 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
 from .conversation_recall_index_service import ConversationRecallIndexService
+
+if TYPE_CHECKING:
+    from langchain_core.messages import BaseMessage
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +86,7 @@ class _ChatCompactionMixin(_ChatServiceBase):
 
             from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-            langchain_msgs = []
+            langchain_msgs: list[BaseMessage] = []
             for m in target_msgs:
                 if m.role == "user":
                     langchain_msgs.append(HumanMessage(content=m.content))
@@ -142,6 +146,7 @@ class _ChatCompactionMixin(_ChatServiceBase):
                 try:
                     from app.services.chat.salient_tool_archive_service import SalientToolArchiveService
 
+                    assert uow.session is not None
                     await SalientToolArchiveService().archive_salient_tools(
                         uow.session,
                         chat_id=chat_id,

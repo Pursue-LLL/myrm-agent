@@ -31,7 +31,7 @@ Chat 级 `BuiltExecutionUnit` 池（SkillAgent + BrowserSession）。WebUI/Chann
 | WebUI / Channel / Wakeup | POOLED | 同 chat 复用 BuiltExecutionUnit |
 | Cron / Eval / Kanban | EPHEMERAL | 每条消息 build + close |
 
-删 chat：`chat_crud` 调用 `close_execution_cache_for_chat_all_agents`。
+删 chat：`chat_disposal` 调用 `close_execution_cache_for_chat_all_agents`。
 
 ---
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useLocale } from 'next-intl';
-import type { KanbanTask, TaskRun, TaskEvent, TaskDiagnostic } from '@/services/kanban';
+import type { KanbanTask, TaskRun, TaskEvent, TaskDiagnostic, TaskStatus } from '@/services/kanban';
 import {
   listRuns,
   listEvents,
@@ -26,10 +26,19 @@ interface UseKanbanTaskDrawerParams {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRefresh: () => void;
+  onRequestMove: (taskId: string, targetStatus: TaskStatus) => void;
   t: (key: string) => string;
 }
 
-export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefresh, t }: UseKanbanTaskDrawerParams) {
+export function useKanbanTaskDrawer({
+  task,
+  allTasks,
+  open,
+  onOpenChange,
+  onRefresh,
+  onRequestMove,
+  t,
+}: UseKanbanTaskDrawerParams) {
   const locale = useLocale();
   const agents = useAgentStore((s) => s.agents);
   const fetchAgents = useAgentStore((s) => s.fetchAgents);
@@ -61,7 +70,7 @@ export function useKanbanTaskDrawer({ task, allTasks, open, onOpenChange, onRefr
   const commentInputRef = useRef<HTMLInputElement>(null);
   const attachInputRef = useRef<HTMLInputElement>(null);
 
-  const workflow = useKanbanTaskDrawerWorkflow({ task, onRefresh, onOpenChange, t });
+  const workflow = useKanbanTaskDrawerWorkflow({ task, onRefresh, onOpenChange, onRequestMove, t });
   const attachments = useKanbanTaskDrawerAttachments({ task, open, onRefresh, t });
 
   const loadDetails = useCallback(async (taskId: string) => {

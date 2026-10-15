@@ -315,22 +315,14 @@ export function CredentialsDialogs({
                 </>
               ) : connectModalTarget.oauthFlow === 'xai_device_code' ? (
                 <>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {locale === 'zh'
-                      ? '点击下方按钮，在浏览器中授权你的 SuperGrok 账号。授权后将自动连接。'
-                      : 'Click the button below to authorize your SuperGrok account in the browser. It will connect automatically once authorized.'}
-                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{t('xaiOauthConnectDesc')}</p>
                   {xaiOauthPolling && xaiUserCode && (
                     <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-2">
-                      <p className="text-sm font-medium text-foreground">
-                        {locale === 'zh' ? '验证码：' : 'Code: '}
+                      <p className="flex items-baseline gap-2 text-sm font-medium text-foreground">
+                        {t('xaiOauthCode')}
                         <span className="font-mono text-lg tracking-widest text-primary">{xaiUserCode}</span>
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {locale === 'zh'
-                          ? '请在浏览器中输入此验证码完成授权...'
-                          : 'Enter this code in the browser to complete authorization...'}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{t('xaiOauthCodeHint')}</p>
                       {xaiVerificationUrl && (
                         <a
                           href={xaiVerificationUrl}
@@ -338,7 +330,7 @@ export function CredentialsDialogs({
                           rel="noopener noreferrer"
                           className="text-xs text-primary underline"
                         >
-                          {locale === 'zh' ? '重新打开授权页面' : 'Open authorization page again'}
+                          {t('xaiOauthReopen')}
                         </a>
                       )}
                     </div>
@@ -404,13 +396,7 @@ export function CredentialsDialogs({
                 </Button>
               ) : connectModalTarget.oauthFlow === 'xai_device_code' ? (
                 <Button onClick={() => void handleXaiOAuthConnect()} disabled={xaiOauthPolling}>
-                  {xaiOauthPolling
-                    ? locale === 'zh'
-                      ? '等待授权...'
-                      : 'Waiting...'
-                    : locale === 'zh'
-                      ? '授权 SuperGrok'
-                      : 'Authorize SuperGrok'}
+                  {xaiOauthPolling ? t('xaiOauthWaiting') : t('xaiOauthConnectBtn')}
                 </Button>
               ) : (
                 <Button onClick={() => void handleConnectOauth()}>{t('saveBtn')}</Button>

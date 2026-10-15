@@ -11,6 +11,8 @@ import KanbanBoardView from '@/components/features/kanban/KanbanBoardView';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { registerSettingsSubviewBack } from '@/components/features/settings/settingsSubviewBack';
 import { useProjectStore } from '@/store/useProjectStore';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 export default function KanbanSection() {
   const t = useTranslations('kanban');
@@ -354,7 +356,7 @@ export default function KanbanSection() {
                   <h3 className="text-sm font-medium">{board.name}</h3>
                   {board.description && <p className="text-xs text-muted-foreground mt-0.5">{board.description}</p>}
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className={cn('flex items-center gap-1 transition-all', REVEAL_ON_HOVER)}>
                   <button
                     onClick={(e) => startEdit(board, e)}
                     className="text-xs px-1.5 py-0.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"

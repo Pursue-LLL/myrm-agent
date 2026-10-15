@@ -63,19 +63,14 @@ def is_allowed_host(host_header: str, allowed_hosts: frozenset[str]) -> bool:
         address = ipaddress.ip_address(host)
     except ValueError:
         return False
-    return (
-        address.is_loopback
-        or address.is_private
-        or address.is_link_local
-        or is_tailscale_ip(host)
-    )
+    return address.is_loopback or address.is_private or address.is_link_local or is_tailscale_ip(host)
 
 
 class HostAllowlistMiddleware(BaseHTTPMiddleware):
     """Reject unexpected Host headers on remote-exposed WebUI requests."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if request.method == "OPTIONS" or is_public_path(request.url.path):
+        if request.method == "OPTIONS" or is_public_path(request.url.path, request.method):
             return await call_next(request)
 
         host_header = request.headers.get("host", "")

@@ -69,13 +69,6 @@ export interface LineageDefenseSearchResponseDTO {
   audit_report: LineageDedupAuditReportDTO;
 }
 
-export interface LineageDefenseAuditRequestDTO {
-  candidates: CandidateSessionDTO[];
-  include_internal?: boolean;
-  window_size?: number;
-  cron_weight_multiplier?: number;
-}
-
 export interface LineageDefenseStatsDTO {
   total_inspected_sessions: number;
   interactive_sessions_count: number;
@@ -99,15 +92,6 @@ export async function searchWithLineageDefense(
   return apiClient.post<LineageDefenseSearchResponseDTO>(
     '/memory/lineage-defense/search',
     payload
-  );
-}
-
-export async function auditLineageDefense(
-  request: LineageDefenseAuditRequestDTO
-): Promise<LineageDefenseSearchResponseDTO> {
-  return apiClient.post<LineageDefenseSearchResponseDTO>(
-    '/memory/lineage-defense/audit',
-    request
   );
 }
 

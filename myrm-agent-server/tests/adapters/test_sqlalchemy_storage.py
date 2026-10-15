@@ -1,10 +1,9 @@
 """Test SQLAlchemyStorage
 
-SQLAlchemyStorage 单元测试：Protocol完整性、session管理模式、SkillVersion操作。
+SQLAlchemyStorage 单元测试：每次操作独立 session、健康检查、SkillVersion 操作。
 """
 
 import pytest
-from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -39,59 +38,41 @@ async def engine():
 
 
 @pytest.fixture
-async def session(engine):
-    """创建固定session（API模式）"""
-    async with AsyncSession(engine) as session:
-        yield session
-
-
-@pytest.fixture
 def session_factory(engine):
-    """创建session_factory（scheduler模式）"""
+    """创建 session_factory"""
     return async_sessionmaker(engine, expire_on_commit=False)
 
 
-@pytest.fixture
-def quality_score() -> SkillQualityScore:
-    return SkillQualityScore(
-        success_rate=0.85,
-        token_efficiency=0.75,
-        execution_time=0.90,
-        user_satisfaction=0.80,
-        call_frequency=0.60,
-    )
+# ==================== Session Lifecycle Tests ====================
 
 
-# ==================== Constructor Tests ====================
+@pytest.mark.asyncio
+async def test_each_operation_opens_and_closes_its_own_session(engine):
+    """每次操作使用独立 session 并在结束时关闭，长生命周期调用方不会占住连接"""
+    opened: list[AsyncSession] = []
 
+    def tracked_factory() -> AsyncSession:
+        session = AsyncSession(engine, expire_on_commit=False)
+        opened.append(session)
+        return session
 
-def test_constructor_requires_session_or_factory():
-    """必须传入session或session_factory"""
-    with pytest.raises(ValueError, match="Must provide either"):
-        SQLAlchemyStorage()
+    storage = SQLAlchemyStorage(session_factory=tracked_factory)
 
+    await storage.get_skill_version("nonexistent", 1)
+    await storage.list_skill_versions("nonexistent")
 
-def test_constructor_with_session(session):
-    """session模式构造"""
-    storage = SQLAlchemyStorage(session=session)
-    assert storage._fixed_session is session
-    assert storage._session_factory is None
-
-
-def test_constructor_with_factory(session_factory):
-    """factory模式构造"""
-    storage = SQLAlchemyStorage(session_factory=session_factory)
-    assert storage._fixed_session is None
-    assert storage._session_factory is session_factory
+    assert len(opened) == 2
+    # 读操作会自动开启事务，只有 close() 才会结束它
+    assert not any(session.in_transaction() for session in opened)
 
 
 # ==================== Health Check Tests ====================
 
 
 @pytest.mark.asyncio
-async def test_health_check_session_mode(session: AsyncSession):
-    """测试健康检查（session模式）"""
-    storage = SQLAlchemyStorage(session=session)
+async def test_health_check(session_factory):
+    """测试健康检查"""
+    storage = SQLAlchemyStorage(session_factory=session_factory)
     result = await storage.health_check()
 
     assert result["healthy"] is True
@@ -100,29 +81,18 @@ async def test_health_check_session_mode(session: AsyncSession):
     assert result["writable"] is True
 
 
-@pytest.mark.asyncio
-async def test_health_check_factory_mode(session_factory):
-    """测试健康检查（factory模式）"""
-    storage = SQLAlchemyStorage(session_factory=session_factory)
-    result = await storage.health_check()
-
-    assert result["healthy"] is True
-    assert result["storage_type"] == "sqlalchemy"
-
-
-# ==================== SkillVersion Tests (session_factory mode) ====================
+# ==================== SkillVersion Tests ====================
 
 
 @pytest.mark.asyncio
-async def test_save_and_get_skill_version_factory(session_factory, quality_score):
-    """测试保存和获取版本（factory模式）"""
+async def test_save_and_get_skill_version(session_factory):
+    """测试保存和获取版本"""
     storage = SQLAlchemyStorage(session_factory=session_factory)
 
     saved = await storage.save_skill_version(
         skill_id="skill-001",
         version=1,
         content="def hello(): pass",
-        quality_score=quality_score,
         created_by="llm",
         optimization_id="opt-001",
     )
@@ -133,13 +103,12 @@ async def test_save_and_get_skill_version_factory(session_factory, quality_score
     retrieved = await storage.get_skill_version("skill-001", 1)
     assert retrieved is not None
     assert retrieved.content == "def hello(): pass"
-    assert retrieved.quality_score is not None
-    assert retrieved.quality_score.success_rate == 0.85
+    assert retrieved.optimization_id == "opt-001"
 
 
 @pytest.mark.asyncio
-async def test_list_skill_versions_factory(session_factory):
-    """测试列出版本（factory模式）"""
+async def test_list_skill_versions(session_factory):
+    """测试列出版本"""
     storage = SQLAlchemyStorage(session_factory=session_factory)
 
     for i in range(1, 6):
@@ -155,8 +124,8 @@ async def test_list_skill_versions_factory(session_factory):
 
 
 @pytest.mark.asyncio
-async def test_activate_version_factory(session_factory):
-    """测试激活版本（factory模式）"""
+async def test_activate_version(session_factory):
+    """测试激活版本"""
     storage = SQLAlchemyStorage(session_factory=session_factory)
 
     await storage.save_skill_version(skill_id="s1", version=1, content="v1")
@@ -183,8 +152,8 @@ async def test_activate_nonexistent_version_raises_storage_error(session_factory
 
 
 @pytest.mark.asyncio
-async def test_delete_skill_versions_factory(session_factory):
-    """测试删除旧版本（factory模式）"""
+async def test_delete_skill_versions(session_factory):
+    """测试删除旧版本"""
     storage = SQLAlchemyStorage(session_factory=session_factory)
 
     for i in range(1, 11):
@@ -211,23 +180,3 @@ async def test_get_active_version_none(session_factory):
     storage = SQLAlchemyStorage(session_factory=session_factory)
     result = await storage.get_active_version("nonexistent")
     assert result is None
-
-
-# ==================== SkillVersion Tests (session mode) ====================
-
-
-@pytest.mark.asyncio
-async def test_save_and_get_version_session_mode(session: AsyncSession, quality_score):
-    """测试session模式下的版本操作"""
-    storage = SQLAlchemyStorage(session=session)
-
-    await storage.save_skill_version(
-        skill_id="skill-session",
-        version=1,
-        content="session content",
-        quality_score=quality_score,
-    )
-
-    retrieved = await storage.get_skill_version("skill-session", 1)
-    assert retrieved is not None
-    assert retrieved.content == "session content"

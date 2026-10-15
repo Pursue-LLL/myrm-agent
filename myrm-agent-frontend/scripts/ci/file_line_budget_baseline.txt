@@ -1,8 +1,6 @@
 # src-relative TS/TSX paths over budget (auto-generated)
 src/app/batch-directories/[projectId]/page.tsx
 src/app/batch-directories/page.tsx
-src/app/batch-optimization/[batchId]/page.tsx
-src/app/batch-optimization/page.tsx
 src/app/library/components/MediaGallery.tsx
 src/app/library/components/WikiGraph3D.tsx
 src/app/subscription/page.tsx
@@ -56,7 +54,6 @@ src/components/features/eval-lab/hooks/useCasesEval.ts
 src/components/features/eval-lab/tabs/ReportTab.tsx
 src/components/features/growth/GrowthDashboard.tsx
 src/components/features/growth/LearningTimeline.tsx
-src/components/features/growth/ManifestPredictionsPanel.tsx
 src/components/features/kanban/KanbanBoardView.tsx
 src/components/features/kanban/KanbanInlineAddForm.tsx
 src/components/features/kanban/KanbanPipelineWizard.tsx
@@ -84,7 +81,6 @@ src/components/features/message-box/MarkdownContent.tsx
 src/components/features/message-box/MemoryCitationsButton.tsx
 src/components/features/message-box/MessageBox.tsx
 src/components/features/message-box/TokenUsageDisplay.tsx
-src/components/features/message-box/UserMessage.tsx
 src/components/features/message-box/progress-steps/ProgressSteps.tsx
 src/components/features/message-box/progress-steps/renderers/EvictedOutputDrawer.tsx
 src/components/features/message-input-actions/ActiveWorkingMemoryPanel.tsx
@@ -142,7 +138,6 @@ src/components/features/settings/sections/system/ExecutionTraceTimeline.tsx
 src/components/features/settings/sections/system/HeartbeatSection.tsx
 src/components/features/settings/sections/system/KanbanSection.tsx
 src/components/features/settings/sections/system/MediaGenerationSection.tsx
-src/components/features/settings/sections/system/RiskRulesSection.tsx
 src/components/features/settings/sections/system/RuntimeCostMeterCard.tsx
 src/components/features/settings/sections/system/SecurityPolicySection.tsx
 src/components/features/settings/sections/system/SessionAnalyticsDialog.tsx
@@ -161,10 +156,8 @@ src/components/features/skills/SkillBatchImportDialog.tsx
 src/components/features/skills/SkillCard.tsx
 src/components/features/skills/SkillDetailSheetContent.tsx
 src/components/features/skills/SkillDiscoverTab.tsx
-src/components/features/skills/SkillGrowthCaseCard.tsx
 src/components/features/skills/SkillInstanceManager.tsx
 src/components/features/skills/SkillPermissionsManager.tsx
-src/components/features/skills/SkillQualityGuardian.tsx
 src/components/features/theme-studio/ThemeStudioGalleryPanel.tsx
 src/components/features/theme-studio/ThemeStudioSection.tsx
 src/components/features/workspace-browser/WorkspaceFileBrowser.tsx
@@ -210,7 +203,6 @@ src/store/chat/messageManagement.ts
 src/store/chat/messageRequest.ts
 src/store/chat/messageStream/handlers/statusStreamProgressSteps.ts
 src/store/chat/messageStream/handlers/toolsProgressEvents.ts
-src/store/chat/streamConsumer.ts
 src/store/chat/types/agentStream/part1.ts
 src/store/chat/types/agentStream/part2.ts
 src/store/config/providerTypes.ts

@@ -44,6 +44,50 @@ describe('SubagentDetailDrawer', () => {
     vi.clearAllMocks();
   });
 
+  it('renders header, tabs and overview copy through translation keys', () => {
+    render(
+      <SubagentDetailDrawer node={makeNode({ agent_type: '', description: '' })} open={true} onOpenChange={vi.fn()} />,
+    );
+
+    for (const key of [
+      'detailFallbackAgentType',
+      'detailNoDescription',
+      'statusLabel.running',
+      'detailDuration',
+      'detailTokens',
+      'detailCost',
+      'detailModelInherited',
+      'detailTabOverview',
+      'detailTabJournal',
+      'detailTabTools',
+      'detailTabMessages',
+      'detailTabReplay',
+      'detailTabViewport',
+      'detailTaskSpec',
+      'detailMetadata',
+      'detailRootTask',
+      'detailStandardLeaf',
+    ]) {
+      expect(screen.getByText(key)).toBeDefined();
+    }
+    expect(screen.getByLabelText('detailCopy')).toBeDefined();
+  });
+
+  it('shows translated empty states for the journal, tools, messages and replay tabs', () => {
+    render(<SubagentDetailDrawer node={makeNode({})} open={true} onOpenChange={vi.fn()} />);
+
+    const emptyStateByTab: Array<[string, string]> = [
+      ['detailTabJournal', 'detailJournalEmpty'],
+      ['detailTabTools', 'detailToolsEmpty'],
+      ['detailTabMessages', 'detailMessagesEmpty'],
+      ['detailTabReplay', 'detailReplayEmpty'],
+    ];
+    for (const [tabKey, emptyKey] of emptyStateByTab) {
+      fireEvent.click(screen.getByText(tabKey));
+      expect(screen.getByText(emptyKey)).toBeDefined();
+    }
+  });
+
   it('renders Viewport tab button and switches to Viewport tab when clicked', () => {
     const node = makeNode({
       stream: [

@@ -16,14 +16,18 @@ import time
 from pathlib import Path
 from typing import cast
 
-from dev_gate.desktop_seat_controller import (
-    DesktopSeatController,
-    desktop_seat_capacity,
-)
 from dev_gate.async_queue import (
     DevGateAsyncWriter,
     async_queue_enabled,
     max_async_queue_depth,
+)
+from dev_gate.desktop_seat_controller import (
+    DesktopSeatController,
+    desktop_seat_capacity,
+)
+from dev_gate.private_resource_controller import (
+    PrivateResourceController,
+    private_capacity_credits,
 )
 from dev_gate.session import (
     AccessScope,
@@ -35,12 +39,9 @@ from dev_gate.session import (
     SessionState,
     TerminalConflictError,
     Workload,
+    parse_submit_meta,
 )
 from dev_gate.store import DevGateStore, default_store_path
-from dev_gate.private_resource_controller import (
-    PrivateResourceController,
-    private_capacity_credits,
-)
 
 _MAX_REQUEST_BYTES = 1_048_576
 
@@ -122,7 +123,7 @@ class CoordinatorService:
             compacted = self.store.compact_journal()
             from e2e_core.idle_hygiene_scheduler import (
                 run_idle_tab_hygiene_if_safe,
-            )  # noqa: PLC0415
+            )
 
             hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_reap")
             return {
@@ -163,7 +164,7 @@ class CoordinatorService:
             )
             from e2e_core.idle_hygiene_scheduler import (
                 run_idle_tab_hygiene_if_safe,
-            )  # noqa: PLC0415
+            )
 
             hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_finish")
             return {"session": record.to_dict(), "idle_tab_hygiene": hygiene}
@@ -224,13 +225,13 @@ class CoordinatorService:
             budget_sec = (
                 float(budget_raw) if isinstance(budget_raw, (int, float)) else 30.0
             )
-            from dev_gate.event_wait import (
-                SessionEventTimeoutError,
-                wait_for_session_event,
-            )
             from dev_gate.event_hub import (
                 coordinator_event_hub,
                 wait_for_session_event_subscribed,
+            )
+            from dev_gate.event_wait import (
+                SessionEventTimeoutError,
+                wait_for_session_event,
             )
 
             hub = coordinator_event_hub()
@@ -270,7 +271,7 @@ class CoordinatorService:
             if session_id == "__health__":
                 health: dict[str, object] = {}
                 try:
-                    from e2e_core.host_resource_governor import (  # noqa: PLC0415
+                    from e2e_core.host_resource_governor import (
                         host_resource_governor_snapshot,
                         recent_transition_log,
                     )
@@ -280,7 +281,7 @@ class CoordinatorService:
                 except ImportError:
                     pass
                 try:
-                    from dev_gate.status import dev_gate_status  # noqa: PLC0415
+                    from dev_gate.status import dev_gate_status
 
                     health["devGate"] = dev_gate_status()
                 except ImportError:
@@ -314,7 +315,7 @@ class CoordinatorService:
                     for item in session_ids_raw
                     if isinstance(item, str) and item.strip()
                 )
-            from dev_gate.signoff_export import export_signoff_artifact  # noqa: PLC0415
+            from dev_gate.signoff_export import export_signoff_artifact
 
             return export_signoff_artifact(
                 self.store,
@@ -327,7 +328,7 @@ class CoordinatorService:
             path_raw = request.get("output_path")
             if not isinstance(path_raw, str) or not path_raw.strip():
                 raise ValueError("verify_signoff_artifact.output_path is required")
-            from dev_gate.signoff_export import verify_signoff_artifact  # noqa: PLC0415
+            from dev_gate.signoff_export import verify_signoff_artifact
 
             return verify_signoff_artifact(Path(path_raw.strip()))
         raise ValueError(f"unsupported operation: {operation}")
@@ -336,7 +337,7 @@ class CoordinatorService:
         """Re-evaluate host capacity and grant newly eligible PRIVATE waiters."""
         granted = self.private_controller.sweep_stale_credits()
         if granted:
-            from dev_gate.event_hub import coordinator_event_hub  # noqa: PLC0415
+            from dev_gate.event_hub import coordinator_event_hub
 
             hub = coordinator_event_hub()
             for session_id in granted:
@@ -368,6 +369,7 @@ class CoordinatorService:
             test_node_id=_required_text(request, "test_node_id"),
             policy=policy,
             hard_deadline=float(request.get("hard_deadline", time.time() + 600.0)),
+            meta=parse_submit_meta(request.get("meta")),
         )
         return {"session": record.to_dict()}
 
@@ -489,7 +491,7 @@ class CoordinatorService:
         )
         from e2e_core.idle_hygiene_scheduler import (
             run_idle_tab_hygiene_if_safe,
-        )  # noqa: PLC0415
+        )
 
         hygiene = run_idle_tab_hygiene_if_safe(trigger="coordinator_teardown_finish")
         return {"session": record.to_dict(), "idle_tab_hygiene": hygiene}
@@ -549,7 +551,7 @@ class _CoordinatorHandler(socketserver.BaseRequestHandler):
                 body = server._async_writer.dispatch(payload)
             else:
                 body = server.service.handle(payload)
-                from dev_gate.event_hub import notify_write_result  # noqa: PLC0415
+                from dev_gate.event_hub import notify_write_result
 
                 notify_write_result(payload, body)
             if (
@@ -683,9 +685,9 @@ def _terminate_deadline_reaped(
     Only kills when PID + process_start still match the original owner,
     preventing PID-reuse misfire.
     """
-    import signal  # noqa: PLC0415
+    import signal
 
-    from dev_gate.owner_identity import owner_process_matches  # noqa: PLC0415
+    from dev_gate.owner_identity import owner_process_matches
 
     for raw_id in reaped_session_ids:
         session_id = str(raw_id)
@@ -750,7 +752,7 @@ class _BackgroundReaper:
                     self._service.store,
                     result.get("reaped_session_ids", []),
                 )
-                from e2e_core.stale_lease_reap import (  # noqa: PLC0415
+                from e2e_core.stale_lease_reap import (
                     maybe_reap_epoch_drift_stale_sessions,
                     maybe_reap_excess_wave_leases,
                     maybe_reap_hung_chrome_e2e_pytest,
@@ -768,7 +770,7 @@ class _BackgroundReaper:
             except Exception:
                 pass
             try:
-                from e2e_core.plane_health import (  # noqa: PLC0415
+                from e2e_core.plane_health import (
                     PlaneHealthState,
                     converge_plane_if_idle,
                     plane_health_snapshot,
@@ -815,7 +817,7 @@ def serve(socket_path: Path, database_path: Path) -> None:
     socket_path = normalized_socket_path(socket_path)
     resolved_db = database_path.resolve()
     lock_fd = _acquire_serve_singleton_lock(resolved_db)
-    from dev_gate.cli import _write_coordinator_code_stamp  # noqa: PLC0415
+    from dev_gate.cli import _write_coordinator_code_stamp
 
     _write_coordinator_code_stamp(resolved_db)
     service = CoordinatorService(DevGateStore(resolved_db))

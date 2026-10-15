@@ -4,6 +4,7 @@
  * [INPUT]
  * @/services/chat::switchSibling, getSiblings (POS: Chat API service layer)
  * @/store/useChatStore (POS: Chat state store and message state façade)
+ * next-intl::useTranslations (POS: Localized accessible labels of the arrows)
  *
  * [OUTPUT]
  * SiblingNav: Renders "1/3 ← →" navigation for sibling message groups.
@@ -14,6 +15,7 @@
 
 import { useCallback, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { switchSibling, getSiblings } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
@@ -26,6 +28,7 @@ interface SiblingNavProps {
 }
 
 export default function SiblingNav({ chatId, siblingGroupId, siblingIndex, siblingCount }: SiblingNavProps) {
+  const t = useTranslations('common');
   const [loading, setLoading] = useState(false);
   const reloadMessages = useChatStore((s) => s.loadMessages);
 
@@ -72,7 +75,7 @@ export default function SiblingNav({ chatId, siblingGroupId, siblingIndex, sibli
         onClick={() => handleSwitch('prev')}
         disabled={loading || siblingIndex <= 1}
         className="p-0.5 rounded hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        aria-label="Previous sibling"
+        aria-label={t('previous')}
       >
         <ChevronLeft className="w-3.5 h-3.5" />
       </button>
@@ -83,7 +86,7 @@ export default function SiblingNav({ chatId, siblingGroupId, siblingIndex, sibli
         onClick={() => handleSwitch('next')}
         disabled={loading || siblingIndex >= siblingCount}
         className="p-0.5 rounded hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        aria-label="Next sibling"
+        aria-label={t('next')}
       >
         <ChevronRight className="w-3.5 h-3.5" />
       </button>

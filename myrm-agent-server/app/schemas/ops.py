@@ -83,7 +83,6 @@ class OpsMemoryInfo(BaseModel):
     """Content-free memory command center health overview."""
 
     health_status: Literal["healthy", "degraded", "critical", "unknown"]
-    storage_mode: str
     event_count: int = 0
     failed_event_count: int = Field(
         default=0,

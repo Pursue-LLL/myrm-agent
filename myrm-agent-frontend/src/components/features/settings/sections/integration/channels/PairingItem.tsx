@@ -18,6 +18,7 @@ import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
 import type { ChannelPairing } from '@/services/channels';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const STATUS_STYLES: Record<string, { className: string; key: string }> = {
   active: {
@@ -266,7 +267,7 @@ export function PairingItem({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-5 w-5 opacity-0 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
+                  className={cn('h-5 w-5', REVEAL_ON_HOVER)}
                   title={t('editDisplayName')}
                   onClick={() => {
                     setIsEditingName(true);

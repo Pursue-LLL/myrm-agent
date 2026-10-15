@@ -4,6 +4,7 @@
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, ShieldCheck, ShieldAlert, Wrench, ChevronDown, ChevronUp, FileCode } from 'lucide-react';
+import { useScanRiskText } from '@/components/features/skills/useScanRiskText';
 import { Badge } from '@/components/primitives/badge';
 import type { LocalSkillPreviewItem } from '@/store/skill/types';
 
@@ -17,6 +18,7 @@ interface LocalSkillPreviewCardProps {
 export const LocalSkillPreviewCard = memo(
   ({ skill, isSelected, onToggle, allowUntrusted = false }: LocalSkillPreviewCardProps) => {
     const t = useTranslations('settings.skills.local');
+    const scanText = useScanRiskText();
     const [isFindingsExpanded, setIsFindingsExpanded] = useState(false);
 
     const score = skill.security_score ?? skill.security?.score ?? (skill.is_safe ? 100 : 40);
@@ -225,9 +227,11 @@ export const LocalSkillPreviewCard = memo(
                     <FileCode className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono font-medium text-destructive">{finding.threat_type}</span>
+                        <span className="font-medium text-destructive">
+                          {scanText.threatLabel(finding.threat_type)}
+                        </span>
                         <Badge variant="outline" className="text-[9px] px-1 py-0 uppercase">
-                          {finding.severity}
+                          {scanText.severityLabel(finding.severity)}
                         </Badge>
                         {finding.line_number !== null && (
                           <span className="font-mono text-muted-foreground text-[10px]">

@@ -22,13 +22,13 @@
 
 ## 路由 SSOT（Settings Tab）
 
-`extensionBridge` / `connect` 等 Tab 须同时在三处登记，缺一即 404 或菜单不可达：
+`extensionBridge` / `connect` 等 Tab 须在三处登记，缺一即 404、编译报错或被 i18n 校验拦截：
 
-| 登记点                                                  | 文件                                           |
-| ------------------------------------------------------- | ---------------------------------------------- |
-| App Router `VALID_TABS`                                 | `src/app/settings/[tab]/page.tsx`              |
-| 布局 `BASE_TABS` + `SECTION_COMPONENTS`                 | `SettingsLayout.tsx`                           |
-| 侧栏 `SettingsMenu` + `locales/*/metadata.settingsTabs` | `SettingsMenu.tsx` · `scripts/verify-i18n.mjs` |
+| 登记点                                                                      | 文件                                                                        |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Tab id `SETTINGS_TABS`（page、Layout、Menu、脏状态 store 共读，缺失即 404） | `settingsRoutes.ts`                                                         |
+| 布局 `SECTION_COMPONENTS`（对 `SettingsTab` 穷尽，缺失即编译报错）          | `SettingsLayout.tsx`                                                        |
+| 侧栏 `SettingsMenu` + `locales/*` 的 `metadata.settingsTabs` / `settings.menu` | `SettingsMenu.tsx` · `scripts/verify-i18n.mjs`（从 `settingsRoutes.ts` 读取） |
 
 ## SettingsMenu 映射（integration 组）
 

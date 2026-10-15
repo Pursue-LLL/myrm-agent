@@ -18,6 +18,8 @@ import { motion } from 'framer-motion';
 import { toast } from '@/hooks/shared/useToast';
 import { ImageLightbox } from './ImageLightbox';
 import { blobToDataUrl } from '@/components/features/image-editor/uploadAnnotated';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const ImageEditor = lazy(() => import('@/components/features/image-editor/ImageEditor'));
 
@@ -98,7 +100,10 @@ export const ImageThumbnail = ({
             e.stopPropagation();
             onEdit();
           }}
-          className="absolute bottom-0.5 left-0.5 w-5 h-5 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          className={cn(
+            'absolute bottom-0.5 left-0.5 w-5 h-5 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center transition-opacity z-10',
+            REVEAL_ON_HOVER,
+          )}
           title="Edit"
         >
           <Pencil size={10} />

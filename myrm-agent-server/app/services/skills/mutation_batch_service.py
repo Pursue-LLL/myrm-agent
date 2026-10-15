@@ -1,15 +1,26 @@
-"""Rollback skill_manage mutation batches stored in batch_snapshots."""
+"""
+[INPUT]
+- app.database.models.BatchSnapshot (POS: 批次前快照行)
+- app.core.skills.store.service.skills_service (POS: skill 与资源文件读写、非本地 skill 删除)
+- app.core.skills.creation.service.skill_creation_service (POS: 本地 skill 的写入与删除，批次内新建的本地 skill 由它回收)
+- app.services.skills.write_orchestrator (POS: 回滚写入走统一写编排)
+[OUTPUT]
+- rollback_skill_mutation_batch (按 batch_id 恢复 skill_mutation / market_replace 批次，成功后消费快照)
+- MutationBatchRollbackError / MutationBatchCompensationError / MutationBatchAlreadyConsumedError (fail-closed 错误族)
+[POS]
+批次回滚服务：先捕获现场、逐 skill 应用快照，失败则反向补偿恢复，成功后清理快照与替换指针。
+"""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 
+from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import BatchSnapshot
-from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -134,8 +145,31 @@ async def _restore_live_state(state: _SkillLiveState) -> None:
             )
 
 
-async def _apply_row_snapshot(row: BatchSnapshot) -> None:
+async def _delete_skill_created_in_batch(skill_id: str) -> bool:
+    """Remove a skill the batch created.
+
+    The skill store refuses to delete LOCAL skills, so those go through the creation service that wrote them,
+    and only when they live in its storage root.
+    """
+    from pathlib import Path
+
+    from app.core.skills.creation.service import skill_creation_service
+    from app.core.skills.models import SkillType
     from app.core.skills.store.service import skills_service
+
+    skill = await skills_service.get_skill(skill_id)
+    if skill is None:
+        return False
+    if skill.type != SkillType.LOCAL:
+        return await skills_service.delete_skill(skill_id)
+
+    skill_dir = Path(skill.storage_path).resolve()
+    if skill_dir.parent != skill_creation_service.base_path.resolve():
+        return False
+    return (await skill_creation_service.delete_skill(skill_dir.name)).success
+
+
+async def _apply_row_snapshot(row: BatchSnapshot) -> None:
     from app.services.skills.write_orchestrator import orchestrate_skill_file_write
 
     meta = row.skill_metadata or {}
@@ -144,14 +178,10 @@ async def _apply_row_snapshot(row: BatchSnapshot) -> None:
 
     if not content.strip():
         if existed_before:
-            raise MutationBatchRollbackError(
-                f"Missing SKILL.md snapshot for skill_id={row.skill_id}; rollback aborted."
-            )
-        ok = await skills_service.delete_skill(row.skill_id)
+            raise MutationBatchRollbackError(f"Missing SKILL.md snapshot for skill_id={row.skill_id}; rollback aborted.")
+        ok = await _delete_skill_created_in_batch(row.skill_id)
         if not ok:
-            raise MutationBatchRollbackError(
-                f"Failed to remove skill created in batch (skill_id={row.skill_id})."
-            )
+            raise MutationBatchRollbackError(f"Failed to remove skill created in batch (skill_id={row.skill_id}).")
         return
 
     await orchestrate_skill_file_write(
@@ -186,18 +216,14 @@ async def rollback_skill_mutation_batch(session: AsyncSession, batch_id: str) ->
     result = await session.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == batch_id))
     rows = list(result.scalars().all())
     if not rows:
-        raise MutationBatchAlreadyConsumedError(
-            f"No rollback snapshots for batch_id={batch_id} (unknown id or already undone)."
-        )
+        raise MutationBatchAlreadyConsumedError(f"No rollback snapshots for batch_id={batch_id} (unknown id or already undone).")
 
     batch_kind: str | None = None
     for row in rows:
         meta = row.skill_metadata or {}
         kind = meta.get("batch_kind")
         if not isinstance(kind, str):
-            raise MutationBatchRollbackError(
-                f"Batch {batch_id} has invalid batch_kind metadata (skill_id={row.skill_id})."
-            )
+            raise MutationBatchRollbackError(f"Batch {batch_id} has invalid batch_kind metadata (skill_id={row.skill_id}).")
         if kind not in _ROLLBACK_BATCH_KINDS:
             raise MutationBatchRollbackError(
                 f"Batch {batch_id} is not rollback-eligible (batch_kind={kind}, skill_id={row.skill_id})."

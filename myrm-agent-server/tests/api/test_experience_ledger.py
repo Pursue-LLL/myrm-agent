@@ -80,11 +80,10 @@ async def test_submit_migration_creates_ledger_event(async_client) -> None:
     assert response.status_code == 200
     migration_id = response.json()["migration_id"]
 
-    ledger_response = await client.get("/api/v1/experience-ledger/events?lineage_id=migration:" + migration_id)
-    assert ledger_response.status_code == 200
-    body = ledger_response.json()
-    assert body["total"] == 1
-    assert body["items"][0]["event_type"] == "migration.submitted"
+    async with get_session() as db:
+        result = await db.execute(select(ExperienceLedgerEvent).where(ExperienceLedgerEvent.lineage_id == f"migration:{migration_id}"))
+        events = list(result.scalars().all())
+    assert [event.event_type for event in events] == ["migration.submitted"]
 
 
 @pytest.mark.asyncio

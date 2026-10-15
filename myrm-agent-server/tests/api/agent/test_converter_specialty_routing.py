@@ -161,9 +161,8 @@ class TestSpecialtyRoutingSSEChunkEmission:
             chat_id="chat-spec-456",
             query="def solve(): pass",
             model_selection=get_model_selection(),
+            multiplexed=True,
         )
-        monitor_mock = AsyncMock()
-        monitor_mock.start = AsyncMock()
         session = AgentStreamSession(
             request=fake_request,
             http_request=None,  # type: ignore[arg-type]
@@ -175,7 +174,6 @@ class TestSpecialtyRoutingSSEChunkEmission:
             research_model_cfg=None,
             registry=None,
             collector=StreamContentCollector(chat_id="chat-spec-456"),
-            monitor=monitor_mock,
             is_long_running_task=False,
             goal_provider=None,
             extra_context={},

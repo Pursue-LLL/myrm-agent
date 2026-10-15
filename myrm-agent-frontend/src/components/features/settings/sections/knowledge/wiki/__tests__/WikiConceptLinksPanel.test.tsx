@@ -1,8 +1,21 @@
+/** @vitest-environment jsdom */
+import type { ComponentProps } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
 import { WikiConceptLinksPanel } from '../WikiConceptLinksPanel';
-import { wikiService } from '@/services/wikiService';
+import {
+  wikiService,
+  type ConceptBacklinkItem,
+  type ConceptLinksResponse,
+  type ConceptLinkItem,
+} from '@/services/wikiService';
+import en from '../../../../../../../../locales/en.json';
+import zh from '../../../../../../../../locales/zh.json';
+
+// The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
+vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('next-intl')>());
 
 vi.mock('@/services/wikiService', () => ({
   wikiService: {
@@ -10,199 +23,238 @@ vi.mock('@/services/wikiService', () => ({
   },
 }));
 
+const LOCALE_MESSAGES = { en, zh } as const;
+
+const panelTree = (
+  props: ComponentProps<typeof WikiConceptLinksPanel>,
+  locale: keyof typeof LOCALE_MESSAGES = 'en',
+) => (
+  <NextIntlClientProvider
+    locale={locale}
+    messages={{ settings: { wiki: { concepts: { links: LOCALE_MESSAGES[locale].settings.wiki.concepts.links } } } }}
+  >
+    <WikiConceptLinksPanel {...props} />
+  </NextIntlClientProvider>
+);
+
+const renderPanel = (
+  props: ComponentProps<typeof WikiConceptLinksPanel>,
+  locale: keyof typeof LOCALE_MESSAGES = 'en',
+) => render(panelTree(props, locale));
+
+const getConceptLinksMock = () => wikiService.getConceptLinks as ReturnType<typeof vi.fn>;
+
+const mockLinks = (response: ConceptLinksResponse) => getConceptLinksMock().mockResolvedValueOnce(response);
+
+const outlink = (name: string, overrides: Partial<ConceptLinkItem> = {}): ConceptLinkItem => ({
+  name,
+  exists: true,
+  ...overrides,
+});
+
+const backlink = (name: string, overrides: Partial<ConceptBacklinkItem> = {}): ConceptBacklinkItem => ({
+  name,
+  exists: true,
+  context_snippet: null,
+  heading: null,
+  ...overrides,
+});
+
+const linksOf = (
+  concept_name: string,
+  {
+    outlinks = [],
+    backlinks = [],
+    outlinksHasMore = false,
+    backlinksHasMore = false,
+  }: {
+    outlinks?: ConceptLinkItem[];
+    backlinks?: ConceptBacklinkItem[];
+    outlinksHasMore?: boolean;
+    backlinksHasMore?: boolean;
+  } = {},
+): ConceptLinksResponse => ({
+  concept_name,
+  outlinks,
+  backlinks,
+  outlinks_has_more: outlinksHasMore,
+  backlinks_has_more: backlinksHasMore,
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 describe('WikiConceptLinksPanel', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // reset 而不是 clear：未消费的 mockResolvedValueOnce 不能泄漏到下一个用例
+    vi.resetAllMocks();
   });
 
   it('renders backlinks with context snippet and handles tab switching', async () => {
-    (wikiService.getConceptLinks as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      concept_name: 'test-concept',
-      outlinks: [
-        {
-          name: 'outgoing-target',
-          weight: 3.0,
-          exists: true,
-          context_snippet: null,
-        },
-      ],
-      backlinks: [
-        {
-          name: 'referencing-source',
-          weight: 4.5,
-          exists: true,
-          context_snippet: 'This document references [[test-concept]] directly.',
-          heading: '采购审核机制',
-          line_number: 7,
-        },
-      ],
-      ego_graph: {
-        nodes: [
-          { id: 'test-concept', name: 'test concept', group: 1 },
-          { id: 'referencing-source', name: 'referencing source', group: 1 },
+    mockLinks(
+      linksOf('test-concept', {
+        outlinks: [outlink('outgoing-target')],
+        backlinks: [
+          backlink('referencing-source', {
+            context_snippet: 'This document references [[test-concept]] directly.',
+            heading: '采购审核机制',
+          }),
         ],
-        edges: [{ source: 'referencing-source', target: 'test-concept', weight: 4.5 }],
-      },
-    });
+      }),
+    );
 
     const handleSelect = vi.fn();
-    render(<WikiConceptLinksPanel conceptName="test-concept" agentId="agent-1" onSelectConcept={handleSelect} />);
+    renderPanel({ conceptName: 'test-concept', agentId: 'agent-1', onSelectConcept: handleSelect });
 
-    // 验证标题和统计胶囊
-    expect(await screen.findByText('双向链接与知识脉络')).toBeInTheDocument();
-    expect(screen.getByText(/1 引用 · 1 出链/)).toBeInTheDocument();
+    expect(await screen.findByText('Links and context')).toBeInTheDocument();
+    expect(screen.getByText('Cited by 1 · Links to 1')).toBeInTheDocument();
+    expect(screen.getByText('Cited by (1)')).toBeInTheDocument();
 
-    // 验证小节标题和行号徽章渲染
     expect(screen.getByText('§ 采购审核机制')).toBeInTheDocument();
-    expect(screen.getByText('L7')).toBeInTheDocument();
+    expect(screen.getByTitle('Click the card to jump to the section: 采购审核机制')).toBeInTheDocument();
 
-    // 默认展示 Backlinks tab
     expect(screen.getByText('referencing-source')).toBeInTheDocument();
     expect(screen.getByText(/“This document references \[\[test-concept\]\] directly\.”/)).toBeInTheDocument();
 
     // 点击反链项触发跳转（携带小节标题锚点）
-    const backlinkItem = screen.getByText('referencing-source');
-    await userEvent.click(backlinkItem);
+    await userEvent.click(screen.getByText('referencing-source'));
     expect(handleSelect).toHaveBeenCalledWith('referencing-source', '采购审核机制');
 
-    // 切换到 Outlinks tab
-    const outlinksTabBtn = screen.getByText(/引用前置/);
-    await userEvent.click(outlinksTabBtn);
+    await userEvent.click(screen.getByText('Links to (1)'));
     expect(await screen.findByText('outgoing-target')).toBeInTheDocument();
-
-    // 切换到 Ego Graph tab
-    const egoTabBtn = screen.getByText(/局部拓扑/);
-    await userEvent.click(egoTabBtn);
-    expect(await screen.findByText(/局部关联网：2 节点 · 1 关系边/)).toBeInTheDocument();
+    expect(screen.queryByText('Related (0)')).not.toBeInTheDocument();
   });
 
   it('renders correct empty states across all tabs', async () => {
-    (wikiService.getConceptLinks as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      concept_name: 'empty-concept',
-      outlinks: [],
-      backlinks: [],
-      ego_graph: { nodes: [], edges: [] },
-    });
+    mockLinks(linksOf('empty-concept'));
 
-    render(<WikiConceptLinksPanel conceptName="empty-concept" />);
+    renderPanel({ conceptName: 'empty-concept' });
 
-    // Tab 1 (Backlinks) 默认展示空态
-    expect(await screen.findByText('暂无上游词条或研报直接引用此知识点')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing links to this concept yet')).toBeInTheDocument();
 
-    // 切换 Tab 2 (Outlinks) 展示空态
-    const outlinksTabBtn = screen.getByText(/引用前置/);
-    await userEvent.click(outlinksTabBtn);
-    expect(await screen.findByText('此词条尚未显式引用其他知识点')).toBeInTheDocument();
-
-    // 切换 Tab 3 (Ego Graph) 展示空态
-    const egoTabBtn = screen.getByText(/局部拓扑/);
-    await userEvent.click(egoTabBtn);
-    expect(await screen.findByText('暂无局部拓扑数据')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Links to (0)'));
+    expect(await screen.findByText('This concept has no links yet')).toBeInTheDocument();
   });
 
-  it('disables interaction for ghost references where exists is false', async () => {
-    (wikiService.getConceptLinks as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      concept_name: 'ghost-test',
-      outlinks: [
-        {
-          name: 'unresolved-outlink',
-          weight: 1.0,
-          exists: false,
-          context_snippet: null,
-        },
-      ],
-      backlinks: [
-        {
-          name: 'unresolved-backlink',
-          weight: 2.0,
-          exists: false,
-          context_snippet: 'Pending creation [[ghost-test]]',
-          heading: null,
-          line_number: null,
-        },
-      ],
-      ego_graph: { nodes: [], edges: [] },
-    });
+  it('adds a trailing plus only to the direction the server cut at its cap', async () => {
+    const backlinks = Array.from({ length: 100 }, (_, index) => backlink(`source-${index}`));
+    mockLinks(linksOf('hub', { backlinks, outlinks: [outlink('leaf')], backlinksHasMore: true }));
+
+    renderPanel({ conceptName: 'hub' });
+
+    expect(await screen.findByText('Cited by 100+ · Links to 1')).toBeInTheDocument();
+    expect(screen.getByText('Cited by (100+)')).toBeInTheDocument();
+    expect(screen.getByText('Links to (1)')).toBeInTheDocument();
+  });
+
+  it('disables interaction for references whose page is missing', async () => {
+    mockLinks(
+      linksOf('ghost-test', {
+        outlinks: [outlink('unresolved-outlink', { exists: false })],
+        backlinks: [
+          backlink('unresolved-backlink', {
+            exists: false,
+            context_snippet: 'Pending creation [[ghost-test]]',
+            heading: null,
+          }),
+        ],
+      }),
+    );
 
     const handleSelect = vi.fn();
-    render(<WikiConceptLinksPanel conceptName="ghost-test" onSelectConcept={handleSelect} />);
+    renderPanel({ conceptName: 'ghost-test', onSelectConcept: handleSelect });
 
-    // 验证反链中的“待补充”徽章与禁用态
-    expect(await screen.findByText('待补充')).toBeInTheDocument();
+    expect(await screen.findByText('Missing')).toBeInTheDocument();
     const backlinkBtn = screen.getByText('unresolved-backlink').closest('button');
     expect(backlinkBtn).toBeDisabled();
-    if (backlinkBtn) {
-      await userEvent.click(backlinkBtn);
-      expect(handleSelect).not.toHaveBeenCalled();
-    }
-
-    // 切换至出链 tab，验证“幽灵引用”徽章与禁用态
-    const outlinksTabBtn = screen.getByText(/引用前置/);
-    await userEvent.click(outlinksTabBtn);
-    expect(await screen.findByText('幽灵引用')).toBeInTheDocument();
-    const outlinkBtn = screen.getByText('unresolved-outlink').closest('button');
-    expect(outlinkBtn).toBeDisabled();
-    if (outlinkBtn) {
-      await userEvent.click(outlinkBtn);
-      expect(handleSelect).not.toHaveBeenCalled();
-    }
-  });
-
-  it('handles ego graph center node vs neighbor node click interactions', async () => {
-    (wikiService.getConceptLinks as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      concept_name: 'center-node',
-      outlinks: [],
-      backlinks: [],
-      ego_graph: {
-        nodes: [
-          { id: 'center-node', name: 'Center Concept', group: 1 },
-          { id: 'neighbor-node', name: 'Neighbor Concept', group: 1 },
-        ],
-        edges: [{ source: 'center-node', target: 'neighbor-node', weight: 1.0 }],
-      },
-    });
-
-    const handleSelect = vi.fn();
-    render(<WikiConceptLinksPanel conceptName="center-node" onSelectConcept={handleSelect} />);
-
-    // 切换到局部拓扑
-    const egoTabBtn = await screen.findByText(/局部拓扑/);
-    await userEvent.click(egoTabBtn);
-
-    // 点击中心节点：不应触发 onSelectConcept
-    const centerBtn = screen.getByText('Center Concept');
-    await userEvent.click(centerBtn);
+    await userEvent.click(backlinkBtn as HTMLButtonElement);
     expect(handleSelect).not.toHaveBeenCalled();
 
-    // 点击邻居节点：应当触发 onSelectConcept('neighbor-node')
-    const neighborBtn = screen.getByText('Neighbor Concept');
-    await userEvent.click(neighborBtn);
-    expect(handleSelect).toHaveBeenCalledWith('neighbor-node');
+    await userEvent.click(screen.getByText('Links to (1)'));
+    expect(await screen.findByText('Missing')).toBeInTheDocument();
+    const outlinkBtn = screen.getByText('unresolved-outlink').closest('button');
+    expect(outlinkBtn).toBeDisabled();
+    await userEvent.click(outlinkBtn as HTMLButtonElement);
+    expect(handleSelect).not.toHaveBeenCalled();
   });
 
-  it('displays error banner and supports retry on fetch failure', async () => {
-    (wikiService.getConceptLinks as ReturnType<typeof vi.fn>)
-      .mockRejectedValueOnce(new Error('Network connection timeout'))
-      .mockResolvedValueOnce({
-        concept_name: 'retry-test',
-        outlinks: [],
-        backlinks: [],
-        ego_graph: { nodes: [], edges: [] },
-      });
+  it('shows localized copy instead of the server message when loading fails, and supports retry', async () => {
+    getConceptLinksMock()
+      .mockRejectedValueOnce(new Error('Failed to fetch concept links'))
+      .mockResolvedValueOnce(linksOf('retry-test'));
 
-    render(<WikiConceptLinksPanel conceptName="retry-test" />);
+    renderPanel({ conceptName: 'retry-test' });
 
-    // 验证错误提示展示
-    expect(await screen.findByText('Network connection timeout')).toBeInTheDocument();
+    expect(await screen.findByText('Failed to load links')).toBeInTheDocument();
+    expect(screen.queryByText('Failed to fetch concept links')).not.toBeInTheDocument();
+    // 没有拿到数据时，不能把「0 条」与「没有链接」的空态当事实展示
+    expect(screen.queryByText(/^Cited by/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing links to this concept yet')).not.toBeInTheDocument();
 
-    // 点击右上角刷新按钮重试
-    const refreshBtn = screen.getByTitle('刷新链接拓扑');
-    await userEvent.click(refreshBtn);
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh links' }));
 
-    // 验证重试成功后错误条消失，空态正常展示
     await waitFor(() => {
-      expect(screen.queryByText('Network connection timeout')).not.toBeInTheDocument();
+      expect(screen.queryByText('Failed to load links')).not.toBeInTheDocument();
     });
-    expect(screen.getByText('暂无上游词条或研报直接引用此知识点')).toBeInTheDocument();
+    expect(screen.getByText('Nothing links to this concept yet')).toBeInTheDocument();
+  });
+
+  it('hides the previous concept while the next one loads and keeps the chosen tab', async () => {
+    mockLinks(linksOf('first', { outlinks: [outlink('first-out')], backlinks: [backlink('first-back')] }));
+    const view = renderPanel({ conceptName: 'first' });
+    await userEvent.click(await screen.findByText('Links to (1)'));
+    expect(screen.getByText('first-out')).toBeInTheDocument();
+
+    const next = deferred<ConceptLinksResponse>();
+    getConceptLinksMock().mockReturnValueOnce(next.promise);
+    view.rerender(panelTree({ conceptName: 'second' }));
+
+    expect(screen.queryByText('first-out')).not.toBeInTheDocument();
+    expect(screen.queryByText('Links to (1)')).not.toBeInTheDocument();
+
+    await act(async () => {
+      next.resolve(linksOf('second', { outlinks: [outlink('second-out')], backlinks: [backlink('second-back')] }));
+    });
+
+    expect(await screen.findByText('second-out')).toBeInTheDocument();
+    expect(screen.queryByText('second-back')).not.toBeInTheDocument();
+  });
+
+  it('ignores a late response for a concept the panel has already moved away from', async () => {
+    const first = deferred<ConceptLinksResponse>();
+    getConceptLinksMock().mockReturnValueOnce(first.promise);
+    const view = renderPanel({ conceptName: 'first' });
+
+    mockLinks(linksOf('second', { backlinks: [backlink('second-back')] }));
+    view.rerender(panelTree({ conceptName: 'second' }));
+    expect(await screen.findByText('second-back')).toBeInTheDocument();
+
+    await act(async () => {
+      first.resolve(linksOf('first', { backlinks: [backlink('first-back')] }));
+    });
+
+    expect(screen.getByText('second-back')).toBeInTheDocument();
+    expect(screen.queryByText('first-back')).not.toBeInTheDocument();
+  });
+
+  it('renders the same panel in Chinese from the zh locale', async () => {
+    mockLinks(
+      linksOf('zh-concept', {
+        outlinks: [outlink('out')],
+        backlinks: [backlink('src', { context_snippet: '见 [[zh-concept]]' })],
+      }),
+    );
+
+    renderPanel({ conceptName: 'zh-concept' }, 'zh');
+
+    expect(await screen.findByText('链接与上下文')).toBeInTheDocument();
+    expect(screen.getByText('被 1 处引用 · 引用 1 处')).toBeInTheDocument();
+    expect(screen.getByText('被引用 (1)')).toBeInTheDocument();
+    expect(screen.getByText('引用了 (1)')).toBeInTheDocument();
   });
 });

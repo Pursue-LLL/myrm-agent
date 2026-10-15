@@ -85,8 +85,6 @@ macro_rules! tauri_command_registry {
             ),
             ("set_tray_status", tray::set_tray_status),
             ("update_tray_info", tray::update_tray_info),
-            ("get_desktop_vibrancy_state", crate::commands::desktop_vibrancy::get_desktop_vibrancy_state),
-            ("set_desktop_vibrancy_style", crate::commands::desktop_vibrancy::set_desktop_vibrancy_style),
         }
     };
 }

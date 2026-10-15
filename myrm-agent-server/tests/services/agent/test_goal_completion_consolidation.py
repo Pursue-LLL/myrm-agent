@@ -37,7 +37,7 @@ class TestGoalCompletionConsolidation:
             new_callable=AsyncMock,
             return_value=mock_deliverables,
         ):
-            await manager_with_session._consolidate_decisions_on_completion(goal)
+            await manager_with_session._collect_deliverables_on_completion(goal)
 
         assert goal.metadata["deliverables"] == mock_deliverables
         manager_with_session._storage.save_goal.assert_awaited_once_with(goal)
@@ -51,14 +51,14 @@ class TestGoalCompletionConsolidation:
             new_callable=AsyncMock,
             return_value=[],
         ):
-            await manager_with_session._consolidate_decisions_on_completion(goal)
+            await manager_with_session._collect_deliverables_on_completion(goal)
 
         assert "deliverables" not in goal.metadata
 
     @pytest.mark.asyncio
     async def test_consolidation_noop_without_session(self, manager_without_session: ServerGoalManager) -> None:
         goal = SimpleNamespace(goal_id="goal-3", metadata={})
-        await manager_without_session._consolidate_decisions_on_completion(goal)
+        await manager_without_session._collect_deliverables_on_completion(goal)
         assert "deliverables" not in goal.metadata
 
     @pytest.mark.asyncio
@@ -70,6 +70,6 @@ class TestGoalCompletionConsolidation:
             new_callable=AsyncMock,
             side_effect=RuntimeError("DB connection lost"),
         ):
-            await manager_with_session._consolidate_decisions_on_completion(goal)
+            await manager_with_session._collect_deliverables_on_completion(goal)
 
         assert "deliverables" not in goal.metadata

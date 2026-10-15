@@ -16,6 +16,8 @@ import { Button } from '@/components/primitives/button';
 import useChatStore from '@/store/useChatStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import type { QueuedGoal } from '@/store/chat/goals/useGoalStore';
+import { cn } from '@/lib/utils/classnameUtils';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const QueueIcon = ({ className = 'w-4 h-4' }) => (
   <svg
@@ -105,7 +107,7 @@ function SortableQueueItem({
       <Button
         variant="ghost"
         size="sm"
-        className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        className={cn('h-5 w-5 p-0 transition-opacity', REVEAL_ON_HOVER)}
         onClick={() => onCancel(goal.goal_id)}
         title={t('cancelQueued')}
       >

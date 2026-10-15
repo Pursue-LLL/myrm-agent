@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { RecordedStep } from '@/store/useBrowserRecordingStore';
+import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
   click: MousePointerClick,
@@ -108,7 +109,8 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
           type="button"
           onClick={() => onDelete(step.seq)}
           className={cn(
-            'flex-shrink-0 p-1 rounded opacity-0 group-hover:opacity-100',
+            'flex-shrink-0 p-1 rounded',
+            REVEAL_ON_HOVER,
             'text-muted-foreground hover:text-destructive transition-all',
           )}
           aria-label={t('deleteStep')}

@@ -295,7 +295,7 @@ export const ImagePreview: React.FC<{
           className={cn(
             'absolute top-6 right-6 p-2 rounded-full',
             'bg-black/50 text-white hover:bg-black/70 transition-all',
-            'opacity-0 group-hover/img:opacity-100',
+            'opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 pointer-coarse:opacity-100',
           )}
           aria-label={tEditor('editButton')}
           title={tEditor('editTooltip')}

@@ -4,9 +4,9 @@
  *
  * [OUTPUT]
  * Temporal Knowledge Graph, Half-Life Decay & Fact Conflict Reconciliation DTOs and API clients:
- * - saveEntityNode, getTemporalEntityNode, listEntityNodes, deleteEntityNode
+ * - saveEntityNode, listEntityNodes, deleteEntityNode
  * - saveFactEdge (Atomically inserts fact edge and reconciles mutual exclusion conflicts)
- * - getFactEdge, listFactEdges, getEdgeLineage (Evolutionary history lineage traversal)
+ * - listFactEdges, getEdgeLineage (Evolutionary history lineage traversal)
  * - queryTemporalFacts (Ranked by dynamic exponential half-life decay score)
  * - getTemporalGraphStats (Graph health and recency summary metrics)
  *
@@ -92,17 +92,6 @@ export async function saveEntityNode(
 }
 
 /**
- * Retrieves an entity node by ID.
- */
-export async function getTemporalEntityNode(
-  nodeId: string
-): Promise<TemporalEntityNodeDTO> {
-  return apiRequest<TemporalEntityNodeDTO>(
-    `/memory/temporal-graph/nodes/${encodeURIComponent(nodeId)}`
-  );
-}
-
-/**
  * Lists stored entity nodes optionally filtered by classification type.
  */
 export async function listEntityNodes(
@@ -143,17 +132,6 @@ export async function saveFactEdge(
     method: 'POST',
     body: JSON.stringify(request),
   });
-}
-
-/**
- * Retrieves a fact edge by ID.
- */
-export async function getFactEdge(
-  edgeId: string
-): Promise<TemporalFactEdgeDTO> {
-  return apiRequest<TemporalFactEdgeDTO>(
-    `/memory/temporal-graph/edges/${encodeURIComponent(edgeId)}`
-  );
 }
 
 /**

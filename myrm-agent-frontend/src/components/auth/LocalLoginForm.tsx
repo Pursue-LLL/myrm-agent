@@ -69,7 +69,7 @@ const LocalLoginForm = memo(
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => onPasswordChange(e.target.value)}
-                  className="w-full pl-12 pr-12 py-4 bg-background/50 border border-border/80 hover:border-muted-foreground/40 focus:border-primary/80 focus:bg-background rounded-2xl text-base text-foreground font-medium transition-all shadow-sm focus:shadow-[0_0_0_4px_rgba(var(--primary),0.1)] focus:outline-none"
+                  className="w-full pl-12 pr-12 py-4 bg-background/50 border border-border/80 hover:border-muted-foreground/40 focus:border-primary/80 focus:bg-background rounded-2xl text-base text-foreground font-medium transition-all shadow-sm focus:shadow-[0_0_0_4px] focus:shadow-primary/10 focus:outline-none"
                   placeholder={t('login.placeholderPassword')}
                   disabled={loading}
                   autoComplete="current-password"

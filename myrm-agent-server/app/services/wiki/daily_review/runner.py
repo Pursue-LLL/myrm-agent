@@ -59,16 +59,10 @@ def _list_window_review_files(structure: WikiStructure, epoch_cutoff: float) -> 
     review_dir = structure.raw_dir / DAILY_REVIEW_RAW_DIR
     if not review_dir.is_dir():
         return []
-    return sorted(
-        path.name
-        for path in review_dir.glob("*.md")
-        if path.stat().st_mtime >= epoch_cutoff
-    )
+    return sorted(path.name for path in review_dir.glob("*.md") if path.stat().st_mtime >= epoch_cutoff)
 
 
-def _window_draft_stats(
-    pending_mgr: WikiPendingEditsManager, iso_cutoff: str
-) -> tuple[dict[str, int], int, int]:
+def _window_draft_stats(pending_mgr: WikiPendingEditsManager, iso_cutoff: str) -> tuple[dict[str, int], int, int]:
     """Count window-produced drafts per dimension plus out-of-dimension and box totals.
 
     Status-agnostic (approved/rejected drafts keep counting) and deduped per concept:
@@ -126,12 +120,7 @@ async def run_wiki_daily_review_compound_job(
     processing_compiles = int(queue_stats.get("processing", 0))
 
     compiles_forced = False
-    if (
-        archiver is not None
-        and llm is not None
-        and pending_compiles > 0
-        and processing_compiles == 0
-    ):
+    if archiver is not None and llm is not None and pending_compiles > 0 and processing_compiles == 0:
         # Stalled-queue rescue: the background worker is idle while items remain queued.
         logger.info("Daily review compounding: rescuing %d stalled compile item(s)", pending_compiles)
         await archiver._compiler.compile_all()
@@ -143,9 +132,7 @@ async def run_wiki_daily_review_compound_job(
     if archiver is None:
         dimension_counts, other_drafts, total_drafts = {}, 0, 0
     else:
-        dimension_counts, other_drafts, total_drafts = _window_draft_stats(
-            archiver._pending_mgr, iso_cutoff
-        )
+        dimension_counts, other_drafts, total_drafts = _window_draft_stats(archiver._pending_mgr, iso_cutoff)
     window_drafts = sum(dimension_counts.values()) + other_drafts
 
     dimension_parts = [f"{name} {count}" for name, count in dimension_counts.items() if count > 0]
@@ -168,7 +155,7 @@ async def run_wiki_daily_review_compound_job(
             summary_text += f" {pending_compiles + processing_compiles} compile(s) still queued."
         # Cron output renders as plain text in every surface (run history, push feed),
         # so the pending panel is referenced by URL only, never as a markdown link.
-        summary_text += " Review them at /settings/knowledge?wikiTab=pendingEdits."
+        summary_text += " Review them at /settings/wiki?wikiTab=pendingEdits."
 
     return WikiDailyReviewCompoundResult(
         summary_text=summary_text,

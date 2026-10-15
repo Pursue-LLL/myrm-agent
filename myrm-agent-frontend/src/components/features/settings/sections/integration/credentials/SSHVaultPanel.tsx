@@ -79,7 +79,7 @@ export function SSHVaultPanel() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast({
-        title: `Probe failed for ${hostAlias}: ${msg}`,
+        title: t('probeFailed', { host: hostAlias, message: msg }),
         variant: 'destructive',
       });
     } finally {

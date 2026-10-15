@@ -10,7 +10,7 @@
 
 - **专注适配**：连接业务层和框架层，不实现存储细节
 - **SKILL.md 规范**：符合 Claude 官方规范，单一配置文件
-- **多存储后端**：Local / Storage(S3) / 业务层自定义
+- **多存储后端**：Local / Storage（经 `StorageProvider`，本地文件系统或持久卷）/ 业务层自定义
 
 ---
 
@@ -69,7 +69,7 @@ effective_skill_ids  解析 Agent 显式 allowlist（所见即所得标准：空
 local_skill_id (harness)  local::{16hex} path-hash SSOT；install/uninstall/catalog 对齐
 ```
 
-**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。内置通用智能体（如 `builtin-general`）默认不加载任何技能（`skill_ids = []`，纯指令零启动基线），用户可在配置中自主启用所需技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能，并广播 `agent_config_updated`；当前聊天会话若已绑定同一 Agent，前端通过 `syncBoundChatAgentConfig` 刷新 `selectedSkillIds`。Chat 与 Discover HTTP 共用 `discovery/market_install_flow.py`（replace 快照、`app.core.skills.audit`、catalog enable、采纳）；Web 回合在 `orchestrator_turn_body` 绑定 `get_current_agent_id()`。
+**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。内置通用智能体（如 `builtin-general`）默认不加载任何技能（`skill_ids = []`，纯指令零启动基线），用户可在配置中自主启用所需技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能，并广播 `agent_config_updated`；当前聊天会话若已绑定同一 Agent，前端通过 `syncBoundChatAgentConfig` 刷新 `selectedSkillIds`。Chat 与 Discover HTTP 共用 `discovery/market_install_flow.py`（replace 快照、`app.core.skills.audit`、catalog enable、采纳）；Web 回合在 `orchestrator_turn_launch` 的后台 turn 入口绑定 `get_current_agent_id()`。
 
 ### 3.3 打包与解包
 
@@ -158,16 +158,16 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 
 ### 3.10 技能生命周期发布验收门（Release gate）
 
-单机产品已内置版本 SSOT、Shadow A/B、晋升回归门与 batch 回滚；发版前至少跑通下列自动化（不必再对标桌面竞品补平行能力）：
+单机产品已内置版本 SSOT、基线相对回归门、原子应用与一键回滚（含 batch 回滚）；发版前至少跑通下列自动化（不必再对标桌面竞品补平行能力）：
 
 | 路径 | 验收要点 | 参考测试 |
 |------|----------|----------|
 | Agent 写 SKILL.md | DB 版本 + 磁盘一致；meta-tool 失败可 `restore_skill_md_from_active_version` | `app/services/skills/write_orchestrator.py`；harness `batch_runner` 集成 |
 | `skill_manage` 批量改 | 变更前 snapshot，失败整批 rollback；成功可 GUI Undo（consume batch_snapshots） | harness `tests/backends/test_skill_system_core.py`；server `tests/services/skills/test_mutation_batch_*.py` |
-| Shadow A/B → promote | 候选版本 inactive 落库；晋升走 regression gate | `tests/services/skill_optimization/test_start_shadow_ab_test.py` |
+| 版本回滚 | 激活历史版本并同步写回磁盘 SKILL.md；历史版本可对比 | `tests/api/skill_optimization/test_versions_routes.py`、`tests/services/skill_optimization/test_skill_version_integration.py` |
 | 进化审批 → 落盘 | 审批通过后 apply；拒绝/失败 rollback | `tests/integration/test_skill_evolution_integration.py` |
 
-GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚、SkillQualityGuardian promote/stop（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）；chat `skill_manage` Undo 提示与 Task Steps 展开见 `tests/e2e/test_skill_manage_undo_hint_chrome_e2e.py`（需 `E2E_SKILL_MANAGE_UNDO_CHAT_PATH`）。
+GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）；chat `skill_manage` Undo 提示与 Task Steps 展开见 `tests/e2e/test_skill_manage_undo_hint_chrome_e2e.py`（需 `E2E_SKILL_MANAGE_UNDO_CHAT_PATH`）。
 
 ---
 

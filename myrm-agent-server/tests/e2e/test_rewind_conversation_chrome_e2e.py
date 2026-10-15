@@ -105,9 +105,6 @@ _OPEN_REWIND_JS = """(() => {
     clickedIndex: connected.length >= 2 ? 1 : 0,
     btnDisabled: btn ? btn.disabled : false,
     btnOuterHtml: (btn?.outerHTML || '').slice(0, 300),
-    btnRenderedHook: window.__REWIND_BTN_RENDERED__ ?? null,
-    btnClickedHook: window.__REWIND_BTN_CLICKED__ ?? null,
-    dialogRenderedHook: window.__REWIND_DIALOG_RENDERED__ ?? null,
     dialogImmediately: !!document.querySelector('[role="dialog"]'),
     rewindTarget: window.__MYRM_E2E_CHAT__?.getRewindTarget?.() ?? null,
     msgIds,
@@ -129,9 +126,6 @@ _DIALOG_READY_JS = """(() => {
     hasScopeBoth: scopeBtns.some(
       (t) => t.includes('Conversation and files') || t.includes('对话和文件'),
     ),
-    btnRenderedHook: window.__REWIND_BTN_RENDERED__ ?? null,
-    btnClickedHook: window.__REWIND_BTN_CLICKED__ ?? null,
-    dialogRenderedHook: window.__REWIND_DIALOG_RENDERED__ ?? null,
     rewindTarget: window.__MYRM_E2E_CHAT__?.getRewindTarget?.() ?? null,
   };
 })()"""

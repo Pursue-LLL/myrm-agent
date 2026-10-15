@@ -246,7 +246,7 @@ async def test_approve_skill_migration_blocked_in_sandbox(
     async_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Skill migration approval writes ~/.myrm/skills — fail closed in sandbox."""
+    """Skill migration approval writes the local skill root — fail closed when local skills are switched off."""
     from app.config.deploy_mode import get_deploy_mode
     from app.platform_utils.deployment_capabilities import (
         _reset_capabilities_cache_for_testing,
@@ -255,6 +255,7 @@ async def test_approve_skill_migration_blocked_in_sandbox(
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
     monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    monkeypatch.setenv("MYRM_ALLOW_LOCAL_SKILLS", "0")
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
 
@@ -279,5 +280,6 @@ async def test_approve_skill_migration_blocked_in_sandbox(
         assert approve.status_code == 403
     finally:
         monkeypatch.delenv("DEPLOY_MODE", raising=False)
+        monkeypatch.delenv("MYRM_ALLOW_LOCAL_SKILLS", raising=False)
         get_deploy_mode.cache_clear()
         _reset_capabilities_cache_for_testing()

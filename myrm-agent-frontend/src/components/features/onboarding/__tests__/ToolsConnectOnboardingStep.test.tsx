@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ButtonHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import useConfigStore from '@/store/useConfigStore';
+import type { MCPServiceConfig } from '@/store/config/types';
 import ToolsConnectOnboardingStep from '../ToolsConnectOnboardingStep';
 import type {
   CatalogEntry,
@@ -8,9 +10,11 @@ import type {
 } from '@/components/features/settings/sections/integration/integrations/catalog-types';
 
 const mockApiRequest = vi.hoisted(() => vi.fn());
+const uiLocale = vi.hoisted(() => ({ current: 'en' }));
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
+  useLocale: () => uiLocale.current,
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -29,19 +33,28 @@ vi.mock('@/components/primitives/skeleton', () => ({
   Skeleton: ({ className }: { className?: string }) => <div data-testid="skeleton" className={className} />,
 }));
 
+// The real dialog saves the service into the config store before reporting the connection.
 vi.mock('@/components/features/settings/sections/integration/integrations/IntegrationConnectDialog', () => ({
   IntegrationConnectDialog: ({
     entry,
+    locale,
     onClose,
     onConnected,
   }: {
     entry: CatalogEntry;
+    locale: string;
     onClose: () => void;
     onConnected: () => void;
   }) => (
-    <div data-testid="connect-dialog">
+    <div data-testid="connect-dialog" data-locale={locale}>
       <span>{entry.name}</span>
-      <button type="button" onClick={onConnected}>
+      <button
+        type="button"
+        onClick={() => {
+          useConfigStore.setState({ mcpConfigs: [makeSavedService(String(entry.mcpConfig?.name))] });
+          onConnected();
+        }}
+      >
         confirm-connect
       </button>
       <button type="button" onClick={onClose}>
@@ -54,6 +67,10 @@ vi.mock('@/components/features/settings/sections/integration/integrations/Integr
 vi.mock('@/components/features/settings/sections/integration/integrations/service-icons', () => ({
   SERVICE_ICONS: {},
 }));
+
+function makeSavedService(name: string, enabled = true): MCPServiceConfig {
+  return { name, type: 'stdio', description: '', enabled };
+}
 
 function makeCatalogEntry(id: string, name: string): CatalogEntry {
   return {
@@ -73,7 +90,7 @@ function makeCatalogEntry(id: string, name: string): CatalogEntry {
     credentialFields: null,
     tags: [],
     website: null,
-    mcpConfig: null,
+    mcpConfig: { name: id },
     deploymentScope: 'all_modes',
     postConnectGuide: null,
     postConnectGuideZh: null,
@@ -95,6 +112,8 @@ const MOCK_CATALOG: CatalogResponse = {
 describe('ToolsConnectOnboardingStep', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    uiLocale.current = 'en';
+    useConfigStore.setState({ mcpConfigs: [] });
     mockApiRequest.mockResolvedValue(MOCK_CATALOG);
   });
 
@@ -151,10 +170,11 @@ describe('ToolsConnectOnboardingStep', () => {
     fireEvent.click(screen.getByText('confirm-connect'));
 
     await waitFor(() => {
-      expect(screen.getByText('boot.onboarding.toolsConnect.connected')).toBeInTheDocument();
+      expect(screen.getByText('settings.integrationCatalog.connected')).toBeInTheDocument();
     });
 
     expect(screen.getByText('boot.onboarding.toolsConnect.continueButton')).toBeInTheDocument();
+    expect(screen.queryByTestId('connect-dialog')).not.toBeInTheDocument();
   });
 
   it('skip button calls onSkip directly', async () => {
@@ -184,5 +204,44 @@ describe('ToolsConnectOnboardingStep', () => {
     await waitFor(() => {
       expect(screen.getByText('boot.onboarding.toolsConnect.continueButton')).toBeInTheDocument();
     });
+  });
+
+  it('shows a service connected earlier as connected and lets the user continue right away', async () => {
+    useConfigStore.setState({ mcpConfigs: [makeSavedService('github')] });
+    render(<ToolsConnectOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('GitHub')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('settings.integrationCatalog.connected')).toBeInTheDocument();
+    expect(screen.getByText('boot.onboarding.toolsConnect.continueButton')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('GitHub'));
+    expect(screen.queryByTestId('connect-dialog')).not.toBeInTheDocument();
+  });
+
+  it('does not count a switched-off service as connected', async () => {
+    useConfigStore.setState({ mcpConfigs: [makeSavedService('github', false)] });
+    render(<ToolsConnectOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('GitHub')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('settings.integrationCatalog.disabled')).toBeInTheDocument();
+    expect(screen.queryByText('settings.integrationCatalog.connected')).not.toBeInTheDocument();
+    expect(screen.queryByText('boot.onboarding.toolsConnect.continueButton')).not.toBeInTheDocument();
+  });
+
+  it('shows Chinese copy and passes the Chinese catalog locale to the dialog for every zh variant', async () => {
+    uiLocale.current = 'zh-TW';
+    render(<ToolsConnectOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('GitHub_zh')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('GitHub_zh'));
+
+    expect(screen.getByTestId('connect-dialog')).toHaveAttribute('data-locale', 'zh');
   });
 });

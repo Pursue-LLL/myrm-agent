@@ -38,7 +38,6 @@ def test_resolve_snapshot_path_finds_relative_context_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import myrm_agent_harness.runtime.context.context_branches as branches_module
     import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
     root = tmp_path / "persistent"
@@ -51,7 +50,6 @@ def test_resolve_snapshot_path_finds_relative_context_file(
     root_str = str(root)
     monkeypatch.setattr(execution_paths, "PERSISTENT_ROOT", root_str)
     monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", f"{root_str}/.context")
-    monkeypatch.setattr(branches_module, "PERSISTENT_ROOT", root_str)
 
     resolved = _resolve_snapshot_path("chat-1", rel)
     assert resolved.is_file()
@@ -63,7 +61,6 @@ async def test_fork_from_branch_creates_child_chat(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import myrm_agent_harness.runtime.context.context_branches as branches_module
     import myrm_agent_harness.runtime.context.context_branches as branches_write
     import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 
@@ -77,8 +74,6 @@ async def test_fork_from_branch_creates_child_chat(
     root_str = str(root)
     monkeypatch.setattr(execution_paths, "PERSISTENT_ROOT", root_str)
     monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", f"{root_str}/.context")
-    monkeypatch.setattr(branches_module, "PERSISTENT_ROOT", root_str)
-    monkeypatch.setattr(branches_write, "PERSISTENT_ROOT", root_str)
 
     chat_id = "chat-branch-fork-1"
     db_session.add(
@@ -190,7 +185,6 @@ async def test_fork_from_branch_returns_error_when_snapshot_has_no_messages(
     root_str = str(root)
     monkeypatch.setattr(execution_paths, "PERSISTENT_ROOT", root_str)
     monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", f"{root_str}/.context")
-    monkeypatch.setattr(branches_module, "PERSISTENT_ROOT", root_str)
 
     chat_id = "chat-empty-snapshot"
     db_session.add(

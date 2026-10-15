@@ -82,7 +82,7 @@ Rather than waiting for an MCP tool call to fail mid-turn with expired OAuth tok
   - **Connector**: `Google Drive MCP` / `Slack MCP`
   - **Status**: `Needs Reauth`
   - **Reason**: `Refresh token expired on 2026-09-09`
-  - **Action Link**: Direct user to `/settings/integrations?reauth=google`
+  - **Action Link**: Direct user to `/settings/mcp`
 
 ---
 

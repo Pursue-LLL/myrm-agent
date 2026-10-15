@@ -6,6 +6,8 @@
  * Uses Web Audio API — no external audio files needed.
  */
 
+import { isUserPresent } from './userPresence';
+
 let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
@@ -25,7 +27,7 @@ function getAudioContext(): AudioContext | null {
  * Returns true if sound was played, false otherwise.
  */
 export function playCompletionSound(): boolean {
-  if (!document.hidden && document.hasFocus()) {
+  if (isUserPresent()) {
     return false;
   }
 

@@ -77,9 +77,6 @@
       }
     },
     "skills": {
-      "history": {
-        "qualityBefore": "変更前"
-      },
       "discover": {
         "browseEmptyTitle": "コミュニティスキルを検索",
         "browseEmptyDesc": "キーワードを入力してClawHub、GitHub、ModelScopeなどのソースを検索",

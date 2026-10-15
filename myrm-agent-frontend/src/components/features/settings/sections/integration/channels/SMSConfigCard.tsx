@@ -30,7 +30,7 @@ export function SMSConfigCard() {
       i18nPrefix: 'sms',
     });
 
-  const { url: webhookUrl, loading: webhookLoading } = useIngressUrl('/api/v1/channels/sms/webhook');
+  const { url: webhookUrl, loading: webhookLoading } = useIngressUrl('/api/channels/sms/webhook');
   const isLocalhost = webhookUrl.includes('localhost') || webhookUrl.includes('127.0.0.1');
 
   const handleCopyWebhook = async () => {

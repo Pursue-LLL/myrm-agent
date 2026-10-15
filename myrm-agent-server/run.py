@@ -21,64 +21,6 @@ from app.startup.uvicorn_runner import start_with_uvicorn
 # 环境初始化（必须最先执行）
 init_environment()
 
-# Fail closed when production harness wheels are incomplete (passes in editable dev)
-from myrm_agent_harness.runtime.install_guard.probe import (  # noqa: E402
-    DistributionMode,
-    assert_distribution_ready,
-    get_distribution_mode,
-)
-
-assert_distribution_ready()
-
-_mode = get_distribution_mode()
-_mode_labels: dict[DistributionMode, str] = {
-    DistributionMode.SOURCE: "editable/源码 (本地开发)",
-    DistributionMode.COMPILED: "PyPI 编译包 (接近生产)",
-    DistributionMode.INCOMPLETE: "不完整 — 请在仓库根目录运行 myrm setup 或 cd myrm-agent-server && uv sync",
-}
-print(f"📦 Harness 安装形态: {_mode_labels.get(_mode, _mode.value)}")
-
-
-def _assert_harness_server_apis() -> None:
-    """Fail fast when the installed harness lacks APIs required by this server revision."""
-    import importlib
-    import sys
-
-    try:
-        module = importlib.import_module("myrm_agent_harness.agent.security.config")
-    except ImportError as exc:
-        print(
-            "ERROR: Installed myrm-agent-harness is missing agent.security.config.",
-            file=sys.stderr,
-        )
-        print(
-            "Monorepo: run ./myrm harness install from the open-perplexity root.",
-            file=sys.stderr,
-        )
-        print(
-            "OSS: upgrade to myrm-agent-harness>=0.1.0rc3 after it is published on PyPI.",
-            file=sys.stderr,
-        )
-        raise SystemExit(1) from exc
-
-    if not hasattr(module, "remote_exposed_permissions"):
-        print(
-            "ERROR: Installed myrm-agent-harness is missing remote_exposed_permissions.",
-            file=sys.stderr,
-        )
-        print(
-            "Monorepo: run ./myrm harness install from the open-perplexity root.",
-            file=sys.stderr,
-        )
-        print(
-            "OSS: upgrade to myrm-agent-harness>=0.1.0rc3 after it is published on PyPI.",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-
-
-_assert_harness_server_apis()
-
 # 配置校验与迁移
 run_config_check()
 
@@ -143,11 +85,6 @@ if __name__ == "__main__":
         action="store_true",
         help="禁用自动恢复（健康检查失败时不尝试修复）",
     )
-    parser.add_argument(
-        "--force-recovery",
-        action="store_true",
-        help="允许危险的恢复操作（例如删除 SQLite WAL 文件，可能导致数据丢失）",
-    )
     args = parser.parse_args()
 
     # 处理 WebUI 模式参数
@@ -203,7 +140,6 @@ if __name__ == "__main__":
             skip_port_check=args.skip_port_check,
             skip_health_check=args.skip_health_check,
             no_auto_recovery=args.no_auto_recovery,
-            force_recovery=args.force_recovery,
         )
     else:
         start_with_uvicorn(
@@ -216,5 +152,4 @@ if __name__ == "__main__":
             no_qrcode=args.no_qrcode,
             skip_health_check=args.skip_health_check,
             no_auto_recovery=args.no_auto_recovery,
-            force_recovery=args.force_recovery,
         )

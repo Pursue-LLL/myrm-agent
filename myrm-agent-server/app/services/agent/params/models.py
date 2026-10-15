@@ -54,7 +54,7 @@ class AgentConfigRequest(BaseModel):
     """Agent configuration from frontend (replaces DB-only agent profile)."""
 
     skill_ids: list[str] = []
-    skill_configs: dict[str, dict] | None = None
+    skill_configs: dict[str, dict[str, object]] | None = None
     enabled_builtin_tools: RequiredBuiltinTools = Field(
         default_factory=lambda: list(DEFAULT_ENABLED_BUILTIN_TOOLS),
     )
@@ -274,8 +274,8 @@ class AgentRequest(BaseModel):
     locale: str | None = None
     force_external_agent: str | None = None
     privacy_enabled: bool = False
-    privacy_s2_action: str = "redact"
-    privacy_s3_action: str = "redact"
+    privacy_s2_action: str | None = None
+    privacy_s3_action: str | None = None
     privacy_routing: dict[str, str] | None = None
     privacy_custom_keywords_s2: list[str] | None = None
     privacy_custom_keywords_s3: list[str] | None = None

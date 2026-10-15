@@ -12,6 +12,7 @@ import ModelOrchestrationPlaybookCard from './ModelOrchestrationPlaybookCard';
 
 const ModelSettingsSection = memo(() => {
   const t = useTranslations('settings');
+  const tDescription = useTranslations('settings.modelCenter.tabDescriptions');
   const searchParams = useSearchParams();
   const { handleTabChange: syncTabChange } = useSettingsSubTabUrl('models');
 
@@ -36,9 +37,7 @@ const ModelSettingsSection = memo(() => {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('menu.models')}</h1>
         <p className="text-sm text-muted-foreground">
-          {activeTab === 'providers'
-            ? '配置 AI 模型提供商与 API 秘钥 / Configure AI Providers and API credentials'
-            : '设定默认与降级模型、路由策略及第三方模型设置 / Define default, routing, and fallback models'}
+          {tDescription(activeTab === 'default' ? 'default' : 'providers')}
         </p>
       </div>
 

@@ -47,7 +47,6 @@ import {
   getIntegrationSkillSettingsPath,
   hasIntegrationSettingsLink,
 } from '@/lib/skills/integrationOAuthDisplay';
-import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
 import { SkillPermissionUsageDashboard } from './SkillPermissionUsageDashboard';
 import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
@@ -153,8 +152,10 @@ export function SkillDetailSheetContent({
       const res = await saveSkillFile(skill.id, 'SKILL.md', editorContent);
       if (res.status === 'ok') {
         toast({
-          title: t('detail.sourceSaved') || 'SKILL.md updated successfully',
-          description: res.is_clean ? undefined : `Security review: ${res.trust_recommendation}`,
+          title: t('detail.sourceSaved'),
+          description: res.is_clean
+            ? undefined
+            : t('detail.securityReviewNote', { recommendation: res.trust_recommendation }),
         });
         setIsEditorDirty(false);
         reloadSkillContent();
@@ -163,7 +164,7 @@ export function SkillDetailSheetContent({
       const msg = err instanceof Error ? err.message : String(err);
       toast({
         variant: 'destructive',
-        title: t('detail.sourceSaveFailed') || 'Failed to save SKILL.md',
+        title: t('detail.sourceSaveFailed'),
         description: msg,
       });
     } finally {
@@ -175,7 +176,6 @@ export function SkillDetailSheetContent({
     <div className="py-4 space-y-5">
       <p className="text-muted-foreground">{resolveSkillDescription(skill, t('detail.noDescription'))}</p>
 
-      <SkillQualityGuardian skillId={skill.id} onPromoted={reloadSkillContent} />
       <SkillVersionsPanel skillId={skill.id} onActivated={reloadSkillContent} />
 
       {/* Availability warning */}

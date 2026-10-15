@@ -118,7 +118,6 @@ class TelegramChannel(
         buttons=True,
         quick_replies=True,
         select_menus=True,
-        interactive_callback=True,
         threads=True,
         edit=True,
         delete=True,
@@ -262,7 +261,8 @@ class TelegramChannel(
         try:
             me = await self._client.get_me()
             self._bot_username = str(me.get("username", ""))
-            self._tg_bot_id = me.get("id")
+            bot_id = me.get("id")
+            self._tg_bot_id = bot_id if isinstance(bot_id, int) else None
             self._bot_id = str(self._tg_bot_id) if self._tg_bot_id else ""
             logger.warning(
                 "TelegramChannel: verified bot @%s (id=%s)",

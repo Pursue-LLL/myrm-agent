@@ -4,7 +4,7 @@
 - (none — leaf module)
 
 [OUTPUT]
-- CommandDef: Frozen dataclass describing a single slash command
+- CommandDef: Frozen dataclass describing a single slash command, including who may run it (any_sender, owner_only)
 - CommandAction: Enum of built-in system command action types
 - SYSTEM_COMMANDS: Tuple of all built-in system CommandDef instances
 
@@ -12,7 +12,8 @@
 Command definition module: data structures for the command registry.
 CommandDef is framework-level, business-agnostic; business-layer commands
 (Skill bindings, Agent routing aliases) are registered at runtime via
-CommandRegistry.register().
+CommandRegistry.register(). A system command is owner-only unless it opts in with
+any_sender, which it may do only when it stays inside the sender's own conversation.
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ class CommandAction(Enum):
     BIND = "bind"
     UNBIND = "unbind"
     TOPIC = "topic"
+    DRAFT = "draft"
     APPROVE = "approve"
     GOAL = "goal"
     SUBGOAL = "subgoal"
@@ -76,6 +78,9 @@ class CommandDef:
         instruction: Ephemeral guidance for bundles.
         agent_id: Target agent ID (only for CommandKind.AGENT_ROUTE).
         parse_args: Whether the command accepts trailing text as arguments.
+        any_sender: Whether a non-owner may run this system command. The router dispatches system commands before
+            the DM policy and the sender's identity are resolved, and they act on the owner's sandbox, so a command
+            opts in only if it stays inside the sender's own conversation and costs at most one turn.
     """
 
     name: str
@@ -91,7 +96,15 @@ class CommandDef:
     """Ephemeral guidance text injected alongside the SOP(s) for bundles."""
     agent_id: str | None = None
     parse_args: bool = False
-    requires_admin: bool = False
+    any_sender: bool = False
+
+    @property
+    def owner_only(self) -> bool:
+        """Whether only the sandbox owner may run this command.
+
+        Skill and agent commands are submitted to the per-turn pipeline, which resolves the sender's identity itself.
+        """
+        return self.kind is CommandKind.SYSTEM and not self.any_sender
 
 
 SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
@@ -100,12 +113,14 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         description="Stop the currently running agent task",
         action=CommandAction.STOP,
         category="Session",
+        any_sender=True,
     ),
     CommandDef(
         name="new",
         description="Start a new conversation session",
         action=CommandAction.NEW_SESSION,
         category="Session",
+        any_sender=True,
     ),
     CommandDef(
         name="compact",
@@ -114,18 +129,21 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Session",
         parse_args=True,
         args_pattern="[focus_topic]",
+        any_sender=True,
     ),
     CommandDef(
         name="retry",
         description="Retry the last message",
         action=CommandAction.RETRY,
         category="Session",
+        any_sender=True,
     ),
     CommandDef(
         name="undo",
         description="Remove the last user/assistant exchange",
         action=CommandAction.UNDO,
         category="Session",
+        any_sender=True,
     ),
     CommandDef(
         name="yolo",
@@ -134,7 +152,6 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Configuration",
         parse_args=True,
         args_pattern="[on|off|toggle|status] [timeout_seconds]",
-        requires_admin=True,
     ),
     CommandDef(
         name="personality",
@@ -143,6 +160,7 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Configuration",
         parse_args=True,
         args_pattern="[style_name|list]",
+        any_sender=True,
     ),
     CommandDef(
         name="bind",
@@ -151,7 +169,6 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Topic",
         parse_args=True,
         args_pattern="[agent_id]",
-        requires_admin=True,
     ),
     CommandDef(
         name="unbind",
@@ -164,6 +181,14 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         description="Show current topic/channel binding status",
         action=CommandAction.TOPIC,
         category="Topic",
+    ),
+    CommandDef(
+        name="draft",
+        description="Approve or reject a reply held for review",
+        action=CommandAction.DRAFT,
+        category="Topic",
+        parse_args=True,
+        args_pattern="approve <code>|reject <code>",
     ),
     CommandDef(
         name="goal",
@@ -188,6 +213,7 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Execution",
         parse_args=True,
         args_pattern="<new instruction>",
+        any_sender=True,
     ),
     CommandDef(
         name="queue",
@@ -196,6 +222,7 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Execution",
         parse_args=True,
         args_pattern="<task description>",
+        any_sender=True,
     ),
     CommandDef(
         name="background",
@@ -282,17 +309,20 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         description="Show current session status (tokens, model, agent state)",
         action=CommandAction.STATUS,
         category="Info",
+        any_sender=True,
     ),
     CommandDef(
         name="quota",
         description="Show your daily message quota and usage status",
         action=CommandAction.QUOTA,
         category="Info",
+        any_sender=True,
     ),
     CommandDef(
         name="help",
         description="Show available commands",
         action=CommandAction.HELP,
         category="Info",
+        any_sender=True,
     ),
 )

@@ -307,7 +307,6 @@ class ExtensionBridgeService:
             browser=browser,
             engine="chromium-patchright",
             is_managed=False,
-            _pid=None,
         )
 
     async def connect_to_domain(self, domain: str, *, timeout: float = 10.0) -> BrowserInstance:
@@ -359,7 +358,6 @@ class ExtensionBridgeService:
             browser=browser,
             engine="chromium-patchright",
             is_managed=False,
-            _pid=None,
         )
 
     async def navigate_to_url(

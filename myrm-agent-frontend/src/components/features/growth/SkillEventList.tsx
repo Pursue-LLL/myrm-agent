@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Clock3, ShieldAlert, XCircle } from 'lucid
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SkillEvolutionEvent } from '@/services/statistics';
+import { useGrowthTypeLabel } from './useGrowthTypeLabel';
 
 interface SkillEventListProps {
   events: SkillEvolutionEvent[];
@@ -57,6 +58,7 @@ const STATUS_CONFIG = {
 
 export default function SkillEventList({ events }: SkillEventListProps) {
   const t = useTranslations('growthDashboard.skillEvents');
+  const growthTypeLabel = useGrowthTypeLabel();
 
   const formatRelativeDate = (isoStr: string): string => {
     const date = new Date(isoStr);
@@ -108,7 +110,7 @@ export default function SkillEventList({ events }: SkillEventListProps) {
                 </span>
               </div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {t('growthType', { type: event.growth_type })}
+                {t('growthType', { type: growthTypeLabel(event.growth_type) })}
               </p>
               {event.change_summary && (
                 <p className="mt-1 truncate text-xs text-muted-foreground">{event.change_summary}</p>

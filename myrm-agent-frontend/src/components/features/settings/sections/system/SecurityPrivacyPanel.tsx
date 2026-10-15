@@ -5,10 +5,9 @@ import { useTranslations } from 'next-intl';
 import { Navigation } from 'lucide-react';
 import {
   IconShield,
+  IconShieldCheck,
   IconEye,
   IconEyeOff,
-  IconBan,
-  IconShieldAlert,
   IconRefresh,
   IconSearch,
   IconLoader,
@@ -25,6 +24,8 @@ import useConfigStore from '@/store/useConfigStore';
 import type { PIIAction, PrivacyS2Strategy, PrivacyS3Strategy, PrivacyLocalFallback } from '@/services/config/types';
 import SettingsSection from '../SettingsSection';
 import { AdvancedPiiConfig } from './AdvancedPiiConfig';
+import { PrivacyActionRow } from './PrivacyActionRow';
+import { PrivacyRuleTester } from './PrivacyRuleTester';
 
 const SecurityPrivacyPanel = memo(() => {
   const t = useTranslations('settings.securityPolicy');
@@ -71,7 +72,7 @@ const SecurityPrivacyPanel = memo(() => {
       );
       const data = await resp.json();
       if (data.success) {
-        toast.success(`${t('privacy.routing.testSuccess')} (${data.latency_ms}ms)`);
+        toast.success(t('privacy.routing.testSuccessLatency', { latency: data.latency_ms }));
       } else {
         toast.error(`${t('privacy.routing.testFailed')}: ${data.message}`);
       }
@@ -100,88 +101,29 @@ const SecurityPrivacyPanel = memo(() => {
 
         {privacyEnabled && (
           <div className="ml-11 space-y-3 pt-2 border-t border-border/50">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <div className="flex items-center gap-2 min-w-[180px]">
-                <IconEye className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-sm text-foreground">{t('privacy.s2Label')}</span>
-              </div>
-              <Select value={privacyS2Action} onValueChange={(v: string) => setPrivacyS2Action(v as PIIAction)}>
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="warn">
-                    <span className="flex items-center gap-1.5">
-                      <IconShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                      {t('privacy.actionWarn')}
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="pseudonymize">
-                    <span className="flex items-center gap-1.5">
-                      <IconRefresh className="h-3.5 w-3.5 text-emerald-500" />
-                      {t('privacy.actionPseudonymize')}
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="redact">
-                    <span className="flex items-center gap-1.5">
-                      <IconEyeOff className="h-3.5 w-3.5 text-blue-500" />
-                      {t('privacy.actionRedact')}
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="block">
-                    <span className="flex items-center gap-1.5">
-                      <IconBan className="h-3.5 w-3.5 text-destructive" />
-                      {t('privacy.actionBlock')}
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <div className="flex items-center gap-2 min-w-[180px]">
-                <IconEyeOff className="h-3.5 w-3.5 text-destructive" />
-                <span className="text-sm text-foreground">{t('privacy.s3Label')}</span>
-              </div>
-              <Select value={privacyS3Action} onValueChange={(v: string) => setPrivacyS3Action(v as PIIAction)}>
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="warn">
-                    <span className="flex items-center gap-1.5">
-                      <IconShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                      {t('privacy.actionWarn')}
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="pseudonymize">
-                    <span className="flex items-center gap-1.5">
-                      <IconRefresh className="h-3.5 w-3.5 text-emerald-500" />
-                      {t('privacy.actionPseudonymize')}
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="redact">
-                    <span className="flex items-center gap-1.5">
-                      <IconEyeOff className="h-3.5 w-3.5 text-blue-500" />
-                      {t('privacy.actionRedact')}
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="block">
-                    <span className="flex items-center gap-1.5">
-                      <IconBan className="h-3.5 w-3.5 text-destructive" />
-                      {t('privacy.actionBlock')}
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <PrivacyActionRow
+              icon={<IconEye className="h-3.5 w-3.5 text-amber-500" />}
+              label={t('privacy.s2Label')}
+              value={privacyS2Action}
+              onChange={setPrivacyS2Action}
+            />
+            <PrivacyActionRow
+              icon={<IconEyeOff className="h-3.5 w-3.5 text-destructive" />}
+              label={t('privacy.s3Label')}
+              value={privacyS3Action}
+              onChange={setPrivacyS3Action}
+            />
 
             {(privacyS2Action === 'pseudonymize' || privacyS3Action === 'pseudonymize') && (
-              <div className="flex items-start gap-2 p-2.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
                 <IconRefresh className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">{t('privacy.pseudonymizeHint')}</p>
               </div>
             )}
+
+            <PrivacyRuleTester />
+
+            <AdvancedPiiConfig />
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -192,6 +134,16 @@ const SecurityPrivacyPanel = memo(() => {
                 </div>
               </div>
               <Switch checked={privacyDeepScan} onCheckedChange={setPrivacyDeepScan} />
+            </div>
+
+            <div className="rounded-xl border border-border/60 p-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <IconShieldCheck className="h-3.5 w-3.5 text-primary" />
+                <span className="text-sm font-medium text-foreground">{t('privacy.coverage.title')}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('privacy.coverage.covered')}</p>
+              <p className="text-xs text-muted-foreground">{t('privacy.coverage.notCovered')}</p>
+              <p className="text-xs text-muted-foreground">{t('privacy.coverage.matching')}</p>
             </div>
 
             <div id="security-privacy-routing" className="mt-4 pt-4 border-t border-border/50 space-y-3">
@@ -302,7 +254,7 @@ const SecurityPrivacyPanel = memo(() => {
 
                 {!privacyRouting?.localModel &&
                   (privacyRouting?.s2Strategy === 'local' || privacyRouting?.s3Strategy === 'local') && (
-                    <div className="flex items-start gap-2 p-2.5 rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+                    <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
                       <IconAlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
                       <p className="text-xs text-amber-700 dark:text-amber-400">
                         {t('privacy.routing.noLocalModelWarning')}
@@ -311,8 +263,6 @@ const SecurityPrivacyPanel = memo(() => {
                   )}
               </div>
             </div>
-
-            <AdvancedPiiConfig />
           </div>
         )}
       </div>

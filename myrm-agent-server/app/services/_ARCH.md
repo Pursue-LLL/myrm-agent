@@ -33,7 +33,7 @@
 | `skills/` | ✅ 核心 | 技能相关服务（权限、经验账本、草稿通知、自动提取；按域收敛为 `evolution_review/` 与 `growth/` 两个子包 + 门面） | [_ARCH.md](skills/_ARCH.md) |
 | `cron/` | ✅ 辅助 | 定时任务前置验证门禁与先验成功统计服务 | [_ARCH.md](cron/_ARCH.md) |
 | `plugins/` | ✅ 核心 | 插件导入编排（Agent Plugins 1.0.0：ZIP 解析包装、staging 会话、预览构建、confirm 落盘 + Agent 绑定） | [_ARCH.md](plugins/_ARCH.md) |
-| `skill_optimization/` | ✅ 核心 | Skill 优化服务（AB 测试、基线同步、LLM 优化、回滚） | [_ARCH.md](skill_optimization/_ARCH.md) |
+| `skill_optimization/` | ✅ 核心 | Skill 版本服务（版本快照双写、一键回滚、批次撤销快照） | [_ARCH.md](skill_optimization/_ARCH.md) |
 | `event/` | ✅ 核心 | 事件记录（Agent 运行时事件持久化 + Turn 生命周期管理） | [_ARCH.md](event/_ARCH.md) |
 | `kanban/` | ✅ 核心 | Kanban 看板业务编排（mixin facade + orchestrator 模块 + TaskRunner + diagnostics） | [_ARCH.md](kanban/_ARCH.md) |
 | `batch_directory/` | ✅ 核心 | 批量目录并行 Prompt 编排（同一 prompt × N 目录 → Kanban 任务扇出 + 聚合进度 + 终态通知） | [_ARCH.md](batch_directory/_ARCH.md) |
@@ -42,7 +42,6 @@
 | `external_agents/` | ✅ 辅助 | 外部 CLI 委托 RuntimePool 按 chat 复用、per-chat turn lock、idle 回收 | [_ARCH.md](external_agents/_ARCH.md) |
 | `risk/` | ✅ 核心 | 风险检测服务（规则引擎、常量、检测逻辑） | [_ARCH.md](risk/_ARCH.md) |
 | `security/` | ✅ 核心 | 安全配置服务（Profile 管理：CRUD、激活、克隆、内置 profile 种子） | [_ARCH.md](security/_ARCH.md) |
-| `message_filter/` | ✅ 核心 | 消息过滤服务（审计、配置管理、版本控制） | [_ARCH.md](message_filter/_ARCH.md) |
 | `features/` | ✅ 核心 | Feature Flags 服务（注册、用户覆盖配置持久化） | [_ARCH.md](features/_ARCH.md) |
 | `progression/` | ✅ 辅助 | 用户能力进度服务（里程碑追踪、等级计算、Feature Gate 联动） | — |
 | `repair/` | ✅ 核心 | 运行时修复动作契约与白名单执行服务 | [_ARCH.md](repair/_ARCH.md) |
@@ -64,13 +63,11 @@
 | `system/` | ✅ 辅助 | 系统运维与技术支持排障包聚合服务（Support Debug Bundle） | [_ARCH.md](system/_ARCH.md) |
 | `locked_use/` | ✅ 辅助 | Locked Use 协调层（Computer Use 锁屏解锁编排，集成 SleepInhibitor + Tauri IPC） | [_ARCH.md](locked_use/_ARCH.md) |
 | `infra/` | ✅ 辅助 | 基础设施维护（沙箱清理、防休眠、系统通知） | [_ARCH.md](infra/_ARCH.md) |
-| `power/` | ✅ 辅助 | 电源与系统状态管理（智能防休眠锁、电量感知） | [_ARCH.md](power/_ARCH.md) |
 | `background/` | ✅ 辅助 | 后台守护任务 | [_ARCH.md](background/_ARCH.md) |
 | `wiki/` | ✅ 辅助 | Wiki 服务（记忆转 Wiki） | [_ARCH.md](wiki/_ARCH.md) |
 | `faq/` | ✅ 辅助 | Channel FAQ 语义缓存（per-agent Q&A CRUD + 零 LLM 拦截 + 命中追踪） | [_ARCH.md](faq/_ARCH.md) |
 | `migration/` | ✅ 辅助 | 外部助手数据迁移（Wizard 封闭 4 源：Hermes/OpenClaw/Claude Code/Codex） | [_ARCH.md](migration/_ARCH.md) |
 | `org_model_policy/` | ✅ 辅助 | Org 模型白名单 revision + agent build enforce | [_ARCH.md](org_model_policy/_ARCH.md) |
-| `deploy/` | ✅ 核心 | 产物一键部署（Vercel API 客户端、SPA 路由注入、网络重试） | [_ARCH.md](deploy/_ARCH.md) |
 | `compliance/` | ✅ 辅助 | 公众号草稿推送前合规扫描（HITL draft 专用） | [_ARCH.md](compliance/_ARCH.md) |
 | `files/` | ✅ 辅助 | 非 HTTP 文件内容提取（PDF/Office bytes→text） | [_ARCH.md](files/_ARCH.md) |
 | `extension/` | ✅ 辅助 | 浏览器扩展桥 WebSocket 生命周期与 CDP 代理 | [_ARCH.md](extension/_ARCH.md) |
@@ -83,7 +80,6 @@
 | `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |
 | `code_graph/` | ✅ 核心 | 代码调用图谱分析与 AST 符号导航服务（8大确定性工具 + 增量 reingest） | [_ARCH.md](code_graph/_ARCH.md) |
 | `rules/` | ✅ 核心 | 流式防护规则服务（TTSR 生产级高危命令与凭证防泄露默认规则库） | [_ARCH.md](rules/_ARCH.md) |
-| `templates/` | ✅ 核心 | 预置智能体应用模板中心与零提示词一键实例化引擎（20+ 行业 Persona 资产包 + 专属 Wiki 蓝图） | [_ARCH.md](templates/_ARCH.md) |
 ---
 
 ## 依赖关系

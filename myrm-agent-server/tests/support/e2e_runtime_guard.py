@@ -328,11 +328,14 @@ def _reacquire_e2e_lease_from_wave() -> bool:
     return False
 
 
-def _heal_stale_e2e_lease() -> None:
-    """Best-effort heal when parallel wave reap races pytest fixture setup."""
+def _heal_stale_e2e_lease() -> str:
+    """Best-effort heal when parallel wave reap races pytest fixture setup.
+
+    Returns the branch taken so the fixture can log where its wait went.
+    """
     lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
     if not lease_id:
-        return
+        return "no_lease_env"
     dev_lib = str(_DEV_LIB)
     if dev_lib not in sys.path:
         sys.path.insert(0, dev_lib)
@@ -344,9 +347,10 @@ def _heal_stale_e2e_lease() -> None:
         payload = {}
     lease = _active_lease(payload, lease_id)
     if lease is None or lease.get("status") != "active":
-        if _reacquire_e2e_lease_from_wave():
+        reacquired = _reacquire_e2e_lease_from_wave()
+        if reacquired:
             time.sleep(0.25)
-        return
+        return f"lease_inactive:reacquired={reacquired}"
 
     from e2e_core.lease_runtime_sync import (
         lease_runtime_matches_shared_hot,
@@ -357,15 +361,17 @@ def _heal_stale_e2e_lease() -> None:
     if ok:
         heartbeat_once()
         time.sleep(0.25)
-        return
+        return "shared_hot_match"
     sync_lease_runtime_with_shared_hot(lease_id=lease_id)
     ok, _ = lease_runtime_matches_shared_hot(lease_id=lease_id)
     if ok:
         heartbeat_once()
         time.sleep(0.25)
-        return
-    if _reacquire_e2e_lease_from_wave():
+        return "synced"
+    reacquired = _reacquire_e2e_lease_from_wave()
+    if reacquired:
         time.sleep(0.25)
+    return f"sync_failed:reacquired={reacquired}"
 
 
 def _require_e2e_runtime_lease_once(

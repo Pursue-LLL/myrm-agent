@@ -3,7 +3,6 @@
 from fastapi import APIRouter
 
 from ..test_fixtures import router as test_fixtures_router
-from .anchor_search import router as anchor_search_router
 from .catchup import router as catchup_router
 from .compaction import router as compaction_router
 from .copilot import router as copilot_router
@@ -15,31 +14,24 @@ from .import_session import router as import_session_router
 from .loop import router as loop_router
 from .memory_extract import router as memory_extract_router
 from .messages import router as messages_router
-from .outline import router as outline_router
-from .overlays import router as overlays_router
 from .replay import router as replay_router
 from .rewind import router as rewind_router
 from .sandbox import router as sandbox_router
 from .share import router as share_router
-from .task_hud import router as task_hud_router
 from .thought_control import router as thought_control_router
 from .title import router as title_router
 from .trajectory import router as trajectory_router
 from .trash import router as trash_router
 from .turn import router as turn_router
 from .ui_interaction import router as ui_interaction_router
-from .zdr import router as zdr_router
 
 router = APIRouter()
 
 router.include_router(test_fixtures_router)
-router.include_router(anchor_search_router)
 router.include_router(trash_router)
 router.include_router(catchup_router)
 router.include_router(messages_router)
-router.include_router(outline_router)
 router.include_router(memory_extract_router)
-router.include_router(overlays_router)
 router.include_router(core_router)
 router.include_router(title_router)
 router.include_router(turn_router)
@@ -56,9 +48,7 @@ router.include_router(trajectory_router)
 router.include_router(replay_router)
 router.include_router(export_pack_router)
 router.include_router(ui_interaction_router)
-router.include_router(task_hud_router)
 router.include_router(thought_control_router)
-router.include_router(zdr_router)
 
 __all__ = ["router"]
 

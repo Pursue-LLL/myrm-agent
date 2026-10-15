@@ -1,6 +1,6 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支
+[OUTPUT] Chat: 聊天会话, Message: 消息, ConversationFork: 对话分支, SYSTEM_NOTICE_EXTRA_KEYS: 系统通知行的 extra_data 标记键
 [POS] 会话与消息域模型。管理聊天会话、消息记录和对话分支。
 """
 
@@ -22,6 +22,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+
+# `extra_data` keys that mark an assistant row as a system notice (the server appended it; the model did not answer
+# with it). A notice is never a version of a turn's answer, so retry and version counting leave it alone.
+BACKGROUND_JOB_NOTICE_KEY = "background_job"
+VOICE_BACKGROUND_TASK_NOTICE_KEY = "voice_background_task"
+SYSTEM_NOTICE_EXTRA_KEYS: tuple[str, ...] = (BACKGROUND_JOB_NOTICE_KEY, VOICE_BACKGROUND_TASK_NOTICE_KEY)
 
 
 class Chat(Base):
@@ -51,7 +57,7 @@ class Chat(Base):
     session_notes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Store JIT ephemeral subagents for session resume and crash recovery
-    ephemeral_subagents: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    ephemeral_subagents: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
     # Persisted loaded skill names for session skill contract (survives compaction / history trim)
     session_loaded_skill_names: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
@@ -60,7 +66,7 @@ class Chat(Base):
     workspace_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     # HITL-granted extra directory roots for this chat session
-    session_access_roots: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    session_access_roots: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
 
     # Original repo root when sandbox (git worktree) is active
     sandbox_base_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -139,7 +145,7 @@ class Message(Base):
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=False)
     sent_timezone: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    extra_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    extra_data: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
     sibling_group_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
@@ -172,27 +178,6 @@ class ConversationFork(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class OfflineDurableTask(Base):
-    """持久化离线任务表
-
-    记录因客户端断线而转入后台托管的长耗时任务（如 deep_research）。
-    在 Server 意外重启时，通过扫描此表恢复任务执行。
-    """
-
-    __tablename__ = "offline_durable_tasks"
-
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    chat_id: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("chats.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    action_mode: Mapped[str] = mapped_column(String(50), nullable=False)
-    serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
 class InterruptedTurnMarker(Base):
     """Write-ahead marker for crash auto-continue.
 
@@ -213,7 +198,7 @@ class InterruptedTurnMarker(Base):
     user_message_id: Mapped[str] = mapped_column(String(255), nullable=False)
     action_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="fast")
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    serialized_params: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     pending_steering_messages: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

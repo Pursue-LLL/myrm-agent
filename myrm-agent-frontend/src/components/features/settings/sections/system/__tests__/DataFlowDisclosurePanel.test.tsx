@@ -278,6 +278,23 @@ describe('DataFlowDisclosurePanel', () => {
     });
   });
 
+  it('names each connected oauth account by brand and links it to the Credentials page that manages it', async () => {
+    mockListOAuthCredentials.mockResolvedValue([
+      { issuer: 'google_workspace', user_id: 'U1', scope: 'drive', expires_at: null, connected: true },
+      { issuer: 'xai', user_id: 'U2', scope: 'chat', expires_at: null, connected: true },
+    ]);
+
+    render(<DataFlowDisclosurePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Google Workspace')).toBeDefined();
+      expect(screen.getByText('xAI')).toBeDefined();
+    });
+    const hrefs = screen.getAllByText('actionManage').map((node) => node.closest('a')?.getAttribute('href'));
+    expect(hrefs.filter((href) => href === '/settings/credentials')).toHaveLength(2);
+    expect(hrefs).not.toContain('/settings/integrationCatalog');
+  });
+
   it('shows sync egress immediately while integrations are still loading', async () => {
     mockListConnectorStatus.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve([]), 50)));
     mockListOAuthCredentials.mockResolvedValue([]);

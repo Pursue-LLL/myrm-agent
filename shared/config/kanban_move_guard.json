@@ -1,0 +1,47 @@
+{
+  "triage": ["backlog", "ready", "archived"],
+  "backlog": [
+    "triage",
+    "backlog",
+    "ready",
+    "running",
+    "blocked",
+    "completed",
+    "failed",
+    "archived"
+  ],
+  "ready": [
+    "triage",
+    "backlog",
+    "ready",
+    "running",
+    "blocked",
+    "completed",
+    "failed",
+    "archived"
+  ],
+  "running": [
+    "triage",
+    "backlog",
+    "ready",
+    "running",
+    "blocked",
+    "completed",
+    "failed",
+    "archived"
+  ],
+  "blocked": [
+    "triage",
+    "backlog",
+    "ready",
+    "running",
+    "blocked",
+    "completed",
+    "failed",
+    "archived"
+  ],
+  "in_review": [],
+  "completed": ["archived"],
+  "failed": ["archived"],
+  "archived": ["archived"]
+}

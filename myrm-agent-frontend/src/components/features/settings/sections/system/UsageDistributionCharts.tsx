@@ -134,14 +134,14 @@ export const HourDistributionChart = memo<{ data: Record<number, number> }>(({ d
               transition={{ duration: 1 }}
               d={pathD}
               fill="url(#gradient)"
-              stroke="rgb(var(--primary))"
+              stroke="var(--primary)"
               strokeWidth="0.5"
               vectorEffect="non-scaling-stroke"
             />
             <defs>
               <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="rgb(var(--primary))" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="rgb(var(--primary))" stopOpacity="0.05" />
+                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.05" />
               </linearGradient>
             </defs>
           </svg>

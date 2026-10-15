@@ -20,8 +20,6 @@ from fastapi import APIRouter, Depends
 
 from app.schemas.budget_packing import (
     BilledTokenBudgetDTO,
-    InspectMarginalRequest,
-    InspectMarginalResponseItem,
     PackedRecallResultDTO,
     PackRecallRequest,
 )
@@ -49,22 +47,6 @@ async def pack_recall_candidates(
         candidates=request.candidates,
         budget=request.budget,
         enable_knapsack=request.enable_knapsack,
-    )
-
-
-@router.post(
-    "/inspect-marginal",
-    response_model=list[InspectMarginalResponseItem],
-    summary="Inspect marginal value and redundancy degradation for candidates",
-)
-async def inspect_marginal_values(
-    request: InspectMarginalRequest,
-    service: Annotated[BudgetPackingService, Depends(get_budget_packing_service)],
-) -> list[InspectMarginalResponseItem]:
-    """Inspect incremental marginal utility decay and diversity penalties."""
-    return service.inspect_marginal_values(
-        candidates=request.candidates,
-        budget=request.budget,
     )
 
 

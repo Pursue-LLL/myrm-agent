@@ -30,10 +30,9 @@ def _make_session(
     session = MagicMock()
     session.is_long_running_task = False
     session.cancel_token.is_cancelled = False
-    session.durable_registered = False
     session.had_fatal_error = False
     session.request.chat_id = "test-chat-123"
-    session.params.message_id = message_id
+    session.request.message_id = message_id
     session.params.project_id = project_id
     session.collector = MagicMock()
     session.http_request.is_disconnected = AsyncMock(return_value=True)

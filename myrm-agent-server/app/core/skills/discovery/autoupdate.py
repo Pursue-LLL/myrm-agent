@@ -32,6 +32,17 @@ logger = logging.getLogger(__name__)
 CHECK_COOLDOWN_SECONDS = 600
 
 
+def _resolve_installed_version(skill_version: str, origin: dict[str, object]) -> str:
+    """Prefer catalog version; fall back to origin.json when catalog still shows 1.0.0."""
+    version = (skill_version or "").strip()
+    if version and version != "1.0.0":
+        return version
+    origin_version = origin.get("version")
+    if isinstance(origin_version, str) and origin_version.strip():
+        return origin_version.strip()
+    return version or "1.0.0"
+
+
 @dataclass(frozen=True, slots=True)
 class SkillUpdateInfo:
     """Update availability info for one installed skill."""
@@ -68,6 +79,8 @@ class SkillAutoUpdateChecker:
 
     def __init__(self) -> None:
         self._last_check: UpdateCheckResult | None = None
+        self.last_market_replace_batch_id: str | None = None
+        self.last_market_replace_snapshot_truncated: bool = False
 
     async def check_updates(
         self,
@@ -101,10 +114,11 @@ class SkillAutoUpdateChecker:
         update_infos: list[SkillUpdateInfo] = []
 
         for skill in installed:
-            if not skill.version or skill.version == "1.0.0":
+            origin = read_origin(LOCAL_INSTALL_DIR / skill.name)
+            current_version = _resolve_installed_version(skill.version, origin)
+            if not current_version:
                 continue
 
-            origin = read_origin(LOCAL_INSTALL_DIR / skill.name)
             origin_source = origin.get("source", "")
 
             sources_to_check = non_prebuilt_sources
@@ -122,12 +136,12 @@ class SkillAutoUpdateChecker:
                 if not detail or not detail.version:
                     continue
 
-                delta: VersionDelta = compare_versions(skill.version, detail.version)
+                delta: VersionDelta = compare_versions(current_version, detail.version)
 
                 update_infos.append(
                     SkillUpdateInfo(
                         skill_name=skill.name,
-                        current_version=skill.version,
+                        current_version=current_version,
                         remote_version=detail.version,
                         source=source.source_name,
                         skill_id=detail.id,
@@ -153,14 +167,36 @@ class SkillAutoUpdateChecker:
 
         Downloads the new version → quarantine → security scan → replace.
         """
-        from app.core.skills.marketplace.market_service import market_service
+        from app.core.skills.discovery.replace_install import market_install_with_replace_snapshot
+        from app.core.skills.store.service import skills_service
 
         logger.debug("update_skill user=%s skill_id=%s", user_id, update_info.skill_id)
-        return await market_service.install(
-            skill_id=update_info.skill_id,
-            source=update_info.source,
+
+        installed = await skills_service.get_skill(update_info.skill_id)
+        if installed is None:
+            by_name = await skills_service.list_skills()
+            installed = next((s for s in by_name if s.name == update_info.skill_name), None)
+        if installed is None:
+            return SkillInstallResult(
+                success=False,
+                skill_name=update_info.skill_name,
+                skill_id=update_info.skill_id,
+                error="Installed skill not found for update.",
+                error_code="skill_not_installed",
+            )
+
+        self.last_market_replace_batch_id = None
+        self.last_market_replace_snapshot_truncated = False
+        result, batch_id, truncated = await market_install_with_replace_snapshot(
+            update_info.skill_id,
+            update_info.source,
+            skill_name=update_info.skill_name,
             allow_downgrade=allow_downgrade,
+            batch_kind="market-replace",
         )
+        self.last_market_replace_batch_id = batch_id
+        self.last_market_replace_snapshot_truncated = truncated
+        return result
 
 
 _checker: SkillAutoUpdateChecker | None = None

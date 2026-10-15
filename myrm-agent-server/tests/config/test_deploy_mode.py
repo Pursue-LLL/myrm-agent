@@ -13,13 +13,11 @@ from app.config.deploy_mode import (
     DeployMode,
     ModelSource,
     QdrantMode,
-    StorageMode,
     get_database_mode,
     get_deploy_mode,
     get_embedding_mode,
     get_qdrant_mode,
     get_reranker_mode,
-    get_storage_mode,
     is_local_mode,
     is_sandbox,
     is_webui_mode,
@@ -112,10 +110,6 @@ class TestStaticModes:
 
     def test_qdrant_mode_always_embedded(self) -> None:
         assert get_qdrant_mode() == QdrantMode.EMBEDDED
-
-    def test_storage_mode_default_local(self, monkeypatch) -> None:
-        monkeypatch.delenv("STORAGE_MODE", raising=False)
-        assert get_storage_mode() == StorageMode.LOCAL
 
     def test_embedding_mode_always_custom(self) -> None:
         assert get_embedding_mode() == ModelSource.CUSTOM

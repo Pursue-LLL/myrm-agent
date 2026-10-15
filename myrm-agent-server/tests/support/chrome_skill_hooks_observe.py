@@ -6,7 +6,9 @@
 
 [OUTPUT]
 - wait_user_message_persisted() / wait_assistant_reply_ending_with() / transcript_text(): the chat as stored
-- stored_messages() / reply_ending_with(): a non-blocking look at the stored chat, for waits that also have to act
+- wait_completed_assistant_reply_containing(): the reply of a finished turn that may carry the completion check's note
+- stored_messages() / reply_ending_with() / completed_reply_containing() / completed_assistant_replies(): a
+  non-blocking look at the stored chat, for waits that also have to act
 - backend_log_offset() / backend_log_since(): what the private backend logged from a given moment on
 - read_json() / wait_for_file() / assert_no_hook_raised(): the hooks' side effects and the backend log
 - assert_audit_turn_governed(): the evidence a bash turn under ``audit_hooks`` must have left
@@ -23,10 +25,10 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -49,6 +51,10 @@ def _message_text(content: object) -> str:
 
 def _stored_as_sent(text: str, wire: str, *, exact: bool, spilled: bool) -> bool:
     if spilled:
+        # Imported here, not at module level: pytest collects every test file that imports this helper,
+        # and this import loads the whole agent package (~5000 modules) that only a spilled turn needs.
+        from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
+
         invocation = parse_use_tag(wire)
         return invocation is not None and text.startswith(invocation.tag) and "<file_spillover" in text
     return text == wire if exact else wire in text
@@ -150,19 +156,56 @@ def reply_ending_with(messages: list[dict[str, object]], token: str) -> str | No
     return None
 
 
-def wait_assistant_reply_ending_with(chat_id: str, api_url: str, token: str, *, timeout_sec: float) -> str:
+def completed_assistant_replies(messages: list[dict[str, object]]) -> list[str]:
+    """The words of every assistant turn the server marked complete, oldest first."""
+    replies: list[str] = []
+    for message in messages:
+        raw_metadata = message.get("metadata")
+        metadata: dict[str, object] = raw_metadata if isinstance(raw_metadata, dict) else {}
+        if message.get("role") == "assistant" and metadata.get("completionStatus") == "complete":
+            replies.append(_message_text(message.get("content") or message.get("message") or ""))
+    return replies
+
+
+def completed_reply_containing(messages: list[dict[str, object]], token: str) -> str | None:
+    """The newest assistant turn the server marked complete whose words contain ``token``.
+
+    Unlike ``reply_ending_with`` it tolerates what the harness's completion check adds after the model's answer
+    (the token repeated, a closing note), which a turn that called a tool before answering may carry.
+    """
+    return next((reply for reply in reversed(completed_assistant_replies(messages)) if token in reply), None)
+
+
+def _wait_for_reply(
+    chat_id: str,
+    api_url: str,
+    find: Callable[[list[dict[str, object]], str], str | None],
+    token: str,
+    wanted: str,
+    timeout_sec: float,
+) -> str:
     deadline = time.monotonic() + timeout_sec
     last_messages: list[dict[str, object]] = []
     while time.monotonic() < deadline:
         last_messages = stored_messages(chat_id, api_url)
-        reply = reply_ending_with(last_messages, token)
+        reply = find(last_messages, token)
         if reply is not None:
             print(f"E2E_ASSISTANT_REPLY[{chat_id}]: {reply[:400]}", flush=True)
             return reply
         time.sleep(2.0)
     pytest.fail(
-        f"assistant reply ending with {token!r} not received within {timeout_sec}s; "
+        f"{wanted} {token!r} not received within {timeout_sec}s; "
         f"{len(last_messages)} stored messages:\n{_describe_messages(last_messages)}"
+    )
+
+
+def wait_assistant_reply_ending_with(chat_id: str, api_url: str, token: str, *, timeout_sec: float) -> str:
+    return _wait_for_reply(chat_id, api_url, reply_ending_with, token, "assistant reply ending with", timeout_sec)
+
+
+def wait_completed_assistant_reply_containing(chat_id: str, api_url: str, token: str, *, timeout_sec: float) -> str:
+    return _wait_for_reply(
+        chat_id, api_url, completed_reply_containing, token, "completed assistant reply containing", timeout_sec
     )
 
 

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from app.database.repositories.chat_repo import SiblingDetail
@@ -443,7 +444,7 @@ class _ChatTurnMixin(_ChatServiceBase):
 
     @staticmethod
     async def generate_chat_title(
-        messages: list,
+        messages: Sequence[object],
         title_model: "_TitleModelConfig | None" = None,
         fallback_title_model: "_TitleModelConfig | None" = None,
     ) -> str:
