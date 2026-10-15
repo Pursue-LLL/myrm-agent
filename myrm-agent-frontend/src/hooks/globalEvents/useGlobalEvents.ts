@@ -39,7 +39,6 @@ const HEARTBEAT_TIMEOUT = 6_000;
 const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'memory_history_updated',
   'subagents_updated',
-  'teammate_message',
   'cron_updated',
   'budget_updated',
   'skill_pool_updated',
