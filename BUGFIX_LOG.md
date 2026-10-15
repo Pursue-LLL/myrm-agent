@@ -4117,14 +4117,14 @@ except Exception:
 4. 测试里替换 `window.setTimeout` 把轮询间隔压成 0，比整体启用假计时器稳：Testing Library 的 `findBy` 在异步包装里等一个真实的 `setTimeout(0)`，假计时器会让它挂住。
 5. zsh 里未加引号的变量不会按空格拆成多个参数：用数组存测试路径，否则 `pytest $T` 会报「no tests ran」而不是报错。
 
-## BUG-AGENT-2026-10-15-022: 「刷新当前会话」用 `initializeChat(同一个 id)` 实现，实际什么也不刷新还清空输入区；渠道超时回调失败后审批键已被认领，用户在 IM 里的回复被当作「已处理」拒收；目录授权卡回答后行上的 `answered` 从不写回，输入区一直被卡片接管
+## BUG-AGENT-2026-10-15-022: 「刷新当前会话」用 `initializeChat(同一个 id)` 实现，实际什么也不刷新还清空输入区；渠道超时回调失败后审批键已被认领，用户在 IM 里的回复被当作「已处理」拒收；目录授权卡回答后行上的 `answered` 从不写回，输入区一直被卡片接管；澄清卡与目录卡在续跑流式进行期间一直占着输入区（Stop / 插话 / 排队不可用）；计划卡的迟到写入把续跑流新发的计划标成已确认
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-15（对 `BUG-AGENT-2026-10-15-018` 之后「用户回来时界面是否对得上」做终极叩问，用三个一次性探针测试逐条验证；对这条修复自审时又用探针测出「按行数配对的合并会让实时续跑的回合重复显示」与「目录授权卡从不收起」） |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P2（附件、@ 引用与知识库勾选被静默清空；目录授权回答后输入区一直被卡片接管；IM 里的审批卡死；不丢已落库数据） |
-| 影响范围 | 前端：新增 `store/chat/chatTranscriptRefresh.ts`，改 `hooks/globalEvents/useGlobalEvents.ts`、`components/features/chat-window/ChatWindow.tsx`、`components/features/message-box/DirectoryApprovalInput.tsx`；server：`app/core/channel_bridge/executor_helpers/approval.py`；harness：只新增测试 |
+| 影响范围 | 前端：新增 `store/chat/chatTranscriptRefresh.ts`、`store/chat/hitlCardAnswer.ts`，改 `hooks/globalEvents/useGlobalEvents.ts`、`components/features/chat-window/ChatWindow.tsx`、`components/features/message-box/` 下的 `DirectoryApprovalInput.tsx`、`ClarificationInput.tsx`（展示原语拆到新增的 `ClarificationOptions.tsx`、`ClarificationChrome.tsx`）、`PlanConfirmationCard.tsx`、`clarificationAnswer.ts`，以及 `services/chat.ts` 的 `resumePlanConfirmStream`；server：`app/core/channel_bridge/executor_helpers/approval.py`；harness：只新增测试 |
 | 出现次数 | 1（探针测试在 jsdom 里执行得出；没有在真实浏览器与真实 IM 渠道里复现） |
 | 关联 | `BUG-AGENT-2026-10-15-018`（超时续跑、409 约定、`reopen`）；本地提交，未 push |
 
@@ -4146,8 +4146,12 @@ except Exception:
 1. 新增 `chatTranscriptRefresh.ts`：`refreshOpenChatTranscript(chatId)` 拉取最新一页持久化消息并就地并入当前对话。屏幕上已有的行一律原样保留（流式注入的 `routingTier` 等字段与卡片状态不被改写），只补缺的行：流式 assistant 行以请求 id（`r-` 前缀）作 `messageId`，它的落库行是 UUID 并在 `requestMessageId` 里带着那个请求 id，且暂停后续跑的回合在屏幕上是一行（续跑流进暂停的那一行）、在库里每条流一行，所以纯函数 `mergeStoredTail` 按身份而不是按行数判断「已显示」：回合 key（角色 + 请求 id）已在屏，或该行的 `requestMessageId` 指向屏幕上的 assistant 行（从 DB 水合的行上发起续跑）；其余是屏幕从未见过的回合（后台任务通知、他端发起的回合），按落库顺序追加在末尾；与本地没有任何交集时（对话已越过本地持有的全部消息）重置为最新尾页并重置游标，避免中间藏着缺口；空页不应用；不切 `loading`、不重置会话配置、不 attach、不碰输入区。回合占用 store（`loading` 或 `abortController`）、另一个会话已打开、请求期间回合开始时都不应用；请求失败只记日志，现有对话原样保留；同一会话的并发刷新合并为一次请求。没有直接用 `loadMessages`：它会置 `loading`、在失败时置 `loadError` 并把 `isMessagesLoaded` 置回 false（界面回到骨架）、并把当前对话截成最新 10 条。
 2. `useGlobalEvents.ts` 的重连补同步与 `ChatWindow.tsx` 的后台任务完成刷新改调这个函数；`ChatWindow` 的订阅 effect 不再依赖 `initializeChat`。
 3. 渠道回调拆成 `resume_after_timeout`（原有流程，未改动）与外层 `resume_callback`：任何异常都先对 `channel:peer` 键 `reopen` 再抛出，成功路径不归还。
-4. `DirectoryApprovalInput` 的 `markAnswered` 改为把所在 assistant 行的 `directoryRequest.answered` 写回 store，且只关闭点击时那张卡：点击时取该行的 `directoryRequest` 对象，回答完成后行上仍是同一个对象才写；续跑流在同一行上又发出新目录请求时，事件处理器会把它换成新对象，这时不写，新请求保持待答（这一点 `ClarificationInput` 没有，见局限 10）。删除无人传入的 `onAnswered` prop；组件测试改为用渲染方实际传的 props，经真实 store 断言 `answered`，并断言授权与过期两条路径之后 `findActivePendingDirectoryRequest` 为 null。
+4. `DirectoryApprovalInput` 的 `markAnswered` 改为把所在 assistant 行的 `directoryRequest.answered` 写回 store，且只关闭点击时那张卡：点击时取该行的 `directoryRequest` 对象，回答完成后行上仍是同一个对象才写；续跑流在同一行上又发出新目录请求时，事件处理器会把它换成新对象，这时不写，新请求保持待答；这条「回答后才写」的做法在修复 6 里改成了「点击即写」。删除无人传入的 `onAnswered` prop；组件测试改为用渲染方实际传的 props，经真实 store 断言 `answered`，并断言授权与过期两条路径之后 `findActivePendingDirectoryRequest` 为 null。
 5. harness 新增 `tests/agent/middlewares/approval/test_resume_semantics.py`：用真实编译的 LangGraph 图加 `InMemorySaver` 固化 `reopen` 所依赖的三条语义（见「验证」）。
+6. **点击即关**：澄清卡与目录卡在 resume 模式下点击时先把所在行的 `answered` 置真再发请求（`store/chat/hitlCardAnswer.ts` 的 `answerHitlCardWithResume`）。原因：resume 请求要等整个续跑回合流完，`sendMessage` 才返回，而输入区被卡片接管直到该标记生效（`MessageInput.tsx:135-139`、`:516`、`:527` 没有 `loading` 例外），Stop、插话、排队在整段续跑里都不可用；原先的「回答后才写」同时造成了澄清卡的迟到写入缺陷（局限 10）。请求抛错时仅当行上仍是点击时关闭的那张卡对象才放回：`ApprovalExpiredError`（服务端 409，超时已处理）保持关闭并提示已超时；其余（被拒、忙、未送达，`useChatStore.ts:1003-1007` 的包装层把未送达的 resume 转为抛错）放回卡片并提示失败；续跑流已替换或收尾该卡则不动。legacy clarify API 是短调用，仍在服务端接受后才关卡。先例：`hooks/approval/useBrowserTakeoverActions.ts` 的乐观收起加失败回滚。位置：没有放进 `clarificationState.ts` / `directoryRequestState.ts`——它们被 `messageHydration.ts` 引入，加 `useChatStore` 依赖会成环，所以新增读写 store 的独立模块，两张卡共用同一份流程。
+7. 澄清卡的迟到写入（只按 `messageId` 写、不校验卡片对象）随修复 6 一并删除，局限 10 不再存在；目录卡原有的「回答后按卡片对象校验」变成只管放回。`ClarificationInput` 的两个提交入口合并为一个 `submitAnswer`，单题答案构建移到 `clarificationAnswer.ts`（`buildSingleClarificationAnswer`，原样搬出并补了 3 例直接测试）。
+8. **计划卡同类缺陷**（探针红，一次性文件，已删除）：`PlanConfirmationCard` 的 `markResolved` 在 `await` 之后按 `messageId` 写 `planConfirmation.status`，续跑流在同一行上换成第二份计划后，第二份被标成已确认。现在仅当行上仍是被回答的那份计划（计划文本一致）才写。没有用对象身份：`statusStreamPhaseData.ts:79-80` 会在同一份计划上原地写 `status`，对象身份会因此变化而丢掉用户选的「跳过 / 编辑」（用测试固化，收紧成「只写仍在等待的计划」变异体被该测试杀掉）。同一次排查里发现 `resumePlanConfirmStream` 在无会话 id、无模型选择时静默 `return`，卡片随后把没发出去的请求标成已确认；现在抛错，卡片提示失败。
+9. `ClarificationInput.tsx` 原 626 行，超过 500 行硬上限：展示原语拆到 `ClarificationOptions.tsx`（`OptionPill`、推荐徽章解析、行内代码渲染）与 `ClarificationChrome.tsx`（图标与外壳样式），两处一模一样的展开 / 收起按钮提取为 `ExpandToggle`，现 394 行；搬出的代码逐字不变。
 
 ### 验证
 
@@ -4155,6 +4159,7 @@ except Exception:
 2. 前端：`chatTranscriptRefresh.test.ts` 21 例（`mergeStoredTail` 9 例，数据取自各条真实流程落库后的形状：流式行与其 UUID 落库行不重复、暂停后实时续跑不重复（屏幕 1 行、库里每条流 1 行）、重载后续跑不重复（续跑请求 id 指向水合行与沿用原请求 id 两种形状）、DB 水合的行被认出、只有用户行在屏时保留落库回答、后台通知与他端回合按落库顺序追加、已有行与本地独有行与注入字段原样保留、无交集返回 null；刷新函数 12 例：补屏幕没见过的行并保留更早分页与游标、没有缺行时 store 引用不变、无交集时重置尾页、输入区与 `loading` 不变、三种不可刷新的状态不发请求、无会话 id 不动、请求期间回合开始则丢弃、失败不改对话与错误标志、空页不清空、并发合并）；`resumeApprovalStream`、`ClarificationInput` 的既有测试不再断言刷新，`DirectoryApprovalInput.resumeRefusal.test.tsx` 4 例改走真实 store（含续跑流把内容流进该行、续跑流在同一行上发出第二个目录请求两种情形）。变异检查八个变异体全部被杀：按行数配对（上一版实现）→ 3 例失败（两种续跑形状）；去掉「仅 assistant 行」限制 → 2 例失败；去掉「`requestMessageId` 指向在屏 assistant 行」子句 → 1 例失败；回合 key 不折叠请求 id → 1 例失败；回合 key 去掉角色 → 2 例失败；目录卡 `markAnswered` 置空 → 2 例失败；去掉「仍是同一张卡」校验 → 1 例失败；在发送之后才取卡 → 1 例失败；每次变异后都还原并核对文件一致。另有一个「角色 + id」行键变异存活，说明那一层被回合 key 覆盖，已删除该层。相关目录（`store/chat`、`lib/approval`、`components/features/message-box`、`hooks/approval`、`hooks/globalEvents`、`components/approval`）vitest 175 个文件 1210 例通过；触及文件 `prettier`、`oxlint` 无告警（退出码 0），`verify:theme-colors` 通过，`tsc --noEmit` 共 50 个错误、没有一条属于触及的文件（全部在 `ergonomic-cockpit`、`needs-you`、`mobile-companion`、`creator-studio` 等与本条无关的目录）；`check_fractal_docs.py` 退出码 6，列出的都是缺 `_ARCH.md` 的目录（如已提交且无改动的 `features/activity-feed`），没有一条指向 `store/chat`、`lib/approval`、`message-box`。
 3. server：`test_executor_helpers_approval.py` 新增 2 例（真实 `ApprovalTimeoutScheduler`：续跑失败后 `resolve_if_first` 返回 True；agent 创建失败时 `reopen` 被调用），既有的「在挂起时的键上续跑」例加了「成功不归还」断言；变异检查：去掉 `reopen` 一行，新增的 2 例失败（2 failed，11 passed），还原后 `test_executor_helpers_approval.py` 与 `test_approval_run_activity.py` 共 15 例通过。`tests/core/channel_bridge` 全目录 613 通过、36 失败，36 例全部在 `test_execute_finalize*.py`，原因是他人未提交的 `finalize_channel_stream_reply` 新增必填参数 `account_guidance`，与本条无关。`ruff check`、`ruff format --check` 通过；`mypy` 对 `approval.py` 没有告警（全仓另有 1360 个既有错误，与本条无关）。
 4. harness：`test_resume_semantics.py` 3 例 + `test_scheduler.py` 20 例共 23 例通过。三条语义是用真实图测出来的：A. 回答之后的节点失败，不再有待处理的中断，下一次回复只会用已记录的决定重试失败的节点，手动批准改不掉已记录的自动拒绝；B. 提问的节点自己在回答之后失败，中断仍待处理，下一次回复回放的是第一次的答案；C. 在已结束的线程上再次恢复不改变任何状态。
+5. 修复 6-9 的验证（红绿先后、变异检查、门禁）：先写测试再改代码，旧代码上 8 例失败且原因对（续跑进行中卡片未关闭 ×2、未送达后放回 ×2，二者在澄清卡与目录卡上各一例；澄清卡被迟到写入收起 ×1；计划卡被标已确认 ×1；`resumePlanConfirmStream` 无会话 / 无模型静默返回 ×2）。变异检查八个变异体全部被杀，且连跑三遍结论一致：去掉点击即关 → 8 例失败；去掉放回 → 4 例失败；去掉「仍是点击时那张卡」校验 → 2 例失败（续跑流已收尾该卡后连接中断，卡片不得被重开）；去掉过期豁免 → 2 例失败；去掉计划文本校验 → 1 例失败；无会话时静默返回 → 1 例失败；无模型时静默返回 → 1 例失败；把计划校验收紧为「只写仍在等待的计划」→ 1 例失败（用户选择的「跳过」被流先写的「已确认」盖掉）。过程中发现两例过期用例的断言能被「点击瞬间的临时关闭态」满足而漏掉变异，改为先等提示出现再断言最终态后才被杀。相关目录（`message-box`、`chat-window`、`store`、`services`、`lib/approval`、`lib/hitl`、`companion`）vitest 633 个文件 4075 例通过；触及文件 `prettier --check`、`oxlint` 无告警；`verify:theme-colors` 通过；`tsc --noEmit` 仍是 50 个既有错误、没有一条在触及的文件；`check_fractal_docs.py` 退出码 6 为既有（列出的都是缺 `_ARCH.md` 的目录，不含触及目录）。
 
 ### 局限
 
@@ -4167,7 +4172,9 @@ except Exception:
 7. 渠道回调对任何异常都归还认领，包括流结束之后的落库失败与 IM 通知发送失败：这种情况下若线程已结束，迟到的用户回复会被放行并再恢复一次已结束的线程，按语义 C 不改变任何状态；若流停在了新的中断而后续步骤失败，用户可以直接回答它，但这个新中断没有计时器，不会再被自动处理。只在运行阶段归还需要把外层回调拆得更细，而该函数里有他人未提交的改动，本条没有扩大范围。
 8. 评估后放弃的方案：连续超时次数上限（harness 的 `record_denial` 已在连续 3 次拒绝后给出「Stop and explain to the user」提示，`helpers.py:32,187`，超时自动拒绝同样经过 `_batch_decisions.py:669-675`，再做一个硬上限是重复）；删除无人发布的 `approval_processed` 消费端（`part1.ts:45`、`sidepanel.js:263`，server 与 harness 的 `.py` 里确实没有发布者，但消费端没有任何行为影响，删除要动扩展、fixture、一致性测试与两个测试文件，收益低于成本）；把超时续跑的分片经 `ASYNC_AGENT_STREAM_CHUNK` 实时推给前端（被局限 5 的缺陷否决）；按回合内行数补超时续跑行与点击过期卡片时刷新（被探针否决，见局限 3）；让服务端新增「超时已续跑」事件、前端据此补续跑行（只在用户正看着该回合且之后不重开会话时才有收益，成本是一个服务端事件加一个前端消费端）。
 9. 本条没有改 harness 生产代码：两边不需要同批发版，也不需要 `./myrm harness sync-lock`。
-10. **发现但没有修**：`ClarificationInput` 有同样的缺陷。探针（一次性，已删除）：`sendMessage` 期间续跑流在同一行上换成第二张澄清卡后，`clarification.answered` 被写成 true，第二张卡被收起、输入区被释放，而续跑停在等待回答。原因是 `ClarificationInput.tsx:272-279` 只按 `messageId` 写、不校验卡片对象，`toolsProgressEvents.ts:227-229` 对同一行是整体替换。这条的目录卡已避开，澄清卡不在本条范围，没有改。
+10. 点击即关的已知代价（均未在真实浏览器里观察）：输入区变体里卡片在放回时会重新挂载，已选的选项与已填的文本丢失（行内变体保留）；resume 被拒后卡片回到待答态，用户需重新选择；续跑进行中重载页面，服务端要到回合收尾才把存储里的卡置为已答复（`hitl_timeout.py:86`），重载后会再看到待答卡，再次回答得到 409，走已有的已过期提示（与改动前一致）；点击后立刻按 Stop，`AbortError` 被请求管线吞掉（`messageRequest.ts`），卡片保持关闭——与 Codex 的行为一致；E2E 直连模式（`resolveE2eApiBase`）会重抛送达之后的错误，卡片可能被误放回，仅限 E2E。
+11. 没有做的方案（评估后放弃，不是延后）：把用户的回答回显到消息流里（Codex、hermes-webui、DeepSeek、Claude Code 都有，但这里没有对应缺陷，路线图与本日志里也没有这个诉求）；服务端发「已处理」事件；超时默认动作与计时器续跑行可见性；回答过期卡时的专门文案；拆分 `MessageInput.tsx`（812 行）与 `streamConsumer.ts`（405 行）——这两个文件有他人未提交的改动，本条没有触碰。
+12. 计划卡仍是「回答后才写」：它内嵌在消息里、不接管输入区，所以不存在占用输入区的问题，本条只补了迟到写入的同一份校验与静默返回；续跑进行期间它仍显示提交中、按钮置灰，直到续跑结束或流里的 `resolved` 事件先到。第二份文本完全相同的计划仍会被前一次回答盖章（计划文本相同无从区分，没有见到这种形状）。
 
 ### 踩坑经验
 
@@ -4181,6 +4188,8 @@ except Exception:
 8. 组件测试里注入一个生产里没人传的回调，会把「没人接」测没：目录卡的 `onAnswered` 在测试里被注入、两处渲染方都没传，测试全绿而卡片从不收起。组件测试要用渲染方实际传的 props，并经真实 store 断言结果。
 9. 讨论里的方案在探针验证前不要写进修复清单与文档：这条原先把刷新挂在三处过期卡片点击上，并声称目录卡会因此收起；前者要靠行数配对才补得出续跑行（探针否决），后者的收卡动作本来就没有生效。
 10. 回答完成后把状态写回 store 之前，要想清楚回答期间同一行会不会被事件替换：目录卡第一版 `markAnswered` 在续跑流结束后按 `messageId` 写，会把续跑流在同一行上发出的第二个目录请求一并标成已答复（探针红）。测试里被模拟的请求管线只返回 true、从不改 store，所以没测出来；让它也改 store，竞态才暴露。
+11. 「回答后才关卡」在回答要等整个续跑回合的路径上本身就是错的，不只是竞态的来源：状态写回晚于请求返回，请求返回晚于整个回合，期间卡片一直占着输入区。判断写回时机要看请求何时返回，而不是照搬短调用路径的写法；改成点击即关之后，必须同时有放回路径，且放回要校验行上仍是点击时那张卡。断言「最终态」的测试要先等到一个只在最终态之后才出现的信号（提示、按钮恢复可点），否则会被点击瞬间的临时态满足，变异检查才能看出这种弱测试。
+12. 修一类缺陷要把同形状的写入点全扫一遍：目录卡、澄清卡、计划卡的迟到写入是同一个形状，前两张在不同时间被发现，计划卡是又一次探针才发现的；校验方式也要按真实写入方挑，计划卡用对象身份会被流在同一份计划上的原地写打破，所以用内容身份。
 
 ## BUG-AGENT-2026-10-15-023: 依赖父任务的看板子任务，在父任务由派发器自动完成后被立刻放行，工作区从还不含父任务产出的仓库切出（真实 git + 真实派发器钩子 17/17 次）；手动移到「已完成」的父任务其合并还在排队时，子任务被手动晋升或被另一个父任务放行，同样如此
 

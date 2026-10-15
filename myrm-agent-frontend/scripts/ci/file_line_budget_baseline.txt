@@ -73,7 +73,6 @@ src/components/features/memory/replay/SessionReplayPlayer.tsx
 src/components/features/memory/shared-context/SharedContextPanel.tsx
 src/components/features/memory/shared-context/useSharedContextPanel.ts
 src/components/features/message-actions/SourcesButton.tsx
-src/components/features/message-box/ClarificationInput.tsx
 src/components/features/message-box/ContextUsageIndicator.tsx
 src/components/features/message-box/MarkdownContent.tsx
 src/components/features/message-box/MemoryCitationsButton.tsx

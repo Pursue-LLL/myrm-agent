@@ -101,16 +101,19 @@ const PlanConfirmationCard = ({
   const [editedPlan, setEditedPlan] = useState(plan);
   const [submitting, setSubmitting] = useState(false);
 
+  // The run resumed by the answer streams to its end before this write and may raise a fresh plan on the same row. That
+  // plan reads differently and must stay waiting instead of inheriting this answer; the same plan is stamped even when
+  // the stream already marked it resolved, so the user's own choice (edited, skipped) is what the card shows.
   const markResolved = useCallback(
     (resolvedStatus: 'confirmed' | 'edited' | 'skipped') => {
       useChatStore.setState((state) => {
-        const idx = state.messages.findIndex((m) => m.messageId === messageId && m.role === 'assistant');
-        if (idx !== -1 && state.messages[idx].planConfirmation) {
-          state.messages[idx].planConfirmation.status = resolvedStatus;
+        const row = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+        if (row?.planConfirmation?.plan === plan) {
+          row.planConfirmation.status = resolvedStatus;
         }
       });
     },
-    [messageId],
+    [messageId, plan],
   );
 
   const submitAction = useCallback(

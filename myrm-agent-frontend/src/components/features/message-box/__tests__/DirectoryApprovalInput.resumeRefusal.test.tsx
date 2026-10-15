@@ -1,11 +1,12 @@
 /**
- * A refused resume must neither mark the directory card answered nor show the folder as granted; a dispatched one must
- * release the composer the card took over, except for a further request the resumed run raised on the same row.
+ * The directory card closes the moment it is answered, releasing the composer it took over, and reopens only if the
+ * server never took the answer; a refused resume must also not show the folder as granted.
  *
- * Real scenario: the user presses grant after the session expired. The resume request is refused, so the server never
- * received the grant; the optimistic access-root refresh would still list the folder as accessible and the card would
- * read as handled while the agent stays blocked. Runs the real card against the real store, replacing only the
- * request pipeline and the access-root refresh.
+ * Real scenario: the user presses grant. The resume request streams the whole resumed run, and until the card's row says
+ * answered the card keeps the composer, hiding Stop, steer and queue. When the session had expired the resume is
+ * refused: the server never received the grant, so the card must come back and the access-root refresh must not list
+ * the folder. Runs the real card against the real store, replacing only the request pipeline and the access-root
+ * refresh.
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -54,6 +55,15 @@ const pendingDirectory: Message = {
 
 const isAnswered = () => useChatStore.getState().messages[0]?.directoryRequest?.answered;
 
+/** A request that stays in flight until the test settles it, like a resumed run that is still streaming. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 /** Rendered with the props MessageBox and MessageInput pass: the card closes itself through the store. */
 function grantDirectory(): void {
   render(
@@ -96,10 +106,12 @@ describe('DirectoryApprovalInput resume', () => {
 
     grantDirectory();
 
-    await waitFor(() => expect(isAnswered()).toBe(true));
-    expect(refreshSessionAccessRoots).toHaveBeenCalledWith('chat-1', {
-      optimistic: { path: '/data/reports', writable: true, source: 'hitl_grant' },
-    });
+    await waitFor(() =>
+      expect(refreshSessionAccessRoots).toHaveBeenCalledWith('chat-1', {
+        optimistic: { path: '/data/reports', writable: true, source: 'hitl_grant' },
+      }),
+    );
+    expect(isAnswered()).toBe(true);
     expect(toast.error).not.toHaveBeenCalled();
     expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)).toBeNull();
   });
@@ -130,10 +142,54 @@ describe('DirectoryApprovalInput resume', () => {
 
     grantDirectory();
 
-    await waitFor(() => expect(isAnswered()).toBe(true));
-    expect(toast.warning).toHaveBeenCalledWith('expired');
+    await waitFor(() => expect(toast.warning).toHaveBeenCalledWith('expired'));
+    expect(isAnswered()).toBe(true);
     expect(toast.error).not.toHaveBeenCalled();
     expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
     expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)).toBeNull();
+  });
+
+  it('releases the composer takeover while the resumed run is still streaming', async () => {
+    const run = deferred<boolean>();
+    pipeline.sendMessage.mockReturnValue(run.promise);
+
+    grantDirectory();
+
+    await waitFor(() => expect(isAnswered()).toBe(true));
+    expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)).toBeNull();
+    expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
+    run.resolve(true);
+  });
+
+  it('puts the card back when the resume turns out not to be delivered', async () => {
+    const run = deferred<boolean>();
+    pipeline.sendMessage.mockReturnValue(run.promise);
+
+    grantDirectory();
+    await waitFor(() => expect(isAnswered()).toBe(true));
+    run.resolve(false);
+
+    await waitFor(() => expect(isAnswered()).toBe(false));
+    expect(toast.error).toHaveBeenCalledWith('submitFailed');
+    expect(refreshSessionAccessRoots).not.toHaveBeenCalled();
+    expect(findActivePendingDirectoryRequest(useChatStore.getState().messages)?.messageId).toBe(MESSAGE_ID);
+  });
+
+  it('does not reopen a request the resumed run already settled when the connection then drops', async () => {
+    pipeline.sendMessage.mockImplementation(async () => {
+      useChatStore.setState((state) => {
+        state.messages[0].directoryRequest = {
+          answered: true,
+          isResumeMode: true,
+          request: { path: '/data/exports', writable: false },
+        };
+      });
+      throw new Error('stream dropped');
+    });
+
+    grantDirectory();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('submitFailed'));
+    expect(isAnswered()).toBe(true);
   });
 });

@@ -2,7 +2,8 @@
 
 /**
  * [INPUT]
- * - @/store/useChatStore::sendMessage / setState (POS: chat SSE resume 发送；回答后把卡片行置 answered，释放被卡片接管的输入框)
+ * - @/store/useChatStore::sendMessage (POS: chat SSE resume 发送)
+ * - @/store/chat/hitlCardAnswer::answerHitlCardWithResume / setHitlCardAnswered (POS: 点击即把卡片行置 answered 释放被卡片接管的输入框；resume 未送达则放回)
  * - @/lib/tauri::isTauriEnvironment (POS: 桌面原生 picker 分流)
  * - @/store/chat/streamErrors::ApprovalExpiredError (POS: 超时已先行拒绝该请求，回答不再生效)
  * - @/lib/sessionAccessRefresh::refreshSessionAccessRoots (POS: grant 后 FE store 与 DB 对齐)
@@ -23,8 +24,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { isTauriEnvironment } from '@/lib/tauri';
 import useChatStore from '@/store/useChatStore';
+import { answerHitlCardWithResume, setHitlCardAnswered } from '@/store/chat/hitlCardAnswer';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
-import type { Message } from '@/store/chat/types';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 
 import DirectoryBrowsePopover, { rememberDirectoryGrantPath } from './DirectoryBrowsePopover';
@@ -34,6 +35,8 @@ interface DirectoryRequestPayload {
   path?: string;
   writable?: boolean;
 }
+
+type DirectoryDecision = { granted: true; path: string; writable: boolean } | { granted: false };
 
 interface DirectoryApprovalInputProps {
   messageId: string;
@@ -56,27 +59,9 @@ export default function DirectoryApprovalInput({
   const [submitting, setSubmitting] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
 
-  const isCardRow = (m: Message) => m.messageId === messageId && m.role === 'assistant';
-  const findCard = () => useChatStore.getState().messages.find(isCardRow)?.directoryRequest;
-
-  // The composer stays taken over by the card until its row says answered, so closing it is a store write. The resumed
-  // run may raise another request on the same row, which replaces the card object and must stay open.
-  const markAnswered = (answeredCard: Message['directoryRequest']) => {
-    if (!answeredCard || findCard() !== answeredCard) {
-      return;
-    }
-    useChatStore.setState((state) => {
-      const row = state.messages.find(isCardRow);
-      if (row?.directoryRequest) {
-        row.directoryRequest.answered = true;
-      }
-    });
-  };
-
-  // An answer that arrives after the timeout already declined the request is not a failure: the card closes.
-  const reportAnswerError = (error: unknown, answeredCard: Message['directoryRequest']) => {
+  // An answer that arrives after the timeout already declined the request is not a failure: the card stays closed.
+  const reportAnswerError = (error: unknown) => {
     if (error instanceof ApprovalExpiredError) {
-      markAnswered(answeredCard);
       toast.warning(t('expired'));
       return;
     }
@@ -119,6 +104,29 @@ export default function DirectoryApprovalInput({
     setBrowseOpen(true);
   }, [handleTauriPick, submitting]);
 
+  const submitDecision = async (decision: DirectoryDecision) => {
+    setSubmitting(true);
+    try {
+      if (isResumeMode) {
+        await answerHitlCardWithResume('directoryRequest', messageId, () =>
+          sendMessage('', messageId, undefined, decision),
+        );
+      }
+      if (decision.granted && chatId) {
+        await refreshSessionAccessRoots(chatId, {
+          optimistic: { path: decision.path, writable: decision.writable, source: 'hitl_grant' },
+        });
+      }
+      if (!isResumeMode) {
+        setHitlCardAnswered('directoryRequest', messageId, true);
+      }
+    } catch (error) {
+      reportAnswerError(error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleGrant = async () => {
     if (submitting) {
       return;
@@ -128,47 +136,14 @@ export default function DirectoryApprovalInput({
       toast.error(t('pathRequired'));
       return;
     }
-    const answeredCard = findCard();
-    setSubmitting(true);
-    try {
-      const resumeValue = {
-        granted: true,
-        path: trimmed,
-        writable,
-      };
-      if (isResumeMode) {
-        await sendMessage('', messageId, undefined, resumeValue);
-      }
-      if (chatId) {
-        await refreshSessionAccessRoots(chatId, {
-          optimistic: { path: trimmed, writable, source: 'hitl_grant' },
-        });
-      }
-      markAnswered(answeredCard);
-    } catch (error) {
-      reportAnswerError(error, answeredCard);
-    } finally {
-      setSubmitting(false);
-    }
+    await submitDecision({ granted: true, path: trimmed, writable });
   };
 
   const handleDeny = async () => {
     if (submitting) {
       return;
     }
-    const answeredCard = findCard();
-    setSubmitting(true);
-    try {
-      const resumeValue = { granted: false };
-      if (isResumeMode) {
-        await sendMessage('', messageId, undefined, resumeValue);
-      }
-      markAnswered(answeredCard);
-    } catch (error) {
-      reportAnswerError(error, answeredCard);
-    } finally {
-      setSubmitting(false);
-    }
+    await submitDecision({ granted: false });
   };
 
   if (answered) {

@@ -1186,7 +1186,8 @@ export const submitHumanGateResponse = async (messageId: string, answer: string)
 
 /**
  * Resume a General Agent plan confirmation interrupt via the main SSE stream.
- * Uses the same resume_value mechanism as tool approval.
+ * Uses the same resume_value mechanism as tool approval. Rejects when the request cannot be sent, so the card never
+ * reads an unsent answer as confirmed.
  */
 export const resumePlanConfirmStream = async (
   messageId: string,
@@ -1195,7 +1196,7 @@ export const resumePlanConfirmStream = async (
   const { default: useChatStore } = await import('@/store/useChatStore');
   const chatState = useChatStore.getState();
   if (!chatState.chatId) {
-    return;
+    throw new Error('Plan confirm resume needs an open chat');
   }
 
   const { getModelSelection, getLiteModelSelection } = await import('@/store/chat/messageRequest');
@@ -1203,7 +1204,7 @@ export const resumePlanConfirmStream = async (
 
   const modelSelection = getModelSelection(chatState.actionMode, chatState.agentConfig);
   if (!modelSelection) {
-    return;
+    throw new Error('Plan confirm resume needs a selected model');
   }
 
   const liteModelSelection = getLiteModelSelection();

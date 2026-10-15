@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetchWithTimeout = vi.hoisted(() => vi.fn());
+const session = vi.hoisted(() => ({
+  chatId: 'chat-1' as string | null,
+  modelSelection: { providerId: 'openai', model: 'test-model' } as { providerId: string; model: string } | null,
+}));
 
 vi.mock('@/lib/api', () => ({
   API_BASE_URL: '',
@@ -11,7 +15,7 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/store/useChatStore', () => ({
   default: {
     getState: () => ({
-      chatId: 'chat-1',
+      chatId: session.chatId,
       actionMode: 'agent',
       agentConfig: null,
       messages: [],
@@ -23,13 +27,15 @@ vi.mock('@/store/useChatStore', () => ({
 }));
 
 vi.mock('@/store/chat/messageRequest', () => ({
-  getModelSelection: () => ({ providerId: 'openai', model: 'test-model' }),
+  getModelSelection: () => session.modelSelection,
   getLiteModelSelection: () => null,
 }));
 
 describe('resumePlanConfirmStream', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    session.chatId = 'chat-1';
+    session.modelSelection = { providerId: 'openai', model: 'test-model' };
   });
 
   it('rejects when the timeout already answered the plan confirmation (HTTP 409)', async () => {
@@ -50,5 +56,27 @@ describe('resumePlanConfirmStream', () => {
     await expect(resumePlanConfirmStream('msg-plan-1', { action: 'confirm' })).rejects.toThrow(
       'Plan confirm resume failed: HTTP 500',
     );
+  });
+
+  it('rejects instead of reporting success when no chat is open', async () => {
+    session.chatId = null;
+
+    const { resumePlanConfirmStream } = await import('../chat');
+
+    await expect(resumePlanConfirmStream('msg-plan-1', { action: 'confirm' })).rejects.toThrow(
+      'Plan confirm resume needs an open chat',
+    );
+    expect(mockFetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('rejects instead of reporting success when no model is selected', async () => {
+    session.modelSelection = null;
+
+    const { resumePlanConfirmStream } = await import('../chat');
+
+    await expect(resumePlanConfirmStream('msg-plan-1', { action: 'confirm' })).rejects.toThrow(
+      'Plan confirm resume needs a selected model',
+    );
+    expect(mockFetchWithTimeout).not.toHaveBeenCalled();
   });
 });
