@@ -4080,7 +4080,7 @@ except Exception:
 
 1. harness：`progress.py` 定义阶段、进度与可选观察者（观察者抛错只记日志，不影响运行）；`linter.py` 里的漂移核对原样搬进 `drift_review.py`（纯移动，加进度上报），`linter.py` 回到 339 行；`lint_and_maintain` 与两个模型阶段按页上报，没有可问页面或结构化模式时不上报。
 2. server：`run_registry.py` 每个知识库范围一份最近一轮的状态，检查与占位之间没有 `await` 所以不需要锁；`runner.py` 的 `schedule_wiki_maintain`（REST，后台任务，已有进行中的一轮就返回它）与 `run_wiki_maintain_job`（Cron，阻塞，已有一轮在跑则静默跳过且不写状态；`list_only` 只读不占单飞）共用同一登记；单轮 45 分钟硬上限，提供商卡死时释放知识库；对外失败只有错误码，不带异常原文；`POST /wiki/maintain` 回 202（启动或加入），compile 进行中回 409，`GET /wiki/maintain/status` 给状态、阶段、`done/total`、结果与错误码。和先前宣布的方案相比有一处调整：已有一轮在跑时回 202 加入而不是 409，这样第二次点击或另一个标签页能接上同一轮；409 只留给 compile。
-3. frontend：`useWikiMaintainRun` 发起后 0.5 秒首次读取状态、之后每 2 秒轮询（短的运行不必等满一个间隔），连续 5 次读取失败才算失败，挂载时若服务端已有进行中的一轮就接上，结果只上报一次，回调经 ref 读取；按钮在运行期间禁用并显示「核对内容准确性 / 发现关联 n/m」；新增两个语言键 `settings.wiki.maintainProgress.{driftReview,linkDiscovery}`（六种语言）；`maintainWiki` 与它的 30 分钟超时删除，客户端拆到 `services/wiki/maintain.ts`（`service.ts` 本来就超过 500 行，不再增长）；`compileWiki` 加 `LONG_RUNNING_REQUEST_TIMEOUT_MS`。
+3. frontend：`useWikiMaintainRun` 发起后 0.5 秒首次读取状态、之后每 2 秒轮询（短的运行不必等满一个间隔），连续 5 次读取失败才算失败，挂载时若服务端已有进行中的一轮就接上，结果只上报一次，回调经 ref 读取；按钮在运行期间禁用并显示「核对内容准确性 / 发现关联 n/m」；新增两个语言键 `settings.wiki.maintainProgress.{driftReview,linkDiscovery}`（六种语言）；`maintainWiki` 与它的 30 分钟超时删除，客户端拆到 `services/wiki/maintain.ts`（`service.ts` 本来就超过 500 行，不再增长）；`compileWiki` 加 `LONG_RUNNING_REQUEST_TIMEOUT_MS`（后续由 `BUG-AGENT-2026-10-15-025` 取代：手动编译改为入队，该常量与代理超时已删除）。
 4. `useWikiIngestSubscription`：快照回调经 ref 读取，不再是 effect 依赖。
 5. `WikiGovernanceWorkbench`：全部文字取自已有的六语言键，删除 `|| '中文'` 兜底；删除泄漏目录路径的那一行和六份语言包里的 `isolatedInArchive`；可点的卡片换成原生 `<button>`（两张切换列表的带 `aria-pressed`）；操作结果用本地文案，服务端 `success: false` 按失败处理；撤销入口与服务端同一个 30 秒时钟到点撤回；结果区用 `<output>`，失败用警示图标；`hardcoded_copy_baseline.json` 里它的 24 处额度收紧到 0。
 6. 对抗式复核后的收尾：`runner.py` 里两处相同的 issue 载荷推导合成 `_lint_issue_payloads`，上限 200 提成 `_MAX_REPORTED_ISSUES`，函数内的 `import time` 与 `LintIssue` 的延迟导入提到模块顶部；同目录的 `WikiFolderSelectTree.tsx` 把 `div role=button` 换成原生按钮（既有的 `oxlint` 告警消除）；`_ARCH.md` 补上单进程假设（依据 `run.py` 默认 uvicorn 单进程）。
@@ -4097,10 +4097,10 @@ except Exception:
 
 1. **没有在真实浏览器与真实云端里验证**：整条「设置 → 知识库 → 维护」的异步流程只有 jsdom 与桩服务端的测试；`016` 留下的真实 Chrome 端到端用例已删除，没有新写。云端代理的 120 秒行为是读码得出，没有在真实云端复现。
 2. 全量维护的真实用量没有数据：不知道真实用户多久点一次、一轮多久；45 分钟上限与 2 秒轮询间隔是按单次调用 12–60 秒、最多 25 次估的，没有实测。
-3. `POST /wiki/compile` 在云端模式下仍可能撞到 120 秒代理读超时：它的真实耗时没有测，这里只补了客户端与 Next 代理的 30 分钟超时。
+3. 【已由 `BUG-AGENT-2026-10-15-025` 解决：`POST /wiki/compile` 改为 202 入队，不再有长请求】`POST /wiki/compile` 在云端模式下仍可能撞到 120 秒代理读超时：它的真实耗时没有测，这里只补了客户端与 Next 代理的 30 分钟超时。
 4. 运行登记在内存里，服务端重启后丢失（前端把消失的运行按失败处理；运行结果另由 `wikiMaintainState` 与 vault 健康快照持久化）；单进程假设，多进程部署下单飞不跨进程。
 5. 智能体工具路径（`wiki_agent_tools.py:503`）不经单飞，是否同时触发由调用方决定，没有处理。
-6. 没有取消入口、没有按页游标、没有 SSE 推送：评估后放弃，原因是取消入口的收益低（评分 4/10），SSE 订阅 hook 在每个快照上重连、多订阅者时指纹去重可能吞掉第二个订阅者的首个快照、也没有心跳。
+6. 【取消入口已由 `BUG-AGENT-2026-10-15-025` 补上（协作式停止），按页游标与 SSE 推送仍未做】没有取消入口、没有按页游标、没有 SSE 推送：评估后放弃，原因是取消入口的收益低（评分 4/10），SSE 订阅 hook 在每个快照上重连、多订阅者时指纹去重可能吞掉第二个订阅者的首个快照、也没有心跳。
 7. 六种语言的新文案与治理工作台里复用的既有键都没有母语者审校；治理工作台在更长的德文与日文文案下的布局只做了防御性样式（`flex-wrap`、`min-w-0`），没有在真实浏览器里看过手机与桌面截图。
 8. 触及的大文件在本条之前就超过 500 行：`WikiSection.tsx` 2057 行（HEAD 2050 行，本条净增 7 行）、`router.py` 3469 行（HEAD 3530 行，本条净减 61 行），没有拆分，拆分是独立的重构；`service.ts` 1111 行（HEAD 1118 行）。
 9. 服务端治理接口返回的 `message` 现在前端不再显示，但接口本身没有改（仍是英文句子），其他调用方若要显示需要自己本地化。
@@ -4288,3 +4288,58 @@ except Exception:
 1. 对象字面量做查表，`'constructor'` 这类继承属性会被当成已知键（红测里返回了 `function Object()`）：键来自外部字符串时用 `Map`。
 2. 修一个已知局限前先问「拦谁、谁来解」：这次把确认记在任务自己的元数据里（失败事件 id），而不是新状态，用户的一次「继续」即同意，不会反复拦。
 3. 旧代码里写明的策略（这里是「合并失败也放行」）要连同注释和测试一起核对，改行为时一并改掉，否则下一个读代码的人会照旧注释把它改回去。
+
+## BUG-AGENT-2026-10-15-025: 维护的模型一次都没答，结果与「没有可改进之处」无法区分，运行中也停不下来；手动编译是一次要等完整个编译的同步请求，会把健康的上游送进控制平面熔断；收到 ingest 快照后「维护」与「重建索引」按钮被一直禁用
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（复审路线图 topic_02 #140 第七批时，对 `BUG-AGENT-2026-10-15-021` 局限 3 与 6 的追问；按「手动编译在云端是否仍是长请求」回到代码核对） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（不丢数据；模型不可用时用户与 Cron 被告知「没有要处理的」，一次几十分钟的维护无法中止，云端手动编译可连续超时并触发熔断；按钮被禁用的问题让空闲知识库上的两个入口失效） |
+| 影响范围 | harness：`toolkits/wiki/maintenance/{ai_calls,drift_review,backlink_discovery,linter}.py`、`core/types.py`、`pipeline/compiler.py`；server：`app/services/wiki/maintain/{run_registry,runner,reporting,schemas,__init__}.py`、`app/api/wiki/{maintain_routes,router}.py`、`app/services/wiki/memory_to_wiki.py`；frontend：`services/wiki/{maintain,service}.ts`、`useWikiMaintainRun.ts`、`WikiSection.tsx`、`wiki/wikiSectionUtils.ts`、`next.config.ts`、六份语言包与对应测试与 `_ARCH.md`；删除 `lib/constants/requestTimeouts.ts`（含测试）、`MemoryToWikiArchiver.maintain_wiki()`；不涉及提示词、工具 schema 与存储表 |
+| 出现次数 | 1（读码、桩 LLM 与 jsdom 复现；没有真实云端与真实浏览器验证） |
+| 关联 | `BUG-AGENT-2026-10-15-021` 局限 3、6（本条解决）；路线图 topic_02 #140 第七批后续（`⑬`）；提交：harness `0795864e2`、`65227a99f`、`3208facbc`、`c081d89b3`，agent `86ae53048d`、`5536f4d041`、`b1137902d7`、`c6dd6e40d9`、`bd04792a75`、`67fc93ce3a`、`c41a4fd6c8`；本地提交，未 push |
+
+### 现象
+
+1. 维护的模型调用一次都没有得到回答（密钥失效、额度用尽、超时）时，`lint_and_maintain` 的结果里没有这一信息：Cron 摘要在没有任何变更时恒为 `[SILENT]`（旧 `_build_summary_text`），界面落到「Wiki maintenance completed」（旧 `resolveMaintainToast` 的末尾分支），与「模型看过、确实没有可改进之处」同一结果。
+2. 全量维护是最多 25 次串行模型调用，运行中没有任何停止入口（`BUG-AGENT-2026-10-15-021` 局限 6）。
+3. `POST /wiki/compile` 是一次同步请求，要串行跑完整个编译才返回。控制平面反向代理读超时 120 秒（`myrm-control-plane/src/myrm_control_plane/gateway/reverse_proxy/client.py:24`），熔断阈值 5 次失败后开启 60 秒（`deployment/config/fields_ops.py:47,50`）：连续 5 次长请求超时会让健康的上游被熔断。生产里每次导入本来就走后台 worker（`start_background_worker()`），同步编译只有这一个手动入口。
+4. 既有 bug：`compile_run.state` 是熔断状态，除非暂停恒为 `'running'`，空队列也是 `running / idle`；旧的 `isWikiCompileBusy` 把它当成「正在编译」，所以一旦收到 ingest SSE 快照，「维护」与「重建索引」按钮就一直被禁用。第一版测试里订阅桩恒为 `snapshot: null`，掩盖了它。
+
+### 根因
+
+1. 「模型没有回答」没有被建模：调用方只数到「改了多少」，数不到「问了多少、答了多少」。
+2. 长任务没有停止信号：服务端任务只有启动与查询。
+3. 手动编译把「排队」与「处理」绑在一个请求里，而处理本来就由后台 worker 完成。
+4. 用「状态字段非空」代替「队列里有处理中的条目」判断忙。
+
+### 修复
+
+1. harness：`ai_calls.py` 的每轮 `AiCalls` 记录问过与未应答的次数，`unavailable` 表示问过且一次都没答出来；`LintResult.ai_unavailable` 交给 server；Cron 摘要与前端提示按它如实说明「模型没有回答，页面核对与链接发现被跳过」。server 里无法到达的「没配置模型」分支一并删除。
+2. 取消（协作式，不是强杀）：`AiCalls` 持有 `asyncio.Event`，`ask()` 在调用前与等待中响应停止并抛 `MaintainStoppedError`，在途调用被丢弃（结果由回调吞掉）；两个模型阶段结束该阶段、从正常路径返回 `LintResult.stopped=True`，所有写入都不被打断，没有半写文件；链接发现的游标从最后处理的页面之后续上。server：`CANCELLED` 状态、幂等的 `POST /wiki/maintain/cancel`、`MaintainRun.stop` 与 `cancel_requested`，取消的 Cron 摘要恒为 `[SILENT]`，状态接口带 `cancel_requested`，刷新页面后仍显示「正在停止」。frontend：与维护按钮并排的「停止」按钮，只对全量维护开放（结构性维护没有模型调用）；取消后的提示说明已做的保留。
+3. 手动编译改为入队：harness 新增 `WikiCompiler.enqueue_changed_sources()`（增量只排新增或变更的原文，全量排全部），`compile_all` 复用同一方法；`POST /wiki/compile` 改为 202，入队、唤醒 worker、排资产索引、发布 ingest 快照，返回 `pending` 与 `compile_run`。frontend 的 `compileWiki` 回到普通 POST，进度与完成走既有 ingest SSE，活动→空闲时只提示一次「编译完成」；`lib/constants/requestTimeouts.ts`、其测试与 `next.config.ts` 的 `experimental.proxyTimeout` 随长请求一并删除。
+4. `isWikiCompileBusy` 改为 `isCompiling || (ingestSnapshot?.stats.processing ?? 0) > 0`；编译按钮自身的禁用条件仍是 `isCompiling || paused`：若也跟队列状态走，重启后遗留的待处理条目会让按钮永久不可点。
+5. 同批清理：`MemoryToWikiArchiver.maintain_wiki()`（无生产调用方）及其测试删除；server `maintain/runner.py` 把 Cron 摘要与列表报告拆到 `reporting.py`；`memory_to_wiki.py` 的四处既有 mypy 错误（索引器属性、公共目录列表型、查询模式、`commit_vault_git` 返回值）与 `compiler.py` 的一处（`serialize_frontmatter_block` 入参）改为具体类型；六种语言新增 7 个键、删除 2 个无人引用的键（含 `scripts/translation-patches` 里的同名项）。
+
+### 验证
+
+1. 新增测试：harness `test_maintain_ai_calls.py` 17 例、`test_compiler_enqueue.py` 5 例；server `test_wiki_compile_endpoint.py` 7 例，`test_maintain_endpoint.py`、`test_maintain_runner.py`、`test_maintain_single_flight.py` 补取消与全部未应答用例；frontend 补取消（hook、按钮、提示与六语言文案契约）与整条编译流程（可控的 ingest 订阅桩）的用例。
+2. 变异检查（改一处、跑、写回）：harness 停止逻辑 4 个（3 个被抓住，1 个是行为冗余的守卫，已删除代码）、入队 3 个、server 取消 5 个、编译路由 5 个、frontend 取消 6 个、编译流程 5 个，其余全部被测试抓住；「活动周期结束后重置标记」一处第一版测试没抓住，补了第二个活动周期后抓住。
+3. 回归：harness `tests/toolkits/wiki` 962 例通过，ruff 与 mypy 干净；server wiki 与 cron 459 例通过、3 例失败（`sk-…` 安全拦截既有失败，与 `BUG-AGENT-2026-10-15-021` 记录的同一批，不经过编译与维护）；`memory_to_wiki` 相关 26 例与 `tests/integration/wiki` 五个文件单独运行均通过；frontend `knowledge` 与 `services/wiki` 28 个文件 236 例通过，更宽的 `src/services`、`src/components/features/settings`、`src/lib` 为 3280 通过、3 例失败，均在 `timeUtils.test.ts`（`zh` 日期标题星期前的空格，ICU 版本差异，与本条无关）；oxlint 退出码 0，`tsc` 对 wiki 与 knowledge 无报错，`verify:theme-colors`、`verify:icu-syntax` 通过，`verify:i18n` 没有 wiki 与编译相关的条目。
+
+### 局限
+
+1. **没有真实云端与真实浏览器验证**：停止按钮与编译流程只有 jsdom 与桩服务端的测试；控制平面超时与熔断是读码得出，没有复现；明暗主题与窄屏下的按钮并排没有截图；德语与日语较长文案的换行没有量过。
+2. 取消是协作式：只在两次模型调用之间与调用等待期间响应，已发出的调用在服务商侧不会被撤销（只丢弃结果）；结构性维护不提供停止按钮。
+3. 手动编译不再自动跳转到「待处理编辑」，提示里也不再带「已发布 / 待处理 / 被拦截」计数（总览里的「待综合」徽章仍在）。
+4. 入队到 worker 开始处理之间有亚秒级空档，server 维护只检查 `processing > 0`，这一小段里点维护不会被挡住。
+5. 点编译与点停止的真实频率没有数据。
+6. 与本条无关、未动：`compile_all` 与 `_worker_loop` 各有一份相近的流水线；`compiler.py`（904 行）、`router.py`（3472 行）、`WikiSection.tsx`（2074 行）超过文件行数建议；Cron 的 `build_list_only_report` 仅中文且带 emoji；运行登记仍在内存里（见 `BUG-AGENT-2026-10-15-021` 局限 4）。
+
+### 踩坑经验
+
+1. 判断「是否在忙」要读真正表示忙的量（队列里处理中的条目），不要读「状态字段非空」；熔断状态在空闲时也是 `running`。
+2. 测试里的订阅桩若恒为「没有快照」，会掩盖只有收到快照后才出现的问题；桩要能被测试驱动成「有快照、活动、空闲」几种状态。
+3. 删掉一个长请求前先问「谁会调用它的同步版本」：`compile_all` 仍被 agent 工具与每日复盘 Cron 使用，所以只改手动入口，不删方法。
+4. 「表面上多余的守卫」要用变异检查确认：`and not ai_calls.stopped` 在行为上冗余，删掉后其余变异仍全部被抓住，代码因此更短。
