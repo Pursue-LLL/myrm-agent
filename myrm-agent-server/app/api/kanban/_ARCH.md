@@ -26,7 +26,7 @@ Kanban 看板 REST API：Board/Task CRUD、状态迁移、依赖边、Specify/De
 |----|----------|
 | Boards | `GET/POST /boards`（GET 支持 `project_id` 过滤；POST 支持 `project_id` / `milestone_id` 作用域绑定与全部看板设置（含 `block_recurrence_limit`））；`GET/PATCH/DELETE /boards/{id}`（PATCH 支持 settings 部分更新，settings 变更时热刷新运行中 dispatcher）；`GET .../summary`；`GET .../events` |
 | Tasks | `GET/POST /boards/{id}/tasks`（GET 可选 `source_chat_id` 按来源会话过滤；POST body 可选 `metadata` 合并入 task.metadata，如 `source_chat_id`）；`GET/PATCH/DELETE /tasks/{id}`；`POST .../move`（IN_REVIEW 进出守卫：手动 move 出入均 409）；`.../approve`（IN_REVIEW→COMPLETED，非 IN_REVIEW 幂等 200）、`.../reject`（IN_REVIEW→READY，reason 必填回写 error + retry_count 重置，非 IN_REVIEW 幂等 200）；`.../retry`（FAILED→READY，无请求体，重置重试预算，非 FAILED 幂等 200）；`.../promote`、`.../reclaim` |
-| Bulk | `POST /boards/{id}/tasks/bulk-action`（move/archive/reassign/delete，逐条返回结果、允许部分成功；move 不接受 force——依赖未满足的任务在自己那一行失败，强制晋升只存在于单任务 move 接口；reclaim 会中止运行中的 agent，只提供单任务入口） |
+| Bulk | `POST /boards/{id}/tasks/bulk-action`（move/archive/reassign/delete，单次 `task_ids` 1–100 个、前端按每段 25 个顺序发送，逐条返回结果、允许部分成功；move 不接受 force——依赖未满足的任务在自己那一行失败，强制晋升只存在于单任务 move 接口；reclaim 会中止运行中的 agent，只提供单任务入口） |
 | Meta | runs/events/comments/diagnostics；board/task 依赖边 CRUD |
 | Specify | `POST /tasks/{id}/specify`；`.../apply-spec`；`POST /boards/{id}/specify-all` |
 | Decompose | `POST /tasks/{id}/decompose`；`.../apply-decompose` |
