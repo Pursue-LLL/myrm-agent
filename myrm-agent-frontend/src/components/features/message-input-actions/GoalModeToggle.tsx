@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - @/store/useChatStore::useChatStore (POS: 聊天 Zustand store 的业务分层)
+ * - @/services/riskHeldToast::riskHeldErrorFromResponse (POS: 被风控规则拦下的文字的统一提示)
  *
  * [OUTPUT]
  * - GoalModeToggle: 目标模式开关与多维预算/保护配置弹层。
@@ -22,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives
 import { Input } from '@/components/primitives/input';
 import { Button } from '@/components/primitives/button';
 import { fetchWithTimeout } from '@/lib/api';
+import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 import { toast } from 'sonner';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
 
@@ -181,7 +183,10 @@ export default function GoalModeToggle() {
         body: JSON.stringify({ objective, locale }),
       });
       if (!res.ok) {
-        toast.error(t('draftFailed'));
+        // A held objective gets the one notice in the user's language; "could not generate" would hide the cause.
+        if (!(await riskHeldErrorFromResponse(res))) {
+          toast.error(t('draftFailed'));
+        }
         return;
       }
       const data = (await res.json()) as {

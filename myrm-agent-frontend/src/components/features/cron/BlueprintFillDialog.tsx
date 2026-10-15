@@ -18,6 +18,7 @@ import { IM_CHANNELS, needsDeliveryTarget, toApiChannel } from './CronDeliveryEd
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ApiError } from '@/lib/api';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import type { CronJob } from '@/services/cron.types';
 import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
 import { CronJobAuditPanel } from './CronJobAuditPanel';
@@ -100,8 +101,10 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
         toast.error(t('auditPauseFail'));
       }
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : t('actionFail');
-      toast.error(message);
+      // `apiRequest` has already shown the notice for a held prompt; the filled values stay in the dialog.
+      if (!isRiskHeldError(err)) {
+        toast.error(err instanceof ApiError ? err.message : t('actionFail'));
+      }
     } finally {
       setSaving(false);
     }

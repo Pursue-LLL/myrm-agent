@@ -34,6 +34,7 @@ import useConfigStore from '@/store/useConfigStore';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { apiRequest } from '@/lib/api';
 import { checkCronPrerequisite, type CronSchedule, type PrerequisiteCheckResponse } from '@/services/cron';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import {
   estimateCronMonthlyExecutions,
   estimateIntervalMonthlyExecutions,
@@ -358,8 +359,11 @@ export default function CronJobCreateDialog({
         } catch {
           toast.error(t('auditPauseFail'));
         }
-      } catch {
-        toast.error(t('actionFail'));
+      } catch (error) {
+        // `apiRequest` has already shown the notice for a held prompt or criteria; the form keeps the text.
+        if (!isRiskHeldError(error)) {
+          toast.error(t('actionFail'));
+        }
       } finally {
         setSaving(false);
       }

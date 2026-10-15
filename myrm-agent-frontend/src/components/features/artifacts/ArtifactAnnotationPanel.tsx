@@ -9,6 +9,7 @@ import { MessageSquarePlus, Send, GitPullRequestArrow, Trash2, Loader2 } from 'l
 import useChatStore from '@/store/useChatStore';
 import { useArtifactAnnotationStore } from '@/store/useArtifactAnnotationStore';
 import { addComment, listBoards, listTasks, rejectTask, type KanbanTask } from '@/services/kanban';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import {
   type ArtifactAnnotation,
   buildAnchor,
@@ -228,8 +229,11 @@ export function ArtifactAnnotationPanel({
         openAnnotations.map((a) => a.id),
       );
       toast.success(t('annotation.sentToTask', { fallback: 'Feedback sent back for revision.' }));
-    } catch {
-      toast.error(t('annotation.sendFailed', { fallback: 'Failed to send review feedback.' }));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for held feedback; the annotations stay open for editing.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('annotation.sendFailed', { fallback: 'Failed to send review feedback.' }));
+      }
     } finally {
       setBusy(false);
     }

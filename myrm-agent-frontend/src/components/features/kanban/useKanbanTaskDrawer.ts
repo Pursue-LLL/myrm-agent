@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - @/services/kanban (POS: 运行记录、事件、依赖、诊断、评论、任务更新 API)
+ * - @/services/riskHeldToast::isRiskHeldError (POS: 被风控规则拦下的文字已有统一提示，失败提示据此跳过)
  * - @/store/useAgentStore、@/components/agent/builtin-agent-i18n (POS: 本地化的 Agent 列表)
  * - ./resolveTaskDepInfos (POS: 依赖任务摘要解析)
  * - ./useKanbanTaskDrawerAttachments、./useKanbanTaskDrawerWorkflow (POS: 附件与状态流转两个子 hook)
@@ -26,6 +27,7 @@ import {
   updateTask,
   getTaskDiagnostics,
 } from '@/services/kanban';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import type { TaskDepInfo } from './kanban-styles';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
@@ -195,8 +197,11 @@ export function useKanbanTaskDrawer({
       const ev = await addComment(task.task_id, commentText.trim());
       setEvents((prev) => [...prev, ev]);
       setCommentText('');
-    } catch {
-      toast.error(t('addCommentError'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held comment; the text stays in the box.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('addCommentError'));
+      }
     }
     setSubmittingComment(false);
   }, [task, commentText, t]);
@@ -213,8 +218,11 @@ export function useKanbanTaskDrawer({
       setEditingCriteria(false);
       onRefresh();
       toast.success(t('criteriaUpdated'));
-    } catch {
-      toast.error(t('criteriaUpdateError'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for held criteria; the editor stays open.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('criteriaUpdateError'));
+      }
     }
     setSavingCriteria(false);
   }, [task, criteriaText, onRefresh, t]);

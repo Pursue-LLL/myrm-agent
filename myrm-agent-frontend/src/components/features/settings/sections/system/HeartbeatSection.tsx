@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Toggle from '@/components/features/settings/common/Toggle';
 import SettingsSection from '../SettingsSection';
 import { enableHeartbeat, disableHeartbeat, getHeartbeatStatus } from '@/services/heartbeat';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
@@ -218,8 +219,11 @@ const HeartbeatSection = memo(() => {
       const result = status.enabled ? await disableHeartbeat() : await enableHeartbeat(buildEnableParams());
       setStatus(result);
       toast.success(t(result.enabled ? 'enabled' : 'disabled'));
-    } catch {
-      toast.error(t('toggleError'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held custom prompt; the switch keeps its state.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('toggleError'));
+      }
     } finally {
       setToggling(false);
     }
@@ -234,8 +238,11 @@ const HeartbeatSection = memo(() => {
       const result = await enableHeartbeat(buildEnableParams());
       setStatus(result);
       toast.success(t('configSaved'));
-    } catch {
-      toast.error(t('saveError'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held custom prompt; the edited prompt stays in the box.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('saveError'));
+      }
     } finally {
       setSaving(false);
     }

@@ -3775,3 +3775,52 @@ except Exception:
 3. 改 `next.config.ts` 会让正在运行的开发服务器重启，验证代理行为要用隔离实例，不要动共享的那一份。
 4. 测试环境里 Turbopack 不接受指向文件系统根之外的符号链接 `node_modules`，隔离实例改用 webpack 模式。
 5. 共享环境里正式 E2E 通道跑不通时，写清楚每次卡在哪一步，不要把「用例写好了」当成「验证过了」。
+
+## BUG-AGENT-2026-10-15-017: 被风控拦下的文字在看板、定时任务、心跳、批注退回、技能优化与目标草拟的 12 个调用点上，要么在统一提示之外再叠一条失败提示，要么只显示「生成失败」，要么把 `[object Object]` 当提示
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（`BUG-AGENT-2026-10-15-014` 局限 7「其余经 `apiRequest` 又自带失败提示的调用点仍可能叠两条提示，没有逐个核对」；这次从会拦文字的服务端处理函数倒查前端调用方，而不是从组件往下找） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P3（拦截本身有效，密钥没有进库；问题是用户看到两条互相矛盾的提示、一条没有原因的提示或乱码） |
+| 影响范围 | frontend：`kanban/{useKanbanAddTask,useKanbanTaskDrawer,useKanbanTaskCardDetails}.ts`、`artifacts/ArtifactAnnotationPanel.tsx`、`cron/{CronJobCreateDialog,BlueprintFillDialog,BlueprintInlineFill}.tsx`、`settings/sections/system/HeartbeatSection.tsx`、`skills/useSkillDetailSheet.ts`、`message-input-actions/GoalModeToggle.tsx` 的 `catch` / 失败分支，以及上述目录与 `test-utils` 的 `_ARCH.md`；测试：7 个新文件共 22 例 + 夹具 `src/test-utils/riskHeld.ts`；server 与契约没有改 |
+| 出现次数 | 12 个调用点（读码得出，见现象；没有在浏览器里复现） |
+| 关联 | `BUG-AGENT-2026-10-15-014`（关闭它的局限 7）、`-009`；本地提交，未 push |
+
+### 现象
+
+1. 经 `apiRequest` 的 10 个调用点：`apiRequest` 在统一错误出口先弹一次风控提示（`lib/api.ts` 的 `displayApiErrorToast` 首先调用 `showRiskHeldRefusal`，且这条提示从不去重），调用方自己的 `catch` 随后再弹「创建失败」「评论失败」之类，用户同时看到「内容已被风控规则拦截……」与「操作失败」。调用点：看板新增任务 `useKanbanAddTask`、卡片评论 `useKanbanTaskCardDetails`、抽屉评论与验收标准 `useKanbanTaskDrawer`（2 处）、批注退回任务 `ArtifactAnnotationPanel.handleSendToTask`、定时任务创建 `CronJobCreateDialog`、模板创建 `BlueprintFillDialog` 与 `BlueprintInlineFill`、心跳开关与保存 `HeartbeatSection`（2 处）。两个模板组件的 `catch` 还把 `ApiError.message` 当提示显示，对被拦的文字那是服务端的英文 `Text held by a risk rule`。
+2. 不经 `apiRequest` 的 2 个调用点：技能优化 `useSkillDetailSheet.handleOptimize` 用裸 `fetch`，`throw new Error(data.detail || …)`，被拦时 `detail` 是对象，`new Error(对象).message` 是 `[object Object]`，提示的描述就是这串字（`catch` 里 `description: error.message`）；「建议验收标准」`GoalModeToggle.handleSuggestCriteria` 用 `fetchWithTimeout`，被拦时只弹「生成失败」，没有任何原因。
+3. 以上都是读码得出。统一提示不去重这一点来自 `lib/api.ts` 的 `ALWAYS_SHOW_ERROR` 与 `displayApiErrorToast` 的注释；没有在浏览器里看到两条提示同时出现，也没有手机与 PC 的截图。
+
+### 根因
+
+`-014` 给 6 个调用点接了「已经说明过就不再叠提示」的判断，但没有一份从服务端闸门倒推的前端调用方清单；其余调用点各写各的失败分支，没人知道它们也会碰到 `risk_held`。
+
+### 修复
+
+1. 沿用已有写法（`useAgentEditor`、`AgentEditForm`、`BackgroundTasksPanel`、`GoalStatusCard`、批量目录页）：`catch (error) { if (!isRiskHeldError(error)) { 原来的失败提示 } }`，对被拦的文字只留 `apiRequest` 的那一条统一提示；表单与输入框因为提交没有成功而保持原样，用户可以直接改。模板两个组件的 `ApiError.message` 提示同样先判断。
+2. `useSkillDetailSheet.handleOptimize` 与 `GoalModeToggle.handleSuggestCriteria` 在失败分支先调 `riskHeldErrorFromResponse(response)`：被拦时展示统一提示并返回，不再读响应体、不再弹失败提示；其余失败的提示与原来一致（技能优化仍显示服务端 `detail` 字符串，没有顺带改）。
+3. 不新增 helper、不改文案、不改服务端：统一提示的标题与描述来自 `settings.securityPolicy.riskRules.*`，6 种语言包不变。
+4. 相关 `_ARCH.md` 与文件头的 [INPUT] 行同步；新增测试夹具 `src/test-utils/riskHeld.ts`（服务端 400 响应体、英文标题、通知服务的英文翻译器、带 JSON 内容类型的 `Response`），7 个新测试共用。
+
+### 验证
+
+1. 新增测试 22 例（7 个文件）：每个调用点各 1 例「被拦：统一提示恰好一次、调用方自己的失败提示为 0、输入保留（或批注保持未提交）」共 12 例，另 10 例「其它失败仍弹自己的提示」。用真实的 `apiRequest`、真实的服务函数与真实的看板 / 定时任务 / 批注 / 技能组件或 hook，只替换全局 `fetch`、两个 toast 出口（`@/lib/utils/toast` 是统一提示、`sonner` 或 `useToast` 是调用方自己的提示）与本地后端就绪检查。
+2. 变异检查：逐个把 10 个文件里的判断改成恒放行（`!isRiskHeldError(…)` → `true`；两处裸 `fetch` 调用点的 `riskHeldErrorFromResponse` → 恒不命中），12 例「被拦」全部变红、10 例「其它失败」仍通过，再还原。还原后用 `git diff` 逐文件核对，只剩本条的改动（还原过程出过一次错，见踩坑经验 2）。
+3. 更大的集合：`vitest run` 覆盖 `kanban`、`cron`、`artifacts`、`message-input-actions`、`skills`、`settings/sections/system`、`src/services/__tests__`：266 个文件 2085 例通过。
+4. 静态检查：触及的 10 个文件与 8 个新文件 `oxlint` 退出码 0；`prettier --check` 只对 `useSkillDetailSheet.ts` 报错，原因是他人未提交的一行多行 import（HEAD 版本通过，本条提交的内容不含它）；`tsc --noEmit` 输出 78 行，没有触及的文件；`verify:theme-colors` 通过；`verify:stable-mocks`、`verify:hardcoded-copy` 在他人的文件上失败，输出里没有本条触及的文件。
+
+### 局限
+
+1. 没有在真实浏览器里验证，没有手机 / PC 截图；「两条提示同时出现」与「`[object Object]`」是读码得出，测试替身了 toast 出口，没有看真实的 sonner 渲染。
+2. 12 个调用点来自从服务端闸门倒查：对 `app/api` 里每个调用 `reject_if_risky` 的处理函数，找前端调用它的服务函数与直连 `fetch`，再看各调用方的失败分支。已确认没有前端调用方的：`PUT /goals/{id}/constraints`、`PATCH /cron/{id}` 的 `prompt`（`updateCronJob` 的调用方都不带 `prompt`）、看板 `PATCH` 的标题与描述（只有验收标准一处）；子智能体转向 `SubagentTree.tsx` 在更早的提交里已处理。这份清单是某一时刻的快照，新增调用方不会被自动发现，没有对应的前端守卫测试。
+3. 这些调用点所在的大文件在本条之前就超过 500 行：`CronJobCreateDialog.tsx` 952、`GoalModeToggle.tsx` 546、`HeartbeatSection.tsx` 544，本条各只加了几行，没有拆分：拆分是独立的重构，需要先补行为测试。
+4. 统一提示的 6 种语言译文不是本条所写，也没有母语者校对。
+5. `useSkillDetailSheet.ts` 在工作区里有他人未提交的改动，本条只提交自己的 5 行；其余文件只含本条的改动。
+
+### 踩坑经验
+
+1. 找「谁会碰到这个错误」要从错误的出处往调用方倒查，不要从组件往下猜：从服务端闸门列出的处理函数出发，12 个调用点一次找齐，而 `-014` 凭印象只发现了其中一部分。
+2. 变异检查还原不要用「把短字面量换回去」：把 `!isRiskHeldError(error)` 换成 `true` 后，用 `replace('true', 原文, 1)` 还原会命中文件里别处的第一个 `true`（`setBusy(true)` 之类），把它改坏；这次靠还原后的 `git diff` 逐文件核对才发现并修好。还原要用带上下文的整行，且还原后必须看 diff。
+3. 全局只替换 `fetch` 时，`apiRequest` 的成功响应要带 `Content-Type: application/json`，否则被当成空响应、页面停在加载态；本地模式下还要替换后端就绪检查，否则测试在轮询 `/health` 上挂满 30 秒。

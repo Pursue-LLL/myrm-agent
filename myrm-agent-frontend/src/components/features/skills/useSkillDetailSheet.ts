@@ -9,6 +9,7 @@ import {
   toggleEvolutionLock,
   revealSkill,
 } from '@/services/skill';
+import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 import { useSkillStore } from '@/store/skill';
 import type { Skill } from '@/store/skill/types';
 import type { SkillSectionTranslator } from './SkillDetailHelpers';
@@ -267,6 +268,10 @@ export function useSkillDetailSheet({
         body: JSON.stringify({ instruction: optimizeInstruction.trim() }),
       });
       if (!response.ok) {
+        // A held instruction gets the one notice in the user's language; its body is an object, not a message.
+        if (await riskHeldErrorFromResponse(response)) {
+          return;
+        }
         const data = await response.json();
         throw new Error(data.detail || 'Failed to start optimization');
       }
