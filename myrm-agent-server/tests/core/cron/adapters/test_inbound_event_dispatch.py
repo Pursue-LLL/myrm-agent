@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+import logging
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.api.security import is_untrusted_ingress_active
@@ -11,6 +12,9 @@ from myrm_agent_harness.api.security import is_untrusted_ingress_active
 from app.core.cron.adapters.inbound_event_dispatch import (
     dispatch_cron_event_for_inbound_message,
 )
+from tests.support.risk_gate import API_KEY_RULE, SECRET, build_service_with_rules
+
+_DETECTION = "app.services.risk.detection.get_detection_service"
 
 
 @pytest.mark.asyncio
@@ -109,3 +113,54 @@ async def test_fence_does_not_leak_into_the_dispatcher_when_the_scheduler_fails(
 
     assert count == 0
     assert not is_untrusted_ingress_active()
+
+
+@pytest.mark.asyncio
+async def test_held_message_spawns_no_job_and_the_log_omits_the_text(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A job's context carries the matched message verbatim, so a message a risk rule holds must not start one."""
+    scheduler = AsyncMock()
+    scheduler.dispatch_event = AsyncMock(return_value=1)
+    monkeypatch.setattr("app.core.cron.adapters.setup.get_cron_scheduler", lambda: scheduler)
+
+    with (
+        patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])),
+        caplog.at_level(logging.INFO, logger="app.core.cron.adapters.inbound_event_dispatch"),
+    ):
+        count = await dispatch_cron_event_for_inbound_message(f"deploy now, key {SECRET}", "feishu", "u1", untrusted=False)
+
+    assert count == 0
+    scheduler.dispatch_event.assert_not_awaited()
+    assert "API Key Leak" in caplog.text
+    assert SECRET not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_clean_message_still_spawns_its_job_when_rules_are_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    scheduler = AsyncMock()
+    scheduler.dispatch_event = AsyncMock(return_value=1)
+    monkeypatch.setattr("app.core.cron.adapters.setup.get_cron_scheduler", lambda: scheduler)
+
+    with patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])):
+        count = await dispatch_cron_event_for_inbound_message("deploy now", "feishu", "u1", untrusted=False)
+
+    assert count == 1
+    scheduler.dispatch_event.assert_awaited_once_with("deploy now", "feishu", "u1")
+
+
+@pytest.mark.asyncio
+async def test_failed_screening_spawns_no_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the gate cannot answer, the message is treated as held rather than passed on."""
+    scheduler = AsyncMock()
+    scheduler.dispatch_event = AsyncMock(return_value=1)
+    monkeypatch.setattr("app.core.cron.adapters.setup.get_cron_scheduler", lambda: scheduler)
+    monkeypatch.setattr(
+        "app.core.cron.adapters.inbound_event_dispatch.screen_user_text",
+        AsyncMock(side_effect=RuntimeError("detector down")),
+    )
+
+    count = await dispatch_cron_event_for_inbound_message("deploy now", "feishu", "u1", untrusted=False)
+
+    assert count == 0
+    scheduler.dispatch_event.assert_not_awaited()

@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Goal API exports. | [Pass] |
-| `router.py` | 主路由 | Goal HTTP 聚合端点：`GET /goals/active`、状态与生命周期操作、子路由挂载 | [Pass] |
+| `router.py` | 主路由 | Goal HTTP 聚合端点：`GET /goals/active`、状态与生命周期操作、子路由挂载；子目标 `text` 与草拟 `objective` 先过风控闸门（`reject_if_risky`，命中 400 `risk_held`），再存储或交给模型 | [Pass] |
 | `plan.py` | 路由与重演 | `GET /{session_id}/plan` 与 `GET /{session_id}/dag`，会话分支状态重演与工作区回退 | [Pass] |
 | `queue.py` | 路由 | Goal 队列管理（查询、取消、重排）端点 | [Pass] |
 | `constraints.py` | 路由 | Goal 约束管理与目标动态热编辑端点；写入前文本经 `reject_if_risky` 过风险闸门（命中返回 400 `risk_held`，原文不落库） | [Pass] |

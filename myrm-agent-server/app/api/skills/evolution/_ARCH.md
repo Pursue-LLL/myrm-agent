@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Evolution API - Pending Evolutions & LLM Confirmation Rejection Logs | ✅ |
-| `derive.py` | 模块 | Evolution API endpoint for triggering derived evolution | ✅ |
+| `derive.py` | 模块 | Evolution API endpoint for triggering derived evolution; the instruction is screened by the risk gate before it reaches the evolution engine (400 `risk_held`) | ✅ |
 | `fix.py` | 模块 | Evolution API endpoint for triggering FIX evolution with GUI-First force retry support | ✅ |
 | `helpers.py` | 模块 | Evolution API 共享 helper：`_evolution_lineage_id`、`_get_skill_store`、`_get_skill_store_db_path`（委托 core evolution_store） | ✅ |
 | `history.py` | 模块 | evolution 历史记录接口层。对外提供已处理的 evolution 历史查询（GET /history）与单条回滚（POST /{id}/rollback）。 | ✅ |

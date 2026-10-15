@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
+- app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
 [OUTPUT]
 - router: APIRouter for goal endpoints.
@@ -22,6 +23,7 @@ from pydantic import BaseModel
 
 from app.api.dependencies import get_optional_llm_for_user
 from app.services.agent.goals.goal_registry import GoalRegistry
+from app.services.risk.refusal import reject_if_risky
 
 from .constraints import (
     ConstraintsUpdateRequest,
@@ -126,6 +128,7 @@ class SubgoalAddRequest(BaseModel):
 @router.post("/{session_id}/subgoals")
 async def add_goal_subgoal(session_id: str, request: SubgoalAddRequest) -> dict[str, object]:
     """Add a new subgoal to the active goal for a session."""
+    await reject_if_risky(request.text, session_id=session_id)
     provider = GoalRegistry.get_provider(session_id)
     if not provider:
         from myrm_agent_harness.agent.goals.manager import GoalManager
@@ -301,6 +304,7 @@ async def draft_goal(
     """Generate draft constraints and acceptance criteria for a goal objective."""
     from app.services.agent.goals.goal_draft import draft_goal_spec
 
+    await reject_if_risky(request.objective)
     try:
         spec = await draft_goal_spec(
             llm,

@@ -3350,12 +3350,12 @@ except Exception:
 
 ### 局限
 
-1. 覆盖范围是登记表里的 16 个入口，不是「所有用户输入文本的入口」。对 `app/api` 下全部 POST / PUT / PATCH 处理函数做 AST 扫描（请求模型含 `prompt` / `instruction` / `message` / `description` / `objective` / `content` / `text` / `query` / `comment` / `goal` 等字符串字段），得到 310 个未过闸的候选，大部分是记忆、技能、安全、统计与实验性接口的数据或查询字段。人工筛出其中属于「用户在输入框里敲的、之后被智能体读取或执行」的：已提交的有批量目录 `prompt`（`batch_directory/router.py:38`）、智能体档案的 `system_prompt` / `description` / `suggestion_prompts` / `acceptance_criteria`（`agents/agent.py` 的创建与 `:162` 的更新）、目标的子目标 `text`（`goals/router.py:128`）与草拟 `objective`（`goals/router.py:310`）、事件触发的 `message`（`cron/routes/triggers.py:37`）；他人在途、未提交的新路由里有任务中断指令（`tasks/timeline_router.py:108`）、群聊消息（`chats/group_chat_router.py:79`）、子智能体监管 / 输入 / 多路复用器的指令端点（`agents/subagent_hub_router.py:91`、`subagent_lifecycle_router.py:147`、`agent_multiplexer_router.py:99`）。这些本条都没有接入，也没有登记。
+1. 覆盖范围是登记表里的 16 个入口，不是「所有用户输入文本的入口」。对 `app/api` 下全部 POST / PUT / PATCH 处理函数做 AST 扫描（请求模型含 `prompt` / `instruction` / `message` / `description` / `objective` / `content` / `text` / `query` / `comment` / `goal` 等字符串字段），得到 310 个未过闸的候选，大部分是记忆、技能、安全、统计与实验性接口的数据或查询字段。人工筛出其中属于「用户在输入框里敲的、之后被智能体读取或执行」的：已提交的有批量目录 `prompt`（`batch_directory/router.py:38`）、智能体档案的 `system_prompt` / `description` / `suggestion_prompts` / `acceptance_criteria`（`agents/agent.py` 的创建与 `:162` 的更新）、目标的子目标 `text`（`goals/router.py:128`）与草拟 `objective`（`goals/router.py:310`）、事件触发的 `message`（`cron/routes/triggers.py:37`）；他人在途、未提交的新路由里有任务中断指令（`tasks/timeline_router.py:108`）、群聊消息（`chats/group_chat_router.py:79`）、子智能体监管 / 输入 / 多路复用器的指令端点（`agents/subagent_hub_router.py:91`、`subagent_lifecycle_router.py:147`、`agent_multiplexer_router.py:99`）。这些本条都没有接入，也没有登记。后续：`BUG-AGENT-2026-10-15-013` 关闭了其中已提交的缺口（档案、批量目录、子目标、草拟 objective，以及同类的 AI 创建、提示词生成、技能派生与 IM 事件触发的派发）；事件触发 REST（`triggers.py:37`）核对后是已认证的机器调用，保持不筛；他人在途的路由由守卫测试的完整性扫描逐个点名，不再靠人工列表。
 2. 有意不筛的入口：定时任务 `shell` 命令与看板 `shell` 验收标准（是被执行的命令，不是模型读的文本）、任务的 `result` / `blocked_reason`（是输出，不是指令）、语音实时通道、OpenAI 兼容的 `/v1/chat/completions`、偏好与档案文本；`_ARCH.md` 里记了原因。
 3. 只筛请求里带来的字段：库里已有的旧数据不被重新检查。
 4. 反斜杠转义的 JSON 赋值（`{\"password\":\"…\"}`）仍不被拦，与 `BUG-AGENT-2026-10-15-004` 的局限 7 相同；长度超过 64 个字符的赋值值同样不拦（该条局限 1），本条没有改规则。
 5. 5 MB 以上的无害粘贴现在不再被误拦，但总耗时随长度线性增长：20 MB 实测约 5 秒（在工作线程上），而全局请求体上限是 15 MB（`app/server/middlewares.py:33`），所以单次请求占用的工作线程时间低于这个数；单条规则超过预算仍按命中处理，回溯型自定义规则只会被拦、不会卡住循环。
-6. 前端：目标 objective 被拒时 `GoalStatusCard.tsx` 的 `catch` 仍只弹通用的 `objectiveUpdateFailed`（`useGoalStore.ts` 用 `fetchWithTimeout` 并把响应文本拼进 `Error`；两个文件都有他人未提交的改动，本条没动）；`BackgroundTasksPanel.tsx` 的 steer 失败会在统一提示之外再弹一条 `steerFailed`，其余调用点未逐个核对；提示标题「消息已被风控规则拦截」对保存定时任务、看板卡片这类动作措辞偏窄（6 种语言包共用同一个键）；没有在真实浏览器与真实 IM 平台里端到端验证；`SubagentTree.tsx` 543 行，超过 500 行上限，是本条之前就有的，没有拆。
+6. 前端：目标 objective 被拒时 `GoalStatusCard.tsx` 的 `catch` 仍只弹通用的 `objectiveUpdateFailed`（`useGoalStore.ts` 用 `fetchWithTimeout` 并把响应文本拼进 `Error`；两个文件都有他人未提交的改动，本条没动）；`BackgroundTasksPanel.tsx` 的 steer 失败会在统一提示之外再弹一条 `steerFailed`，其余调用点未逐个核对；提示标题「消息已被风控规则拦截」对保存定时任务、看板卡片这类动作措辞偏窄（6 种语言包共用同一个键）；前三项在 `BUG-AGENT-2026-10-15-013` 处理（目标面板与转向面板不再叠加失败提示，标题改为中性）；没有在真实浏览器与真实 IM 平台里端到端验证；`SubagentTree.tsx` 543 行，超过 500 行上限，是本条之前就有的，没有拆。
 7. 命中记录的 `session_id` 现在也可能是看板、任务或定时任务的 id：该列没有外键，`RiskRulesHitsPanel` 不展示它，记录里无法区分来源。
 8. 服务端引用了 harness 里尚未发布的 `secret_value_span` 与 `is_reference_token`（见 `BUG-AGENT-2026-10-15-004` 局限 6），发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行。提示词没有改动。
 9. 验证第 3 条里的 2 个失败测试属于他人的未提交改动或已提交代码里原有的问题，本条没有修。
@@ -3585,3 +3585,73 @@ except Exception:
 3. `Record<联合类型, string>` 加 `satisfies` 比 `Record<string, string>` 强：新增一个原因码，编译立刻报缺项；
 4. 涉及本地化的断言要读真实的 locale 文件渲染，全局的恒等翻译桩只能证明「键存在」，证明不了「用户读到的是句子」；
 5. 受限于共享主机与「共享纪元已过期」的状态，正式 E2E 通道一次跑不通时，写清楚是哪一步没过，不要把「用例写好了」当成「验证过了」。
+
+## BUG-AGENT-2026-10-15-013: IM 的事件触发在风控闸门之前派发，带密钥的消息仍会拉起定时作业并把原文带进作业上下文；智能体档案、AI 创建、提示词生成、批量目录、技能派生、子目标与目标草稿都不过闸门；AI 创建拿到的技能目录永远是空的；「哪些入口必须过闸门」只有一张手写登记表，新增入口不登记就漏过
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（`BUG-AGENT-2026-10-15-009` 局限 1 点名的缺口，逐个读处理函数与消费循环后核对；对「用户亲手输入的文本」在每个入口之后的去向做了走查） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（缺口让用户自己输入的密钥进数据库、进模型上下文、进定时作业的输入，不跨用户；另一半是一处让 AI 创建智能体功能缺了一块的普通错误） |
+| 影响范围 | server：`app/core/cron/adapters/inbound_event_dispatch.py`、`app/api/agents/{agent,generate_prompt,ai_build}.py`、`app/api/batch_directory/router.py`、`app/api/skills/evolution/derive.py`、`app/api/goals/router.py`、`app/schemas/streaming.py`（仅类型修正），`app/api/{agents,goals,batch_directory,skills/evolution}`、`app/channels/routing`、`app/core/cron`、`app/core/cron/adapters`、`app/services/risk`、`tests/architecture` 的 `_ARCH.md`；frontend：`src/services/{riskHeldToast,agent}.ts`、`src/hooks/agent/{useAgentEditor,useAgentConfigPanel,useAgentAiBuild}.ts`、`src/components/agent/AgentEditForm.tsx`、`agent-config-panel/AgentConfigEditDialog.tsx`、`chat-window/goals/GoalStatusCard.tsx`、`src/store/chat/goals/useGoalStore.ts`、`background-tasks/BackgroundTasksPanel.tsx`、`src/app/batch-directories/page.tsx`、6 个语言包的一个键、5 份 `_ARCH.md`；测试：`tests/core/cron/adapters/test_inbound_event_dispatch.py`、`tests/channels/routing/test_inbound_risk_gate_order.py`、`tests/api/test_authoring_risk_gate.py`（新）、`tests/api/goals/test_constraints_risk_gate.py`、`tests/api/agent/test_ai_build.py`、`tests/architecture/test_text_entry_risk_gate.py` |
+| 出现次数 | 1（用真实处理函数、真实消费循环与真实检测引擎复核；没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-15-009`（本条关闭它的局限 1 中已提交的缺口，以及局限 6 里前端的三项）、`-004`；本地提交，未 push，未发布 harness 版本 |
+
+### 现象
+
+1. IM 消息先被派发给事件触发的定时作业，再进入风控闸门。`router.py:654-661` 在消费循环里对访问策略放行的发送者调用 `dispatch_event`，而闸门在其后的回合路径里（`router.py:731` 忙时、`router.py:1227` `_handle_merged`）。事件触发匹配上的消息，其原文被 harness 原样拼进作业输入（harness 的 `toolkits/cron/engine/scheduler.py:316`）。用真实消费循环复现：一个事件触发匹配 `deploy` 的作业，发 `deploy now, key sk-AAAAAABBBBBBCCCCCCDDDD-0`，闸门随后把这条消息拦下并通知发送者，但作业已经启动（去掉本条在派发处加的闸门即是修复前的状态，见验证 2）。
+2. 8 个写入处理函数（7 类入口）不过闸门，文本被存库或原样交给模型：智能体档案创建与更新的 `system_prompt`、`description`、`suggestion_prompts`、命令绑定的 `instruction`（存库后每次运行都被模型读取）；`generate-prompt` 的 `intent` 与待改写的 `current_prompt`；`ai-build` 的 `intent`；批量目录的 `prompt`；技能派生的 `instruction`；`/goals/{id}/subgoals` 的 `text`；`/goals/draft` 的 `objective`。
+3. `ai_build` 的技能目录永远是空的：`_collect_available_resources` 里用 `s.enabled` 过滤，而 `Skill` 数据类只有 `available`（`app/core/skills/models.py:43`），每个已安装技能都抛 `AttributeError`，被外层 `except Exception` 吞成一条 WARNING，模型看到的可用技能是空列表。原测试用 `MagicMock` 并手工设 `enabled = True`，所以一直通过；用真实 `Skill` 调用得到 `[]`。
+4. `-009` 的登记表默认放行：新增写端点不登记就不过闸门，也没有任何东西变红。同一天工作区里他人新增的未跟踪路由里，有 11 个这样的端点（见局限 1）。
+5. 前端：被服务端拦下的文字，在不经 `apiRequest` 的调用里没有统一提示，经 `apiRequest` 的调用又被各处自己的提示叠一遍。`services/agent.ts` 用裸 `fetch`，失败后抛 `new Error(服务端 detail.message)`，设置页保存的提示把这句英文 `Text held by a risk rule` 当描述显示（`useAgentEditor.ts` 的 `catch`）；聊天内配置面板与 `AgentEditForm` 只弹通用的「操作失败」；`ai-build` 弹通用的 AI 创建失败，没有说明原因；`generate-prompt` 的 400 只写 console，界面没有任何反应；目标 objective 与子目标被拒只弹通用的保存失败；转向（`BackgroundTasksPanel`）与批量目录创建经 `apiRequest`，统一提示之后又弹一条「转向失败」或把英文 `err.message` 当提示。统一提示的标题「消息已被风控规则拦截」对保存档案、创建目录这类动作措辞偏窄（6 种语言包共用同一个键）。以上读码确认，保存档案一项在修复后的测试里去掉修复会变红（见验证 6），没有在浏览器里端到端复现。
+6. `tests/api/goals/test_constraints_risk_gate.py` 依赖 `tests/api/goals/conftest.py` 里的 `client` 夹具，而该文件是他人未提交的文件；只检出已提交内容时这个测试因缺夹具而报错。
+
+### 根因
+
+1. 事件触发的派发是消费循环里与回合路径平行的另一个调用点，`-009` 只给回合路径接了闸门。
+2. `-009` 只处理了当时人工列出的入口，没有扫描「哪些写端点的请求里带着给模型读的文本」；登记表只能保证已登记的入口。
+3. `Skill` 没有 `enabled`，测试用万能替身掩盖了属性不存在。
+4. 测试夹具放在了未提交的文件里。
+5. 前端的提示只在 `apiRequest` 的统一错误出口里接了一处，其余直连 `fetch` 的调用点各写各的失败分支，没有「这个失败已经被说明过」的共同判断。
+
+### 修复
+
+1. `inbound_event_dispatch.py` 在匹配前调用 `screen_user_text(message, session_id=user_id or None)`，命中则记一条只含规则名、不含原文的 INFO 并返回 0；筛查本身失败时沿用该函数原有的外层 `try`（失败即不派发）。通知发送者仍由同一条消息的回合路径完成，这里不重复发。不在消费循环顶部加一道总闸：那会让机器人对群里没有指向它的消息也回复「已拦截」，破坏群聊的安静监听策略。
+2. 8 个处理函数各自在做任何事之前调用 `reject_if_risky`（档案创建 / 更新经 `_reject_risky_profile_text`，逐段筛：`system_prompt`、`description`、每条建议提示词、每条命令绑定指令；更新时以 `agent_id` 作 `session_id`）。命中返回 HTTP 400 `risk_held`，与 `-009` 同一契约。`wrangle_table_data`（`bitable_copilot_router.py`）核对后不筛：引擎按确定性规则改写单元格，没有模型读这段指令。
+3. `ai_build` 改用 `s.available`；测试改用真实 `Skill` 对象。
+4. 架构守卫 `test_text_entry_risk_gate.py` 增加完整性扫描：对 `app/api` 下全部 `post` / `put` / `patch` 处理函数做 AST 分析，请求（类型为 `str` 的参数，或解析到的 Pydantic 模型，含嵌套与继承）里有名为 `prompt` / `instruction` / `intent` / `objective` / `goal` 的字段时，必须在 `_ENTRIES`（并调用闸门）或 `_EXEMPT`（附理由）里；过期的豁免、同时出现在两处也会失败。6 条豁免各写明理由（如 `check_prerequisite` 只把 `prompt` 当查询键、`create_batch_job` 是给生成图片的提示词）。
+5. 触及文件里已有的 `mypy` 错误一并修掉：`agent.py` 的元数据取值改用 `_meta_str_list_or_none`；`generate_prompt.py`、`ai_build.py`、`batch_directory/router.py`、`derive.py`、`streaming.py`（`Field(default=None, alias=...)`，并排除「类本身是数据类」的情形，原来对类对象调用 `asdict` 会抛 `TypeError`）、`goals/router.py` 各处。
+6. `test_constraints_risk_gate.py` 自带 `client` 夹具与规则夹具，不再依赖未提交的 `conftest.py`（用临时目录里没有该夹具的副本验证过）。
+7. 前端：`riskHeldToast.ts` 增加三样东西：`riskHeldErrorFromResponse(response)`（不经 `apiRequest` 的失败响应：HTTP 400 且 `detail.code === 'risk_held'` 时展示一次统一提示，返回要抛出的 `RiskHeldRefusalError`，其 message 是中性标题而不是服务端英文；响应体用 `clone()` 读取，调用方还能再读）、`RiskHeldRefusalError`、`isRiskHeldError(error)`（对 `apiRequest` 抛的 `ApiError` 与前者都成立）。接入：`agent.ts` 的 `throwUserAgentFetchError`（所有智能体接口的失败共用）、`useAgentAiBuild`、`AgentConfigEditDialog` 的 `generate-prompt`、`GoalStatusCard` 的子目标、`useGoalStore.updateObjective`；已经说明过的失败，各自的失败提示改为跳过：`useAgentEditor`、`useAgentConfigPanel`（创建与更新两处）、`AgentEditForm`、`GoalStatusCard` 的目标保存、`BackgroundTasksPanel` 的转向、批量目录创建。统一提示的标题改成中性：6 个语言包的 `settings.securityPolicy.riskRules.blockedTitle` 分别改为「内容已被风控规则拦截」「內容已被風控規則攔截」「内容がリスクルールによりブロックされました」「내용이 위험 규칙에 의해 차단되었습니다」「Inhalt durch Risikoregel blockiert」「Content blocked by risk rules」（仅此一键，其余键与排版未动）。
+8. 文档与代码对齐：上列 9 份服务端 `_ARCH.md` 与 5 份前端 `_ARCH.md`；`risk/_ARCH.md` 的入口清单与不过闸的清单（附件内容、`shell` 命令、`result`、旧数据）更新。
+
+### 验证
+
+1. 新增 / 改写的服务端测试：事件派发 3 例（命中不拉起作业且日志不含原文、干净消息照常派发、筛查失败不派发）；IM 顺序 1 例（参数化 2 例，用真实消费循环：命中的消息不启动作业，干净的启动）；写入口 `test_authoring_risk_gate.py` 19 例（真实处理函数，只注入规则；断言 400 与规则列表、响应里没有密钥、库里什么都没存、干净文本照常通过）；目标接口 8 例（含子目标与草稿各 1 例）；`ai_build` 4 例（用真实 `Skill`）；架构守卫 34 例（含 1 例扫描器自检：嵌套、继承、纯 `str` 参数）。上述 6 个文件共 98 例，97 通过，1 个失败是守卫扫到他人未提交的路由（局限 1），符合预期。
+2. 变异检查（临时 pytest 插件，用后已删）：把 `refusal.screen_user_text` 改成恒返回空，写入口 + 目标 + `ai_build` 三个文件 31 例里 17 例失败（失败的都是「应被拦」的用例，14 例「应放行 / 契约不变」的仍通过）；把 `inbound_event_dispatch.screen_user_text` 改成恒返回空，事件派发与 IM 顺序两个文件 33 例里 2 例失败（命中不拉起作业、真实消费循环里命中不启动作业），其余 31 例通过。守卫的完整性扫描用 11 个真实的未过闸端点验证了红：见局限 1。
+3. 更大的集合（服务端，逐目录跑，每条用例 120 秒超时）：`tests/services/risk` 199 通过；`tests/api/goals` 73 通过；`tests/api/batch_directory` 84 通过；`tests/channels/routing` 494 通过；`tests/architecture/test_outbound_model_calls.py` 6 通过；`tests/core/cron/adapters` 231 通过、5 失败（`test_cron_execution_policy.py`，原因是 `app/api/cron/routes/jobs.py:108` 向 `create_job` 传了 `project_id`，而 `EntitlementGuardedCronManager.create_job()` 还不接受它；`jobs.py`、`schemas.py`、`helpers.py` 是他人未提交的改动，本条没碰）；`tests/api/agent` 726 通过、5 失败（`test_subagent_real_world.py` 的 5 例，日志是 `workspaces_storage_root is required`，属真实子智能体运行环境，本条改动的文件不在它的路径上，没有在只含已提交内容的树上对照）。机器负载很高（负载均值 80 以上），先前把这些目录合在一次里跑超过 10 分钟，所以改为逐目录跑。
+4. `real-model` 的端到端用例 `tests/api/agent/test_focus_flush_e2e.py::test_focus_flush_session_with_real_model` 在本机失败（环境里有真实的 API 密钥，模型的回答里出现了会话摘要里的密语），它调用的 `chats/chat/messages.py`、`services/chat/chat_crud.py` 没有未提交改动，本条改动的文件都不在它的路径上；没有在只含已提交内容的树上对照，所以只能说本条没有碰这条路径，不能说它在 HEAD 上也失败。
+5. frontend 新增 / 改写的测试：`riskHeldToast.test.ts`（新增 `riskHeldErrorFromResponse` 的展示一次、中性消息、响应体仍可读、4 类不应当作拦截的响应，以及 `isRiskHeldError` 的 5 例；原有 zh 标题断言改为新标题）、`agentRiskHeld.test.ts`（新，真实的 `createAgent` / `updateAgent`：400 拦截提示一次且抛出的错误会让调用方跳过失败提示、其它失败保留服务端原文）、`useAgentAiBuild.test.ts` 1 例、`BackgroundTasksPanel.test.tsx` 2 例（普通转向失败仍提示；被拦的转向不再叠加，输入框内容保留）、`GoalStatusCardRiskHeld.test.tsx`（新，真实卡片与真实 `useGoalStore`：目标与子目标各 2 例，被拦与其它失败）、`riskEvents.test.ts` 的标题断言。
+6. frontend 变异检查（临时改坏实现，确认测试变红，再用备份原样还原并 `cmp` 核对）：`isRiskHeldError` 恒为 false → 6 例失败；`riskHeldErrorFromResponse` 恒返回 null → 6 例失败；去掉 `agent.ts` 里的拦截判断 → 2 例失败；面板转向恒弹失败提示 → 1 例失败；目标卡片两处恒弹失败提示 → 2 例失败；`useAgentAiBuild` 去掉拦截判断 → 1 例失败；基线 5 个文件 39 例全部通过。
+7. frontend 更大的集合：`vitest run` 覆盖 `src/services`、`src/hooks/agent`、`goals`、`background-tasks`、`store/chat/goals`、`messageStream/handlers`、`lib/__tests__/api.test.ts`、`subagent`、`agent-config-panel`、`components/agent`、`app/batch-directories`：155 个文件 1086 例通过。触及的 17 个文件 `prettier --check` 与 `oxlint` 通过；`tsc --noEmit` 的 49 行输出里没有触及的文件；`verify:theme-colors`、`verify:icu-syntax` 通过；`verify:stable-mocks`、`verify:hardcoded-copy` 在他人的文件上失败，输出里没有本条触及的文件（新增测试里的 `next-intl` 替身最初被 `verify:stable-mocks` 点名，已改成模块级稳定引用）。
+8. 静态检查：触及的 14 个 Python 文件 `ruff check`、`ruff format --check` 通过；对 8 个应用文件的 `mypy` 输出里没有这些文件的错误（输出里的其它文件的错误是别处原有的）。
+
+### 局限
+
+1. 守卫的完整性扫描在当前工作区是红的，因为他人未提交的 11 个路由有未过闸门的指令端点：`agents/agent_assembler_router.py::dry_run_assembly`、`agent_avatar_router.py::generate_ai_avatar`、`agent_multiplexer_router.py::instruct_multiplexer_session`、`capability_dispatch_router.py::evaluate_dispatch_fit`、`cloud_edge_relay_router.py::dispatch_egress_relay`、`creator_mode_router.py::synthesize_preset_endpoint`、`specialist_summoning_router.py::summon_specialist_endpoint`、`virtual_room_router.py::delegate_execution`、`zero_token_contract_router.py::check_llm_call_endpoint`、`system/deployment_funnel_api.py::dispatch_autonomous_goal`、`tasks/timeline_router.py::interrupt_task`。仅含已提交文件时守卫是绿的（逐个核对过这 11 个文件都是未跟踪的）。这些路由的作者提交前要么接闸门，要么写入 `_EXEMPT` 并说明理由；本条没有替他们接。
+2. 扫描只认五个字段名与参数类型 `str`：字段名不在 `{prompt, instruction, intent, objective, goal}` 里的指令文本（`message`、`text`、`query` 等）不会被发现；它们要靠登记。这是为了避免把查询与数据字段（记忆、统计、搜索）都当成指令文本而淹没真正的缺口，代价是有漏报。
+3. IM 附件的内容不过闸：文档提取文本在 `metadata.document_text_blocks`、图片在 `metadata.image_data_list`，闸门读的是 `msg.content`。语音与视频转写已合并进 `msg.content`（`voice/handler.py:127,161`，早于闸门），会被筛。事件触发的派发发生在转写之前，只看到用户键入的文字，这与它匹配的就是这段文字一致。
+4. `POST /cron/trigger/event`（`triggers.py:36`）仍不过闸门：它是已认证的机器调用（`route_external_consumers.txt` 登记为外部消费者，前端没有调用），`routing/_ARCH.md` 已写明。
+5. 智能体档案的 `responsibility_scope` 与 `acceptance_criteria` 不过闸：前者按 DTO 说明是治理展示用、不进系统提示词（`dto.py:557-561`），后者除 `agent_repo.py` 的存取外没有读取方；命令绑定的 `description` 是 `/help` 里的展示文案。核对依据是读码，没有运行时验证。
+6. `ai_build` 现在真的把可用技能目录交给模型，这是行为变化：之前模型从来看不到技能，现在会看到并可能选用；没有对比过生成质量。
+7. 前端没有组件级测试的调用点：`useAgentEditor`、`useAgentConfigPanel`、`AgentEditForm`、`AgentConfigEditDialog` 的 `generate-prompt`、批量目录页创建；它们的改动是同一个判断，由 `isRiskHeldError` / `riskHeldErrorFromResponse` 的单元测试与 `agent.ts` 的真实调用测试间接守住。`useAgentStore` 的 `create` / `update` 把 `error.message` 存进 store，现在是中性标题，没有改，也没核对谁展示它。其余经 `apiRequest` 又自带失败提示的调用点（看板、定时任务等）仍可能叠两条提示，没有逐个核对。
+8. 触及的前端大文件本条之前就超过 500 行：`agent.ts` 938、`useAgentEditor.ts` 855、`AgentEditForm.tsx` 726、`AgentConfigEditDialog.tsx` 705，本条各只加了几行，没有拆分（他人正在同时改这些文件，拆分会制造冲突）。`src/services/_ARCH.md` 在 HEAD 上就不满足 `prettier --check`（重排会改 108 行，涉及他人未提交的行），没有重排；本条在该文件里只改了两个单元格。
+9. 没有在真实浏览器与真实 IM 平台里端到端验证本条的任何一项；中性标题的 6 种语言译文由我撰写，没有母语者校对。
+10. 服务端依赖 harness 里尚未发布的 `secret_value_span` 与 `is_reference_token`（见 `-004` 局限 6），发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行。提示词没有改动。
+
+### 踩坑经验
+
+1. 并行的调用点要一起查：给回合路径接闸门，不等于消费循环里更早的那个派发也过了闸门；先画出一条消息从入口到各个消费者的全部路径。
+2. 登记表只保证「已登记」，完整性要靠扫描：把「请求里有指令类字段」当作需要解释的事实，让新端点必须在登记或豁免之间二选一。
+3. 用万能替身造测试数据会掩盖属性不存在：测试里用真实的数据类，字段名错了才会红。
+4. 测试夹具别放在未提交的文件里，否则它在别人的树上是绿的、在只含已提交内容的树上是红的。

@@ -31,7 +31,7 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | `delivery_resolver.py` | Cron 工具 webhook URL → `DeliveryConfig`（非空 URL 均为 `webhook` channel，Agent 创建任务时生成 HMAC secret） |
 | `feishu_bot_webhook.py` | Feishu/Lark 自定义机器人 hook：`msg_type=text` JSON POST |
 | `wecom_bot_webhook.py` | WeCom (企业微信) 群机器人 hook：`msgtype=markdown` JSON POST |
-| `inbound_event_dispatch.py` | 入站 IM 消息 → `CronScheduler.dispatch_event`（SSOT：`AgentRouter` 过滤后、且仅对访问策略放行的发送者调用）。必填 `untrusted`（发送者不是所有者）为真时在 harness `untrusted_ingress_scope` 内派发：调度器为每个命中作业派生的任务继承围栏标记，派发方自身（路由消费循环）不受影响 |
+| `inbound_event_dispatch.py` | 入站 IM 消息 → `CronScheduler.dispatch_event`（SSOT：`AgentRouter` 过滤后、且仅对访问策略放行的发送者调用）。派发前先过风控闸门 `screen_user_text`：作业上下文原样带着匹配的消息，命中的消息不拉起任何作业（筛查失败同样不派发），通知由同一条消息的回合路径发出。必填 `untrusted`（发送者不是所有者）为真时在 harness `untrusted_ingress_scope` 内派发：调度器为每个命中作业派生的任务继承围栏标记，派发方自身（路由消费循环）不受影响 |
 | `sqlalchemy_trigger_provider.py` | TriggerProvider 实现：event/system/webhook 匹配 |
 | `stream_listener.py` | StreamListener 实现：出站 WS/SSE 长连接管理（重连 + 心跳 + filter 匹配 + 资源限制） |
 | `poll_listener.py` | PollListener 实现：定时 HTTP 拉取 + 内容哈希变更检测 |

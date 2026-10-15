@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.batch_directory::BatchDirectoryService (POS: 批量项目编排)
 - app.api.batch_directory.schemas (POS: 请求/响应模型)
+- app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
 [OUTPUT]
 - router: BatchDirectory CRUD/cancel/pause/resume/approve-all/retry/rerun 端点
@@ -25,6 +26,7 @@ from app.api.batch_directory.schemas import (
     BatchProjectResponse,
 )
 from app.services.batch_directory import BatchDirectoryService
+from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/batch-directories", tags=["batch-directories"])
@@ -36,6 +38,7 @@ def _svc() -> BatchDirectoryService:
 
 @router.post("", response_model=BatchProjectDetailResponse, status_code=201)
 async def create_project(body: BatchProjectCreate) -> BatchProjectDetailResponse:
+    await reject_if_risky(body.prompt)
     try:
         result = await _svc().create_project(
             name=body.name,
@@ -52,14 +55,14 @@ async def create_project(body: BatchProjectCreate) -> BatchProjectDetailResponse
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.get("", response_model=BatchProjectListResponse)
 async def list_projects() -> BatchProjectListResponse:
     items = await _svc().list_projects()
     return BatchProjectListResponse(
-        items=[BatchProjectResponse(**item) for item in items],
+        items=[BatchProjectResponse.model_validate(item) for item in items],
         total=len(items),
     )
 
@@ -69,7 +72,7 @@ async def get_project(project_id: str) -> BatchProjectDetailResponse:
     result = await _svc().get_project(project_id)
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.post("/{project_id}/cancel", response_model=BatchProjectDetailResponse)
@@ -77,7 +80,7 @@ async def cancel_project(project_id: str) -> BatchProjectDetailResponse:
     result = await _svc().cancel_project(project_id)
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.post("/{project_id}/retry", response_model=BatchProjectDetailResponse)
@@ -88,7 +91,7 @@ async def retry_failed(project_id: str) -> BatchProjectDetailResponse:
         raise HTTPException(400, str(exc)) from exc
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.post("/{project_id}/rerun", response_model=BatchProjectDetailResponse)
@@ -99,7 +102,7 @@ async def rerun_project(project_id: str) -> BatchProjectDetailResponse:
         raise HTTPException(400, str(exc)) from exc
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.post(
@@ -113,7 +116,7 @@ async def retry_task(project_id: str, task_id: str) -> BatchProjectDetailRespons
         raise HTTPException(400, str(exc)) from exc
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.post("/{project_id}/pause", response_model=BatchProjectDetailResponse)
@@ -124,7 +127,7 @@ async def pause_project(project_id: str) -> BatchProjectDetailResponse:
         raise HTTPException(400, str(exc)) from exc
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.post("/{project_id}/resume", response_model=BatchProjectDetailResponse)
@@ -135,7 +138,7 @@ async def resume_project(project_id: str) -> BatchProjectDetailResponse:
         raise HTTPException(400, str(exc)) from exc
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.post("/{project_id}/approve-all", response_model=BatchProjectDetailResponse)
@@ -146,7 +149,7 @@ async def approve_all_results(project_id: str) -> BatchProjectDetailResponse:
         raise HTTPException(400, str(exc)) from exc
     if result is None:
         raise HTTPException(404, f"Batch project {project_id} not found")
-    return BatchProjectDetailResponse(**result)
+    return BatchProjectDetailResponse.model_validate(result)
 
 
 @router.delete("/{project_id}", status_code=204)

@@ -29,7 +29,7 @@ class SSEEnvelope(BaseModel):
 
     type: str
     data: dict[str, object] | list[object] | str | bool | int | float | None = None
-    message_id: str | None = Field(None, alias="messageId")
+    message_id: str | None = Field(default=None, alias="messageId")
     error: str | None = None
     error_type: str | None = None
     compression_exhausted: bool | None = None
@@ -53,7 +53,7 @@ class SSEEnvelope(BaseModel):
         else:
             import dataclasses
 
-            if dataclasses.is_dataclass(chunk):
+            if dataclasses.is_dataclass(chunk) and not isinstance(chunk, type):
                 raw = dataclasses.asdict(chunk)
             else:
                 raw = {"type": "unknown", "data": str(chunk)}

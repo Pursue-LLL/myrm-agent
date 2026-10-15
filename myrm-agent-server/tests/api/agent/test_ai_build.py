@@ -7,6 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 from tests.support.minimal_app import build_minimal_app
 
 API_PREFIX = "/api/v1"
@@ -89,11 +91,17 @@ async def test_collect_available_resources():
     """Test _collect_available_resources returns skill and MCP summaries."""
     from app.api.agents.ai_build import _collect_available_resources
 
-    mock_skill = MagicMock()
-    mock_skill.id = "web_search"
-    mock_skill.name = "Web Search"
-    mock_skill.description = "Search the web"
-    mock_skill.enabled = True
+    usable = Skill(
+        id="web_search", type=SkillType.PREBUILT, name="Web Search", description="Search the web", storage_path="web_search"
+    )
+    missing_deps = Skill(
+        id="pdf_tools",
+        type=SkillType.PREBUILT,
+        name="PDF Tools",
+        description="Edit PDFs",
+        storage_path="pdf_tools",
+        available=False,
+    )
 
     mock_configs = MagicMock(mcp_dict=None)
 
@@ -101,8 +109,7 @@ async def test_collect_available_resources():
         patch("app.api.agents.ai_build.skills_service") as mock_svc,
         patch("app.api.agents.ai_build.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
     ):
-        mock_svc.list_skills = AsyncMock(return_value=[mock_skill])
+        mock_svc.list_skills = AsyncMock(return_value=[usable, missing_deps])
         skills, mcps = await _collect_available_resources()
-        assert len(skills) == 1
-        assert skills[0]["id"] == "web_search"
+        assert skills == [{"id": "web_search", "name": "Web Search", "desc": "Search the web"}]
         assert len(mcps) == 0

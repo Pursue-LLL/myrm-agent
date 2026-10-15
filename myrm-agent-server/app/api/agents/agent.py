@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.agents._agent_response import (
     _build_model_selection,
     _meta_str,
+    _meta_str_list_or_none,
     _metadata_as_mapping,
     _resolve_enabled_builtin_tools,
     _to_agent_response,
@@ -52,10 +53,22 @@ from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.agent_service import AgentService
 from app.services.agent.external_cli_gate import ExternalCliBackendUnavailableError
 from app.services.agent.skill_instance_resolver import SkillConfigValidationError
+from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _reject_risky_profile_text(data: AgentCreate | AgentUpdate, *, agent_id: str | None = None) -> None:
+    """Refuse a profile whose prose a risk rule holds: it is stored and read by the model on every run."""
+    await reject_if_risky(
+        data.system_prompt,
+        data.description,
+        *(data.suggestion_prompts or ()),
+        *(binding.instruction for binding in data.command_bindings or ()),
+        session_id=agent_id,
+    )
 
 
 @router.get("", response_model=StandardSuccessResponse)
@@ -68,23 +81,25 @@ async def get_agents(
     try:
         agents, total = await AgentService.get_agent_list(page, page_size)
 
-        agent_items = [
-            AgentListItem(
-                id=agent.id,
-                name=agent.display_name or agent.id,
-                description=agent.description,
-                avatar_url=agent.avatar,
-                is_built_in=agent.built_in,
-                agent_type=_metadata_as_mapping(agent).get("agent_type", "individual") or "individual",
-                prompt_mode=_metadata_as_mapping(agent).get("prompt_mode", "full") or "full",
-                subagent_ids=[str(s) for s in _metadata_as_mapping(agent).get("subagent_ids", [])] if _metadata_as_mapping(agent).get("subagent_ids") else None,
-                enabled_builtin_tools=_resolve_enabled_builtin_tools(agent),
-                model_selection=_build_model_selection(agent.model, _metadata_as_mapping(agent)),
-                created_at=agent.created_at,
-                updated_at=agent.updated_at,
+        agent_items: list[AgentListItem] = []
+        for agent in agents:
+            meta = _metadata_as_mapping(agent)
+            agent_items.append(
+                AgentListItem(
+                    id=agent.id,
+                    name=agent.display_name or agent.id,
+                    description=agent.description,
+                    avatar_url=agent.avatar,
+                    is_built_in=agent.built_in,
+                    agent_type="team" if meta.get("agent_type") == "team" else "individual",
+                    prompt_mode=_meta_str(meta, "prompt_mode") or "full",
+                    subagent_ids=_meta_str_list_or_none(meta, "subagent_ids") or None,
+                    enabled_builtin_tools=_resolve_enabled_builtin_tools(agent),
+                    model_selection=_build_model_selection(agent.model, meta),
+                    created_at=agent.created_at,
+                    updated_at=agent.updated_at,
+                )
             )
-            for agent in agents
-        ]
 
         total_pages = ceil(total / page_size) if total > 0 else 1
         pagination_meta = PaginationMeta(
@@ -144,6 +159,7 @@ async def create_agent(
     """创建智能体"""
     if not agent_data.name or not agent_data.name.strip():
         raise validation_error("Agent name cannot be empty")
+    await _reject_risky_profile_text(agent_data)
 
     try:
         agent = await AgentService.create_agent(agent_data)
@@ -167,6 +183,7 @@ async def update_agent(
     """更新智能体"""
     if agent_data.name is not None and not agent_data.name.strip():
         raise validation_error("Agent name cannot be empty")
+    await _reject_risky_profile_text(agent_data, agent_id=agent_id)
 
     try:
         existing = await AgentService.get_agent_by_id(agent_id)

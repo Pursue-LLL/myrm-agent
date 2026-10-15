@@ -342,7 +342,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 架构分层：
 - **框架层**（harness）：`TriggerConfig` 容器 + `TriggerProvider` 协议 + `dispatch_*` 调度方法 + 安全工具
-- **业务层**（server）：`SqlAlchemyTriggerProvider` 实现 + ORM 映射 + 入站 API（JSON body 传参） + **`inbound_event_dispatch`（SSOT：`AgentRouter._consume_loop` 在 approval/reaction/slash 过滤后、且仅对访问策略放行的发送者调用（`routing/sender_admission.py`，失败即拒绝）；`channel_ingress` 仅入队）**
+- **业务层**（server）：`SqlAlchemyTriggerProvider` 实现 + ORM 映射 + 入站 API（JSON body 传参） + **`inbound_event_dispatch`（SSOT：`AgentRouter._consume_loop` 在 approval/reaction/slash 过滤后、且仅对访问策略放行的发送者调用（`routing/sender_admission.py`，失败即拒绝），派发前先过风控闸门，命中的消息不拉起作业；`channel_ingress` 仅入队）**
 - **前端**：`TriggerEditor` 组件（webhook 完整 URL + curl 示例 + secret 展示/复制 + event regex 实时验证 + system event 配置）
 
 Context 传递设计：触发器匹配时生成 `context` 字符串注入到 `runner.run(job, context=context)`，

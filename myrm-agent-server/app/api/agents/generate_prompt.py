@@ -6,6 +6,7 @@
   (POS: business-layer model resolution)
 - myrm_agent_harness.toolkits.llms.llm_manager::get_llm_from_config (POS: LangChain LLM construction)
 - app.schemas.streaming::SSEEnvelope (POS: 业务层 SSE 序列化防腐层)
+- app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before a model reads it)
 
 [OUTPUT]
 - POST /user-agents/generate-prompt: SSE text stream of generated Markdown system prompt
@@ -32,6 +33,7 @@ from app.core.channel_bridge.model_resolver import (
     resolve_model_config,
 )
 from app.schemas.streaming import SSE_RESPONSE_HEADERS, SSEEnvelope
+from app.services.risk.refusal import reject_if_risky
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,7 @@ async def generate_prompt(request: PromptGenerateRequest) -> StreamingResponse:
     """Generate a structured system prompt based on user intent."""
     if not request.intent or not request.intent.strip():
         raise HTTPException(status_code=400, detail="Intent cannot be empty")
+    await reject_if_risky(request.intent, request.current_prompt)
 
     try:
         # We call resolve_model_config here just to check if a model is configured

@@ -253,3 +253,23 @@ async def test_secret_in_a_delegation_prompt_is_held() -> None:
 
     router._handle_delegation_inbound.assert_not_awaited()
     router._bus.publish_outbound.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("text", "spawned"), [(f"deploy now, key {SECRET}", 0), ("deploy now", 1)])
+async def test_event_trigger_job_starts_only_for_a_message_the_gate_lets_through(text: str, spawned: int) -> None:
+    """The consume loop dispatches event triggers before the turn path screens the message, so the dispatch screens it too."""
+    router = make_router()
+    router._is_sender_admitted = AsyncMock(return_value=True)
+    router._is_untrusted_event_sender = AsyncMock(return_value=False)
+    scheduler = MagicMock()
+    scheduler.dispatch_event = AsyncMock(return_value=1)
+
+    with (
+        patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])),
+        patch("app.core.cron.adapters.setup.get_cron_scheduler", return_value=scheduler),
+        patch.object(router._gate, "submit"),
+    ):
+        await _consume_one(router, _typed(text))
+
+    assert scheduler.dispatch_event.await_count == spawned
