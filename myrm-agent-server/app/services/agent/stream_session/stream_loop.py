@@ -21,6 +21,10 @@ import time
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass
 
+from myrm_agent_harness.api.security import (
+    MissingSemanticsBlockedError,
+    PrivacyFailClosedViolationError,
+)
 from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
 from app.schemas.streaming import SSEEnvelope
@@ -637,11 +641,6 @@ async def iter_agent_stream_chunks(
 
             yield sse_chunk
     except Exception as stream_err:
-        from myrm_agent_harness.api import (
-            MissingSemanticsBlockedError,
-            PrivacyFailClosedViolationError,
-        )
-
         if isinstance(stream_err, PrivacyFailClosedViolationError):
             logger.error(
                 "PrivacyFailClosedViolationError intercepted in stream_loop: level=%s, type=%s, target=%s",
@@ -682,29 +681,34 @@ async def iter_agent_stream_chunks(
             return
 
         if isinstance(stream_err, MissingSemanticsBlockedError):
+            # Decorator-raised blocks carry no contract; the exception's own fields are always populated.
+            contract = stream_err.contract
+            blocked_category = str(contract.category) if contract else stream_err.component_name
+            blocked_message = contract.user_message if contract else (stream_err.detail or str(stream_err))
+            blocked_hint = stream_err.repair_hint or ""
             logger.error(
                 "MissingSemanticsBlockedError intercepted in stream_loop: code=%s, category=%s, msg=%s",
-                stream_err.contract.error_code,
-                stream_err.contract.category.value,
+                stream_err.error_code,
+                blocked_category,
                 stream_err,
             )
             blocked_payload = {
                 "type": "missing_semantics_blocked",
                 "messageId": session.params.message_id,
-                "error_code": stream_err.contract.error_code,
-                "category": stream_err.contract.category.value,
-                "policy": stream_err.contract.policy.value,
-                "message": stream_err.contract.user_message,
-                "remediation_hint": stream_err.contract.remediation_hint,
+                "error_code": stream_err.error_code,
+                "category": blocked_category,
+                "policy": stream_err.policy.value,
+                "message": blocked_message,
+                "remediation_hint": blocked_hint,
                 "detail": stream_err.detail,
             }
             yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
             error_message = (
                 f"\n\n🛑 **执行已被安全门禁阻断 (MissingSemantics Gate)**\n\n"
-                f"- **错误代号**: `{stream_err.contract.error_code}`\n"
-                f"- **门禁策略**: `{stream_err.contract.policy.value}` (严禁静默降级/裸跑)\n"
-                f"- **缺失组件**: {stream_err.contract.user_message}\n"
-                f"- **修复建议**: {stream_err.contract.remediation_hint}\n"
+                f"- **错误代号**: `{stream_err.error_code}`\n"
+                f"- **门禁策略**: `{stream_err.policy.value}` (严禁静默降级/裸跑)\n"
+                f"- **缺失组件**: {blocked_message}\n"
+                f"- **修复建议**: {blocked_hint}\n"
             )
             yield SSEEnvelope.from_any(
                 {

@@ -8,7 +8,7 @@ app.channels.routing.identity_scope::TurnMemoryScope (POS: 渠道 turn 记忆 co
 app.core.security.privacy_settings::privacy_agent_params (POS: 持久化隐私开关 → agent 隐私参数)
 
 [OUTPUT]
-build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）。
+build_channel_execution_agent(): 返回 ChannelAgentBuildOutcome（成功 result / 早退 early_reply）；resume 认领审批键后装配失败会重开该键。
 
 [POS]
 preamble 子模块：从已解析配置到可运行 Agent 实例的最后一步。
@@ -266,8 +266,8 @@ async def build_channel_execution_agent(
     )
 
     approval_peer = msg.chat_id or msg.sender_id
+    approval_key = f"{msg.channel}:{approval_peer}"
     if is_resume:
-        approval_key = f"{msg.channel}:{approval_peer}"
         if not ApprovalTimeoutScheduler.get().resolve_if_first(approval_key):
             logger.warning(
                 "Channel resume rejected (timeout already resolved): key=%s",
@@ -278,9 +278,6 @@ async def build_channel_execution_agent(
                     content=get_text(msg, "approval_timeout_resolved"),
                 ),
             )
-
-    agent = AgentFactory.create_general_agent(params)
-    agent.approval_session_key = f"{msg.channel}:{approval_peer}"
 
     query_input: str | Command[object]
     if is_resume:
@@ -294,12 +291,20 @@ async def build_channel_execution_agent(
         assemble_session_credentials,
     )
 
-    credentials_list = await assemble_session_credentials(
-        oauth_credentials_dict=configs.oauth_credentials_dict,
-        providers_dict=configs.providers_dict,
-        channel=msg.channel,
-        credential_track=credential_track,
-    )
+    try:
+        agent = AgentFactory.create_general_agent(params)
+        agent.approval_session_key = approval_key
+        credentials_list = await assemble_session_credentials(
+            oauth_credentials_dict=configs.oauth_credentials_dict,
+            providers_dict=configs.providers_dict,
+            channel=msg.channel,
+            credential_track=credential_track,
+        )
+    except BaseException:
+        # resolve_if_first consumed the answer slot; reopen it so the user's retry is not refused as already resolved.
+        if is_resume:
+            ApprovalTimeoutScheduler.get().reopen(approval_key)
+        raise
     token_ctx = user_credentials_ctx.set(credentials_list)
     return ChannelAgentBuildOutcome(
         result=ChannelAgentBuildResult(

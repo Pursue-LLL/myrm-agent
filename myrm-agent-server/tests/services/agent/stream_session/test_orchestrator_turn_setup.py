@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langgraph.types import Command
+from myrm_agent_harness.agent.goals.protocols import GoalProvider
 
 from app.services.agent.stream_session import orchestrator_turn_setup as setup
+
+if TYPE_CHECKING:
+    from app.ai_agents import GeneralAgentParams
+    from app.services.agent.params import AgentRequest
 
 CHAT_ID = "chat-setup"
 CONVERTED = (
@@ -21,7 +27,7 @@ CONVERTED = (
 )
 
 
-def _request(**overrides: object) -> SimpleNamespace:
+def _request(**overrides: object) -> AgentRequest:
     fields: dict[str, object] = {
         "chat_id": CHAT_ID,
         "message_id": "msg-1",
@@ -32,18 +38,18 @@ def _request(**overrides: object) -> SimpleNamespace:
         "goal": None,
     }
     fields.update(overrides)
-    return SimpleNamespace(**fields)
+    return cast("AgentRequest", SimpleNamespace(**fields))
 
 
-def _params(**overrides: object) -> SimpleNamespace:
+def _params(**overrides: object) -> GeneralAgentParams:
     fields: dict[str, object] = {"enable_web_search": True, "search_service_cfg": object()}
     fields.update(overrides)
-    return SimpleNamespace(**fields)
+    return cast("GeneralAgentParams", SimpleNamespace(**fields))
 
 
 @pytest.fixture
-def converted_params(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
-    params = SimpleNamespace(query="hello")
+def converted_params(monkeypatch: pytest.MonkeyPatch) -> GeneralAgentParams:
+    params = cast("GeneralAgentParams", SimpleNamespace(query="hello"))
     monkeypatch.setattr(
         setup,
         "convert_to_general_agent_params",
@@ -55,7 +61,7 @@ def converted_params(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 class TestBuildTurnParams:
     @pytest.mark.asyncio
     async def test_fresh_turn_remembers_its_routing_and_seeds_no_context(
-        self, monkeypatch: pytest.MonkeyPatch, converted_params: SimpleNamespace
+        self, monkeypatch: pytest.MonkeyPatch, converted_params: GeneralAgentParams
     ) -> None:
         remember = MagicMock()
         monkeypatch.setattr(setup, "remember_turn_routing", remember)
@@ -72,7 +78,7 @@ class TestBuildTurnParams:
 
     @pytest.mark.asyncio
     async def test_resume_applies_takeover_decision_and_grant_then_marks_the_hitl_session_active(
-        self, monkeypatch: pytest.MonkeyPatch, converted_params: SimpleNamespace
+        self, monkeypatch: pytest.MonkeyPatch, converted_params: GeneralAgentParams
     ) -> None:
         from app.services.agent import session_access_service
         from app.services.approvals.registry import ApprovalRegistry
@@ -98,7 +104,7 @@ class TestBuildTurnParams:
 
     @pytest.mark.asyncio
     async def test_skipped_takeover_resumes_as_a_denial(
-        self, monkeypatch: pytest.MonkeyPatch, converted_params: SimpleNamespace
+        self, monkeypatch: pytest.MonkeyPatch, converted_params: GeneralAgentParams
     ) -> None:
         from app.services.agent import session_access_service
         from app.services.approvals.registry import ApprovalRegistry
@@ -300,13 +306,13 @@ class TestBuildTurnExtraContext:
 
         coordinator_factory = MagicMock()
         monkeypatch.setattr(coordinator, "get_turn_prewarm_coordinator", coordinator_factory)
-        provider = object()
+        provider = MagicMock(spec=GoalProvider)
 
         context = await setup.build_turn_extra_context(
             _request(resume_value={"action": "completed"}),
             _params(),
             base={"hitl_session_active": True},
-            goal_provider=provider,  # type: ignore[arg-type]
+            goal_provider=provider,
         )
 
         assert context == {

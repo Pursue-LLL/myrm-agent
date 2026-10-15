@@ -339,21 +339,19 @@ def test_unusable_approval_seconds_fall_back_to_the_default(seconds: object) -> 
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "armed"),
+    ("approval_timeout", "clarification_pending", "directory_pending", "armed"),
     [
-        ({"clarification_pending": True, "approval_timeout": {"seconds": 1}}, "clarification"),
-        ({"directory_pending": True}, "directory"),
-        ({"approval_timeout": {"seconds": 5, "behavior": "deny"}}, "approval"),
+        ({"seconds": 1}, True, False, "clarification"),
+        (None, False, True, "directory"),
+        ({"seconds": 5, "behavior": "deny"}, False, False, "approval"),
     ],
 )
-def test_arm_interrupt_timeout_picks_the_interrupt_that_carries_a_timer(kwargs: dict[str, object], armed: str) -> None:
-    options: dict[str, object] = {
-        "approval_timeout": None,
-        "clarification_pending": False,
-        "directory_pending": False,
-        "awaiting_answer": True,
-        **kwargs,
-    }
+def test_arm_interrupt_timeout_picks_the_interrupt_that_carries_a_timer(
+    approval_timeout: dict[str, object] | None,
+    clarification_pending: bool,
+    directory_pending: bool,
+    armed: str,
+) -> None:
     scheduler = MagicMock()
     with (
         patch.object(ApprovalTimeoutScheduler, "get", return_value=scheduler),
@@ -361,7 +359,14 @@ def test_arm_interrupt_timeout_picks_the_interrupt_that_carries_a_timer(kwargs: 
         patch.object(hitl_timeout, "schedule_directory_timeout") as directory,
         patch.object(hitl_timeout, "schedule_approval_timeout") as approval,
     ):
-        arm_interrupt_timeout(CHAT_ID, _params(), **options)  # type: ignore[arg-type]
+        arm_interrupt_timeout(
+            CHAT_ID,
+            _params(),
+            approval_timeout=approval_timeout,
+            clarification_pending=clarification_pending,
+            directory_pending=directory_pending,
+            awaiting_answer=True,
+        )
 
     called = {
         name for name, mock in (("clarification", clarification), ("directory", directory), ("approval", approval)) if mock.called

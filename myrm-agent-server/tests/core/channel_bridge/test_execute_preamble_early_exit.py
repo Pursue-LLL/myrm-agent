@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.channels.routing.identity_scope import TurnMemoryScope
@@ -113,6 +114,74 @@ async def test_build_agent_rejects_resume_when_approval_timeout_already_resolved
     assert outcome.early_reply is not None
     assert isinstance(outcome.early_reply, OutboundMessage)
     assert "approval" in outcome.early_reply.content.lower() or "审批" in outcome.early_reply.content
+
+
+_RESUME_APPROVAL_KEY = "telegram:chat-1"
+
+
+async def _build_resume_with_failure(
+    *,
+    create_agent_error: Exception | None = None,
+    credentials_error: Exception | None = None,
+) -> ChannelAgentBuildOutcome:
+    """Build a resume turn against the real scheduler; the failing stage is selected by the caller."""
+    with (
+        patch(
+            "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "app.core.channel_bridge.agent_executor.execute_preamble.agent.AgentFactory.create_general_agent",
+            side_effect=create_agent_error,
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.services.agent.session_credential_assembler.assemble_session_credentials",
+            new_callable=AsyncMock,
+            side_effect=credentials_error,
+            return_value=[],
+        ),
+    ):
+        return await build_channel_execution_agent(
+            **_agent_build_kwargs(
+                _inbound_message(resume_value={"type": "approve"}),
+                is_resume=True,
+                configs=_minimal_user_configs(),
+                enabled_builtin_tools=["code_execution"],
+            ),
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failing_stage", ["create_agent", "credentials"])
+async def test_build_agent_reopens_resume_claim_when_assembly_fails(failing_stage: str) -> None:
+    scheduler = ApprovalTimeoutScheduler.get()
+    scheduler.reopen(_RESUME_APPROVAL_KEY)
+    failure = RuntimeError("assembly failed")
+
+    try:
+        with pytest.raises(RuntimeError, match="assembly failed"):
+            await _build_resume_with_failure(
+                create_agent_error=failure if failing_stage == "create_agent" else None,
+                credentials_error=failure if failing_stage == "credentials" else None,
+            )
+        assert scheduler.resolve_if_first(_RESUME_APPROVAL_KEY) is True
+    finally:
+        scheduler.reopen(_RESUME_APPROVAL_KEY)
+
+
+@pytest.mark.asyncio
+async def test_build_agent_keeps_resume_claim_after_successful_assembly() -> None:
+    scheduler = ApprovalTimeoutScheduler.get()
+    scheduler.reopen(_RESUME_APPROVAL_KEY)
+
+    try:
+        outcome = await _build_resume_with_failure()
+        assert outcome.result is not None
+        assert scheduler.resolve_if_first(_RESUME_APPROVAL_KEY) is False
+    finally:
+        scheduler.reopen(_RESUME_APPROVAL_KEY)
 
 
 @pytest.mark.asyncio
