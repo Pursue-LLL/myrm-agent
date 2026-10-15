@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
+import blockedReasons from '@shared/config/kanban_blocked_reasons.json';
 import KanbanTaskCard from '../KanbanTaskCard';
 
 const stableT = (key: string) => key;
@@ -138,7 +139,7 @@ describe('KanbanTaskCard blocked reason', () => {
     );
 
   it('shows a dependency merge failure in the interface language', () => {
-    renderBlocked("Merging a dependency's changes failed; resolve it, then continue");
+    renderBlocked(blockedReasons.parentMergeFailed);
     expect(screen.getByText('blockedReason.parentMergeFailed')).toBeTruthy();
     expect(screen.queryByText(/Merging a dependency/)).toBeNull();
   });

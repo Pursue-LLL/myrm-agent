@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import blockedReasons from '@shared/config/kanban_blocked_reasons.json';
 import { blockedReasonText } from '../kanbanBlockedReason';
 
 const translate = (key: string): string => `translated:${key}`;
 
 describe('blockedReasonText', () => {
   it('shows the interface-language text for a dependency whose merge failed', () => {
-    expect(blockedReasonText("Merging a dependency's changes failed; resolve it, then continue", translate)).toBe(
+    expect(blockedReasonText(blockedReasons.parentMergeFailed, translate)).toBe(
       'translated:blockedReason.parentMergeFailed',
     );
   });

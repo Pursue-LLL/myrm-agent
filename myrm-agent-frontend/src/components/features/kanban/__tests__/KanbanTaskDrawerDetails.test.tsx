@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
+import blockedReasons from '@shared/config/kanban_blocked_reasons.json';
 import { TaskDetailsSection } from '../KanbanTaskDrawerDetails';
 
 const stableT = (key: string) => key;
@@ -137,7 +138,7 @@ describe('TaskDetailsSection blocked reason', () => {
   const blockedTask = (reason: string) => makeTask({ status: 'blocked', block_kind: 'human', blocked_reason: reason });
 
   it('shows a dependency merge failure in the interface language', () => {
-    renderSection(blockedTask("Merging a dependency's changes failed; resolve it, then continue"));
+    renderSection(blockedTask(blockedReasons.parentMergeFailed));
     expect(screen.getByText('blockedReason.parentMergeFailed')).toBeTruthy();
     expect(screen.queryByText(/Merging a dependency/)).toBeNull();
   });
