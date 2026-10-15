@@ -89,13 +89,6 @@
 | `MemoryCuratorAddForm.tsx` | 辅助 | 折叠式新记忆录入表单：录入标题、分类、详细内容与标签并即时刷盘 | ✅    |
 | `MemoryCuratorEntryCard.tsx` | 辅助 | 单条记忆卡片项：支持原地编辑、状态徽章、置信度与一键物理抹除 | ✅    |
 | `curatorFallbacks.ts` | 辅助 | 策展工作台离线与单测仿真数据集 | ✅    |
-| `PeerCognitionStudioCard.tsx` | 核心 | 社会认知实体图谱与常驻画像卡中枢卡片：对标 Hermes+Honcho 官方实践，以参与者 Peer 为中心组织记忆，打破孤立事实表局限，常驻 Peer Card 自演化与多智能体角色对齐 | ✅    |
-| `PeerCognitionHudBar.tsx` | 辅助 | 社会认知 4 维 HUD 监控条：呈现常驻 Peer 实体数、语义关系边数、累计协作演化频次与低 Token 上下文投影开销 | ✅    |
-| `PeerEntityGraphExplorerView.tsx` | 辅助 | 实体拓扑与关系边检索探索子组件：支持按用户/智能体/项目/审查者筛选实体，呈现 asserts/approves/collaborates/governs 语义边与动态建立关系 | ✅    |
-| `AddRelationEdgeForm.tsx` | 辅助 | 实体图谱关系边新增抽屉表单：支持选择主客体、语义动词、情境依据与客体 Peer 标识，严格符合 a11y 与 <400 行硬上限 | ✅    |
-| `PeerPersonaCardStudioView.tsx` | 辅助 | 常驻画像卡与角色对齐子组件：展示明确职责边界、决策风格、常驻偏好字典、交互反馈自演化模拟与低 Token 提示词投影编译 | ✅    |
-| `RegisterPeerFormView.tsx` | 辅助 | 参与者 Peer 注册表单子组件：支持录入 Peer ID、类型、名称与角色头衔并提交初始化，严格符合 a11y 与 <400 行硬上限 | ✅    |
-| `peerCognitionFallbacks.ts` | 辅助 | 社会认知实体图谱与画像卡离线及单测仿真数据集 | ✅    |
 | `TwoLayerDialecticStudioCard.tsx` | 核心 | Lab-only（`NEXT_PUBLIC_MEMORY_LAB=1`）两层上下文布局预览：Layer 1 用户消息尾快照、Layer 2 辩证调和控制台；未接入 live 中间件，命中率见聊天上下文环 | ✅    |
 | `TwoLayerDialecticHudBar.tsx` | 辅助 | 两层辩证 4 维 HUD：前缀布局稳定提示、Layer 1/2 周期与辩证深度；不展示伪造缓存命中率 | ✅    |
 | `BaseContextCacheView.tsx` | 辅助 | Layer 1 基础上下文与 Prompt Cache 检视子组件：呈现冻结 System 块、User 尾部注入块、持久 Cache Key 与单次编译仿真 | ✅    |

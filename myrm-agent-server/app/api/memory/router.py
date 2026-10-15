@@ -134,9 +134,6 @@ from app.api.memory.operations.shared_context import (
     shared_context_history,
     shared_contexts,
 )
-from app.api.memory.peer_cognition_router import (
-    router as peer_cognition_router,
-)
 from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
@@ -287,10 +284,6 @@ router.include_router(
 router.include_router(
     markdown_curator_router,
     tags=["memory-markdown-curator"],
-)
-router.include_router(
-    peer_cognition_router,
-    tags=["memory-peer-cognition"],
 )
 router.include_router(
     two_layer_dialectic_router,

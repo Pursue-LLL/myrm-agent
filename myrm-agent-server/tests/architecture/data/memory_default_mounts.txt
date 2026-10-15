@@ -50,7 +50,6 @@ ephemeral_delta_router
 rule_cascade_router
 relational_backtrack_router
 markdown_curator_router
-peer_cognition_router
 two_layer_dialectic_router
 budget_packing_router
 auto_memory_consolidation_router
