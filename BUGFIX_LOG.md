@@ -3350,12 +3350,12 @@ except Exception:
 
 ### 局限
 
-1. 覆盖范围是登记表里的 16 个入口，不是「所有用户输入文本的入口」。对 `app/api` 下全部 POST / PUT / PATCH 处理函数做 AST 扫描（请求模型含 `prompt` / `instruction` / `message` / `description` / `objective` / `content` / `text` / `query` / `comment` / `goal` 等字符串字段），得到 310 个未过闸的候选，大部分是记忆、技能、安全、统计与实验性接口的数据或查询字段。人工筛出其中属于「用户在输入框里敲的、之后被智能体读取或执行」的：已提交的有批量目录 `prompt`（`batch_directory/router.py:38`）、智能体档案的 `system_prompt` / `description` / `suggestion_prompts` / `acceptance_criteria`（`agents/agent.py` 的创建与 `:162` 的更新）、目标的子目标 `text`（`goals/router.py:128`）与草拟 `objective`（`goals/router.py:310`）、事件触发的 `message`（`cron/routes/triggers.py:37`）；他人在途、未提交的新路由里有任务中断指令（`tasks/timeline_router.py:108`）、群聊消息（`chats/group_chat_router.py:79`）、子智能体监管 / 输入 / 多路复用器的指令端点（`agents/subagent_hub_router.py:91`、`subagent_lifecycle_router.py:147`、`agent_multiplexer_router.py:99`）。这些本条都没有接入，也没有登记。后续：`BUG-AGENT-2026-10-15-013` 关闭了其中已提交的缺口（档案、批量目录、子目标、草拟 objective，以及同类的 AI 创建、提示词生成、技能派生与 IM 事件触发的派发）；事件触发 REST（`triggers.py:37`）核对后是已认证的机器调用，保持不筛；他人在途的路由由守卫测试的完整性扫描逐个点名，不再靠人工列表。
+1. 覆盖范围是登记表里的 16 个入口，不是「所有用户输入文本的入口」。对 `app/api` 下全部 POST / PUT / PATCH 处理函数做 AST 扫描（请求模型含 `prompt` / `instruction` / `message` / `description` / `objective` / `content` / `text` / `query` / `comment` / `goal` 等字符串字段），得到 310 个未过闸的候选，大部分是记忆、技能、安全、统计与实验性接口的数据或查询字段。人工筛出其中属于「用户在输入框里敲的、之后被智能体读取或执行」的：已提交的有批量目录 `prompt`（`batch_directory/router.py:38`）、智能体档案的 `system_prompt` / `description` / `suggestion_prompts` / `acceptance_criteria`（`agents/agent.py` 的创建与 `:162` 的更新）、目标的子目标 `text`（`goals/router.py:128`）与草拟 `objective`（`goals/router.py:310`）、事件触发的 `message`（`cron/routes/triggers.py:37`）；他人在途、未提交的新路由里有任务中断指令（`tasks/timeline_router.py:108`）、群聊消息（`chats/group_chat_router.py:79`）、子智能体监管 / 输入 / 多路复用器的指令端点（`agents/subagent_hub_router.py:91`、`subagent_lifecycle_router.py:147`、`agent_multiplexer_router.py:99`）。这些本条都没有接入，也没有登记。后续：`BUG-AGENT-2026-10-15-014` 关闭了其中已提交的缺口（档案、批量目录、子目标、草拟 objective，以及同类的 AI 创建、提示词生成、技能派生与 IM 事件触发的派发）；事件触发 REST（`triggers.py:37`）核对后是已认证的机器调用，保持不筛；他人在途的路由由守卫测试的完整性扫描逐个点名，不再靠人工列表。
 2. 有意不筛的入口：定时任务 `shell` 命令与看板 `shell` 验收标准（是被执行的命令，不是模型读的文本）、任务的 `result` / `blocked_reason`（是输出，不是指令）、语音实时通道、OpenAI 兼容的 `/v1/chat/completions`、偏好与档案文本；`_ARCH.md` 里记了原因。
 3. 只筛请求里带来的字段：库里已有的旧数据不被重新检查。
 4. 反斜杠转义的 JSON 赋值（`{\"password\":\"…\"}`）仍不被拦，与 `BUG-AGENT-2026-10-15-004` 的局限 7 相同；长度超过 64 个字符的赋值值同样不拦（该条局限 1），本条没有改规则。
 5. 5 MB 以上的无害粘贴现在不再被误拦，但总耗时随长度线性增长：20 MB 实测约 5 秒（在工作线程上），而全局请求体上限是 15 MB（`app/server/middlewares.py:33`），所以单次请求占用的工作线程时间低于这个数；单条规则超过预算仍按命中处理，回溯型自定义规则只会被拦、不会卡住循环。
-6. 前端：目标 objective 被拒时 `GoalStatusCard.tsx` 的 `catch` 仍只弹通用的 `objectiveUpdateFailed`（`useGoalStore.ts` 用 `fetchWithTimeout` 并把响应文本拼进 `Error`；两个文件都有他人未提交的改动，本条没动）；`BackgroundTasksPanel.tsx` 的 steer 失败会在统一提示之外再弹一条 `steerFailed`，其余调用点未逐个核对；提示标题「消息已被风控规则拦截」对保存定时任务、看板卡片这类动作措辞偏窄（6 种语言包共用同一个键）；前三项在 `BUG-AGENT-2026-10-15-013` 处理（目标面板与转向面板不再叠加失败提示，标题改为中性）；没有在真实浏览器与真实 IM 平台里端到端验证；`SubagentTree.tsx` 543 行，超过 500 行上限，是本条之前就有的，没有拆。
+6. 前端：目标 objective 被拒时 `GoalStatusCard.tsx` 的 `catch` 仍只弹通用的 `objectiveUpdateFailed`（`useGoalStore.ts` 用 `fetchWithTimeout` 并把响应文本拼进 `Error`；两个文件都有他人未提交的改动，本条没动）；`BackgroundTasksPanel.tsx` 的 steer 失败会在统一提示之外再弹一条 `steerFailed`，其余调用点未逐个核对；提示标题「消息已被风控规则拦截」对保存定时任务、看板卡片这类动作措辞偏窄（6 种语言包共用同一个键）；前三项在 `BUG-AGENT-2026-10-15-014` 处理（目标面板与转向面板不再叠加失败提示，标题改为中性）；没有在真实浏览器与真实 IM 平台里端到端验证；`SubagentTree.tsx` 543 行，超过 500 行上限，是本条之前就有的，没有拆。
 7. 命中记录的 `session_id` 现在也可能是看板、任务或定时任务的 id：该列没有外键，`RiskRulesHitsPanel` 不展示它，记录里无法区分来源。
 8. 服务端引用了 harness 里尚未发布的 `secret_value_span` 与 `is_reference_token`（见 `BUG-AGENT-2026-10-15-004` 局限 6），发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行。提示词没有改动。
 9. 验证第 3 条里的 2 个失败测试属于他人的未提交改动或已提交代码里原有的问题，本条没有修。
@@ -3586,7 +3586,7 @@ except Exception:
 4. 涉及本地化的断言要读真实的 locale 文件渲染，全局的恒等翻译桩只能证明「键存在」，证明不了「用户读到的是句子」；
 5. 受限于共享主机与「共享纪元已过期」的状态，正式 E2E 通道一次跑不通时，写清楚是哪一步没过，不要把「用例写好了」当成「验证过了」。
 
-## BUG-AGENT-2026-10-15-013: IM 的事件触发在风控闸门之前派发，带密钥的消息仍会拉起定时作业并把原文带进作业上下文；智能体档案、AI 创建、提示词生成、批量目录、技能派生、子目标与目标草稿都不过闸门；AI 创建拿到的技能目录永远是空的；「哪些入口必须过闸门」只有一张手写登记表，新增入口不登记就漏过
+## BUG-AGENT-2026-10-15-014: IM 的事件触发在风控闸门之前派发，带密钥的消息仍会拉起定时作业并把原文带进作业上下文；智能体档案、AI 创建、提示词生成、批量目录、技能派生、子目标与目标草稿都不过闸门；AI 创建拿到的技能目录永远是空的；「哪些入口必须过闸门」只有一张手写登记表，新增入口不登记就漏过
 
 | 属性 | 值 |
 |------|------|
