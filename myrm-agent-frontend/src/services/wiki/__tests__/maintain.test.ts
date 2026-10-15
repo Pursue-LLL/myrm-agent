@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as api from '@/lib/api';
 import { LONG_RUNNING_REQUEST_TIMEOUT_MS } from '@/lib/constants/requestTimeouts';
-import { getWikiMaintainStatus, startWikiMaintain } from '../maintain';
+import { cancelWikiMaintain, getWikiMaintainStatus, startWikiMaintain } from '../maintain';
 import { wikiService } from '../service';
 
 vi.mock('@/lib/api', () => ({
@@ -11,7 +11,16 @@ vi.mock('@/lib/api', () => ({
   fetchWithTimeout: vi.fn(),
 }));
 
-const IDLE_STATUS = { state: 'idle', mode: null, phase: null, done: 0, total: 0, result: null, error_code: null };
+const IDLE_STATUS = {
+  state: 'idle',
+  mode: null,
+  phase: null,
+  done: 0,
+  total: 0,
+  cancel_requested: false,
+  result: null,
+  error_code: null,
+};
 
 describe('wiki maintenance run client', () => {
   beforeEach(() => {
@@ -49,6 +58,28 @@ describe('wiki maintenance run client', () => {
     await getWikiMaintainStatus();
 
     expect(api.apiRequest).toHaveBeenCalledWith('/wiki/maintain/status');
+  });
+
+  it('asks the run of the agent scope to stop with a plain POST and returns its status', async () => {
+    vi.mocked(api.apiRequest).mockResolvedValueOnce({
+      ...IDLE_STATUS,
+      state: 'running',
+      mode: 'full',
+      cancel_requested: true,
+    });
+
+    const status = await cancelWikiMaintain('agent_dev');
+
+    expect(api.apiRequest).toHaveBeenCalledWith('/wiki/maintain/cancel?agent_id=agent_dev', { method: 'POST' });
+    expect(status.cancel_requested).toBe(true);
+  });
+
+  it('cancels the default scope without a query', async () => {
+    vi.mocked(api.apiRequest).mockResolvedValueOnce(IDLE_STATUS);
+
+    await cancelWikiMaintain();
+
+    expect(api.apiRequest).toHaveBeenCalledWith('/wiki/maintain/cancel', { method: 'POST' });
   });
 });
 

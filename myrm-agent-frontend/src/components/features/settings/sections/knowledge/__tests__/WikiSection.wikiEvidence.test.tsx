@@ -11,6 +11,7 @@ const recordWikiQuerySubmittedMock = vi.fn();
 const recordEvidenceSurfaceMock = vi.fn();
 const startWikiMaintainMock = vi.fn();
 const getWikiMaintainStatusMock = vi.fn();
+const cancelWikiMaintainMock = vi.fn();
 
 const stableT = (key: string) => key;
 
@@ -58,6 +59,7 @@ vi.mock('@/lib/utils/clipboardUtils', () => ({
 vi.mock('@/services/wikiService', () => ({
   startWikiMaintain: (...args: unknown[]) => startWikiMaintainMock(...args),
   getWikiMaintainStatus: (...args: unknown[]) => getWikiMaintainStatusMock(...args),
+  cancelWikiMaintain: (...args: unknown[]) => cancelWikiMaintainMock(...args),
   wikiService: {
     queryWiki: (...args: unknown[]) => queryWikiMock(...args),
     getHealthReport: vi.fn().mockResolvedValue({
@@ -161,6 +163,7 @@ vi.mock('@/components/features/icons/PremiumIcons', () => {
     IconShield: Icon,
     IconShieldCheck: Icon,
     IconSquare: Icon,
+    IconStop: Icon,
     IconTrash: Icon,
     IconUpload: Icon,
     IconVideo: Icon,
@@ -248,7 +251,17 @@ import { WikiSection } from '../WikiSection';
 import { MAINTAIN_FIRST_POLL_DELAY_MS, MAINTAIN_POLL_INTERVAL_MS } from '../useWikiMaintainRun';
 
 function maintainStatus(overrides: Partial<WikiMaintainStatus> = {}): WikiMaintainStatus {
-  return { state: 'idle', mode: null, phase: null, done: 0, total: 0, result: null, error_code: null, ...overrides };
+  return {
+    state: 'idle',
+    mode: null,
+    phase: null,
+    done: 0,
+    total: 0,
+    cancel_requested: false,
+    result: null,
+    error_code: null,
+    ...overrides,
+  };
 }
 
 function resetWikiMocks() {
@@ -256,6 +269,7 @@ function resetWikiMocks() {
   startWikiMaintainMock.mockReset();
   getWikiMaintainStatusMock.mockReset();
   getWikiMaintainStatusMock.mockResolvedValue(maintainStatus());
+  cancelWikiMaintainMock.mockReset();
   listAgentsMock.mockReset();
   apiRequestMock.mockReset();
   recordWikiQueryAttemptMock.mockReset();
@@ -415,6 +429,69 @@ describe('WikiSection maintenance flow', () => {
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith('success.maintainSummaryWithLinks');
     });
+  });
+
+  it('stops a full run on request, tells the user what is kept and unlocks the button', async () => {
+    let endRun: (status: WikiMaintainStatus) => void = () => {};
+    const lastPoll = new Promise<WikiMaintainStatus>((resolve) => {
+      endRun = resolve;
+    });
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(
+        maintainStatus({ state: 'running', mode: 'full', phase: 'link_discovery', done: 4, total: 20 }),
+      )
+      .mockReturnValueOnce(lastPoll);
+    cancelWikiMaintainMock.mockResolvedValue(
+      maintainStatus({
+        state: 'running',
+        mode: 'full',
+        phase: 'link_discovery',
+        done: 4,
+        total: 20,
+        cancel_requested: true,
+      }),
+    );
+    render(<WikiSection />);
+
+    const stopButton = await buttonWithText('actions.maintainCancel');
+    expect(stopButton.disabled).toBe(false);
+    fireEvent.click(stopButton);
+
+    expect((await buttonWithText('actions.maintainCancelling')).disabled).toBe(true);
+    expect(cancelWikiMaintainMock).toHaveBeenCalledWith(null);
+
+    endRun(maintainStatus({ state: 'cancelled', mode: 'full', result: RESULT }));
+    await waitFor(() => {
+      expect(toast.message).toHaveBeenCalledWith('success.maintainCancelled');
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('wiki-maintain-cancel-button')).toBeNull();
+    expect((await buttonWithText('actions.maintain')).disabled).toBe(false);
+  });
+
+  it('offers no stop while a structural run is in flight', async () => {
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus({ state: 'running', mode: 'structural' }))
+      .mockReturnValue(new Promise<WikiMaintainStatus>(() => {}));
+    render(<WikiSection />);
+
+    expect((await buttonWithText('maintaining')).disabled).toBe(true);
+    expect(screen.queryByTestId('wiki-maintain-cancel-button')).toBeNull();
+  });
+
+  it('tells the user when the stop request did not go through and lets them try again', async () => {
+    getWikiMaintainStatusMock
+      .mockResolvedValueOnce(maintainStatus({ state: 'running', mode: 'full' }))
+      .mockReturnValue(new Promise<WikiMaintainStatus>(() => {}));
+    cancelWikiMaintainMock.mockRejectedValue(new Error('network down'));
+    render(<WikiSection />);
+
+    fireEvent.click(await buttonWithText('actions.maintainCancel'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('errors.maintainCancelFailed');
+    });
+    expect((await buttonWithText('actions.maintainCancel')).disabled).toBe(false);
   });
 
   it('reports a failed run with the generic failure message', async () => {

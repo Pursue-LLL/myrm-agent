@@ -6,10 +6,12 @@ import type { WikiMaintainResponse, WikiMaintainStatus } from '@/services/wikiSe
 
 const startMock = vi.fn();
 const statusMock = vi.fn();
+const cancelMock = vi.fn();
 
 vi.mock('@/services/wikiService', () => ({
   startWikiMaintain: (...args: unknown[]) => startMock(...args),
   getWikiMaintainStatus: (...args: unknown[]) => statusMock(...args),
+  cancelWikiMaintain: (...args: unknown[]) => cancelMock(...args),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -44,7 +46,17 @@ const RESULT: WikiMaintainResponse = {
 };
 
 function status(overrides: Partial<WikiMaintainStatus> = {}): WikiMaintainStatus {
-  return { state: 'idle', mode: null, phase: null, done: 0, total: 0, result: null, error_code: null, ...overrides };
+  return {
+    state: 'idle',
+    mode: null,
+    phase: null,
+    done: 0,
+    total: 0,
+    cancel_requested: false,
+    result: null,
+    error_code: null,
+    ...overrides,
+  };
 }
 
 const running = (overrides: Partial<WikiMaintainStatus> = {}) =>
@@ -65,6 +77,7 @@ describe('useWikiMaintainRun', () => {
     vi.useFakeTimers();
     startMock.mockReset();
     statusMock.mockReset();
+    cancelMock.mockReset();
     onFinished.mockReset();
     statusMock.mockResolvedValue(status());
   });
@@ -333,5 +346,123 @@ describe('useWikiMaintainRun', () => {
     expect(statusMock).toHaveBeenCalledTimes(3);
     expect(latest).toHaveBeenCalledTimes(1);
     expect(onFinished).not.toHaveBeenCalled();
+  });
+
+  describe('cancelling', () => {
+    async function startFullRun() {
+      startMock.mockResolvedValue(running());
+      statusMock.mockResolvedValueOnce(status());
+      const hook = mount();
+      await act(async () => {});
+      await act(async () => {
+        await hook.result.current.start('full');
+      });
+      return hook;
+    }
+
+    it('shows the run as stopping at once, then reports what it wrote as cancelled', async () => {
+      const { result } = await startFullRun();
+      expect(result.current.canCancel).toBe(true);
+      expect(result.current.isCancelling).toBe(false);
+      cancelMock.mockResolvedValue(running({ cancel_requested: true }));
+
+      await act(async () => {
+        await result.current.cancel();
+      });
+
+      expect(cancelMock).toHaveBeenCalledWith(null);
+      expect(result.current.isRunning).toBe(true);
+      expect(result.current.canCancel).toBe(false);
+      expect(result.current.isCancelling).toBe(true);
+      expect(onFinished).not.toHaveBeenCalled();
+
+      statusMock.mockResolvedValueOnce(status({ state: 'cancelled', mode: 'full', result: RESULT }));
+      await tick();
+
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      expect(onFinished).toHaveBeenCalledWith({ kind: 'cancelled', mode: 'full', result: RESULT });
+      expect(result.current.isRunning).toBe(false);
+      expect(result.current.isCancelling).toBe(false);
+    });
+
+    it('offers no cancel for a structural run, which ends within moments', async () => {
+      startMock.mockResolvedValue(running({ mode: 'structural' }));
+      statusMock.mockResolvedValueOnce(status());
+      const { result } = mount();
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.start('structural');
+      });
+
+      expect(result.current.isRunning).toBe(true);
+      expect(result.current.canCancel).toBe(false);
+    });
+
+    it('keeps following the run and stays cancellable when the cancel request fails', async () => {
+      const { result } = await startFullRun();
+      cancelMock.mockRejectedValue(new Error('network down'));
+
+      await act(async () => {
+        await expect(result.current.cancel()).rejects.toThrow('network down');
+      });
+
+      expect(result.current.isRunning).toBe(true);
+      expect(result.current.canCancel).toBe(true);
+      expect(result.current.isCancelling).toBe(false);
+      expect(onFinished).not.toHaveBeenCalled();
+    });
+
+    it('does not bring back a run that ended while the cancel request was still on its way', async () => {
+      const { result } = await startFullRun();
+      let answer: (value: WikiMaintainStatus) => void = () => undefined;
+      cancelMock.mockReturnValue(new Promise<WikiMaintainStatus>((resolve) => (answer = resolve)));
+      let pending: Promise<void> = Promise.resolve();
+      act(() => {
+        pending = result.current.cancel();
+      });
+
+      statusMock.mockResolvedValueOnce(status({ state: 'succeeded', mode: 'full', result: RESULT }));
+      await tick();
+      expect(result.current.isRunning).toBe(false);
+
+      await act(async () => {
+        answer(running({ cancel_requested: true }));
+        await pending;
+      });
+
+      expect(result.current.isRunning).toBe(false);
+      expect(result.current.isCancelling).toBe(false);
+      expect(onFinished).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows a run that was cancelled before the page reloaded as stopping', async () => {
+      statusMock
+        .mockResolvedValueOnce(running({ cancel_requested: true }))
+        .mockResolvedValue(running({ cancel_requested: true }));
+
+      const { result } = mount();
+      await act(async () => {});
+
+      expect(result.current.isRunning).toBe(true);
+      expect(result.current.isCancelling).toBe(true);
+      expect(result.current.canCancel).toBe(false);
+    });
+
+    it('reports a cancelled run that wrote nothing like any other cancelled run', async () => {
+      const { result } = await startFullRun();
+      statusMock.mockResolvedValueOnce(
+        status({ state: 'cancelled', mode: 'full', result: { ...RESULT, connections_discovered: 0 } }),
+      );
+
+      await tick();
+
+      expect(onFinished).toHaveBeenCalledWith({
+        kind: 'cancelled',
+        mode: 'full',
+        result: { ...RESULT, connections_discovered: 0 },
+      });
+      expect(result.current.isRunning).toBe(false);
+    });
   });
 });

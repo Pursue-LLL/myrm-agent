@@ -42,7 +42,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `MigrationVaultBindPanel.tsx`       | 组件   | 迁移完成后 workspace vault 绑定候选 UI                                                                 | ✅    |
 | `MigrationPendingReviewSection.tsx` | 组件   | 迁移后待审资产                                                                                         | ✅    |
 | `useWikiIngestSubscription.ts`      | Hook   | Wiki ingest SSE 订阅；快照回调经 ref 读取，调用方每次渲染传新函数也不会断开重连                         | ✅    |
-| `useWikiMaintainRun.ts`             | Hook   | Wiki 维护运行：发起后轮询状态（首次 0.5 秒后读取，之后 2 秒一次，连续 5 次读取失败才算失败）直到结束，进度随轮询更新；挂载时若服务端已有进行中的运行就接着跟；结果只上报一次，挂载时已结束的运行不弹提示 | ✅    |
+| `useWikiMaintainRun.ts`             | Hook   | Wiki 维护运行：发起后轮询状态（首次 0.5 秒后读取，之后 2 秒一次，连续 5 次读取失败才算失败）直到结束，进度随轮询更新；挂载时若服务端已有进行中的运行就接着跟；结果只上报一次，挂载时已结束的运行不弹提示；全量维护可取消（`cancel` 立即把服务端回答显示为「正在停止」，只替换仍在跟的那一轮，已结束的不会被带回；`canCancel` / `isCancelling` 来自服务端状态，页面重载后仍正确；取消失败抛给调用方），被取消的一轮以 `cancelled` 结果上报 | ✅    |
 | `wikiDedupPoll.ts`                  | Hook   | Wiki dedup 状态轮询                                                                                    | ✅    |
 | `wikiQueuePoll.ts`                  | Hook   | Wiki 队列状态轮询                                                                                      | ✅    |
 | `wiki/`                             | 子模块 | Wiki 树/概念详情；见 [`wiki/_ARCH.md`](wiki/_ARCH.md)                                                  | ✅    |
@@ -60,7 +60,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `__tests__/WikiPendingEdits.scope.test.tsx`                 | 待审编辑作用域（含来源对话跳转、分页漂移自愈）                                              |
 | `myrm-agent-server/tests/e2e/test_wiki_pending_panel_chrome_e2e.py` | 真浏览器 E2E：待审面板分页 50/100、加载更多、真实 REST reject 漂移自愈回页 1 + stats badge 同步、fixture seed/cleanup 复原 |
 | `__tests__/WikiSection.wikiEvidence.test.tsx`               | Wiki 证据展示；维护：全程按钮禁用并显示进度、结果 toast、编译进行中的提示、重新打开页面后接上进行中的运行、失败提示 |
-| `__tests__/useWikiMaintainRun.test.tsx`                     | 维护运行 hook：进度与结果只上报一次、错误码映射、读取失败容忍与上限、挂载接续、卸载与切换范围停止轮询、回调换新不重启轮询、首次读取早于慢速间隔 |
+| `__tests__/useWikiMaintainRun.test.tsx`                     | 维护运行 hook：进度与结果只上报一次、错误码映射、读取失败容忍与上限、挂载接续、卸载与切换范围停止轮询、回调换新不重启轮询、首次读取早于慢速间隔、取消（立即显示停止中、结构性不可取消、取消失败仍可重试、晚到的取消回答不复活已结束的运行、重载后仍是停止中） |
 | `__tests__/useWikiIngestSubscription.test.tsx`              | ingest SSE hook：回调每次渲染换新函数时只保持一条连接、只交给最新回调、切换范围重连、停用不连接、无效载荷忽略 |
 | `__tests__/wikiDedupPoll.test.ts`                           | dedup 轮询 hook                                                                            |
 | `__tests__/wikiQueuePoll.test.ts`                           | 队列轮询 hook                                                                              |

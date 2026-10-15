@@ -69,7 +69,43 @@ describe('resolveMaintainToast locale contract', () => {
   });
 });
 
+describe('maintenance cancel copy', () => {
+  it.each(locales)('%s words the cancelled toast and the stop controls without placeholders', (code) => {
+    const tree = JSON.parse(readFileSync(path.join(LOCALES_DIR, `${code}.json`), 'utf8')) as MessageTree;
+    const toastKey = resolveMaintainToast(maintainResponse(), true).key;
+
+    for (const key of [
+      toastKey,
+      'actions.maintainCancel',
+      'actions.maintainCancelling',
+      'errors.maintainCancelFailed',
+    ]) {
+      const message = lookupWikiMessage(tree, key);
+
+      expect(message, `${code}: ${key}`).toBeTypeOf('string');
+      expect(message, `${code}: ${key}`).not.toBe('');
+      expect(icuArguments(message as string), `${code}: ${key}`).toEqual([]);
+    }
+  });
+});
+
 describe('resolveMaintainToast', () => {
+  it('tells a cancelled run apart from a finished one, whatever it fixed or found before it stopped', () => {
+    expect(
+      resolveMaintainToast(
+        maintainResponse({ issues_fixed: 2, open_actions_count: 3, connections_discovered: 4 }),
+        true,
+      ),
+    ).toEqual({ variant: 'message', key: 'success.maintainCancelled' });
+  });
+
+  it('still reports removed sensitive raw files first when the run was cancelled', () => {
+    expect(
+      resolveMaintainToast(maintainResponse({ raw_security_removed: 1, raw_security_removed_paths: ['a.md'] }), true)
+        .key,
+    ).toBe('success.maintainRemovedSensitive');
+  });
+
   it('reports removed sensitive raw files first, with the paths joined', () => {
     expect(
       resolveMaintainToast(

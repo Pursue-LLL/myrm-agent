@@ -45,6 +45,7 @@ export function resolveHealthIssueNavigationTarget(location: string): HealthIssu
 
 export type MaintainToastKey =
   | 'success.maintainRemovedSensitive'
+  | 'success.maintainCancelled'
   | 'errors.maintainAiUnavailable'
   | 'healthReport.maintainToastOpen'
   | 'success.maintainSummaryWithLinks'
@@ -61,13 +62,16 @@ export interface MaintainToast {
 const REMOVED_PATHS_MAX_CHARS = 120;
 
 /** Pick the one toast that summarises a maintenance run; the order is what the user needs to see first. */
-export function resolveMaintainToast(result: WikiMaintainResponse): MaintainToast {
+export function resolveMaintainToast(result: WikiMaintainResponse, cancelled = false): MaintainToast {
   const removed = result.raw_security_removed ?? 0;
   if (removed > 0) {
     const joined = (result.raw_security_removed_paths ?? []).join(', ');
     const paths =
       joined.length > REMOVED_PATHS_MAX_CHARS ? `${joined.slice(0, REMOVED_PATHS_MAX_CHARS - 3)}...` : joined;
     return { variant: 'success', key: 'success.maintainRemovedSensitive', values: { count: removed, paths } };
+  }
+  if (cancelled) {
+    return { variant: 'message', key: 'success.maintainCancelled' };
   }
   if (result.ai_unavailable) {
     return { variant: 'warning', key: 'errors.maintainAiUnavailable' };

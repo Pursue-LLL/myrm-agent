@@ -27,6 +27,7 @@ import {
   IconWrench,
   IconDatabase,
   IconExplore,
+  IconStop,
   IconVideo,
 } from '@/components/features/icons/PremiumIcons';
 import { Textarea } from '@/components/primitives/textarea';
@@ -1006,7 +1007,7 @@ export function WikiSection() {
       return;
     }
     const { result, mode } = outcome;
-    const summary = resolveMaintainToast(result);
+    const summary = resolveMaintainToast(result, outcome.kind === 'cancelled');
     toast[summary.variant](t(summary.key, summary.values));
     setHealthReportExpanded(true);
     await loadStats();
@@ -1023,10 +1024,22 @@ export function WikiSection() {
     isRunning: isMaintaining,
     progress: maintainProgress,
     start: startMaintain,
+    cancel: cancelMaintain,
+    canCancel: canCancelMaintain,
+    isCancelling: isCancellingMaintain,
   } = useWikiMaintainRun({ agentScopeId, onFinished: handleMaintainFinished });
   const maintainProgressLabel = resolveMaintainProgressLabel(maintainProgress);
 
   const handleMaintain = () => startMaintain(maintainMode);
+
+  const handleCancelMaintain = async () => {
+    try {
+      await cancelMaintain();
+    } catch (error) {
+      console.error('Failed to cancel wiki maintenance:', error);
+      toast.error(t('errors.maintainCancelFailed'));
+    }
+  };
 
   const handleRepairPageTypes = async () => {
     setIsRepairingTypes(true);
@@ -1789,20 +1802,36 @@ export function WikiSection() {
                     <IconGlow className="w-4 h-4 mr-2" />
                     {isCompiling ? t('compiling') : t('actions.compile')}
                   </Button>
-                  <Button
-                    onClick={handleMaintain}
-                    disabled={isMaintaining || isWikiCompileBusy}
-                    variant="outline"
-                    className="flex-1"
-                    data-testid="wiki-maintain-button"
-                  >
-                    <IconWrench className="w-4 h-4 mr-2" />
-                    {isMaintaining
-                      ? maintainProgressLabel
-                        ? t(maintainProgressLabel.key, maintainProgressLabel.values)
-                        : t('maintaining')
-                      : t('actions.maintain')}
-                  </Button>
+                  <div className="flex flex-1 gap-2">
+                    <Button
+                      onClick={handleMaintain}
+                      disabled={isMaintaining || isWikiCompileBusy}
+                      variant="outline"
+                      className="min-w-0 flex-1"
+                      data-testid="wiki-maintain-button"
+                    >
+                      <IconWrench className="w-4 h-4 mr-2 shrink-0" />
+                      <span className="truncate">
+                        {isMaintaining
+                          ? maintainProgressLabel
+                            ? t(maintainProgressLabel.key, maintainProgressLabel.values)
+                            : t('maintaining')
+                          : t('actions.maintain')}
+                      </span>
+                    </Button>
+                    {isMaintaining && (canCancelMaintain || isCancellingMaintain) && (
+                      <Button
+                        onClick={() => void handleCancelMaintain()}
+                        disabled={isCancellingMaintain}
+                        variant="outline"
+                        className="shrink-0"
+                        data-testid="wiki-maintain-cancel-button"
+                      >
+                        <IconStop className="w-4 h-4 mr-2" />
+                        {isCancellingMaintain ? t('actions.maintainCancelling') : t('actions.maintainCancel')}
+                      </Button>
+                    )}
+                  </div>
                   <Button
                     onClick={handleRepairPageTypes}
                     disabled={isRepairingTypes}
