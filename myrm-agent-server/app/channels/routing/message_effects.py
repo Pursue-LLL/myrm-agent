@@ -13,11 +13,11 @@ instead of raw internal errors.
 - channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
 - channels.rendering.renderer::render (POS: outbound message formatting pipeline)
 - channels.rendering.splitter::cap_stream_preview (POS: smart preview length cap for IM placeholders)
-- llms.errors.classifier::classify_error, ErrorKind (POS: LLM error classification)
+- llms.errors.classifier::classify_error (POS: LLM error classification)
+- channels.routing.friendly_errors::friendly_error_message (POS: member-safe error wording with reference id)
 
 [OUTPUT]
 - MessageEffects: Helper for typing/keepalive/reaction/placeholder/reply/busy-ack operations
-- friendly_error_message(): Classify exception → user-friendly localized message with reference ID
 
 [POS]
 Message side-effect operations collection: every auxiliary channel interaction the router performs
@@ -30,10 +30,9 @@ import asyncio
 import dataclasses
 import logging
 import time
-import uuid
 from functools import partial
 
-from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
+from myrm_agent_harness.toolkits.llms.errors.classifier import classify_error
 
 from app.channels.core.bus import MessageBus
 from app.channels.core.outbound_media import discard_ephemeral_media
@@ -42,6 +41,7 @@ from app.channels.i18n import channel_t, get_text
 from app.channels.reliability.retry import send_with_retry
 from app.channels.rendering.renderer import render
 from app.channels.rendering.splitter import cap_stream_preview
+from app.channels.routing.friendly_errors import friendly_error_message
 from app.channels.types import (
     InboundMessage,
     MessagePriority,
@@ -49,49 +49,6 @@ from app.channels.types import (
 )
 
 logger = logging.getLogger(__name__)
-
-_ERROR_KIND_KEYS: dict[ErrorKind, str] = {
-    ErrorKind.RATE_LIMIT: "error_rate_limit",
-    ErrorKind.OVERLOADED: "error_overloaded",
-    ErrorKind.BILLING: "error_billing",
-    ErrorKind.AUTH: "error_auth",
-    ErrorKind.TIMEOUT: "error_timeout",
-    ErrorKind.CONTEXT_OVERFLOW: "error_context_overflow",
-    ErrorKind.FORMAT_ERROR: "error_format",
-    ErrorKind.MODEL_NOT_FOUND: "error_model_not_found",
-    ErrorKind.SAFETY_BLOCK: "error_safety_block",
-    ErrorKind.CHALLENGE_BLOCKED: "error_challenge_blocked",
-    ErrorKind.RESPONSE_FORMAT_ERROR: "error_response_format",
-    ErrorKind.UNKNOWN: "error_unknown",
-}
-assert set(_ERROR_KIND_KEYS) == set(ErrorKind), f"_ERROR_KIND_KEYS missing: {set(ErrorKind) - set(_ERROR_KIND_KEYS)}"
-
-
-def _error_ref_id() -> str:
-    """Short 8-char hex reference ID for correlating user-facing messages with logs."""
-    return uuid.uuid4().hex[:8]
-
-
-def friendly_error_message(
-    exc: Exception,
-    msg: InboundMessage | None = None,
-    *,
-    locale: str | None = None,
-) -> tuple[str, str]:
-    """Classify *exc* and return ``(friendly_message, ref_id)``.
-
-    The friendly message is safe to display in any channel — it never
-    contains internal error details. The ref_id links to the full error
-    logged at ERROR level.
-    """
-    kind = classify_error(exc)
-    ref_id = _error_ref_id()
-    catalog_key = _ERROR_KIND_KEYS[kind]
-    if msg is not None:
-        base = get_text(msg, catalog_key)
-    else:
-        base = channel_t(locale, catalog_key)
-    return f" {base} [ref: {ref_id}]", ref_id
 
 
 class MessageEffects:

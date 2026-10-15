@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import pytest
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import ProgressUpdate, StreamingText
 from app.core.channel_bridge.agent_executor.stream_events import (
@@ -135,49 +136,40 @@ async def _consume(*events: dict[str, object]) -> StreamAccumulator:
 
 
 @pytest.mark.asyncio
-async def test_error_event_keeps_raw_text_and_harness_diagnostic() -> None:
+async def test_error_event_keeps_raw_text_and_error_kind() -> None:
     acc = await _consume(
         {
             "type": "error",
             "error": "Error code: 403 - raw provider body",
             "error_type": "PermissionDeniedError",
-            "diagnostic_result": {
-                "error_type": "billing",
-                "user_message": "Your API account balance is insufficient",
-                "resolution_steps": ["Top up your account", 7, "Switch to another model"],
-                "locale": "en",
-            },
+            "error_kind": "billing",
         }
     )
 
     assert acc.error_message == "PermissionDeniedError: Error code: 403 - raw provider body"
-    assert acc.error_user_message == "Your API account balance is insufficient"
-    assert acc.error_steps == ["Top up your account", "Switch to another model"]
+    assert acc.error_kind is ErrorKind.BILLING
 
 
 @pytest.mark.asyncio
-async def test_error_event_without_diagnostic_leaves_only_raw_text() -> None:
-    acc = await _consume({"type": "error", "error": "tool crashed"})
+@pytest.mark.parametrize("error_kind", [None, "", "no_such_kind", 7])
+async def test_error_event_without_a_known_kind_is_unknown(error_kind: object) -> None:
+    event: dict[str, object] = {"type": "error", "error": "tool crashed"}
+    if error_kind is not None:
+        event["error_kind"] = error_kind
+
+    acc = await _consume(event)
 
     assert acc.error_message == "tool crashed"
-    assert acc.error_user_message is None
-    assert acc.error_steps == []
+    assert acc.error_kind is ErrorKind.UNKNOWN
 
 
 @pytest.mark.asyncio
-async def test_later_error_event_replaces_the_earlier_diagnostic() -> None:
+async def test_later_error_event_replaces_the_earlier_one() -> None:
     acc = await _consume(
-        {"type": "error", "error": "first", "diagnostic_result": {"user_message": "Diagnosed", "resolution_steps": ["a"]}},
-        {"type": "error", "error": "second"},
+        {"type": "error", "error": "first", "error_kind": "billing"},
+        {"type": "error", "error": "second", "error_kind": "timeout"},
+        {"type": "error", "error": "third"},
     )
 
-    assert acc.error_message == "second"
-    assert acc.error_user_message is None
-    assert acc.error_steps == []
-
-
-@pytest.mark.asyncio
-async def test_error_event_with_blank_diagnostic_message_falls_back_to_raw_text() -> None:
-    acc = await _consume({"type": "error", "error": "boom", "diagnostic_result": {"user_message": "", "resolution_steps": ["x"]}})
-
-    assert acc.error_user_message is None
+    assert acc.error_message == "third"
+    assert acc.error_kind is ErrorKind.UNKNOWN

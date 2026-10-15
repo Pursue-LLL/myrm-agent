@@ -7,6 +7,7 @@
 - agent_executor.deliverable::build_artifact_deep_links (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 - agent_executor.deliverable::append_deliverable_notes, collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: Channel deliverable attachment mode (Hermes parity). Complements artifact event collection in deliverable.deep_links.collect_channel_artifacts.)
 - app.channels.i18n::channel_t, resolve_message_locale (POS: Channel i18n message catalog and locale resolution)
+- app.channels.routing.friendly_errors::friendly_error_text (POS: member-safe error wording with reference id)
 [OUTPUT]
 - finalize_channel_stream_reply: persist assistant turn and build OutboundMessage reply (temp files ride along
   as ``ephemeral`` attachments; the message bus deletes them once delivery is final)
@@ -14,7 +15,8 @@
 [POS]
 Finalizes a completed harness stream into a channel OutboundMessage: content cleanup,
 cost recording, metadata, media attachments, and artifact deep-link buttons. A failed turn
-replies with the harness diagnostic (localized message + next steps) whenever the error carries one.
+replies with the member-safe wording of its error kind and a reference id; the raw error text only
+goes to the operator log under the same id.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ import tempfile
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
 from app.channels.core.outbound_media import discard_ephemeral_media
+from app.channels.routing.friendly_errors import friendly_error_text
 from app.channels.types import (
     InboundMessage,
     MediaAttachment,
@@ -50,8 +53,6 @@ from .deliverable import (
 )
 
 logger = logging.getLogger(__name__)
-
-_MAX_ERROR_STEPS = 3
 
 
 async def finalize_channel_stream_reply(
@@ -146,12 +147,14 @@ async def finalize_channel_stream_reply(
             locale = resolve_message_locale(msg)
             content = str(channel_t(locale, "deliverable_attached_only"))
         elif acc.error_message:
+            content, ref_id = friendly_error_text(acc.error_kind, msg)
+            content = content.strip()
             logger.warning(
-                "ChannelAgentExecutor: agent error for %s: %s",
+                "ChannelAgentExecutor: agent error for %s [ref: %s]: %s",
                 msg.sender_id,
+                ref_id,
                 acc.error_message,
             )
-            content = _error_reply_text(msg, acc)
         else:
             logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
             content = "[No response generated]"
@@ -234,20 +237,3 @@ async def finalize_channel_stream_reply(
         quick_replies=quick_replies,
     )
     return reply
-
-
-def _error_reply_text(msg: InboundMessage, acc: StreamAccumulator) -> str:
-    """Reply for a failed turn: the harness diagnostic when the error carried one, else the raw text.
-
-    The raw text is the provider's own response body; members (guests and paired users included)
-    only see it for errors the harness could not diagnose.
-    """
-    from app.channels.i18n import get_text
-
-    if acc.error_user_message is None:
-        return f"[Error] {acc.error_message}"
-    text = f"❌ {acc.error_user_message}"
-    if acc.error_steps:
-        steps = "\n".join(f"• {step}" for step in acc.error_steps[:_MAX_ERROR_STEPS])
-        text += get_text(msg, "config_next_steps", steps=steps)
-    return text

@@ -3,13 +3,14 @@
 [INPUT]
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, step_to_label (POS: Stream accumulation for channel turns.)
 - app.channels.types::ProgressUpdate, StreamingText, QuickReply, ToolStep (POS: Channel message types.)
+- llms.errors.classifier::ErrorKind (POS: LLM error classification)
 - agent_executor.deliverable::collect_channel_artifacts (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 
 [OUTPUT]
 - ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
 - iter_channel_stream_progress: maps harness stream events to channel progress yields;
   capability_gap web_search not_configured|unreachable → ProgressUpdate; a fatal ``error`` event
-  leaves its raw text plus the harness diagnostic (user message, resolution steps) on the accumulator
+  leaves its raw text (operator logs) and its error kind (member-facing wording) on the accumulator
 
 [POS]
 Stream event loop extracted from ChannelAgentExecutor.execute_stream. Converts
@@ -21,6 +22,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass, field
+
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import ProgressUpdate, QuickReply, StreamingText, ToolStep
 from app.core.channel_bridge.executor_helpers import StreamAccumulator, step_to_label
@@ -198,13 +201,11 @@ async def iter_channel_stream_progress(
 
 
 def _record_fatal_error(event: dict[str, object], acc: StreamAccumulator) -> None:
-    """Keep the raw error text (fallback) and the harness diagnostic (what members are shown)."""
+    """Keep the raw error text for the operator log and the error kind that picks the member-facing wording."""
     error_msg = str(event.get("error", "Unknown error"))
     error_type = str(event.get("error_type", ""))
     acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
-
-    diagnostic = event.get("diagnostic_result")
-    user_message = diagnostic.get("user_message") if isinstance(diagnostic, dict) else None
-    steps = diagnostic.get("resolution_steps") if isinstance(diagnostic, dict) else None
-    acc.error_user_message = user_message if isinstance(user_message, str) and user_message else None
-    acc.error_steps = [step for step in steps if isinstance(step, str)] if isinstance(steps, list) else []
+    try:
+        acc.error_kind = ErrorKind(event.get("error_kind"))
+    except ValueError:
+        acc.error_kind = ErrorKind.UNKNOWN

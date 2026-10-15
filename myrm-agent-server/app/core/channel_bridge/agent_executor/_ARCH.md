@@ -11,9 +11,9 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Business-layer AgentExecutor for channel inbound messages. | ✅ |
 | `executor.py` | 核心 | ChannelAgentExecutor orchestration：FAQ 语义拦截 → preamble 调度 → stream → finally。topic_context.agent_id 存在且非 resume 时，先尝试 `_try_faq_intercept`，命中则直接 yield OutboundMessage 并跳过 Agent 管线。回复附件的临时文件不在此清理（`ephemeral` 附件由消息总线在送达终态后删除，避免上传前被删）。 | ✅ |
-| `execute_finalize.py` | 模块 | 流结束后 persist + metadata + media + artifact 深链 reply 组装；超限交付物压缩/提示拼接（线程池执行路径扫描）；深链成功时抑制对应超限提示（兜底：深链失败提示保留）；空内容但存在交付物（按钮/附件）时回退交付文案；截图与压缩图附件标记 `ephemeral`，被深链按钮取代而丢弃的临时附件立即释放；失败回合的回复取 harness 诊断（本地化 user_message + 最多 3 条后续步骤，随成员语言），仅在错误事件没有诊断时才退回提供方原始错误文本 `[Error] …`，诊断文案同时写入会话历史。 | ✅ |
+| `execute_finalize.py` | 模块 | 流结束后 persist + metadata + media + artifact 深链 reply 组装；超限交付物压缩/提示拼接（线程池执行路径扫描）；深链成功时抑制对应超限提示（兜底：深链失败提示保留）；空内容但存在交付物（按钮/附件）时回退交付文案；截图与压缩图附件标记 `ephemeral`，被深链按钮取代而丢弃的临时附件立即释放；失败回合的回复是错误类型对应的成员安全文案加参考编号（`friendly_errors`，随成员语言，写入会话历史），提供方原始错误文本只按同一参考编号进运维日志。 | ✅ |
 | `execute_errors.py` | 模块 | ConfigIncomplete / MyrmLLM / 通用异常 → OutboundMessage 回复。 | ✅ |
-| `stream_events.py` | 模块 | harness `process_stream` 事件 → ProgressUpdate/StreamingText 映射；`capability_gap` + `web_search` + `not_configured`/`unreachable` → ProgressUpdate(display_message)；审批超时 side-effect 状态；致命 `error` 事件把原始文本与 `diagnostic_result`（user_message、resolution_steps）一并记到累积器。 | ✅ |
+| `stream_events.py` | 模块 | harness `process_stream` 事件 → ProgressUpdate/StreamingText 映射；`capability_gap` + `web_search` + `not_configured`/`unreachable` → ProgressUpdate(display_message)；审批超时 side-effect 状态；致命 `error` 事件把原始文本（运维日志用）与 `error_kind`（成员文案用，未知值按 UNKNOWN）记到累积器。 | ✅ |
 | `helpers.py` | 模块 | 入站 query 组装：`build_channel_inbound_query`（含 reply context、group context、document blocks、contact cards、forwarded email context、multimodal images）、memory identity 解析、delivery provenance banner。 | ✅ |
 | `session.py` | 模块 | Build a structured session key (base, without epoch). Exports `build_channel_budget_key(msg)` for channel budget guard key construction (single source of truth for peer resolution). | ✅ |
 | `execute_preamble/` | 子包 | InboundMessage → GeneralAgent 执行前置编排。门面 `__init__.py` 聚合导出。 | [execute_preamble/_ARCH.md](execute_preamble/_ARCH.md) |
@@ -23,10 +23,10 @@
 
 - `tests/core/channel_bridge/test_deliverable_deep_links.py` — artifact 收集、超限深链/压缩/提示三态、深链失败提示兜底与深链构建
 - `tests/core/channel_bridge/test_execute_finalize.py` — finalize 深链成功抑制提示 / 失败保留提示 / 压缩提示恒保留 / 空内容交付文案回退 / 截图临时文件交接与被取代附件释放
-- `tests/core/channel_bridge/test_execute_finalize_errors.py` — 失败回合用诊断回复且不泄露提供方原文、步骤上限、成员语言、无步骤不留空块、已有流式文本优先、无诊断时退回原文（复用 `test_execute_finalize._finalize`）
+- `tests/core/channel_bridge/test_execute_finalize_errors.py` — 失败回合按错误类型回复成员安全文案加参考编号、不泄露提供方原文与账单状态、随成员语言、原文按同一参考编号进日志、已有流式文本优先（复用 `test_execute_finalize._finalize`）
 - `tests/core/channel_bridge/test_deliverable_scanner.py` — 路径扫描、超限压缩/提示与文本剥离
 - `tests/core/channel_bridge/test_deliverable_media.py` — 附件大小上限格式化与渐进压缩（透明保留、失败回退）
-- `tests/core/channel_bridge/test_stream_events.py` — harness 流事件映射；致命错误事件的原始文本与诊断记录（后一条错误覆盖前一条、空 user_message 视为无诊断）
+- `tests/core/channel_bridge/test_stream_events.py` — harness 流事件映射；致命错误事件的原始文本与错误类型记录（后一条错误覆盖前一条、缺失或未知的类型按 UNKNOWN）
 - `tests/core/channel_bridge/test_execute_preamble_early_exit.py` — preamble 早退（resume timeout、search unavailable、Outcome XOR）
 - `tests/core/channel_bridge/test_enrich_preamble_instructions.py` — IM Persona 注入触发/非触发验证
 - `tests/core/channel_bridge/test_channel_inbound_user_text.py` — 入站 query 组装（banner、reply context、group context、multimodal、forwarded email context）

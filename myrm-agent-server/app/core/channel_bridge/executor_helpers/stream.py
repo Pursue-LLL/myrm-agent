@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.channels.types::MediaAttachment, ToolStep (POS: Channel message types)
+- llms.errors.classifier::ErrorKind (POS: LLM error classification)
 
 [OUTPUT]
 - ShareableArtifact, StreamAccumulator, step_to_label
@@ -14,6 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import NamedTuple
+
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import MediaAttachment, ToolStep
 
@@ -46,11 +49,9 @@ class StreamAccumulator:
     reasoning_chunks: list[str] = field(default_factory=list)
     tool_steps: list[ToolStep] = field(default_factory=list)
     sources: list[dict[str, object]] = field(default_factory=list)
+    # The provider's raw error text: operator logs only, never shown to channel members.
     error_message: str | None = None
-    # Harness diagnostic of the fatal error: localized and safe to show channel members,
-    # unlike ``error_message`` (the provider's raw text), which is only the fallback.
-    error_user_message: str | None = None
-    error_steps: list[str] = field(default_factory=list)
+    error_kind: ErrorKind = ErrorKind.UNKNOWN
     last_image_base64: str | None = None
     last_image_url: str | None = None
     last_image_mime: str = "image/jpeg"

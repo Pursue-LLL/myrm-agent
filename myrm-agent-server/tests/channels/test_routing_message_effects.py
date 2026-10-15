@@ -7,10 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.channels.routing.message_effects import (
-    MessageEffects,
-    friendly_error_message,
-)
+from app.channels.routing.message_effects import MessageEffects
 from app.channels.types import InboundMessage, OutboundMessage, RenderStyle
 
 
@@ -627,65 +624,6 @@ class TestWaitForEditGap:
 
         now = time.monotonic()
         await MessageEffects.wait_for_edit_gap(now, min_interval=0.01)
-
-
-class TestFriendlyErrorMessage:
-    """Tests for the friendly_error_message() public function."""
-
-    def test_timeout_zh(self) -> None:
-        msg_in = InboundMessage(
-            channel="test",
-            sender_id="u1",
-            content="hi",
-            metadata={"locale": "zh-CN"},
-        )
-        msg, _ = friendly_error_message(Exception("connection timeout"), msg=msg_in)
-        assert "超时" in msg
-
-    def test_rate_limit(self) -> None:
-        msg, ref_id = friendly_error_message(Exception("429 too many requests rate limit"))
-        assert "rate limit" in msg.lower()
-        assert ref_id in msg
-        assert len(ref_id) == 8
-
-    def test_overloaded(self) -> None:
-        msg, ref_id = friendly_error_message(Exception("overloaded_error"))
-        assert "overloaded" in msg.lower()
-        assert ref_id in msg
-        assert len(ref_id) == 8
-
-    def test_billing(self) -> None:
-        msg, _ = friendly_error_message(Exception("insufficient balance"))
-        assert "configuration issue" in msg.lower()
-
-    def test_auth(self) -> None:
-        msg, _ = friendly_error_message(Exception("invalid api key"))
-        assert "configuration issue" in msg.lower()
-
-    def test_timeout(self) -> None:
-        msg, _ = friendly_error_message(Exception("connection timeout"))
-        assert "timed out" in msg.lower()
-
-    def test_context_overflow(self) -> None:
-        msg, _ = friendly_error_message(Exception("context_length_exceeded"))
-        assert "too long" in msg.lower()
-
-    def test_unknown(self) -> None:
-        msg, ref_id = friendly_error_message(RuntimeError("some random error"))
-        assert "Something went wrong" in msg
-        assert f"[ref: {ref_id}]" in msg
-
-    def test_ref_id_unique(self) -> None:
-        _, r1 = friendly_error_message(Exception("err1"))
-        _, r2 = friendly_error_message(Exception("err2"))
-        assert r1 != r2
-
-    def test_no_internal_leak(self) -> None:
-        """Friendly messages never contain the raw exception text."""
-        raw = "INTERNAL_SECRET_PATH=/opt/app/secrets.json"
-        msg, _ = friendly_error_message(Exception(raw))
-        assert raw not in msg
-        assert "SECRET" not in msg
 
 
 class TestSendErrorReplyLogging:

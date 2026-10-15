@@ -1300,7 +1300,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                         )
 
                 except Exception as e:
-                    from app.channels.routing.message_effects import (
+                    from app.channels.routing.friendly_errors import (
                         friendly_error_message,
                     )
 

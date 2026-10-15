@@ -12,7 +12,7 @@ ChannelAgentExecutor 执行前后辅助能力。上级文档：[../_ARCH.md](../
 | `history.py` | 模块 | 频道聊天历史持久化、标题生成；**入站新 turn 前 `run_pre_reply_stale_compact_gate`**；persist/resume 时 sync topic workspace | ✅ |
 | `topic_workspace_sync.py` | 模块 | Topic 绑定目录写入/清空 chat SSOT（project_id / workspace_dir） | ✅ |
 | `approval.py` | 模块 | 审批超时调度与超时结果通知 | ✅ |
-| `stream.py` | 模块 | StreamAccumulator（含致命错误的原始文本 `error_message` 与 harness 诊断 `error_user_message` / `error_steps`）、进度标签、ShareableArtifact | ✅ |
+| `stream.py` | 模块 | StreamAccumulator（含致命错误的原始文本 `error_message` 与错误类型 `error_kind`）、进度标签、ShareableArtifact | ✅ |
 | `quick_replies.py` | 模块 | 快捷回复建议、externalAgents 解析 | ✅ |
 
 ## 测试

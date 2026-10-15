@@ -3137,14 +3137,14 @@ except Exception:
 7. 类名写了不等于生效：未分层的全局基础样式会盖掉 Tailwind 的 layer 内工具类。对比度、颜色这类视觉约束要量 computed style 与真实像素，不要只看类名。
 8. 对比度门禁要先验证测量方法本身：同一次走查里，未选中圆圈的 1.2:1 是真问题（computed 描边色直接证明），选中状态的 1.21:1 却是取样位置不对。两种失败用不同的证据区分，不能一并当成产品缺陷，也不能一并当成脚本问题。
 
-## BUG-AGENT-2026-10-15-006: IM 渠道里 LLM 致命失败的回复是 `[Error] {error_type}: {提供方原文}`，成员（含访客、已配对用户）直接看到提供方的原始 JSON，同一条原文还被写进聊天历史；框架已经在同一个 `error` 事件里给了本地化的诊断，渠道却没有读
+## BUG-AGENT-2026-10-15-006: IM 渠道里 LLM 致命失败的回复是 `[Error] {error_type}: {提供方原文}`，成员（含访客、已配对用户）直接看到提供方的原始 JSON，同一条原文还被写进聊天历史；渠道语言包里「后续步骤」标题永远粘在上一句末尾
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-15（追查 xAI「团队额度用尽 / 月度花费上限」的 403 在各入口的呈现时，按真实事件逐入口核对） |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P2（泄露的是提供方返回的原文：状态码、错误码、团队与额度措辞；没有密钥，但对非所有者成员毫无意义，也不该出现在聊天历史里被后续回合当作上下文） |
-| 影响范围 | server：`app/core/channel_bridge/executor_helpers/stream.py`、`agent_executor/{stream_events,execute_finalize}.py`、对应 `_ARCH.md` 与 `tests/core/channel_bridge/`；harness：`tests/agent/errors/test_fatal_error_delivery.py`（新增）、`agent/errors/ERROR_SYSTEM.md` |
+| 影响范围 | server：`app/channels/routing/{friendly_errors,message_effects,router}.py`、`app/core/channel_bridge/executor_helpers/stream.py`、`agent_executor/{stream_events,execute_finalize}.py`、四个渠道 `.ftl`、对应 `_ARCH.md` 与 `tests/`；harness：`tests/agent/errors/test_fatal_error_delivery.py`（新增）、`agent/errors/ERROR_SYSTEM.md` |
 | 出现次数 | 1（真实智能体循环 + 桩 LLM 复现，没有用户数据） |
 | 关联 | harness 提交 `88f9072c5`、`2895e56b9`、`8b242ccc3`（订阅额度类拒绝归 `billing`、恢复按钮目录）；本地提交，未 push |
 
@@ -3152,45 +3152,50 @@ except Exception:
 
 1. 一个没有额度的账号触发致命错误后，`StreamAccumulator.error_message` 存的是 `"{error_type}: {error}"`，`execute_finalize` 里的回复是 `f"[Error] {acc.error_message}"`。提供方的状态码与 JSON 正文原样发到 IM 群里。
 2. 同一份文本经 `persist_assistant_message` 写入聊天历史，后续回合把它当作助手说过的话。
-3. 框架在同一个 `error` 事件里已经带了 `diagnostic_result`（`user_message`、`resolution_steps`，按 `merged_context["locale"]` 本地化），渠道的 `stream_events` 只取了 `error` 与 `error_type` 两个字段。
-4. 修复第一版后，用真实 `agent.run` 捕获的事件（`/tmp/ext_url_commit/r335/error_event.json`）走一遍渠道路径，回复是 `❌ Your API account balance is insufficientNext steps:\n• …`：诊断与「Next steps:」标题之间没有空行。渠道语言包里 `config_next_steps` 的值以两个空行开头，Fluent 会丢弃多行值开头的空行，`channel_t` 实际返回 `Next steps:\nX`。`execute_errors.py` 里既有的两处 `f"{friendly_msg}{get_text(msg, 'config_next_steps', …)}"` 同样如此（本条之前就是这样）。第一版的单测只断言「回复里包含 `Next steps:`」，所以没发现。
+3. 路由层早有成员安全的约定：`friendly_error_message` 按错误类型给一句本地化文案加 8 位参考编号，`TestFriendlyErrorMessage::test_no_internal_leak` 钉住原文不外泄，`error_billing` / `error_auth` 的文案是「请联系管理员」。执行器层的失败流回复没有走这条路。
+4. 渠道语言包里 `config_next_steps` 的值以两个空行开头，Fluent 会丢弃多行值开头的空行，`channel_t` 实际返回 `Next steps:\nX`，所以 `execute_errors.py` 里 `f"{friendly_msg}{get_text(msg, 'config_next_steps', …)}"` 的两处（含 `build_config_incomplete_reply`）都把标题粘在句子末尾。
 
 ### 根因
 
-1. 渠道层按「事件里有一段错误文本」写的，没有对照框架的事件契约：诊断结果从来就在事件上，只是没有人读。
+1. 执行器层自己拼 `[Error]`，没有复用路由层已有的成员安全文案。
 2. 语言包把「标题前的空行」写成值里的两个空行，而 Fluent 的多行值会去掉开头的空行：写法与渲染结果不一致，没有任何测试渲染过这个键。
+3. 设计走过一次弯路，如实记录：第一版（提交 `c350d514cd`）改成读事件里的 `diagnostic_result` 回复，复核时用真实代码证明它不适合群成员：`unknown` 类诊断的 `user_message` 是 `LLM error: {原文前 200 字符}`，步骤是 `Check LiteLLM documentation`、`Verify LLMConfig settings`、`Enable debug logging`（`agent/errors/diagnostics/engine.py:384`、`i18n/locales/en.json:71`，本机实测复现）；自建端点与模型缺失的诊断带 `base_url`、端口和 `ollama pull` 命令；`billing` 诊断向访客声明余额不足并指引充值，与 `error_billing` 的既有约定相反。诊断文案是写给所有者的，而执行器分不出所有者和访客（`channel_policy.get_guest_mode` 只有频道级）。
 
 ### 修复
 
-1. `StreamAccumulator` 新增 `error_user_message` 与 `error_steps`；`stream_events._record_fatal_error` 从事件的 `diagnostic_result` 记录它们（非字符串步骤丢弃，空 `user_message` 视为没有诊断，后一条错误整体覆盖前一条）。
-2. `execute_finalize._error_reply_text`：有诊断时回复 `❌ {user_message}`，再加 `config_next_steps` 本地化标题与至多 3 条步骤（成员语言来自 `resolve_message_locale`）；只有没有诊断的错误才退回 `[Error] {原文}`。回复与写入历史的是同一段诊断文本。
-3. harness 新增 `test_fatal_error_delivery.py`：真实 `SkillAgent.run`（技能后端、流执行器、failover 分类器、诊断引擎全部真实，只有 LLM 是桩）证明：没有异常逃出 `run`；恰好一个 `error` 事件带着 `billing` 诊断；事件提供 `top_up` 恢复动作。渠道、定时任务、看板都靠这个契约取错误。
-4. 四个渠道 `.ftl`（en、zh-CN、zh-TW、ja）的 `config_next_steps` 改为以 `{ "\u000A\u000A" }` 开头（Fluent 字符串字面量的转义，不会被去掉），所有调用方（本条的回复与 `execute_errors.py` 的两处）自动得到段落分隔；`test_locale_key_parity.py` 的字符串字面量规则放宽为允许 `\uXXXX` 转义。
+1. 新模块 `app/channels/routing/friendly_errors.py`：把 `_ERROR_KIND_KEYS`、参考编号与 `friendly_error_message` 从 `message_effects.py` 抽出，新增 `friendly_error_text(kind, msg)`；`message_effects.py` 482 行降到 438 行，路由器与测试的导入改到新模块，`TestFriendlyErrorMessage` 迁到 `tests/channels/routing/test_friendly_errors.py`。
+2. 累积器记 `error_message`（原文，只进日志）与 `error_kind`（事件的 `error_kind`，缺失或不认识的值按 `UNKNOWN`）；`execute_finalize` 的回复是该类型的渠道文案加 `[ref: …]`，WARNING 日志带同一个参考编号和原文；写入历史的也是这句话。
+3. 四个渠道 `.ftl`（en、zh-CN、zh-TW、ja）的 `config_next_steps` 改为以 `{ "\u000A\u000A" }` 开头（Fluent 字符串字面量的转义，不会被去掉）；`test_locale_key_parity.py` 的字符串字面量规则放宽为允许 `\uXXXX` 转义。
+4. harness 新增 `test_fatal_error_delivery.py`：真实 `SkillAgent.run`（技能后端、流执行器、failover 分类器、诊断引擎都是真的，只有 LLM 是桩）证明没有异常逃出 `run`、恰好一个 `error` 事件带 `error_kind=billing` 与诊断、事件提供 `top_up` 恢复动作。渠道现在读的就是这个事件的 `error_kind`。
 5. `ERROR_SYSTEM.md` 的 ErrorKind 小节改为按代码核对的 12 种（原文 11 种，缺 `challenge_blocked`），恢复动作列去掉了代码里不存在的名字，改写真实目录（`update_key`、`top_up`、`change_model`，url `/settings`）。
 
 ### 验证
 
-1. server：`pytest tests/core/channel_bridge` 630 通过；新增 `test_execute_finalize_errors.py`（诊断回复且不含 `403`、`_XaiEntitlementError`、`monthly spending limit`；超过 3 条的步骤被截断；`zh-CN` 成员看到「后续步骤」；无步骤时不留空块；已有流式文本时错误不覆盖；无诊断时退回原文；写入历史的文本等于回复文本）与 `test_stream_events.py` 4 例。`ruff check`、`ruff format --check`、`mypy`（3 个源文件）通过。
-2. harness：`tests/agent/errors/test_fatal_error_delivery.py` 3 例与 `tests/agent/errors/diagnostics` 共 124 通过；`ruff`、`mypy` 通过。
-3. 变异检查：对渠道改动做 6 个内存变异（始终回复原文、步骤上限改为 4、不输出步骤块、标题固定英文、后一条错误不覆盖前一条诊断、接受空白 `user_message`），全部被测试杀死；对契约测试把 `billing` 正则改回旧版，测试失败。脚本在 `/tmp/ext_url_commit/r335/`。
-4. 成本：诊断加分类约 398 µs/次失败，不调用 LLM（本机实测）。
-5. 真实事件走渠道：用真实 `agent.run` 捕获的事件跑 `iter_channel_stream_progress` 加 `_error_reply_text`，修复后得到 `❌ Your API account balance is insufficient\n\nNext steps:\n• Top up your balance on the LLM provider's dashboard\n• Add a backup API key (Settings > Models > Multi-key rotation)\n• Switch to a different LLM provider`（脚本 `probe_channel_after.py`）。新增 `test_public_api.py::test_config_next_steps_keeps_its_blank_line_separator`（四种语言，直接渲染语言包），回复测试改为断言诊断与标题之间恰好一个空行。`tests/channels/i18n` 与 `test_execute_errors_cooldown.py` 通过。
+1. 真实事件走渠道：用真实 `agent.run` 捕获的 403 事件（`error_kind=billing`）跑 `iter_channel_stream_progress` 加 `friendly_error_text`，回复是 `Service temporarily unavailable due to a configuration issue. Please contact the administrator. [ref: bb50234f]`，不含 403、`_XaiEntitlementError`、`monthly spending limit`。
+2. server：`tests/core/channel_bridge`、`tests/channels/i18n`、`tests/channels/routing`、`tests/channels/test_routing_message_effects.py` 共 1228 通过（排除一个与本条无关的已失败用例，见局限 4）。`ruff check` 通过；`mypy` 检查 `friendly_errors.py` 与三个渠道桥接源文件无错误。
+3. 新增用例：`test_execute_finalize_errors.py`（全部 12 种错误类型都回复渠道文案加参考编号且无前导空格；不含提供方原文与账单状态；`zh-CN` 成员得到中文；原文恰好一条日志且带回复里的同一参考编号；已有流式文本时错误不覆盖）、`test_stream_events.py`（类型记录；缺失、空串、不认识、非字符串的类型都按 `UNKNOWN`；后一条错误覆盖前一条）、`test_friendly_errors.py`（12 种类型都有目录文案、随成员语言）、`test_public_api.py::test_config_next_steps_keeps_its_blank_line_separator`（四种语言直接渲染语言包）。
+4. 变异检查：7 个内存变异（回复忽略错误类型、回复参考编号与日志不一致、回复保留前导空格、事件类型被忽略、残留上一条类型、不认识的类型抛异常、原文未记录），七个全部被测试杀死（其中「保留前导空格」一项第一次写成了会自我抵消的变异体，被识别为无效，改为把 `execute_finalize` 里的 `content.strip()` 去掉后重跑，被杀死）。脚本在 `/tmp/ext_url_commit/r335/mutate_im2.py`、`mutate_strip.py`。
+5. 成本：诊断加分类约 398 µs/次失败，不调用 LLM（本机实测）；本条的渠道回复只查目录，不再调用诊断。
 
 ### 局限
 
-1. 定时任务与看板的「提供方额度窗口顺延」在真实运行里不会触发，本条没有改，如实记录：另一条在制品（未提交、未跟踪的 `toolkits/llms/errors/provider_window/`、`agent/streaming/recovery/stream_recovery_window.py`、server `core/cron/adapters/provider_window_deferral.py`）按「`MyrmLLMError` 异常」读 `cooldown_remaining_ms`，但 `agent_runtime.py:854-855` 只在没有错误信息时才补写、异常不会逃出 `run`，宿主只会收到事件（本条的契约测试证明了这一点；真实探针里 429 加 `Retry-After: 3600` 的事件带 `cooldown_remaining_ms=3600000`）。要生效需要一个读事件的等待函数（与异常版共用 24 小时上限），宿主据此给定时任务返回 `retry_at`、给看板任务返回定时阻塞；并且 `stream_executor.py:541-543` 目前对任何带窗口的错误都无条件写 `cooldown_remaining_ms`，与恢复策略「账单类错误的普通 `Retry-After` 不当作重置时间」不一致，需要在这一个出口处加谓词。这些文件当前有他人未提交的修改，本条不覆盖。
-2. server 的 `app/core/errors/` 包、`stream_finalize.py:390` 的 `MyrmLLMError` 分支、渠道 `executor.py:210` 的 `except MyrmLLMError` 与 `build_llm_error_reply` 在真实路径上多数不会被走到，但同一区域有他人未提交的修改（`execute_errors.py` 正在删冷却提示），本条没有删。网页快车道仍可能由 `managed_llm.py:283` 抛出上下文溢出的 `MyrmLLMError`，所以 finalize 分支不能直接当死代码删。
-3. 没有诊断的错误仍回复 `[Error] {原文}`（例如渠道自己抛的非 LLM 错误）：这是回退，不是目标行为，本条没有给它们造诊断。
-4. 「后续步骤」标题 `config_next_steps` 只在 en、zh-CN、zh-TW、ja 的 `.ftl` 里有（`ko.json`、`de.json` 没有这个键）；`i18n/engine.py:56-81` 的回退链以默认语言 `en`（`engine.py:40`）结尾，所以 ko、de 成员得到英文标题（`channel_t` 运行实测：`ko`、`de`、`fr` 都返回 `Next steps:`）；渠道层本来就只有这四个 `.ftl`，这是渠道层的既有语言覆盖，本条没有扩充。诊断正文本身由框架按 `locale` 本地化，不受此影响。
-5. `tests/channels/i18n/test_locale_key_parity.py::test_ftl_locales_have_no_orphaned_keys` 当前失败，报「斜杠命令缺翻译：`cmd_btw`、`cmd_design-image`、`cmd_memo`、`cmd_review-week`、`cat_Creation`、`cat_Productivity`」，与本条无关（本条没有碰这些键），没有处理。
-6. 未改动任何提示词；IM 回复是给用户看的输出，不是给模型的指令。但写入历史的错误文本从提供方原始 JSON 变成本地化的诊断，下一回合模型读到的是后者。
+1. 所有者在 IM 里也只看到一句话加参考编号，看不到诊断步骤和恢复按钮；细节在网页端与按参考编号检索的日志里。这是有意的取舍（执行器分不出所有者与访客），不是遗漏。
+2. 定时任务与看板的「提供方额度窗口顺延」在真实运行里不会触发，本条没有改，如实记录：另一条在制品（未提交、未跟踪的 `toolkits/llms/errors/provider_window/`、`agent/streaming/recovery/stream_recovery_window.py`、server `core/cron/adapters/provider_window_deferral.py`）按「`MyrmLLMError` 异常」读 `cooldown_remaining_ms`，但 `agent_runtime.py:854-855` 只在没有错误信息时才补写、异常不会逃出 `run`，宿主只会收到事件（本条的契约测试证明了这一点；真实探针里 429 加 `Retry-After: 3600` 的事件带 `cooldown_remaining_ms=3600000`）。要生效需要一个读事件的等待函数（与异常版共用 24 小时上限），宿主据此给定时任务返回 `retry_at`、给看板任务返回定时阻塞；并且 `stream_executor.py:541-543` 目前对任何带窗口的错误都无条件写 `cooldown_remaining_ms`，与恢复策略「账单类错误的普通 `Retry-After` 不当作重置时间」不一致，需要在这一个出口处加谓词。这些文件当前有他人未提交的修改，本条不覆盖。
+3. server 的 `app/core/errors/` 包、`stream_finalize.py:390` 的 `MyrmLLMError` 分支、渠道 `executor.py:210` 的 `except MyrmLLMError` 与 `execute_errors.py::build_llm_error_reply`（它仍用诊断文案，同样不适合群成员）在真实路径上多数不会被走到，但同一区域有他人未提交的修改（`execute_errors.py` 正在删冷却提示），本条没有动。网页快车道仍可能由 `managed_llm.py:283` 抛出上下文溢出的 `MyrmLLMError`，所以 finalize 分支不能直接当死代码删。
+4. `tests/channels/i18n/test_locale_key_parity.py::test_ftl_locales_have_no_orphaned_keys` 当前失败，报「斜杠命令缺翻译：`cmd_btw`、`cmd_design-image`、`cmd_memo`、`cmd_review-week`、`cat_Creation`、`cat_Productivity`」，与本条无关（本条没有碰这些键），没有处理。
+5. `message_effects.py` 有 5 条 mypy 报错（`BaseChannel` 没有 `render_style`、`reply_to_id` 收到 `object`），都在本条没改的行上，没有处理。
+6. `config_next_steps` 标题只在 en、zh-CN、zh-TW、ja 的 `.ftl` 里有；`channel_t` 实测 `ko`、`de`、`fr` 返回英文 `Next steps:`。渠道错误文案 `error_*` 同样只有这四个 `.ftl`，所以 ko、de 成员得到英文。这是渠道层既有的语言覆盖，本条没有扩充。
+7. 渠道自己产生的非 LLM 致命错误（事件里没有 `error_kind`）也按 `UNKNOWN` 回复通用文案，原文只在日志里。
+8. 没有对真实 IM 平台做端到端联调；「真实事件到渠道」是用捕获的事件 JSON 手工串起来验证的（`/tmp/ext_url_commit/r335/probe_channel_after.py`），仓库里没有一个测试把真实 `run` 和渠道映射自动串在一起，两端各自有测试钉住 `error_kind` 这个字段。
+9. 未改动任何提示词。写入历史的错误文本从提供方原始 JSON 变成一句渠道文案，下一回合模型读到的是后者。
 
 ### 踩坑经验
 
-1. 宿主消费的是事件流，不是异常：先用真实的 `run` 看宿主实际收到什么，再设计宿主侧的处理，别按「应该会抛异常」写等待逻辑。
-2. 框架给了本地化诊断，宿主就读它；自己拼 `[Error] {原文}` 等于把提供方的措辞当产品文案。
-3. 契约测试要用真实链路加桩 LLM：只测分类器或只测渠道映射，抓不到「事件里到底有没有这个字段」。
+1. 设计新的用户可见文案前，先搜产品里已有的同类约定：路由层 `friendly_error_message` 与 `error_*` 目录早就存在，第一版没搜到，绕了一圈再回来。
+2. 诊断文案是给所有者写的（自建端点、命令行、开发者文档）；面向群成员的文案必须是另一层，不能因为「事件里已经有一段本地化文案」就直接用。
+3. 宿主消费的是事件流，不是异常：先用真实的 `run` 看宿主实际收到什么，再设计宿主侧的处理。
 4. 文案要在真实目录里渲染一遍再下结论：Fluent 会去掉多行值开头的空行，只断言「包含标题」的测试发现不了拼接缺口；用真实捕获的事件跑完整路径才看到。
+5. 不要对整个目录运行 `ruff format`：它会顺手改掉别人未碰的文件（本次改了两个无关文件，已按 HEAD 内容原样还原）。
 
 ## BUG-AGENT-2026-10-15-007: 全局事件总线里 7 个无人发布的事件类型连同 IM 模板与前端处理分支仍在；记忆透视抽屉整簇组件没有任何入口，且「遗忘 / 纠偏 / 升格」只改本地数组、不写后端；创建审批时对枚举的判断恒为真
 
