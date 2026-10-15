@@ -24,6 +24,7 @@ import { Button } from '@/components/primitives/button';
 import { isTauriEnvironment } from '@/lib/tauri';
 import useChatStore from '@/store/useChatStore';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
+import type { Message } from '@/store/chat/types';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 
 import DirectoryBrowsePopover, { rememberDirectoryGrantPath } from './DirectoryBrowsePopover';
@@ -55,17 +56,17 @@ export default function DirectoryApprovalInput({
   const [submitting, setSubmitting] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
 
-  const findCard = () =>
-    useChatStore.getState().messages.find((m) => m.messageId === messageId && m.role === 'assistant')?.directoryRequest;
+  const isCardRow = (m: Message) => m.messageId === messageId && m.role === 'assistant';
+  const findCard = () => useChatStore.getState().messages.find(isCardRow)?.directoryRequest;
 
   // The composer stays taken over by the card until its row says answered, so closing it is a store write. The resumed
   // run may raise another request on the same row, which replaces the card object and must stay open.
-  const markAnswered = (answeredCard: ReturnType<typeof findCard>) => {
+  const markAnswered = (answeredCard: Message['directoryRequest']) => {
     if (!answeredCard || findCard() !== answeredCard) {
       return;
     }
     useChatStore.setState((state) => {
-      const row = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+      const row = state.messages.find(isCardRow);
       if (row?.directoryRequest) {
         row.directoryRequest.answered = true;
       }
@@ -73,7 +74,7 @@ export default function DirectoryApprovalInput({
   };
 
   // An answer that arrives after the timeout already declined the request is not a failure: the card closes.
-  const reportAnswerError = (error: unknown, answeredCard: ReturnType<typeof findCard>) => {
+  const reportAnswerError = (error: unknown, answeredCard: Message['directoryRequest']) => {
     if (error instanceof ApprovalExpiredError) {
       markAnswered(answeredCard);
       toast.warning(t('expired'));
