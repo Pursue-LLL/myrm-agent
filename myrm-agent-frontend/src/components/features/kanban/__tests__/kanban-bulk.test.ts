@@ -38,6 +38,15 @@ describe('runBulkAction chunking', () => {
     vi.clearAllMocks();
   });
 
+  it('sends nothing and shows no toast for an empty selection', async () => {
+    await expect(run([])).resolves.toEqual([]);
+
+    expect(bulkAction).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it('sends a selection that fits in one chunk as a single request', async () => {
     answerEachChunk();
 

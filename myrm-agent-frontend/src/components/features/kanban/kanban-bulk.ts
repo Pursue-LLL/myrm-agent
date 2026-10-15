@@ -32,8 +32,8 @@ interface RunBulkActionOptions {
 export const BULK_CHUNK_SIZE = 25;
 
 /**
- * 返回未成功的任务 id；第一段请求就失败（网络、服务端异常）时已提示本地化错误并返回 `null`，
- * 此时没有任何任务被确认处理，调用方应当回滚乐观更新。
+ * 返回未成功的任务 id；没有任务时什么都不发、不提示，返回空数组。第一段请求就失败（网络、服务端异常）时
+ * 已提示本地化错误并返回 `null`，此时没有任何任务被确认处理，调用方应当回滚乐观更新。
  * 中途某一段失败时，前面的分段已在服务端生效：该段与其后的任务算作未成功，一并交还调用方。
  */
 export async function runBulkAction({
@@ -44,6 +44,9 @@ export async function runBulkAction({
   confirm = false,
   t,
 }: RunBulkActionOptions): Promise<string[] | null> {
+  if (taskIds.length === 0) {
+    return [];
+  }
   let succeeded = 0;
   const failedTaskIds: string[] = [];
 
