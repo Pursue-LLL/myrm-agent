@@ -10,12 +10,8 @@ from myrm_agent_harness.toolkits.wiki.core.types import LintIssue, LintResult
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
 from app.services.wiki.maintain import run_wiki_maintain_job
-from app.services.wiki.maintain.runner import (
-    _MAX_REPORTED_ISSUES,
-    _build_summary_text,
-    _lint_issue_payloads,
-    _run_maintain_pipeline,
-)
+from app.services.wiki.maintain.reporting import MAX_REPORTED_ISSUES, build_summary_text, lint_issue_payloads
+from app.services.wiki.maintain.runner import _run_maintain_pipeline
 from app.services.wiki.maintain.schemas import WikiMaintainRunResult
 
 
@@ -37,11 +33,11 @@ def _issue(location: str = "concepts/a.md") -> LintIssue:
 
 
 def test_lint_issue_payloads_carry_the_issue_fields_and_stop_at_the_reporting_cap() -> None:
-    issues = [_issue(f"concepts/{index}.md") for index in range(_MAX_REPORTED_ISSUES + 5)]
+    issues = [_issue(f"concepts/{index}.md") for index in range(MAX_REPORTED_ISSUES + 5)]
 
-    payloads = _lint_issue_payloads(issues)
+    payloads = lint_issue_payloads(issues)
 
-    assert len(payloads) == _MAX_REPORTED_ISSUES
+    assert len(payloads) == MAX_REPORTED_ISSUES
     assert payloads[0] == {
         "issue_type": "broken_link",
         "severity": "high",
@@ -58,13 +54,13 @@ def test_build_summary_silent_when_only_unfixed_issues() -> None:
         issues_found=3,
         issues_fixed=0,
     )
-    assert _build_summary_text(result=result) == "[SILENT]"
+    assert build_summary_text(result) == "[SILENT]"
 
 
 def test_build_summary_is_not_silent_when_the_model_answered_nothing() -> None:
     result = WikiMaintainRunResult(mode="full", issues_found=3, issues_fixed=0, ai_unavailable=True)
 
-    summary = _build_summary_text(result=result)
+    summary = build_summary_text(result)
 
     assert summary != "[SILENT]"
     assert "AI model did not respond" in summary
@@ -73,7 +69,7 @@ def test_build_summary_is_not_silent_when_the_model_answered_nothing() -> None:
 def test_build_summary_names_the_unavailable_model_next_to_the_structural_fixes() -> None:
     result = WikiMaintainRunResult(mode="full", issues_found=3, issues_fixed=2, ai_unavailable=True)
 
-    summary = _build_summary_text(result=result)
+    summary = build_summary_text(result)
 
     assert "2 fixed" in summary
     assert "AI model did not respond" in summary
