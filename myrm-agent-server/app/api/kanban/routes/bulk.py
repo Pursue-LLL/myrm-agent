@@ -1,4 +1,16 @@
-"""Kanban API routes — bulk."""
+"""Kanban API routes — bulk lifecycle actions on many tasks in one request.
+
+[INPUT]
+app.api.kanban.http_common::router / get_kanban_service (POS: Kanban 共享路由与服务获取)
+app.api.kanban.schemas::BulkActionRequest (POS: 批量请求体，单次 task_ids 上限 100)
+app.services.kanban::KanbanService (POS: Kanban 业务编排)
+
+[OUTPUT]
+bulk_action: POST /boards/{board_id}/tasks/bulk-action，逐条返回结果、允许部分成功
+
+[POS]
+批量移动 / 归档 / 改派 / 删除的唯一入口；每个动作的单条逻辑登记在 `_BULK_HANDLERS`，路由只负责校验、逐条调用与汇总。
+"""
 
 from __future__ import annotations
 
