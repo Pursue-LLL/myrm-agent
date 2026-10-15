@@ -31,6 +31,7 @@ import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { activateOnKey } from '@/lib/utils/a11y';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { toast } from '@/hooks/shared/useToast';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { CommandBindingsEditor } from '@/components/agent/CommandBindingsEditor';
 
 // Zod Schema for validation
@@ -169,7 +170,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
       onSaveSuccess();
     } catch (error) {
       console.error('Failed to save agent:', error);
-      toast.error(t('saveError', { fallback: 'Failed to save agent.' }));
+      if (!isRiskHeldError(error)) {
+        toast.error(t('saveError', { fallback: 'Failed to save agent.' }));
+      }
     } finally {
       setIsSubmitting(false);
     }

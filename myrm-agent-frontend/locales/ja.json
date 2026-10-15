@@ -15046,7 +15046,7 @@
         "hitsEmpty": "リスクヒットの記録はありません",
         "hitPosition": "{start}～{end} 文字目",
         "hitTimedOut": "照合がタイムアウトしたため、一致として扱いました",
-        "blockedTitle": "メッセージがリスクルールによりブロックされました",
+        "blockedTitle": "内容がリスクルールによりブロックされました",
         "blockedDescription": "一致したルール：{rules}。許可するには、「設定 → セキュリティポリシー → リスクルール」で該当ルールをオフにしてください。",
         "hitsRuleName": "ルール",
         "hitsSeverity": "重大度",

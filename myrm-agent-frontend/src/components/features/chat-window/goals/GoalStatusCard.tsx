@@ -17,6 +17,7 @@ import useChatStore from '@/store/useChatStore';
 import { fetchWithTimeout } from '@/lib/api';
 import { toast } from 'sonner';
 import { notificationService } from '@/services/notification';
+import { isRiskHeldError, riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 import { PlayIcon, PauseIcon, XCircleIcon, CheckCircleIcon, AlertIcon, GoalIcon } from './goal-icons';
 import { GoalStatusExpanded } from './GoalStatusExpanded';
 import type { GoalStatus } from './goalStatusTypes';
@@ -111,7 +112,9 @@ export function GoalStatusCard() {
       toast.success(t('objectiveUpdated'));
       setIsEditingObjective(false);
     } catch (err) {
-      toast.error(t('objectiveUpdateFailed'));
+      if (!isRiskHeldError(err)) {
+        toast.error(t('objectiveUpdateFailed'));
+      }
       console.error('Failed to update objective:', err);
     } finally {
       setIsSavingObjective(false);
@@ -175,7 +178,9 @@ export function GoalStatusCard() {
         body: JSON.stringify({ text }),
       });
       if (!res.ok) {
-        toast.error(t('subgoalAddFailed'));
+        if (!(await riskHeldErrorFromResponse(res))) {
+          toast.error(t('subgoalAddFailed'));
+        }
         return;
       }
       toast.success(t('subgoalAdded'));

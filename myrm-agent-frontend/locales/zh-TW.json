@@ -15046,7 +15046,7 @@
         "hitsEmpty": "暫無命中記錄",
         "hitPosition": "第 {start}–{end} 個字元",
         "hitTimedOut": "比對逾時，已視為命中",
-        "blockedTitle": "訊息已被風控規則攔截",
+        "blockedTitle": "內容已被風控規則攔截",
         "blockedDescription": "命中規則：{rules}。如需放行，請在「設定 → 安全策略 → 風控規則」中關閉對應規則。",
         "hitsRuleName": "規則",
         "hitsSeverity": "級別",

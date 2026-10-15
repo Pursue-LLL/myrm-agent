@@ -3,8 +3,13 @@ import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import type { AgentSkillConfigMap } from '@/types/agentSkillConfig';
 import { normalizeAgentSecretKeyNames, parseUserAgentFetchErrorMessage } from './agentFetchErrorCore';
+import { riskHeldErrorFromResponse } from './riskHeldToast';
 
 async function throwUserAgentFetchError(response: Response, action: string): Promise<never> {
+  const riskHeld = await riskHeldErrorFromResponse(response);
+  if (riskHeld) {
+    throw riskHeld;
+  }
   const errorText = await response.text();
   throw new Error(parseUserAgentFetchErrorMessage(errorText, action, response.statusText));
 }

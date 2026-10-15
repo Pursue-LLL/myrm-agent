@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { GoalState, GoalStatus } from '@/components/features/chat-window/goals/goalStatusTypes';
 import { fetchWithTimeout } from '@/lib/api';
+import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 
 export interface QueuedGoal {
   goal_id: string;
@@ -86,6 +87,10 @@ export const useGoalStore = create<GoalStore>((set) => ({
       body: JSON.stringify({ objective: newObjective }),
     });
     if (!res.ok) {
+      const riskHeld = await riskHeldErrorFromResponse(res);
+      if (riskHeld) {
+        throw riskHeld;
+      }
       const text = await res.text();
       throw new Error(`Failed to update objective: ${text}`);
     }

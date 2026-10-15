@@ -30,6 +30,7 @@ import {
   invalidateAgentReadiness,
   type WorkspacePolicy,
 } from '@/services/agent';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { type ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { useAgentResources } from './useAgentResources';
@@ -609,11 +610,13 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         invalidateAgentReadiness(agent.id).catch(() => {});
       }
     } catch (error) {
-      toast({
-        title: t('agent.operationFailed'),
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      });
+      if (!isRiskHeldError(error)) {
+        toast({
+          title: t('agent.operationFailed'),
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        });
+      }
       throw error;
     } finally {
       setSaving(false);

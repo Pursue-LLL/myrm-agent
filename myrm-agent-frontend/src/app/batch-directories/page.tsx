@@ -66,6 +66,7 @@ import {
 } from '@/services/batch-directory';
 import { listBoards, type KanbanBoard } from '@/services/kanban';
 import { browseDirectories, type DirectoryEntry } from '@/services/chat';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 
 interface CreateFormState {
   name: string;
@@ -259,7 +260,10 @@ export default function BatchDirectoriesPage() {
       await fetchProjects();
       router.push(`/batch-directories/${created.project_id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('createError'));
+      // `apiRequest` has already shown the notice for a held prompt, in the user's language.
+      if (!isRiskHeldError(err)) {
+        toast.error(err instanceof Error ? err.message : t('createError'));
+      }
     } finally {
       setCreating(false);
     }

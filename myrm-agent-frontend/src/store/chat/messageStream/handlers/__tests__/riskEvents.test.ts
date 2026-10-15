@@ -83,7 +83,7 @@ describe('riskEvents', () => {
 
     expect(turn).not.toBeNull();
     expect(setLoading).toHaveBeenCalledWith(false);
-    expect(toastMock.error).toHaveBeenCalledWith('消息已被风控规则拦截', {
+    expect(toastMock.error).toHaveBeenCalledWith('内容已被风控规则拦截', {
       description: '命中规则：API 密钥 / 云凭证。如需放行，请在「设置 → 安全策略 → 风控规则」中关闭对应规则。',
       duration: 10_000,
     });

@@ -10,7 +10,14 @@ const toastMock = vi.hoisted(() =>
 vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
 
 import { setGlobalTranslator } from '@/services/i18nToastService';
-import { parseRiskRules, showRiskHeldRefusal, showRiskHeldToast } from '../riskHeldToast';
+import {
+  isRiskHeldError,
+  parseRiskRules,
+  RiskHeldRefusalError,
+  riskHeldErrorFromResponse,
+  showRiskHeldRefusal,
+  showRiskHeldToast,
+} from '../riskHeldToast';
 
 type Messages = Record<string, unknown>;
 
@@ -40,7 +47,7 @@ describe('riskHeldToast', () => {
 
     showRiskHeldToast([rule('api_key_like', 'API key or cloud credential pattern')]);
 
-    expect(toastMock.error).toHaveBeenCalledWith('消息已被风控规则拦截', {
+    expect(toastMock.error).toHaveBeenCalledWith('内容已被风控规则拦截', {
       description: '命中规则：API 密钥 / 云凭证。如需放行，请在「设置 → 安全策略 → 风控规则」中关闭对应规则。',
       duration: 10_000,
     });
@@ -100,5 +107,64 @@ describe('riskHeldToast', () => {
   ])('leaves %s to the generic error toast', (_name, detail) => {
     expect(showRiskHeldRefusal(detail)).toBe(false);
     expect(toastMock.error).not.toHaveBeenCalled();
+  });
+
+  describe('for a failed fetch that did not go through apiRequest', () => {
+    const refusal = {
+      detail: { code: 'risk_held', message: 'Text held by a risk rule', rules: [rule('jwt_token_like', 'JWT token')] },
+    };
+    const respond = (status: number, body: string) => new Response(body, { status });
+
+    it('shows the notice once and returns an error carrying the neutral title, not the server text', async () => {
+      const response = respond(400, JSON.stringify(refusal));
+
+      const error = await riskHeldErrorFromResponse(response);
+
+      expect(error).toBeInstanceOf(RiskHeldRefusalError);
+      expect(error?.message).toBe(en.settings.securityPolicy.riskRules.blockedTitle);
+      expect(error?.message).not.toContain('held by a risk rule');
+      expect(isRiskHeldError(error)).toBe(true);
+      expect(toastMock.error).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the body readable for the caller', async () => {
+      const response = respond(400, JSON.stringify(refusal));
+
+      await riskHeldErrorFromResponse(response);
+
+      expect(await response.json()).toEqual(refusal);
+    });
+
+    it.each([
+      ['another 400 body', 400, JSON.stringify({ detail: { code: 'model_not_configured' } })],
+      ['a string detail', 400, JSON.stringify({ detail: 'Bad input' })],
+      ['a body that is not JSON', 400, 'Bad Request'],
+      ['a refusal body under another status', 500, JSON.stringify(refusal)],
+    ])('returns null without a notice for %s', async (_name, status, body) => {
+      const response = respond(status, body);
+
+      expect(await riskHeldErrorFromResponse(response)).toBeNull();
+      expect(toastMock.error).not.toHaveBeenCalled();
+      expect(await response.text()).toBe(body);
+    });
+  });
+
+  describe('isRiskHeldError', () => {
+    it('recognises an error whose data is a risk-held refusal, as apiRequest throws it', () => {
+      const apiError = Object.assign(new Error('Text held by a risk rule'), {
+        data: { code: 'risk_held', rules: [] },
+      });
+
+      expect(isRiskHeldError(apiError)).toBe(true);
+    });
+
+    it.each([
+      ['a plain error', new Error('boom')],
+      ['an error with another code', Object.assign(new Error('x'), { data: { code: 'quota_exceeded' } })],
+      ['a non-error value', { data: { code: 'risk_held' } }],
+      ['undefined', undefined],
+    ])('does not take %s for one', (_name, value) => {
+      expect(isRiskHeldError(value)).toBe(false);
+    });
   });
 });

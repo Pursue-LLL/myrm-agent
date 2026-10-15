@@ -63,12 +63,8 @@ vi.mock('@/components/primitives/button', () => ({
   ),
 }));
 
-vi.mock('@/lib/utils/toast', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
 
 const mockListBackgroundTasks = vi.fn();
 const mockCancelBackgroundTask = vi.fn();
@@ -272,6 +268,40 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
 
     await waitFor(() => {
       expect(mockSendShellBackgroundStdin).toHaveBeenCalledWith('shell-prompt-1', 'y', { submit: true });
+    });
+  });
+
+  describe('steering an agent task', () => {
+    async function submitSteer(instruction: string) {
+      render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+      fireEvent.click(screen.getByTestId('panel-trigger'));
+      await screen.findByText('Analyze competitor product pricing');
+      fireEvent.click(screen.getByRole('button', { name: 'steer' }));
+      const input = screen.getByPlaceholderText('steerPlaceholder');
+      fireEvent.change(input, { target: { value: instruction } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+    }
+
+    it('says so when the steer fails for an ordinary reason', async () => {
+      mockSteerBackgroundTask.mockRejectedValue(new Error('network down'));
+
+      await submitSteer('focus on EU prices');
+
+      await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('steerFailed'));
+    });
+
+    it('adds no failure toast when the instruction was held, since the risk notice already explained it', async () => {
+      mockSteerBackgroundTask.mockRejectedValue(
+        Object.assign(new Error('Text held by a risk rule'), { data: { code: 'risk_held', rules: [] } }),
+      );
+
+      await submitSteer('use key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+
+      await waitFor(() => expect(mockSteerBackgroundTask).toHaveBeenCalledTimes(1));
+      expect(toastMock.error).not.toHaveBeenCalled();
+      expect((screen.getByPlaceholderText('steerPlaceholder') as HTMLInputElement).value).toBe(
+        'use key sk-AAAAAABBBBBBCCCCCCDDDD-0',
+      );
     });
   });
 });

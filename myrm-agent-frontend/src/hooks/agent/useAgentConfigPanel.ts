@@ -8,6 +8,7 @@ import useAgentStore from '@/store/useAgentStore';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
 import { getAgent, createAgent, updateAgent, AgentCreate, AgentUpdate } from '@/services/agent';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { AgentConfig, DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { toast } from '@/hooks/shared/useToast';
 import { usePresetAgent } from '@/hooks/agent/usePresetAgent';
@@ -293,10 +294,12 @@ export const useAgentConfigPanel = () => {
       router.push(`/settings/agents?agentId=${newAgent.id}`);
     } catch (error) {
       console.error('创建智能体失败:', error);
-      toast({
-        title: tAgent('operationFailed'),
-        variant: 'destructive',
-      });
+      if (!isRiskHeldError(error)) {
+        toast({
+          title: tAgent('operationFailed'),
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsSavingAgent(false);
     }
@@ -356,10 +359,12 @@ export const useAgentConfigPanel = () => {
       toast({ title: tAgent('updateSuccess') });
     } catch (error) {
       console.error('更新智能体失败:', error);
-      toast({
-        title: tAgent('operationFailed'),
-        variant: 'destructive',
-      });
+      if (!isRiskHeldError(error)) {
+        toast({
+          title: tAgent('operationFailed'),
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsSavingAgent(false);
     }

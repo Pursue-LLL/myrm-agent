@@ -15721,7 +15721,7 @@
         "hitsEmpty": "暂无命中记录",
         "hitPosition": "第 {start}–{end} 个字符",
         "hitTimedOut": "匹配超时，已按命中处理",
-        "blockedTitle": "消息已被风控规则拦截",
+        "blockedTitle": "内容已被风控规则拦截",
         "blockedDescription": "命中规则：{rules}。如需放行，请在「设置 → 安全策略 → 风控规则」中关闭对应规则。",
         "hitsRuleName": "规则",
         "hitsSeverity": "级别",

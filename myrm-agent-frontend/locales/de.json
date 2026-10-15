@@ -15046,7 +15046,7 @@
         "hitsEmpty": "Keine Risiko-Treffer aufgezeichnet",
         "hitPosition": "Zeichen {start}–{end}",
         "hitTimedOut": "Abgleich überschritt das Zeitlimit; als Treffer gewertet",
-        "blockedTitle": "Nachricht durch Risikoregel blockiert",
+        "blockedTitle": "Inhalt durch Risikoregel blockiert",
         "blockedDescription": "Treffer: {rules}. Zum Zulassen schalten Sie die Regel unter „Einstellungen → Sicherheitsrichtlinie → Risikoregeln“ aus.",
         "hitsRuleName": "Regel",
         "hitsSeverity": "Schweregrad",

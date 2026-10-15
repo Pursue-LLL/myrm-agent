@@ -20,3 +20,4 @@
 ## 约束
 
 - Goal UI 类型定义留在 feature 组件；store 仅引用，不重复声明
+- 目标文案被服务端风控拦下（HTTP 400 `risk_held`）时，`updateObjective` 抛 `RiskHeldRefusalError`，提示已由 `services/riskHeldToast.ts` 展示一次，调用方用 `isRiskHeldError` 判断后不再叠加自己的失败提示

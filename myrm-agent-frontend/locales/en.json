@@ -15721,7 +15721,7 @@
         "hitsEmpty": "No risk hits recorded",
         "hitPosition": "Characters {start}–{end}",
         "hitTimedOut": "Matching timed out; treated as a hit",
-        "blockedTitle": "Message blocked by risk rules",
+        "blockedTitle": "Content blocked by risk rules",
         "blockedDescription": "Matched: {rules}. To let it through, turn the rule off in Settings → Security Policy → Risk Rules.",
         "hitsRuleName": "Rule",
         "hitsSeverity": "Severity",

@@ -15046,7 +15046,7 @@
         "hitsEmpty": "기록된 위험 감지가 없습니다",
         "hitPosition": "{start}–{end}번째 문자",
         "hitTimedOut": "일치 검사 시간 초과, 감지로 처리됨",
-        "blockedTitle": "메시지가 위험 규칙에 의해 차단되었습니다",
+        "blockedTitle": "내용이 위험 규칙에 의해 차단되었습니다",
         "blockedDescription": "일치한 규칙: {rules}. 허용하려면 「설정 → 보안 정책 → 위험 규칙」에서 해당 규칙을 끄세요.",
         "hitsRuleName": "규칙",
         "hitsSeverity": "심각도",

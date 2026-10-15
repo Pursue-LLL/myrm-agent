@@ -7,10 +7,15 @@
  * - showRiskHeldToast: the one notice for a held text, worded here in the user's language with the rule names the
  *   settings page shows and where to turn the rule off.
  * - showRiskHeldRefusal: shows that notice for a REST error body that is such a refusal, and says whether it was one.
+ * - riskHeldErrorFromResponse: the same for a failed `fetch` that did not go through `apiRequest`; returns the error
+ *   to throw once the notice is shown.
+ * - isRiskHeldError: whether an error is such a refusal, so a caller whose notice is already shown adds no failure
+ *   toast of its own.
  *
  * [POS]
- * Shared by the chat SSE `risk_blocked` event, the central API error toast and the direct-fetch steer call, so a text
- * held on any path gets the same notice. The server sends rule ids and names only, never a sentence or the held text.
+ * Shared by the chat SSE `risk_blocked` event, the central API error toast and every direct-fetch call of a text the
+ * server may hold, so a text held on any path gets the same notice once. The server sends rule ids and names only,
+ * never a sentence or the held text.
  */
 
 import { showI18nToast, translateI18nKeyIfPresent } from '@/services/i18nToastService';
@@ -26,6 +31,10 @@ interface RiskRule {
 const RISK_RULES_KEY = 'settings.securityPolicy.riskRules';
 const MAX_NAMED_RULES = 3;
 const TOAST_DURATION_MS = 10_000;
+
+function isRiskHeldDetail(detail: unknown): detail is Record<string, unknown> {
+  return typeof detail === 'object' && detail !== null && (detail as { code?: unknown }).code === RISK_HELD_CODE;
+}
 
 function isRiskRule(value: unknown): value is RiskRule {
   if (typeof value !== 'object' || value === null) {
@@ -57,13 +66,42 @@ export function showRiskHeldToast(rules: readonly RiskRule[]): void {
 
 /** Whether `detail` (an HTTP 400 body's `detail`) is a risk-held refusal; if so the notice has been shown. */
 export function showRiskHeldRefusal(detail: unknown): boolean {
-  if (typeof detail !== 'object' || detail === null) {
+  if (!isRiskHeldDetail(detail)) {
     return false;
   }
-  const { code, rules } = detail as { code?: unknown; rules?: unknown };
-  if (code !== RISK_HELD_CODE) {
-    return false;
-  }
-  showRiskHeldToast(parseRiskRules(rules));
+  showRiskHeldToast(parseRiskRules(detail.rules));
   return true;
+}
+
+/** A refusal whose notice has been shown; its message is the neutral title, never the server's English text. */
+export class RiskHeldRefusalError extends Error {
+  constructor(public readonly data: Record<string, unknown>) {
+    super(translateI18nKeyIfPresent(`${RISK_RULES_KEY}.blockedTitle`, 'Content blocked by risk rules'));
+    this.name = 'RiskHeldRefusalError';
+  }
+}
+
+/** Whether `error` is a refusal the user has already been told about (`apiRequest`'s `ApiError` or a `RiskHeldRefusalError`). */
+export function isRiskHeldError(error: unknown): boolean {
+  return error instanceof Error && isRiskHeldDetail((error as { data?: unknown }).data);
+}
+
+/**
+ * A failed `fetch` response that did not go through `apiRequest`: when its body is a risk-held refusal, shows the
+ * notice and returns the error to throw; otherwise null, with the body still readable by the caller.
+ */
+export async function riskHeldErrorFromResponse(response: Response): Promise<RiskHeldRefusalError | null> {
+  if (response.status !== 400) {
+    return null;
+  }
+  const body: unknown = await response
+    .clone()
+    .json()
+    .catch(() => null);
+  const detail = typeof body === 'object' && body !== null ? (body as { detail?: unknown }).detail : undefined;
+  if (!isRiskHeldDetail(detail)) {
+    return null;
+  }
+  showRiskHeldToast(parseRiskRules(detail.rules));
+  return new RiskHeldRefusalError(detail);
 }
