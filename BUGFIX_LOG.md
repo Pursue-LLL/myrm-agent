@@ -3360,3 +3360,51 @@ except Exception:
 4. 失败即拦的时限要随输入规模缩放，并在「无害的大输入」上量一次：固定 0.25 秒把 5 MB 的普通日志整段当成命中；反过来，缩放预算要靠「真有密钥的长文本仍被拦、而且不是靠超时」来守住。
 5. 测事件循环有没有被占住，要在被测调用前后各让出一次：循环在同步匹配期间根本没有机会跑心跳，只在调用前后测会空转通过。
 6. 共享文件（`BUGFIX_LOG.md`、`_ARCH.md`、`router.py`）里有他人未提交的改动：只追加或只改自己的行，提交时用显式路径与「HEAD 加自己的块」的内容，不用 `git add -A`。
+
+## BUG-AGENT-2026-10-15-010: 全局通知流只要积压里有一个带 `datetime` / `UUID` 的事件，每个新连接都会在回放时断流；审批过期清理发布一条无人处理的 `STATUS` 恢复广播；`goal:branch_switched` 是唯一不在 `AppEventType` 里的事件类型
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（审计全局事件总线：逐个 `AppEvent(` 构造点核对载荷类型，再按通道核对谁在消费） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P3（预防性：通知流的后果是 P2 级，但内置发布者当前没有一个会触发；后两项无运行时影响） |
+| 影响范围 | server：`app/api/events/{notifications.py,_ARCH.md}`、`app/services/approvals/{registry.py,_ARCH.md}`、`app/services/event/app_event_bus.py`、`app/services/agent/goals/goal_registry.py`；测试：`tests/api/events/{test_notifications_stream_integration.py,test_event_bus.py}`、`tests/services/approvals/test_registry_lifecycle.py`、`tests/services/agent/test_goal_branch_stash.py` |
+| 出现次数 | 0（没有线上触发；断流用真实 uvicorn + httpx 复现过，触发值是测试里构造的 `datetime`） |
+| 关联 | `BUG-AGENT-2026-10-15-007`（同一次总线审计；它的局限 1「字符串字面量发布只能靠构造点扫描」在本条第 3 项之后不再成立，枚举现在列全了所有发布类型）；提交 `a2ce54ff35`、`8345214b12`、`cb51b6d850`，本地提交，未 push |
+
+### 现象
+
+1. `PubSubBus.publish()` 用 `json.dumps(event.data, sort_keys=True, default=str)` 计算去重键（harness `infra/pubsub/event_bus.py:44`），所以载荷里带 `datetime` / `UUID` / `Path` 的事件会被接收，并进入回放给每个新订阅者的积压（最近 100 条）；而 `api/events/notifications.py` 写 SSE 用的是不带 `default` 的 `json.dumps`，遇到这样的事件抛 `TypeError`，连接直接结束。积压会再回放给下一个订阅者，每次重连都在同一个事件上再断一次：真实 uvicorn + httpx 下连续 3 次重连都是「拿到 200 响应头后断流」。前端一侧是读码推断，没有在浏览器里验证：`onopen` 每次把重试计数清零并触发 `app_resync_required`，所以重连退避永远是 1 秒。
+2. 审批过期清理（`ApprovalRegistry.cleanup_expired_approvals`，每 5 分钟一次）把记录标成 `TIMEOUT` 后，对带 `thread_id` 的记录发布 `AppEventType.STATUS`（`action: resume_agent`，注释写「唤醒挂起的状态机」）。没有任何订阅者处理它：通知派发、Web Push、渠道通知器、生命周期 webhook 与前端都不认 `status`，`STATUS` 在仓库里也只有这一处发布者。真正的恢复由 harness 的 `ApprovalTimeoutScheduler` 在计时器到点时完成（`resolve_if_first` 保证与手动处理幂等，记 `TIMEOUT_DENIED` 审计，反馈给模型的是「Auto-rejected: approval timeout」），测试 `test_expired_pending_marked_timeout` 却把这条广播当成预期行为断言。
+3. `goal_registry.py` 用字符串字面量 `"goal:branch_switched"` 发布，是全部 65 个 `AppEvent(` 构造点里唯一不用 `AppEventType` 的；mypy 对这一行报 `arg-type`（str 与 AppEventType）；按枚举成员去找「有没有发布方」会把这个事件和它的前端监听（`GoalStatusCard`、`useGlobalEvents.ts` 白名单）当成死项。
+
+### 根因
+
+1. 去重键与 SSE 写出各用一份序列化约定：总线放宽到 `default=str`，写出端没有跟上；载荷类型靠约定（`AppEvent.data: dict[str, Any]`）而不是门禁，mypy 不在 CI 里。
+2. 清理任务写成时还没有计时器恢复机制；之后恢复由 harness 计时器接管，这段广播没有人删，还被测试固定了下来。
+3. 这个事件类型当初直接用了字面量，没有进枚举。
+
+### 修复
+
+1. `notifications.py` 的 `json.dumps` 加 `default=str`，总线接受的事件都能写出。不加 `try/except` 跳过坏事件：`publish()` 的去重键用 `default=str` 加 `sort_keys=True` 序列化过同一个载荷，凡是这样也编不了的（非字符串键、循环引用、键无法排序）在发布时就会抛，进不了积压，所以跳过分支不可达。`api/events/_ARCH.md` 同步。
+2. 删除 `registry.py` 里这段发布和 `AppEventType.STATUS`。不选「接上」，因为接上会在计时器已经恢复之后再恢复一次，与 `resolve_if_first` 的幂等设计冲突。`approvals/_ARCH.md` 与 `cleanup_expired_approvals` 的文档字符串写明：清理任务只把记录定案为 `TIMEOUT`，超时恢复由 harness 计时器完成。
+3. 枚举新增 `GOAL_BRANCH_SWITCHED = "goal:branch_switched"`，`goal_registry.py` 改用它；线上字符串不变，前端不动。
+
+### 验证
+
+1. 新增 3 例：普通载荷的输出与 `json.dumps(ensure_ascii=False)` 逐字节一致；`datetime` / `UUID` 以字符串送达；积压里有一个带 `datetime` 的事件时，连续 3 个新订阅者都能收到它之后的正常事件。把 `default=str` 临时去掉后后两例失败（`TypeError: Object of type datetime is not JSON serializable`），恢复后全部通过。`test_expired_pending_marked_timeout` 改为断言记录落成 `TIMEOUT` 且清理不发布任何事件；新增 `test_branch_switch_publishes_goal_branch_switched_event` 固定枚举成员、线上名字与载荷；总线去重测试的占位类型从 `STATUS` 换成 `SYSTEM_NOTIFICATION`。
+2. `tests/api/events`、`tests/services/approvals`、`tests/lifecycle` 共 217 通过；`tests/services/agent/test_goal_branch_stash.py`、`tests/api/events`、`tests/core/notifications` 共 115 通过；触及文件的 `ruff check`、`ruff format --check` 通过；`mypy` 不再报 `goal_registry.py` 的这一行（该文件其余历史 mypy 错误与本条无关，未处理）。
+3. 全量审计：对 server 全部 `AppEvent(` 构造点做 AST 扫描（176 个非平凡载荷值），可疑值逐个读了类型：`resource_monitor.get_history()` 是 `list[dict[str, float | int]]`，`ResourceMetricsEvent` 是 `JsonObject`，唯一注册的空闲任务 handler 返回基础类型，看板、配对、技能事件是 `dict[str, str]` 等。没有一个内置发布者现在会产生非 JSON 原生值，所以第 1 项是预防性修复，没有线上触发。
+4. 开销：20 万次序列化，原来 1.93 微秒 / 事件，加 `default=str`（实验时还带着一层 `try`）后 1.95 微秒；最终代码没有 `try`。
+
+### 局限
+
+1. 没有在浏览器里验证断流后前端的重连与 `app_resync_required` 行为（读码推断）。扩展点仍不受类型约束：空闲任务自定义 handler（`idle_tasks.py` 返回 `dict[str, object]` 原样进总线）、`wakeup_handler.py` 原样转发的聊天流块；聊天流一侧用 `orjson.dumps`，总线一侧用标准库，能序列化的值集合不同，现在由 `default=str` 兜住，但没有找到真正含这类值的发布点；`AppEvent.data` 仍是 `dict[str, Any]`。
+2. 进程重启会丢失审批计时器（harness `scheduler.py` 的文档接受这一点），此后挂起的审批只会被清理任务标成 `TIMEOUT`，没有东西恢复 agent。这在删除前同样成立（`STATUS` 没人处理），本条没有改变，也没有处理。
+3. `ASYNC_AGENT_STREAM_CHUNK` 把无头 agent 的每个流式块都广播到总线（`wakeup_handler.py`），规模没有量化，未处理。
+
+### 踩坑经验
+
+1. 去重键与写出端各有一份序列化约定时，宽的那份会放进窄的那份处理不了的值；判断一个值能不能安全经过，要看它最先经过的那份序列化放行了什么。
+2. 计划里写的「跳过坏事件」防护没有先核对上游：读了 `PubSubBus.publish()` 才发现凡是 `default=str` 编不了的在发布时就已经抛了，那段 `try/except` 是不可达的死代码；加防护之前先问「这个失败还能走到这里吗」。
+3. 枚举要列全所有发布类型：留一个字符串字面量，按枚举做的死代码审计就会把活事件当成死项（上一阶段差点这么做）。
