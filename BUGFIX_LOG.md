@@ -3726,6 +3726,11 @@ except Exception:
 3. 门禁第一次失败时先分清是脚本采样的问题还是产品缺陷：这次的失败里 4 项是脚本问题（无关提示、全局错误提示、采样时机、标题里的单词误判枚举），1 项（拾起句缺失）是真缺陷，改成记录历史后才区分开。
 4. 修同类问题时把规则放在一个共享单点，并加一个扫描测试：五处站点各自实现会再次漏接，扫描测试让漏接变成红灯。
 
+### 更正（BUG-AGENT-2026-10-15-019）
+
+1. 「根因」第 1 条与「修复」第 1 条里的「25 × 440ms ≈ 11s，低于 30s 超时」作废：440ms 是在裸 git 近似路径上估的。在真实函数、1 万文件的临时仓库里，归档带分支的任务每条约 1.2 秒，25 条约 30 秒（推算），恰好压在超时线上，所以「分成 25 条一段」并不能让大仓库的批量归档可靠地跑完。「局限」第 2 条里没量过的真实 worktree 路径，在 `019` 里补量了。
+2. 病根是请求在等 git，不是每段太大。`019` 把合并与清理放到后台，分段大小回到服务端上限 100（`BULK_CHUNK_SIZE`），分段只剩「服务端一次最多收 100 条」这一个理由。
+
 ## BUG-AGENT-2026-10-15-016: 设置里的「全量维护」在 30 秒处被客户端与 Next 代理双重掐断，界面报「维护失败」而服务端继续跑完；成功时新增的链接数从不显示
 
 | 属性 | 值 |
@@ -3895,3 +3900,66 @@ except Exception:
 3. 读码得出的「某条路径永远是假」要用真实类型核对：`CheckpointTuple._fields` 一查就知道没有 `tasks`；mock 出 `.tasks` 的测试证明不了它在真实检查点上能工作。
 4. 对目录跑 `ruff --fix` 会改到别人的文件：只对自己的文件列表跑，目录级只用不带 `--fix` 的检查。
 5. `xdist` 在他人参数化测试的 id 不稳定时会报「各 worker 收集的用例不同」，回归要退回单进程或按目录拆开并行跑。
+
+## BUG-AGENT-2026-10-15-019: 批量归档或移到「已完成」时，请求要等每个带分支任务的 worktree 清理 / 合并跑完，大仓库上每条 1～2 秒，一批几十条会超过客户端 30 秒；把这些操作原样全部放到后台，又让发起请求的那次响应慢了 24 倍；批量请求失败时全局提示叠在汇总提示上；批量拖拽的读屏播报只念被拖的那张卡
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P2（大仓库上批量处理带分支的任务时，界面可能先报超时而服务端继续跑完，用户以为失败；不丢数据） |
+| 影响范围 | server：`app/services/kanban/worktree_ops.py`、`move_orchestrator.py`、`kanban/_ARCH.md`、`tests/services/kanban/test_move_task_worktree_ops.py`（新）；frontend：`services/kanban.ts`、`components/features/kanban/kanban-bulk.ts`、`useKanbanDnD.ts`、`_ARCH.md`、三个测试文件 |
+| 出现次数 | 1（复核 `BUG-AGENT-2026-10-15-015` 的局限 2 时，在真实函数上量出来；临时仓库建在 `/tmp`，量完删除，没有用户数据） |
+| 关联 | 更正 `BUG-AGENT-2026-10-15-015`（分段大小的依据）；`BUG-AGENT-2026-10-15-011` 局限 3；提交：server `593da8f0c9`、frontend `866d1c78fd`；`silent` 的前半截在 `8f82c4b722`、读屏层在 `87dbf8b969`；本地提交，未 push |
+
+### 现象
+
+1. 用真实的 `cleanup_worktree` / `merge_task_worktree` 在临时仓库里量（修复前）：不含 git 工作的批量移动，100 条 0.26～0.44 秒；200 文件的仓库、25 条，归档每条 160ms、合并每条 608ms；1 万文件的仓库、5 条，归档每条 1.21 秒（共 6.04 秒）、合并每条 2.04 秒（共 10.17 秒）。按这个速度 25 条归档约 30 秒（推算，没有在真实路由上用旧代码整批跑过），正好压在 `apiRequest` 的默认 30 秒超时线上。`015` 里「25 × 440ms ≈ 11s」的 440ms 来自裸 git 的近似值，不适用真实路径。
+2. 旧代码的 `move_task` 在请求里 `await` 合并与清理，返回值也没人看；批量接口逐条调用它，请求耗时就是各条 git 耗时之和。
+3. 第一版后台化（每条各开一个后台任务，不限制同时数量），经真实路由（FastAPI 测试客户端、真实 worktree、1 万文件仓库）：25 条归档的请求耗时 2914ms；同一场景把后台工作整个去掉是 122ms。后台的 git 把发起它们的请求拖慢了 24 倍。第一轮用「绕过路由与数据库、直接调函数」的脚本量到 28.7ms（6 条），因为那个脚本的循环从不让出事件循环，量不出竞争。
+4. `bulkAction` 没有传 `silent`：批量请求失败时，`apiRequest` 的自动提示（服务端原始报错加一个只重放最后一段的「重试」按钮）叠在 `runBulkAction` 自己的汇总提示上。
+5. 批量拖拽的键盘播报只念被拾起那张卡的标题，而放下时选中的卡会一起移动。
+
+### 根因
+
+1. 把「git 要多久」放进了请求；git 的耗时随仓库大小增长，不随条数摊薄。
+2. 后台化只解决「请求不等 git」，没有限制后台同时跑多少：几十个 `asyncio.to_thread(subprocess.run, …)` 同时起来，与发起请求的那次响应争同一个进程、同一个线程池、同一台机器。具体是线程池排队、CPU 还是磁盘竞争，没有分开量；量到的只是「限制并发后，请求耗时从 2914ms 降到 247～278ms，后台全部完成的时间也没有变长」。
+3. `silent` 与读屏标签各只做了一半（`8f82c4b722`、`87dbf8b969`）。
+
+### 修复
+
+1. server：`move_task` 把带分支任务的合并与清理交给 `spawn_worktree_op`（登记到 harness 的 `track_background_task`，强引用并让优雅关闭等待；失败写日志而不是消失）。COMPLETED 的下游任务在合并之后才放行（`_merge_then_release_dependents`，放在 `finally` 里，合并抛错或被取消也放行，否则下游永远停在 BACKLOG），ARCHIVED 与无分支任务的下游仍立即放行。`cleanup_task_worktree` / `merge_task_worktree` 里同时在途的 runner 调用上限为 2（每个事件循环一个信号量）。顺手去掉 `worktree_ops.py` 里两处多余的 `type: ignore`，并把 `MERGE_CONFLICT` 载荷标成 `dict[str, object]`。
+2. frontend：`BULK_CHUNK_SIZE` 25→100（服务端上限）；`bulkAction` 传 `silent: true`；批量拖拽的拾起 / 悬停 / 放下播报在被拖的卡属于多选时，附上已有的 `kanban.bulkSelected`（没有新增文案）。
+3. 文档：两份 `_ARCH.md` 的对应行。
+
+### 验证
+
+1. 经真实路由量（FastAPI 测试客户端、SQLite 测试库、真实 git worktree、1 万文件临时仓库，12 核 macOS；每行只跑了 1 次）：
+
+   | 场景 | 请求耗时 | 后台全部完成 |
+   |------|------|------|
+   | 25 条归档，无并发上限（第一版） | 2914ms | 17.7 秒 |
+   | 25 条归档，后台工作整个去掉（对照） | 122ms | 不适用 |
+   | 25 条归档，上限 2 | 247ms（单独一轮）、278ms（最终代码） | 15.2 秒、16.4 秒 |
+   | 15 条移到「已完成」，最终代码 | 111ms | 20.8 秒；15 个合并提交，无残留 worktree |
+
+2. server 测试：新增 `test_move_task_worktree_ops.py` 9 例（完成时请求先于合并返回且合并后才放行下游、合并抛错写 `MERGE_CONFLICT` 并放行、关闭时被取消仍放行、归档先返回再清理且立即放行、无分支同步放行且不碰 runner、后台失败写日志、排队的操作每次只跑上限那么多且全部完成、真实 git 的完成与归档各一例）。对实现做了 8 种变异，全部被预期的测试杀掉（改坏的位置没有在这里逐一列出）；并发上限另做 5 种变异：清理不受限、合并不受限、每次新建信号量，3 种被杀；把上限改成 1 或 3 的 2 种没被杀，因为测试读的是同一个常量，验证的是「上限被执行」而不是「上限等于 2」，2 是按上表的对比挑的，没有扫过别的取值。`pytest tests/services/kanban tests/api/kanban`：691 通过、2 失败、1 跳过。2 个失败是 `test_move_with_result_and_metadata`（他人未提交的移交元数据改动，多出 `summary`、`timestamp` 字段）与 `test_extract_enabled_empty_pdf_falls_back_to_reference`（PDF 抽取，与本条无关），都没有在干净 HEAD 上复跑过。`ruff check`、`ruff format --check` 通过；pyright（`-p pyproject.toml`）对改动的三个文件 0 错误 0 警告；mypy strict 对 `worktree_ops.py` 还剩 1 个错误：`track_background_task` 被推成 `object` 而不可调用，来自 harness `api/__init__.py` 的 `__getattr__ -> object`，`app/ai_agents/general_agent/callbacks.py` 里同样的调用也有，没有在本条处理。
+3. frontend：kanban、`hooks/ui`、新增请求测试共 43 个文件 507 例通过；`kanban-bulk.test.ts` 改成由 `BULK_CHUNK_SIZE` 推导；对实现做了 4 种变异，全部被杀掉。oxlint、prettier（改动的 6 个源文件）通过；`check-theme-colors`、`check-icu-syntax` 通过；`check-hardcoded-copy` 失败只来自他人未提交的 `KanbanTaskHandoffSection.tsx`；`tsc --noEmit` 的 2 个错误都在他人的文件里（`KanbanTaskHandoffSection.test.tsx`、`useNeedsYouQueueStore.test.ts`）。kanban 的 `_ARCH.md` 在 HEAD 上本来就过不了 prettier（表格没对齐），没有动。
+
+### 局限
+
+1. 服务端优雅关闭只等后台任务 30 秒（`app/server/shutdown.py` 的 `safe_wait_background_tasks`）。每条合并约 1.4 秒（上面 15 条共 20.8 秒），一次移上百条再关机会有合并来不及跑完：被取消的合并不写 `MERGE_CONFLICT` 事件（取消不是异常），下游已放行，worktree 与分支保留。没有为「排队中的合并被取消」写测试，也没有做关机时补记事件。
+2. 进程被强杀同理，且没有重启后的补偿：父任务已是「已完成」而分支没合并，下游若还在 BACKLOG 需要手动晋升。
+3. 行为变化：手动移到「已完成」后卡片立刻进入该列，合并却在后台排队；用户马上去看目标分支，可能还没有这次合并。界面没有「合并中」状态，冲突要等后台跑到才记事件。智能体自己完成任务的路径本来就是这样（`dispatcher_lifecycle.py` 的完成钩子）。
+4. 派发器自己完成任务的路径仍是先放行下游、合并在后台跑（`dispatcher.py` 的完成后放行，加 `dispatcher_lifecycle.py` 里的后台合并），没有改，也没有量过这个竞争在真实使用里多频繁。
+5. 上限 2 来自一次对比（无上限与 2）；上限 4 的那一轮结果在临时目录被其他会话清掉时丢了，没有重做。别的取值、别的机器（核数、磁盘）没有量过；耗时各只测 1 次，没有方差。最终代码没有在小仓库上经真实路由量过。
+6. 清理归档任务后分支仍保留（既有设计，`test_cleanup_removes_worktree_keeps_branch`）；一次归档几十条会留下几十个分支。
+7. 没有在真实浏览器里端到端走过：`silent` 只有单元测试（`apiRequest` 被模拟）；读屏播报只验证了 DOM 文本，没在真实读屏软件里听过。
+8. 没有遥测，不知道真实用户对带分支任务做批量操作有多频繁、仓库有多大；上表是 1 万文件仓库的结果。
+
+### 踩坑经验
+
+1. 量性能要经真实路由：绕过路由的脚本里循环从不让出事件循环，量不出后台任务对发起请求的拖慢；第一版就是这样看起来「只要几十毫秒」。
+2. 把工作移出请求不是免费的：要同时限制它同时跑多少，否则它会和请求争同一台机器。
+3. 在 zsh 里 `path` 是绑定 `PATH` 的数组，在循环里把它当普通变量赋值会清空 `PATH`，之后所有命令都是 `command not found`；别用 `path` 做变量名。
+4. 放在 `/tmp` 固定目录里的临时脚本与日志会被其他会话的清理一起删掉；要留到最后的结果放自己的 `~/.cache` 子目录。
