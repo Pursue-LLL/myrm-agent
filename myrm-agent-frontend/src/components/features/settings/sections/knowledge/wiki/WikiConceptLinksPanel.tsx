@@ -5,6 +5,7 @@
  * - next-intl::useTranslations (POS: 六语言文案，命名空间 settings.wiki.concepts.links)
  * - @/services/wikiService::wikiService (POS: Wiki REST 客户端，提供 getConceptLinks 词条双向链接检索)
  * - @/components/primitives/button::Button (POS: 基础按钮组件)
+ * - @/components/primitives/tabs::Tabs, TabsList, TabsTrigger, TabsContent (POS: 标签页原语，提供 tablist/tab/tabpanel 语义与方向键切换)
  * - @/lib/utils/classnameUtils::cn (POS: 类名合并工具)
  *
  * [OUTPUT]
@@ -12,7 +13,7 @@
  *
  * [POS]
  * 词条脉络导航组件。嵌入词条详情抽屉，展示词条的入链与出链，支持点击直达关联词条。
- * 面板数据按词条独立加载（切换词条即重新挂载），标签页选择跨词条保留。
+ * 面板数据按词条独立加载（切换词条即重新挂载），标签页选择跨词条保留；两个方向以可键盘操作的标签页切换。
  */
 
 import { useEffect, useState, useTransition, useCallback, useRef } from 'react';
@@ -20,6 +21,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowUpRight, CornerDownLeft, Network, FileText, AlertCircle, RefreshCw, type LucideIcon } from 'lucide-react';
 import { wikiService, type ConceptLinksResponse } from '@/services/wikiService';
 import { Button } from '@/components/primitives/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface WikiConceptLinksPanelProps {
@@ -29,6 +31,8 @@ interface WikiConceptLinksPanelProps {
 }
 
 type LinksTab = 'backlinks' | 'outlinks';
+
+const isLinksTab = (value: string): value is LinksTab => value === 'backlinks' || value === 'outlinks';
 
 // 服务端按上限截断时展示「N+」，避免用户把截断后的条数当成总数
 const formatLinkCount = (shown: number, hasMore: boolean): string => (hasMore ? `${shown}+` : String(shown));
@@ -109,8 +113,6 @@ function ConceptLinksContent({
   const backlinks = linksData?.backlinks ?? [];
   const outlinksCount = formatLinkCount(outlinks.length, linksData?.outlinks_has_more ?? false);
   const backlinksCount = formatLinkCount(backlinks.length, linksData?.backlinks_has_more ?? false);
-  // 首次加载失败时没有数据，不能把「0 条」与空态当事实展示给用户
-  const visibleTab = linksData ? activeTab : null;
   const tabs: ReadonlyArray<{ id: LinksTab; label: string; Icon: LucideIcon; iconClass: string }> = [
     {
       id: 'backlinks',
@@ -127,8 +129,14 @@ function ConceptLinksContent({
   ];
 
   return (
-    <div
+    <Tabs
       id="wiki-concept-links"
+      value={activeTab}
+      onValueChange={(value) => {
+        if (isLinksTab(value)) {
+          onTabChange(value);
+        }
+      }}
       className="@container rounded-xl border border-border/70 bg-card/60 backdrop-blur-sm p-4 space-y-4 shadow-sm"
     >
       {/* 头部导航与统计胶囊：面板嵌在宽度不定的详情栏里，按面板自身宽度（容器查询）而不是视口宽度适配 */}
@@ -156,26 +164,23 @@ function ConceptLinksContent({
           </Button>
         </div>
 
-        {/* 视图切换按钮组：等分整行，放不下时在条内横向滚动 */}
+        {/* 视图切换标签：等分整行，放不下时在条内横向滚动；焦点环内收，避免被滚动容器裁切 */}
         {linksData && (
-          <div className="flex w-full items-center gap-1 overflow-x-auto scrollbar-hide bg-muted/40 p-0.5 rounded-lg border border-border/40 text-xs">
+          <TabsList
+            aria-label={t('title')}
+            className="min-h-0 w-full justify-start gap-1 overflow-x-auto scrollbar-hide rounded-lg border border-border/40 bg-muted/40 p-0.5 text-xs"
+          >
             {tabs.map(({ id, label, Icon, iconClass }) => (
-              <button
-                type="button"
+              <TabsTrigger
                 key={id}
-                onClick={() => onTabChange(id)}
-                className={cn(
-                  'flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 font-medium transition-all @md:px-3',
-                  activeTab === id
-                    ? 'bg-background text-foreground shadow-xs border border-border/60'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
+                value={id}
+                className="flex-1 shrink-0 gap-1.5 border border-transparent px-2 py-1 text-xs hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-offset-0 data-[state=active]:border-border/60 data-[state=active]:shadow-xs @md:px-3"
               >
                 <Icon className={cn('hidden w-3.5 h-3.5 @md:block', iconClass)} />
                 <span>{label}</span>
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
+          </TabsList>
         )}
       </div>
 
@@ -186,9 +191,9 @@ function ConceptLinksContent({
         </div>
       )}
 
-      {/* Tab 1: 反向链接（Backlinks） */}
-      {visibleTab === 'backlinks' && (
-        <div className="space-y-2">
+      {/* Tab 1: 反向链接（Backlinks）；首次加载失败时没有数据，不能把「0 条」与空态当事实展示给用户 */}
+      {linksData && (
+        <TabsContent value="backlinks" className="mt-0 space-y-2">
           {backlinks.length === 0 ? (
             <p className="text-xs text-muted-foreground py-3 text-center">{t('emptyBacklinks')}</p>
           ) : (
@@ -238,12 +243,12 @@ function ConceptLinksContent({
               ))}
             </div>
           )}
-        </div>
+        </TabsContent>
       )}
 
       {/* Tab 2: 引用前置（Outlinks） */}
-      {visibleTab === 'outlinks' && (
-        <div className="space-y-2">
+      {linksData && (
+        <TabsContent value="outlinks" className="mt-0 space-y-2">
           {outlinks.length === 0 ? (
             <p className="text-xs text-muted-foreground py-3 text-center">{t('emptyOutlinks')}</p>
           ) : (
@@ -280,8 +285,8 @@ function ConceptLinksContent({
               ))}
             </div>
           )}
-        </div>
+        </TabsContent>
       )}
-    </div>
+    </Tabs>
   );
 }
