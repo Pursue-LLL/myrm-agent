@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - ./kanban-styles::DIAGNOSTIC_SEVERITY_STYLES (POS: 诊断严重度样式)
+ * - @/services/kanban::TaskDiagnostic, TaskStatus (POS: 看板 API 类型定义)
+ *
+ * [OUTPUT]
+ * - KanbanDiagnosticsSection (default): 任务诊断列表，每条诊断可带「移到某状态 / 去评论」快捷动作
+ *
+ * [POS]
+ * 任务抽屉里的诊断区段；没有诊断时不渲染。动作只回调给抽屉（onMove / onFocusComment），自己不发请求。
+ */
 'use client';
 
 import { useTranslations } from 'next-intl';

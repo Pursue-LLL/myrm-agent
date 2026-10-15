@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - @/services/kanban::updateTask (POS: 回写任务的附件 id 列表)
+ * - @/lib/api::getApiUrl (POS: 上传接口地址)
+ *
+ * [OUTPUT]
+ * - useKanbanTaskDrawerAttachments: 附件上传（每个任务最多 10 个，支持选择、拖拽、粘贴）与移除
+ *
+ * [POS]
+ * useKanbanTaskDrawer 的附件子 hook；只在抽屉打开时监听粘贴事件。
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { KanbanTask } from '@/services/kanban';

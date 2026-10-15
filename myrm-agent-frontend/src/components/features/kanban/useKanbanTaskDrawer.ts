@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - @/services/kanban (POS: 运行记录、事件、依赖、诊断、评论、任务更新 API)
+ * - @/store/useAgentStore、@/components/agent/builtin-agent-i18n (POS: 本地化的 Agent 列表)
+ * - ./resolveTaskDepInfos (POS: 依赖任务摘要解析)
+ * - ./useKanbanTaskDrawerAttachments、./useKanbanTaskDrawerWorkflow (POS: 附件与状态流转两个子 hook)
+ *
+ * [OUTPUT]
+ * - useKanbanTaskDrawer: 抽屉的全部数据与操作：加载运行记录、事件、依赖、诊断，保存评论、依赖、验收标准、技能、超时、模型、结果、审批开关，指派 Agent；并合并 workflow 与 attachments 两个子 hook 的返回值
+ *
+ * [POS]
+ * 任务抽屉的状态层。抽屉打开时加载，收到同一 task_id 的 kanban-task-updated 事件时刷新。
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useLocale } from 'next-intl';

@@ -1,3 +1,19 @@
+/**
+ * [INPUT]
+ * - @/services/kanban::TaskStatus, TaskPriority (POS: 看板 API 类型定义)
+ *
+ * [OUTPUT]
+ * - STATUS_COLUMNS: 看板列顺序
+ * - NEXT_STATUSES: 各状态可手动进入的下一状态候选
+ * - APPROVAL_EDITABLE_STATUSES: 仍可编辑 require_approval 的状态（与服务端校验一致）
+ * - OUTCOME_STYLES / EVENT_KIND_STYLES / PRIORITY_INDICATORS / PRIORITY_STYLES / STATUS_DOT / DIAGNOSTIC_SEVERITY_STYLES: 各类徽标样式
+ * - TIMEOUT_PRESETS: 任务超时预设
+ * - TaskDepInfo: 依赖任务摘要类型
+ * - formatDuration / formatTime / formatDate: 时长与时间格式化
+ *
+ * [POS]
+ * 看板组件共用的状态、优先级、事件样式常量和时间格式化；只放常量与无状态函数。
+ */
 import type { TaskStatus, TaskPriority } from '@/services/kanban';
 
 export const NEXT_STATUSES: Partial<Record<TaskStatus, TaskStatus[]>> = {

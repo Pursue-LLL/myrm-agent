@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - @/services/kanban::race* (POS: 赛马 API：车道、估算、启动、选胜者、改动文件)
+ * - @/store/useAgentStore、@/components/agent/builtin-agent-i18n (POS: 车道 Agent 名称)
+ * - ./kanban-styles::STATUS_DOT (POS: 状态圆点样式)
+ * - @/components/features/artifacts/renderers/DiffPreview (POS: 文件差异视图，选中文件时才加载)
+ *
+ * [OUTPUT]
+ * - RaceSection (default): 「赛马」区块：对同一任务并行起 2 到 5 条车道（可带指令变体，需确认成本），查看各车道结果与改动文件差异，选定胜者
+ *
+ * [POS]
+ * 任务抽屉里的赛马面板；只有 backlog / ready 且已有分支的任务能发起。有活跃车道时每 8 秒刷新，同时响应 kanban-task-updated 事件。
+ */
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';

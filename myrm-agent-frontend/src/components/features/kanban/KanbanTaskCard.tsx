@@ -1,3 +1,17 @@
+/**
+ * [INPUT]
+ * - @/services/kanban (POS: 运行记录、事件、依赖、评论 API)
+ * - @/lib/kanban/kanbanDecisionFrame::deriveTaskDecisionFrame (POS: 责任方与推荐动作推导)
+ * - ./kanban-styles、./KanbanMarkdown、./resolveTaskDepInfos (POS: 样式、富文本、依赖摘要)
+ * - ./KanbanTaskCardActions、./KanbanSpecifyDialog、./KanbanDecomposeDialog (POS: 卡片菜单与两个任务对话框)
+ * - @/hooks/agent/useAgentName (POS: Agent 显示名)
+ *
+ * [OUTPUT]
+ * - KanbanTaskCard (default): 看板列里的任务卡片：优先级、Agent、责任方与推荐动作，点击展开运行记录、事件、依赖与评论
+ *
+ * [POS]
+ * 任务在看板上的展示与快捷操作单元；展开详情在首次展开时才加载，完整编辑通过 onOpenTaskDrawer 交给任务抽屉。
+ */
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -19,7 +33,6 @@ import {
   addComment,
   addDependency,
   removeDependency,
-  getTask,
 } from '@/services/kanban';
 import {
   Clock,
@@ -47,6 +60,7 @@ import KanbanTaskCardActions from './KanbanTaskCardActions';
 import KanbanSpecifyDialog from './KanbanSpecifyDialog';
 import KanbanDecomposeDialog from './KanbanDecomposeDialog';
 import KanbanMarkdown from './KanbanMarkdown';
+import { resolveTaskDepInfos } from './resolveTaskDepInfos';
 import { useAgentName } from '@/hooks/agent/useAgentName';
 
 function ScheduledCountdown({ until }: { until: string }) {
@@ -128,27 +142,9 @@ export default function KanbanTaskCard({
       setRuns(runsRes.items);
       setEvents(eventsRes.items);
 
-      const resolveTaskInfos = async (ids: string[]): Promise<TaskDepInfo[]> => {
-        const infos: TaskDepInfo[] = [];
-        for (const id of ids) {
-          const local = allTasks.find((t) => t.task_id === id);
-          if (local) {
-            infos.push({ task_id: id, title: local.title, status: local.status });
-          } else {
-            try {
-              const remote = await getTask(id);
-              infos.push({ task_id: id, title: remote.title, status: remote.status });
-            } catch {
-              infos.push({ task_id: id, title: id.slice(0, 8), status: 'archived' });
-            }
-          }
-        }
-        return infos;
-      };
-
       const [parentInfos, childInfos] = await Promise.all([
-        resolveTaskInfos(depsRes.items),
-        resolveTaskInfos(childRes.items),
+        resolveTaskDepInfos(depsRes.items, allTasks),
+        resolveTaskDepInfos(childRes.items, allTasks),
       ]);
       setParents(parentInfos);
       setChildren(childInfos);

@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - @/services/kanban::listPipelines, getPipelineDetail, estimatePipeline, instantiatePipeline (POS: 流水线模板 API)
+ * - @/hooks/billing/useEntitlements (POS: 沙盒版 WU 余额)
+ * - @/lib/deploy-mode::isSandbox (POS: 部署模式判断)
+ *
+ * [OUTPUT]
+ * - KanbanPipelineWizard (default): 「从模板创建流水线」向导：选模板 -> 逐组回答问题（可选任务图变体，实时估算）-> 在看板上批量创建任务
+ *
+ * [POS]
+ * 看板头部入口打开的弹层；创建中不响应 Esc。估算在沙盒版显示 WU 与创建后余额，其余部署显示 token 估算。
+ */
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';

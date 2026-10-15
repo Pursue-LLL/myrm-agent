@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - ./kanban-styles::NEXT_STATUSES, STATUS_DOT (POS: 可进入的下一状态与状态圆点)
+ * - ./kanban-transitions::moveLabelKey (POS: 状态流转按钮文案)
+ * - @/services/agent::AgentListItem (POS: 回收时可改派的 Agent)
+ *
+ * [OUTPUT]
+ * - StatusActionsBar: in_review 的通过 / 驳回（驳回需填理由），下一状态按钮，running 的回收入口与回收面板（可改派 Agent），backlog -> ready 遇到未满足依赖时的强制确认
+ *
+ * [POS]
+ * 任务抽屉顶部的状态操作区；全部受控，状态与动作来自 useKanbanTaskDrawerWorkflow。
+ */
 'use client';
 
 import { cn } from '@/lib/utils/classnameUtils';

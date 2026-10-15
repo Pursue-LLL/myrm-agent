@@ -1,3 +1,13 @@
+/**
+ * [INPUT]
+ * - @/components/features/settings/sections/system/ExecutionTraceTimeline (POS: 执行轨迹时间线)
+ *
+ * [OUTPUT]
+ * - KanbanTaskExecutionTraceSection (default): 可折叠的任务执行轨迹，展开后才加载
+ *
+ * [POS]
+ * 任务抽屉里的执行轨迹区段：以 task_id 作 sessionId，不显示「保存为评测用例」入口；任务运行中每 30 秒刷新一次。
+ */
 'use client';
 
 import { memo, useState } from 'react';

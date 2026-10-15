@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - @/services/kanban::moveTask, promoteTask, reclaimTask, approveTask, rejectTask (POS: 任务状态流转 API)
+ * - ./kanban-transitions::resolveMoveIntent (POS: 判断移动是否属于重试或归档)
+ *
+ * [OUTPUT]
+ * - useKanbanTaskDrawerWorkflow: 抽屉里的状态流转动作：审批通过 / 驳回（驳回需理由）、移动、强制提升、回收（可带理由并改派 Agent）
+ *
+ * [POS]
+ * useKanbanTaskDrawer 的流转子 hook。重试与归档交回看板统一的确认流程；backlog -> ready 先做依赖检查，未满足时给出强制提升的选择。
+ */
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { KanbanTask, TaskStatus, PromoteResult } from '@/services/kanban';

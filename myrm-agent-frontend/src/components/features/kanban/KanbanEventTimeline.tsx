@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - ./kanban-styles::OUTCOME_STYLES, EVENT_KIND_STYLES, formatDuration, formatTime (POS: 结果与事件样式、时间格式化)
+ * - ./KanbanMarkdown (POS: 看板安全 Markdown 渲染)
+ * - @/services/kanban::TaskEvent, TaskRun (POS: 看板 API 类型定义)
+ *
+ * [OUTPUT]
+ * - KanbanRunHistory: 执行历史（每次运行的结果、耗时、token、费用、worker、摘要与错误）
+ * - KanbanEventTimeline: 事件时间线（按事件类型着色，附评论、心跳、分支切换等细节）
+ *
+ * [POS]
+ * 任务抽屉里的运行记录与事件流展示，纯展示组件，数据由抽屉传入。
+ */
 'use client';
 
 import { useTranslations } from 'next-intl';
