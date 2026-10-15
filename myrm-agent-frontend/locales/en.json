@@ -21426,6 +21426,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "Desktop permission check failed."
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "New memories are not being saved permanently."
           }
         }
       },

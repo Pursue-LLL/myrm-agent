@@ -20728,6 +20728,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "데스크톱 권한 확인에 실패했습니다."
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "새 기억이 영구적으로 저장되지 않고 있습니다."
           }
         }
       },

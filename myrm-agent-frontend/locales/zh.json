@@ -21426,6 +21426,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "桌面权限检查失败。"
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "新的记忆没有被永久保存。"
           }
         }
       },

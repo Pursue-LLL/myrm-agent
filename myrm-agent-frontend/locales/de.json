@@ -20728,6 +20728,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "Die Überprüfung der Desktop-Berechtigungen ist fehlgeschlagen."
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "Neue Erinnerungen werden nicht dauerhaft gespeichert."
           }
         }
       },

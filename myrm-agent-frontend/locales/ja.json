@@ -20728,6 +20728,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "デスクトップ権限の検査に失敗しました。"
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "新しい記憶が永続的に保存されていません。"
           }
         }
       },

@@ -20728,6 +20728,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "桌面許可權檢查失敗。"
+          },
+          "ERR_VECTOR_STORE_ON_MEMORY_FALLBACK": {
+            "message": "新的記憶沒有被永久儲存。"
           }
         }
       },
