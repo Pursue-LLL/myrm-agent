@@ -3332,6 +3332,7 @@ except Exception:
 4. 检测：`match_budget(n) = max(0.25, 0.5 秒 × n / 百万字符)`，`detect_async` 在 32 000 字符以内就地匹配、超过则 `asyncio.to_thread`（`regex` 包匹配 `str` 时释放 GIL）；`ingress.screen_user_text` 改用 `detect_async`，`detect_preview` 与单条匹配沿用同一预算。
 5. 前端：`services/riskHeldToast.ts` 是 `risk_held` 提示的单一出处（`parseRiskRules`、`showRiskHeldToast`、`showRiskHeldRefusal`）：规则名取设置页同一组语言包键，自定义规则回退它自己的名字，至多 3 个，停留 10 秒，指向「设置 → 安全策略 → 风控规则」；`api.ts` 的 `displayApiErrorToast` 在去重之前先交给 `showRiskHeldRefusal`；`riskEvents.ts` 与 `SubagentTree.tsx`（绕过 `apiRequest` 的 `fetchWithTimeout` 调用）复用它。
 6. 新增架构守卫 `tests/architecture/test_text_entry_risk_gate.py`：用 AST 登记 16 个入口各自必须调用的闸门、4 个闸门包装函数必须以 `screen_user_text` 收尾；新增接收用户指令文本的入口要在表里加一行。
+7. 触及文件里已有的 `mypy` 错误一并修掉：`subagents.py` 两处对弱引用的重复解引用与 `None` 判断、`background_tasks/router.py` 的 `chat_id` 取自自由格式元数据却直接传给 `str | None` 字段、`router_commands_modes.py` 的默认风格常量因 `self` 被标成宿主协议而取不到（改为模块级常量）、`router_host.py` 的 `PersonalityInfo` 协议缺少真实模板本来就有的 `description`、`set` 与 `frozenset` 混用。
 
 ### 验证
 
@@ -3344,13 +3345,15 @@ except Exception:
 
 ### 局限
 
-1. 有意不筛的入口：定时任务 `shell` 命令与看板 `shell` 验收标准（是被执行的命令，不是模型读的文本）、任务的 `result` / `blocked_reason`（是输出，不是指令）、语音实时通道、OpenAI 兼容的 `/v1/chat/completions`、偏好与档案文本；`_ARCH.md` 里记了原因。
-2. 只筛请求里带来的字段：库里已有的旧数据不被重新检查。
-3. 反斜杠转义的 JSON 赋值（`{\"password\":\"…\"}`）仍不被拦，与 `BUG-AGENT-2026-10-15-004` 的局限 7 相同；长度超过 64 个字符的赋值值同样不拦（该条局限 1），本条没有改规则。
-4. 5 MB 以上的无害粘贴现在不再被误拦，但总耗时随长度线性增长（20 MB 约 5 秒，在工作线程上）；单条规则超过预算仍按命中处理，回溯型自定义规则只会被拦、不会卡住循环。
-5. 调用方自己的 `catch` 里仍可能再弹一条通用失败提示（现有模式，未逐个核对每个调用点）；没有在真实浏览器与真实 IM 平台里端到端验证；`SubagentTree.tsx` 543 行，超过 500 行上限，是本条之前就有的，没有拆。
-6. 服务端引用了 harness 里尚未发布的 `secret_value_span` 与 `is_reference_token`（见 `BUG-AGENT-2026-10-15-004` 局限 6），发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行。提示词没有改动。
-7. 上面第 3 条的 2 个失败测试属于他人的未提交改动或已提交代码里原有的问题，本条没有修。
+1. 覆盖范围是登记表里的 16 个入口，不是「所有用户输入文本的入口」。对 `app/api` 下全部 POST / PUT / PATCH 处理函数做 AST 扫描（请求模型含 `prompt` / `instruction` / `message` / `description` / `objective` / `content` / `text` / `query` / `comment` / `goal` 等字符串字段），得到 310 个未过闸的候选，大部分是记忆、技能、安全、统计与实验性接口的数据或查询字段。人工筛出其中属于「用户在输入框里敲的、之后被智能体读取或执行」的：已提交的有批量目录 `prompt`（`batch_directory/router.py:38`）、智能体档案的 `system_prompt` / `description` / `suggestion_prompts` / `acceptance_criteria`（`agents/agent.py` 的创建与 `:162` 的更新）、目标的子目标 `text`（`goals/router.py:128`）与草拟 `objective`（`goals/router.py:310`）、事件触发的 `message`（`cron/routes/triggers.py:37`）；他人在途、未提交的新路由里有任务中断指令（`tasks/timeline_router.py:108`）、群聊消息（`chats/group_chat_router.py:79`）、子智能体监管 / 输入 / 多路复用器的指令端点（`agents/subagent_hub_router.py:91`、`subagent_lifecycle_router.py:147`、`agent_multiplexer_router.py:99`）。这些本条都没有接入，也没有登记。
+2. 有意不筛的入口：定时任务 `shell` 命令与看板 `shell` 验收标准（是被执行的命令，不是模型读的文本）、任务的 `result` / `blocked_reason`（是输出，不是指令）、语音实时通道、OpenAI 兼容的 `/v1/chat/completions`、偏好与档案文本；`_ARCH.md` 里记了原因。
+3. 只筛请求里带来的字段：库里已有的旧数据不被重新检查。
+4. 反斜杠转义的 JSON 赋值（`{\"password\":\"…\"}`）仍不被拦，与 `BUG-AGENT-2026-10-15-004` 的局限 7 相同；长度超过 64 个字符的赋值值同样不拦（该条局限 1），本条没有改规则。
+5. 5 MB 以上的无害粘贴现在不再被误拦，但总耗时随长度线性增长：20 MB 实测约 5 秒（在工作线程上），而全局请求体上限是 15 MB（`app/server/middlewares.py:33`），所以单次请求占用的工作线程时间低于这个数；单条规则超过预算仍按命中处理，回溯型自定义规则只会被拦、不会卡住循环。
+6. 前端：目标 objective 被拒时 `GoalStatusCard.tsx` 的 `catch` 仍只弹通用的 `objectiveUpdateFailed`（`useGoalStore.ts` 用 `fetchWithTimeout` 并把响应文本拼进 `Error`；两个文件都有他人未提交的改动，本条没动）；`BackgroundTasksPanel.tsx` 的 steer 失败会在统一提示之外再弹一条 `steerFailed`，其余调用点未逐个核对；提示标题「消息已被风控规则拦截」对保存定时任务、看板卡片这类动作措辞偏窄（6 种语言包共用同一个键）；没有在真实浏览器与真实 IM 平台里端到端验证；`SubagentTree.tsx` 543 行，超过 500 行上限，是本条之前就有的，没有拆。
+7. 命中记录的 `session_id` 现在也可能是看板、任务或定时任务的 id：该列没有外键，`RiskRulesHitsPanel` 不展示它，记录里无法区分来源。
+8. 服务端引用了 harness 里尚未发布的 `secret_value_span` 与 `is_reference_token`（见 `BUG-AGENT-2026-10-15-004` 局限 6），发布 harness 并执行 `./myrm harness sync-lock` 之前 OSS 的锁定安装无法导入；发版由维护者执行。提示词没有改动。
+9. 验证第 3 条里的 2 个失败测试属于他人的未提交改动或已提交代码里原有的问题，本条没有修。
 
 ### 踩坑经验
 

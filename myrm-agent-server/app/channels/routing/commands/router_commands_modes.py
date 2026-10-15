@@ -27,6 +27,7 @@ from app.channels.routing.router_keys import routing_session_key
 from app.channels.types import InboundMessage, OutboundMessage
 
 _ALL_PERSONALITY_KEYS: frozenset[str] = frozenset(PERSONALITY_TEMPLATES.keys())
+_DEFAULT_STYLE = "professional"
 
 logger = logging.getLogger("app.channels.routing.router")
 
@@ -108,9 +109,6 @@ class RouterCommandsModesMixin:
         )
         await self._bus.publish_outbound(reply)
 
-    _DEFAULT_PERSONALITY_STYLES: frozenset[str] = frozenset(_ALL_PERSONALITY_KEYS)
-    _DEFAULT_STYLE = "professional"
-
     async def _handle_personality_command(
         self: RouterCommandsHost,
         msg: InboundMessage,
@@ -128,15 +126,13 @@ class RouterCommandsModesMixin:
         # Dynamic style discovery: prefer provider, fallback to built-in defaults
         if provider:
             templates = provider.list_all()
-            valid_styles = {t.name for t in templates}
+            valid_styles = frozenset(t.name for t in templates)
             default_style = (
-                self._DEFAULT_STYLE
-                if self._DEFAULT_STYLE in valid_styles
-                else (templates[0].name if templates else self._DEFAULT_STYLE)
+                _DEFAULT_STYLE if _DEFAULT_STYLE in valid_styles else (templates[0].name if templates else _DEFAULT_STYLE)
             )
         else:
-            valid_styles = self._DEFAULT_PERSONALITY_STYLES
-            default_style = self._DEFAULT_STYLE
+            valid_styles = _ALL_PERSONALITY_KEYS
+            default_style = _DEFAULT_STYLE
 
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_session_key(msg.channel, chat_id)

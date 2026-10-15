@@ -1,4 +1,4 @@
-"""Architecture test: every entry that takes text a user typed for an agent to act on screens it first.
+"""Architecture test: the entries listed here screen the text a user typed before they store or deliver it.
 
 A secret that gets past one entry is stored (a cron prompt, a task card) or delivered (a steer) as if no rule existed.
 Each entry below must call the gate that fits it, and every gate must end in ``screen_user_text``, the single place

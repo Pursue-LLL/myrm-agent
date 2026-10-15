@@ -157,6 +157,7 @@ async def _list_agent_tasks() -> list[BackgroundTaskResponse]:
                     break
 
         meta = task.metadata or {}
+        meta_chat_id = meta.get("chat_id")
         results.append(
             BackgroundTaskResponse(
                 kind="agent",
@@ -166,7 +167,7 @@ async def _list_agent_tasks() -> list[BackgroundTaskResponse]:
                 created_at=created_at,
                 completed_at=completed_at,
                 result_preview=result_text,
-                chat_id=meta.get("chat_id"),
+                chat_id=meta_chat_id if isinstance(meta_chat_id, str) else None,
             )
         )
 
