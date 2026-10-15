@@ -11,9 +11,6 @@ from app.api.memory import onboarding
 from app.api.memory.budget_packing_router import (
     router as budget_packing_router,
 )
-from app.api.memory.conversation_lineage_defense_router import (
-    router as conversation_lineage_defense_router,
-)
 from app.api.memory.ephemeral_delta_router import (
     router as ephemeral_delta_router,
 )
@@ -122,10 +119,6 @@ router.include_router(
 router.include_router(
     temporal_graph_router,
     tags=["memory-temporal-graph"],
-)
-router.include_router(
-    conversation_lineage_defense_router,
-    tags=["memory-lineage-defense"],
 )
 router.include_router(
     ephemeral_delta_router,

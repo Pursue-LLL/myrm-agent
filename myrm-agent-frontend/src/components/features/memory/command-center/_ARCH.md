@@ -39,9 +39,6 @@
 | `TemporalKnowledgeGraphCard.tsx` | 核心 | 时序知识图谱衰减与互斥事实原子消解卡片：深度借鉴 mem/graphiti 与 mem/OpenViking，时序边失效、互斥事实原子消解 superseded_by 与 30 天指数半衰期动态衰减评分 | ✅    |
 | `TemporalGraphEvolutionTimelineView.tsx` | 辅助 | 时序关系演进子组件：呈现有效关系/已失效历史边演进时间线、前序-后继版本谱系追溯与冲突消解表单 | ✅    |
 | `TemporalDecayScorerConsoleView.tsx` | 辅助 | 半衰期衰减与实体节点管理子组件：半衰期动态衰减评分探针计算器、实体节点管理列表与新建节点表单 | ✅    |
-| `ConversationLineageDefenseCard.tsx` | 核心 | 会话血统代际去重与自动化降权卡片：深度汲取 Hermes Agent PR #19434，来源感知降权破除高频 Cron 召回盲区、血统根去重消除多代冗余、非对称渐进水合削减 70%+ Token | ✅    |
-| `ConversationLineageDedupView.tsx` | 辅助 | 血统去重视图子组件：呈现 lineage_root_id 家族代表世代、折叠历史祖先切片展开与演化谱系 | ✅    |
-| `AutomationDemotionAuditConsoleView.tsx` | 辅助 | 自动化降权控制台子组件：呈现来源降权系数调优、Top-1 展开视窗 vs Top-2..N 紧凑卡片与 Token 节约报告 | ✅    |
 | `PromptCachePreservingDeltaCard.tsx` | 核心 | 会话内记忆更新检视：稳定 system 前缀 + human 尾部的布局预览；默认绑定当前聊天 session；命中率见聊天上下文环，此处不展示伪造百分比 | ✅    |
 | `EphemeralDeltaLiveInspectorView.tsx` | 辅助 | 瞬态增量实时检视子组件：呈现活跃增量列表、交互式用户修正录入表单、LWW 重写覆盖与前缀哈希校验 | ✅    |
 | `PromptCacheConsolidationView.tsx` | 辅助 | 缓存一致性与归档子组件：双轨预览、一键归档落库；HUD 仅展示后端遥测，无数据时显示占位符 | ✅    |

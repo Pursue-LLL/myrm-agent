@@ -16,7 +16,6 @@ export * from './memory/onboardingInsight';
 export * from './memory/privateNotebook';
 export * from './memory/fourTierFts';
 export * from './memory/temporalGraph';
-export * from './memory/conversationLineageDefense';
 export * from './memory/ephemeralDelta';
 export * from './memory/twoLayerDialectic';
 export * from './memory/budgetPacking';

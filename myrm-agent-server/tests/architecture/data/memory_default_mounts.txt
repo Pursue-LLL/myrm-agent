@@ -25,7 +25,6 @@ onboarding.router
 private_notebook_router
 four_tier_fts_router
 temporal_graph_router
-conversation_lineage_defense_router
 ephemeral_delta_router
 two_layer_dialectic_router
 budget_packing_router

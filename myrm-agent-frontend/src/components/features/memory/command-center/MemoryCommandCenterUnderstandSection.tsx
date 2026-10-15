@@ -27,7 +27,6 @@ import { FirstEncounterReportCard } from './FirstEncounterReportCard';
 import { PrivateNotebookCard } from './PrivateNotebookCard';
 import { FourTierPersistentMemoryCard } from './FourTierPersistentMemoryCard';
 import { TemporalKnowledgeGraphCard } from './TemporalKnowledgeGraphCard';
-import { ConversationLineageDefenseCard } from './ConversationLineageDefenseCard';
 import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
 import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
@@ -61,7 +60,6 @@ export const UnderstandSection = ({
     <PrivateNotebookCard />
     <FourTierPersistentMemoryCard />
     <TemporalKnowledgeGraphCard />
-    <ConversationLineageDefenseCard />
     <PromptCachePreservingDeltaCard defaultChatId={defaultChatId} />
     {isMemoryLabsEnabled() ? <TwoLayerDialecticStudioCard /> : null}
     <BudgetGreedyPackingStudioCard />
