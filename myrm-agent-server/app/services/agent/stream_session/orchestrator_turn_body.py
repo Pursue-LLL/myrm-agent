@@ -24,9 +24,6 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from fastapi import Request
-from myrm_agent_harness.agent.middlewares.approval.scheduler import (
-    ApprovalTimeoutScheduler,
-)
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
     CancellationToken,
@@ -146,20 +143,6 @@ async def execute_agent_turn_after_reserve(
                     request.chat_id,
                     decision=decision,
                 )
-
-            if request.chat_id:
-                if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
-                    logger.warning(
-                        "Resume rejected (timeout already resolved): chat_id=%s",
-                        request.chat_id,
-                    )
-                    await record_terminal_failure("unknown_error")
-                    await fail_buffered_turn(
-                        buffer,
-                        request.message_id,
-                        "This HITL request has already been resolved by timeout.",
-                    )
-                    return
 
             logger.info(
                 "Resume mode: chat_id=%s, decision=%s",

@@ -3473,3 +3473,51 @@ except Exception:
 2. 测试里的 `DndContext` 用默认传感器与线上不同，测的就不是线上行为：把传感器换掉后，原来「通过」的勾选框用例立刻红了，才发现它们一直在用 `PointerSensor`。
 3. 无头浏览器里「第一次手势没动」先找对照再下结论：我之前据此判断过卡片挡住了滚动，换成空白页、预热、闲置对照后才发现是页面加载后的短暂现象。
 4. 上调一个限制之前先量它守着什么：批量上限看似只是个数字，实际是请求时长的上界，无 worktree 的耗时不能代表有 worktree 的耗时。
+
+## BUG-AGENT-2026-10-15-012: 审批已被超时计时器处理后用户再点「批准 / 拒绝」，服务端受理响应之后才发现，只能在流里写一条英文错误帧，网页的「审批已过期」提示与卡片移除走不到；目标分支暂存绕过 harness 的公共接口，直接取私有属性与私有常量并手写键
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-15（对「审批超时计时器与手动处理二选一」做竞品对照，再按前后端契约逐条核对） |
+| 修复日期 | 2026-10-15 |
+| 严重程度 | P3（只有在计时器到点的同一时刻点击才会触发，后果是提示不对，不是数据错；第 2 项无运行时影响） |
+| 影响范围 | server：`app/services/agent/stream_session/{orchestrator.py,orchestrator_turn_body.py,_ARCH.md}`、`app/services/agent/goals/{goal_branch_stash.py,goal_registry.py,_ARCH.md}`、`app/services/agent/gateway.py`、`app/core/channel_bridge/goal_handler.py`、`app/services/kanban/task_ops.py`、`app/server/lifespan.py`、`app/api/mcp/endpoint.py`；测试：`tests/services/agent/stream_session/test_orchestrator_launch_handoff.py`、`tests/unit/services/agent/test_stream_resume_dependencies.py`、`tests/services/agent/test_goal_branch_stash.py`；frontend 仅加测试：`src/lib/approval/__tests__/resumeApprovalStream.test.ts`、`src/services/__tests__/resumePlanConfirmStream.test.ts` |
+| 出现次数 | 未测量（没有线上记录，也没有可统计的埋点；第 1 项的触发窗口只有计时器到点前后的几秒） |
+| 关联 | `BUG-AGENT-2026-10-15-010`（第 2 项：清理任务不再广播恢复，超时恢复只由 harness 计时器完成，本条的二选一就建立在这一点上）；提交 `9e088ef76d`（第 2 项）与含本条的提交（第 1 项），本地提交，未 push |
+
+### 现象
+
+1. 审批带超时：harness 的 `ApprovalTimeoutScheduler` 到点以「Auto-rejected: approval timeout」自动恢复回合；用户同时点「批准 / 拒绝」时两边靠 `resolve_if_first(chat_id)` 二选一，输家不能再把回合跑一遍。手动一方输了的时候，网页端本来的约定是 HTTP 409：`resumeApprovalStream.ts:72` 遇到 409 抛 `ApprovalExpiredError`，`useToolApprovalResolve.ts:104,149` 与 `ApprovalDrawer.tsx:71,146` 接住后弹本地化的 `approvalExpired` 提示并移除审批卡；计划确认卡在 `chat.ts:1230-1231` 同样按 409 处理。服务端的 409 在提交 `ab896f588f`（2026-06-28）加入，在提交 `1788bc35e6`（2026-08-04）把受理拆成「先答复再后台跑回合」时丢了：判断被挪进受理之后的 `orchestrator_turn_body.py`，改成向已经打开的 SSE 写一条英文 error 帧（「This HITL request has already been resolved by timeout.」）。前端没有跟着改，上面这些处理成了走不到的路径；拆分当时没有任何测试覆盖过期分支，所以没有红。用户这时实际看到什么是读码推断，没有在浏览器里验证：帧内错误不经过 `ApprovalExpiredError`，所以本地化提示与移除卡片都不会发生。
+2. 目标分支暂存：`goal_registry.py` 通过 `provider._storage._storage` 与私有常量 `_GOAL_NAMESPACE` 手写出 `goals_stash/{session}/{branch}` 的键。键布局的所有者是 harness，它在 `GoalStorage` 里已经公开了 `get_stash` / `save_stash` / `delete_stash`（`storage.py:196-233`）；测试也用同一条手写键造数据，布局一变，生产与测试一起错而不报。`goal_registry.py` 为 438 行，超出 400 行上限。
+
+### 根因
+
+1. 重构只搬了判断，没有先列出「谁在读受理前的状态码」：这个约定只写在前端和旧代码里，服务端没有测试固定它，所以只有一端改动时没有任何东西变红。
+2. 键布局的拥有者与使用者之间已经有公开接口，却没有被使用；测试复制了实现里的键，起不到约束作用。
+
+### 修复
+
+1. `orchestrator.py` 在 `try_reserve` 成功之后、受理响应之前，对 resume 调用 `resolve_if_first`；输家返回 HTTP 409（`{"detail": ...}`），登记 `unknown_error` 终态失败，`finally` 照常释放预占。`orchestrator_turn_body.py` 里受理之后的分支删除。不选「在帧内带 `status_code: 409` 的 error 帧」：`isAgentBusySseEvent`（`streamErrors.ts:29-36`）把任何帧内 409 当作忙碌，「已过期」会被显示成「智能体忙」。`_ARCH.md` 与文件头同步。前端代码没有改动。
+2. 分支暂存拆成新文件 `goal_branch_stash.py`（260 行，对外四个函数：`get_current_git_branch`、`check_and_handle_branch_stash`、`start_branch_watcher`、`stop_branch_watcher`），`goal_registry.py` 降到 240 行并新增 `session_ids()`；暂存只经 `GoalStorage(storage)` 的公开方法读写。「有没有暂存」改为 `get_stash(...) is not None`：读不出来的坏暂存按「没有暂存」处理，当前目标迁移到新分支，而不是停在一个恢复不了的暂存后面（这是行为变化，有测试固定）。`gateway.py` 的两个会话 getter 补了返回类型，`mcp/endpoint.py` 里因此多余的一处 `type: ignore` 去掉；`goal_handler.py` 里一处已有的 mypy 错误顺手修掉。
+
+### 验证
+
+1. server 新增 4 例：已被超时处理的 resume 返回 409 且不启动回合；两次 resume 只有第一次到达启动器；被拒的 resume 记为失败回合（`unknown_error`）；新回合不碰超时仲裁器。把 `orchestrator.py` 临时换回 HEAD 的版本，前三例失败（第四例是防护用例，本来就应通过），换回后 `tests/services/agent/stream_session` 加依赖测试共 262 通过。
+2. frontend 新增 4 例：409 抛 `ApprovalExpiredError` 且不进入流处理；其它 HTTP 失败仍是普通错误；计划确认 409 抛「Plan confirmation has already been resolved by timeout」，其它状态码带状态。前端代码没有改，这几例在当前前端上本来就通过，作用是第一次钉住这条之前没有测试的契约，不是修复前后的红绿对照。`resumeApprovalStream.test.ts` 与新文件共 5 例通过；`oxlint` 退出码 0，`prettier --check` 通过，`tsc --noEmit` 没有这两个文件的错误。
+3. 第 2 项：`test_goal_branch_stash.py` 重写为 8 例并全部通过（按分支暂存与恢复、无暂存时迁移、坏暂存按无暂存、分支未变不动作、事件发布、读取当前分支、`session_ids`、监视器在 `.git/HEAD` 变化后触发并能停止）；坏暂存用例用公开的 `save_stash` 造数据再破坏存储里的值。`tests/services/agent`、`kanban`、`test_gateway.py`、`tests/api/mcp`、`tests/server` 共 1746 通过、2 失败，这 2 个失败与本条无关（`test_deep_research_wiki_vault.py::test_vault_research_blocks_credential_content`、`test_task_runner.py::TestBuildMultimodalRealExtraction::test_extract_enabled_empty_pdf_falls_back_to_reference`，都在他人未提交的在制品里）；`tests/core/channel_bridge -k goal` 17 通过；`goal_branch_stash.py` 与 `goal_registry.py` 的 mypy 为 0 错误；触及文件的 `ruff check`、`ruff format --check` 通过。
+
+### 局限
+
+1. 没有在浏览器里端到端跑「409 → 本地化提示 → 卡片移除」：前端这一段是读码确认加单元测试，不是实际点击。
+2. 线上触发频率没有测量。
+3. 计时器的恢复回调正在运行时用户点击：命中的应是会话预占（忙碌提示）而不是 409，这个窗口没有验证。
+4. 迟到的浏览器接管点击现在先被 409 拒绝，早于 `resolve_pending_browser_takeover_for_chat`（`registry.py:362`），那条记录保持 `PENDING`，由清理任务定案为 `TIMEOUT`；此前它会先被标成已处理再被拒。这是有意的改变，没有对应测试；计时器是否会为接管记录计时也没有核实。
+5. 已过期但还没被每 5 分钟一次的清理任务扫到的 `PENDING` 记录，仍被 `count_pending_for_chat`（`registry.py:288-303`，没有 `expires_at` 过滤）计入，新回合最多被「智能体忙」挡 5 分钟（`orchestrator.py:183-196`）。用最小复现验证过，本条没有改代码，已记入路线图第 203 项。
+6. `resolve_if_first` 在启动回合之前就消耗了键，这一点与拆分之前一致；`gateway.py` 里其它已有的 `no-any-return` 等 mypy 错误没有处理；预检查给首字节增加的耗时没有测量（它是内存里的一次查找，旁边本来就有一次数据库查询）。
+
+### 踩坑经验
+
+1. 把「受理前的判断」挪到受理之后，等于把状态码换成了帧内错误：动手前要先列出谁在读这个状态码，契约只有一端有测试时，另一端的改动不会让任何东西变红。
+2. 回归出在哪个提交，必须用 `git log -S` 与 diff 核实后再写：这次最初把 409 的删除记到了另一个提交上，核对后才找到 `1788bc35e6`。
+3. 测试与实现共用一条手写的键，布局漂移就测不出来：造数据要走公开接口，造坏数据则直接破坏存储里的值。
+4. 遗留的无类型模型会让 mypy 把查询结果推成 `Never`，标注结果类型（`Result[tuple[str, str]]`）比逐层加 `ignore` 干净。

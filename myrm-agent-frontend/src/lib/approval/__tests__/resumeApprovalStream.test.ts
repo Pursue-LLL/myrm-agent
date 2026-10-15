@@ -55,6 +55,13 @@ function buildRequest(): ToolApprovalRequest {
   };
 }
 
+function conflictResponse(): Response {
+  return new Response(JSON.stringify({ detail: 'This approval has already been resolved by timeout.' }), {
+    status: 409,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 function sseBusyResponse(): Response {
   const body = 'data: {"type":"error","error_type":"AgentBusyError","status_code":409}\n\n';
   return new Response(body, {
@@ -80,5 +87,27 @@ describe('resumeApprovalStream', () => {
     );
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
+  });
+
+  it('throws ApprovalExpiredError when the timeout already answered the approval (HTTP 409)', async () => {
+    mockCreateAISearchStream.mockResolvedValue(conflictResponse());
+
+    const { resumeApprovalStream, ApprovalExpiredError } = await import('../resumeApprovalStream');
+
+    await expect(resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed')).rejects.toBeInstanceOf(
+      ApprovalExpiredError,
+    );
+
+    expect(mockHandleMessageStream).not.toHaveBeenCalled();
+  });
+
+  it('keeps other HTTP failures as plain errors', async () => {
+    mockCreateAISearchStream.mockResolvedValue(new Response('boom', { status: 500 }));
+
+    const { resumeApprovalStream, ApprovalExpiredError } = await import('../resumeApprovalStream');
+
+    const failure = resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed');
+    await expect(failure).rejects.toThrow('Approval resume failed: HTTP 500');
+    await expect(failure).rejects.not.toBeInstanceOf(ApprovalExpiredError);
   });
 });

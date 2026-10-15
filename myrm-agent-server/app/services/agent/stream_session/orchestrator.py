@@ -4,9 +4,10 @@
 - app.services.agent.params (POS: request conversion)
 - app.services.agent.stream_session.orchestrator_turn_launch (POS: E1 accept phase, starts the background turn and answers the client)
 - app.services.agent.stream_session.orchestrator_turn_body (POS: write-ahead interrupted-turn marker written by the turn)
+- myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: first-resolver arbitration between the approval timeout timer and a manual resume)
 
 [OUTPUT]
-- run_agent_stream: validation + reserve + early StreamingResponse | JSONResponse
+- run_agent_stream: validation + reserve + already-resolved resume refusal (HTTP 409) + early StreamingResponse | JSONResponse
 
 [POS]
 Service-layer stream orchestration entry. Pre-reserve validation stays synchronous; post-reserve turn runs in the background (`orchestrator_turn_launch` starts it, `orchestrator_turn_body` is the turn) so clients receive live SSE during pre-reply compact.
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     from app.ai_agents import GeneralAgentParams
 
 from fastapi.responses import JSONResponse, StreamingResponse
+from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
 from app.services.agent.params import (
     AgentRequest,
@@ -203,6 +205,17 @@ async def run_agent_stream(
         )
         if busy_error is not None:
             return agent_busy_streaming_response(request.message_id)
+
+        # The harness timer and this manual resume race for one approval; the loser must not run the turn again.
+        # Refused here, before the response is accepted, so the client gets a status code it can act on.
+        if request.resume_value is not None and request.chat_id:
+            if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
+                logger.warning("Resume rejected (timeout already resolved): chat_id=%s", request.chat_id)
+                await _record_terminal_failure_if_needed("unknown_error")
+                return JSONResponse(
+                    status_code=409,
+                    content={"detail": "This approval has already been resolved by timeout."},
+                )
 
         buffer = await registry.get_or_create(request.message_id)
         from app.services.agent.stream_session.orchestrator_turn_launch import (
