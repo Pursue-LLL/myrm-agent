@@ -27,7 +27,7 @@ interface RunBulkActionOptions {
 
 /**
  * 单次请求携带的任务数上限，等于服务端 `BulkActionRequest.task_ids` 的 100 条上限。服务端逐条处理是毫秒级：
- * 归档带分支的任务时清理 worktree、移到「已完成」时合并分支都转到后台执行，不占用请求，所以无需再把分段压小。
+ * 归档带分支的任务时清理 worktree、移到「已完成」时合并分支都在后台执行，不占用请求，分段只受这个上限约束。
  */
 export const BULK_CHUNK_SIZE = 100;
 
