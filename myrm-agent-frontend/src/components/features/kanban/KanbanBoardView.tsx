@@ -1,16 +1,17 @@
 /**
  * [INPUT]
- * - ./useKanbanDnD (POS: 看板拖拽逻辑层)
- * - ./useKanbanAddTask (POS: 看板新增任务表单逻辑层)
- * - ./useKanbanSelection (POS: 看板卡片多选状态层)
- * - ./KanbanDndComponents::KanbanDropColumn (POS: 看板 DnD 渲染组件层)
+ * - ./useKanbanBoardData、./useKanbanMoveTask、./useKanbanSelection、./useKanbanLanes、./useKanbanAddTask (POS: 看板数据、移动、多选、泳道、新增表单各自的状态层)
+ * - ./useKanbanDnD、./KanbanDndComponents::KanbanDropColumn (POS: 拖拽逻辑与 DnD 渲染层)
+ * - ./useKanbanTaskActions、./KanbanTaskActionConfirm (POS: 回收 / 删除 / 重试 / 归档的执行与统一确认)
+ * - ./KanbanBoardHeader、./KanbanBoardStats、./KanbanViewControls、./KanbanFilterBanners、./KanbanColumnAddFooter、./KanbanMoveConfirmDialogs、./KanbanBulkActionBar (POS: 标题、统计、视图切换、筛选提示、列底部新增、移动确认框、批量工具栏)
  * - @/services/kanban (POS: 看板 API 层)
  *
  * [OUTPUT]
- * - KanbanBoardView: 看板主视图组件（列布局 + DnD + 批量操作 + 依赖图 tab + Agent 泳道切换）
+ * - KanbanBoardView: 看板主视图组装层（列布局 + DnD 上下文 + board / graph / activity 标签切换 + 抽屉、向导、重规划入口）
  *
  * [POS]
- * 看板全功能主视图。整合拖拽、批量操作、任务 CRUD、模板创建、规范化、Agent 泳道状态管理等所有看板交互。
+ * 只做组装：数据、移动、选择、泳道与新增表单分别由各自的 hook 持有，界面片段由独立组件渲染，
+ * 本文件把它们接在一起并负责跨片段的联动（例如批量移动结束后让被拒的卡片保持选中）。
  */
 'use client';
 
