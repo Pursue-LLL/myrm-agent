@@ -25,7 +25,6 @@
 | `MemoryEconomicsPanel.tsx`              | 核心 | 长程有状态任务记忆经济学剖析面板：三阶段开销、ROI 轨迹与沉睡治理 | ✅    |
 | `MemoryEconomicsKpiCards.tsx`           | 辅助 | 经济学面板指标卡片子组件：三阶段时延细分、前缀缓存保持率与 ROI   | ✅    |
 | `MemoryParasiticGovernanceList.tsx`     | 辅助 | 经济学面板沉睡治理子组件：低效沉睡记忆列表、单条与批量归档操作   | ✅    |
-| `FourLayerPromotionAuditCard.tsx`       | 核心 | 四层记忆架构与三通道晋升审计面板：两步压缩方法卡、证据链接、规则遵守契约与原子回滚 | ✅    |
 | `EbbinghausLifecycleCard.tsx`           | 核心 | 艾宾浩斯遗忘衰减与分层生命周期流转卡片：三级水槽 HUD、周期评估迁移、冷记忆唤醒与冷库探针 | ✅    |
 | `ColdArchiveRecordsView.tsx`            | 辅助 | 艾宾浩斯生命周期卡片子组件：呈现 COLD 冷存储归档数据切片与访问频次时间戳 | ✅    |
 | `SovereignMigrationInspectorCard.tsx`   | 核心 | 全量数字资产主权打包、跨机无损还原与多源迁入卡片：.myrmpkg 加密便携导出、路径解绑重映射与竞品智能体迁入 | ✅    |

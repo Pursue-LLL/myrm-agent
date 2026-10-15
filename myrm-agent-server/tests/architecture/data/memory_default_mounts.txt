@@ -18,7 +18,6 @@ tool_guidance.router
 external_transcripts.router
 domain_mesh.router
 profile_notes_router
-four_layer_promotion_router
 decay_lifecycle_router
 memory_migration_router
 radar.router

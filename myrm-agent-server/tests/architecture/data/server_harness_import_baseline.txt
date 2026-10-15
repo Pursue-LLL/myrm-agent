@@ -457,7 +457,6 @@ myrm_agent_harness.toolkits.memory.strategies.consolidation
 myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback
 myrm_agent_harness.toolkits.memory.strategies.extraction_domain
 myrm_agent_harness.toolkits.memory.strategies.extractor
-myrm_agent_harness.toolkits.memory.strategies.four_layer_promotion
 myrm_agent_harness.toolkits.memory.strategies.implicit_feedback
 myrm_agent_harness.toolkits.memory.strategies.pattern_discovery
 myrm_agent_harness.toolkits.memory.strategies.preference_stability

@@ -21,9 +21,6 @@ from app.api.memory.ephemeral_delta_router import (
     router as ephemeral_delta_router,
 )
 from app.api.memory.follow_ups import router as follow_ups_router
-from app.api.memory.four_layer_promotion_router import (
-    router as four_layer_promotion_router,
-)
 from app.api.memory.four_tier_fts_router import (
     router as four_tier_fts_router,
 )
@@ -109,7 +106,6 @@ router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
 router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
 router.include_router(profile_notes_router, tags=["memory-profile-notes"])
-router.include_router(four_layer_promotion_router, tags=["memory-four-layer-promotion"])
 router.include_router(decay_lifecycle_router, tags=["memory-decay-lifecycle"])
 router.include_router(memory_migration_router, tags=["memory-sovereign-migration"])
 
