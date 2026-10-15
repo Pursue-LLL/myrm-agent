@@ -62,13 +62,12 @@ export default function DirectoryApprovalInput({
     onAnswered?.();
   };
 
-  // An answer that arrives after the timeout already declined the request is not a failure: the card closes. The
-  // refresh may land before that run persisted its result, so the card is closed again once the stored row replaces it.
+  // An answer that arrives after the timeout already declined the request is not a failure: the card closes.
   const reportAnswerError = (error: unknown) => {
     if (error instanceof ApprovalExpiredError) {
       markAnswered();
       toast.warning(t('expired'));
-      void refreshOpenChatTranscript(chatId).then(markAnswered);
+      void refreshOpenChatTranscript(chatId);
       return;
     }
     console.error('Failed to answer directory access request:', error);

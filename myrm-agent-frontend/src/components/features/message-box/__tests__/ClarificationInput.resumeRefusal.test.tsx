@@ -6,7 +6,7 @@
  * turn that does not exist. Runs the real card against the real store, replacing only the request pipeline.
  */
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -85,7 +85,6 @@ describe('ClarificationInput resume', () => {
 
   it('closes the card, says the wait ran out and pulls in what the timeout continued with', async () => {
     pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
-    transcript.refreshOpenChatTranscript.mockResolvedValue();
 
     skipClarification();
 
@@ -93,25 +92,5 @@ describe('ClarificationInput resume', () => {
     expect(toast.warning).toHaveBeenCalledWith('expired');
     expect(toast.error).not.toHaveBeenCalled();
     expect(transcript.refreshOpenChatTranscript).toHaveBeenCalledWith('chat-1');
-  });
-
-  it('keeps the card closed when the refresh brings back a stored row that is not yet marked answered', async () => {
-    pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
-    let landStoredRow: () => void = () => {};
-    transcript.refreshOpenChatTranscript.mockReturnValue(
-      new Promise<void>((resolve) => {
-        landStoredRow = () => {
-          useChatStore.setState({ messages: [structuredClone(pendingClarification)] });
-          resolve();
-        };
-      }),
-    );
-
-    skipClarification();
-    await waitFor(() => expect(transcript.refreshOpenChatTranscript).toHaveBeenCalled());
-
-    await act(async () => landStoredRow());
-
-    expect(isAnswered()).toBe(true);
   });
 });

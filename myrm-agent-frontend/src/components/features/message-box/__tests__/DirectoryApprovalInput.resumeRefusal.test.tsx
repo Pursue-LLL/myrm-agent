@@ -92,12 +92,10 @@ describe('DirectoryApprovalInput resume', () => {
 
   it('closes the card without recording a grant and pulls in what the timeout continued with', async () => {
     pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
-    transcript.refreshOpenChatTranscript.mockResolvedValue();
 
     grantDirectory();
 
-    // Closed once right away and once more after the stored row replaced the message.
-    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onAnswered).toHaveBeenCalledTimes(1));
     expect(toast.warning).toHaveBeenCalledWith('expired');
     expect(toast.error).not.toHaveBeenCalled();
     expect(refreshSessionAccessRoots).not.toHaveBeenCalled();

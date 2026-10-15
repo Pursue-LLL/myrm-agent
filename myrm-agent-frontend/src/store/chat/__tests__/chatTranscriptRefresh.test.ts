@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
+import { mergeStoredTail, refreshOpenChatTranscript } from '@/store/chat/chatTranscriptRefresh';
 import type { Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
@@ -13,14 +13,13 @@ vi.mock('@/services/chat', async (importOriginal) => ({
 
 const CHAT_ID = 'chat-a';
 
-function message(messageId: string, role: Message['role'], content: string, minute: number): Message {
-  return {
-    messageId,
-    chatId: CHAT_ID,
-    role,
-    content,
-    createdAt: new Date(Date.UTC(2026, 9, 15, 0, minute)),
-  };
+function message(messageId: string, role: Message['role'], content: string, extra: Partial<Message> = {}): Message {
+  return { messageId, chatId: CHAT_ID, role, content, createdAt: new Date(Date.UTC(2026, 9, 15)), ...extra };
+}
+
+/** A user row is stored under its request id; an assistant row is stored under a UUID and names that request. */
+function storedAssistant(uuid: string, requestId: string, content: string): Message {
+  return message(uuid, 'assistant', content, { requestMessageId: requestId });
 }
 
 function page(messages: Message[], hasMore = false, nextCursor: string | null = null) {
@@ -41,56 +40,126 @@ function seedStore(messages: Message[], extra: Partial<ReturnType<typeof useChat
   });
 }
 
-function contents(): string[] {
-  return useChatStore.getState().messages.map((m) => `${m.messageId}:${m.content}`);
+function ids(messages: Message[] | null): string[] {
+  return (messages ?? []).map((m) => m.messageId);
 }
+
+describe('mergeStoredTail', () => {
+  it('does not show a streamed turn twice once its stored twin arrives under a UUID', () => {
+    const local = [message('r-1', 'user', 'go'), message('r-1', 'assistant', 'answer', { routingTier: 'simple' })];
+    const tail = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')];
+
+    expect(mergeStoredTail(local, tail)).toBe(local);
+  });
+
+  it('adds the continuation of a paused turn right behind it', () => {
+    const local = [
+      message('r-1', 'user', 'go'),
+      message('r-1', 'assistant', 'paused'),
+      message('r-2', 'user', 'next question'),
+    ];
+    const tail = [
+      message('r-1', 'user', 'go'),
+      storedAssistant('uuid-1', 'r-1', 'paused'),
+      storedAssistant('uuid-2', 'r-1', 'continued after timeout'),
+      message('r-2', 'user', 'next question'),
+    ];
+
+    expect(ids(mergeStoredTail(local, tail))).toEqual(['r-1', 'r-1', 'uuid-2', 'r-2']);
+  });
+
+  it('recognises rows hydrated from the DB by id and by their request id alike', () => {
+    const local = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')];
+    const tail = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')];
+
+    expect(mergeStoredTail(local, tail)).toBe(local);
+  });
+
+  it('keeps a user row and an assistant row with the same raw id apart', () => {
+    const local = [message('r-1', 'user', 'go')];
+    const tail = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')];
+
+    expect(ids(mergeStoredTail(local, tail))).toEqual(['r-1', 'uuid-1']);
+  });
+
+  it('appends rows of turns the screen has never seen', () => {
+    const local = [message('r-1', 'user', 'go'), message('r-1', 'assistant', 'answer')];
+    const notice = message('uuid-9', 'assistant', 'background job finished');
+    const tail = [message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer'), notice];
+
+    expect(mergeStoredTail(local, tail)).toEqual([...local, notice]);
+  });
+
+  it('leaves rows on screen untouched, including local-only rows and injected fields', () => {
+    const streamed = message('r-1', 'assistant', 'answer', { routingTier: 'simple' });
+    const localOnly = message('local-only', 'assistant', 'never stored');
+    const local = [message('r-1', 'user', 'go'), streamed, localOnly];
+    const tail = [
+      message('r-1', 'user', 'go'),
+      storedAssistant('uuid-1', 'r-1', 'answer'),
+      message('uuid-9', 'user', 'x'),
+    ];
+
+    const merged = mergeStoredTail(local, tail);
+
+    expect(merged?.slice(0, 3)).toEqual(local);
+    expect(merged?.[1]).toBe(streamed);
+  });
+
+  it('reports no overlap when the tail shares nothing with the screen', () => {
+    expect(mergeStoredTail([message('r-1', 'user', 'go')], [message('r-9', 'user', 'new')])).toBeNull();
+  });
+});
 
 describe('refreshOpenChatTranscript', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('replaces overlapping rows with the persisted version and appends rows only the DB holds', async () => {
-    seedStore([message('u1', 'user', 'go', 1), message('a1', 'assistant', 'paused', 2)]);
+  it('adds the rows only the DB holds and keeps older pages with their cursor', async () => {
+    seedStore([message('u0', 'user', 'old'), message('r-1', 'user', 'go'), message('r-1', 'assistant', 'paused')]);
     getMessagesMock.mockResolvedValue(
       page([
-        message('u1', 'user', 'go', 1),
-        message('a1', 'assistant', 'continued after timeout', 2),
-        message('a2', 'assistant', 'done', 3),
+        message('r-1', 'user', 'go'),
+        storedAssistant('uuid-1', 'r-1', 'paused'),
+        storedAssistant('uuid-2', 'r-1', 'continued'),
       ]),
     );
 
     await refreshOpenChatTranscript(CHAT_ID);
 
-    expect(contents()).toEqual(['u1:go', 'a1:continued after timeout', 'a2:done']);
+    const state = useChatStore.getState();
+    expect(ids(state.messages)).toEqual(['u0', 'r-1', 'r-1', 'uuid-2']);
+    expect(state.nextCursor).toBe('older-cursor');
+    expect(state.hasMoreMessages).toBe(true);
   });
 
-  it('keeps older pages the user already loaded and their cursor', async () => {
-    seedStore([message('u0', 'user', 'old', 0), message('u1', 'user', 'go', 1)]);
-    getMessagesMock.mockResolvedValue(page([message('u1', 'user', 'go', 1), message('a1', 'assistant', 'answer', 2)]));
+  it('does not touch the store when every stored row is already on screen', async () => {
+    seedStore([message('r-1', 'user', 'go'), message('r-1', 'assistant', 'answer')]);
+    const before = useChatStore.getState().messages;
+    getMessagesMock.mockResolvedValue(page([message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')]));
 
     await refreshOpenChatTranscript(CHAT_ID);
 
-    expect(contents()).toEqual(['u0:old', 'u1:go', 'a1:answer']);
-    expect(useChatStore.getState().nextCursor).toBe('older-cursor');
-    expect(useChatStore.getState().hasMoreMessages).toBe(true);
+    expect(useChatStore.getState().messages).toBe(before);
   });
 
   it('restarts from the fresh tail when the chat moved past everything held locally', async () => {
-    seedStore([message('u1', 'user', 'go', 1)]);
+    seedStore([message('r-1', 'user', 'go')]);
     getMessagesMock.mockResolvedValue(
-      page([message('x1', 'user', 'new', 30), message('x2', 'assistant', 'new answer', 31)], true, 'tail-cursor'),
+      page([message('r-9', 'user', 'new'), storedAssistant('uuid-9', 'r-9', 'new answer')], true, 'tail-cursor'),
     );
 
     await refreshOpenChatTranscript(CHAT_ID);
 
-    expect(contents()).toEqual(['x1:new', 'x2:new answer']);
-    expect(useChatStore.getState().nextCursor).toBe('tail-cursor');
-    expect(useChatStore.getState().hasMoreMessages).toBe(true);
+    const state = useChatStore.getState();
+    expect(ids(state.messages)).toEqual(['r-9', 'uuid-9']);
+    expect(state.nextCursor).toBe('tail-cursor');
+    expect(state.hasMoreMessages).toBe(true);
   });
 
-  it('keeps composer state, loading flags and the transcript identity of untouched rows', async () => {
-    seedStore([message('u1', 'user', 'go', 1)], {
+  it('keeps composer state and never toggles loading', async () => {
+    seedStore([message('r-1', 'user', 'go')], {
       files: [{ name: 'report.pdf' } as never],
       mentionReferences: [{ id: 'm1' } as never],
       activeKnowledgeBaseIds: ['kb-1'],
@@ -101,7 +170,7 @@ describe('refreshOpenChatTranscript', () => {
         loadingTransitions.push(state.loading);
       }
     });
-    getMessagesMock.mockResolvedValue(page([message('u1', 'user', 'go', 1), message('a1', 'assistant', 'answer', 2)]));
+    getMessagesMock.mockResolvedValue(page([message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'answer')]));
 
     await refreshOpenChatTranscript(CHAT_ID);
     unsubscribe();
@@ -111,7 +180,7 @@ describe('refreshOpenChatTranscript', () => {
     expect(state.mentionReferences).toHaveLength(1);
     expect(state.activeKnowledgeBaseIds).toEqual(['kb-1']);
     expect(loadingTransitions).toEqual([]);
-    expect(contents()).toEqual(['u1:go', 'a1:answer']);
+    expect(ids(state.messages)).toEqual(['r-1', 'uuid-1']);
   });
 
   it.each([
@@ -119,7 +188,7 @@ describe('refreshOpenChatTranscript', () => {
     ['a turn is streaming', { loading: true }],
     ['a stream controller is attached', { abortController: new AbortController() }],
   ])('does not fetch when %s', async (_label, override) => {
-    seedStore([message('u1', 'user', 'go', 1)], override);
+    seedStore([message('r-1', 'user', 'go')], override);
 
     await refreshOpenChatTranscript(CHAT_ID);
 
@@ -127,7 +196,7 @@ describe('refreshOpenChatTranscript', () => {
   });
 
   it('does nothing without a chat id', async () => {
-    seedStore([message('u1', 'user', 'go', 1)]);
+    seedStore([message('r-1', 'user', 'go')]);
 
     await refreshOpenChatTranscript(undefined);
 
@@ -135,42 +204,42 @@ describe('refreshOpenChatTranscript', () => {
   });
 
   it('discards the fetched page when a turn started while the request was in flight', async () => {
-    seedStore([message('u1', 'user', 'go', 1)]);
+    seedStore([message('r-1', 'user', 'go')]);
     getMessagesMock.mockImplementation(async () => {
       useChatStore.setState({ loading: true });
-      return page([message('u1', 'user', 'go', 1), message('a1', 'assistant', 'stale', 2)]);
+      return page([message('r-1', 'user', 'go'), storedAssistant('uuid-1', 'r-1', 'stale')]);
     });
 
     await refreshOpenChatTranscript(CHAT_ID);
 
-    expect(contents()).toEqual(['u1:go']);
+    expect(ids(useChatStore.getState().messages)).toEqual(['r-1']);
   });
 
   it('leaves the transcript and error flags untouched when the fetch fails', async () => {
-    seedStore([message('u1', 'user', 'go', 1)], { loadError: false, isMessagesLoaded: true });
+    seedStore([message('r-1', 'user', 'go')], { loadError: false, isMessagesLoaded: true });
     getMessagesMock.mockRejectedValue(new Error('offline'));
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     await refreshOpenChatTranscript(CHAT_ID);
 
-    expect(contents()).toEqual(['u1:go']);
+    expect(ids(useChatStore.getState().messages)).toEqual(['r-1']);
     expect(useChatStore.getState().loadError).toBe(false);
     expect(useChatStore.getState().isMessagesLoaded).toBe(true);
     consoleError.mockRestore();
   });
 
   it('ignores an empty page instead of wiping the transcript', async () => {
-    seedStore([message('u1', 'user', 'go', 1)]);
+    seedStore([message('r-1', 'user', 'go')]);
     getMessagesMock.mockResolvedValue(page([]));
 
     await refreshOpenChatTranscript(CHAT_ID);
 
-    expect(contents()).toEqual(['u1:go']);
+    expect(ids(useChatStore.getState().messages)).toEqual(['r-1']);
   });
 
   it('coalesces concurrent refreshes of the same chat into one request', async () => {
-    seedStore([message('u1', 'user', 'go', 1)]);
-    getMessagesMock.mockResolvedValue(page([message('u1', 'user', 'go', 1)]));
+    seedStore([message('r-1', 'user', 'go')]);
+    getMessagesMock.mockResolvedValue(page([message('r-1', 'user', 'go')]));
 
     await Promise.all([refreshOpenChatTranscript(CHAT_ID), refreshOpenChatTranscript(CHAT_ID)]);
 

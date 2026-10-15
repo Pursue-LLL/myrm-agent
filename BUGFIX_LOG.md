@@ -4143,16 +4143,16 @@ except Exception:
 
 ### 修复
 
-1. 新增 `chatTranscriptRefresh.ts`：`refreshOpenChatTranscript(chatId)` 拉取最新一页持久化消息并就地并入当前对话。同 id 以数据库行为准；只有本地才有的行（更早的分页、尚未落库的行）保留；与本地没有任何交集时（对话已越过本地持有的全部消息）重置为最新尾页并重置游标，避免中间藏着缺口；空页不应用；不切 `loading`、不重置会话配置、不 attach、不碰输入区。回合占用 store（`loading` 或 `abortController`）、另一个会话已打开、请求期间回合开始时都不应用；请求失败只记日志，现有对话原样保留；同一会话的并发刷新合并为一次请求。没有直接用 `loadMessages`：它会置 `loading`、在失败时置 `loadError` 并把 `isMessagesLoaded` 置回 false（界面回到骨架）、并把当前对话截成最新 10 条。
+1. 新增 `chatTranscriptRefresh.ts`：`refreshOpenChatTranscript(chatId)` 拉取最新一页持久化消息并就地并入当前对话。屏幕上已有的行一律原样保留（流式注入的 `routingTier` 等字段与卡片状态不被改写），只补缺的行：流式 assistant 行以请求 id（`r-` 前缀）作 `messageId`，它的落库行是 UUID 并在 `requestMessageId` 里带着那个请求 id，所以纯函数 `mergeStoredTail` 按「角色 + 回合 key」配对，同一回合里超出屏幕已有数量的落库行（超时续跑）紧接该回合插入，其余追加在末尾；与本地没有任何交集时（对话已越过本地持有的全部消息）重置为最新尾页并重置游标，避免中间藏着缺口；空页不应用；不切 `loading`、不重置会话配置、不 attach、不碰输入区。回合占用 store（`loading` 或 `abortController`）、另一个会话已打开、请求期间回合开始时都不应用；请求失败只记日志，现有对话原样保留；同一会话的并发刷新合并为一次请求。没有直接用 `loadMessages`：它会置 `loading`、在失败时置 `loadError` 并把 `isMessagesLoaded` 置回 false（界面回到骨架）、并把当前对话截成最新 10 条。
 2. `useGlobalEvents.ts` 的重连补同步与 `ChatWindow.tsx` 的后台任务完成刷新改调这个函数；`ChatWindow` 的订阅 effect 不再依赖 `initializeChat`。
-3. `resumeApprovalStream.ts` 的 409 分支（工具审批卡、抽屉的单个与批量四处处理点共用）与 `ClarificationInput` / `DirectoryApprovalInput` 的过期分支，在既有提示与收卡之外调用同一函数，用户立刻看到超时续跑的结果。
+3. `resumeApprovalStream.ts` 的 409 分支（工具审批卡、抽屉的单个与批量四处处理点共用）与 `ClarificationInput` / `DirectoryApprovalInput` 的过期分支，在既有提示与收卡之外调用同一函数，超时续跑落库的新行随之补进当前对话。
 4. 渠道回调拆成 `resume_after_timeout`（原有流程，未改动）与外层 `resume_callback`：任何异常都先对 `channel:peer` 键 `reopen` 再抛出，成功路径不归还。
 5. harness 新增 `tests/agent/middlewares/approval/test_resume_semantics.py`：用真实编译的 LangGraph 图加 `InMemorySaver` 固化 `reopen` 所依赖的三条语义（见「验证」）。
 
 ### 验证
 
 1. 修复前的三个探针（一次性测试，已删除，没有留在仓库里）：同 id `initializeChat` 空操作；真实 store 上输入区 1 变 0；ChatWindow 的异步分片消费路径把已有助手消息清成空串（见局限 5）。
-2. 前端：`chatTranscriptRefresh.test.ts` 12 例（DB 行覆盖并追加仅 DB 有的行、保留更早分页与游标、无交集时重置尾页、输入区与 `loading` 不变且 `loading` 全程无变化、三种不可刷新的状态不发请求、请求期间回合开始则丢弃、失败不改对话与错误标志、空页不清空、并发合并、无会话 id 不动）；三个既有测试（`resumeApprovalStream` 409、`ClarificationInput`、`DirectoryApprovalInput` 过期）各加「调用刷新」与「其余路径不调用」的断言。相关目录（`store/chat`、`lib/approval`、`components/features/message-box`、`hooks/approval`、`hooks/globalEvents`、`components/approval`）vitest 175 个文件 1200 例通过；触及文件 `prettier`、`oxlint` 无告警，`verify:theme-colors` 通过，`tsc --noEmit` 没有一条属于触及的文件（余下错误全部在他人未提交的 `ergonomic-cockpit`、`needs-you`、`mobile-companion` 等目录里）。
+2. 前端：`chatTranscriptRefresh.test.ts` 19 例（`mergeStoredTail` 7 例：流式行与其 UUID 落库行不重复、超时续跑行紧接原回合、按 id 与按请求 id 都认得 DB 水合的行、同一个原始 id 的 user 与 assistant 不混淆、陌生回合追加在末尾、已有行与本地独有行与注入字段原样保留、无交集返回 null；刷新函数 12 例：补缺的行并保留更早分页与游标、没有缺行时 store 引用不变、无交集时重置尾页、输入区与 `loading` 不变、三种不可刷新的状态不发请求、请求期间回合开始则丢弃、失败不改对话与错误标志、空页不清空、并发合并、无会话 id 不动）；变异检查：把配对键换回只比 `messageId`，5 例失败（14 passed）；三个既有测试（`resumeApprovalStream` 409、`ClarificationInput`、`DirectoryApprovalInput` 过期）各加「调用刷新」与「其余路径不调用」的断言。相关目录（`store/chat`、`lib/approval`、`components/features/message-box`、`hooks/approval`、`hooks/globalEvents`、`components/approval`）vitest 175 个文件 1207 例通过；触及文件 `prettier`、`oxlint` 无告警，`verify:theme-colors` 通过，`tsc --noEmit` 没有一条属于触及的文件（余下错误全部在他人未提交的 `ergonomic-cockpit`、`needs-you`、`mobile-companion` 等目录里）。
 3. server：`test_executor_helpers_approval.py` 新增 2 例（真实 `ApprovalTimeoutScheduler`：续跑失败后 `resolve_if_first` 返回 True；agent 创建失败时 `reopen` 被调用），既有的「在挂起时的键上续跑」例加了「成功不归还」断言；变异检查：去掉 `reopen` 一行，新增的 2 例失败（2 failed，11 passed），还原后 `test_executor_helpers_approval.py` 与 `test_approval_run_activity.py` 共 15 例通过。`tests/core/channel_bridge` 全目录 613 通过、36 失败，36 例全部在 `test_execute_finalize*.py`，原因是他人未提交的 `finalize_channel_stream_reply` 新增必填参数 `account_guidance`，与本条无关。`ruff check`、`ruff format --check` 通过；`mypy` 对 `approval.py` 没有告警（全仓另有 1360 个既有错误，与本条无关）。
 4. harness：`test_resume_semantics.py` 3 例 + `test_scheduler.py` 20 例共 23 例通过。三条语义是用真实图测出来的：A. 回答之后的节点失败，不再有待处理的中断，下一次回复只会用已记录的决定重试失败的节点，手动批准改不掉已记录的自动拒绝；B. 提问的节点自己在回答之后失败，中断仍待处理，下一次回复回放的是第一次的答案；C. 在已结束的线程上再次恢复不改变任何状态。
 
@@ -4163,8 +4163,8 @@ except Exception:
 3. 点击过期卡片时，`isRefreshable` 要求 `loading` 为假且没有 `abortController`；这两个状态在审批暂停之后是否总是已清空，是读码判断（`messageRequest.ts` 在回合结束时清空），没有在浏览器里确认。不满足时刷新静默跳过，退回到修复前的行为。
 4. 刷新不会自动清除仍显示的审批卡（卡片在内存的审批 store 里，不在消息里），用户点击后才会收起并刷新；`usePendingApprovalsRecovery.ts` 在重连时只看到「新增」逻辑，它是否会移除已被超时处理的旧卡片没有验证。
 5. **发现但没有修**：`ChatWindow.tsx` 的异步分片消费路径对每个分片都以 `added=true`、`recievedMessage=''` 调用 `handleMessageStream` 且丢弃返回值，对已存在的助手消息喂入 `message`、`message_end` 后内容被清成空串（探针：串联调用得 `Hello world`，该路径得空串）。当前没有找到会把同一 messageId 推进这条路径的发布者（`wakeup_handler.py` 是否复用已有 messageId 没有验证），因此没有改，也没有把超时续跑接到这条路径上。
-6. 本地独有的行不会因为数据库侧被删除而消失（直到整页刷新）；DB 行覆盖本地行意味着刚收尾、尚未落库的回合的 `routingTier` 等只存在于本地的字段在被刷新覆盖后会暂时丢失，属于刷新与落库之间的窗口，没有观测到。
-7. 渠道回调对任何异常都归还认领，包括流结束之后的落库失败：这种情况下若线程已结束，迟到的用户回复会被放行并再恢复一次已结束的线程，按语义 C 不改变任何状态；若流停在了新的中断而落库失败，用户可以直接回答它，但这个新中断没有计时器，不会再被自动处理。
+6. 刷新只补缺的行，不改已有的行：数据库侧被删除或被改写的行（例如被超时处理而标记为已答复的旧卡片）在整页刷新之前仍按本地样子显示；本地独有的行也不会消失。配对按「回合内的数量」判断一行是否已显示：若某个回合在屏幕上有行、而数据库里该回合只存了一行（例如暂停那一刻没有落库），续跑行会被当成已显示而暂时不补，直到整页刷新；这是为了宁可晚补、绝不重复而做的取舍，没有在真实数据上观测到这种情况。
+7. 渠道回调对任何异常都归还认领，包括流结束之后的落库失败与 IM 通知发送失败：这种情况下若线程已结束，迟到的用户回复会被放行并再恢复一次已结束的线程，按语义 C 不改变任何状态；若流停在了新的中断而后续步骤失败，用户可以直接回答它，但这个新中断没有计时器，不会再被自动处理。只在运行阶段归还需要把外层回调拆得更细，而该函数里有他人未提交的改动，本条没有扩大范围。
 8. 评估后放弃的方案：连续超时次数上限（harness 的 `record_denial` 已在连续 3 次拒绝后给出「Stop and explain to the user」提示，`helpers.py:32,187`，超时自动拒绝同样经过 `_batch_decisions.py:669-675`，再做一个硬上限是重复）；删除无人发布的 `approval_processed` 消费端（`part1.ts:45`、`sidepanel.js:263`，server 与 harness 的 `.py` 里确实没有发布者，但消费端没有任何行为影响，删除要动扩展、fixture、一致性测试与两个测试文件，收益低于成本）；把超时续跑的分片经 `ASYNC_AGENT_STREAM_CHUNK` 实时推给前端（被局限 5 的缺陷否决）。
 9. 本条没有改 harness 生产代码：两边不需要同批发版，也不需要 `./myrm harness sync-lock`。
 
@@ -4174,4 +4174,5 @@ except Exception:
 2. 方案讨论里把「已有先例」当成证据之前，要先把先例的输入输出跑一遍：`wakeup_handler.py` 的实时推送看起来是现成的，探针一跑，消费端会把消息清空。
 3. 探针测试用一次性文件，跑完立刻删，并用 `ls` 核对没有残留；探针里的断言要写成「期望正确行为」，红了就是证据；第一次用 `console.log` 输出时，经过滤的结果里没有出现任何输出（原因没有查），改成断言后立刻得到明确的红。
 4. 调用别人的 store 动作做静默刷新前，先读它的失败分支：`loadMessages` 在失败时会把 `isMessagesLoaded` 置回 false，并把对话截成最新一页，这对「后台悄悄对账」是错误的副作用。
-5. 对 LangGraph 恢复语义不要凭记忆：回答之后的节点失败，手动回复只能重试、改不掉已记录的决定；提问节点自己失败，回放的是第一次答案。这两条决定了 `reopen` 能给用户的到底是什么，已用真实图固化成测试。
+5. 合并两侧的行之前，先确认它们是不是同一种 id：流式 assistant 行的 `messageId` 是请求 id、落库行是 UUID（`store/chat/_ARCH.md` 的 `messageManagement.ts` 一行有明文记载，`persist_assistant_message_safe` 也没有传 `message_id`）。初版按 `messageId` 合并，会让每个已完成的回合在重连补同步后重复显示一次，而初版测试里两侧用了同一个 id，所以全绿；改用真实形状（user 以请求 id 落库、assistant 以 UUID 落库并带请求 id）的数据后，变异检查才暴露出来。测试数据的形状必须取自真实落库路径，不能自己编。
+6. 对 LangGraph 恢复语义不要凭记忆：回答之后的节点失败，手动回复只能重试、改不掉已记录的决定；提问节点自己失败，回放的是第一次答案。这两条决定了 `reopen` 能给用户的到底是什么，已用真实图固化成测试。

@@ -279,13 +279,12 @@ const ClarificationInput = ({
     });
   };
 
-  // An answer that arrives after the timeout already continued the turn is not a failure: the card closes. The
-  // refresh may land before that run persisted its result, so the card is closed again once the stored row replaces it.
+  // An answer that arrives after the timeout already continued the turn is not a failure: the card closes.
   const reportAnswerError = (err: unknown) => {
     if (err instanceof ApprovalExpiredError) {
       markAnswered();
       toast.warning(t('expired'));
-      void refreshOpenChatTranscript(useChatStore.getState().chatId).then(markAnswered);
+      void refreshOpenChatTranscript(useChatStore.getState().chatId);
       return;
     }
     console.error('Failed to answer clarification:', err);

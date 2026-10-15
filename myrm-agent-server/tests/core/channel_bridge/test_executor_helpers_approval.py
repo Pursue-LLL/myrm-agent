@@ -41,6 +41,7 @@ async def test_notify_channel_timeout_result_publishes_with_user_id() -> None:
         )
 
     mock_publish.assert_awaited_once()
+    assert mock_publish.await_args is not None
     published = mock_publish.await_args.args[0]
     assert published.channel == "telegram"
     assert published.recipient_id == "chat-42"
