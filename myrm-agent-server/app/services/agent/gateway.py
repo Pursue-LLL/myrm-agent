@@ -32,6 +32,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.base_agent import BaseAgent
     from myrm_agent_harness.runtime.survival.memory_pressure import PressureEvent
+    from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserSession
+    from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +227,7 @@ class AgentGateway:
         self,
         session_id: str | None = None,
         space_id: str | None = None,
-    ) -> object | None:
+    ) -> BrowserSession | None:
         """Get BrowserSession for a specific chat/session id and optional task space id.
 
         Args:
@@ -331,7 +333,7 @@ class AgentGateway:
                 return session
         return None
 
-    def get_active_desktop_session(self, session_id: str | None = None) -> object | None:
+    def get_active_desktop_session(self, session_id: str | None = None) -> DesktopSession | None:
         """Get the DesktopSession from any currently active agent, if available.
 
         Args:

@@ -133,7 +133,7 @@ def _desktop_session_for_agent(agent_id: str) -> DesktopSession | None:
         gateway = get_agent_gateway()
         active_session = gateway.get_active_desktop_session()
         if active_session is not None and hasattr(active_session, "desktop_snapshot"):
-            return active_session  # type: ignore[return-value]
+            return active_session
     except Exception:
         pass
 

@@ -22,7 +22,6 @@ Agent 会话的 GoalProvider，从而在运行时控制 Goal 状态（暂停/恢
 
 import logging
 import threading
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.goals.manager import GoalManager
@@ -33,6 +32,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
     from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
     from myrm_agent_harness.agent.goals.verification.base import VerificationResult
+    from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -50,18 +50,17 @@ def _screen_is_capturable() -> bool:
 
 async def _collect_session_deliverables(session_id: str) -> list[dict[str, str]]:
     """Collect all artifacts produced in a chat session for goal deliverable aggregation."""
-    from sqlalchemy import select
+    from sqlalchemy import Result, select
 
     from app.database.connection import get_session
     from app.database.models.artifact import Artifact
 
     async with get_session() as db:
-        stmt = (
+        result: Result[tuple[str, str]] = await db.execute(
             select(Artifact.id, Artifact.name)
             .where(Artifact.chat_id == session_id, Artifact.is_deleted.is_(False))
             .order_by(Artifact.created_at.asc())
         )
-        result = await db.execute(stmt)
         rows = result.all()
         return [{"id": row.id, "filename": row.name} for row in rows]
 
@@ -69,7 +68,7 @@ async def _collect_session_deliverables(session_id: str) -> list[dict[str, str]]
 class ServerGoalManager(GoalManager):
     """Server-side GoalManager that implements boundary methods like semantic evaluation."""
 
-    def __init__(self, storage_provider, session_id: str | None = None):
+    def __init__(self, storage_provider: "StorageProvider", session_id: str | None = None) -> None:
         super().__init__(storage_provider)
         self.session_id = session_id
 
@@ -228,74 +227,10 @@ class GoalRegistry:
             return cls._providers.get(session_id)
 
     @classmethod
-    def start_branch_watcher(cls) -> None:
-        """Start a background loop to watch .git/HEAD for active sessions."""
-        import asyncio
-        import os
-
-        if getattr(cls, "_watcher_task", None) and not cls._watcher_task.done():
-            return
-
-        async def _watcher_loop() -> None:
-            # We use os.stat polling on .git/HEAD for zero-latency, zero-overhead detection
-            last_mtime = 0.0
-            git_head_path = None
-            disabled = False
-
-            while True:
-                try:
-                    if disabled:
-                        await asyncio.sleep(10.0)
-                        git_head_path = None
-                        disabled = False
-                    else:
-                        await asyncio.sleep(0.5)
-
-                    with cls._lock:
-                        session_ids = list(cls._providers.keys())
-
-                    if not session_ids:
-                        continue
-
-                    # Determine workspace_dir from the first provider (assuming single-tenant sandbox)
-                    # In a real setup, workspace_dir should be injected, but we fallback to cwd
-                    from app.config.settings import settings
-
-                    workspace_dir = str(Path(settings.project_dir).expanduser().resolve())
-                    if not git_head_path:
-                        git_head_path = os.path.join(workspace_dir, ".git", "HEAD")
-                        if not os.path.exists(git_head_path):
-                            logger.debug(
-                                "Branch watcher: .git/HEAD not found at %s. Pausing watcher.",
-                                git_head_path,
-                            )
-                            git_head_path = None
-                            disabled = True
-                            continue
-
-                    try:
-                        current_mtime = os.stat(git_head_path).st_mtime
-                    except (FileNotFoundError, PermissionError):
-                        continue
-
-                    if current_mtime != last_mtime:
-                        last_mtime = current_mtime
-                        for sid in session_ids:
-                            try:
-                                await check_and_handle_branch_stash(sid, workspace_dir=workspace_dir)
-                            except Exception as e:
-                                logger.error("Branch watcher error for session %s: %s", sid, e)
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.error("Branch watcher loop error: %s", e)
-
-        cls._watcher_task = asyncio.create_task(_watcher_loop())
-
-    @classmethod
-    def stop_branch_watcher(cls) -> None:
-        if hasattr(cls, "_watcher_task") and cls._watcher_task:
-            cls._watcher_task.cancel()
+    def session_ids(cls) -> list[str]:
+        """Session ids that currently have a live provider."""
+        with cls._lock:
+            return list(cls._providers)
 
     @classmethod
     def unregister(cls, session_id: str) -> None:
@@ -303,136 +238,3 @@ class GoalRegistry:
         with cls._lock:
             if cls._providers.pop(session_id, None):
                 logger.debug("Unregistered goal provider: session_id=%s", session_id)
-
-
-async def get_current_git_branch(workspace_dir: str | None = None) -> str | None:
-    """Get the current Git branch name of the workspace via zero-subprocess filesystem reader."""
-    from myrm_agent_harness.api import resolve_git_branch
-
-    return resolve_git_branch(workspace_dir)
-
-
-async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | None = None) -> None:
-    """Perceive git branch changes, auto stash/restore/migrate goals and todo progress."""
-    branch = await get_current_git_branch(workspace_dir)
-    if not branch:
-        return
-
-    provider = GoalRegistry.get_or_create_provider(session_id)
-    storage = provider._storage._storage
-
-    last_branch_key = f"goals_last_branch/{session_id}"
-    try:
-        last_branch_raw = await storage.read(last_branch_key)
-        last_branch = last_branch_raw.decode("utf-8") if last_branch_raw else None
-    except FileNotFoundError:
-        last_branch = None
-
-    if last_branch == branch:
-        return
-
-    # Check if the new branch has a stash
-    # Using the new composite key format from Harness
-    from myrm_agent_harness.agent.goals.storage import _GOAL_NAMESPACE
-
-    try:
-        stash_raw = await storage.read(key=f"{_GOAL_NAMESPACE}_stash/{session_id}/{branch}")
-        has_stash = bool(stash_raw)
-    except FileNotFoundError:
-        has_stash = False
-
-    migrated = False
-
-    if last_branch:
-        active_goal = await provider.get_active_goal(session_id)
-        if active_goal:
-            from myrm_agent_harness.agent.meta_tools.progress.storage import (
-                read_todos_sync_from_workspace,
-            )
-
-            ws_root = workspace_dir or ""
-            progress_state: dict[str, object] | None = None
-            if ws_root:
-                store = read_todos_sync_from_workspace(ws_root)
-                if store is not None:
-                    progress_state = store.model_dump()
-
-            if not has_stash:
-                logger.info(
-                    "Intent-Aware Migration: Migrating active goal to new branch %s",
-                    branch,
-                )
-                migrated = True
-            else:
-                stashed = await provider.stash_goal(
-                    session_id=session_id,
-                    branch_name=last_branch,
-                    progress_state=progress_state,
-                    chat_history=None,
-                )
-                if stashed:
-                    logger.info(
-                        "Branch switch perceived: stashed active goal and todos for branch %s",
-                        last_branch,
-                    )
-                    if ws_root:
-                        from myrm_agent_harness.agent.meta_tools.progress.storage import (
-                            delete_todos_sync_from_workspace,
-                        )
-
-                        delete_todos_sync_from_workspace(ws_root)
-
-    # Update the last perceived branch
-    await storage.write(last_branch_key, branch.encode("utf-8"))
-
-    # Update Kanban tasks metadata and append branch_switched event
-    try:
-        from app.services.kanban.service import KanbanService
-
-        kanban_svc = KanbanService.get_instance()
-        await kanban_svc.update_active_tasks_branch_metadata(new_branch=branch, old_branch=last_branch, migrated=migrated)
-    except Exception as e:
-        logger.warning("Kanban branch metadata update skipped: %s", e)
-
-    restored = None
-    if not migrated:
-        # Restore stashed goal for the new branch if exists
-        restored = await provider.restore_goal(session_id, branch)
-        if restored:
-            progress_raw = restored.get("progress_state")
-            if isinstance(progress_raw, dict) and workspace_dir:
-                from myrm_agent_harness.agent.meta_tools.progress.schemas import (
-                    TodoStore,
-                )
-                from myrm_agent_harness.agent.meta_tools.progress.storage import (
-                    write_todos_sync_to_workspace,
-                )
-
-                try:
-                    store = TodoStore.model_validate(progress_raw)
-                    write_todos_sync_to_workspace(workspace_dir, store)
-                    logger.info(
-                        "Branch switch perceived: restored goal and todos for branch %s",
-                        branch,
-                    )
-                except Exception as e:
-                    logger.error("Failed to restore todos for branch %s: %s", branch, e)
-
-    try:
-        from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-
-        bus = get_event_bus()
-        bus.publish(
-            AppEvent(
-                event_type=AppEventType.GOAL_BRANCH_SWITCHED,
-                data={
-                    "chat_id": session_id,
-                    "branch": branch,
-                    "stashed_branch": last_branch,
-                    "restored": bool(restored),
-                    "migrated": migrated,
-                },
-            )
-        )
-    except Exception as e:
-        logger.error("Failed to publish goal:branch_switched event: %s", e)
