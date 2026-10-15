@@ -6,7 +6,7 @@
 
 Shell 完成刷新：`useGlobalEvents` 收到 `SYSTEM_NOTIFICATION`（`meta.kind=background_job_finish`）时调用 `notifyBackgroundTasksChangedForShellJobFinish` → Panel/tray 即时对齐（含跨 chat / Tauri tray）。媒体任务经 `taskEventStream` 共享 `/api/v1/tasks/stream`（Chat 任务卡、Panel、tray、离屏 notify 单连接）；离屏完成时 browser/Tauri 通知，Tauri 权限拒则 dock bounce。
 
-转向指令被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `apiRequest` 的统一风控提示，面板用 `isRiskHeldError` 判断后不再叠加「转向失败」。
+转向指令被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `apiRequest` 的统一风控提示，面板用 `isRiskHeldError` 判断后跳过自己的「转向失败」提示。
 
 ## 文件清单
 

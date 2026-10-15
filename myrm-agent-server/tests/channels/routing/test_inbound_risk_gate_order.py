@@ -6,6 +6,8 @@ Runs the real ``AgentRouter`` consume loop and ``_handle_merged`` against a real
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -273,3 +275,32 @@ async def test_event_trigger_job_starts_only_for_a_message_the_gate_lets_through
         await _consume_one(router, _typed(text))
 
     assert scheduler.dispatch_event.await_count == spawned
+
+
+@pytest.mark.asyncio
+async def test_held_message_leaves_one_hit_record_across_the_dispatch_and_the_turn() -> None:
+    """The dispatch and the turn path both screen the message; only the turn path records, so the hit is counted once."""
+    router = make_router()
+    router._is_sender_admitted = AsyncMock(return_value=True)
+    router._is_untrusted_event_sender = AsyncMock(return_value=False)
+    service = build_service_with_rules([API_KEY_RULE])
+    service.record_hits = AsyncMock()
+    scheduler = MagicMock()
+    scheduler.dispatch_event = AsyncMock(return_value=0)
+    msg = _typed(f"key {SECRET}")
+
+    @asynccontextmanager
+    async def database_session() -> AsyncIterator[AsyncMock]:
+        yield AsyncMock()
+
+    with (
+        patch(_DETECTION, return_value=service),
+        patch("app.platform_utils.get_session_factory", return_value=database_session),
+        patch("app.core.cron.adapters.setup.get_cron_scheduler", return_value=scheduler),
+        patch.object(router._gate, "submit"),
+    ):
+        await _consume_one(router, msg)
+        assert service.record_hits.await_count == 0
+        await router._handle_merged(msg)
+
+    assert service.record_hits.await_count == 1

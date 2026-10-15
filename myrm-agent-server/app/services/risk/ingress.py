@@ -5,7 +5,7 @@
 - app.platform_utils::get_session_factory (POS: 数据库会话工厂)
 
 [OUTPUT]
-- screen_user_text: 被规则拦下时记录命中位置并返回检测结果，否则返回 None
+- screen_user_text: 被规则拦下时记录命中位置并返回检测结果，否则返回 None；`record=False` 只检测不记录
 
 [POS]
 用户键入的文字进入 agent 之前的风险闸门的唯一入口：Web 发送、中途引导（聊天、子 agent、后台任务）、目标文字编辑、
@@ -25,12 +25,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def screen_user_text(text: str | None, *, session_id: str | None) -> DetectionResult | None:
+async def screen_user_text(text: str | None, *, session_id: str | None, record: bool = True) -> DetectionResult | None:
     """The detection result when a risk rule holds *text*, else None.
 
     Pass what the user typed, before anything shortens or rewrites it: a long paste replaced by a stub would hide the
     secret from the rules. The hit is recorded (position only, never the text) before returning; a failure to record
     does not let the text through.
+
+    ``record=False`` is for a caller whose text is screened again, with the hit recorded, on the path that follows it
+    (the event-trigger dispatch of an IM message, whose chat turn records it), so one held message leaves one record.
     """
     if not text:
         return None
@@ -45,12 +48,13 @@ async def screen_user_text(text: str | None, *, session_id: str | None) -> Detec
     if not result.blocked:
         return None
 
-    try:
-        from app.platform_utils import get_session_factory
+    if record:
+        try:
+            from app.platform_utils import get_session_factory
 
-        async with get_session_factory()() as db:
-            await service.record_hits(db, result.matches, trace_id=str(uuid.uuid4()), session_id=session_id)
-            await db.commit()
-    except Exception:
-        logger.warning("Failed to record risk hits; the text is held regardless", exc_info=True)
+            async with get_session_factory()() as db:
+                await service.record_hits(db, result.matches, trace_id=str(uuid.uuid4()), session_id=session_id)
+                await db.commit()
+        except Exception:
+            logger.warning("Failed to record risk hits; the text is held regardless", exc_info=True)
     return result

@@ -253,5 +253,5 @@ def test_exemptions_name_endpoints_that_still_carry_instruction_text() -> None:
     stale = sorted(k for k in _EXEMPT if k not in _repository_handlers())
     gated_and_exempt = sorted(k for k in _EXEMPT if k in entries)
 
-    assert not stale, f"These exemptions no longer match a write endpoint with instruction text; remove them: {stale}"
+    assert not stale, f"These exemptions match no write endpoint with instruction text; remove them: {stale}"
     assert not gated_and_exempt, f"These endpoints are both an entry and an exemption: {gated_and_exempt}"

@@ -119,19 +119,25 @@ async def test_fence_does_not_leak_into_the_dispatcher_when_the_scheduler_fails(
 async def test_held_message_spawns_no_job_and_the_log_omits_the_text(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A job's context carries the matched message verbatim, so a message a risk rule holds must not start one."""
+    """A job's context carries the matched message verbatim, so a message a risk rule holds must not start one.
+
+    The hit itself is recorded by the turn path of the same message, so the dispatch records none.
+    """
     scheduler = AsyncMock()
     scheduler.dispatch_event = AsyncMock(return_value=1)
     monkeypatch.setattr("app.core.cron.adapters.setup.get_cron_scheduler", lambda: scheduler)
+    service = build_service_with_rules([API_KEY_RULE])
+    service.record_hits = AsyncMock()
 
     with (
-        patch(_DETECTION, return_value=build_service_with_rules([API_KEY_RULE])),
+        patch(_DETECTION, return_value=service),
         caplog.at_level(logging.INFO, logger="app.core.cron.adapters.inbound_event_dispatch"),
     ):
         count = await dispatch_cron_event_for_inbound_message(f"deploy now, key {SECRET}", "feishu", "u1", untrusted=False)
 
     assert count == 0
     scheduler.dispatch_event.assert_not_awaited()
+    service.record_hits.assert_not_awaited()
     assert "API Key Leak" in caplog.text
     assert SECRET not in caplog.text
 

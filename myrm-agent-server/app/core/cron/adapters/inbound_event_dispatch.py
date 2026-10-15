@@ -41,7 +41,8 @@ async def dispatch_cron_event_for_inbound_message(
     fence from the tasks the scheduler spawns, so they get the tool restrictions a chat turn from that sender gets.
 
     A message a risk rule holds spawns no job: a job's context carries the text verbatim, and the chat turn of the same
-    message is held. The sender is not told here; the turn path of that message replies.
+    message is held. The hit is recorded and the sender told by the turn path of that message, not here, so one held
+    message leaves one record.
 
     Returns the number of cron jobs spawned. Failures are logged and swallowed
     so channel routing is never blocked by cron side effects; a failed screening spawns nothing.
@@ -50,7 +51,7 @@ async def dispatch_cron_event_for_inbound_message(
         return 0
 
     try:
-        held = await screen_user_text(message, session_id=user_id or None)
+        held = await screen_user_text(message, session_id=None, record=False)
         if held is not None:
             logger.info(
                 "Event dispatch skipped a message held by the risk gate on channel %s: rules=%s",

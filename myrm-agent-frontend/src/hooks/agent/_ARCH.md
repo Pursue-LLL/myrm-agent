@@ -17,4 +17,4 @@
 
 消费者：`chat-window/agent-config-panel/`、Settings ai-core、kanban。
 
-保存或 AI 创建的文字被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `services/riskHeldToast.ts` 的统一提示；这里的失败提示用 `isRiskHeldError` / `riskHeldErrorFromResponse` 判断后跳过，不再叠一条「操作失败」。
+保存或 AI 创建的文字被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `services/riskHeldToast.ts` 的统一提示；这里的失败提示用 `isRiskHeldError` / `riskHeldErrorFromResponse` 判断后跳过，不另弹「操作失败」。

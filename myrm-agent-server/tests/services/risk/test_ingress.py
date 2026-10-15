@@ -39,6 +39,20 @@ async def test_secret_is_held_and_recorded_by_position_only(
     assert "Zk9" not in hit.match_summary
 
 
+async def test_held_text_is_not_recorded_when_the_caller_leaves_that_to_a_later_path(
+    build_engine: EngineBuilder, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    service = await build_engine()
+    with (
+        patch("app.services.risk.detection.get_detection_service", return_value=service),
+        patch("app.platform_utils.get_session_factory", return_value=session_factory),
+    ):
+        result = await screen_user_text(_SECRET_LINE, session_id=None, record=False)
+
+    assert result is not None and result.blocked
+    assert await _stored_hits(session_factory) == []
+
+
 @pytest.mark.parametrize("text", [None, "", "how do I rotate an API key safely?"])
 async def test_text_without_a_secret_passes_and_leaves_no_record(
     build_engine: EngineBuilder, session_factory: async_sessionmaker[AsyncSession], text: str | None
