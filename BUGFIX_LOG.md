@@ -2853,7 +2853,7 @@ except Exception:
 6. 带入场动画的浮层，门禁要先等 `getAnimations().finished` 再测命中，否则测到的是动画中途的位置。
 ---
 
-## BUG-AGENT-2026-10-15-003: Curator 配置接口接受 0 与负数，一次清理就能把整个技能库标记为过期乃至归档；面板里关闭总开关后没有「保存」入口，数字输入清空即变成 0；已无调用方的进化容量治理器与按数量统计的接口仍留在 harness
+## BUG-AGENT-2026-10-15-003: Curator 配置接口接受 0 与负数，一次清理就能把所有可清理的技能标记为过期乃至归档；面板里关闭总开关后没有「保存」入口，数字输入清空即变成 0；已无调用方的进化容量治理器与按数量统计的接口仍留在 harness
 
 | 字段 | 内容 |
 |------|------|
@@ -2867,7 +2867,7 @@ except Exception:
 ### 现象
 
 1. `PATCH /curator/config` 的请求模型只有裸 `int | None / float | None`，`max_skills=0`、`-3`、`stale_after_days=0` 都被接受并写入 `~/.myrm/curator_config.json`；harness 的配置类也不拒绝这些值；
-2. 实测（临时目录、50 个技能、只用 harness 对象，没有碰真实数据）：对照组没有任何状态变化；`max_skills=0` 时 50/50 被标记为过期；有新鲜使用统计时 `stale_after_days=0` 同样 50/50 过期，再把 `archive_after_days=0` 则 50/50 归档；
+2. 实测（临时目录、50 个未固定且已过宽限期的非预置技能、只用 harness 对象，没有碰真实数据）：对照组没有任何状态变化；`max_skills=0` 时 50/50 被标记为过期；有新鲜使用统计时 `stale_after_days=0` 同样 50/50 过期，再把 `archive_after_days=0` 则 50/50 归档；
 3. 面板的「保存」按钮在 `config.enabled` 的区块里，关闭总开关后该区块整块隐藏，没有任何保存入口也没有自动保存；第二个保存按钮只在合并设置展开时出现；数字输入用 `Number(e.target.value)`，清空输入框得到 0；
 4. harness 的 `SkillBudgetGovernor`（含配置、状态、结果类型）与 `SkillStore.count_active_skills` 在服务端停止按数量暂停学习后没有调用方，只剩自己的测试；其测试文件里还夹着 `CompactorPreflightFence` 唯一的一条测试，计数测试又是 `get_active_skills` 作用域隔离的唯一测试。
 
@@ -2880,31 +2880,35 @@ except Exception:
 
 ### 修复
 
-1. 新增 `backends/skills/curator_config.py`，`CuratorConfig` 在 `__post_init__` 校验：`interval_hours / stale_after_days / archive_after_days / max_skills / min_call_count_for_quality_check / consolidation_min_skills` 至少为 1，`grace_period_days` 至少为 0，`consolidation_min_cluster_size` 至少为 2，`min_success_rate / consolidation_similarity_threshold` 在 [0, 1]（NaN 与无穷拒绝）；越界抛 `ValueError`，`from_dict` 语义不变；写法沿用 `runtime/survival/memory_pressure.py` 的构造期校验。选择拒绝而不是静默回退到默认值：这里有界面与接口的反馈回路，静默回退会让用户以为已生效。已落盘的越界配置在 `get_curator_config` 读取时走既有的 `except Exception` 回退为默认值并记 warning，不需要迁移；
+1. 新增 `backends/skills/curator_config.py`，`CuratorConfig` 在 `__post_init__` 校验：`interval_hours / stale_after_days / archive_after_days / max_skills / min_call_count_for_quality_check / consolidation_min_skills` 至少为 1，`grace_period_days` 至少为 0，`consolidation_min_cluster_size` 至少为 2，`min_success_rate / consolidation_similarity_threshold` 在 [0, 1]（NaN 与无穷拒绝）；越界抛 `ValueError`，`from_dict` 语义不变；写法沿用 `runtime/survival/memory_pressure.py` 的构造期校验。选择拒绝而不是静默回退到默认值：这里有界面与接口的反馈回路，静默回退会让用户以为已生效。已落盘的越界配置在 `get_curator_config` 读取时回退为默认阈值并记 warning（总开关保留，见修复 8），不需要迁移；
 2. 配置块移出 `forgetting_strategy.py`（545 → 428 行，行数基线条目移除），顺带删除无人使用的 `ForgettingConfig` 兼容别名（与记忆工具包的同名类冲突）；engine、5 个 harness 测试与 3 个服务端测试改用新路径；服务端深层导入基线按字母序加入新模块；
 3. 服务端 `PATCH /curator/config` 把 `ValueError` 映射为 422，缓存与落盘不变（赋值发生在构造成功之后）；
 4. 前端新增 `CuratorNumberInput`：键入时只提交范围内的值，失焦时取整并夹紧到 `min / max`，清空后回退到上次提交的值；范围直接复用输入框已有的 `min / max / step`，没有新增文案；面板里 7 个数字输入全部改用；
 5. 保存按钮改成一个只在有改动时出现的底部粘性栏，删除两处内联保存；顺带修正合并确认对话框的「取消」按钮原先显示为「保存」（`cancelText={t('save')}` 改为 `common.cancel`，六种语言已有该键）；
 6. 删除 `SkillBudgetGovernor` 链与 `count_active_skills`：`budget_governor.py` 及其测试、`evolution/__init__.py` 的 4 个导出、`core/_ARCH.md` 一行、`core_ip_manifest.py` 两行；`CompactorPreflightFence` 的测试原样迁到 `tests/agent/context_management/infra/test_compactor_guard.py`；计数测试改写为 `get_active_skills` 的作用域隔离测试（全局、本人、他人、挂载、已停用）；`_active_skills_filter` 仍被 `get_active_skills` 使用，保留；
-7. 顺带修复触及文件里的两处既有类型错误：`curator.py` 的 `CuratorHistoryEntry(**e)` 与合并执行接口直接返回 dict，改为 `model_validate`。
+7. 顺带修复触及文件里的两处既有类型错误：`curator.py` 的 `CuratorHistoryEntry(**e)` 与合并执行接口直接返回 dict，改为 `model_validate`；
+8. 检查阶段补修：越界的已落盘配置原先连总开关一起回退（实测 `enabled=false` 加 `max_skills=0`，读取后 `enabled=true`，等于把用户关掉的 Curator 重新打开）；`get_curator_config` 改为只重置阈值、保留 `enabled`，新增 3 例服务端测试（越界值、`Infinity`、不可解析的文件）。
 
 ### 验证
 
 1. harness：新增 `test_curator_config.py` 30 例（8 个下限的边界与越界、两个比例、`from_dict` 拒绝退化值），与既有 curator 测试合计 131 通过；关闭 `__post_init__` 后新增用例失败（变异验证，首个越界用例即失败，未逐例统计）；`tests/agent/skills/evolution` 与 `tests/agent/context_management/infra` 458 通过；触及文件的 ruff、ruff format、mypy 通过；
 2. 服务端：新增 `tests/api/skills/test_curator_config_validation.py` 10 例（7 种越界请求返回 422 且不落盘、被拒的更新保留已存配置、边界值通过、已落盘的越界配置回退默认值）；关闭校验后失败（变异验证，同样只验证到首个失败）；ruff 通过，`curator.py` 与 `service.py` 的 mypy 为 0 错误；
 3. 前端：新增 `CuratorNumberInput.test.tsx` 7 例与面板保存栏 4 例（有改动才出现、关闭总开关后仍可保存且请求体为 `enabled: false`、越界值夹紧后才发送、合并设置展开时仍只有一个保存按钮），均用真实组件；去掉夹紧逻辑后 5 例失败（变异验证）；`src/components/features/skills` 25 个文件 137 通过；触及文件的 prettier 通过；
-4. 既有测试里 58 处 curator 配置字面量（AST 扫描，只覆盖字面量）没有一处违反新下限。
+4. 既有测试里 58 处 curator 配置字面量（AST 扫描，只覆盖字面量）没有一处违反新下限；
+5. 下限依据（检查阶段复核）：`SkillUsageStats.success_rate` 在没有观测时为 0.0（`types_usage.py:105-110`），`min_call_count_for_quality_check=0` 会让所有从未被观测的技能被判为低质量（`forgetting_strategy.py:190-192`）；`stale_after_days=10**12`、`interval_hours=10**15` 这类极大值实测不报错（阈值只做整数比较，没有 `timedelta` 构造）。
 
 ### 局限
 
 1. 没有做浏览器级验证：真实 Chrome E2E 没跑；粘性保存栏在深浅主题与手机宽度下没有目视检查；
 2. `interval_hours` 的极端值没有实测，下限 1 按「不为 0」定，没有外部依据；只校验下限，不校验上限；
-3. 已落盘的越界配置会让整份配置回退为默认值（不是只回退越界字段），已记 warning；
+3. 已落盘的越界配置会让除总开关外的整份阈值回退为默认值（不是只回退越界字段），已记 warning；
 4. 校验方式参照竞品：Hermes 对阈值设下限 1 的回退，OpenClaw 用 zod `.int().min()`；
 5. 仍失败、且不涉及本条文件的（逐一核对了失败清单）：harness `tests/architecture` 26 例、服务端 `tests/architecture/test_server_harness_imports.py` 2 例、`tests/api/skills/test_curator.py` 4 例（归档守卫与合并计划令牌的他人改动）、前端 `verify:stable-mocks / verify:a11y / verify:hardcoded-copy` 三项门禁与 3 个 `tsc` 类型错误；
 6. `CuratorSettingsPanel.tsx` 仍有 678 行（超过 500 行），本次没有拆分：别人在同一文件里有未提交的改动；
 7. 服务端提交依赖 harness 的新模块：要先发布 harness 版本、再 `./myrm harness sync-lock`；本次没有发布、没有 sync-lock，所有仓库只做本地提交；
-8. 服务端导入基线文件位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，是用带锚点校验的单段脚本编辑的。
+8. 服务端导入基线文件位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，是用带锚点校验的单段脚本编辑的；
+9. `archive_after_days` 小于 `stale_after_days` 时没有校验：实测 stale=60、archive=20，闲置 40 天不触发，闲置 70 天直接归档，即有效归档阈值取两者较大值，不会比配置更激进，属于无害的不一致，面板与接口都没有提示；
+10. 激进但有效的值（如 `stale_after_days=1`）不会被拒绝：下限的依据是「0 让最近使用也失去保护」，不是「越大越安全」；面板没有任何文案说明夹紧后的范围，用户键入 0 只会看到数字变成 1。
 
 ### 踩坑经验
 

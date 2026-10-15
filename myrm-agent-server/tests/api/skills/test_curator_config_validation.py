@@ -1,4 +1,4 @@
-"""Curator config PATCH rejects values that would make a sweep archive every skill."""
+"""Curator config PATCH rejects values at which a sweep would treat every eligible skill as due."""
 
 import json
 from collections.abc import Iterator
@@ -74,3 +74,31 @@ def test_persisted_invalid_config_falls_back_to_defaults(client: TestClient, iso
 
     assert body["max_skills"] == 50
     assert body["stale_after_days"] == 30
+
+
+def test_persisted_invalid_threshold_keeps_the_disabled_master_switch(client: TestClient, isolated_config: Path) -> None:
+    (isolated_config / _CONFIG_FILENAME).write_text(json.dumps({"enabled": False, "max_skills": 0, "stale_after_days": 45}))
+
+    body = client.get(_CONFIG_URL).json()
+
+    assert body["enabled"] is False
+    assert body["max_skills"] == 50
+    assert body["stale_after_days"] == 30
+
+
+def test_non_finite_persisted_threshold_keeps_the_disabled_master_switch(client: TestClient, isolated_config: Path) -> None:
+    (isolated_config / _CONFIG_FILENAME).write_text('{"enabled": false, "stale_after_days": Infinity}')
+
+    body = client.get(_CONFIG_URL).json()
+
+    assert body["enabled"] is False
+    assert body["stale_after_days"] == 30
+
+
+def test_unreadable_persisted_config_falls_back_to_defaults(client: TestClient, isolated_config: Path) -> None:
+    (isolated_config / _CONFIG_FILENAME).write_text("{not json")
+
+    body = client.get(_CONFIG_URL).json()
+
+    assert body["enabled"] is True
+    assert body["max_skills"] == 50

@@ -86,6 +86,25 @@ def get_stats_collector() -> SkillStatsCollector:
     return _stats_collector
 
 
+def _load_curator_config(config_path: Path) -> CuratorConfig:
+    """Read the stored config; an unreadable or out-of-range file falls back to defaults.
+
+    The master switch is the one value that survives a bad threshold: resetting it would
+    switch on a curator the user had turned off.
+    """
+    try:
+        data = json.loads(config_path.read_text())
+    except Exception as e:
+        logger.warning("Failed to read curator config: %s, using defaults", e)
+        return CuratorConfig()
+    try:
+        return CuratorConfig.from_dict(data)
+    except Exception as e:
+        logger.warning("Invalid curator config: %s, using default thresholds", e)
+        enabled = data.get("enabled", True) if isinstance(data, dict) else True
+        return CuratorConfig(enabled=bool(enabled))
+
+
 def get_curator_config() -> CuratorConfig:
     """Load curator config from disk or return defaults."""
     global _curator_config
@@ -93,16 +112,7 @@ def get_curator_config() -> CuratorConfig:
         return _curator_config
 
     config_path = _get_data_dir() / _CURATOR_CONFIG_FILENAME
-    if config_path.exists():
-        try:
-            data = json.loads(config_path.read_text())
-            _curator_config = CuratorConfig.from_dict(data)
-        except Exception as e:
-            logger.warning("Failed to load curator config: %s, using defaults", e)
-            _curator_config = CuratorConfig()
-    else:
-        _curator_config = CuratorConfig()
-
+    _curator_config = _load_curator_config(config_path) if config_path.exists() else CuratorConfig()
     return _curator_config
 
 
