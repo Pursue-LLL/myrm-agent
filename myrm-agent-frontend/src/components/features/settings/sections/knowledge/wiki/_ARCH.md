@@ -69,5 +69,5 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 - Batch import 安全：`security_blocked_paths` / `security_redacted_paths` 非空时弹出 `WikiImportSecurityDialog`
 - Raw forget：Overview raw 树删除 → reason → `DELETE /wiki/raw/{path}`；删除按钮用 `REVEAL_ON_HOVER`（触屏常显，桌面悬停或键盘聚焦显示）
 - Maintain：结果 toast 由 `resolveMaintainToast` 决定；若移除 blocked raw，展示 `raw_security_removed` 与路径列表；本轮新发现链接（`connections_discovered`）在无待处理动作时随 found/fixed 一并展示
-- Maintain（Full）：每页一次 LLM，请求超时取 `LONG_RUNNING_REQUEST_TIMEOUT_MS`（客户端与 Next 重写代理同值），按钮在整个运行期间保持禁用，不会在 30s 处被误报失败
+- Maintain（Full）：每页一次 LLM，请求超时取 `LONG_RUNNING_REQUEST_TIMEOUT_MS`（客户端与 Next 重写代理同值），按钮在整个运行期间保持禁用，请求不在 30s 处中断；客户端中断不会取消服务端任务，页面刷新后运行状态不可见
 - Maintain（Full）：POST 响应 issues overlay 健康列表；GET 合并 vault 快照 drift（刷新仍可见）
