@@ -68,8 +68,6 @@ _EVENT_TEMPLATES: dict[AppEventType, str] = {
     AppEventType.CHANNEL_DISCONNECTED: (
         "[Myrm AI] Channel '{channel}' disconnected (status: {status}).\nPlease check Settings → Channels."
     ),
-    AppEventType.WECHAT_SESSION_EXPIRED: "[Myrm AI] WeChat session expired. Please re-login in Settings → Channels.",
-    AppEventType.CONFIG_HEALTH_WARNING: "[Myrm AI] Configuration issue detected.\nMissing: {missing_items}",
     AppEventType.SYSTEM_NOTIFICATION: "[Myrm AI] {title}: {message}",
     AppEventType.GOAL_TERMINAL: (
         "[Myrm AI] Goal {status}: {objective}\n"

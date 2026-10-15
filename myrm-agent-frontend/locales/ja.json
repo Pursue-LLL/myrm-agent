@@ -9708,8 +9708,6 @@
     "retryFailed": "再試行に失敗しました。メッセージの有効期限が切れている可能性があります",
     "pairingPending": "{channel} の {sender} からペアリングリクエストが届いています",
     "goToApproval": "承認へ移動",
-    "configHealthWarning": "設定の問題を検出しました：{items} が正しく設定されていません",
-    "goToSettings": "設定へ移動",
     "newSkillDraft": "新しいスキル成長ケースが作成されました：{name}",
     "reviewDraft": "今すぐ表示",
     "messageDeadLettered": "{channel} へのメッセージ配信が永続的に失敗しました。理由：{reason}",

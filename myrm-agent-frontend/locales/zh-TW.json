@@ -9708,8 +9708,6 @@
     "retryFailed": "重試失敗，訊息可能已過期",
     "pairingPending": "來自 {channel} 的 {sender} 發起了配對請求",
     "goToApproval": "前往審批",
-    "configHealthWarning": "發現配置問題：{items} 未正確配置",
-    "goToSettings": "前往設定",
     "newSkillDraft": "新的技能成長案例已生成：{name}",
     "reviewDraft": "立即檢視",
     "messageDeadLettered": "傳送到 {channel} 的訊息已永久失敗，原因：{reason}",

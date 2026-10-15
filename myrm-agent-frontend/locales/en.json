@@ -9776,8 +9776,6 @@
     "retryFailed": "Retry failed, message may have expired",
     "pairingPending": "New pairing request from {sender} on {channel}",
     "goToApproval": "Go to approval",
-    "configHealthWarning": "Configuration issue detected: {items} not properly configured",
-    "goToSettings": "Go to settings",
     "newSkillDraft": "A new skill growth case is ready: {name}",
     "reviewDraft": "Open review",
     "messageDeadLettered": "Message delivery to {channel} failed permanently. Reason: {reason}",

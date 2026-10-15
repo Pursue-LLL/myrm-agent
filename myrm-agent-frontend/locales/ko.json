@@ -9708,8 +9708,6 @@
     "retryFailed": "재시도 실패, 메시지가 만료되었을 수 있습니다",
     "pairingPending": "{channel}에서 {sender}의 새 페어링 요청",
     "goToApproval": "승인으로 이동",
-    "configHealthWarning": "구성 문제 감지됨: {items}이(가) 올바르게 구성되지 않음",
-    "goToSettings": "설정으로 이동",
     "newSkillDraft": "새 스킬 성장 사례가 준비되었습니다: {name}",
     "reviewDraft": "검토 열기",
     "messageDeadLettered": "{channel}로의 메시지 전달이 영구적으로 실패했습니다. 이유: {reason}",

@@ -42,7 +42,6 @@ const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
   'teammate_message',
   'cron_updated',
   'budget_updated',
-  'channel_status_updated',
   'skill_pool_updated',
   'goal:branch_switched',
 ]);
@@ -123,19 +122,6 @@ export function useGlobalEvents(): void {
           },
         });
         window.dispatchEvent(new CustomEvent('pairings-updated'));
-      } else if (payload.type === 'config_health_warning') {
-        const missingItems = Array.isArray(payload.data.missing_items)
-          ? payload.data.missing_items.map((item) => String(item))
-          : undefined;
-        const itemsText = missingItems?.join(', ') || 'LLM provider';
-        pushToast.warning(t('configHealthWarning', { items: itemsText }), {
-          duration: 10_000,
-          dismissible: true,
-          action: {
-            label: t('goToSettings'),
-            onClick: () => router.push('/settings/models'),
-          },
-        });
       } else if (payload.type === 'channel_connected' || payload.type === 'channel_disconnected') {
         window.dispatchEvent(
           new CustomEvent('channel-status-change', {

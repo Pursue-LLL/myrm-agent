@@ -103,24 +103,6 @@ class TestFormatMessage:
         assert result is not None
         assert "wechat" in result
 
-    def test_wechat_session_expired(self) -> None:
-        event = AppEvent(
-            event_type=AppEventType.WECHAT_SESSION_EXPIRED,
-            data={},
-        )
-        result = _format_message(event)
-        assert result is not None
-        assert "WeChat" in result
-
-    def test_config_health_warning(self) -> None:
-        event = AppEvent(
-            event_type=AppEventType.CONFIG_HEALTH_WARNING,
-            data={"user_id": "u1", "missing_items": ["api_key"], "suggestions": ["Add key"], "checked_at": "2026-04-29"},
-        )
-        result = _format_message(event)
-        assert result is not None
-        assert "missing_items" in result or "api_key" in result
-
     def test_system_notification(self) -> None:
         event = AppEvent(
             event_type=AppEventType.SYSTEM_NOTIFICATION,

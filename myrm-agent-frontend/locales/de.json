@@ -9708,8 +9708,6 @@
     "retryFailed": "Der erneute Versuch ist fehlgeschlagen. Die Nachricht ist möglicherweise abgelaufen",
     "pairingPending": "Neue Kopplungsanfrage von {sender} am {channel}",
     "goToApproval": "Gehen Sie zur Genehmigung",
-    "configHealthWarning": "Konfigurationsproblem erkannt: {items} nicht richtig konfiguriert",
-    "goToSettings": "Gehen Sie zu den Einstellungen",
     "newSkillDraft": "Ein neuer Fall zum Kompetenzwachstum ist fertig: {name}",
     "reviewDraft": "Rezension öffnen",
     "messageDeadLettered": "Die Nachrichtenzustellung an {channel} ist dauerhaft fehlgeschlagen. Grund: {reason}",

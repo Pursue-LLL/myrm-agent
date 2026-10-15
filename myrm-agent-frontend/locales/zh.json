@@ -9776,8 +9776,6 @@
     "retryFailed": "重试失败，消息可能已过期",
     "pairingPending": "来自 {channel} 的 {sender} 发起了配对请求",
     "goToApproval": "前往审批",
-    "configHealthWarning": "发现配置问题：{items} 未正确配置",
-    "goToSettings": "前往设置",
     "newSkillDraft": "新的技能成长案例已生成：{name}",
     "reviewDraft": "立即查看",
     "messageDeadLettered": "发送到 {channel} 的消息已永久失败，原因：{reason}",

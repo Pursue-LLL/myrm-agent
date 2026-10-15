@@ -25,11 +25,9 @@ class AppEventType(StrEnum):
     """Known event types pushed to web clients."""
 
     PAIRING_PENDING = "pairing_pending"
-    WECHAT_SESSION_EXPIRED = "wechat_session_expired"
     CHANNEL_CONNECTED = "channel_connected"
     CHANNEL_DISCONNECTED = "channel_disconnected"
     GROUPS_UPDATED = "groups_updated"
-    CONFIG_HEALTH_WARNING = "config_health_warning"
     AGENT_CONFIG_UPDATED = "agent_config_updated"
     MANAGED_POLICY_UPDATED = "managed_policy_updated"
     MESSAGE_DEAD_LETTERED = "message_dead_lettered"
@@ -51,7 +49,6 @@ class AppEventType(StrEnum):
     APPROVAL_RESOLVED = "approval_resolved"
     CRON_UPDATED = "cron_updated"
     BUDGET_UPDATED = "budget_updated"
-    CHANNEL_STATUS_UPDATED = "channel_status_updated"
     KANBAN_TASK_UPDATED = "kanban_task_updated"
     BACKGROUND_TASK_DONE = "background_task_done"
     UX_WARNING_TRUNCATED = "ux_warning_truncated"
@@ -70,8 +67,6 @@ class AppEventType(StrEnum):
     SESSION_FAILED = "session_failed"
     SUBAGENT_SPAWNED = "subagent_spawned"
     SUBAGENT_MERGED = "subagent_merged"
-    SANDBOX_PERSIST_TRIGGERED = "sandbox_persist_triggered"
-    SANDBOX_PERSIST_COMPLETED = "sandbox_persist_completed"
 
 
 @dataclass(frozen=True, slots=True)
