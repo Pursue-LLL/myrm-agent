@@ -76,9 +76,6 @@
 | `PromptCachePreservingDeltaCard.tsx` | 核心 | 会话内记忆更新检视：稳定 system 前缀 + human 尾部的布局预览；默认绑定当前聊天 session；命中率见聊天上下文环，此处不展示伪造百分比 | ✅    |
 | `EphemeralDeltaLiveInspectorView.tsx` | 辅助 | 瞬态增量实时检视子组件：呈现活跃增量列表、交互式用户修正录入表单、LWW 重写覆盖与前缀哈希校验 | ✅    |
 | `PromptCacheConsolidationView.tsx` | 辅助 | 缓存一致性与归档子组件：双轨预览、一键归档落库；HUD 仅展示后端遥测，无数据时显示占位符 | ✅    |
-| `TemporalRelationalBacktrackingCard.tsx` | 核心 | 时序因果锚点与跨会话实体反向回溯卡片：深度攻克开篇“吃火锅 ↔ 打边炉哪个客户”经典痛点，三元组锚定、同义方言倒查与原文证据强绑定 | ✅    |
-| `CrossSessionBacktrackConsoleView.tsx` | 辅助 | 跨会话反向回溯控制台子组件：呈现口语化方言动作线索反查、毫秒级目标客体锁定、出处对话切片高亮与综合因果推断 | ✅    |
-| `RelationalAnchorGraphView.tsx` | 辅助 | 时序因果拓扑子组件：呈现结构化实体-动作-时间三元组列表、同义词方言映射簇、新建三元组录入与原文证据强绑定 | ✅    |
 | `MemoryCuratorStudioCard.tsx` | 核心 | 记忆策展工作台与 Markdown 双向同步卡片：深度汲取 OpenClaw/Hermes 纯文本人类可读可编辑哲学，工作区 MEMORY.md 镜像毫秒级热重载、所见即所得卡片流策展与一键隐私物理擦除 | ✅    |
 | `MemoryCuratorStreamView.tsx` | 辅助 | 所见即所得卡片流子组件：呈现认知分类与状态筛选药丸、反乱记待审人类门禁确认/驳回、原地即时编辑与一键物理抹除 | ✅    |
 | `MemoryCuratorWorkspaceView.tsx` | 辅助 | 工作区 Markdown 镜像子组件：呈现原生纯文本 Markdown 编辑器、双向对账 Diff 统计、从磁盘热重载同步至 SQLite 与导出镜像 | ✅    |

@@ -141,9 +141,6 @@ from app.api.memory.profile_notes_router import router as profile_notes_router
 from app.api.memory.quadruple_retrieval_router import (
     router as quadruple_retrieval_router,
 )
-from app.api.memory.relational_backtrack_router import (
-    router as relational_backtrack_router,
-)
 from app.api.memory.revocable_provenance_router import (
     router as revocable_provenance_router,
 )
@@ -269,10 +266,6 @@ router.include_router(
 router.include_router(
     ephemeral_delta_router,
     tags=["memory-ephemeral-delta"],
-)
-router.include_router(
-    relational_backtrack_router,
-    tags=["memory-relational-backtrack"],
 )
 router.include_router(
     markdown_curator_router,
