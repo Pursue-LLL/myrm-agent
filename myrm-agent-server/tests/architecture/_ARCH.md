@@ -43,6 +43,8 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_api_route_consumers.py` | 每个 API 路由都要有调用方：前端非测试源码里有路径字面量（任意调用形式，按路径而非方法匹配；`/webui/**` 额外按去掉挂载前缀匹配 `getWebuiUrl` 调用），或登记在 `data/route_external_consumers.txt`（每条写明调用方 file:line）；存量无调用路由登记在 `data/route_consumer_baseline.txt`，只许缩小（路由已删除、已有调用方或已登记都会失败）；路由不得重复声明已挂载的 `/api/v1` 前缀 |
 | `data/route_external_consumers.txt` | 前端不调用、但有外部调用方的路由登记：`METHOD /path \| 调用方 file:line` |
 | `data/route_consumer_baseline.txt` | 门禁引入前就没有调用方的存量路由；删路由或接上前端后必须同步删行 |
+| `test_memory_router_mounts.py` | `app/api/memory/router.py` 里无条件挂载（对所有用户可见）的子路由必须登记在 `data/memory_default_mounts.txt`：新增路由要么收进 `settings.memory_labs_enabled` 开关，要么写明默认可见调用方 file:line；路由消费者门禁会把「只有隐藏面板的 service 引用」算作调用方，拦不住进程内演示引擎，所以单独把关。解析源码而非导入，自带检测器正反例自检 |
+| `data/memory_default_mounts.txt` | 无条件挂载的记忆子路由台账：裸行是门禁引入前的存量，只许删除；`挂载名 \| 调用方 file:line` 是引入后经论证放行的新增 |
 | `test_public_mutating_routes.py` | 变更类路由（POST/PUT/PATCH/DELETE）跳过认证中间件只有一种合法理由：handler 自己认证调用方；此类路由必须登记在测试内的表里并写明认证方式，未登记（例如公开前缀把运维动作一并放行）或登记后不再公开都会失败 |
 | `test_openapi_operation_ids.py` | 全量公开 API 的 OpenAPI operationId 必须唯一：同一 (method, path) 重复注册（后者被静默遮蔽）或单个 `api_route` 挂多个 method 都会失败，一个路径只允许一个 handler |
 | `test_api_services_vocabulary.py` | `app/api/` 与 `app/services/` 顶域分区 + 别名表与 `CONTRIBUTING.md` 同步 |
