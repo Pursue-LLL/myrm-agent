@@ -1,6 +1,6 @@
 # services/kanban/task_runner/
 
-KanbanTaskRunner 执行域。`runner.py` 为编排入口；`stream.py` 附件与 multimodal；`worktree/` Git 隔离子包（聚合出口见 `worktree/__init__.py`——`lifecycle.py` 分支唯一化 + 终态 merge 回目标分支 + per-base_dir merge 互斥；`merge.py` merge 前置 git 步骤（自动提交/可合并判断/target 分支切换/分支名校验）；`cleanup.py` worktree 目录清理（safe 删除防丢数据）；`landing_gate.py` 父任务合并失败时拦住依赖任务的运行入口）；`profile.py` agent profile 解析。worktree add/remove/分支删除/merge 组合等共享 git 命令基础设施复用 `app.core.utils.git_worktree`。上级 SSOT：`../_ARCH.md`。
+KanbanTaskRunner 执行域。`runner.py` 为编排入口；`stream.py` 附件与 multimodal、运行结果文本累积（`AnswerDraft`：恢复重放只丢在途段落）；`worktree/` Git 隔离子包（聚合出口见 `worktree/__init__.py`——`lifecycle.py` 分支唯一化 + 终态 merge 回目标分支 + per-base_dir merge 互斥；`merge.py` merge 前置 git 步骤（自动提交/可合并判断/target 分支切换/分支名校验）；`cleanup.py` worktree 目录清理（safe 删除防丢数据）；`landing_gate.py` 父任务合并失败时拦住依赖任务的运行入口）；`profile.py` agent profile 解析。worktree add/remove/分支删除/merge 组合等共享 git 命令基础设施复用 `app.core.utils.git_worktree`。上级 SSOT：`../_ARCH.md`。
 
 ## worktree 子包分支隔离设计
 

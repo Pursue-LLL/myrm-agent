@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: Approval timeout scheduling)
+- myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
 - executor_helpers.history (POS: Channel chat history persistence)
 
 [OUTPUT]
@@ -16,6 +17,7 @@ from __future__ import annotations
 import logging
 
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.utils.coercion import parse_float
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
@@ -78,7 +80,7 @@ def schedule_channel_approval_timeout(
             chat_history = build_chat_history_with_metadata(
                 (await load_history_without_persist(f"{channel}:{peer}"))[1],
             )
-            chunks: list[str] = []
+            answer = AnswerDraft()
             next_timeout: dict[str, object] | None = None
             try:
                 async for event in agent.process_stream(
@@ -87,10 +89,8 @@ def schedule_channel_approval_timeout(
                     chat_id=chat_id,
                     context=runtime_context,
                 ):
-                    event_type = event.get("type", "")
-                    if event_type == "message" and isinstance(event.get("data"), str):
-                        chunks.append(str(event["data"]))
-                    elif event_type == "tool_approval_request":
+                    answer.feed(event)
+                    if event.get("type", "") == "tool_approval_request":
                         data = event.get("data", {})
                         if isinstance(data, dict):
                             extensions = data.get("extensions", {})
@@ -108,7 +108,7 @@ def schedule_channel_approval_timeout(
                     extra_context=runtime_context,
                 )
 
-            content = strip_internal_markers("".join(chunks))
+            content = strip_internal_markers(answer.text)
             if content.strip():
                 await persist_assistant_message(chat_id, content)
 

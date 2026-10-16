@@ -15,7 +15,8 @@
 [POS]
 Finalizes a completed harness stream into a channel OutboundMessage: content cleanup,
 cost recording, metadata, media attachments, and artifact deep-link buttons. A failed turn
-replies with the member-safe wording of its error kind and a reference id; the raw error text only
+replies with the member-safe wording of its error kind and a reference id (after any text that had
+already streamed, so a cut-off answer is never presented as complete); the raw error text only
 goes to the operator log under the same id.
 """
 
@@ -55,6 +56,23 @@ from .deliverable import (
 logger = logging.getLogger(__name__)
 
 
+def _failed_turn_wording(
+    acc: StreamAccumulator,
+    msg: InboundMessage,
+    *,
+    account_guidance: bool,
+) -> tuple[str, str]:
+    """Member-safe wording of a failed turn and its error type; the raw error text goes to the log under the same reference id."""
+    wording, ref_id = friendly_error_text(acc.error_kind, msg, account_guidance=account_guidance)
+    logger.warning(
+        "ChannelAgentExecutor: agent error for %s [ref: %s]: %s",
+        msg.sender_id,
+        ref_id,
+        acc.error_message,
+    )
+    return wording, acc.error_kind.value
+
+
 async def finalize_channel_stream_reply(
     msg: InboundMessage,
     *,
@@ -77,7 +95,7 @@ async def finalize_channel_stream_reply(
     """
     from app.channels.i18n import channel_t, resolve_message_locale
 
-    content = strip_internal_markers("".join(acc.chunks))
+    content = strip_internal_markers(acc.draft.text)
 
     workspace_root = await resolve_chat_workspace_root(chat_id)
     scanned_attachments: list[MediaAttachment] = []
@@ -154,17 +172,14 @@ async def finalize_channel_stream_reply(
             locale = resolve_message_locale(msg)
             content = str(channel_t(locale, "deliverable_attached_only"))
         elif acc.error_message:
-            content, ref_id = friendly_error_text(acc.error_kind, msg, account_guidance=account_guidance)
-            error_type = acc.error_kind.value
-            logger.warning(
-                "ChannelAgentExecutor: agent error for %s [ref: %s]: %s",
-                msg.sender_id,
-                ref_id,
-                acc.error_message,
-            )
+            content, error_type = _failed_turn_wording(acc, msg, account_guidance=account_guidance)
         else:
             logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
             content = "[No response generated]"
+    elif acc.error_message:
+        # The stream broke after text had gone out: keep that text, but say it is incomplete.
+        notice, error_type = _failed_turn_wording(acc, msg, account_guidance=account_guidance)
+        content = f"{content.strip()}\n\n{notice}" if content.strip() else notice
 
     content = append_deliverable_notes(
         content,

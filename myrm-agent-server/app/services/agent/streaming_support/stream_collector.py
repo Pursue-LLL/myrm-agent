@@ -29,6 +29,7 @@ import asyncio
 import json
 import logging
 
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.agent.streaming.citation_audit import (
     audit_citation_markers,
     resolve_source_count_for_audit,
@@ -375,7 +376,7 @@ class StreamContentCollector:
 
     def __init__(self, sibling_group_id: str | None = None, chat_id: str | None = None) -> None:
         self._message_id: str | None = None
-        self._content_parts: list[str] = []
+        self._answer = AnswerDraft()
         self._reasoning_parts: list[str] = []
         self._reasoning_char_count = 0
         self._reasoning_truncated = False
@@ -481,7 +482,7 @@ class StreamContentCollector:
                 merged_sources_dict[key].update(source)
 
         return {
-            "content": "".join(self._content_parts),
+            "content": self._answer.text,
             "reasoning": "".join(self._reasoning_parts),
             "progress_steps": ordered_steps,
             "sources": ordered_sources,
@@ -539,9 +540,8 @@ class StreamContentCollector:
             if isinstance(raw_mid, str) and raw_mid:
                 self._message_id = raw_mid
 
-        if event_type == "message" and data:
-            self._content_parts.append(str(data))
-        elif event_type == "iteration_limit_reached":
+        self._answer.feed(event)
+        if event_type == "iteration_limit_reached":
             detail = string_keyed_dict(data) if isinstance(data, dict) else None
             payload: dict[str, object] = {
                 "code": "iteration_limit_reached",
@@ -836,7 +836,7 @@ class StreamContentCollector:
 
     @property
     def content(self) -> str:
-        return "".join(self._content_parts)
+        return self._answer.text
 
     @property
     def reasoning(self) -> str | None:
@@ -844,7 +844,7 @@ class StreamContentCollector:
 
     @property
     def has_content(self) -> bool:
-        return bool(self._content_parts) or bool(self._reasoning_parts)
+        return bool(self._answer) or bool(self._reasoning_parts)
 
     @property
     def has_persistable_turn(self) -> bool:
@@ -863,15 +863,16 @@ class StreamContentCollector:
     def _discard_draft(self) -> None:
         """Drop partial content streamed before a recovery that restarts the turn.
 
-        Every recovery that makes the LLM regenerate the answer from scratch
+        Every recovery that makes the LLM regenerate the in-flight answer segment
         (model failover, transient retry, context compaction, escalation, ...)
         emits its STATUS/SSE event synchronously *before* the restreamed chunks,
-        so text streamed before the failure is a draft that will be fully
-        regenerated. Dropping it (idempotent: a second event finds an empty
-        buffer) keeps both the persisted history and the live stream free of
-        stale partial content spliced with the complete answer.
+        so the text of that segment is a draft that will be fully regenerated.
+        Dropping it (idempotent: a second event finds nothing left to drop) keeps
+        both the persisted history and the live stream free of stale partial
+        content spliced with the complete answer. Text before the last tool step
+        belongs to a checkpointed segment and stays (see ``AnswerDraft``).
         """
-        self._content_parts.clear()
+        self._answer.restart()
         self._reasoning_parts.clear()
         self._reasoning_char_count = 0
         self._reasoning_truncated = False

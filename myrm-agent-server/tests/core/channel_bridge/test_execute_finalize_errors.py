@@ -83,13 +83,33 @@ async def test_raw_error_is_logged_under_the_reference_the_reply_carries(caplog:
 
 
 @pytest.mark.asyncio
-async def test_streamed_text_wins_over_a_later_error() -> None:
-    acc = _failed_acc()
-    acc.chunks.append("Partial answer.")
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+async def test_a_cut_off_answer_keeps_its_text_and_says_it_is_incomplete() -> None:
+    acc = _failed_acc(ErrorKind.TIMEOUT)
+    acc.draft.feed({"type": "message", "data": "The capital of France is Pa"})
+    persist_mock, reply = await _finalize(acc, ((), frozenset()))
 
-    assert reply.content == "Partial answer."
-    assert not is_error_reply(reply)
+    assert reply.content.startswith("The capital of France is Pa\n\n")
+    assert "timed out" in reply.content
+    assert _REF.search(reply.content) is not None
+    assert "_XaiEntitlementError" not in reply.content
+    assert is_error_reply(reply)
+    assert reply.metadata is not None
+    assert reply.metadata[ERROR_TYPE_METADATA_KEY] == ErrorKind.TIMEOUT.value
+    assert persist_mock.call_args.args[1] == reply.content
+
+
+@pytest.mark.asyncio
+async def test_a_cut_off_answer_logs_the_raw_error_under_the_reply_reference(caplog: pytest.LogCaptureFixture) -> None:
+    acc = _failed_acc()
+    acc.draft.feed({"type": "message", "data": "Partial answer."})
+    with caplog.at_level(logging.WARNING):
+        _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+
+    ref = _REF.search(reply.content)
+    assert ref is not None
+    logged = [r.getMessage() for r in caplog.records if _RAW_PROVIDER_ERROR in r.getMessage()]
+    assert len(logged) == 1
+    assert f"[ref: {ref.group(1)}]" in logged[0]
 
 
 @pytest.mark.asyncio
@@ -105,7 +125,7 @@ async def test_failed_turn_reply_is_flagged_with_its_error_kind(kind: ErrorKind)
 @pytest.mark.asyncio
 async def test_an_answer_is_not_flagged_as_a_failed_turn() -> None:
     acc = StreamAccumulator()
-    acc.chunks.append("Here is your answer.")
+    acc.draft.feed({"type": "message", "data": "Here is your answer."})
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
 
     assert not is_error_reply(reply)

@@ -631,3 +631,18 @@ def test_model_escalated_discards_draft() -> None:
     collector.feed_event({"type": "message", "data": "Replayed with stronger model"})
     assert collector.content == "Replayed with stronger model"
     collector.cleanup()
+
+
+def test_failover_after_a_tool_step_keeps_the_text_streamed_before_it() -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-failover-after-tool")
+
+    collector.feed_event({"type": "message", "data": "Let me check. "})
+    collector.feed_event({"type": "tool_start"})
+    collector.feed_event({"type": "message", "data": "The capital of France is Pa"})
+    collector.feed_event({"type": "status", "step_key": "model_failover", "error_kind": "timeout", "restart": True})
+    collector.feed_event({"type": "model_failover", "data": {"fromModel": "a", "toModel": "b", "reason": "timeout"}})
+    collector.feed_event({"type": "message", "data": "Paris is the capital of France."})
+
+    assert collector.content == "Let me check. Paris is the capital of France."
+    collector.cleanup()

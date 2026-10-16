@@ -3,6 +3,7 @@
 [INPUT]
 - app.channels.types::MediaAttachment, ToolStep (POS: Channel message types)
 - llms.errors.classifier::ErrorKind (POS: LLM error classification)
+- agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
 
 [OUTPUT]
 - ShareableArtifact, StreamAccumulator, step_to_label
@@ -16,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
 from app.channels.types import MediaAttachment, ToolStep
@@ -45,7 +47,7 @@ class ShareableArtifact(NamedTuple):
 class StreamAccumulator:
     """Lightweight accumulator for channel agent responses."""
 
-    chunks: list[str] = field(default_factory=list)
+    draft: AnswerDraft = field(default_factory=AnswerDraft)
     reasoning_chunks: list[str] = field(default_factory=list)
     tool_steps: list[ToolStep] = field(default_factory=list)
     sources: list[dict[str, object]] = field(default_factory=list)

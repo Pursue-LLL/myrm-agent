@@ -37,7 +37,7 @@ async def test_message_event_yields_writing_progress_and_streaming_text() -> Non
     assert progress[0].label == "✍️ Writing response..."
     assert isinstance(progress[1], StreamingText)
     assert progress[1].text == "Hello"
-    assert acc.chunks == ["Hello"]
+    assert acc.draft.text == "Hello"
 
 
 @pytest.mark.asyncio
@@ -133,6 +133,33 @@ async def _consume(*events: dict[str, object]) -> StreamAccumulator:
     async for _ in iter_channel_stream_progress(_events(*events), acc, ChannelStreamEventState()):
         pass
     return acc
+
+
+_FAILOVER_RESTART: dict[str, object] = {"type": "status", "step_key": "model_failover", "restart": True}
+
+
+@pytest.mark.asyncio
+async def test_failover_restart_replaces_the_partial_answer_instead_of_splicing_it() -> None:
+    acc = await _consume(
+        {"type": "message", "data": "The capital of France is Pa"},
+        _FAILOVER_RESTART,
+        {"type": "message", "data": "Paris is the capital of France."},
+    )
+
+    assert acc.draft.text == "Paris is the capital of France."
+
+
+@pytest.mark.asyncio
+async def test_failover_restart_keeps_the_text_streamed_before_a_tool_step() -> None:
+    acc = await _consume(
+        {"type": "message", "data": "Let me check. "},
+        {"type": "tool_start"},
+        {"type": "message", "data": "The capital of France is Pa"},
+        _FAILOVER_RESTART,
+        {"type": "message", "data": "Paris is the capital of France."},
+    )
+
+    assert acc.draft.text == "Let me check. Paris is the capital of France."
 
 
 @pytest.mark.asyncio

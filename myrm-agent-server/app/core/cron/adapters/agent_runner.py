@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.api.security import is_untrusted_ingress_active
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
     enter_cron_execution_context,
@@ -999,7 +1000,7 @@ class AgentJobRunner:
 
 @dataclass
 class _StreamAccumulator:
-    chunks: list[str] = field(default_factory=list)
+    answer: AnswerDraft = field(default_factory=AnswerDraft)
     progress_steps: list[dict[str, object]] = field(default_factory=list)
     sources: list[dict[str, object]] = field(default_factory=list)
     usage: dict[str, int] | None = None
@@ -1017,7 +1018,7 @@ class _StreamAccumulator:
                 self.sources.append(src)
 
     def to_result(self, model: str | None = None) -> JobResult:
-        output = "".join(self.chunks)
+        output = self.answer.text
         metadata: dict[str, object] = {}
         if self.progress_steps:
             metadata["progressSteps"] = self.progress_steps
@@ -1123,9 +1124,8 @@ async def _consume_stream(
         if stop_reason is not None:
             acc.set_stop_reason(stop_reason)
 
-        if event_type == "message" and isinstance(event.get("data"), str):
-            acc.chunks.append(str(event["data"]))
-        elif event_type == "message_end" and isinstance(event.get("usage"), dict):
+        acc.answer.feed(event)
+        if event_type == "message_end" and isinstance(event.get("usage"), dict):
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
@@ -1183,9 +1183,8 @@ async def _consume_dynamic_workflow_stream(
         if stop_reason is not None:
             acc.set_stop_reason(stop_reason)
 
-        if event_type == "message" and isinstance(event.get("data"), str):
-            acc.chunks.append(str(event["data"]))
-        elif event_type == "message_end" and isinstance(event.get("usage"), dict):
+        acc.answer.feed(event)
+        if event_type == "message_end" and isinstance(event.get("usage"), dict):
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}

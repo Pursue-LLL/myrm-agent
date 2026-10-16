@@ -57,3 +57,17 @@ def test_accumulator_persists_highest_priority_stop_reason() -> None:
     stop_reason = result.metadata.get("stopReason")
     assert isinstance(stop_reason, dict)
     assert stop_reason.get("code") == "iteration_limit_reached"
+
+
+def test_accumulator_answer_drops_the_segment_a_recovery_restarts() -> None:
+    acc = _StreamAccumulator()
+    for event in (
+        {"type": "message", "data": "Let me check. "},
+        {"type": "tool_start"},
+        {"type": "message", "data": "The capital of France is Pa"},
+        {"type": "status", "step_key": "model_failover", "restart": True},
+        {"type": "message", "data": "Paris."},
+    ):
+        acc.answer.feed(event)
+
+    assert acc.to_result().output == "Let me check. Paris."

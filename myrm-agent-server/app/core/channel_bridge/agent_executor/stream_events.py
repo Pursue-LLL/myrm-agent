@@ -8,7 +8,8 @@
 
 [OUTPUT]
 - ChannelStreamEventState: mutable side-effect holder for approval timeout metadata
-- iter_channel_stream_progress: maps harness stream events to channel progress yields;
+- iter_channel_stream_progress: maps harness stream events to channel progress yields; answer text goes through
+  ``acc.draft`` so a recovery that replays the in-flight segment does not duplicate it;
   capability_gap web_search not_configured|unreachable → ProgressUpdate; a fatal ``error`` event
   leaves its raw text (operator logs) and its error kind (member-facing wording) on the accumulator
 
@@ -48,6 +49,8 @@ async def iter_channel_stream_progress(
 
     async for event in events:
         event_type = event.get("type", "")
+        # Streams answer text and applies the restart contract (a recovery replays only the in-flight segment).
+        acc.draft.feed(event)
 
         if event_type == "fission_topology":
             yield event["data"]
@@ -68,8 +71,7 @@ async def iter_channel_stream_progress(
                 first_message_seen = True
                 yield ProgressUpdate(label="✍️ Writing response...")
 
-            acc.chunks.append(str(event["data"]))
-            yield StreamingText(text="".join(acc.chunks))
+            yield StreamingText(text=acc.draft.text)
 
         elif event_type == "sources" and isinstance(event.get("data"), list):
             raw_src = event.get("data")
