@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -131,6 +131,21 @@ async def test_a_reply_that_arrived_while_the_user_was_away_is_unseen(async_clie
     assert brief["last_user_prompt"] == "Summarise the report"
     assert brief["result_preview"] == "The report is ready."
     assert brief["chat_title"] == "Quarterly report"
+
+
+@pytest.mark.asyncio
+async def test_updated_at_names_its_utc_offset_so_a_browser_does_not_read_it_as_local_time(
+    async_client: httpx.AsyncClient,
+) -> None:
+    chat_id = await _seed_chat(
+        last_read_minutes_ago=10,
+        messages=(("user", "Summarise the report", 11), ("assistant", "The report is ready.", 5)),
+    )
+
+    updated_at = datetime.fromisoformat(str((await _briefs(async_client))[chat_id]["updated_at"]))
+
+    assert updated_at.utcoffset() == timedelta(0)
+    assert abs(datetime.now(UTC) - updated_at) < timedelta(minutes=3)
 
 
 @pytest.mark.asyncio

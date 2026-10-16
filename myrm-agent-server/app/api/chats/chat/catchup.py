@@ -78,6 +78,12 @@ def _naive_utc(moment: datetime) -> datetime:
     return moment.astimezone(UTC).replace(tzinfo=None)
 
 
+def _utc_iso(moment: datetime) -> str:
+    """ISO-8601 with an explicit UTC offset: the stored value is naive UTC, which a browser would read as local time."""
+    aware = moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment.astimezone(UTC)
+    return aware.isoformat()
+
+
 async def _unseen_failures(db: AsyncSession) -> dict[str, CatchupStatus]:
     """Chats whose last turn failed or was cancelled after the user last saw them.
 
@@ -185,7 +191,7 @@ async def get_catchup_briefs(user_id: Annotated[str, Depends(get_deploy_identity
                     **brief.model_dump(),
                     chat_id=chat.chat_id,
                     chat_title=chat.title or "",
-                    updated_at=chat.updated_at.isoformat(),
+                    updated_at=_utc_iso(chat.updated_at),
                 )
             )
 
