@@ -86,6 +86,24 @@ describe('StorageGovernanceCard', () => {
     expect(screen.queryByText('filesCount:2')).not.toBeInTheDocument();
   });
 
+  it('draws an empty track for a category without bytes and a proportional bar for the others', async () => {
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockResolvedValue({
+      ...mockReport,
+      categories: [
+        { category: 'sqlite_database', bytes: 20971520, item_count: 2, percentage: 40.0 },
+        { category: 'sqlite_backups', bytes: 0, item_count: 0, percentage: 0.0 },
+      ],
+    });
+
+    render(<StorageGovernanceCard />);
+
+    const fillOf = (label: string) =>
+      screen.getByText(label).closest('div.rounded-lg')?.querySelector<HTMLElement>('.bg-primary')?.style.width;
+    expect(await screen.findByText('categories.sqlite_database')).toBeInTheDocument();
+    expect(fillOf('categories.sqlite_database')).toBe('40%');
+    expect(fillOf('categories.sqlite_backups')).toBe('0%');
+  });
+
   it('tells the user in their language when a snapshot could not be created', async () => {
     (systemService.createStateSnapshot as unknown as Mock).mockResolvedValue({
       success: false,

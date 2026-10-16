@@ -266,7 +266,7 @@ export const StorageGovernanceCard = memo(() => {
                     <div className="w-full bg-border/40 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-primary h-full transition-all"
-                        style={{ width: `${Math.min(100, Math.max(1, cat.percentage))}%` }}
+                        style={{ width: `${cat.bytes > 0 ? Math.min(100, Math.max(1, cat.percentage)) : 0}%` }}
                       />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
