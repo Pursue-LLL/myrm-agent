@@ -224,23 +224,6 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     return done(ctx);
   }
 
-  if (data.type === H.AgentEventType.TOOL_FALLBACK) {
-    actions.setMessages((state) => {
-      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-      if (messageIndex !== -1) {
-        if (!state.messages[messageIndex].progressSteps) {
-          state.messages[messageIndex].progressSteps = [];
-        }
-        state.messages[messageIndex].progressSteps.push({
-          step_key: 'safety_fallback_active',
-          status: 'warning',
-          items: [{ text: data.message }],
-        });
-      }
-    });
-    return done(ctx);
-  }
-
   if (data.type === H.AgentEventType.CONTEXT_REFERENCE_WARNING) {
     const { toast } = await import('@/lib/utils/toast');
     const warningMessage = data.data?.message || 'Context reference warning';

@@ -73,7 +73,6 @@
   "tool_end",
   "tool_evicted_ref",
   "tool_failure",
-  "tool_fallback",
   "tool_heartbeat",
   "tool_image_output",
   "tool_progress",

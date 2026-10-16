@@ -419,13 +419,6 @@ export interface ContextOverflowResetStreamEvent extends BaseAgentEvent {
   };
 }
 
-export interface ToolFallbackStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.TOOL_FALLBACK;
-  tool: string;
-  fallback_type: string;
-  message: string;
-}
-
 export interface ContextReferenceWarningStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.CONTEXT_REFERENCE_WARNING;
   data: {

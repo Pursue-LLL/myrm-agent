@@ -36,7 +36,6 @@ vi.mock('../handlerDeps', () => ({
     STEERING: 'steering',
     ITERATION_LIMIT_REACHED: 'iteration_limit_reached',
     CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',
-    TOOL_FALLBACK: 'tool_fallback',
     CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
     PTC_NOTIFY: 'ptc_notify',
   },

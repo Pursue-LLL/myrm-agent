@@ -66,7 +66,6 @@ export const AgentEventType = {
   CONTEXT_OVERFLOW_RESET: 'context_overflow_reset',
   STEERING: 'steering',
   REDIRECTED: 'redirected',
-  TOOL_FALLBACK: 'tool_fallback',
   CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
   CAPTCHA_DETECTED: 'captcha_detected',
   CAPTCHA_RESOLVED: 'captcha_resolved',

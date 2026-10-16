@@ -69,7 +69,6 @@ import type {
   SubagentStartStreamEvent,
   SubagentStatusUpdateStreamEvent,
   TeammateMessageStreamEvent,
-  ToolFallbackStreamEvent,
   ToolsSnapshotStreamEvent,
   VerificationVerdictStreamEvent,
   WorkingMemoryStreamEvent,
@@ -158,7 +157,6 @@ export type AgentStreamEvent =
   | DagStateUpdateStreamEvent
   | IterationLimitReachedStreamEvent
   | ContextOverflowResetStreamEvent
-  | ToolFallbackStreamEvent
   | ContextReferenceWarningStreamEvent
   | GoalStatusStreamEvent
   | FissionTopologyUpdateStreamEvent
