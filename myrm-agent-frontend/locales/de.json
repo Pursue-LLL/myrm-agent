@@ -19846,17 +19846,7 @@
         "editLimitDesc": "Monatliches Warnlimit für {provider} anpassen",
         "limitLabel": "Monatliches Limit (Aufrufe)",
         "cancel": "Abbrechen",
-        "save": "Speichern",
-        "circuitBreakersTitle": "LLM-Anbieter-Schutzschalter & Zustand",
-        "circuitBreakersDesc": "Echtzeit-Zustandstelemetrie und Fehlerisolationsstatus über LLM-Gateways hinweg",
-        "circuitAllHealthy": "Alle Anbieter intakt",
-        "circuitStateClosed": "Verbunden",
-        "circuitStateOpen": "Schutzschalter ausgelöst",
-        "circuitStateHalfOpen": "Wiederherstellungsprüfung",
-        "circuitFailures": "Fehlschläge: {count}",
-        "circuitRetryCooldown": "Wiederholungs-Cooldown: {seconds}s",
-        "circuitResetOne": "Prüfung zurücksetzen",
-        "circuitResetAll": "Alle Stromkreise zurücksetzen"
+        "save": "Speichern"
       }
     },
     "workingState": {

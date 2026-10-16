@@ -20544,17 +20544,7 @@
         "editLimitDesc": "Adjust monthly warning threshold for {provider}",
         "limitLabel": "Monthly Quota Limit (Calls)",
         "cancel": "Cancel",
-        "save": "Save Settings",
-        "circuitBreakersTitle": "LLM Provider Circuit Breaker & Health",
-        "circuitBreakersDesc": "Real-time health telemetry and fault isolation state across LLM gateways",
-        "circuitAllHealthy": "All Providers Healthy",
-        "circuitStateClosed": "Connected",
-        "circuitStateOpen": "Circuit Tripped",
-        "circuitStateHalfOpen": "Probing Recovery",
-        "circuitFailures": "Failures: {count}",
-        "circuitRetryCooldown": "Retry in: {seconds}s",
-        "circuitResetOne": "Reset",
-        "circuitResetAll": "Reset All Circuits"
+        "save": "Save Settings"
       }
     },
     "workingState": {

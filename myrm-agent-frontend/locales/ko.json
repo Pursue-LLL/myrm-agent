@@ -19846,17 +19846,7 @@
         "editLimitDesc": "{provider}의 월간 알림 한도 조정",
         "limitLabel": "월간 할당량 한도 (회)",
         "cancel": "취소",
-        "save": "저장",
-        "circuitBreakersTitle": "LLM 공급자 서킷 브레이커 및 상태",
-        "circuitBreakersDesc": "각 LLM 게이트웨이의 실시간 상태 원격 측정 및 오류 격리 상태를 모니터링합니다",
-        "circuitAllHealthy": "모든 공급자 정상",
-        "circuitStateClosed": "정상 연결",
-        "circuitStateOpen": "회로 차단됨",
-        "circuitStateHalfOpen": "복구 프로브 중",
-        "circuitFailures": "연속 실패: {count}회",
-        "circuitRetryCooldown": "재시도 쿨다운: {seconds}초",
-        "circuitResetOne": "프로브 재설정",
-        "circuitResetAll": "모든 회로 재설정"
+        "save": "저장"
       }
     },
     "workingState": {

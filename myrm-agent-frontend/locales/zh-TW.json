@@ -19846,17 +19846,7 @@
         "editLimitDesc": "調整 {provider} 的每月額度告警上限",
         "limitLabel": "月度配額上限 (次)",
         "cancel": "取消",
-        "save": "儲存設定",
-        "circuitBreakersTitle": "LLM 供應商熔斷與連線能力",
-        "circuitBreakersDesc": "即時探測各模型服務商健康度與故障隔離狀態",
-        "circuitAllHealthy": "全供應商連線正常",
-        "circuitStateClosed": "正常連線",
-        "circuitStateOpen": "已觸發熔斷保護",
-        "circuitStateHalfOpen": "探測復原中",
-        "circuitFailures": "連續失敗: {count} 次",
-        "circuitRetryCooldown": "冷卻重試倒數: {seconds}s",
-        "circuitResetOne": "重設探測",
-        "circuitResetAll": "重設全部熔斷"
+        "save": "儲存設定"
       }
     },
     "workingState": {

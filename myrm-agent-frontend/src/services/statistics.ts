@@ -1050,33 +1050,3 @@ export async function updateSearchQuotaLimit(provider: string, quota_limit: numb
     body: JSON.stringify({ provider, quota_limit }),
   });
 }
-
-export interface ProviderCircuitHealthItem {
-  provider: string;
-  state: 'closed' | 'open' | 'half_open';
-  health: 'healthy' | 'warning' | 'critical';
-  failure_count: number;
-  retry_after_ms: number;
-  half_open_calls: number;
-  timestamp: number;
-}
-
-export interface LLMProviderHealthResponse {
-  circuit_breakers: ProviderCircuitHealthItem[];
-}
-
-export async function getLLMProviderHealth(): Promise<LLMProviderHealthResponse> {
-  return apiRequest<LLMProviderHealthResponse>('/statistics/llm-provider-health');
-}
-
-export async function resetLLMProviderCircuit(
-  provider_or_key?: string,
-): Promise<{ success: boolean; reset_count: number; provider?: string | null }> {
-  return apiRequest<{ success: boolean; reset_count: number; provider?: string | null }>(
-    '/statistics/llm-provider-health/reset',
-    {
-      method: 'POST',
-      body: JSON.stringify({ provider_or_key: provider_or_key ?? null }),
-    },
-  );
-}
