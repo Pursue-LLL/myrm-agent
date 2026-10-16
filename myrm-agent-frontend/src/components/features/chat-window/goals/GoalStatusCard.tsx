@@ -167,9 +167,10 @@ export function GoalStatusCard() {
     }
   };
 
-  const handleAddSubgoal = async (text: string) => {
+  /** Resolves whether the server took the sub-goal, so the input can keep a text that was not taken. */
+  const handleAddSubgoal = async (text: string): Promise<boolean> => {
     if (!text.trim()) {
-      return;
+      return false;
     }
     try {
       const res = await fetchWithTimeout(`/goals/${chatId}/subgoals`, {
@@ -181,12 +182,14 @@ export function GoalStatusCard() {
         if (!(await riskHeldErrorFromResponse(res))) {
           toast.error(t('subgoalAddFailed'));
         }
-        return;
+        return false;
       }
       toast.success(t('subgoalAdded'));
+      return true;
     } catch (e) {
       console.error('Failed to add subgoal', e);
       toast.error(t('subgoalAddNetworkError'));
+      return false;
     }
   };
 

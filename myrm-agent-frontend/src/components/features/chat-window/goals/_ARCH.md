@@ -16,4 +16,4 @@ Goal DAG control-plane UI inside chat window; state in `store/chat/goals/`.
 | `useGoalPlanSync.ts`          | Plan ↔ store synchronization                                                                                                                                        |
 | `goal-icons.tsx`              | Goal status SVG icons                                                                                                                                               |
 
-目标文案或子目标被服务端风控拦下（HTTP 400 `risk_held`）时，`GoalStatusCard` 只展示 `services/riskHeldToast.ts` 的统一提示，不加「保存失败」类提示；其余失败各自提示。
+目标文案或子目标被服务端风控拦下（HTTP 400 `risk_held`）时，`GoalStatusCard` 只展示 `services/riskHeldToast.ts` 的统一提示，不加「保存失败」类提示；其余失败各自提示。子目标输入框只在服务端接收后清空（`onAddSubgoal` 返回是否被接收），被拦下或失败的文本留在框内可直接修改重发；请求未返回前的重复提交不会重复添加。

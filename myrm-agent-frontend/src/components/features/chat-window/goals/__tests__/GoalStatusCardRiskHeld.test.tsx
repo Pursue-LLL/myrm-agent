@@ -119,6 +119,35 @@ describe('GoalStatusCard when the server holds the text', () => {
 
     await waitFor(() => expect(riskToast.error).toHaveBeenCalledTimes(1));
     expect(sonnerToast.error).not.toHaveBeenCalled();
+    expect(input).toHaveValue('use key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+  });
+
+  it('keeps a sub-goal the server could not take in the box, whatever the reason', async () => {
+    answer('POST', '/goals/chat-1/subgoals', () => jsonResponse(400, { detail: 'Goal is not active' }));
+    await openCard();
+
+    const input = screen.getByPlaceholderText('subgoalPlaceholder');
+    fireEvent.change(input, { target: { value: 'write the docs' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(sonnerToast.error).toHaveBeenCalledWith('subgoalAddFailed'));
+    expect(input).toHaveValue('write the docs');
+  });
+
+  it('empties the box once the sub-goal was taken, and adds a text only once however often it is submitted', async () => {
+    answer('POST', '/goals/chat-1/subgoals', () => jsonResponse(200, {}));
+    await openCard();
+
+    const input = screen.getByPlaceholderText('subgoalPlaceholder');
+    fireEvent.change(input, { target: { value: 'write the docs' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(input).toHaveValue(''));
+    const added = fetchMock.mock.calls.filter(
+      ([url, init]) => String(url).endsWith('/goals/chat-1/subgoals') && (init as RequestInit)?.method === 'POST',
+    );
+    expect(added).toHaveLength(1);
   });
 
   it('still reports any other sub-goal failure with its own toast', async () => {

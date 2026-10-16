@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import type { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -38,7 +39,7 @@ interface GoalStatusExpandedProps {
   onEditedObjectiveChange: (value: string) => void;
   isSavingObjective: boolean;
   onAction: (action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait', note?: string) => void;
-  onAddSubgoal: (text: string) => void;
+  onAddSubgoal: (text: string) => Promise<boolean>;
   onRemoveSubgoal: (index: number) => void;
   t: ReturnType<typeof useTranslations>;
 }
@@ -331,10 +332,34 @@ function SubgoalsSection({
   goal: GoalState;
   chatId: string;
   isTerminal: boolean;
-  onAddSubgoal: (text: string) => void;
+  onAddSubgoal: (text: string) => Promise<boolean>;
   onRemoveSubgoal: (index: number) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const adding = useRef(false);
+
+  // The text leaves the box only once the server took it, so a refused sub-goal stays there to be edited.
+  // One add at a time: a second submit while the request is out would add the same text twice.
+  const addFrom = async (input: HTMLInputElement | null) => {
+    if (!input || adding.current) {
+      return;
+    }
+    if (!input.value.trim()) {
+      input.value = '';
+      return;
+    }
+    adding.current = true;
+    const sent = input.value;
+    try {
+      // Text typed while the request was out is not the one that was taken, so it stays.
+      if ((await onAddSubgoal(sent)) && input.value === sent) {
+        input.value = '';
+      }
+    } finally {
+      adding.current = false;
+    }
+  };
+
   return (
     <div className="mt-4 border-t border-border/50 pt-3">
       <div className="flex items-center justify-between mb-2">
@@ -376,9 +401,7 @@ function SubgoalsSection({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                const val = e.currentTarget.value;
-                onAddSubgoal(val);
-                e.currentTarget.value = '';
+                void addFrom(e.currentTarget);
               }
             }}
           />
@@ -388,12 +411,7 @@ function SubgoalsSection({
             className="h-8 px-3 shrink-0 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-              const val = input?.value || '';
-              onAddSubgoal(val);
-              if (input) {
-                input.value = '';
-              }
+              void addFrom(e.currentTarget.previousElementSibling as HTMLInputElement | null);
             }}
           >
             {t('addSubgoal') || 'Add'}
