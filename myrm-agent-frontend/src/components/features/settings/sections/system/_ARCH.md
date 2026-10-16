@@ -18,7 +18,7 @@
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
 | `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
 | `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段）                 |
-| `ImportExportSection.tsx`             | 配置导入导出                                                                                            |
+| `ImportExportSection.tsx`             | 配置导入导出页：配置导入导出 + 存储治理卡（`StorageGovernanceCard`）+ 支持包导出卡 + 数据集导出卡 |
 
 ### 存储管理
 
@@ -27,6 +27,8 @@
 | `StorageCard.tsx`                         | 存储位置与会话数据库智能优化（当前路径、磁盘三元组用量、预检、FTS/VACUUM/WAL双模式瘦身、迁移＋实时进度条、低空间预警） |
 | `__tests__/StorageCard.test.tsx`          | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示                    |
 | `__tests__/StorageCard.optimize.test.tsx` | 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁与优化成功 Toast 反馈                |
+| `StorageGovernanceCard.tsx`               | 存储治理卡（挂在「导入导出」页）：按类别展示占用（数据库类只显示大小，目录类另显文件数）、主库在线压缩、状态快照的创建 / 恢复 / 删除；占用报告取到之前不显示「健康 / 偏高」结论；各操作失败只弹本地化提示，不展示 server 返回的英文与异常原文，删除快照的图标按钮带可读名称 |
+| `__tests__/StorageGovernanceCard.test.tsx` | 治理卡单测：类别占用与文件数（数据库类不显示文件数）、占用结论只来自已取到的报告（加载中 / 取失败都不报「偏高」）、压缩与快照创建 / 恢复 / 删除的失败只弹本地化提示且不含 server / 异常原文（含删除被拒）、创建与恢复流程 |
 
 ### 网络与访问
 

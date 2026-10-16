@@ -21824,13 +21824,17 @@
       "snapshotSuccessTitle": "快照创建成功",
       "snapshotSuccessDesc": "当前持久化状态与核心数据已打包为只读快照。",
       "snapshotFailedTitle": "快照创建失败",
+      "snapshotFailedDesc": "无法创建快照，请稍后重试。",
       "restore": "回滚",
+      "deleteSnapshot": "删除快照",
       "restoreSuccessTitle": "已安排恢复",
       "restoreSuccessDesc": "快照将在应用下次启动时恢复，在此之前当前数据保持不变。",
       "restoreFailedTitle": "回滚失败",
+      "restoreFailedDesc": "无法恢复该快照，请稍后重试。",
       "deleteSuccessTitle": "快照已删除",
       "deleteSuccessDesc": "已移除选定的历史快照。",
-      "deleteFailedTitle": "删除快照失败"
+      "deleteFailedTitle": "删除快照失败",
+      "deleteFailedDesc": "无法删除该快照，请稍后重试。"
     },
     "modelOrchestrationPlaybook": {
       "headerTag": "策略指南",

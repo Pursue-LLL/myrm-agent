@@ -21824,13 +21824,17 @@
       "snapshotSuccessTitle": "Snapshot Created",
       "snapshotSuccessDesc": "Current persistent state has been archived as an immutable snapshot.",
       "snapshotFailedTitle": "Snapshot Failed",
+      "snapshotFailedDesc": "The snapshot could not be created. Try again later.",
       "restore": "Restore",
+      "deleteSnapshot": "Delete snapshot",
       "restoreSuccessTitle": "Restore scheduled",
       "restoreSuccessDesc": "The snapshot will be restored the next time the app starts. Your current data stays untouched until then.",
       "restoreFailedTitle": "Restoration Failed",
+      "restoreFailedDesc": "The snapshot could not be restored. Try again later.",
       "deleteSuccessTitle": "Snapshot Deleted",
       "deleteSuccessDesc": "Selected historical snapshot removed.",
-      "deleteFailedTitle": "Delete Failed"
+      "deleteFailedTitle": "Delete Failed",
+      "deleteFailedDesc": "The snapshot could not be deleted. Try again later."
     },
     "modelOrchestrationPlaybook": {
       "headerTag": "Strategy",

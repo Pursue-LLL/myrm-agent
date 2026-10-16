@@ -185,6 +185,118 @@ describe('StorageGovernanceCard', () => {
     });
   });
 
+  it.each([
+    [true, 'healthyGrowth', 'growthWarning'],
+    [false, 'growthWarning', 'healthyGrowth'],
+  ])('shows the growth verdict of the report (healthy: %s)', async (healthy, shown, hidden) => {
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockResolvedValue({
+      ...mockReport,
+      is_growth_healthy: healthy,
+    });
+
+    render(<StorageGovernanceCard />);
+
+    expect(await screen.findByText(shown)).toBeInTheDocument();
+    expect(screen.queryByText(hidden)).not.toBeInTheDocument();
+  });
+
+  it('passes no verdict on storage growth while the report is still loading', () => {
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockReturnValue(new Promise(() => undefined));
+
+    render(<StorageGovernanceCard />);
+
+    expect(screen.queryByText('growthWarning')).not.toBeInTheDocument();
+    expect(screen.queryByText('healthyGrowth')).not.toBeInTheDocument();
+  });
+
+  it('passes no verdict on storage growth when the report could not be loaded', async () => {
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockRejectedValue(
+      new Error('timeout of 30000ms exceeded'),
+    );
+
+    render(<StorageGovernanceCard />);
+
+    // The compaction button is enabled again once the failed load has settled.
+    await waitFor(() => {
+      expect(screen.getByText('compactDatabase').closest('button')).toBeEnabled();
+    });
+    expect(screen.queryByText('growthWarning')).not.toBeInTheDocument();
+    expect(screen.queryByText('healthyGrowth')).not.toBeInTheDocument();
+  });
+
+  it('tells the user in their language when a snapshot could not be created', async () => {
+    (systemService.createStateSnapshot as unknown as Mock).mockResolvedValue({
+      success: false,
+      message: 'sqlite3.OperationalError: disk I/O error',
+    });
+
+    render(<StorageGovernanceCard />);
+    fireEvent.change(await screen.findByPlaceholderText('snapshotLabelPlaceholder'), {
+      target: { value: 'Manual test backup' },
+    });
+    fireEvent.click(screen.getByText('createSnapshot'));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: 'snapshotFailedTitle',
+        description: 'snapshotFailedDesc',
+        variant: 'destructive',
+      });
+    });
+  });
+
+  it('keeps the exception text of a failed snapshot restore out of the toast', async () => {
+    (systemService.restoreStateSnapshot as unknown as Mock).mockRejectedValue(
+      new Error('Request failed with status 500'),
+    );
+
+    render(<StorageGovernanceCard />);
+    fireEvent.click(await screen.findByText('restore'));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: 'restoreFailedTitle',
+        description: 'restoreFailedDesc',
+        variant: 'destructive',
+      });
+    });
+  });
+
+  it('tells the user when the server refuses to delete a snapshot', async () => {
+    (systemService.deleteStateSnapshot as unknown as Mock).mockResolvedValue({
+      success: false,
+      message: 'Snapshot not found: snap_20260901_001',
+    });
+
+    render(<StorageGovernanceCard />);
+    fireEvent.click(await screen.findByRole('button', { name: 'deleteSnapshot' }));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: 'deleteFailedTitle',
+        description: 'deleteFailedDesc',
+        variant: 'destructive',
+      });
+    });
+  });
+
+  it('keeps the exception text of a failed snapshot delete out of the toast', async () => {
+    (systemService.deleteStateSnapshot as unknown as Mock).mockRejectedValue(
+      new Error('Request failed with status 500'),
+    );
+
+    render(<StorageGovernanceCard />);
+    fireEvent.click(await screen.findByRole('button', { name: 'deleteSnapshot' }));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: 'deleteFailedTitle',
+        description: 'deleteFailedDesc',
+        variant: 'destructive',
+      });
+    });
+  });
+
   it('creates and restores state snapshot', async () => {
     (systemService.createStateSnapshot as unknown as Mock).mockResolvedValue({
       success: true,

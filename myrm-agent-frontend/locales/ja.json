@@ -21126,13 +21126,17 @@
       "snapshotSuccessTitle": "スナップショットを作成しました",
       "snapshotSuccessDesc": "現在の永続状態が不変スナップショットとして保存されました。",
       "snapshotFailedTitle": "スナップショットの作成に失敗しました",
+      "snapshotFailedDesc": "スナップショットを作成できませんでした。しばらくしてからもう一度お試しください。",
       "restore": "復元",
+      "deleteSnapshot": "スナップショットを削除",
       "restoreSuccessTitle": "復元を予約しました",
       "restoreSuccessDesc": "スナップショットは次回のアプリ起動時に復元されます。それまで現在のデータは変更されません。",
       "restoreFailedTitle": "復元に失敗しました",
+      "restoreFailedDesc": "スナップショットを復元できませんでした。しばらくしてからもう一度お試しください。",
       "deleteSuccessTitle": "スナップショットを削除しました",
       "deleteSuccessDesc": "選択した履歴スナップショットを削除しました。",
-      "deleteFailedTitle": "スナップショットの削除に失敗しました"
+      "deleteFailedTitle": "スナップショットの削除に失敗しました",
+      "deleteFailedDesc": "スナップショットを削除できませんでした。しばらくしてからもう一度お試しください。"
     },
     "modelOrchestrationPlaybook": {
       "headerTag": "戦略ガイド",

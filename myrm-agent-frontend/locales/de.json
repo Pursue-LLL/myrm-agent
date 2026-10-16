@@ -21126,13 +21126,17 @@
       "snapshotSuccessTitle": "Snapshot erstellt",
       "snapshotSuccessDesc": "Aktueller persistenter Status wurde als unveränderlicher Snapshot archiviert.",
       "snapshotFailedTitle": "Snapshot-Erstellung fehlgeschlagen",
+      "snapshotFailedDesc": "Der Snapshot konnte nicht erstellt werden. Bitte später erneut versuchen.",
       "restore": "Wiederherstellen",
+      "deleteSnapshot": "Snapshot löschen",
       "restoreSuccessTitle": "Wiederherstellung vorgemerkt",
       "restoreSuccessDesc": "Der Snapshot wird beim nächsten Start der App wiederhergestellt. Bis dahin bleiben Ihre aktuellen Daten unverändert.",
       "restoreFailedTitle": "Wiederherstellung fehlgeschlagen",
+      "restoreFailedDesc": "Der Snapshot konnte nicht wiederhergestellt werden. Bitte später erneut versuchen.",
       "deleteSuccessTitle": "Snapshot gelöscht",
       "deleteSuccessDesc": "Ausgewählter historischer Snapshot wurde entfernt.",
-      "deleteFailedTitle": "Löschen des Snapshots fehlgeschlagen"
+      "deleteFailedTitle": "Löschen des Snapshots fehlgeschlagen",
+      "deleteFailedDesc": "Der Snapshot konnte nicht gelöscht werden. Bitte später erneut versuchen."
     },
     "modelOrchestrationPlaybook": {
       "headerTag": "Strategie",

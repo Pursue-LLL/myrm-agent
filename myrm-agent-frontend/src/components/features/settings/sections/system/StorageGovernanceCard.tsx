@@ -59,6 +59,12 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
 }
 
+// A failed request is explained in the user's language only: the server's own message and the exception text
+// never reach the toast.
+function toastFailure(title: string, description: string): void {
+  toast({ title, description, variant: 'destructive' });
+}
+
 export const StorageGovernanceCard = memo(() => {
   const t = useTranslations('settings.storageGovernance');
   const [report, setReport] = useState<StorageReport | null>(null);
@@ -95,18 +101,10 @@ export const StorageGovernanceCard = memo(() => {
         });
         await fetchReport();
       } else {
-        toast({
-          title: t('compactionFailedTitle'),
-          description: t('compactionFailedDesc'),
-          variant: 'destructive',
-        });
+        toastFailure(t('compactionFailedTitle'), t('compactionFailedDesc'));
       }
     } catch {
-      toast({
-        title: t('compactionFailedTitle'),
-        description: t('compactionFailedDesc'),
-        variant: 'destructive',
-      });
+      toastFailure(t('compactionFailedTitle'), t('compactionFailedDesc'));
     } finally {
       setCompacting(false);
     }
@@ -127,18 +125,10 @@ export const StorageGovernanceCard = memo(() => {
         setSnapshotLabel('');
         await fetchReport();
       } else {
-        toast({
-          title: t('snapshotFailedTitle'),
-          description: res.message,
-          variant: 'destructive',
-        });
+        toastFailure(t('snapshotFailedTitle'), t('snapshotFailedDesc'));
       }
-    } catch (err) {
-      toast({
-        title: t('snapshotFailedTitle'),
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+    } catch {
+      toastFailure(t('snapshotFailedTitle'), t('snapshotFailedDesc'));
     } finally {
       setCreatingSnapshot(false);
     }
@@ -156,18 +146,10 @@ export const StorageGovernanceCard = memo(() => {
           });
           await fetchReport();
         } else {
-          toast({
-            title: t('restoreFailedTitle'),
-            description: res.message,
-            variant: 'destructive',
-          });
+          toastFailure(t('restoreFailedTitle'), t('restoreFailedDesc'));
         }
-      } catch (err) {
-        toast({
-          title: t('restoreFailedTitle'),
-          description: err instanceof Error ? err.message : String(err),
-          variant: 'destructive',
-        });
+      } catch {
+        toastFailure(t('restoreFailedTitle'), t('restoreFailedDesc'));
       } finally {
         setRestoringSnapshotId(null);
       }
@@ -185,13 +167,11 @@ export const StorageGovernanceCard = memo(() => {
             description: t('deleteSuccessDesc'),
           });
           await fetchReport();
+        } else {
+          toastFailure(t('deleteFailedTitle'), t('deleteFailedDesc'));
         }
-      } catch (err) {
-        toast({
-          title: t('deleteFailedTitle'),
-          description: err instanceof Error ? err.message : String(err),
-          variant: 'destructive',
-        });
+      } catch {
+        toastFailure(t('deleteFailedTitle'), t('deleteFailedDesc'));
       }
     },
     [fetchReport, t],
@@ -210,15 +190,16 @@ export const StorageGovernanceCard = memo(() => {
             <div className="text-2xl font-bold tracking-tight">
               {report ? formatBytes(report.total_storage_bytes) : '...'}
             </div>
-            <div className="text-xs text-muted-foreground">
-              {report?.is_growth_healthy ? (
-                <span className="text-emerald-500 font-medium inline-flex items-center gap-1">
-                  <IconShieldCheck className="w-3.5 h-3.5" />
-                  {t('healthyGrowth')}
-                </span>
-              ) : (
-                <span className="text-amber-500 font-medium">{t('growthWarning')}</span>
-              )}
+            <div className="min-h-4 text-xs text-muted-foreground">
+              {report &&
+                (report.is_growth_healthy ? (
+                  <span className="text-emerald-500 font-medium inline-flex items-center gap-1">
+                    <IconShieldCheck className="w-3.5 h-3.5" />
+                    {t('healthyGrowth')}
+                  </span>
+                ) : (
+                  <span className="text-warning font-medium">{t('growthWarning')}</span>
+                ))}
             </div>
           </div>
 
@@ -343,6 +324,7 @@ export const StorageGovernanceCard = memo(() => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteSnapshot(snap.snapshot_id)}
+                      aria-label={t('deleteSnapshot')}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     >
                       <IconTrash className="w-3.5 h-3.5" />

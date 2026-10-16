@@ -21126,13 +21126,17 @@
       "snapshotSuccessTitle": "스냅샷 생성 완료",
       "snapshotSuccessDesc": "현재 영구 상태가 불변 스냅샷으로 보관되었습니다.",
       "snapshotFailedTitle": "스냅샷 생성 실패",
+      "snapshotFailedDesc": "스냅샷을 생성하지 못했습니다. 나중에 다시 시도해 주세요.",
       "restore": "복원",
+      "deleteSnapshot": "스냅샷 삭제",
       "restoreSuccessTitle": "복원이 예약되었습니다",
       "restoreSuccessDesc": "스냅샷은 앱을 다음에 시작할 때 복원됩니다. 그때까지 현재 데이터는 그대로 유지됩니다.",
       "restoreFailedTitle": "복원 실패",
+      "restoreFailedDesc": "스냅샷을 복원하지 못했습니다. 나중에 다시 시도해 주세요.",
       "deleteSuccessTitle": "스냅샷 삭제됨",
       "deleteSuccessDesc": "선택한 과거 스냅샷이 제거되었습니다.",
-      "deleteFailedTitle": "스냅샷 삭제 실패"
+      "deleteFailedTitle": "스냅샷 삭제 실패",
+      "deleteFailedDesc": "스냅샷을 삭제하지 못했습니다. 나중에 다시 시도해 주세요."
     },
     "modelOrchestrationPlaybook": {
       "headerTag": "전략 가이드",
