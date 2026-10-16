@@ -161,7 +161,7 @@ async function cutHistoryAt(chatId: string, messageId: string): Promise<boolean>
   }
 }
 
-/** Give up a send that cannot go ahead: its text returns to the user instead of vanishing with the old bubble. */
+/** Give up a send that cannot go ahead: its text returns to the user instead of vanishing. */
 function abandonSend(origin: SendOrigin, content: string): void {
   restoreComposer(origin, content, []);
   notifyNotSent();
@@ -171,7 +171,8 @@ function abandonSend(origin: SendOrigin, content: string): void {
  * Send the feedback of a rejected goal review as the next user message of the chat the review belongs to. The goal is
  * active again by then (the agent reads only an active goal), and the review panel is gone, so a feedback the agent
  * does not take returns to the composer like any other undelivered request. Files staged in the composer are the
- * user's next message, so this one neither carries nor consumes them.
+ * user's next message, so this one neither carries nor consumes them. A chat opened since the review began receives
+ * nothing: the text goes to the input history of the review's chat.
  */
 export async function sendGoalReviewFeedback(origin: SendOrigin, feedback: string): Promise<void> {
   if (useChatStore.getState().chatId !== origin.chatId) {
