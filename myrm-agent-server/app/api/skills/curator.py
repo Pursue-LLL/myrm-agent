@@ -4,6 +4,11 @@ Provides REST endpoints for:
 - Lifecycle actions: pin/unpin/restore/archive a skill
 - Curator configuration: get/update CuratorConfig
 - Manual trigger: run a curator sweep on demand
+- Run history: recent sweeps, newest first
+- Consolidation: preview and execute an umbrella merge
+- Skill doctor: health findings and one-click remediation
+
+Response models carry only the fields the settings panel renders; the on-disk history keeps more.
 """
 
 from __future__ import annotations
