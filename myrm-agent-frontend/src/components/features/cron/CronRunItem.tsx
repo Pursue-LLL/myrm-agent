@@ -16,9 +16,11 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { ShieldWarning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
+import CronRunBlockedActions from './CronRunBlockedActions';
 import { formatDuration, formatTime } from './cron-utils';
 
 interface CronRunItemProps {
@@ -31,17 +33,6 @@ function formatTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
-const SECURITY_DENIAL_PATTERNS = [
-  'cron fail-closed policy',
-  'denied by security policy',
-  'Tool execution denied',
-] as const;
-
-function hasSecurityDenial(run: CronRun): boolean {
-  const text = `${run.output ?? ''} ${run.error ?? ''}`;
-  return SECURITY_DENIAL_PATTERNS.some((p) => text.includes(p));
-}
-
 const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const t = useTranslations('cron');
   const locale = useLocale();
@@ -50,8 +41,8 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const isOk = run.status === 'ok';
   const isSkipped = run.status === 'skipped';
   const isCircuitBreak = run.status === 'circuit_break';
-  const hasContent = !!(run.output || run.error);
-  const securityDenied = !isOk && !isSkipped && !isCircuitBreak && hasSecurityDenial(run);
+  const blockedCount = run.metadata?.blockedCount ?? 0;
+  const hasContent = !!(run.output || run.error) || blockedCount > 0;
   const verification = run.metadata?.verification;
   const monitorContractError = run.metadata?.monitor_contract_error;
   const monitorContractErrorLabel =
@@ -198,13 +189,13 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
             </span>
           )}
 
-          {securityDenied && (
+          {blockedCount > 0 && (
             <span
-              className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 dark:text-amber-400"
-              title={t('securityDenied')}
+              className="inline-flex items-center gap-0.5 text-[10px] text-warning"
+              title={t('blockedTitle', { count: blockedCount })}
             >
-              <ShieldAlert className="h-3 w-3" />
-              {t('securityDenied')}
+              <ShieldWarning aria-hidden="true" weight="duotone" className="h-3 w-3" />
+              {t('blockedBadge', { count: blockedCount })}
             </span>
           )}
 
@@ -370,11 +361,8 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                 )}
               </div>
             )}
-            {securityDenied && (
-              <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">
-                <ShieldAlert className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-700 dark:text-amber-300">{t('securityDeniedHint')}</p>
-              </div>
+            {blockedCount > 0 && (
+              <CronRunBlockedActions count={blockedCount} actions={run.metadata?.blockedActions ?? []} />
             )}
             {monitorContractErrorLabel && (
               <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">
