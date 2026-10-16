@@ -1,10 +1,11 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LearningLoopFiveRingStatusResponse } from '@/services/statistics';
 import { LearningLoopFiveRingHub } from '../LearningLoopFiveRingHub';
 
-const stableT = (key: string) => key;
+// Echoes the key together with its interpolation values so tests can assert which counter fills which label.
+const stableT = (key: string, values?: Record<string, unknown>) => (values ? `${key}|${JSON.stringify(values)}` : key);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -17,50 +18,14 @@ vi.mock('@/services/statistics', () => statistics);
 vi.mock('@/lib/api', () => ({ showApiError: vi.fn() }));
 
 const status: LearningLoopFiveRingStatusResponse = {
-  ring1_reflection: {
-    total_traces_analyzed: 4,
-    anti_patterns_detected: 1,
-    recent_reflection_time: null,
-    is_active: true,
-    status: 'active',
-  },
-  ring2_distillation: {
-    proposals_generated: 3,
-    proposals_approved: 2,
-    proposals_pending: 1,
-    proposals_rejected: 0,
-    total_active_skills: 5,
-    is_active: true,
-    status: 'active',
-  },
-  ring3_advancement: {
-    evaluations_run: 6,
-    regressions_blocked: 1,
-    avg_score_boost_pct: 12,
-    is_active: true,
-    status: 'active',
-  },
-  ring4_consolidation: {
-    consolidation_cycles: 2,
-    memories_merged: 7,
-    noise_pruned: 3,
-    memory_health_score: 0.9,
-    total_memories: 40,
-    is_active: true,
-    status: 'active',
-  },
-  ring5_profiling: {
-    conversations_indexed: 9,
-    profile_dimensions: 4,
-    cross_session_recall_ready: true,
-    is_active: true,
-    status: 'active',
-  },
-  overall_loop_health_score: 88,
-  overall_status: 'optimal',
-  total_learnings_count: 120,
-  summary_text: 'Loop is healthy.',
+  ring1_reflection: { sessions_in_window: 4 },
+  ring2_distillation: { cases_total: 206, cases_auto_applied: 11, total_skills: 5 },
+  ring3_advancement: { cases_pending_review: 72, cases_blocked: 4 },
+  ring4_consolidation: { total_memories: 40 },
+  ring5_profiling: { conversations: 9, profile_entries: 3 },
 };
+
+const ringButton = (ring: string) => screen.findByRole('button', { name: new RegExp(`${ring}\\.name`) });
 
 describe('LearningLoopFiveRingHub', () => {
   beforeEach(() => {
@@ -72,7 +37,7 @@ describe('LearningLoopFiveRingHub', () => {
     const onNavigateTab = vi.fn();
     render(<LearningLoopFiveRingHub onNavigateTab={onNavigateTab} />);
 
-    const first = await screen.findByRole('button', { name: /ring1\.name/ });
+    const first = await ringButton('ring1');
     fireEvent.click(first);
     fireEvent.click(screen.getByRole('button', { name: /ring5\.name/ }));
 
@@ -86,5 +51,44 @@ describe('LearningLoopFiveRingHub', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'refresh' }));
 
     await waitFor(() => expect(statistics.getLearningLoopStatus).toHaveBeenCalledTimes(2));
+  });
+
+  it('shows on every ring the counters its source reported, with the lookback window on ring 1', async () => {
+    render(<LearningLoopFiveRingHub />);
+
+    const expected: Record<string, string[]> = {
+      ring1: ['ring1.metricsSessions|{"count":4,"days":30}'],
+      ring2: ['ring2.metricsCases|{"count":206}', 'ring2.metricsAutoApplied|{"count":11}'],
+      ring3: ['ring3.metricsPending|{"count":72}', 'ring3.metricsBlocked|{"count":4}'],
+      ring4: ['ring4.metricsMemories|{"count":40}'],
+      ring5: ['ring5.metricsConversations|{"count":9}', 'ring5.metricsProfile|{"count":3}'],
+    };
+    for (const [ring, metrics] of Object.entries(expected)) {
+      const card = await ringButton(ring);
+      for (const metric of metrics) {
+        expect(within(card).getByText(metric)).toBeTruthy();
+      }
+    }
+    expect(statistics.getLearningLoopStatus).toHaveBeenCalledWith(30);
+  });
+
+  it('marks a ring as unavailable instead of showing zeros when its source could not be read', async () => {
+    statistics.getLearningLoopStatus.mockResolvedValue({ ...status, ring3_advancement: null });
+    render(<LearningLoopFiveRingHub />);
+
+    const unavailable = await ringButton('ring3');
+    const healthy = await ringButton('ring2');
+
+    expect(within(unavailable).getByText('unavailable')).toBeTruthy();
+    expect(within(unavailable).queryByText(/ring3\.metrics/)).toBeNull();
+    expect(within(healthy).queryByText('unavailable')).toBeNull();
+  });
+
+  it('presents counters only, without a composite health score or a verdict badge', async () => {
+    render(<LearningLoopFiveRingHub />);
+
+    await ringButton('ring1');
+
+    expect(screen.queryByText(/healthScore|totalLearnings|optimal|warning/)).toBeNull();
   });
 });

@@ -919,62 +919,42 @@ export async function archiveTimelineSkill(skillName: string, active = false): P
   );
 }
 
-// ── Learning Loop Five-Ring Status (Roadmap #55) ──────────────────────
+// ── Learning Loop Five-Ring Status ────────────────────────────────────
 
+/** Sessions recorded in the event log within the requested lookback window. */
 export interface Ring1ReflectionStatus {
-  total_traces_analyzed: number;
-  anti_patterns_detected: number;
-  recent_reflection_time: string | null;
-  is_active: boolean;
-  status: string;
+  sessions_in_window: number;
 }
 
+/** All-time skill-growth cases (same counters as the skill growth page) and the skills currently available. */
 export interface Ring2DistillationStatus {
-  proposals_generated: number;
-  proposals_approved: number;
-  proposals_pending: number;
-  proposals_rejected: number;
-  total_active_skills: number;
-  is_active: boolean;
-  status: string;
+  cases_total: number;
+  cases_auto_applied: number;
+  total_skills: number;
 }
 
+/** All-time skill-growth cases waiting for the user or stopped by the safety gate. */
 export interface Ring3AdvancementStatus {
-  evaluations_run: number;
-  regressions_blocked: number;
-  avg_score_boost_pct: number;
-  is_active: boolean;
-  status: string;
+  cases_pending_review: number;
+  cases_blocked: number;
 }
 
 export interface Ring4ConsolidationStatus {
-  consolidation_cycles: number;
-  memories_merged: number;
-  noise_pruned: number;
-  memory_health_score: number;
   total_memories: number;
-  is_active: boolean;
-  status: string;
 }
 
 export interface Ring5ProfilingStatus {
-  conversations_indexed: number;
-  profile_dimensions: number;
-  cross_session_recall_ready: boolean;
-  is_active: boolean;
-  status: string;
+  conversations: number;
+  profile_entries: number;
 }
 
+/** A ring is null when one of its sources could not be read. */
 export interface LearningLoopFiveRingStatusResponse {
-  ring1_reflection: Ring1ReflectionStatus;
-  ring2_distillation: Ring2DistillationStatus;
-  ring3_advancement: Ring3AdvancementStatus;
-  ring4_consolidation: Ring4ConsolidationStatus;
-  ring5_profiling: Ring5ProfilingStatus;
-  overall_loop_health_score: number;
-  overall_status: 'optimal' | 'warning' | 'degraded';
-  total_learnings_count: number;
-  summary_text: string;
+  ring1_reflection: Ring1ReflectionStatus | null;
+  ring2_distillation: Ring2DistillationStatus | null;
+  ring3_advancement: Ring3AdvancementStatus | null;
+  ring4_consolidation: Ring4ConsolidationStatus | null;
+  ring5_profiling: Ring5ProfilingStatus | null;
 }
 
 export async function getLearningLoopStatus(days = 30): Promise<LearningLoopFiveRingStatusResponse> {

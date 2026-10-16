@@ -10878,53 +10878,45 @@
     },
     "learningLoop": {
       "title": "Five-Ring Closed Learning Loop Status",
-      "subtitle": "Cross-domain continuous self-evolution topology and health observability",
-      "healthScore": "Loop Health Score",
+      "subtitle": "How your agent turns conversations into skills and memories",
       "refresh": "Refresh",
-      "optimal": "Optimal Operation",
-      "warning": "Attention Needed",
-      "degraded": "Degraded",
-      "totalLearnings": "Total Cognitive Assets",
+      "unavailable": "Unavailable",
       "ring1": {
         "name": "Reflection",
-        "stage": "Trace Mining & Anti-Patterns",
-        "desc": "Autonomous idle review of session execution traces to detect tool failures, friction cues, and corrections.",
-        "metricsTraces": "Traces Analyzed: {count}",
-        "metricsAntiPatterns": "Anti-Patterns: {count}"
+        "stage": "Learning from conversations",
+        "desc": "After a substantial task, the agent quietly looks back over the conversation for lessons worth keeping.",
+        "metricsSessions": "Sessions in the last {days} days: {count}"
       },
       "ring2": {
         "name": "Distillation",
-        "stage": "Skill Extraction & Proposals",
-        "desc": "Synthesizes automated FIX and DERIVED enhancement proposals based on verified empirical evidence.",
-        "metricsProposals": "Proposals: {count}",
-        "metricsApproved": "Approved: {count}"
+        "stage": "Turning lessons into skills",
+        "desc": "Reusable know-how is drafted as new or improved skills. Safe new skills apply on their own; the rest wait for you.",
+        "metricsCases": "Total cases: {count}",
+        "metricsAutoApplied": "Auto applied: {count}"
       },
       "ring3": {
         "name": "Advancement",
-        "stage": "Baseline Benchmarking & Regression Gates",
-        "desc": "Leverages Improvement Gate and EvalCase regression suites to ensure variants strictly outperform the baseline.",
-        "metricsEvals": "Evaluations: {count}",
-        "metricsBlocked": "Blocked Regressions: {count}",
-        "metricsBoost": "Improvement: +{pct}%"
+        "stage": "Review and safety gate",
+        "desc": "Every skill draft is safety-checked first. Drafts that need your decision, or were stopped, are counted here.",
+        "metricsPending": "Pending review: {count}",
+        "metricsBlocked": "Blocked or failed: {count}"
       },
       "ring4": {
         "name": "Consolidation",
-        "stage": "Idle Maintenance & Memory Pruning",
-        "desc": "Memory Guardian daemon periodically deduplicates fragmented preferences, gracefully decays obsolete facts, and prunes noise.",
-        "metricsCycles": "Cycles: {count}",
-        "metricsMerged": "Merged & Deduped: {count}",
+        "stage": "Background memory upkeep",
+        "desc": "In the background, related memories are merged and outdated ones set aside so recall stays sharp.",
         "metricsMemories": "Total Memories: {count}"
       },
       "ring5": {
         "name": "Profiling",
-        "stage": "Cross-Session Recall & User Profiling",
-        "desc": "Continuously builds high-fidelity user persona with FTS5 and vector semantics for millisecond cross-session knowledge recall.",
-        "metricsIndexed": "Conversations Indexed: {count}",
-        "metricsDimensions": "Profile Dimensions: {count}"
+        "stage": "Recall across conversations",
+        "desc": "Past conversations stay searchable, and what the agent learns about you builds into a profile that carries across chats.",
+        "metricsConversations": "Conversations: {count}",
+        "metricsProfile": "Profile entries: {count}"
       },
       "discoveryChip": {
         "growsWithYou": "The Agent that Grows with You · 5-Ring Closed Loop Active",
-        "stats": "{memories} memories consolidated · {skills} active skills",
+        "stats": "{memories} memories · {skills} skills",
         "viewLoop": "View Learning Loop"
       }
     },

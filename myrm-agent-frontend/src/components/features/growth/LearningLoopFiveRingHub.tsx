@@ -7,33 +7,23 @@
  * - @/components/primitives/button::Button (POS: 基础按钮原语)
  *
  * [OUTPUT]
- * - LearningLoopFiveRingHub: 五环闭环状态中心组件，呈现战后自省、技能提炼、施用自进、周期自警、渐构画像 5 环交互拓扑与健康度量。
+ * - LearningLoopFiveRingHub: 五环闭环状态中心组件，呈现战后自省、技能提炼、施用自进、周期自警、渐构画像 5 环的真实计数；来源不可读的环显示「暂不可用」。
  *
  * [POS]
- * 成长与进化仪表盘核心组件。在 /journey 页面以流动闭环拓扑与健康指标透出 Agent 自进化全貌。
+ * 成长与进化仪表盘核心组件。在 /journey 页面以五环拓扑透出 Agent 自进化的真实计数，不做综合评分。
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Brain,
-  Sparkles,
-  Zap,
-  ShieldCheck,
-  RotateCcw,
-  Search,
-  Activity,
-  ArrowRight,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  RefreshCw,
-} from 'lucide-react';
+import { Brain, Zap, ShieldCheck, RotateCcw, Search, Activity, ArrowRight, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getLearningLoopStatus, type LearningLoopFiveRingStatusResponse } from '@/services/statistics';
 import { showApiError } from '@/lib/api';
+
+/** Lookback window for the session counter of ring 1; the label shows the same value. */
+const LEARNING_LOOP_WINDOW_DAYS = 30;
 
 interface LearningLoopFiveRingHubProps {
   onNavigateTab?: (tab: string) => void;
@@ -51,7 +41,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await getLearningLoopStatus(30);
+      const res = await getLearningLoopStatus(LEARNING_LOOP_WINDOW_DAYS);
       setData(res);
     } catch (err) {
       showApiError(err);
@@ -87,6 +77,15 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
     return null;
   }
 
+  const {
+    ring1_reflection: reflection,
+    ring2_distillation: distillation,
+    ring3_advancement: advancement,
+    ring4_consolidation: consolidation,
+    ring5_profiling: profiling,
+  } = data;
+
+  // A ring whose source could not be read has no metrics and renders as unavailable.
   const rings = [
     {
       id: 'ring1',
@@ -98,10 +97,14 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
       color: 'text-amber-500',
       bgColor: 'bg-amber-500/10',
       borderColor: 'border-amber-500/30',
-      metrics: [
-        t('ring1.metricsTraces', { count: data.ring1_reflection.total_traces_analyzed }),
-        t('ring1.metricsAntiPatterns', { count: data.ring1_reflection.anti_patterns_detected }),
-      ],
+      metrics: reflection
+        ? [
+            t('ring1.metricsSessions', {
+              count: reflection.sessions_in_window,
+              days: LEARNING_LOOP_WINDOW_DAYS,
+            }),
+          ]
+        : null,
       targetTab: 'evolution',
     },
     {
@@ -114,10 +117,12 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
       color: 'text-sky-500',
       bgColor: 'bg-sky-500/10',
       borderColor: 'border-sky-500/30',
-      metrics: [
-        t('ring2.metricsProposals', { count: data.ring2_distillation.proposals_generated }),
-        t('ring2.metricsApproved', { count: data.ring2_distillation.proposals_approved }),
-      ],
+      metrics: distillation
+        ? [
+            t('ring2.metricsCases', { count: distillation.cases_total }),
+            t('ring2.metricsAutoApplied', { count: distillation.cases_auto_applied }),
+          ]
+        : null,
       targetTab: 'trends',
     },
     {
@@ -130,11 +135,12 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
       color: 'text-emerald-500',
       bgColor: 'bg-emerald-500/10',
       borderColor: 'border-emerald-500/30',
-      metrics: [
-        t('ring3.metricsEvals', { count: data.ring3_advancement.evaluations_run }),
-        t('ring3.metricsBlocked', { count: data.ring3_advancement.regressions_blocked }),
-        t('ring3.metricsBoost', { pct: data.ring3_advancement.avg_score_boost_pct.toFixed(0) }),
-      ],
+      metrics: advancement
+        ? [
+            t('ring3.metricsPending', { count: advancement.cases_pending_review }),
+            t('ring3.metricsBlocked', { count: advancement.cases_blocked }),
+          ]
+        : null,
       targetTab: 'trends',
     },
     {
@@ -147,11 +153,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
       color: 'text-indigo-500',
       bgColor: 'bg-indigo-500/10',
       borderColor: 'border-indigo-500/30',
-      metrics: [
-        t('ring4.metricsCycles', { count: data.ring4_consolidation.consolidation_cycles }),
-        t('ring4.metricsMerged', { count: data.ring4_consolidation.memories_merged }),
-        t('ring4.metricsMemories', { count: data.ring4_consolidation.total_memories }),
-      ],
+      metrics: consolidation ? [t('ring4.metricsMemories', { count: consolidation.total_memories })] : null,
       targetTab: 'timeline',
     },
     {
@@ -164,10 +166,12 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
       color: 'text-purple-500',
       bgColor: 'bg-purple-500/10',
       borderColor: 'border-purple-500/30',
-      metrics: [
-        t('ring5.metricsIndexed', { count: data.ring5_profiling.conversations_indexed }),
-        t('ring5.metricsDimensions', { count: data.ring5_profiling.profile_dimensions }),
-      ],
+      metrics: profiling
+        ? [
+            t('ring5.metricsConversations', { count: profiling.conversations }),
+            t('ring5.metricsProfile', { count: profiling.profile_entries }),
+          ]
+        : null,
       targetTab: 'graph',
     },
   ];
@@ -187,33 +191,20 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
                 <Brain className="h-5 w-5" />
               </div>
               <CardTitle className="text-base md:text-lg font-semibold tracking-tight">{t('title')}</CardTitle>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                {t(data.overall_status === 'optimal' ? 'optimal' : 'warning')}
-              </span>
             </div>
             <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground font-medium">{t('healthScore')}</p>
-              <p className="text-lg md:text-xl font-bold text-foreground">
-                {data.overall_loop_health_score}
-                <span className="text-xs font-normal text-muted-foreground ml-0.5">/100</span>
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="h-8 px-2.5 text-xs"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5 mr-1', refreshing && 'animate-spin')} />
-              <span className="sr-only sm:not-sr-only">{t('refresh')}</span>
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="h-8 px-2.5 text-xs self-start sm:self-auto"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5 mr-1', refreshing && 'animate-spin')} />
+            <span className="sr-only sm:not-sr-only">{t('refresh')}</span>
+          </Button>
         </div>
       </CardHeader>
 
@@ -247,38 +238,24 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
                     <span>{ring.name}</span>
                     <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
                   </span>
-                  <span className="text-[11px] font-medium text-muted-foreground mt-0.5 line-clamp-1">
-                    {ring.stage}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground/75 mt-1.5 leading-relaxed line-clamp-2">
-                    {ring.desc}
-                  </span>
+                  <span className="block text-[11px] font-medium text-muted-foreground mt-0.5">{ring.stage}</span>
+                  <span className="block text-[11px] text-muted-foreground/75 mt-1.5 leading-relaxed">{ring.desc}</span>
                 </span>
 
                 <span className="mt-3 pt-2.5 border-t border-border/40 space-y-1">
-                  {ring.metrics.map((m, mIdx) => (
-                    <span
-                      key={mIdx}
-                      className="text-[11px] text-foreground/90 font-medium flex items-center justify-between"
-                    >
-                      <span className="truncate">{m}</span>
-                    </span>
-                  ))}
+                  {ring.metrics ? (
+                    ring.metrics.map((metric) => (
+                      <span key={metric} className="block text-[11px] text-foreground/90 font-medium">
+                        {metric}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="block text-[11px] text-muted-foreground">{t('unavailable')}</span>
+                  )}
                 </span>
               </button>
             );
           })}
-        </div>
-
-        {/* Bottom subtle summary bar */}
-        <div className="mt-4 pt-3 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="line-clamp-1">{data.summary_text}</span>
-          </div>
-          <span className="shrink-0 font-medium text-foreground">
-            {t('totalLearnings')}: {data.total_learnings_count}
-          </span>
         </div>
       </CardContent>
     </Card>

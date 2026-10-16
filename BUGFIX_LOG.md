@@ -5000,6 +5000,10 @@ except Exception:
 1. `except Exception` 回落默认值加上不校验签名的桩，等于把接口漂移变成「永远显示就绪」，既不报错也不红测试；聚合类接口的测试必须用 autospec 并断言来自真实来源的数。
 2. 展示给用户的指标要么是测量值，要么不展示；用别的计数除以常数得到的数字，一旦被当成真实指标，就无法再区分「真的为零」与「没测到」。
 
+### 更正
+
+本条「现象」里「只有第 3、5 环与时间线计数有真实数据」不成立：第 2、3 环按小写字符串比较大写枚举，同样恒为 0。「局限」里的两项（推算数字、第 1 环字段名偏大）已在 BUG-AGENT-2026-10-16-015 处理。
+
 ## BUG-AGENT-2026-10-16-011: 审批与澄清的 resume 被拒（HTTP 409）一律当「已超时」处理：另一台设备先处理时提示说错话，需签字确认的表单还会被写成「该操作未获批准」
 
 | 属性 | 值 |
@@ -5205,3 +5209,52 @@ except Exception:
 3. 动手前先看有没有现成的唯一出处与现成的能力：深链构造函数、`notifyIfLeader` 的点击回调、设置页对 `status` 的处理早就在，缺的只是把它们接起来。
 4. 共享工作区里编号会被他人抢先：写日志条目前再核对一次最后一个编号。
 5. 在 patchright 里用 `time.sleep` 会让事件循环停转，等待要用 `page.wait_for_timeout`；开发服务器在高负载下的页面可能永远停在 `loading`，先探页面状态，再决定是否值得继续等。
+
+## BUG-AGENT-2026-10-16-015: 成长页「五环状态」面板的第 2、3 环计数在生产里恒为 0，其余多项数字由别的计数推算或写死，页头还有恒为 100 分的「闭环健康度」与不分语言的英文固定句
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（展示给用户的指标失真，且对不上成长页真实的待审核数） |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/growth/LearningLoopFiveRingHub.tsx`、`src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、六语种 `locales/*.json` |
+| 出现次数 | 1 |
+| 关联条目 | BUG-AGENT-2026-10-16-010（其「局限」里保留的两项在本条处理） |
+
+### 现象
+
+开发库里技能成长案例共 206 条、72 条等待处理，成长页的统计卡与它一致；同一页的「五环」面板却写着「提案 2 / 已采纳 0 / 评测 0」，页头恒显 100 分与绿色「极佳运转」，底部还有一句英文固定句「Five-ring closed learning loop is fully operational」，不论界面语言。
+
+### 根因
+
+1. 第 2、3 环按时间线条目的 `status` 与小写字符串 `"approved"` / `"pending"` / `"rejected"` 比较，真实状态是大写枚举 `SkillGrowthCaseStatus`（`PENDING_REVIEW`、`AUTO_APPLIED` 等），永远不相等；-010 的测试用 `SimpleNamespace(status="approved")` 造数据，与实现共用同一个错误前提，把缺陷固定成了「通过」。
+2. 没有来源的数字：`anti_patterns_detected` 为会话数除以 4；`consolidation_cycles`、`memories_merged`、`noise_pruned` 为记忆总数除以 5、8、10；`memory_health_score` 取 98 或 100；`avg_score_boost_pct` 只要有一条被批准就是 15.5；`profile_dimensions` 取 6；`cross_session_recall_ready` 恒为真；`recent_reflection_time` 是当前时间。
+3. 综合分：`overall_loop_health_score` 初值 100，只有「第 3 环拦截数大于 5」才下调，而第 3 环恒为 0，所以恒为 100 与 `optimal`；`total_learnings_count` 把会话数、采纳数、记忆数、对话数相加，会话与对话是同一批数据的两种口径。
+4. 第 2、3 环的窗口是「近 N 天最多 200 条时间线」，成长页统计卡是全量 SQL 计数，两处对不上。
+
+### 修复
+
+1. 后端：第 2、3 环改读成长页同源的 `summarize_skill_growth_dashboard_stats()`（案例总数、待审核、已自动落地、被拦截或失败）；第 4、5 环复用 `count_memories_by_type`（记忆总数与画像条目）；删除上述所有推算与写死字段、综合分与固定句。每个来源独立读取，读取失败时对应环返回 `null` 并记警告日志，不再用默认值冒充「就绪」；事件日志目录不存在是真实的 0 个会话，不算不可用。
+2. 前端：`LearningLoopFiveRingHub` 去掉页头分数、「极佳运转」徽章与底部汇总条；每环只展示接口返回的计数，`null` 的环显示「暂不可用」；指标标签与成长页统计卡同词（全部案例、待审核、已自动落地、被拦截或失败），第 1 环的标签带上回看天数，第 2、3 环是累计值；环的说明去掉用户看不懂的实现词（Improvement Gate、EvalCase、FTS5、守护线程）和没有对应实现的说法（基线评测、毫秒级召回），改成与真实流程一致的描述；六语种同步。
+3. `GrowingLoopDiscoveryChip`：任一计数不可读时只省略数字、保留入口；文案去掉「活跃」「整合」这类没有依据的词；顺手把 `role="button"` 的 `div` 换成原生 `button`（oxlint `prefer-tag-over-role`），删除未使用的导入。
+4. 测试：后端用互不相同的哨兵数断言整份响应，覆盖「某个来源失败只让依赖它的环为 `null`」，并用真实数据库造一条待审核草稿与一条对话，断言第 2、3 环随之加 1 且等于成长页的同源计数；前端补 Hub 与 Chip 的组件测试。
+
+### 验证
+
+1. 变异检查（6 种）：交换待审核与拦截数、待审核写死为 0、事件日志目录缺失时报不可用、画像条目取记忆总数、第 2 环忽略技能数、来源失败改为抛出；每一种都被后端测试拦住。
+2. 在开发后端上读真实数据：`/statistics/learning-loop/status` 的案例总数 206、待审核 72、已自动落地 0、被拦截 0，与 `/skill-growth/stats` 一致。
+3. `ruff` 与 pyright 对触碰的后端文件清零；`tsc --noEmit`、`verify:i18n`（含引用检查）、`verify:theme-colors`、`oxlint` 对触碰的前端文件通过，Hub 与 Chip 所在目录的前端测试通过。桌面与手机视口的页面截图已核对（该 E2E 浏览器固定为深色主题，浅色没有单独截图；本次新增的样式全部是主题变量）。
+
+### 局限
+
+1. 第 2、3 环是累计值，不随时间范围选择器变化；人工「已采纳 / 已拒绝」条数不再展示，因为成长页的统计卡没有这一项。
+2. `count_memories_by_type` 把单个类型读取失败按 0 计并记日志，第 4 环在个别类型失败时是偏小的数而不是「暂不可用」。
+3. 「技能总数」来自 `skills_service.list_skills()`，包含内置、本地与工作区技能。
+4. 第 1 环按目录全量扫描事件日志、没有缓存；开发库 0.2 MB 实测 70 至 172 ms，数据量大幅增长后需要复测。
+
+### 教训
+
+1. 测试数据要用生产的真实类型：用字符串给状态枚举造替身，会让实现与测试共用同一个错误前提。
+2. 同一个概念在两个页面各算一遍，迟早对不上：成长页与五环面板的「案例数」只该有一个出处。
+3. 把几个计数合成「健康分」「总学习数」之前，先问它有没有可验证的含义；没有就不展示，初值为 100 的分数比没有分数更糟。
+4. 多方并发写同一个多语种文件时，别人的整文件写回会盖掉自己的改动：本次 `en.json` 与 `de.json` 在写入约十秒后被还原；提交前逐个重新校验，并让提交内容由「HEAD 加同一份编辑脚本」生成，而不是依赖工作区当前状态。

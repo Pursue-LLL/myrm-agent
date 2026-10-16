@@ -10878,53 +10878,45 @@
     },
     "learningLoop": {
       "title": "闭环学习五环状态中心",
-      "subtitle": "全域自进化闭环拓扑与健康可观测看板",
-      "healthScore": "闭环健康度",
+      "subtitle": "你的 Agent 如何把对话沉淀为技能与记忆",
       "refresh": "刷新",
-      "optimal": "极佳运转",
-      "warning": "需要关注",
-      "degraded": "存在退化",
-      "totalLearnings": "全域沉淀资产",
+      "unavailable": "暂不可用",
       "ring1": {
         "name": "战后自省",
-        "stage": "Trace 挖掘与反模式",
-        "desc": "闲时自动回溯会话执行日志，挖掘工具调用失败、挫败信号与人工纠错。",
-        "metricsTraces": "分析会话: {count}",
-        "metricsAntiPatterns": "捕获反模式: {count}"
+        "stage": "从对话中复盘",
+        "desc": "完成较复杂的任务后，Agent 会在后台回看这段对话，提取值得留存的经验。",
+        "metricsSessions": "近 {days} 天会话: {count}"
       },
       "ring2": {
         "name": "技能提炼",
-        "stage": "自动生成与优化提案",
-        "desc": "基于自省证据与高频行为模式，生成技能修复 (FIX) 与优化 (DERIVED) 提案。",
-        "metricsProposals": "提炼提案: {count}",
-        "metricsApproved": "已采纳: {count}"
+        "stage": "把经验变成技能",
+        "desc": "可复用的做法会被整理成新技能或技能改进。安全的新技能自动生效，其余等你确认。",
+        "metricsCases": "全部案例: {count}",
+        "metricsAutoApplied": "已自动落地: {count}"
       },
       "ring3": {
         "name": "施用自进",
-        "stage": "基线评测与防退化门禁",
-        "desc": "通过 Improvement Gate 与 EvalCase 回归评测，确保新演化方案严格优于基线才准许晋级。",
-        "metricsEvals": "评测验证: {count}",
-        "metricsBlocked": "拦截退化: {count}",
-        "metricsBoost": "提升率: +{pct}%"
+        "stage": "审核与安全关卡",
+        "desc": "每份技能草稿都会先做安全检查。需要你决定或被拦下的案例会计入这里。",
+        "metricsPending": "待审核: {count}",
+        "metricsBlocked": "被拦截或失败: {count}"
       },
       "ring4": {
         "name": "周期自警",
-        "stage": "闲时整理与记忆去噪",
-        "desc": "记忆守护线程在后台自动去重、合并碎片偏好，并对陈旧规则实施平滑衰减与去噪。",
-        "metricsCycles": "维护周期: {count}",
-        "metricsMerged": "合并去重: {count}",
+        "stage": "后台记忆整理",
+        "desc": "Agent 会在后台合并相近的记忆、淡出过时的内容，让召回更准确。",
         "metricsMemories": "记忆总量: {count}"
       },
       "ring5": {
         "name": "渐构画像",
-        "stage": "跨会话召回与偏好演进",
-        "desc": "基于 FTS5 与向量语义持续构建精准用户画像，实现任意会话历史知识与偏好的毫秒级召回。",
-        "metricsIndexed": "会话索引: {count}",
-        "metricsDimensions": "画像维度: {count}"
+        "stage": "跨会话召回",
+        "desc": "历史对话都可被检索，Agent 对你的了解会累积成跨会话共享的画像。",
+        "metricsConversations": "会话数: {count}",
+        "metricsProfile": "画像条目: {count}"
       },
       "discoveryChip": {
         "growsWithYou": "越用越懂 · 五环闭环运转中",
-        "stats": "已沉淀 {memories} 条记忆 · {skills} 项活跃技能",
+        "stats": "已沉淀 {memories} 条记忆 · {skills} 项技能",
         "viewLoop": "查看闭环"
       }
     },

@@ -10810,53 +10810,45 @@
     },
     "learningLoop": {
       "title": "5環閉ループ学習ステータスセンター",
-      "subtitle": "クロスドメイン継続的自己進化トポロジーと健全性可観測性ダッシュボード",
-      "healthScore": "ループ健全性スコア",
+      "subtitle": "エージェントが会話をスキルと記憶に変える仕組み",
       "refresh": "更新",
-      "optimal": "最適稼働",
-      "warning": "要対応",
-      "degraded": "低下",
-      "totalLearnings": "全域蓄積資産",
+      "unavailable": "利用できません",
       "ring1": {
         "name": "事後内省",
-        "stage": "トレースマイニングとアンチパターン",
-        "desc": "アイドル時にセッション実行ログを自動的に遡及し、ツールの失敗、摩擦シグナル、手動修正を検出します。",
-        "metricsTraces": "分析セッション: {count}",
-        "metricsAntiPatterns": "アンチパターン: {count}"
+        "stage": "会話から学ぶ",
+        "desc": "大きなタスクのあと、エージェントがバックグラウンドで会話を振り返り、残す価値のある学びを拾い上げます。",
+        "metricsSessions": "直近 {days} 日のセッション: {count}"
       },
       "ring2": {
         "name": "スキル抽出",
-        "stage": "スキル抽出と改善提案",
-        "desc": "検証済みの実証証拠に基づき、自動 FIX および DERIVED 拡張提案を統合生成します。",
-        "metricsProposals": "提案数: {count}",
-        "metricsApproved": "承認済み: {count}"
+        "stage": "学びをスキルに",
+        "desc": "再利用できるノウハウを新しいスキルや改善として下書きします。安全な新規スキルは自動で適用され、それ以外は確認待ちになります。",
+        "metricsCases": "全ケース: {count}",
+        "metricsAutoApplied": "自動適用済み: {count}"
       },
       "ring3": {
         "name": "自己進化適用",
-        "stage": "ベースラインベンチマークと回帰ゲート",
-        "desc": "Improvement Gate と EvalCase 回帰テストを活用し、バリアントがベースラインを厳密に上回ることを保証します。",
-        "metricsEvals": "評価数: {count}",
-        "metricsBlocked": "ブロックされた回帰: {count}",
-        "metricsBoost": "改善率: +{pct}%"
+        "stage": "レビューと安全ゲート",
+        "desc": "スキルの下書きはまず安全チェックを通ります。あなたの判断が必要なものや止められたものがここに集計されます。",
+        "metricsPending": "レビュー待ち: {count}",
+        "metricsBlocked": "ブロックまたは失敗: {count}"
       },
       "ring4": {
         "name": "周期的自己監視",
-        "stage": "アイドル時メンテナンスと記憶プルーニング",
-        "desc": "バックグラウンドの記憶ガーディアンが断片的な設定を重複排除し、陳腐化したルールを減衰・整理します。",
-        "metricsCycles": "サイクル数: {count}",
-        "metricsMerged": "統合・重複排除: {count}",
+        "stage": "バックグラウンドの記憶整理",
+        "desc": "関連する記憶をまとめ、古くなった内容を退避させて、想起の精度を保ちます。",
         "metricsMemories": "総記憶数: {count}"
       },
       "ring5": {
         "name": "プロファイル構築",
-        "stage": "クロスセッション想起とユーザープロファイリング",
-        "desc": "FTS5 とベクトルセマンティクスにより高精度なユーザー像を構築し、ミリ秒単位の知識想起を実現します。",
-        "metricsIndexed": "インデックス済み対話: {count}",
-        "metricsDimensions": "プロファイル次元: {count}"
+        "stage": "会話をまたいだ想起",
+        "desc": "過去の会話は検索でき、あなたについての理解はチャットをまたぐプロファイルとして蓄積されます。",
+        "metricsConversations": "会話数: {count}",
+        "metricsProfile": "プロファイル項目: {count}"
       },
       "discoveryChip": {
         "growsWithYou": "共に成長するエージェント · 5環閉ループ稼働中",
-        "stats": "{memories} 件の記憶を統合 · {skills} 件のアクティブスキル",
+        "stats": "{memories} 件の記憶 · {skills} 件のスキル",
         "viewLoop": "学習ループを表示"
       }
     },

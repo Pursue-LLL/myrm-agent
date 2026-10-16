@@ -3,7 +3,6 @@
 /**
  * [INPUT]
  * - @/services/statistics::getLearningLoopStatus (POS: 闭环学习五环状态服务)
- * - @/components/primitives/button::Button (POS: 基础按钮)
  * - next/navigation::useRouter (POS: 路由跳转)
  *
  * [OUTPUT]
@@ -16,11 +15,9 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/primitives/button';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getLearningLoopStatus, type LearningLoopFiveRingStatusResponse } from '@/services/statistics';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface GrowingLoopDiscoveryChipProps {
   className?: string;
@@ -57,39 +54,40 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
     return null;
   }
 
-  const memoriesCount = data.ring4_consolidation.total_memories;
-  const skillsCount = data.ring2_distillation.total_active_skills;
+  const memoriesCount = data.ring4_consolidation?.total_memories;
+  const skillsCount = data.ring2_distillation?.total_skills;
+  const hasCounts = memoriesCount !== undefined && skillsCount !== undefined;
 
   return (
-    <div
+    <button
+      type="button"
       onClick={handleNavigate}
-      role="button"
-      tabIndex={0}
-      onKeyDown={activateOnKey}
       className={cn(
-        'group flex items-center justify-between gap-3 px-3.5 py-2 rounded-full border cursor-pointer select-none transition-all duration-200',
+        'group flex w-full items-center justify-between gap-3 px-3.5 py-2 rounded-full border text-start cursor-pointer select-none transition-all duration-200',
         'bg-background/80 hover:bg-accent/50 border-primary/20 hover:border-primary/40 shadow-xs hover:shadow-sm backdrop-blur-md',
         'max-w-screen-md mx-auto',
         className,
       )}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="p-1 rounded-full bg-primary/10 text-primary shrink-0">
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="p-1 rounded-full bg-primary/10 text-primary shrink-0">
           <Sparkles className="h-3.5 w-3.5 animate-pulse text-primary" />
-        </div>
-        <div className="flex items-center gap-2 truncate text-xs">
+        </span>
+        <span className="flex items-center gap-2 truncate text-xs">
           <span className="font-semibold text-foreground truncate">{t('growsWithYou')}</span>
-          <span className="hidden sm:inline text-muted-foreground font-normal truncate">
-            · {t('stats', { memories: memoriesCount, skills: skillsCount })}
-          </span>
-        </div>
-      </div>
+          {hasCounts && (
+            <span className="hidden sm:inline text-muted-foreground font-normal truncate">
+              · {t('stats', { memories: memoriesCount, skills: skillsCount })}
+            </span>
+          )}
+        </span>
+      </span>
 
-      <div className="flex items-center gap-1 text-[11px] font-medium text-primary shrink-0 group-hover:translate-x-0.5 transition-transform">
+      <span className="flex items-center gap-1 text-[11px] font-medium text-primary shrink-0 group-hover:translate-x-0.5 transition-transform">
         <span>{t('viewLoop')}</span>
         <ArrowRight className="h-3 w-3" />
-      </div>
-    </div>
+      </span>
+    </button>
   );
 });
 
