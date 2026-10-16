@@ -20,9 +20,11 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/wiki/` | 子模块 | Extension wiki clip 客户端与深链 — 见 [src/wiki/_ARCH.md](src/wiki/_ARCH.md) | ✅ |
 | `src/popup.html` | 辅助 | Popup 结构；静态文案 `data-i18n` + 运行时 `applyDocumentI18n` | — |
 | `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链（`lastClipErrorKind` 结构化，非 regex）；`chrome.i18n` 双语 | ✅ |
-| `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面：Chat UI 结构（SVG 图标、语义化 HTML） | — |
+| `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面（ES module）：Chat UI 结构（SVG 图标、语义化 HTML）；审批弹窗文案 `data-i18n` | — |
 | `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题、消息气泡、工具进度、审批弹窗、流式指示器、输入区 | — |
-| `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat（英文 UI；对话文案由 server/WebUI i18n 覆盖） | ✅ |
+| `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat 控制器：发送消息、渲染 SSE 事件、展示审批弹窗并用 `resume_value` 恢复暂停的回合（聊天界面英文，对话文案由 server/WebUI i18n 覆盖） | ✅ |
+| `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（可答复范围与逐项描述）、`resolveApprovalCopy`、`buildResumeValue`/`buildStreamBody`、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
+| `src/sidepanel/sse.js` | 辅助 | `readSSE`：解析 agent SSE 流（`data:` 行、`[DONE]` 终止；坏行跳过、回调异常记录后继续） | ✅ |
 | `src/content/selection.js` | 辅助 | Content Script（manifest 注入）：监听 mouseup 捕获用户选中文本，转发至 Side Panel | ✅ |
 | `src/content/clip_image_urls.js` | 核心 | srcset/lazy/picture 图片 URL 解析（`MyrmClipImageUrls` SSOT） | ✅ |
 | `src/content/clip.js` | 核心 | Content Script（动态注入）：捕获 page/selection HTML + credentialed 图片 fetch | ✅ |
@@ -47,14 +49,23 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 
 | 端点 | 方法 | 用途 |
 |------|------|------|
-| `/api/v1/agents/agent-stream` | POST | 发送消息并接收 SSE 流式响应 |
+| `/api/v1/agents/agent-stream` | POST | 发送消息并接收 SSE 流式响应；带 `resume_value`（`{decision: "approve"}` 或 `{decision: "reject", feedback}`）时答复该回合暂停中的工具审批并继续流式输出；审批已被超时或其他窗口处理时服务端返回 409 |
 | `/api/v1/chats/{chatId}/messages` | GET | 获取历史消息 |
 | `/api/v1/agents/agent/{messageId}/cancel` | POST | 取消当前执行 |
 | `/api/v1/agents/chat/{chatId}/attach` | GET | 重新附加到活跃流 |
-| `/api/v1/approvals/{approvalId}/resolve` | POST | 响应工具审批（`{decision: "approve"|"deny"}`） |
 | `/api/v1/health` | GET | 连接状态检测 |
 | `/api/v1/extension/clip-agent` | GET/PUT | Wiki 剪藏目标 agent + WebUI origin（与 Settings → Extension Bridge 同步） |
 | `/api/v1/wiki/clip` | POST | 浏览器剪藏 multipart 上传（可选 `?agent_id=`；`folder_path=""` 默认月分目录；`queue_compile=false` 零 LLM） |
+
+## Side Panel 审批边界
+
+原回合的 SSE 在中断处结束；答复以同一 `message_id` / `chat_id` 发起新请求，续写的输出追加到同一条助手消息。
+
+| 请求 | Side Panel 行为 |
+|------|-----------------|
+| `tool_approval_request`（普通） | 弹窗逐项列出全部动作；一次批准/拒绝应用于该中断的全部动作 |
+| `tool_approval_request` 且任一动作的 `reviewConfigs` 项带有 `allowedDecisions` / `hideAllowAlways` / `domainApproval` 之外的开启字段（如 `isSpend`、`requiresDualInsurance`、`irreversibleDestructive`、`smartDenied`、`batchImpactSummary`），或 `allowedDecisions` 不含 `approve`，或 `displayMode` 为 `handover` | 只能拒绝；批准须回 Web 端（Web 端有额外确认与信息展示，Side Panel 不绕过；未知新字段同样视为需要 Web 端，默认拒绝批准） |
+| `approval_required` 等其他审批 | 仅提示去 Web 端处理，弹窗可忽略 |
 
 ## Wiki clip 产品默认
 
@@ -73,7 +84,8 @@ Settings → Extension Bridge 仅配置 **Wiki clip target agent**（`/extension
 | 表面 | 语言 | 机制 |
 |------|------|------|
 | Popup + clip 错误 + 右键剪藏菜单 + clip 系统通知 | en / zh_CN | `_locales` + `chrome.i18n` |
-| Side Panel Chat chrome | en | Agent 回复与 WebUI 设置语言由 server SSE 提供 |
+| Side Panel 审批弹窗与提示 | en / zh_CN | `_locales` + `chrome.i18n`（`approval*` 键） |
+| Side Panel Chat chrome（其余） | en | Agent 回复与 WebUI 设置语言由 server SSE 提供 |
 | WebUI Settings → Extension Bridge | 六语 | `myrm-agent-frontend` next-intl |
 
 **Degraded deep links:** When `web_ui_origin` is not yet seeded from WebUI, clip still writes to Wiki; popup shows a success hint (`clipSavedWithoutOrigin`) until origin syncs.

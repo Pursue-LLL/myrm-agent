@@ -178,5 +178,44 @@
   },
   "notifyClipErrorTitle": {
     "message": "剪藏失败"
+  },
+  "approvalTitleSingle": {
+    "message": "批准工具：$TOOL$",
+    "placeholders": {
+      "tool": {
+        "content": "$1",
+        "example": "bash_code_execute_tool"
+      }
+    }
+  },
+  "approvalTitleBatch": {
+    "message": "批准 $COUNT$ 个工具调用",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "approvalTitleExternal": {
+    "message": "需要审批"
+  },
+  "approvalHintElevated": {
+    "message": "此操作需要额外确认。请在 Myrm Agent 网页端批准，或在此处拒绝。"
+  },
+  "approvalHintExternal": {
+    "message": "请在 Myrm Agent 网页端处理此请求。"
+  },
+  "approvalApprove": {
+    "message": "批准"
+  },
+  "approvalReject": {
+    "message": "拒绝"
+  },
+  "approvalDismiss": {
+    "message": "忽略"
+  },
+  "approvalHandledElsewhere": {
+    "message": "此审批已被处理，可能已超时，或已在其他窗口处理。"
   }
 }

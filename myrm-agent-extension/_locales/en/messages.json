@@ -178,5 +178,44 @@
   },
   "notifyClipErrorTitle": {
     "message": "Clip failed"
+  },
+  "approvalTitleSingle": {
+    "message": "Approve tool: $TOOL$",
+    "placeholders": {
+      "tool": {
+        "content": "$1",
+        "example": "bash_code_execute_tool"
+      }
+    }
+  },
+  "approvalTitleBatch": {
+    "message": "Approve $COUNT$ tool calls",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "approvalTitleExternal": {
+    "message": "Approval needed"
+  },
+  "approvalHintElevated": {
+    "message": "This action needs extra confirmation. Approve it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalHintExternal": {
+    "message": "Respond to this request in the Myrm Agent web app."
+  },
+  "approvalApprove": {
+    "message": "Approve"
+  },
+  "approvalReject": {
+    "message": "Reject"
+  },
+  "approvalDismiss": {
+    "message": "Dismiss"
+  },
+  "approvalHandledElsewhere": {
+    "message": "This approval was already handled, either by timeout or in another window."
   }
 }

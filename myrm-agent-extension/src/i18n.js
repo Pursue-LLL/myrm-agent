@@ -2,7 +2,7 @@
  * Chrome extension i18n helper (MV3 _locales SSOT).
  *
  * [INPUT]
- * - Chrome `_locales/*/messages.json` (POS: extension UI copy catalog)
+ * - Chrome `_locales/<locale>/messages.json` (POS: extension UI copy catalog)
  *
  * [OUTPUT]
  * - msg: resolve localized string with optional substitution

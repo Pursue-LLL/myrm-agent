@@ -51,11 +51,12 @@
   </div>
 
   <div class="approval-overlay" id="approval-overlay">
-    <div class="approval-title" id="approval-title">Tool requires approval</div>
+    <div class="approval-title" id="approval-title" data-i18n="approvalTitleExternal">Approval needed</div>
     <div class="approval-detail" id="approval-detail"></div>
+    <div class="approval-hint" id="approval-hint" hidden></div>
     <div class="approval-actions">
-      <button class="btn-approve" id="btn-approve">Approve</button>
-      <button class="btn-reject" id="btn-reject">Reject</button>
+      <button class="btn-approve" id="btn-approve" data-i18n="approvalApprove">Approve</button>
+      <button class="btn-reject" id="btn-reject" data-i18n="approvalReject">Reject</button>
     </div>
   </div>
 
@@ -74,6 +75,6 @@
     </div>
   </div>
 
-  <script src="sidepanel.js"></script>
+  <script type="module" src="sidepanel.js"></script>
 </body>
 </html>

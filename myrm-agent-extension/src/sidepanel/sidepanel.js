@@ -5,11 +5,21 @@
  * Reuses existing server API endpoints — zero backend changes required.
  *
  * API contracts:
- * - POST /api/v1/agents/agent-stream → SSE streaming chat
+ * - POST /api/v1/agents/agent-stream → SSE streaming chat; with `resume_value` it answers a pending tool approval
  * - GET  /api/v1/chats/{chatId}/messages → message history
  * - POST /api/v1/agents/agent/{messageId}/cancel → cancel
  * - GET  /api/v1/agents/chat/{chatId}/attach → re-attach to active stream
  */
+
+import { applyDocumentI18n, msg } from "../i18n.js";
+import {
+  buildResumeValue,
+  buildStreamBody,
+  describeApproval,
+  isResumeConflict,
+  resolveApprovalCopy,
+} from "./approval.js";
+import { readSSE } from "./sse.js";
 
 // --- State ---
 
@@ -23,6 +33,7 @@ const state = {
   activeTab: null,
   selectedText: null,
   contextDismissed: false,
+  /** The approval waiting for an answer: `{ view, turn }`, `turn` being the assistant message it belongs to. */
   pendingApproval: null,
   currentMessageId: null,
 };
@@ -45,6 +56,7 @@ const dom = {
   approvalOverlay: $("approval-overlay"),
   approvalTitle: $("approval-title"),
   approvalDetail: $("approval-detail"),
+  approvalHint: $("approval-hint"),
   btnApprove: $("btn-approve"),
   btnReject: $("btn-reject"),
   notConnected: $("not-connected"),
@@ -60,6 +72,7 @@ const dom = {
 // --- Init ---
 
 function init() {
+  applyDocumentI18n();
   setupEventListeners();
   listenForBackgroundMessages();
   requestActiveTabContext();
@@ -135,8 +148,7 @@ async function sendMessage() {
   autoResizeInput();
 
   if (!state.chatId) state.chatId = generateId("spc");
-  const messageId = generateId("sp");
-  state.currentMessageId = messageId;
+  hideApproval();
 
   let contextPrefix = "";
   if (!state.contextDismissed && state.activeTab) {
@@ -148,46 +160,75 @@ async function sendMessage() {
 
   addMessage("user", input);
   clearSelection();
-  setStreaming(true);
 
-  const assistantEl = addMessage("assistant", "");
-  const contentEl = assistantEl.querySelector(".message-bubble");
-  let toolProgressEl = null;
+  await streamTurn(createTurn(generateId("sp")), { query: contextPrefix + input });
+}
+
+/** One assistant message and what has been streamed into it; a resumed approval continues the same turn. */
+function createTurn(messageId) {
+  const el = addMessage("assistant", "");
+  return { messageId, el, bubble: el.querySelector(".message-bubble"), toolEl: null, text: "" };
+}
+
+function appendTurnText(turn, text) {
+  turn.text += text;
+  turn.bubble.textContent = turn.text;
+  scrollToBottom();
+}
+
+function turnToolEl(turn) {
+  if (!turn.toolEl) {
+    turn.toolEl = document.createElement("div");
+    turn.toolEl.className = "tool-progress";
+    turn.el.appendChild(turn.toolEl);
+  }
+  return turn.toolEl;
+}
+
+function appendTurnNotice(turn, text) {
+  const notice = document.createElement("div");
+  notice.className = "turn-notice";
+  notice.textContent = text;
+  turn.el.appendChild(notice);
+}
+
+/** Streams `turn` from the server: a new message (`query`), or the answer to its pending approval (`resumeValue`). */
+async function streamTurn(turn, { query = "", resumeValue } = {}) {
+  state.currentMessageId = turn.messageId;
+  setStreaming(true);
   state.abortController = new AbortController();
 
   try {
     const resp = await apiFetch("/api/v1/agents/agent-stream", {
       method: "POST",
-      body: JSON.stringify({
-        message_id: messageId,
-        chat_id: state.chatId,
-        query: contextPrefix + input,
-        action_mode: "agent",
-        multiplexed: false,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        timestamp: Date.now() / 1000,
-      }),
+      body: JSON.stringify(
+        buildStreamBody({
+          messageId: turn.messageId,
+          chatId: state.chatId,
+          query,
+          resumeValue,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timestamp: Date.now() / 1000,
+        }),
+      ),
       signal: state.abortController.signal,
       headers: { Accept: "text/event-stream" },
     });
 
+    if (resumeValue && isResumeConflict(resp.status)) {
+      appendTurnNotice(turn, msg("approvalHandledElsewhere"));
+      return;
+    }
     if (!resp.ok) {
       const errText = await resp.text().catch(() => resp.statusText);
       throw new Error(`Server error ${resp.status}: ${errText}`);
     }
 
-    await consumeSSE(resp.body, contentEl, () => {
-      if (!toolProgressEl) {
-        toolProgressEl = document.createElement("div");
-        toolProgressEl.className = "tool-progress";
-        assistantEl.appendChild(toolProgressEl);
-      }
-      return toolProgressEl;
-    });
+    await readSSE(resp.body, (event) => handleSSEEvent(event, turn));
   } catch (err) {
     if (err.name !== "AbortError") {
-      contentEl.textContent = `Error: ${err.message}`;
-      contentEl.style.color = "var(--error)";
+      turn.bubble.textContent = `${turn.text}${turn.text ? "\n\n" : ""}Error: ${err.message}`;
+      turn.bubble.style.color = "var(--error)";
     }
   } finally {
     setStreaming(false);
@@ -197,42 +238,12 @@ async function sendMessage() {
   }
 }
 
-// --- SSE consumer ---
+// --- SSE events ---
 
-async function consumeSSE(body, contentEl, getToolEl) {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let fullContent = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const data = line.slice(6).trim();
-      if (data === "[DONE]") return;
-      try {
-        const event = JSON.parse(data);
-        handleSSEEvent(event, getToolEl, (text) => {
-          fullContent += text;
-          contentEl.textContent = fullContent;
-          scrollToBottom();
-        });
-      } catch { /* skip malformed */ }
-    }
-  }
-}
-
-function handleSSEEvent(event, getToolEl, appendText) {
+function handleSSEEvent(event, turn) {
   switch (event.type) {
     case "message":
-      if (event.data) appendText(typeof event.data === "string" ? event.data : "");
+      if (event.data) appendTurnText(turn, typeof event.data === "string" ? event.data : "");
       break;
     case "message_end":
     case "agent_cancelled":
@@ -240,31 +251,28 @@ function handleSSEEvent(event, getToolEl, appendText) {
       break;
     case "tool_start": {
       const name = event.tool_name || "tool";
-      addToolStep(getToolEl(), name, "running");
+      addToolStep(turnToolEl(turn), name, "running");
       dom.streamingLabel.textContent = `Using ${name}\u2026`;
       notifyGlow(true);
       break;
     }
     case "tool_end": {
       const name = event.tool_name || "tool";
-      updateLastToolStep(getToolEl(), name, "done");
+      updateLastToolStep(turnToolEl(turn), name, "done");
       dom.streamingLabel.textContent = "Thinking\u2026";
       break;
     }
     case "tool_failure": {
       const name = event.tool_name || "tool";
-      updateLastToolStep(getToolEl(), name, "error");
+      updateLastToolStep(turnToolEl(turn), name, "error");
       break;
     }
     case "tool_approval_request":
     case "approval_required":
-      showApproval(event);
-      break;
-    case "approval_processed":
-      hideApproval();
+      showApproval(event, turn);
       break;
     case "error":
-      if (event.error || event.data) appendText(`\n\nError: ${event.error || event.data}`);
+      if (event.error || event.data) appendTurnText(turn, `\n\nError: ${event.error || event.data}`);
       break;
     case "tasks_steps":
     case "tool_heartbeat":
@@ -303,19 +311,17 @@ function updateLastToolStep(container, name, status) {
 
 // --- Tool approval ---
 
-function showApproval(event) {
-  state.pendingApproval = event;
-  if (event.type === "tool_approval_request" && event.data) {
-    const action = event.data.actionRequests?.[0];
-    const requestId = event.data.extensions?.approval?.requestId;
-    state.pendingApproval._requestId = requestId;
-    dom.approvalTitle.textContent = `Approve: ${action?.action || "action"}`;
-    dom.approvalDetail.textContent = action?.description || JSON.stringify(action?.args || {}, null, 2);
-  } else {
-    const payload = event.data || {};
-    dom.approvalTitle.textContent = `Approval required`;
-    dom.approvalDetail.textContent = payload.message || JSON.stringify(payload, null, 2);
-  }
+function showApproval(event, turn) {
+  const view = describeApproval(event);
+  const copy = resolveApprovalCopy(view, msg);
+  state.pendingApproval = { view, turn };
+  dom.approvalTitle.textContent = copy.title;
+  dom.approvalDetail.textContent = copy.detail;
+  dom.approvalDetail.hidden = !copy.detail;
+  dom.approvalHint.textContent = copy.hint;
+  dom.approvalHint.hidden = !copy.hint;
+  dom.btnApprove.hidden = !view.canApprove;
+  dom.btnReject.textContent = copy.rejectLabel;
   dom.approvalOverlay.classList.add("visible");
 }
 
@@ -324,19 +330,13 @@ function hideApproval() {
   dom.approvalOverlay.classList.remove("visible");
 }
 
+/** Answers the pending approval by resuming its turn; a request only the Web UI can answer is just dismissed. */
 async function respondApproval(approved) {
-  if (!state.pendingApproval) return;
-  const approvalId = state.pendingApproval._requestId;
+  const pending = state.pendingApproval;
+  if (!pending || state.streaming || (approved && !pending.view.canApprove)) return;
   hideApproval();
-  if (!approvalId) return;
-  try {
-    await apiFetch(`/api/v1/approvals/${approvalId}/resolve`, {
-      method: "POST",
-      body: JSON.stringify({ decision: approved ? "approve" : "deny" }),
-    });
-  } catch (err) {
-    console.error("[SidePanel] Approval response failed:", err);
-  }
+  if (pending.view.kind !== "tool") return;
+  await streamTurn(pending.turn, { resumeValue: buildResumeValue(approved) });
 }
 
 // --- Messages UI ---
@@ -371,6 +371,8 @@ function setStreaming(active) {
   dom.streamingIndicator.classList.toggle("visible", active);
   dom.btnSend.disabled = active || !state.connected;
   dom.chatInput.disabled = active;
+  dom.btnApprove.disabled = active;
+  dom.btnReject.disabled = active;
   dom.streamingLabel.textContent = "Thinking…";
   if (!active) notifyGlow(false);
 }
@@ -467,6 +469,7 @@ function setupEventListeners() {
     dom.messagesEl.appendChild(dom.emptyState);
     if (state.abortController) state.abortController.abort();
     setStreaming(false);
+    hideApproval();
     clearSelection();
   });
   dom.btnSettings.addEventListener("click", () => chrome.action.openPopup());
