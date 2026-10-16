@@ -375,7 +375,12 @@ class DelegationCoordinator:
                 metadata={"delegation_task_id": task.task_id, "is_delegation_delivery": True},
             )
             await bus.publish_outbound(outbound)
-            logger.info("DelegationCoordinator: Task %s completed and delivered to %s", task.task_id, task.origin_chat_id)
+            logger.info(
+                "DelegationCoordinator: Task %s finished as %s and delivered to %s",
+                task.task_id,
+                task.status.value,
+                task.origin_chat_id,
+            )
 
         except Exception as exc:
             safe_text, ref_id = friendly_error_message(exc, original_msg)

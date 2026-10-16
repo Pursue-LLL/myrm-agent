@@ -166,7 +166,7 @@ def build_delivery_card_content(
     """Render structured completion report and artifact delivery card for mobile IM.
 
     Args:
-        task: Completed DelegationTask instance.
+        task: Finished DelegationTask instance (completed, failed or cancelled).
         artifacts: List of discovered DeliveryArtifact objects.
         tracking_deep_link: Optional deep-link URL to WebUI/Tauri workspace.
         server_base_url: Optional base URL for direct download URLs.

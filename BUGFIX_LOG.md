@@ -4414,7 +4414,7 @@ except Exception:
 1. 红灯先行：协调器的摘要重复、失败回合记成 `COMPLETED`、清理与取消被改回、异常原文进聊天、执行器一般异常原文泄露、FAQ `TypeError` 都先写出失败的用例再改；德语占位符用真实 `diagnose` 复现（见现象 8）。
 2. 变异检查（进程内替换函数，不改磁盘文件）：协调器忽略失败标记，`test_delegation_lifecycle.py` 2 个失败；协调器去掉终态守卫，3 个失败；一般异常回复末尾拼上异常原文，`test_executor_error_replies.py` 8 个失败；所有人都拿到账户指引，3 个失败（访客、配对成员、群里的所有者）；德语占位符改回 `{original_error}`，原文消失，新用例会失败。
 3. 测试：server `tests/channels/delegation` 加 `tests/core/channel_bridge` 700 通过；`tests/channels/routing`、`i18n`、`core` 690 通过、1 失败，失败的是 `test_ftl_locales_have_no_orphaned_keys`（`cmd_btw`、`cmd_design-image`、`cmd_memo`、`cmd_review-week` 缺翻译，`BUG-AGENT-2026-10-15-006` 局限 4 已记，与本条无关）；harness `tests/agent/errors/diagnostics` 131 通过。
-4. 门禁：触及文件 ruff 与 format 干净；文件行数脚本在 `channels`、`channel_bridge` 范围内没有新增超限（协调器 391 行）；触及文件的 mypy 剩余报错都是本条之前就有的（见局限 7）。
+4. 门禁：触及文件 ruff 与 format 干净；文件行数脚本在 `channels`、`channel_bridge` 范围内没有新增超限（协调器 396 行）；触及文件的 mypy 剩余报错都是本条之前就有的（见局限 7）。
 5. 提交内容与工作区的差只剩他人的块：`executor.py` 的 `track_background_agent_run`、`execute_errors.py` 的冷却提示删除、四个 `.ftl` 的 `goal_usage_limit_*` 与 `cooldown_retry`、harness 语言目录的 `cooldown_hint_*`。
 
 ### 局限
