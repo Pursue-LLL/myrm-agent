@@ -5411,3 +5411,68 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 「提示要看得见」要绑在「提示被渲染」上，而不是绑在某个一次性事件上，否则只有触发事件的那次会话能看到。
 2. 新组件挂到一个页面里，要同时检查该页面已有的测试：它们按「每个会取数的子组件都被 mock」的惯例写，漏一个就在无关的套件里失败。
 3. 项目的浏览器 MCP 对本地页面有访问限制，这是有意的护栏；需要目测时另起一个无头浏览器，不去动被限制的那个。
+
+---
+
+## BUG-AGENT-2026-10-16-020: Curator 的「保护已安装技能」开关没有任何效果（本地扫描把所有技能的信任级写死为 TRUSTED）；清理还把其他工具（Cursor、Claude Code、Codex）的技能目录一并纳入；技能页签的动作空间噪声计在界面上露出键路径
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（清理只翻转状态、不删文件，归档可恢复，自动合并默认关闭；但用户明确打开的保护不生效，装来的技能会被标陈旧乃至归档；噪声计的键路径是每次打开技能页签都可见的界面缺陷） |
+| 影响范围 | harness `agent/skills/curator/engine.py`、`backends/skills/forgetting_strategy.py`、`backends/skills/skill_doctor.py`（新增，纯搬移）、`backends/skills/curator_config.py`；服务端 `app/core/skills/curator/local_skills.py`（新增）、`service.py`、`consolidation.py`、`app/core/infra/health/skill_diagnostics.py`；前端 `SkillsSectionPanel.tsx`、`SkillsSectionPanelParts.tsx`、`services/skill/core.ts`、六份 locale |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-15-013`（其修复 11 引入的 `details.trust` 在本条删除）；路线图 topic_08 #43 ② ④；harness 提交 `be603d65e3`、`a1c333607`、`0ab80880e`；服务端仓提交 `30df898ab2`、`c155847960`、`688f8b8d00`、`efcf98fa02`；本地提交，未 push，未发布 harness 版本 |
+
+### 现象
+
+1. 打开「保护已安装技能」后，装来的技能超期未用仍会被标为陈旧：遗忘策略只在 `trust == INSTALLED` 时豁免，而本地扫描把所有技能的信任级固定为 `TRUSTED`（`myrm-agent-harness/src/myrm_agent_harness/backends/skills/local.py:151`），这个分支没有任何可达路径；
+2. 默认扫描目录除 Myrm 自己的技能目录外，还有其他工具（Cursor、Claude Code、Codex 等）的目录；清理只看 Myrm 自己的运行记录，别的工具正在用的技能因此看起来「闲置」；
+3. 体检与清理各写了一份扫描循环，体检同样用失效的信任级判断「已安装受保护」；
+4. 既有的预置技能豁免集成用例是空转的：夹具使它不论豁免是否生效都通过；
+5. 诊断发现 `wrong_but_frequent` 的 `details` 带 `success_count`、`failure_count`、`trust` 三个键，界面只读 `observed_count`；`trust` 正是上面那个恒为 `TRUSTED` 的值；
+6. 智能体配置里「技能」页签的动作空间噪声计收到的是 `agent.configPanel` 的翻译函数，而它用的 5 个文案键在 `agent.configEditor` 下。用真实 next-intl 和 `en.json` 实测：载荷标签、两条状态提示、陈旧提示都直接输出键路径（如 `agent.configPanel.actionSpaceRadar.loadMeterLabel`）；`verify:i18n-references` 看不到模板字符串拼出来的键，所以一直通过；
+7. `agent.configEditor.actionSpaceRadar.smartPruneSuccess / smartPruneFailed` 六种语言共 12 条文案键没有引用（清理吐司用的是 `agent.configPanel` 下的同名键）；
+8. `forgetting_strategy.py` 423 行，遗忘策略与体检报告两件事挤在一个文件里。
+
+### 根因
+
+1. 信任级是运行时工具权限的输入（`agent/skills/runtime/attenuator.py:105-111` 取 `min(s.trust)` 定权限上限），不能为了让清理策略识别「装来的」而在扫描里改它；原判定把「来源」与「权限信任」混成了一个字段；
+2. 三处扫描各自演化，没有共同的「这批技能哪些是装来的」来源；
+3. 翻译函数沿调用链传递，参数名 `tPanel` 掩盖了它属于哪个命名空间，单测用恒等翻译函数，看不出键放错了地方。
+
+### 修复
+
+1. 引擎的 `run` 与 `run_async` 新增 `installed_names`：开关开启时与 `protected_names` 并成同一个豁免集（`engine.py:202-206` `_exempt_names`），逐技能判定（`:142`）、LRU 池（`:147`）、合并候选（`:196-197`）共用；删除遗忘策略里永不触发的 trust 分支；
+2. 服务端新增 `scan_local_skills`（`app/core/skills/curator/local_skills.py:43-59`）：一次扫描全部根目录，带市场安装标记 `origin.json`，或位于默认路径第一项（Myrm 自己的目录）之外的技能算「已安装」；自动扫描、合并预览与执行、体检三处共用同一次扫描；
+3. `details` 只留 `observed_count`，前端类型与三处夹具同步；
+4. 噪声计改收 `agent.configEditor` 的翻译函数，新增用真实 en、zh 消息渲染的用例；删除 12 条无引用的文案键；`protectInstalledDesc` 六种语言改为如实描述（含其他工具目录）；
+5. 预置技能豁免用例改为参数化，同时断言开关关闭时被清理；
+6. 体检部分（`SkillDoctorFinding`、`SkillHealthDiagnosis`、`evaluate_skill_health_findings`）原样搬到 `backends/skills/skill_doctor.py`，及其 4 个测试搬到 `test_skill_doctor.py`；`forgetting_strategy.py` 423 → 246 行；服务端深层导入基线把 `forgetting_strategy` 换成 `skill_doctor`，条数不变；
+7. 路线图 topic_08 #43 的 ② ④ 记为已落地并列出生产调用点，①③⑤ 余项保持待做。
+
+### 验证
+
+1. harness：`tests/agent/skills/curator`、`tests/agent/skills/test_curator_engine.py`、`tests/backends/skills` 共 708 通过（拆分前）；拆分后 `test_forgetting_strategy.py` 与 `test_skill_doctor.py` 共 21 通过（拆分前同一批也是 21），搬走的函数体与 HEAD 逐字一致；新增的 5 例 `installed_names` 用例覆盖：开关开启时豁免、关闭时仍被清理、退出 LRU 池、合并候选跟随开关；
+2. 服务端：`tests/core/skills/curator`、`test_curator_consolidation.py`、`tests/core/infra/health`、`test_curator_usage_pipeline_integration.py` 共 109 通过；`test_local_skills.py` 用真实 `LocalSkillBackend` 目录断言「主目录自写不算、市场安装算、其他工具目录算、主目录缺失时不把其他目录当主目录、没有目录时无事可扫」；集成用例跑通「扫描 → 引擎 → 统计账本」：市场安装与其他工具的技能保持活跃、闲置的自写技能转陈旧，关闭开关后全部转陈旧；
+3. 前端：技能与智能体配置面板两个目录 39 文件 217 通过；`verify:i18n`、`verify:i18n-references`、`verify:theme-colors` 通过；触及文件 prettier、oxlint 0 告警；把 `t={t}` 改回 `t={tPanel}` 做变异验证，新增用例在 en 与 zh 各失败 1 例（共 2 例），还原后通过；
+4. 拆分后 `check_module_reachability` 不再提到 `skill_doctor`（服务端改从新模块导入之前，它被报为「无生产调用方」，门禁共 19 项；现在 18 项，都是他人的模块）。
+
+### 局限
+
+1. 真机 E2E 没有在最终代码上跑：23:36 本机负载均值 49.45，且有至少 4 个他人的 `chrome_e2e` 进程在跑；E2E 夹具只改了 `details` 一个键，界面只读 `observed_count`，由单测覆盖，没有目视检查；
+2. 日、韩、德、繁体中文的新文案没有母语复核；
+3. 服务端的 `protect_system_skills` 实际无效：预置技能在存储提供方里，本地扫描触不到，本次没有改动；
+4. 清理标记的「已归档」在运行时是否真正不再加载，取决于他人尚未提交的运行时归档闸门（`app/core/skills/gates/runtime_load.py`），不属本条；
+5. 本机其他工具的技能目录里有 24 个 `.stats.json` 账本（账本是清理对一个技能生效的前提），写入方没有查清；
+6. 仍失败、且不涉及本条文件的：服务端 `tests/architecture/test_server_harness_imports.py`（136 条新增深层导入，均来自他人未提交的改动，没有一条与 `skill_doctor` 或 `forgetting_strategy` 有关）、harness `check_module_reachability` 18 项、`tests/agent/skills/test_anti_sycophancy_curator_engine.py` 的 3 条 ruff 未使用导入、前端 `LearningLoopFiveRingHub.test.tsx` 的 1 条 `tsc` 类型错误；
+7. 服务端导入基线位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，用带锚点校验的脚本编辑（与 `BUG-AGENT-2026-10-15-003` 局限 8 相同）；
+8. 服务端依赖 harness 的新模块 `skill_doctor`，要先发布 harness 版本再 `./myrm harness sync-lock`；本次只做了 sync-lock 的本地检查，没有发布。
+
+### 踩坑经验
+
+1. 「来源」与「权限信任」要分开：为了让清理识别「装来的」去改扫描信任级，会连带收紧运行时的工具权限；让调用方汇报来源，引擎只接收名单；
+2. 同一件事在三个调用点各写一份循环，其中一份用了失效条件时没有任何测试会红；共用一份产出，并用真实的目录扫描写用例；
+3. 用恒等翻译函数的单测看不出文案键放错命名空间；至少有一条用例要读真实的 locale 文件、用真实的 next-intl 翻译；模板字符串拼出来的键，静态引用检查也看不到；
+4. 编辑器工具读不到文件不等于被禁止：我先把基线文件当成权限限制，回退了刚做完的拆分，后来在 `BUG-AGENT-2026-10-15-003` 的局限里查到这是 `.cursorignore` 的 `data/` 屏蔽、有既定的脚本编辑做法，才重做。遇到读不到先查忽略规则与既有记录。
