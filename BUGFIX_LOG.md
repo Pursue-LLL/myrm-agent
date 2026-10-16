@@ -2732,6 +2732,10 @@ except Exception:
 3. 迁移代码时 pyright 能抓到测试没覆盖的调用点（补丁批准路径的 `_persist_approved_draft_eval_cases` 签名变更），改签名后要对整个文件跑类型检查；
 4. 共享工作区里测试夹具按模块路径打补丁（`get_session`）：函数迁到新模块后，夹具要同步补丁新模块，否则会直连真实库。
 
+### 更正（BUG-AGENT-2026-10-16-004）
+
+「局限」第 3 项的两处同类拼接已处理：批量导入预览与确认的扫描文本、插件安装闸门改用 `render_skill_md`；固化向导的拼接在 `skill_solidify_service.py`（他人未提交的新文件）里改成了 `yaml_scalar`，该文件不在本条提交内。第 5 项前半「全局进化集成不感知隐身」的怀疑不成立：`register_hooks` 确实没有隐身判断（`evolution/infra/integration.py:258-345`），但切片抽取 `extract_skill_from_slice` 需要 `_trace_analyzer`，它只在构造时传入 `event_log_backend` 才存在（`core/engine.py:104,338-340`），server 构造 `EvolutionIntegration` 时没有传（`services/agent/evolution/evolution_runtime.py:62-69`），抽取在入口就被跳过。后半（`agents.py:64-85` 为含隐身在内的所有会话创建事件日志后端）仍然成立，见 `BUG-AGENT-2026-10-16-004` 局限第 5 项。
+
 ---
 
 ## BUG-AGENT-2026-10-14-027: 每次创建默认向量库都会删掉嵌入式 Qdrant 的锁文件，第二个进程能打开同一个数据目录并各写各的；回退到临时记忆后界面只变色、不说怎么办；清库的 FTS5 optimize 失败被吞掉；`chat_crud.py` 565 行
@@ -4566,3 +4570,71 @@ except Exception:
 3. 变异检查的还原步骤要用唯一标记，并在读结果之前确认被测文件已恢复；用 `replace('None', ...)` 这类通用文本会命中别处。
 4. 共享工作区里提交失败后先看 `git log` 再重试：提交脚本在引用已更新之后、同步共享索引时遇到 `index.lock` 会报错退出，此时提交已经落地，只需补同步索引。
 5. 持久化数据不可信任：读取 `answerRecord` 时按所在卡片校验形状，不符就回落到最朴素的文案，不要让一条坏数据让整张卡渲染出错。
+
+---
+
+## BUG-AGENT-2026-10-16-004: 隐身会话仍会写 Wiki（工具、长回复归档、压缩后归档、深度研究入库）；插件闸门与批量导入的预检把描述原样拼进 frontmatter 而误报；记忆关闭时技能复盘仍上报记忆类发现；权限撤销里有一个永远打不通的失效钩子；子 Agent 里有一段恒不生效的 wiki/会话开关分支；harness 的懒加载导出对类型检查器全是 `object`
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P1（隐身承诺被破坏：Wiki 落盘）；其余 P2/P3 |
+| 影响范围 | server：`app/services/agent/params/converter.py`、`helpers.py`、`archive_restore.py`，`app/core/skills/utils.py`、`app/services/plugins/_gates.py`、`app/api/skills/batch_import/batch_import.py`、`batch_import_execute.py`、`app/api/skills/permissions.py`、`app/ai_agents/general_agent/callbacks.py`、`factory.py`、`app/ai_agents/custom_agent_factory.py`、`app/core/channel_bridge/learn_handler.py`、`app/services/agent/profile/profile_builtin_tools.py`；harness：`api/__init__.pyi`（新增）、`api/__init__.py`（1 行）、`toolkits/__init__.py`；各目录 `_ARCH.md` |
+| 出现次数 | 1（读代码 + 红灯与变异测试；未用真实 LLM、未开浏览器） |
+| 关联 | `BUG-AGENT-2026-10-14-026` 的后续（其局限第 3、5 项在该条下更正）；本地提交，未 push |
+
+### 现象
+
+1. 隐身会话里 `enable_wiki` 照常为真。Wiki 工具、长回复自动归档（harness `agent/skill_agent/review.py:147-151`，由 `factory.py:840` 的 `wiki_base_dir` 是否为空决定）、压缩后归档（`make_summary_persist_with_wiki_archive`）、深度研究入库与本地探索（`stream_lane_factory.py:289-290`）都按 `params.enable_wiki` 开关，转换器没有按隐身归一；
+2. 插件安装闸门（`scan_skill_security`）与批量导入预览、确认的安全扫描，用 f-string 把 description 原样拼成 SKILL.md 文本交给 `SkillSecurityValidator`；含 `: `、` #` 等字符的合法描述被判成 "Invalid YAML frontmatter"，显示为安全问题。批量导入真正落盘用的是 `yaml.safe_dump`，错的只有扫描文本；
+3. 记忆关闭时，后台技能复盘仍会上报 `semantic_memory` 类发现；
+4. 撤销权限的两条路由调用 harness 的 `invalidate_permissions`。该钩子靠 ContextVar 登记回调，API 请求上下文里取不到登记，只会打 "callback not registered" 警告；真正生效的是同处的 `clear_permission_cache`（进程级缓存）；
+5. 子 Agent 重绑 `memory_search_tool` 时，按「父 Agent 的 wiki / 历史会话开关」决定是否放开对应语料，但父对象是 harness 的 `SkillAgent`，没有这些属性，两个标志恒为 (False, False)，放开的分支永远走不到；
+6. 批量导入预览里 `hasattr(store, "list_skills")` 的分支只有测试替身会进，真实 `SkillStore` 没有该方法；
+7. harness 的 `api/__init__.py`、`toolkits/__init__.py` 靠 `__getattr__` 懒加载导出，类型检查器把每个导出都看成 `object`（包带 `py.typed`），server 里引用这些导出的位置都拿不到真实类型。
+
+### 根因
+
+1. 隐身合同按「持久化写入点」清点时漏了 Wiki 这一族，而且每个入口各判一次，没有收口点；
+2. 同一份 SKILL.md 文本在各处各拼一份；
+3. 复盘回调只按隐身判断，没按记忆开关判断；
+4. 钩子是为「通知 harness 失效缓存」设计的，缓存实际在 server 进程里，钩子成了没有对端的死代码；
+5. 「继承父级开关」是想象出来的，没有核对父对象的真实类型；
+6. 为测试替身保留的分支；
+7. 懒加载注册表没有对应的静态类型镜像。
+
+### 修复
+
+1. `converter.py`：隐身时 `tool_flags["enable_wiki"] = False`，与会话检索、记忆自动提取的隐身归一在同一处；
+2. `core/skills/utils.py` 新增 `render_skill_md`（frontmatter 值全部经 `yaml_scalar`），插件闸门与批量导入预览、确认共用；
+3. `make_skill_review_callback(memory_enabled=…)`：记忆关闭时丢弃 `semantic_memory` 类发现，只保留技能草稿；
+4. 删除两处 `invalidate_permissions` 调用与工厂里的 `set_permission_invalidation_callback` 登记，保留 `clear_permission_cache`；harness 的该 API 本身不动；
+5. 删除 `custom_agent_factory.py` 里恒不生效的父级开关分支（`_parent_memory_search_flags`、`_parent_chat_id`、`_build_subagent_wiki_query`），重绑只留「子 Agent 自有记忆」；
+6. 删除 `hasattr` 分支，测试替身改成 `get_active_skills`；
+7. harness：`api/__init__.pyi` 与 `_EXPORTS` 一一对应（`EvidenceReference` 的注册目标同时改为定义它的 `toolkits.memory.types`，原目标只是转手重导入，类型检查器报私有导入）；`toolkits/__init__.py` 的 `TYPE_CHECKING` 块补齐另外 7 个 `create_*`；各配一条一致性测试；
+8. 顺手修的类型：`rewrite_learn_query_if_needed` 改泛型签名；`inject_archive_restore_actions_into_query` 按 `MultimodalQuery` 标注并去掉转换器里的 `cast(object, …)`；`is_sandbox_capable_tools` 的能力参数改 `Collection[str]`；`callbacks.py` 在闭包外收窄 llm；转换器里推理展示模式、能力集合（新增 `_declared_capabilities`，合并重复的两段）、记忆策略、`tool_gateway_config` 取值各改成有类型的写法。
+
+### 验证
+
+1. 红灯与变异：`test_converter_incognito_wiki.py` 在修复前 `enable_wiki` 为真（红），修复后通过；插件闸门与批量导入的新用例在修复前失败；把 `not memory_enabled and` 改成 `False and`，`test_memory_off_drops_semantic_memory_findings_but_keeps_skill_drafts` 的记忆关闭用例失败；分别去掉单个撤销与批量撤销里的 `clear_permission_cache`，`test_permission_revoke_cache.py` 的两例各自失败，还原后均通过；api 存根一致性守卫在把某个导出名改坏后比较结果不等。没有红灯的：快速搜索的记忆策略、推理展示模式、能力集合三组用例在改动前就通过（pydantic 会把字典转成策略对象），它们是行为不变的保护用例；
+2. 服务端：引用了被改模块（转换器、`render_skill_md`、插件闸门、批量导入、权限服务、复盘回调、自定义子 Agent 工厂、学习重写、归档恢复、内置工具解析、通用 Agent 工厂）的 77 个测试文件，714 条里 710 通过、1 跳过、10 条按默认配置排除，4 条失败，4 条在未改动的 `HEAD` 导出树（`git archive HEAD`）上同样失败：`test_org_mcp_sync_merge.py::test_org_mcp_reaches_agent_params` 与 `test_completions.py` 两条（模拟返回 5 元组而生产代码解 6 元组）是确定性失败；`test_converter_smart_routing_judge.py::test_judge_llm_created_and_passed_to_route_task` 单独运行通过，与前 9 个文件一起跑时失败，在 `HEAD` 上同样复现，是用例间的顺序依赖。这 4 条本条没有改动；
+3. harness：`tests/api` 与 `tests/toolkits/test_lazy_exports.py` 25 通过；
+4. 类型检查（根 `pyrightconfig.json` 口径）：触及的 server 源文件 62 → 43 条。只加 api 存根时全 server `app` 目录 2157 → 1967（55 个文件下降，3 个文件分别 +1、+2、+3，是原先被 `object` 掩盖的真实不匹配），之后补全 toolkits 与上述类型修复，整库数字没有重测；
+5. ruff check、format 触及文件全部通过；架构守卫 `test_harness_api_export_parity` 等 8 个通过，`test_server_harness_imports*` 的 4 个失败来自他人新增的深层导入（相对基线 136 项），我新增的导入都已在基线内；`test_api_route_consumers` 失败来自他人的路由，我未触及路由。
+
+### 局限
+
+1. 剩余 43 条 pyright 报错都是已存在的跨层类型问题，没有用 `cast` / `type: ignore` 压掉：`converter.py` 15 条全是 harness 的 `route_task`、`route_task_specialty` 标成 harness `LLMConfig` 而 server 传自己的 `ModelConfig`（两者是刻意各自定义的镜像类，见 `app/core/types/business.py` 的类注释，根治要把 harness 路由函数改成对配置类型泛型）；`factory.py` 22 条（`prepare_mcp_configs_for_runtime` 标成 harness `MCPConfig` 而 server 传 `MCPServerConfig`、`GeneralAgent` 构造参数的列表 / 元组与可选类型不一致、回调类型别名不一致等）；`custom_agent_factory.py` 6 条（harness `AgentFactory.build` 协议把 `tools` 标成 `list[object]`、`SubagentConfig.llm` 的类型被抹成 `object`、同样的 MCP 双类型）。这些各是独立的跨层改动，本条没有做；
+2. 没有用真实 LLM、真实浏览器验证；
+3. `skill_solidify_service.py` 与 `test_solidify_skill_md.py` 是他人未提交的新文件，我只在工作区里改了其中的拼接，不属于本条提交；
+4. 父会话隐身时，自定义子 Agent 仍会按自身 `memory_isolation` 创建持久记忆管理器：`custom_agent_factory.py` 构造 `memory_manager` 的位置没有任何隐身判断，而父对象是 `SkillAgent`、读不到隐身标志，需要经 `SubagentConfig` 传递。子 Agent 是否真会写入没有验证，本条没改；
+5. `agents.py:64-85` 为所有会话（含隐身）创建事件日志后端并写盘，没有隐身判断；该日志是否随隐身会话清理、是否算「轨迹」没有验证，本条没改；
+6. 已写入的 Wiki 文件不迁移；未改动任何提示词。
+
+### 踩坑经验
+
+1. 「不留痕」这类合同的收口点放在参数装配（单一来源），不要让每个消费点各判一次；
+2. 懒加载导出要有静态镜像，否则带 `py.typed` 的包对使用方等于没有类型，`object` 会把真实的不匹配全部掩盖；加存根前后的错误数要整库实测，再决定要不要做；
+3. 怀疑「字典被当成策略对象传下去会炸」时先写最小复现：实测 pydantic 会转换，这一处只是类型写法问题，不是缺陷；
+4. zsh 里 `F="a b"` 不会按空格拆成多个参数，传文件列表要用数组。
