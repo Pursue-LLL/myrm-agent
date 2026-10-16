@@ -77,5 +77,7 @@ export async function rollbackSkillMutationBatch(batchId: string): Promise<{
     status: string;
   }>(`${PREFIX}/mutations/${encodeURIComponent(batchId)}/rollback`, {
     method: 'POST',
+    // Every caller words the failure itself (e.g. "already undone"); the generic toast would be a second one.
+    silent: true,
   });
 }
