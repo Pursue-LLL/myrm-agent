@@ -3,7 +3,7 @@ import type { ChatActionsMethods, ChatActionsState } from '../messageRequest';
 import type { Message } from '@/store/chat/types';
 import { FatalNetworkError } from '@/lib/utils/networkResilience';
 import { consumeStream } from '../consumeStream';
-import { AgentBusyError, ApprovalAlreadyResolvedError, RequestRefusedError } from '../streamErrors';
+import { AgentBusyError, ApprovalExpiredError, RequestRefusedError } from '../streamErrors';
 import { executeStreamWithRetry } from '../streamConsumer';
 
 const mockParseSseEnvelope = vi.hoisted(() => vi.fn());
@@ -250,7 +250,7 @@ describe('streamConsumer resilience paths', () => {
     vi.useRealTimers();
   });
 
-  it('throws ApprovalAlreadyResolvedError without retrying when a resume hits an interrupt someone else already resolved (HTTP 409)', async () => {
+  it('throws ApprovalExpiredError without retrying when a resume hits an interrupt the timeout already resolved (HTTP 409)', async () => {
     const state = createBaseState();
     const actions = createActions(state);
     const abortController = new AbortController();
@@ -258,7 +258,7 @@ describe('streamConsumer resilience paths', () => {
 
     await expect(
       executeStreamWithRetry('', 'msg-1', state, actions, null, abortController, false, '', { granted: false }),
-    ).rejects.toBeInstanceOf(ApprovalAlreadyResolvedError);
+    ).rejects.toBeInstanceOf(ApprovalExpiredError);
 
     expect(mockCreateMessageRequest).toHaveBeenCalledTimes(1);
   });

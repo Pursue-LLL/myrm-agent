@@ -225,7 +225,7 @@
       "permanentDelete": "영구 삭제"
     },
     "incognitoMode": "시크릿 모드",
-    "incognitoModeDesc": "활성화하면 이 세션은 메모리를 읽거나 쓰지 않습니다 (전역 메모리 설정은 변경되지 않음). 채팅 후 흔적이 남지 않습니다.",
+    "incognitoModeDesc": "활성화하면 이 세션은 메모리를 읽거나 쓰지 않으며 기록과 검색에도 표시되지 않습니다. 1시간 넘게 사용하지 않으면 자동으로 삭제됩니다. 모델 제공업체는 전송한 내용을 계속 처리합니다.",
     "preCompactEnabled": "압축 전 메모리 검색",
     "preCompactEnabledDesc": "컨텍스트 압축 전에 관련된 지속 메모리를 활성 대화에 자동으로 검색합니다.",
     "preCompactBudget": "검색 토큰 예산",

@@ -254,13 +254,9 @@ export interface ClarificationOption {
   description?: string;
 }
 
-/**
- * How a clarification card was settled, kept on the card so the transcript still shows it.
- * `already_handled` is written by the client alone, when the server refused a late answer without saying whether the
- * timeout or another device settled the card. The server never sends it; a reload shows the record the server holds.
- */
+/** How a clarification or directory card was settled, kept on the card so the transcript still shows it. */
 export interface HitlAnswerRecord {
-  by: 'user' | 'timeout' | 'already_handled';
+  by: 'user' | 'timeout';
   value: unknown;
 }
 

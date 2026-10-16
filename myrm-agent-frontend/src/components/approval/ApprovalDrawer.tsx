@@ -13,7 +13,7 @@ import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import { shouldResumeDrawerApproval } from '@/lib/approval/buildDrawerResumeValue';
 import { resumeDrawerApprovalStream } from '@/lib/approval/resumeDrawerApprovalStream';
 import { isRiskHeldError } from '@/services/riskHeldToast';
-import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import { classifyBatchApprovalRisk, type BatchRiskReport } from '@/lib/approval/batchRisk';
 
 export function ApprovalDrawer() {
@@ -69,8 +69,8 @@ export function ApprovalDrawer() {
       closeApproval(approvalId);
     } catch (error) {
       console.error('Error resolving approval:', error);
-      if (error instanceof ApprovalAlreadyResolvedError) {
-        toast.warning(tToolApproval('approvalAlreadyHandled'));
+      if (error instanceof ApprovalExpiredError) {
+        toast.warning(tToolApproval('approvalExpired'));
         closeApproval(approvalId);
       } else if (!isRiskHeldError(error)) {
         // A reason a risk rule holds has its notice already; the approval stays open with the reason in its card.
@@ -145,8 +145,8 @@ export function ApprovalDrawer() {
       setPendingRiskReport(null);
     } catch (error) {
       console.error('Error batch resolving approvals:', error);
-      if (error instanceof ApprovalAlreadyResolvedError) {
-        toast.warning(tToolApproval('approvalAlreadyHandled'));
+      if (error instanceof ApprovalExpiredError) {
+        toast.warning(tToolApproval('approvalExpired'));
         const approvalIds = queue.map((a) => a.approval_id);
         closeApprovals(approvalIds);
       } else {

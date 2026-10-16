@@ -4,7 +4,7 @@
  * - @/store/chat/hitlAnswerRecord::AnswerLine (POS: one question and the answer given to it)
  *
  * [OUTPUT]
- * - HitlAnsweredNote: the banner a clarification card collapses into once it is settled
+ * - HitlAnsweredNote: the banner a clarification or directory card collapses into once it is settled
  *
  * [POS]
  * Presentation only: the caller decides the tone and the wording from the card's answer record, so the banner holds
@@ -18,7 +18,7 @@ import type { AnswerLine } from '@/store/chat/hitlAnswerRecord';
 import { CheckCircleIcon, SkipIcon } from './ClarificationChrome';
 
 interface HitlAnsweredNoteProps {
-  /** `done` is an answer the agent acted on; `muted` is a skip, a denial, a timeout or a card someone else already handled. */
+  /** `done` is an answer the agent acted on; `muted` is a skip, a denial or a timeout. */
   tone: 'done' | 'muted';
   headline: string;
   lines?: readonly AnswerLine[];
@@ -43,9 +43,8 @@ const HitlAnsweredNote = ({ tone, headline, lines }: HitlAnsweredNoteProps) => {
 
   return (
     <div className={cn('mt-3 rounded-2xl border px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3', classes.shell)}>
-      {/* The icon stays on the first line: a headline that wraps on a narrow screen must not float it to the middle. */}
-      <div className="flex items-start gap-2.5">
-        <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', classes.icon)} />
+      <div className="flex items-center gap-2.5">
+        <Icon className={cn('h-4 w-4 shrink-0', classes.icon)} />
         <span className={cn('font-medium', classes.headline)}>{headline}</span>
       </div>
       {lines && lines.length > 0 ? (

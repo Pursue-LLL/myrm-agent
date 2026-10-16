@@ -8,8 +8,7 @@
  *
  * [POS]
  * Wording of a settled card from its answer record. A card settled before records existed, or whose record does not fit
- * it, shows the plain answered label. A form that asked for sign-off says it was not approved when nobody answered, and
- * points to the assistant's reply when a late answer was refused because the card had already been settled elsewhere.
+ * it, shows the plain answered label. A form that asked for sign-off says it was not approved when nobody answered.
  */
 
 import React from 'react';
@@ -36,9 +35,6 @@ export const ClarificationSettledNote = React.memo(function ClarificationSettled
     return (
       <HitlAnsweredNote tone="muted" headline={t(needsSignOff ? 'answeredTimeoutUnconfirmed' : 'answeredTimeout')} />
     );
-  }
-  if (outcome?.kind === 'handled') {
-    return <HitlAnsweredNote tone="muted" headline={t(needsSignOff ? 'answeredHandledSignOff' : 'answeredHandled')} />;
   }
   if (outcome?.kind === 'skipped') {
     return (

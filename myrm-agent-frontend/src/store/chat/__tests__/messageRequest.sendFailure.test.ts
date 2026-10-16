@@ -16,7 +16,7 @@ import { createAISearchStream } from '@/services/chat';
 import { connectionManager } from '@/services/ConnectionManager';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
-import { AgentBusyError, ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
 import useProviderStore from '@/store/useProviderStore';
@@ -304,10 +304,10 @@ describe('sendMessage failure handling', () => {
       expect(vi.mocked(showI18nToast).mock.calls.map(([key]) => key)).toEqual([RISK_NOTICE_KEY]);
     });
 
-    it('rejects with ApprovalAlreadyResolvedError, quietly and without a retry, when someone else already resolved the interrupt', async () => {
+    it('rejects with ApprovalExpiredError, quietly and without a retry, when the timeout already resolved the interrupt', async () => {
       refusedWith(409, '{}');
 
-      await expect(resume()).rejects.toBeInstanceOf(ApprovalAlreadyResolvedError);
+      await expect(resume()).rejects.toBeInstanceOf(ApprovalExpiredError);
 
       expect(createAISearchStream).toHaveBeenCalledTimes(1);
       expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);

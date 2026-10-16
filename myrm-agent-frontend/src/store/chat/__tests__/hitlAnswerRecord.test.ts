@@ -32,11 +32,6 @@ describe('isHitlAnswerRecord', () => {
   it.each([
     ['a user record', { by: 'user', value: {} }, true],
     ['a timeout record', { by: 'timeout', value: null }, true],
-    [
-      'the client-only already-handled record, which the server never sends',
-      { by: 'already_handled', value: null },
-      false,
-    ],
     ['a record without a value', { by: 'user' }, false],
     ['an unknown author', { by: 'agent', value: {} }, false],
     ['a string', 'answered', false],
@@ -95,10 +90,6 @@ describe('summarizeClarificationRecord', () => {
   it('reports the timeout whatever default value it resumed with', () => {
     expect(summarizeClarificationRecord({ by: 'timeout', value: {} }, form)).toEqual({ kind: 'timeout' });
     expect(summarizeClarificationRecord({ by: 'timeout', value: null }, form)).toEqual({ kind: 'timeout' });
-  });
-
-  it('reports an already-handled card without claiming the timeout or the other client did it', () => {
-    expect(summarizeClarificationRecord({ by: 'already_handled', value: null }, form)).toEqual({ kind: 'handled' });
   });
 
   it.each([

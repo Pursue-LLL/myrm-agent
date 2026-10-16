@@ -51,7 +51,6 @@ describe('clarify resolved status', () => {
 
   it.each([
     ['an unknown author', { by: 'agent', value: {} }],
-    ['the client-only already-handled author', { by: 'already_handled', value: null }],
     ['a value of the wrong shape', 'answered'],
   ])('ignores a record with %s', (_label, answerRecord) => {
     const card = resolveClarify({ answerRecord });

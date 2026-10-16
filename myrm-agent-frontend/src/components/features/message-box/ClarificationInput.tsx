@@ -7,14 +7,14 @@
  * @/store/useChatStore::sendMessage (POS: resume-mode clarification send path)
  * @/store/chat/clarificationCardAnswer::answerClarificationWithResume / settleClarificationCard (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
  * @/store/chat/clarificationCardDraft::loadClarificationDraft (POS: what the user had written when a refused resume brings the card back)
- * @/store/chat/streamErrors::ApprovalAlreadyResolvedError (POS: the timeout or another device already settled the card without this answer)
+ * @/store/chat/streamErrors::ApprovalExpiredError (POS: the timeout already continued the turn without this answer)
  * ./ClarificationOptions, ./ClarificationChrome (POS: option-list and card-shell presentation primitives)
  * ./ClarificationSettledNote (POS: the banner the card collapses into once settled)
  *
  * [OUTPUT]
  * ClarificationInput: Renders single-question and structured clarification forms.
  * Structured answers submit option.id values keyed by question.id for agent resume contract.
- * A settled card shows whether it was answered, skipped, timed out or already handled elsewhere, and the answer given.
+ * A settled card shows whether it was answered, skipped or timed out, and the answer given.
  *
  * [POS]
  * Chat clarification answer surface. Bridges assistant clarification messages to
@@ -28,7 +28,7 @@ import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import { answerClarificationWithResume, settleClarificationCard } from '@/store/chat/clarificationCardAnswer';
 import { loadClarificationDraft } from '@/store/chat/clarificationCardDraft';
-import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ClarificationForm, HitlAnswerRecord } from '@/store/chat/types';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import {
@@ -89,11 +89,10 @@ const ClarificationInput = ({
     }));
   };
 
-  // An answer that arrives after the timeout or another device already settled the card is not a failure: the card
-  // stays closed.
+  // An answer that arrives after the timeout already continued the turn is not a failure: the card stays closed.
   const reportAnswerError = (err: unknown) => {
-    if (err instanceof ApprovalAlreadyResolvedError) {
-      toast.warning(t('alreadyHandled'));
+    if (err instanceof ApprovalExpiredError) {
+      toast.warning(t('expired'));
       return;
     }
     console.error('Failed to answer clarification:', err);

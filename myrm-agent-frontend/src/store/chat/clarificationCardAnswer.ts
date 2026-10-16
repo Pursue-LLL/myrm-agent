@@ -1,14 +1,14 @@
 /**
  * [INPUT]
  * - @/store/useChatStore (POS: the clarification card lives on an assistant row of the message list)
- * - ./streamErrors::ApprovalAlreadyResolvedError (POS: someone else already settled the card, so the answer is not undone)
+ * - ./streamErrors::ApprovalExpiredError (POS: the timeout already settled the card, so the answer is not undone)
  * - ./clarificationCardDraft (POS: the user's unsent input, kept only for a card that is about to reopen)
  * - ./hitlAnswerRecord::clarificationAnswerAsText (POS: the late answer as a sendable message)
  *
  * [OUTPUT]
  * - settleClarificationCard: mark the card answered and keep how it was answered
  * - answerClarificationWithResume: close the card, send the resumed answer, reopen the card if the server never took it,
- *   hand the answer to the composer if someone else settled the card first
+ *   hand the answer to the composer if the timeout got there first
  *
  * [POS]
  * Answer flow of the clarification card. A resume request streams the whole resumed run, and the composer stays taken
@@ -19,7 +19,7 @@ import useChatStore from '@/store/useChatStore';
 
 import { clearClarificationDraft, saveClarificationDraft, type ClarificationDraft } from './clarificationCardDraft';
 import { clarificationAnswerAsText } from './hitlAnswerRecord';
-import { ApprovalAlreadyResolvedError } from './streamErrors';
+import { ApprovalExpiredError } from './streamErrors';
 import type { HitlAnswerRecord, Message } from './types';
 
 type ClarificationCard = NonNullable<Message['clarification']>;
@@ -29,8 +29,8 @@ const cardRow = (messages: Message[], messageId: string) =>
 
 const findCard = (messageId: string) => cardRow(useChatStore.getState().messages, messageId)?.clarification;
 
-// A refused late answer does not say whether the timeout or another device settled the card, so the card claims neither.
-const alreadyHandledRecord = (): HitlAnswerRecord => ({ by: 'already_handled', value: null });
+// The value the server resumes with when its timeout settles the card, and persists in the same record.
+const timeoutRecord = (): HitlAnswerRecord => ({ by: 'timeout', value: {} });
 
 function updateCard(messageId: string, apply: (card: ClarificationCard) => void): void {
   useChatStore.setState((state) => {
@@ -68,8 +68,8 @@ function reopenClarificationCard(messageId: string): void {
  * Rethrows whatever `sendResume` throws so the caller reports it. A card the resumed run has replaced or settled since
  * is left alone: only the exact card closed here is reopened or rewritten.
  * - Refused resume: the card comes back carrying what the user wrote (`draft`).
- * - Already settled by someone else (the timeout or another device): the card stays closed and says it was already
- *   handled, and the answer that came too late goes to the composer so it can still be sent as a message.
+ * - Timeout already settled the turn: the card stays closed and shows the timeout, and the answer that came too late
+ *   goes to the composer so it can still be sent as a message.
  * A draft only exists while the card is waiting to be reopened, so a card chained after a successful answer starts empty.
  */
 export async function answerClarificationWithResume(
@@ -84,10 +84,10 @@ export async function answerClarificationWithResume(
   try {
     await sendResume();
   } catch (error) {
-    if (error instanceof ApprovalAlreadyResolvedError) {
+    if (error instanceof ApprovalExpiredError) {
       handBackToComposer(clarificationAnswerAsText(answer.value, closedCard?.form));
       if (isStillClosedCard()) {
-        settleClarificationCard(messageId, alreadyHandledRecord());
+        settleClarificationCard(messageId, timeoutRecord());
       }
     } else if (isStillClosedCard()) {
       saveClarificationDraft(messageId, answer.draft);

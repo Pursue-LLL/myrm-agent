@@ -21,7 +21,7 @@ from cdp_chat.support import (  # noqa: E402
     clarify_skip_resume_should_retry,
     ensure_e2e_yolo_mode,
     get_e2e_api_url,
-    is_hitl_already_resolved,
+    is_hitl_already_resolved_by_timeout,
     resume_clarify_skip_via_api,
     start_clarify_turn_via_api,
     wait_e2e_provider_ready,
@@ -554,7 +554,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                     }
             if last.get("ok") is True:
                 return last
-            if is_hitl_already_resolved(last):
+            if is_hitl_already_resolved_by_timeout(last):
                 return last
             if clarify_skip_resume_should_retry(last):
                 heartbeat_once()
@@ -593,8 +593,10 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
         async def _finalize_api_skip_resume(
             resume_result: dict[str, object],
         ) -> tuple[dict[str, object], dict[str, object]]:
-            if is_hitl_already_resolved(resume_result):
-                pytest.fail(f"Clarify HITL already resolved before skip completed (chat_id={chat_id!r}): {resume_result}")
+            if is_hitl_already_resolved_by_timeout(resume_result):
+                pytest.fail(
+                    f"Clarify HITL already resolved by timeout before skip completed (chat_id={chat_id!r}): {resume_result}"
+                )
             if resume_result.get("ok") is not True:
                 try:
                     return (

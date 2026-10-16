@@ -1230,7 +1230,7 @@ export const resumePlanConfirmStream = async (
   const response = await createAISearchStream(requestBody, chatState.abortController || undefined);
   if (!response.ok) {
     if (response.status === 409) {
-      throw new Error('Plan confirmation has already been resolved');
+      throw new Error('Plan confirmation has already been resolved by timeout');
     }
     throw new Error(`Plan confirm resume failed: HTTP ${response.status}`);
   }

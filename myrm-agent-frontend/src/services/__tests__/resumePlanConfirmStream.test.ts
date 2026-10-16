@@ -38,13 +38,13 @@ describe('resumePlanConfirmStream', () => {
     session.modelSelection = { providerId: 'openai', model: 'test-model' };
   });
 
-  it('rejects when the plan confirmation was already resolved (HTTP 409)', async () => {
+  it('rejects when the timeout already answered the plan confirmation (HTTP 409)', async () => {
     mockFetchWithTimeout.mockResolvedValue(new Response('{}', { status: 409 }));
 
     const { resumePlanConfirmStream } = await import('../chat');
 
     await expect(resumePlanConfirmStream('msg-plan-1', { action: 'confirm' })).rejects.toThrow(
-      'Plan confirmation has already been resolved',
+      'Plan confirmation has already been resolved by timeout',
     );
   });
 

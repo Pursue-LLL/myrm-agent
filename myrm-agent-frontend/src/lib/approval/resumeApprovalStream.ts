@@ -11,12 +11,7 @@ import {
   getFallbackLiteModelSelection,
 } from '@/store/chat/messageRequest';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import {
-  AgentBusyError,
-  ApprovalAlreadyResolvedError,
-  RiskBlockedError,
-  isAgentBusySseEvent,
-} from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalExpiredError, RiskBlockedError, isAgentBusySseEvent } from '@/store/chat/streamErrors';
 
 /**
  * [INPUT] ToolApprovalRequest anchor + resume decisions payload
@@ -75,7 +70,7 @@ export async function resumeApprovalStream(
 
   if (!response.ok) {
     if (response.status === 409) {
-      throw new ApprovalAlreadyResolvedError();
+      throw new ApprovalExpiredError();
     }
     throw new Error(`Approval resume failed: HTTP ${response.status}`);
   }

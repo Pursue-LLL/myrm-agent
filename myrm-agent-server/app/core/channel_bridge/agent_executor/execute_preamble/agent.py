@@ -270,12 +270,12 @@ async def build_channel_execution_agent(
     if is_resume:
         if not ApprovalTimeoutScheduler.get().resolve_if_first(approval_key):
             logger.warning(
-                "Channel resume rejected (already resolved): key=%s",
+                "Channel resume rejected (timeout already resolved): key=%s",
                 approval_key,
             )
             return ChannelAgentBuildOutcome(
                 early_reply=msg.get_or_create_correlation_context().create_reply(
-                    content=get_text(msg, "approval_already_handled"),
+                    content=get_text(msg, "approval_timeout_resolved"),
                 ),
             )
 

@@ -217,14 +217,13 @@ async def run_agent_stream(
 
         # The harness timer and this manual resume race for one approval; the loser must not run the turn again.
         # Refused here, before the response is accepted, so the client gets a status code it can act on.
-        # The winner is the timer or another client's resume, and the scheduler does not record which.
         if request.resume_value is not None and request.chat_id:
             if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
-                logger.warning("Resume rejected (already resolved): chat_id=%s", request.chat_id)
+                logger.warning("Resume rejected (timeout already resolved): chat_id=%s", request.chat_id)
                 await _record_terminal_failure_if_needed("unknown_error")
                 return JSONResponse(
                     status_code=409,
-                    content={"detail": "This approval has already been resolved."},
+                    content={"detail": "This approval has already been resolved by timeout."},
                 )
 
         buffer = await registry.get_or_create(request.message_id)

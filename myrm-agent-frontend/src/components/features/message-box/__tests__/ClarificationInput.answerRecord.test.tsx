@@ -4,17 +4,16 @@
  *
  * Real scenarios: the user answers a deployment question and reopens the chat later (the card shows their choice, not a
  * bare "answered"); the user is away and the 15-minute timeout continues the turn (the card says nobody answered);
- * the user answers on the laptop after the phone already did, or after the timeout fired (the server refuses the
- * second resume and cannot say which of the two happened, so the card only says it was already handled); the resume
- * request is refused after the user wrote a long answer, which closed the composer-takeover card (the answer must be
- * there when the card comes back). Runs the real card against the real store, replacing only the request pipeline.
+ * the resume request is refused after the user wrote a long answer, which closed the composer-takeover card (the
+ * answer must be there when the card comes back). Runs the real card against the real store, replacing only the
+ * request pipeline.
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { submitClarifyResponse } from '@/services/chat';
-import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
+import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ClarificationForm, HitlAnswerRecord, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 
@@ -93,22 +92,22 @@ describe('answer record written when the card closes', () => {
     expect(record()).toBeUndefined();
   });
 
-  it('records that the card was already handled, not by whom, when the answer arrived too late', async () => {
-    pipeline.sendMessage.mockRejectedValue(new ApprovalAlreadyResolvedError());
+  it('records that the timeout settled the card when the answer arrived too late', async () => {
+    pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
 
     renderCard();
     fireEvent.click(screen.getByRole('button', { name: 'skip' }));
 
-    await waitFor(() => expect(record()).toEqual({ by: 'already_handled', value: null }));
+    await waitFor(() => expect(record()).toEqual({ by: 'timeout', value: {} }));
     expect(useChatStore.getState().messages[0]?.clarification?.answered).toBe(true);
   });
 
-  it('leaves a card the resumed run replaced alone when the answer then turns out to be already handled', async () => {
+  it('leaves a card the resumed run replaced alone when the answer then turns out to be too late', async () => {
     pipeline.sendMessage.mockImplementation(async () => {
       useChatStore.setState((state) => {
         state.messages[0].clarification = { answered: false, isResumeMode: true, form };
       });
-      throw new ApprovalAlreadyResolvedError();
+      throw new ApprovalExpiredError();
     });
 
     renderCard();
@@ -153,14 +152,6 @@ describe('settled card', () => {
     expect(screen.queryByText('answered')).not.toBeInTheDocument();
   });
 
-  it('says it was already handled without naming who handled it', () => {
-    renderSettled({ by: 'already_handled', value: null });
-
-    expect(screen.getByText('answeredHandled')).toBeInTheDocument();
-    expect(screen.queryByText('answeredTimeout')).not.toBeInTheDocument();
-    expect(screen.queryByText('answered')).not.toBeInTheDocument();
-  });
-
   it.each([
     ['a card settled before records existed', undefined],
     ['a record for questions this form never asked', { by: 'user', value: { unrelated: 'x' } } as HitlAnswerRecord],
@@ -197,14 +188,6 @@ describe('a card that asked for sign-off', () => {
 
     expect(screen.getByText('answeredTimeoutUnconfirmed')).toBeInTheDocument();
     expect(screen.queryByText('answeredTimeout')).not.toBeInTheDocument();
-  });
-
-  it('does not say the action was approved or rejected when another client already handled it', () => {
-    renderSignOff({ by: 'already_handled', value: null });
-
-    expect(screen.getByText('answeredHandledSignOff')).toBeInTheDocument();
-    expect(screen.queryByText('answeredHandled')).not.toBeInTheDocument();
-    expect(screen.queryByText('answeredTimeoutUnconfirmed')).not.toBeInTheDocument();
   });
 
   it('still shows what the user chose when they did answer', () => {
@@ -291,8 +274,8 @@ describe('draft kept across the card closing', () => {
     run.resolve(true);
   });
 
-  it('starts empty once someone else had already continued the turn', async () => {
-    pipeline.sendMessage.mockRejectedValue(new ApprovalAlreadyResolvedError());
+  it('starts empty once the timeout had already continued the turn', async () => {
+    pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
 
     const first = renderCard();
     typeAnswer();
