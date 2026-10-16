@@ -8,7 +8,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 | 路径 | 地位 | 职责 |
 |------|------|------|
-| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`** + **`global_write_non_namespace`⇒`GLOBAL_WRITE` 语义校验**（与 `scripts/dev/e2e_session/profile.py` 对齐） |
+| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace（自动写入 `.metadata_never_index` 阻断 macOS Spotlight 索引风暴）、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 + `@chrome_e2e` timeout 时 `reset_database_engine()` + `reap_chrome_e2e_session_hygiene()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`tests/support/browser_process_cleanup`）；`_chrome_e2e_epoch_pin` 会话级保持 `MYRM_E2E_SESSION_PREPIN_API` 与 `_SESSION_EPOCH_PIN_RUNTIMES` 并在 `pytest_sessionfinish` 统一释放 holder 引用（含同会话 skip 结果缓存防连拉 3 次）；`@pytest.mark.chrome_e2e` 三维 profile + **PRIVATE 必填 `private_reason`** + **`global_write_non_namespace`⇒`GLOBAL_WRITE` 语义校验**（与 `scripts/dev/e2e_session/profile.py` 对齐） |
 | `support/browser_process_cleanup.py` | 辅助 | pytest 进程树内 browser 自动化子进程 teardown |
 | `support/test_browser_process_cleanup.py` | 单元 | browser_process_cleanup 单测（100% 覆盖） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
@@ -168,9 +168,9 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_skill_manage_live_agent_chrome_e2e.py` | 模块 | skill_manage LIVE×1 SHPOIB 全链路零 seed：真实 WebUI 输入框发请求 → 真实模型调 `skill_manage_tool` save → 目录出现带标记的 SKILL.md → 服务端写入的 `skill_mutation_batch_id` → Task Steps 撤销提示 → 确认回滚后该批次新建的技能消失；UI 契约（seed 批次）另见 `test_skill_manage_undo_*_chrome_e2e` |
 | `e2e/test_follow_up_suggestions_live_agent_chrome_e2e.py` | 模块 | 追问建议 LIVE×1 SHPOIB 零 seed：真实输入框提问 → 真实模型回答 → 轻量模型生成的追问 chip（`message-suggestion`）出现在答案下 → 点击 chip 即把该问题作为下一条用户消息发出，服务端落库该用户消息并给出第二条 complete 助手回答；页面 `loading` 与服务端落库两侧的变化序列（`E2E_ANSWER_TIMELINE`）随结果打印 |
 | `e2e/test_chat_view_stays_mounted_chrome_e2e.py` | 模块 | 打开的会话不被重建（PRIVATE，无 LLM）：种子会话打开后静置 12 s，输入框节点零次重建、`/agents/templates` 等挂载期请求不重复；再逐键输入一句话（按键只送达获得焦点的输入框，输入框被重建即丢键），0 个丢键、焦点不丢、输入框不重建；`E2E_VIEW_IDLE` / `E2E_VIEW_TYPING` 随结果打印 |
+| `e2e/test_catchup_presence_chrome_e2e.py` | 模块 | Catchup 收件箱与在场水位线（PRIVATE，无 LLM，3 个节点）：①注视期间服务端写入回复 → 仍列为未读 → 经收件箱卡片切到另一会话（页内屏蔽 blur/hidden/focus，页面侧 fetch 探针断言切换前无盖章、切换后有盖章）→ 数秒内从 catchup 消失；②离开期间到达的回复在首页收件箱出现徽标与卡片（标题与回复预览）→ 点「查看会话」进入并标已读；③点「忽略」卡片消失且不跳转并标已读；CDP 焦点仿真使标签页算在场；`E2E_CATCHUP_*` 随结果打印 |
 | `e2e/test_revert_files_live_agent_chrome_e2e.py` | 模块 | RevertFiles LIVE×1 SHPOIB：真实 LLM 回合 `file_edit_tool` 修改 workspace 文件 → SnapshotObserver 记录快照 → 页面刷新 hydrate `requestMessageId`（`r-` 前缀）→ probe 与 `RevertFiles` 同一解析（`requestMessageId \|\| messageId`）→ 真实 UI 回退并断言文件恢复 seed 内容 |
 | `e2e/test_last_turn_regenerate_chrome_e2e.py` | 模块 | 重新生成只在最新回合的回答上出现（READ，无 LLM）：种子会话含两轮回答与回答之后的后台任务通知 → 页面上只有第二轮回答有该按钮（首轮回答与通知没有） |
-| `e2e/test_catchup_presence_chrome_e2e.py` | 模块 | Catchup 在场水位线（PRIVATE，无 LLM）：种子会话在真实 Chrome 打开（CDP 焦点仿真使标签页算在场）→ 用户注视期间服务端写入一条回复，`GET /catchup` 仍把该会话列为未读 → 点侧栏 Home 离开后页面发出 `POST /chats/{id}/read`，会话在数秒内从 catchup 消失；页面侧 fetch 探针断言离开前无盖章、离开后有盖章；`E2E_CATCHUP_*` 随结果打印 |
 | `api/agent/test_memory_conversation_search_e2e.py` | 模块 | Memory + sessions opt-in API 集成（真实 LLM agent-stream；8 场景：opt-in/incognito/memory-off/多轮/passphrase） |
 | `ai_agents/test_custom_agent_factory.py` | 模块 | Custom/Ephemeral 子 Agent `memory_search_tool` rebind + factory build 路径（38 项；`--cov-fail-under=90` on factory） |
 | `ai_agents/test_conversation_search_opt_in_integration.py` | 模块 | conversation-search opt-in 与 tool_setup 绑定集成 |

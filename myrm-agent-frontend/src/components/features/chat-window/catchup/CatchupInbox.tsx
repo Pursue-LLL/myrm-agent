@@ -128,6 +128,7 @@ export const CatchupInbox: React.FC = () => {
           variant="outline"
           size="icon"
           className="relative h-9 w-9 rounded-full"
+          data-testid="catchup-inbox-trigger"
           aria-label={t('openInbox', { count: visibleBriefs.length })}
         >
           <Inbox className="h-5 w-5" />
