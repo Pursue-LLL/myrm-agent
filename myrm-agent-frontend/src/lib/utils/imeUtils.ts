@@ -121,7 +121,7 @@ function swallowImeConfirmEnter(event: KeyboardEvent): void {
 }
 
 /**
- * 安装 document 级捕获守卫：输入法确认候选词的 Enter 不再传给页面里的任何处理器（含 React 的 onKeyDown 与 window
+ * 安装 document 级捕获守卫：输入法确认候选词的 Enter 不会传给页面里的任何处理器（含 React 的 onKeyDown 与 window
  * 级监听）。判定与逐点守卫共用 `isImeComposing`，二者不会出现分歧。
  *
  * 只允许一个持有者（应用根的 `ImeEnterGuardInitializer`）；已安装时再次调用是空操作。返回卸载函数。
