@@ -7,13 +7,16 @@
  *   以及被 `src/` 之外的构建配置与脚本引用的模块（`next.config.ts` 的插件路径、脚本的相对 import 等）；
  * - 沿根的生产 import 边求可达闭包：只被孤儿引用的模块同样是孤儿，一次报全，不会删一层又冒出一层；
  * - 测试文件与 `src/test-utils/` 既不是候选也不是消费者——测试 import 不能让被测代码“活着”；
- * - barrel（`index.ts`）只是绑定、不是消费者：没人 import 的 barrel 不会让它再导出的模块变活，它自己也算孤儿。
+ * - barrel（纯再导出的 `index.ts`）只是绑定、不是消费者：没人 import 的 barrel 不会让它再导出的模块变活，它自己也算孤儿；
+ *   barrel 被 import 时，只有被点名的名字对应的那条再导出变活（`import { A } from '@/x'` 不会拖活 `x/index.ts` 里其余再导出）。
  *
  * 判定读真实模块说明符（`import … from` / 副作用 `import` / 动态 `import()` / `require()` / `new URL(…, import.meta.url)`），
  * 且先剥掉注释：按文件名子串匹配会命中同名标识符，注释里的示例 import 也不是消费者。
  * 没有基线、没有豁免标记：孤儿要么接入入口，要么连同测试、文档行、i18n 键一起删除。
  */
 import { posix } from 'node:path';
+
+import { ALL, type BarrelTable, parseFile, stripComments } from './orphan-modules-imports';
 
 export interface SourceFile {
   /** 相对项目根的 posix 路径，如 `src/lib/x.ts`。 */
@@ -46,21 +49,28 @@ const GENERATED_ENTRY = /(?:^|\/)litellmRouting\.generated\.ts$/;
 const TEST_FILE = /(?:^|\/)(?:__tests__|__mocks__)\/|\.(?:test|spec)\.tsx?$/;
 const TEST_SUPPORT_DIR = 'src/test-utils/';
 
-/** 注释会被剥掉；字符串与模板字面量原样保留，以免把 `'http://x'` 里的 `//` 当成注释。 */
-const COMMENT_OR_LITERAL = /\/\*[\s\S]*?\*\/|\/\/[^\n]*|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/g;
-
-const SPECIFIER_PATTERNS: readonly RegExp[] = [
-  /(?:import|export)[^;'"`]*?from\s*['"]([^'"]+)['"]/gs,
-  /\bimport\s*['"]([^'"]+)['"]/g,
-  /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-  /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-  /\bnew\s+URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url/g,
-];
-
 const STRING_LITERAL = /(['"`])([^'"`\n]+)\1/g;
 
-function stripComments(source: string): string {
-  return source.replace(COMMENT_OR_LITERAL, (token) => (/^['"`]/.test(token) ? token : ' '));
+/** 一个模块引用另一个模块读取的名字。 */
+interface ResolvedRef {
+  readonly target: string;
+  readonly names: readonly string[];
+}
+
+interface ResolvedReexport {
+  readonly target: string;
+  /** 在来源模块里的名字。 */
+  readonly imported: string;
+}
+
+interface ResolvedBarrel {
+  readonly named: ReadonlyMap<string, ResolvedReexport>;
+  readonly stars: readonly string[];
+}
+
+interface ModuleNode {
+  readonly refs: readonly ResolvedRef[];
+  readonly barrel: ResolvedBarrel | null;
 }
 
 export function isTestSupportFile(path: string): boolean {
@@ -97,15 +107,6 @@ function resolveSpecifier(specifier: string, fromPath: string, known: ReadonlySe
   return null;
 }
 
-function* specifiersOf(source: string): Generator<string> {
-  const code = stripComments(source);
-  for (const pattern of SPECIFIER_PATTERNS) {
-    for (const match of code.matchAll(pattern)) {
-      yield match[1];
-    }
-  }
-}
-
 /** 构建配置与脚本引用 `src/` 的写法很杂（插件路径字符串、相对 import、`./src/x`），统一按字符串字面量解析。 */
 function consumerTargets(file: SourceFile, known: ReadonlySet<string>): string[] {
   const targets: string[] = [];
@@ -121,35 +122,81 @@ function consumerTargets(file: SourceFile, known: ReadonlySet<string>): string[]
   return targets;
 }
 
+function resolveBarrel(table: BarrelTable, fromPath: string, known: ReadonlySet<string>): ResolvedBarrel {
+  const named = new Map<string, ResolvedReexport>();
+  for (const [exported, { specifier, imported }] of table.named) {
+    const target = resolveSpecifier(specifier, fromPath, known);
+    if (target) {
+      named.set(exported, { target, imported });
+    }
+  }
+  const stars = table.stars.flatMap((specifier) => resolveSpecifier(specifier, fromPath, known) ?? []);
+  return { named, stars };
+}
+
+function moduleNode(file: SourceFile, known: ReadonlySet<string>): ModuleNode {
+  const parsed = parseFile(file.path, file.source);
+  const refs: ResolvedRef[] = [];
+  for (const { specifier, names } of parsed.refs) {
+    const target = resolveSpecifier(specifier, file.path, known);
+    if (target) {
+      refs.push({ target, names });
+    }
+  }
+  return { refs, barrel: parsed.barrel && resolveBarrel(parsed.barrel, file.path, known) };
+}
+
+/** 读取 barrel 的 `name` 时被拖活的 `[模块, 名字]`：全部名字对应全部再导出，具名则只对应提供该名字的那条。 */
+function followBarrel(barrel: ResolvedBarrel, name: string): Array<readonly [string, string]> {
+  if (name === ALL) {
+    return [
+      ...[...barrel.named.values()].map(({ target, imported }) => [target, imported] as const),
+      ...barrel.stars.map((target) => [target, ALL] as const),
+    ];
+  }
+  const entry = barrel.named.get(name);
+  return entry ? [[entry.target, entry.imported]] : barrel.stars.map((target) => [target, name] as const);
+}
+
+/**
+ * 从根出发的可达模块。只有 barrel 区分读取的名字；普通模块被读取任何名字都会沿它的全部 import 边继续。
+ */
+function reachableModules(roots: readonly string[], graph: ReadonlyMap<string, ModuleNode>): ReadonlySet<string> {
+  const followed = new Map<string, Set<string>>();
+  const pending: Array<readonly [string, string]> = roots.map((root) => [root, ALL] as const);
+  while (pending.length > 0) {
+    const [path, name] = pending.pop() as readonly [string, string];
+    const node = graph.get(path);
+    const key = node?.barrel ? name : ALL;
+    const seen = followed.get(path) ?? new Set<string>();
+    followed.set(path, seen);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    if (node?.barrel) {
+      pending.push(...followBarrel(node.barrel, name));
+    } else if (node) {
+      for (const { target, names } of node.refs) {
+        pending.push(...names.map((imported) => [target, imported] as const));
+      }
+    }
+  }
+  return new Set(followed.keys());
+}
+
 export function findOrphanModules({ srcFiles, consumerFiles }: OrphanScanInput): OrphanScanResult {
   const production = srcFiles.filter((file) => !isTestSupportFile(file.path));
   const known: ReadonlySet<string> = new Set(srcFiles.map((file) => file.path));
 
-  const graph = new Map<string, string[]>();
-  for (const file of production) {
-    const targets = new Set<string>();
-    for (const specifier of specifiersOf(file.source)) {
-      const resolved = resolveSpecifier(specifier, file.path, known);
-      if (resolved) {
-        targets.add(resolved);
-      }
-    }
-    graph.set(file.path, [...targets]);
-  }
-
-  const reachable = new Set<string>();
-  const pending: string[] = [
-    ...production.filter((file) => isEntryFile(file.path)).map((file) => file.path),
-    ...consumerFiles.flatMap((file) => consumerTargets(file, known)),
-  ];
-  while (pending.length > 0) {
-    const current = pending.pop() as string;
-    if (reachable.has(current)) {
-      continue;
-    }
-    reachable.add(current);
-    pending.push(...(graph.get(current) ?? []));
-  }
+  const graph = new Map<string, ModuleNode>(production.map((file) => [file.path, moduleNode(file, known)]));
+  const reachable = reachableModules(
+    [
+      ...production.filter((file) => isEntryFile(file.path)).map((file) => file.path),
+      ...consumerFiles.flatMap((file) => consumerTargets(file, known)),
+    ],
+    graph,
+  );
 
   const candidates = production.filter((file) => !isEntryFile(file.path));
   return {

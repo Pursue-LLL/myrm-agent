@@ -35,6 +35,7 @@
     "verify:i18n": "bun scripts/verify-i18n.mjs && bun scripts/verify-i18n-references.mjs",
     "verify:stable-mocks": "bun scripts/verify-stable-mocks.mjs",
     "verify:orphans": "bun scripts/check-orphan-modules.mjs",
+    "verify:orphans:diff": "bun scripts/check-orphan-modules.mjs --base origin/main",
     "verify:a11y": "bun scripts/check-a11y-ratchet.mjs",
     "verify:theme-colors": "bun scripts/check-theme-colors.mjs",
     "verify:hardcoded-copy": "bun scripts/check-hardcoded-copy.mjs",
