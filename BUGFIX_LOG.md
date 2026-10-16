@@ -4804,7 +4804,7 @@ except Exception:
 ### 修复
 
 1. `event_publisher.py` 新增 `publish_task_event(action, task)`：`detail` 由聊天提示用的 `_terminal_status` / `_terminal_result` 决定，阻塞先报 `blocked_reason`，失败先报 `error`（这一条是本次改的，聊天提示因此也不再把失败报成旧结果），完成先报 `result`；派发器回调（`dispatcher_lifecycle.py:89`）与手动、智能体发起的 `moved`（`move_orchestrator.py` 末尾的发布调用）都改走它，签名与派发器回调一致，直接注册。
-2. 已阻塞任务的事件多带可选字段 `block_kind`（`publish_kanban_event` 新增参数，其余事件不变）。定时阻塞的事件不带 `detail`。
+2. 非结果事件（`task_started`、`task_retrying`、`task_review_requested`、`task_rejected` 等）不再带 `detail`：它们的消费者只有 toast 与频道格式化，两者都只处理完成、阻塞、失败（`kanbanTaskToast.ts:37-41`、`adaptive_cards.py:90-95`），窗口事件的四个监听者不读它。已阻塞任务的事件多带可选字段 `block_kind`（`publish_kanban_event` 新增参数，其余事件不变）。定时阻塞的事件不带 `detail`。
 3. 定时阻塞整体安静：前端 `kanbanTaskToast.ts` 在 `block_kind === 'scheduled'` 时既不弹 toast 也不发系统通知；`adaptive_cards._format_kanban_text` 对定时阻塞返回 `None`（调用方本来就处理 `None`）。卡片上的倒计时（`KanbanTaskCard.tsx:300-301`）与抽屉里的自动解除时间（`KanbanTaskBlockedNotice.tsx:37-39`）照旧说明它何时恢复；重试用完后任务变为 `FAILED`，`dispatcher_failure.py:276-291` 发的 `task_failed` 照常提醒。
 4. toast 原因超过 200 字符时截成 199 字符加省略号（总长 200）。
 5. 没有改 harness、提示词、工具描述与存储；没有新增语言键（定时阻塞选择完全安静而不是「提示级 toast」，所以不需要新文案）。
@@ -4821,19 +4821,20 @@ except Exception:
 ### 局限
 
 1. toast 与系统通知的实际呈现没有在浏览器里看到：几次尝试都没有出现 toast，原因不在本改动：最后两次的诊断里，页面（`localhost:3000`，专用 E2E Chrome）停在 `readyState: interactive` 180 秒，发出 103 个请求但只完成 3 至 6 个，客户端代码没有执行（没有领导者标记、没有通知流请求、没有 Sonner 容器），是开发服务器在主机高负载（负载 17 至 47）下没能让页面完成水合；通知流本身用 `curl` 核对过能正常推送。其间后端还因他人进行中的改动起不来（先是 harness 的 `DEFAULT_SCENES` 导入，后是 `ALL_MEMORY_TYPES` 导入）。IM 投递与操作系统通知只验证到代码路径。
-2. 僵尸回收后直接失败（`dispatcher_zombie.py:178-181`）不写 `task.error`，通知仍退回到旧的 `result`，与改前一样；要修得在 harness 里写 `error`，本条没有动 harness。
+2. 通知里的失败与阻塞原因是任务上写的原文，没有按用户语言改写：失败取 `task.error`（运行失败写成 `类型: 异常信息`，`stream.py:89`、`dispatcher_failure.py:185`；僵尸回收写 `Reclaimed from zombie state (heartbeat timeout)`，`dispatcher_zombie.py:146`），连续失败自动阻塞写 `Auto-blocked after N consecutive failures (last: timed_out)`（`dispatcher_failure.py:197`），僵尸自动阻塞写 `Auto-blocked after zombie reclaim (N failures)`（`dispatcher_zombie.py:172`）。这些是英文、带内部词的句子，toast、系统通知与 IM 频道原样显示（toast 超过 200 字符截断）；本条改的是「报哪一条」，没有改「怎么说」。要改得由 harness 给出稳定的原因码或导出常量，再由共享表带参数翻译，这次没有做。
 3. 定时阻塞整体安静是有意取舍：一个在 `max_retries` 内反复被限流的任务全程没有提醒，只有卡片倒计时与抽屉；用尽重试后才提醒。没有生产数据，不知道这类任务的实际占比。
 4. 没有用真实模型与真实 IM 渠道跑；`next build` 没跑。
 5. `useGlobalEvents.ts` 没有改，它仍是 624 行（HEAD），超过 500 行上限，本条之前就超（`-024` 局限 10 写的 627 行是工作区里带他人未提交改动的行数）。
 6. 工作区里有 2 个失败与本条无关：`test_extract_enabled_empty_pdf_falls_back_to_reference`，以及 `test_move_with_result_and_metadata`（断言被他人未提交的 `move_orchestrator.py` 移交元数据 `summary`、`timestamp` 打破，与 `-024` 记的是同一组）。
-7. 评估后放弃的方案：为通知另起结构化原因码（现有整句匹配已够用，改动面大）；复用 `suppress_im_notification`（它是死信事件用的布尔位，语义不同）；给定时阻塞弹「提示级 toast」（要新文案，而卡片已经在倒计时）；顺手拆 `useGlobalEvents.ts`（他人正在抽 `backupAlertToast.ts`）。
+7. 手动把任务移入失败时，通知取 `error` 优先：驳回会把原因写在 `error`（`dispatcher.py:309`、`review_ops.py:123`），驳回后不经运行直接手动移到失败，通知报的是这条驳回原因，而不是随这次移动填写的 `result`（读码得出，没有用例）。
+8. 评估后放弃的方案：为通知另起结构化原因码（现有整句匹配已够用，改动面大）；复用 `suppress_im_notification`（它是死信事件用的布尔位，语义不同）；给定时阻塞弹「提示级 toast」（要新文案，而卡片已经在倒计时）；顺手拆 `useGlobalEvents.ts`（他人正在抽 `backupAlertToast.ts`）。
 
 ### 踩坑经验
 
 1. 同一个事实有多个消费者时，先找出「谁来决定说什么」：聊天提示早有正确规则，任务级更新各写各的，才会在一个任务上说出两种话；统一出处比分别修三处可靠。
 2. 取值顺序要按「字段会不会残留」来定：`result` 在重跑后仍然存在，所以阻塞与失败不能把它放第一位。
 3. 写完一条改动里自己的断言之前，用真实组件复现一次：`-024` 补充的 toast 声称显示本地化原因，用带旧结果的真实派发器一跑就露馅，而它的测试直接把 `detail` 传给 toast，覆盖不到服务端怎么填这个字段。
-4. 跟着改事件载荷时先列出所有消费者：这次的 `KANBAN_TASK_UPDATED` 有前端 toast、聊天提示与 IM 频道三处，看板刷新监听只读 `board_id` 与 `task_id`，加可选字段不会影响它们。
+4. 跟着改事件载荷时先列出所有消费者：这次的 `KANBAN_TASK_UPDATED` 有前端 toast、聊天提示与 IM 频道三处；窗口事件 `kanban-task-updated` 另有四个监听者，`useKanbanBoardData.ts`、`useKanbanTaskDrawer.ts`、`RaceSection.tsx` 只读 `board_id` / `task_id`，`BoardActivityFeed.tsx:72-86` 读 `board_id`、`task_id`、`action`、`title`，都不读 `detail`，所以非结果事件不带 `detail`、已阻塞事件多一个 `block_kind` 都不影响它们（第一次列消费者时漏了 `BoardActivityFeed`，复核时补上）。
 5. 在 zsh 里不要用 `path` 做循环变量：它与 `PATH` 绑定，赋值会让后续所有命令都找不到。
 6. 共享主机上别人进行中的改动会让开发服务起不来，且不是你的文件：先看日志里的导入错误是谁的，不要为了跑浏览器去修别人的文件。
 7. 提交说明里写了「聊天提示对失败早已先报原因」，不准确：提交前的 `_terminal_result` 对失败是 `result or error`，失败这一支是本次才改的（本条「现象」第 2 点与「修复」第 1 点以此为准；提交未 push，没有改写历史）。
