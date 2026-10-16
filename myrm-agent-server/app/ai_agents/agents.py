@@ -62,7 +62,10 @@ class AgentFactory:
             params.agent_skill_configs = skill_configs
 
         event_log_backend = None
-        if params.event_log_dir and params.chat_id and is_safe_session_id(params.chat_id):
+        if params.incognito_mode:
+            # The log keeps every prompt and tool result, which an incognito chat must not leave on disk.
+            logger.debug("Event log backend bypassed: incognito chat (session_id=%s)", params.chat_id)
+        elif params.event_log_dir and params.chat_id and is_safe_session_id(params.chat_id):
             log_dir = Path(params.event_log_dir)
             log_dir.mkdir(parents=True, exist_ok=True)
             line_max = (
