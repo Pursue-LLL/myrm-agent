@@ -5833,3 +5833,67 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. 已经落盘的配置与历史记录要在删字段时一并考虑：读取忽略旧键、保留旧原因的可读标签，并各写一条用例，否则升级后要么加载失败，要么历史页出现原始码。
 
 ---
+
+## BUG-AGENT-2026-10-17-001: 设置页的两张存储卡互相对不上，也漏了账：「存储治理」不统计数据库备份与其余文件，部署搬走的记忆与日志显示为 0，系统卡另跑一次目录遍历给出另一套数字；卡上的「压缩数据库」按钮与「增长偏高」徽标对用户没有实际作用；统计失败时卡片永远显示省略号，较慢的旧统计还会盖掉较新的结果
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P3（数字失真与无效入口，没有数据损坏或丢失；备份临时文件泄漏另见 `BUG-HARNESS-2026-10-16-013`） |
+| 影响范围 | 服务端 `app/api/system/router.py`、`app/api/system/schemas.py`、`app/services/system/storage_layout.py`、`storage_service.py`、`app/database/operations/backup.py`；前端 `StorageGovernanceCard.tsx`、`StorageCard.tsx`、`services/system.ts`、六份 locale；对外对比文档与素材 |
+| 出现次数 | 1 |
+| 关联 | harness `BUG-HARNESS-2026-10-17-001`、`BUG-HARNESS-2026-10-16-013`；本仓提交 `20778bd8f1`、`510491f1f`、`8e9683ef4`、`14aba22ff`；harness 提交 `caa08dcfb`、`63c713437`、`65d24ab17`、`71f04aed7`；文档仓 `78e73ef80`；根仓 `4c270f8ff`；路线图 topic_05 #53；全部是本地提交，没有 push，没有发布 harness 版本 |
+
+### 现象
+
+1. 「存储治理」卡的类别只对应 server 的五个固定目录与两个数据库：数据库备份目录、状态目录里其余的文件、数据库的 `-shm` 都不在账上；合成状态目录里差 1,983,768 字节（见 `BUG-HARNESS-2026-10-17-001`）；
+2. 记忆与事件日志按部署放到另一块盘时，对应两类显示 0（合成目录里实际共 400,000 字节）；
+3. 系统卡的 `GET /system/storage` 带着逐目录的 `subdirs`，来自另一次独立的目录遍历，与存储治理卡的数字互相对不上；
+4. 「压缩数据库」按钮调用 `POST /system/storage/compaction`，背后是 WAL 截断加 `PRAGMA optimize`，应用本来就覆盖；「增长偏高」徽标与建议来自固定字节阈值，用户无从据以行动；
+5. 台账的统计要遍历实例的每个文件：失败时卡片一直显示「...」，错误被吞掉；刷新时较慢的旧统计晚到，会盖掉较新的结果；报告请求沿用默认 30 秒超时，磁盘慢时被当成失败；
+6. 对外的竞品对比与素材里写着逐表行数、在线压缩（`StateStorageCompactor`）这些已不存在的能力，还写「OpenClaw 没有面向用户的存储诊断」，而 OpenClaw 自己的文档描述了每个代理的磁盘预算与 `openclaw sessions cleanup`（`docs/gateway/config-agents/sessions.md`、`docs/concepts/session.md`）。
+
+### 根因
+
+1. 业务层没有声明数据布局，框架检查器写死了目录名（见 harness 条目），系统卡又另算了一遍目录大小，同一份占用没有单一来源；
+2. 入口先于消费者：压缩按钮与增长徽标按「应该有」建出来，没有核对它们对用户是否起作用；
+3. 卡片只有「加载中 / 成功」两态，没有失败态，也没有请求序号保护；
+4. 文档里的卖点按「有这个能力」写，代码删除或重写时没有一起反查。
+
+### 修复
+
+1. 服务端：新增 `app/services/system/storage_layout.py::build_storage_layout`，按设置声明各类别的路径（记忆与事件日志按部署搬到哪里就量哪里）；备份目录约定收进 `app/database/operations/backup.py::backup_dir_for`，备份工厂与台账共用，不会各自漂移；`GET /system/storage/governance` 用 `StorageGovernanceInspector(data_dir, layout=build_storage_layout(settings.database))`；
+2. 服务端删除 `POST /system/storage/compaction` 及其请求与响应模型；`/system/storage/governance` 不再返回 `display_name`、逐表 `details`、`recommended_actions`、`is_growth_healthy`；`GET /system/storage` 不再返回逐目录 `subdirs`，`db_breakdown` 改为恒有；`dir_size_bytes` 与 `SubdirUsage` 随最后的调用方删除；
+3. 新增架构测试 `tests/architecture/test_storage_category_locales.py`：台账可能报出的每个类别，在六种 locale 里都有标签，并是前端 `StorageCategoryKey` 的成员（卡片按键动态取标签，缺一个用户就会看到原始键名）；
+4. 前端：「存储治理」卡去掉压缩按钮与增长徽标，类别名由 `StorageCategoryKey` 与 locale 标签得出；系统卡去掉逐目录列表，数据库「优化」入口只在库里有数据时提供；治理卡有三态：首次统计时用与真实格子同形的骨架，刷新时保留上一份数据，失败时给出可重试的本地化提示（仍显示旧数据时注明数字可能已过期）；只有最新一次统计能改变画面；报告请求最多等 120 秒并设为静默；磁盘格子的图标改用主题主色，不再写死天蓝；新增三条文案与 `sqlite_backups` 类别标签，六种 locale 都有，去掉压缩与增长徽标的文案并改写卡片说明；
+5. 文档：数据迁移指南（中英日韩）与对比页的类别清单加上数据库备份与「其他」；对比页不再写逐表行数与 `StateStorageCompactor`，不再写 OpenClaw 缺存储诊断；2026-09-17 一节的来源行把三个仓库里不存在的文件换成真实文件；路线图 topic_05 #53 与两份素材文档改成当前代码的描述；各模块 `_ARCH.md` 同步。
+
+### 验证
+
+1. 服务端：`tests/services/system/test_storage_layout.py`、`tests/unit/test_system_storage.py`、`tests/unit/test_storage_governance_api.py`、`tests/api/test_storage_optimize.py`、`tests/architecture/test_storage_category_locales.py`、`tests/database/test_backup_factory.py` 共 31 例通过（本仓 `14aba22ff`，harness `dc7937b41`）；触及文件 ruff 无告警，新增与改过的测试文件、`storage_layout.py`、`storage_service.py`、`backup.py` 的 mypy 无错误；
+2. 前端（本仓 `14aba22ff` 的隔离工作树）：`StorageGovernanceCard`、`StorageCard`、`StorageCard.optimize`、`systemStorageReport`、`WorkbenchRetentionSection` 五个测试文件共 27 例通过；`settings/sections/system` 与 `services/__tests__` 两个目录整体跑一次：866 例通过，另有 2 个文件（`cognitiveClockApi`、`memoryGuardianApi`）因为 `services/memory.ts` 还在导出他人已删除的 `./memory/sovereignMigration` 而加载失败（共享工作区里该文件已有他人未提交的修正）；再跑一次时 `AgentCommerceBudgetSection` 有 1 例失败，单独跑该文件 3 例通过，属于并行负载下的偶发失败；触及文件 oxlint 无告警、prettier 通过；整仓 `tsc` 报 212 条错误，没有一条在触及的文件里；`verify-i18n-references`（2824 个文件无缺失键引用）、`check-icu-syntax`（6 个 locale、111762 条文案全部有效）、`check-theme-colors` 通过；`verify:i18n`（他人的 94 个 en 键缺失、18 个孤儿键、1 个翻译壳）与 `verify:hardcoded-copy` 失败，输出里没有本条涉及的键或文件；
+3. 变异：落地时在隔离工作树上做过两组变异检查，每个变异都至少使一例失败；第一组 5 个（声明里漏掉备份、把记忆默认放在状态目录下、备份目录约定漂移、前端类型缺 `sqlite_backups`、德语标签缺失），第二组 7 个（较慢的旧统计覆盖较新的、失败被吞掉、刷新时丢掉上一份数据、「数字可能已过期」提示不再出现、失败提示没有重试、报告请求不再静默、报告请求退回默认超时）；这是落地时的测量，本次没有重跑；
+4. 对照复现：见 harness 条目，合成状态目录上改动前差 1,983,768 字节（NAS 布局差 2,383,768），改动后差 0；
+5. 残留检索：全仓（除历史台账与路线图里的删除记录外）已没有 `StateStorageCompactor`、`CompactionResult`、`/storage/compaction`、`is_growth_healthy`、`getStorageCompaction`、`storage_compaction` 的引用。
+
+### 局限
+
+1. 没有真机 E2E，也没有目视检查界面：ChromeAgent 的 E2E 入口拒绝本地应用地址（返回 `CHROME_AGENT_E2E_URL_REJECTED`），没有绕过；治理卡的三态、骨架与手机端布局只有 vitest 覆盖；开发后端当时跑的是旧的响应结构，没法对着新接口看；
+2. 新增的三条文案与 `sqlite_backups` 类别标签在日、韩、德、繁体中文里没有母语复核；
+3. 服务端仓固定依赖 `myrm-agent-harness==0.1.0rc5`：新的服务端代码用到 harness 的 `layout=` 与 `StorageCategory.SQLITE_BACKUPS`，只能与 harness 一起发布并 `./myrm harness sync-lock` 之后上线，拆开会让 `GET /system/storage/governance` 报错；按代码推断，没有在 rc5 上实测；
+4. 没有在本机真实数据目录上量过耗时与差额；
+5. `StorageCard.tsx` 474 行、`router.py` 601 行（本次改动前 646 行）仍超过 400 行的文件行数原则：`router.py` 的工作区带着他人未提交的改动，拆分会互相覆盖，所以没拆；`router.py` 的 `:100` 与 `:494` 两处共 4 条 mypy 错误来自 2026-09 的提交（`git blame`），`router.py` 与 `schemas.py` 文件末尾多一个空行的格式问题在本次改动前就存在，都没有动；
+6. 快照列表的标签截断、日期与数字的本地化不在本次范围，没有做；
+7. 存储优化前生成的 `data.db.optimize_backup` 落在「其他」，没有归入数据库备份；路线图 ⑥ 后半「内容没变就跳过备份」没有做；
+8. 本条提交之后，共享工作区里同一批文件上仍有其他开发者未提交的改动（`StorageGovernanceCard.tsx` 的重启提示，`router.py`、`schemas.py`、`storage_service.py` 等），不属于本条。
+
+### 踩坑经验
+
+1. 同一份占用数字不要让两个接口各算一次：两次遍历在口径、时机与符号链接处理上必然不同；展示层只读一个来源，并把「后端能报出的类别、locale 标签、前端类型」绑在一条架构测试上，新增类别时才不会让用户看到原始键名；
+2. 核对「各类之和是否等于总量」，基准必须是独立于被测代码的遍历，不能用检查器自己的结果；
+3. 慢操作的卡片要有三态和「只认最新请求」：没有失败态，失败只会表现为永远的「...」；没有请求序号，较慢的旧请求会覆盖较新的结果；
+4. 删除对用户承诺过的能力，要把文档、对比页、素材与路线图一起反查：这次三处说法（逐表行数、在线压缩、OpenClaw 缺存储诊断）在代码删除后仍在，其中最后一条与对方自己的文档相悖；
+5. 共享工作区里同一个文件有别人未提交的改动时，按 HEAD 的内容生成只含自己改动的提交，再核对提交后的 blob 与验证过的内容一致，别人的改动不受影响。
+
+---
