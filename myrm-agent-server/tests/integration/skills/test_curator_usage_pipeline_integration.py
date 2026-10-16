@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.agent.skills.market.helpers import write_origin
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 from myrm_agent_harness.backends.skills.usage_recorder import (
     begin_skill_run_usage,
@@ -129,18 +130,28 @@ async def test_never_used_young_skill_not_stale(curator_workspace: Path) -> None
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_prebuilt_skill_exempt_from_sweep(curator_workspace: Path) -> None:
-    """Prebuilt path skills must not be marked stale."""
+@pytest.mark.parametrize(
+    ("protect_system", "expected_status"),
+    [(True, SkillLifecycleStatus.ACTIVE), (False, SkillLifecycleStatus.STALE)],
+)
+async def test_prebuilt_skill_exempt_from_sweep_only_while_protection_is_on(
+    curator_workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    protect_system: bool,
+    expected_status: SkillLifecycleStatus,
+) -> None:
+    """A skill under a ``/prebuilt/`` root is spared by ``protect_system_skills`` and by nothing else."""
     import app.core.skills.models as models_mod
 
-    prebuilt_root = curator_workspace.parent / "assets" / "prebuilt" / "sys_skill"
-    prebuilt_root.mkdir(parents=True)
-    (prebuilt_root / "SKILL.md").write_text(
-        "---\nname: sys_skill\ndescription: Prebuilt system skill\n---\nPrebuilt.\n",
+    prebuilt_root = curator_workspace.parent / "assets" / "prebuilt"
+    sys_skill = prebuilt_root / "sys-skill"
+    sys_skill.mkdir(parents=True)
+    (sys_skill / "SKILL.md").write_text(
+        "---\nname: sys-skill\ndescription: Prebuilt system skill\n---\nPrebuilt.\n",
         encoding="utf-8",
     )
     old = (datetime.now(UTC) - timedelta(days=200)).isoformat()
-    (prebuilt_root / ".stats.json").write_text(
+    (sys_skill / ".stats.json").write_text(
         json.dumps(
             {
                 "call_count": 0,
@@ -152,12 +163,7 @@ async def test_prebuilt_skill_exempt_from_sweep(curator_workspace: Path) -> None
         ),
         encoding="utf-8",
     )
-
-    paths = [str(curator_workspace), str(prebuilt_root.parent.parent)]
-    import app.core.skills.curator.service as curator_service
-
-    curator_service.DEFAULT_LOCAL_SKILL_PATHS = paths
-    models_mod.DEFAULT_LOCAL_SKILL_PATHS = paths
+    monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(curator_workspace), str(prebuilt_root)])
 
     from app.core.skills.curator.service import run_curator_sweep, update_curator_config
 
@@ -165,14 +171,59 @@ async def test_prebuilt_skill_exempt_from_sweep(curator_workspace: Path) -> None
         {
             "stale_after_days": 7,
             "grace_period_days": 0,
-            "protect_system_skills": True,
+            "protect_system_skills": protect_system,
+            # Another root counts as installed; switch that protection off so only the prebuilt rule is under test.
+            "protect_installed_skills": False,
             "enabled": True,
         }
     )
     await run_curator_sweep(force=True, trigger="manual")
 
-    persisted = json.loads((prebuilt_root / ".stats.json").read_text())
-    assert persisted["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
+    persisted = json.loads((sys_skill / ".stats.json").read_text())
+    assert persisted["lifecycle_status"] == expected_status
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("protect_installed", "authored_status", "installed_status"),
+    [
+        (True, SkillLifecycleStatus.STALE, SkillLifecycleStatus.ACTIVE),
+        (False, SkillLifecycleStatus.STALE, SkillLifecycleStatus.STALE),
+    ],
+)
+async def test_sweep_spares_installed_skills_only_while_protection_is_on(
+    curator_workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    protect_installed: bool,
+    authored_status: SkillLifecycleStatus,
+    installed_status: SkillLifecycleStatus,
+) -> None:
+    """Equally idle skills: the authored one goes stale; a store install and another tool's skill follow the switch."""
+    import app.core.skills.models as models_mod
+
+    other_tool_root = curator_workspace.parent / "other-tool-skills"
+    other_tool_root.mkdir()
+    monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(curator_workspace), str(other_tool_root)])
+
+    old = (datetime.now(UTC) - timedelta(days=60)).isoformat()
+    idle_stats = {"call_count": 3, "success_count": 3, "last_used_at": old, "created_at": old, "lifecycle_status": "active"}
+    authored = _write_skill(curator_workspace, "my-notes", stats=idle_stats)
+    from_store = _write_skill(curator_workspace, "from-store", stats=idle_stats)
+    write_origin(from_store, source="registry", skill_id="registry::from-store")
+    other_tool = _write_skill(other_tool_root, "their-skill", stats=idle_stats)
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    update_curator_config(
+        {"stale_after_days": 30, "grace_period_days": 0, "protect_installed_skills": protect_installed, "enabled": True}
+    )
+    result = await run_curator_sweep(force=True, trigger="manual")
+
+    assert json.loads((authored / ".stats.json").read_text())["lifecycle_status"] == authored_status
+    for installed in (from_store, other_tool):
+        assert json.loads((installed / ".stats.json").read_text())["lifecycle_status"] == installed_status
+    assert result.skipped_protected == (2 if protect_installed else 0)
 
 
 @pytest.mark.integration

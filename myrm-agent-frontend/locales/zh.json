@@ -18092,7 +18092,7 @@
         "gracePeriodDays": "保护期（天）",
         "gracePeriodDaysDesc": "新创建的技能在此期间内不受管理器影响",
         "protectInstalled": "保护已安装技能",
-        "protectInstalledDesc": "从应用商店安装的技能不受管理器影响",
+        "protectInstalledDesc": "从应用商店安装的技能，以及来自其他工具技能目录的技能，不受管理器影响",
         "maxSkills": "最大活跃技能数",
         "maxSkillsDesc": "超出后将最久未使用的技能标记为闲置",
         "runNow": "立即运行",

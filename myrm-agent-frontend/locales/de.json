@@ -17408,7 +17408,7 @@
         "gracePeriodDays": "Schonfrist (Tage)",
         "gracePeriodDaysDesc": "Neue Fähigkeiten sind für diesen Zeitraum vom Kurator ausgenommen",
         "protectInstalled": "Installierte Fähigkeiten schützen",
-        "protectInstalledDesc": "Hub/registry skills will not be affected",
+        "protectInstalledDesc": "Aus dem Store installierte Fähigkeiten und Fähigkeiten aus den Skill-Ordnern anderer Tools werden vom Kurator nicht verändert",
         "maxSkills": "Max. aktive Fähigkeiten",
         "maxSkillsDesc": "Bei Überschreitung werden am seltensten verwendete Fähigkeiten als veraltet markiert",
         "runNow": "Jetzt ausführen",

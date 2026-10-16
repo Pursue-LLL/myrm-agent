@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.agent.skills.market.helpers import write_origin
 from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
 from myrm_agent_harness.backends.skills.types import (
     SkillLifecycleStatus,
-    SkillTrust,
     SkillUsageStats,
 )
 
@@ -25,7 +26,6 @@ from app.core.infra.health.server_diagnostics import (
 class _FakeSkill:
     name: str
     usage_stats: SkillUsageStats
-    trust: SkillTrust = SkillTrust.TRUSTED
     evolution_locked: bool = False
     storage_path: str = "/skills/test_skill"
 
@@ -249,6 +249,61 @@ async def test_skill_hoarding_diagnostic_critical_protected_wrong_skills(
         assert report.code == "ERR_SKILL_HOARDING_CRITICAL"
         assert report.meta_data is not None
         assert report.meta_data["protected_wrong_count"] == 3
+
+
+def _write_failing_skill(skill_dir: Path, *, from_market: bool) -> None:
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        f"---\nname: {skill_dir.name}\ndescription: Skill {skill_dir.name}\n---\nBody.\n", encoding="utf-8"
+    )
+    failing = SkillUsageStats(call_count=10, success_count=1, failure_count=9)
+    (skill_dir / ".stats.json").write_text(json.dumps(failing.to_dict()), encoding="utf-8")
+    if from_market:
+        write_origin(skill_dir, source="registry", skill_id=f"registry::{skill_dir.name}")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("protect_installed", "expected_exempt", "expected_reasons"),
+    [(True, True, ["installed_protected"]), (False, False, [])],
+)
+async def test_installed_failing_skill_is_exempt_only_while_protection_is_on(
+    tmp_path: Path, protect_installed: bool, expected_exempt: bool, expected_reasons: list[str]
+) -> None:
+    """The probe reads the same installed/authored split the sweep acts on, from real skill directories."""
+    own_root = tmp_path / "skills"
+    _write_failing_skill(own_root / "from-store", from_market=True)
+    config = CuratorConfig(min_call_count_for_quality_check=5, min_success_rate=0.3, protect_installed_skills=protect_installed)
+
+    with (
+        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
+        patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(own_root)]),
+    ):
+        report = await SkillHoardingHealthDiagnostic().check_health()
+
+    assert report.meta_data is not None
+    (finding,) = report.meta_data["wrong_but_frequent_skills"]
+    assert finding["skill_name"] == "from-store"
+    assert finding["is_exempt_from_curator"] is expected_exempt
+    assert finding["exemption_reasons"] == expected_reasons
+
+
+@pytest.mark.asyncio
+async def test_authored_failing_skill_is_never_reported_as_installed(tmp_path: Path) -> None:
+    own_root = tmp_path / "skills"
+    _write_failing_skill(own_root / "my-notes", from_market=False)
+    config = CuratorConfig(min_call_count_for_quality_check=5, min_success_rate=0.3, protect_installed_skills=True)
+
+    with (
+        patch("app.core.skills.curator.service.get_curator_config", return_value=config),
+        patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", [str(own_root)]),
+    ):
+        report = await SkillHoardingHealthDiagnostic().check_health()
+
+    assert report.meta_data is not None
+    (finding,) = report.meta_data["wrong_but_frequent_skills"]
+    assert finding["is_exempt_from_curator"] is False
+    assert finding["exemption_reasons"] == []
 
 
 @pytest.mark.asyncio

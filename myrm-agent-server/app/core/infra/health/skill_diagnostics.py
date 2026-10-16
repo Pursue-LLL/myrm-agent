@@ -1,7 +1,8 @@
 """[INPUT]
 - myrm_agent_harness.observability.diagnostics.protocols::HealthReport (POS: 健康状态报告结构)
 - myrm_agent_harness.observability.diagnostics.protocols::DiagnosticProtocol (POS: 诊断接口)
-- pathlib, logging, typing
+- app.core.skills.curator.local_skills::scan_local_skills (POS: 全部技能根目录扫描与已安装技能标记，与 sweep 同源)
+- logging
 
 [OUTPUT]
 - SkillHoardingHealthDiagnostic: 技能库囤积（Hoarding）与错但高频（Wrong-But-Frequent）低质技能诊断探针。
@@ -13,7 +14,6 @@ Server 层技能生态与 Curator 质量专项健康诊断探针。
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from myrm_agent_harness.observability.diagnostics.protocols import (
     DiagnosticProtocol,
@@ -34,26 +34,17 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
 
     async def check_health(self) -> HealthReport:
         try:
-            from myrm_agent_harness.backends.skills.local import LocalSkillBackend
-            from myrm_agent_harness.backends.skills.types import (
-                SkillLifecycleStatus,
-                SkillTrust,
-            )
+            from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
+            from app.core.skills.curator.local_skills import scan_local_skills
             from app.core.skills.curator.service import (
                 get_curator_config,
             )
-            from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
             config = get_curator_config()
 
-            all_skills = []
-            for p in DEFAULT_LOCAL_SKILL_PATHS:
-                expanded = Path(p).expanduser()
-                if not expanded.exists():
-                    continue
-                backend = LocalSkillBackend(expanded, use_snapshot=False)
-                all_skills.extend(await backend.list_skills())
+            scan = await scan_local_skills()
+            all_skills = scan.skills
 
             total_skills = len(all_skills)
             active_skills = []
@@ -72,7 +63,7 @@ class SkillHoardingHealthDiagnostic(DiagnosticProtocol):
                 ):
                     is_pinned = bool(stats.pinned)
                     is_locked = bool(skill.evolution_locked)
-                    is_installed_protected = bool(config.protect_installed_skills and skill.trust == SkillTrust.INSTALLED)
+                    is_installed_protected = config.protect_installed_skills and skill.name in scan.installed_names
                     is_system_protected = False
                     if config.protect_system_skills and skill.storage_path:
                         normalized = skill.storage_path.replace("\\", "/")

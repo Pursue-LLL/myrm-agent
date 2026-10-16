@@ -18092,7 +18092,7 @@
         "gracePeriodDays": "Grace Period (days)",
         "gracePeriodDaysDesc": "New skills are exempt from curator for this period",
         "protectInstalled": "Protect Installed Skills",
-        "protectInstalledDesc": "Hub/registry skills will not be affected by the curator",
+        "protectInstalledDesc": "Skills installed from the store, and skills from other tools' skill folders, are left alone by the curator",
         "maxSkills": "Max Active Skills",
         "maxSkillsDesc": "When exceeded, least recently used skills are marked stale",
         "runNow": "Run Now",

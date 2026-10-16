@@ -19,7 +19,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | health_presenter.py | Core | Sandbox-aware `present_health_report()` for WebUI payloads. | ✅ |
 | agent_diagnostics.py | Core | Agent ecosystem diagnostic probes (AgentColdStart Warm-Path, OllamaModelContextDiagnostic 64K context audit, AgentStepBudgetDiagnostic step budget audit, AgentPromptCacheAlignmentDiagnostic prefix cache jitter audit). | ✅ |
 | contracts.py | Core | Diagnostic protocol re-exports from harness observability. | ✅ |
-| skill_diagnostics.py | Core | Skill ecosystem diagnostic probe (SkillHoardingHealthDiagnostic skill hoarding & wrong-but-frequent low-quality audit). | ✅ |
+| skill_diagnostics.py | Core | Skill ecosystem diagnostic probe (SkillHoardingHealthDiagnostic skill hoarding & wrong-but-frequent low-quality audit); scans through `curator.local_skills.scan_local_skills`, so its installed/exempt verdict matches what the sweep acts on. Tests: `tests/core/infra/health/test_skill_hoarding_diagnostic.py`. | ✅ |
 | desktop_locked_use_diagnostic.py | Core | Locked Use / Privacy Curtain bridge + desktop shell liveness probe for `/health/doctor`. Tests: `tests/core/infra/health/test_desktop_locked_use_diagnostic.py`. | ✅ |
 | server_diagnostics.py | Core | Server business diagnostic probes (DLQ & Durable Outbound Redelivery, ExecutionCache & Process RSS) and probe runner manager. Tests: `tests/core/infra/health/test_server_diagnostics_execution_cache.py`. | ✅ |
 | trace_security_diagnostic.py | Core | Probes OpenTelemetry trace exporter posture ensuring zero unauthorized egress and local-only isolation. | ✅ |

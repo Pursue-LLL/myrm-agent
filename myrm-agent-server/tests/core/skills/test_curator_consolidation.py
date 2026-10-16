@@ -17,6 +17,13 @@ from myrm_agent_harness.agent.skills.curator.consolidation.types import (
     ConsolidationResult,
 )
 
+from app.core.skills.curator.local_skills import LocalSkillScan
+
+
+def _scan(skills: list[MagicMock], installed: frozenset[str] = frozenset()) -> AsyncMock:
+    """A stand-in for ``scan_local_skills`` that returns the given skills."""
+    return AsyncMock(return_value=LocalSkillScan(skills=skills, installed_names=installed))
+
 
 class TestRewriteAgentSkillRefs:
     """Tests for _rewrite_agent_skill_refs."""
@@ -253,10 +260,7 @@ class TestConsolidationPreview:
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
             ),
-            patch(
-                "app.core.skills.curator.consolidation._load_all_skills",
-                AsyncMock(return_value=[]),
-            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([])),
         ):
             from app.core.skills.curator.consolidation import run_consolidation_preview
 
@@ -293,10 +297,7 @@ class TestConsolidationPreview:
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
             ),
-            patch(
-                "app.core.skills.curator.consolidation._load_all_skills",
-                AsyncMock(return_value=[MagicMock() for _ in range(5)]),
-            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock() for _ in range(5)])),
             patch(
                 "myrm_agent_harness.agent.skills.curator.SkillCurator",
                 return_value=mock_curator_instance,
@@ -310,12 +311,12 @@ class TestConsolidationPreview:
         assert plan.actions[0].target_skill == "target"
 
 
-class TestConsolidationSparesBoundSkills:
-    """Preview and execute hand the skills bound by agents / cron jobs to the curator as protected."""
+class TestConsolidationSparesBoundAndInstalledSkills:
+    """Preview and execute hand the bound skills (agents / cron jobs) and the installed ones to the curator."""
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("dry_run", [True, False])
-    async def test_run_async_receives_protected_names(self, dry_run: bool) -> None:
+    async def test_run_async_receives_protected_and_installed_names(self, dry_run: bool) -> None:
         mock_curator_instance = MagicMock()
         mock_curator_instance.run_async = AsyncMock(return_value=(MagicMock(), ConsolidationReport()))
 
@@ -324,10 +325,7 @@ class TestConsolidationSparesBoundSkills:
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
                 AsyncMock(return_value=(MagicMock(), MagicMock(), MagicMock())),
             ),
-            patch(
-                "app.core.skills.curator.consolidation._load_all_skills",
-                AsyncMock(return_value=[MagicMock()]),
-            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock()], frozenset({"from-store"}))),
             patch(
                 "app.core.skills.curator.consolidation.bound_skill_names",
                 AsyncMock(return_value=frozenset({"bound"})),
@@ -338,4 +336,6 @@ class TestConsolidationSparesBoundSkills:
 
             await (run_consolidation_preview() if dry_run else run_consolidation_execute())
 
-        assert mock_curator_instance.run_async.call_args.kwargs["protected_names"] == frozenset({"bound"})
+        kwargs = mock_curator_instance.run_async.call_args.kwargs
+        assert kwargs["protected_names"] == frozenset({"bound"})
+        assert kwargs["installed_names"] == frozenset({"from-store"})

@@ -17408,7 +17408,7 @@
         "gracePeriodDays": "猶予期間（日）",
         "gracePeriodDaysDesc": "新しく作成したスキルはこの期間中、キュレーターの影響を受けません",
         "protectInstalled": "インストール済みスキルを保護",
-        "protectInstalledDesc": "ハブ/レジストリのスキルはキュレーターの影響を受けません",
+        "protectInstalledDesc": "ストアからインストールしたスキルと、他のツールのスキルフォルダにあるスキルは、キュレーターの影響を受けません",
         "maxSkills": "最大アクティブスキル数",
         "maxSkillsDesc": "超過すると、最も長く使用されていないスキルが非アクティブとしてマークされます",
         "runNow": "今すぐ実行",

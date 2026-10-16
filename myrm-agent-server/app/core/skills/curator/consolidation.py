@@ -5,6 +5,7 @@
 - myrm_agent_harness.agent.skills.curator.consolidation::ConsolidationPlan/ConsolidationReport (POS: Plan/report types)
 - app.core.skills.curator.service::_get_sweep_lock, get_curator_config, get_stats_collector (POS: Shared curator state)
 - app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles / cron jobs)
+- app.core.skills.curator.local_skills::scan_local_skills (POS: Scan of all skill roots with installed-skill marking)
 - app.core.skills.creation.service::skill_creation_service (POS: SkillWriteBackend)
 - app.database.connection::get_session (POS: Agent profile refs rewrite)
 
@@ -21,12 +22,10 @@ exclusive with background sweeps.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
-
 from .bound_skills import bound_skill_names
+from .local_skills import scan_local_skills
 from .service import _get_sweep_lock, get_curator_config, get_stats_collector
 
 if TYPE_CHECKING:
@@ -36,7 +35,6 @@ if TYPE_CHECKING:
         ConsolidationReport,
     )
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
-    from myrm_agent_harness.backends.skills.types import SkillMetadata
     from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
 
 logger = logging.getLogger(__name__)
@@ -80,20 +78,6 @@ async def _get_consolidation_deps() -> tuple[EmbeddingService, BaseChatModel, Sk
     return embedding_service, llm, skill_creation_service
 
 
-async def _load_all_skills() -> list[SkillMetadata]:
-    """Load all skills from configured local paths."""
-    from myrm_agent_harness.backends.skills.local import LocalSkillBackend
-
-    all_skills: list[SkillMetadata] = []
-    for p in DEFAULT_LOCAL_SKILL_PATHS:
-        expanded = Path(p).expanduser()
-        if not expanded.exists():
-            continue
-        backend = LocalSkillBackend(expanded, use_snapshot=False)
-        all_skills.extend(await backend.list_skills())
-    return all_skills
-
-
 async def run_consolidation_preview() -> ConsolidationPlan:
     """Run consolidation in dry-run mode and return a ConsolidationPlan."""
     from myrm_agent_harness.agent.skills.curator import SkillCurator
@@ -112,16 +96,17 @@ async def run_consolidation_preview() -> ConsolidationPlan:
             write_backend=write_backend,
         )
 
-        all_skills = await _load_all_skills()
-        if not all_skills:
+        scan = await scan_local_skills()
+        if not scan.skills:
             return ConsolidationPlan()
 
-        protected_names = await bound_skill_names(all_skills)
+        protected_names = await bound_skill_names(scan.skills)
         _, plan = await curator.run_async(
-            all_skills,
+            scan.skills,
             force=True,
             consolidation_dry_run=True,
             protected_names=protected_names,
+            installed_names=scan.installed_names,
         )
         if not isinstance(plan, ConsolidationPlan):
             return ConsolidationPlan()
@@ -149,8 +134,8 @@ async def run_consolidation_execute() -> dict[str, int | str]:
             write_backend=write_backend,
         )
 
-        all_skills = await _load_all_skills()
-        if not all_skills:
+        scan = await scan_local_skills()
+        if not scan.skills:
             return {
                 "success_count": 0,
                 "failure_count": 0,
@@ -161,12 +146,13 @@ async def run_consolidation_execute() -> dict[str, int | str]:
                 "agent_refs_updated": 0,
             }
 
-        protected_names = await bound_skill_names(all_skills)
+        protected_names = await bound_skill_names(scan.skills)
         _, result = await curator.run_async(
-            all_skills,
+            scan.skills,
             force=True,
             consolidation_dry_run=False,
             protected_names=protected_names,
+            installed_names=scan.installed_names,
         )
 
         if result is None or not isinstance(result, ConsolidationReport):

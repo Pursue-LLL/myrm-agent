@@ -4,8 +4,8 @@
 - myrm_agent_harness.agent.skills.curator::SkillCurator (POS: Stateless curator engine)
 - myrm_agent_harness.backends.skills.curator_config::CuratorConfig (POS: Curator configuration with construction-time range validation)
 - myrm_agent_harness.backends.skills.stats_collector::SkillStatsCollector (POS: Usage stats collector)
-- myrm_agent_harness.backends.skills.local::LocalSkillBackend (POS: Local skill backend)
 - app.core.skills.models::DEFAULT_LOCAL_SKILL_PATHS (POS: Skill models and paths)
+- app.core.skills.curator.local_skills::scan_local_skills (POS: Scan of all skill roots with installed-skill marking)
 - app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper; invalidates warm-chat agents)
 - app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles / cron jobs)
 
@@ -16,7 +16,7 @@
 - apply_skill_archived / set_skill_archived: Archive/restore a skill's lifecycle (single write path for user-initiated archive)
 - describe_skill_lifecycle: Read a skill's archive/pinned state for UI surfaces
 - SkillNotFoundError / SkillPinnedError: Domain errors raised by set_skill_archived
-- run_curator_sweep: Execute a curator sweep over all local skills (skills bound by agents / cron jobs are exempt)
+- run_curator_sweep: Execute a curator sweep over all local skills (skills bound by agents / cron jobs, and installed skills while protection is on, are exempt)
 - get_curator_history: Read past sweep run records
 - start_curator_background_task / stop_curator_background_task: Background loop lifecycle
 
@@ -42,6 +42,7 @@ from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.core.skills.curator.bound_skills import bound_skill_names
+from app.core.skills.curator.local_skills import scan_local_skills
 from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
 logger = logging.getLogger(__name__)
@@ -161,28 +162,19 @@ async def run_curator_sweep(*, force: bool = False, trigger: Literal["manual", "
         force: If True, bypass the enabled check (for manual API triggers).
         trigger: Source of this sweep — "manual" (API) or "background" (loop).
     """
-    from myrm_agent_harness.backends.skills.local import LocalSkillBackend
-
     async with _get_sweep_lock():
         config = get_curator_config()
         collector = get_stats_collector()
         curator = SkillCurator(collector, config)
 
-        all_skills = []
-        for p in DEFAULT_LOCAL_SKILL_PATHS:
-            expanded = Path(p).expanduser()
-            if not expanded.exists():
-                continue
-            backend = LocalSkillBackend(expanded, use_snapshot=False)
-            all_skills.extend(await backend.list_skills())
-
-        if not all_skills:
+        scan = await scan_local_skills()
+        if not scan.skills:
             return CuratorRunResult()
 
-        protected_names = await bound_skill_names(all_skills)
+        protected_names = await bound_skill_names(scan.skills)
 
         t0 = time.monotonic()
-        result = curator.run(all_skills, force=force, protected_names=protected_names)
+        result = curator.run(scan.skills, force=force, protected_names=protected_names, installed_names=scan.installed_names)
         duration_ms = round((time.monotonic() - t0) * 1000)
 
         _save_last_run_time()
