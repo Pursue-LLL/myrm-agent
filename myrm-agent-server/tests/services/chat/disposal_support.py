@@ -1,0 +1,98 @@
+"""Shared fixtures' building blocks for the chat disposal tests."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.memory import MemorySaver
+from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
+from myrm_agent_harness.runtime.context.session.session_continuity import sync_checkpoint_messages
+
+from app.platform_utils import _reset_checkpointer_for_testing, set_checkpointer
+from app.services.chat import chat_disposal
+
+CHAT_ID = "chat-disposal-1"
+SANDBOX_ROOT = "/tmp/myrm-test-sandbox"
+SANDBOX_DIR = f"{SANDBOX_ROOT}/{CHAT_ID}"
+OWNER = "sandbox"
+
+
+@dataclass
+class Spies:
+    runtime_pool: AsyncMock
+    execution_cache: AsyncMock
+    memory_purge: AsyncMock
+    retry_queue: AsyncMock
+    worktree: AsyncMock
+    workspace: AsyncMock
+    working_memory: MagicMock
+
+
+def install_spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
+    """Replace the slow collaborators of the disposal steps with recorders."""
+    recorded = Spies(
+        runtime_pool=AsyncMock(),
+        execution_cache=AsyncMock(),
+        memory_purge=AsyncMock(return_value={}),
+        retry_queue=AsyncMock(),
+        worktree=AsyncMock(return_value=True),
+        workspace=AsyncMock(return_value={}),
+        working_memory=MagicMock(),
+    )
+    monkeypatch.setattr(chat_disposal, "close_external_agent_pool_for_chat", recorded.runtime_pool)
+    monkeypatch.setattr(chat_disposal, "close_execution_cache_for_chat_all_agents", recorded.execution_cache)
+    manager = MagicMock(purge_by_source_chat_id=recorded.memory_purge)
+    monkeypatch.setattr("app.core.memory.get_cascade_memory_manager", AsyncMock(return_value=manager))
+    monkeypatch.setattr("app.services.memory.extract_retry.extract_retry_queue.clear_for_chat", recorded.retry_queue)
+    monkeypatch.setattr("app.services.chat.sandbox_worktree.cleanup_sandbox_worktree", recorded.worktree)
+    monkeypatch.setattr("app.services.infra.sandbox_cleanup.cleanup_chat_workspaces", recorded.workspace)
+    monkeypatch.setattr(
+        "app.services.memory.consolidation_service.ConsolidationService.clear_session_working_state",
+        recorded.working_memory,
+    )
+    return recorded
+
+
+def point_event_log_at_scratch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point the event log at a scratch directory so no test reads or deletes the real one."""
+    log_dir = tmp_path / "event_logs"
+    log_dir.mkdir()
+    monkeypatch.setattr("app.config.settings.settings.database.event_log_dir", str(log_dir))
+    return log_dir
+
+
+def write_event_log(log_dir: Path, session_id: str) -> Path:
+    path = log_dir / f"{session_id}.jsonl"
+    path.write_text('{"event_type": "llm_request", "data": {"prompt_preview": "[user] secret"}}\n', encoding="utf-8")
+    return path
+
+
+@asynccontextmanager
+async def installed_checkpointer() -> AsyncIterator[BaseCheckpointSaver[str]]:
+    saver = MemorySaver()
+    set_checkpointer(saver)
+    try:
+        yield saver
+    finally:
+        _reset_checkpointer_for_testing()
+        await get_allowlist().clear_session(OWNER, CHAT_ID)
+
+
+async def grant_and_checkpoint(saver: BaseCheckpointSaver[str]) -> None:
+    await sync_checkpoint_messages(saver, CHAT_ID, [HumanMessage("question"), AIMessage("answer")])
+    await get_allowlist().add(OWNER, AllowlistEntry(permission="shell_exec", tool_name="bash", session_id=CHAT_ID))
+
+
+async def is_stored(saver: BaseCheckpointSaver[str], thread_id: str) -> bool:
+    return await saver.aget_tuple({"configurable": {"thread_id": thread_id}}) is not None
+
+
+def is_granted() -> bool:
+    return get_allowlist().check(OWNER, "shell_exec", "bash", session_id=CHAT_ID)

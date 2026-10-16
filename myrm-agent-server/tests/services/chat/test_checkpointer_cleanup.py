@@ -1,6 +1,6 @@
 """LangGraph checkpointer API assumptions the chat lifecycle relies on.
 
-The disposal steps themselves are covered in ``test_chat_disposal.py``; this module pins the checkpointer
+The disposal steps themselves are covered in ``test_chat_disposal.py`` and ``test_chat_disposal_steps.py``; this module pins the checkpointer
 behaviour they depend on (``adelete_thread`` exists, is idempotent and really removes a thread) and that the
 other deletion call sites use that same API.
 """
