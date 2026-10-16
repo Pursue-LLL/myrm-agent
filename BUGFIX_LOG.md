@@ -4727,7 +4727,7 @@ except Exception:
 | 发现日期 | 2026-10-16（`BUG-AGENT-2026-10-16-002` 把「重索引」写成真实能力之后，把它在真实向量库上从头跑一遍才发现从没生效） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P1（用户换嵌入模型后旧记忆在召回里静默消失，界面还显示迁移成功）；对外失实宣称 P3 |
-| 影响范围 | harness（根因与迁移本体见 `BUG-HARNESS-2026-10-16-002`）；server：`app/services/memory/reindex_run.py`（新）、`app/api/memory/operations/reindex.py`、`app/services/memory/diagnostics/diagnostic/diagnostic_repair_plans.py`；frontend：`src/services/memory/reindex.ts`（新）、`src/store/useRetrievalStore.ts`、`ai-core/MemoryMigrationNotice.tsx`（新）、`ai-core/DefaultModelSection.tsx`、六个语言包 `settings.defaultModel.retrieval` 下 5 个新键；根仓 `temp-docs/materials/MEMORY_ADVANTAGE.md` 与路线图 topic_09 #201；brand 仓 `memory-system.mdx`、`api-reference/memory.mdx`、`dialectic-profiling.mdx`、`competitor-comparison.mdx`（英文与中文） |
+| 影响范围 | harness（根因与迁移本体见 `BUG-HARNESS-2026-10-16-002`）；server：`app/services/memory/reindex_run.py`（新）、`app/api/memory/operations/reindex.py`、`app/services/memory/diagnostics/diagnostic/diagnostic_repair_plans.py`；frontend：`src/services/memory/reindex.ts`（新）、`src/store/useRetrievalStore.ts`、`ai-core/MemoryMigrationNotice.tsx`（新）、`ai-core/DefaultModelSection.tsx`、六个语言包 `settings.defaultModel.retrieval` 下 5 个新键；根仓素材库的 `MEMORY_ADVANTAGE.md` 与路线图 topic_09 #201；brand 仓 `memory-system.mdx`、`api-reference/memory.mdx`、`dialectic-profiling.mdx`、`competitor-comparison.mdx`（英文与中文） |
 | 出现次数 | 1（真实嵌入式 Qdrant 上的红灯用例、组件与存储测试；没有开浏览器目测） |
 | 关联 | `BUG-AGENT-2026-10-16-002`（其现象第 3 条把这项能力写成「真实能力早已存在」，已在该条更正）、`BUG-HARNESS-2026-10-16-002`；本地提交，未 push |
 
@@ -4842,7 +4842,7 @@ except Exception:
 5. 在 zsh 里不要用 `path` 做循环变量：它与 `PATH` 绑定，赋值会让后续所有命令都找不到。
 6. 共享主机上别人进行中的改动会让开发服务起不来，且不是你的文件：先看日志里的导入错误是谁的，不要为了跑浏览器去修别人的文件。
 7. 提交说明里写了「聊天提示对失败早已先报原因」，不准确：提交前的 `_terminal_result` 对失败是 `result or error`，失败这一支是本次才改的（本条「现象」第 2 点与「修复」第 1 点以此为准；提交未 push，没有改写历史）。
-8. 更正（见 `BUG-AGENT-2026-10-16-014`）：本条留下的跨字段兜底（失败先报 `error`、没有就退回 `result`；完成先报 `result`）本身就是错的，局限 7 的残留只是它的一个后果：任务被驳回重跑后仍带着旧 `result`，重试或手动移动后仍带着旧 `error`，任何兜底都会在某个状态组合下报出旧文本。`-014` 改为每种结果只读自己的字段、失败不带文字；本条把兜底写成断言的测试（如 `test_failed_task_without_an_error_falls_back_to_its_result`）已随之改写，局限 7 不再成立。
+8. 更正（见 `BUG-AGENT-2026-10-16-014`）：本条留下的跨字段兜底（失败先报 `error`、没有就退回 `result`；完成先报 `result`）本身就是错的，局限 7 的残留只是它的一个后果：任务被驳回或重试后仍带着旧 `result`（`retry.py:60` 的重试只清 `error`），手动移动的卡片仍带着原有的 `error`（`move_orchestrator.py` 只在阻塞移回就绪时清它），任何兜底都会在某个状态组合下报出旧文本。`-014` 改为每种结果只读自己的字段、失败不带文字；本条把兜底写成断言的测试（如 `test_failed_task_without_an_error_falls_back_to_its_result`）已随之改写，局限 7 不再成立。
 
 ## BUG-AGENT-2026-10-16-008: 模型切换后 IM、定时任务、看板、评测、自动续跑、审批超时恢复把半截回答与重发的整段拼在一起；切换发生在工具步骤之后时 WebUI 落库还会丢掉工具步骤之前的文字；文字已流出后才失败的 IM 回复把半截回答当成完整回答；德、日、韩诊断文案里有两处无人填充的占位符
 
@@ -5158,14 +5158,14 @@ except Exception:
 | 发现日期 | 2026-10-16（复核 `BUG-AGENT-2026-10-16-007` 的局限 7：手动移入失败时通知报旧原因，沿「失败到底该给用户看什么」追到） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P3（没有数据丢失，不影响执行；通知文字错误，并把供应商类名、工具名、SQL 这类内部词推给终端用户） |
-| 影响范围 | server：`app/services/kanban/event_publisher.py`、`app/core/notifications/adaptive_cards.py`、`tests/services/kanban/test_event_publisher.py`、`test_task_event_notifications.py`、`tests/core/channel_bridge/test_btw_notifier.py`、`tests/core/notifications/`（`test_adaptive_cards.py` 改，`test_dispatcher.py` 拆成 4 个文件）、三份 `_ARCH.md`；frontend：`src/hooks/globalEvents/kanbanTaskToast.ts` 与测试、`useGlobalEvents.ts`（一行）、`src/lib/kanban/kanbanChatBoard.ts` 与测试、六语种 `locales/*.json`、三份 `_ARCH.md`；harness、提示词、工具描述、存储都没有改 |
+| 影响范围 | server：`app/services/kanban/event_publisher.py`、`app/core/notifications/adaptive_cards.py`、`tests/services/kanban/test_event_publisher.py`、`test_task_event_notifications.py`、`tests/core/channel_bridge/test_btw_notifier.py`（拆成 `test_btw_emitters.py` 17 例与 `test_btw_notifier.py` 18 例，共 35 例不变）、`tests/core/notifications/`（`test_adaptive_cards.py` 改，`test_dispatcher.py` 拆成 4 个文件）、`tests/services/kanban/test_race_orchestrator.py`（只做了格式化，它在 HEAD 里就没过 `ruff format`）、三份 `_ARCH.md`；frontend：`src/hooks/globalEvents/kanbanTaskToast.ts` 与测试、`useGlobalEvents.ts`（一行）、`src/lib/kanban/kanbanChatBoard.ts` 与测试、六语种 `locales/*.json`、三份 `_ARCH.md`；harness、提示词、工具描述、存储都没有改 |
 | 出现次数 | 1（读码，用真实函数对照新旧取值，没有生产数据，不知道线上频率） |
 | 关联 | 更正 `BUG-AGENT-2026-10-16-007` 的取值规则与局限 7；提交 `34983f4c30`（拆测试）、`5dc2b12bc1`（服务端）、`337a4b021a`（前端）；本地提交，未 push |
 
 ### 现象
 
 1. 失败任务的 `error` 是运行异常的原文（`类型: 异常信息`，`-007` 局限 2 列过出处），会带供应商类名、工具名、SQL。它被当作 `detail` 原样送到面向用户的几处消费者：前端 toast 与系统通知、IM 频道的看板文本、`/btw` 的回复、网页语音工作的聊天消息。普通用户看到的是内部词，也无法据此行动。
-2. `-007` 只是把取值顺序改成「失败先报 `error`、完成先报 `result`」，仍保留跨字段兜底，而两个字段在状态变化后都不会清空：任务被驳回重跑后保留上一次的 `result`，被重试或手动移动后保留旧的 `error`。于是仍有三种组合报出旧文本：失败但 `error` 缺失时报旧结果；完成但 `result` 为空时报旧错误；阻塞但没有 `blocked_reason` 时报旧错误。`-007` 自己的测试 `test_failed_task_without_an_error_falls_back_to_its_result` 把第一种固化成了「正确行为」。
+2. `-007` 只是把取值顺序改成「失败先报 `error`、完成先报 `result`」，仍保留跨字段兜底，而两个字段在状态变化后都不会清空：任务被驳回或重试后保留上一次的 `result`（重试只清 `error`，`retry.py:60`），手动移动的卡片保留原有的 `error`（`move_orchestrator.py` 只在阻塞移回就绪时清它，`:161-167`；正常成功、重试、批准、回收都会清）。于是仍有三种组合报出旧文本：失败但 `error` 缺失时报旧结果；完成但 `result` 为空时报旧错误；阻塞但没有 `blocked_reason` 时报旧错误。`-007` 自己的测试 `test_failed_task_without_an_error_falls_back_to_its_result` 把第一种固化成了「正确行为」。
 3. toast 只有关闭按钮，系统通知点击后没有任何去处：用户看到「任务失败：xx」，要自己切到设置里的看板页，再找到那块板和那一列。`notifyIfLeader` 早已支持点击回调（`useGlobalEvents.ts` 的 `notificationService.notify(... onClick)`），看板提示没有传；设置页的看板深链也早已认 `board_id` 与 `status`（`KanbanSection.tsx`、`KanbanBoardView.tsx:66-71`）。
 
 ### 根因
@@ -5182,25 +5182,26 @@ except Exception:
 3. `buildKanbanBoardDeepLink` 的 `sourceChatId` 改为可选并新增 `status`（`kanbanChatBoard.ts`），仍是看板深链的唯一出处。
 4. `kanbanTaskToast.ts` 依赖里加入 `router`：toast 带「查看看板」操作（`openBoard`，`:70-76`），系统通知的点击走同一个函数（`:83`），都打开 `/settings/kanban?board_id=…&status=…`，直达该状态列；事件没有 `board_id` 时不给操作。成功与警告 toast 的停留时间分别为 8 秒与 10 秒，让人有时间点。`useGlobalEvents.ts:372` 只多传一个 `router`。
 5. 六语种新增 `notifications.viewKanbanBoard`（英文 `View board`，中文 `查看看板`）。
-6. 顺手把已超过 500 行的 `test_dispatcher.py` 拆成 `test_dispatcher.py`（400 行）、`test_format_message.py`、`test_format_message_kanban.py`、`test_dispatcher_targets.py` 四个文件，拆前拆后都是 59 例。
+6. 顺手把已超过 500 行的 `test_dispatcher.py` 拆成 `test_dispatcher.py`（398 行）、`test_format_message.py`、`test_format_message_kanban.py`、`test_dispatcher_targets.py` 四个文件，拆前拆后都是 59 例；本条改过的 `test_btw_notifier.py`（585 行）按「发布端」与「通知器」拆成 `test_btw_emitters.py`（321 行）与 `test_btw_notifier.py`（275 行），拆前拆后都是 35 例，拆完逐行对比：除头部导入、文件说明与共用的一行工厂函数外，内容完全一致。
 
 ### 验证
 
 1. 真实函数对照：用同一批任务分别跑修复前后的 `_terminal_result`（一次性探针，未保留）。失败且带旧结果 `Report saved: 5 sections, 12 sources.`：旧版返回这句旧结果，新版为空；完成但带旧的供应商错误：旧版返回错误原文，新版为空；阻塞但没有原因：旧版返回旧错误，新版为空；失败且 `error` 是 SQL 错误：旧版返回 SQL 原文，新版为空。
 2. 测试按用户能观察到的行为重写：`test_event_publisher.py` 现 27 例（含对一批异常原文做参数化，断言它们都不会出现在载荷里；旧结果、旧错误各一例；手动移入失败的 `moved`）；`test_task_event_notifications.py` 经真实派发器与 `_format_message` 看频道文本，标题行为 `[Myrm AI] Kanban task "Task failed01" failed`；`/btw` 的失败回复不带异常、完成不退回旧错误；前端 `kanbanTaskToast.test.ts` 共 19 例，含操作与点击的目标地址、无 `board_id` 时没有操作、定时阻塞安静、200 字截断。
 3. 变异：服务端 5 种全部被杀（失败回退到 `error`、失败回退到 `result`、完成回退到 `error`、阻塞回退到 `error`、驳回回退到 `result`）；前端 4 种全部被杀（toast 不带操作、系统通知不带点击、深链不带 `status`、没有 `board_id` 也给操作）；每次变异后都恢复了文件。
-4. 门禁：服务端 `tests/services/kanban`、`tests/core/notifications`、`tests/core/channel_bridge`、`tests/channels` 共 7917 通过、55 跳过、12 失败（失败项见局限 5）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban` 46 个文件 575 例通过；`tsc --noEmit` 无输出；oxlint、prettier 对触碰的前端文件通过；`ruff check`、`ruff format --check` 对触碰的服务端文件通过，`mypy` 对两个改动源文件没有报错（pyright 只报 harness 导入在本环境解析不到的 2 处，位于两个文件的导入行）；`verify:i18n`（六语种 parity 与 3571 个文件的代码引用）、`verify:theme-colors` 通过。
+4. 门禁：服务端 `tests/services/kanban`、`tests/core/notifications`、`tests/core/channel_bridge`、`tests/channels` 共 7917 通过、55 跳过、12 失败（失败项见局限 5）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban` 46 个文件 575 例通过；`tsc --noEmit` 无输出；oxlint、prettier 对触碰的前端文件通过；`ruff check`、`ruff format --check` 对触碰的服务端文件通过，`mypy` 对两个改动源文件没有报错（pyright 只报 harness 导入在本环境解析不到的 2 处，位于两个文件的导入行）；`verify:i18n`（六语种 parity 与 3571 个文件的代码引用）、`verify:theme-colors` 通过。另跑 `tests/integration/test_btw_notifier_e2e.py`、`tests/api/events`、`tests/api/kanban`、`tests/remote_access/test_web_handoff_integration.py`、`tests/architecture`：2551 通过、2 跳过、13 失败。13 个失败里：`test_move_with_result_and_metadata` 是 `-007` 局限 6 记过的同一例；`test_no_temp_docs_links` 指向 `BUGFIX_LOG.md:4730`（`-006` 的引用）；其余 11 例是 `tests/architecture` 的路由调用方、域目录、记忆路由挂载、harness 私有与深层导入、文本入口闸门等用例，我展开看过路由调用方与 harness 导入两组，列出的都不是本条改动的文件，其余几例没有逐个展开。
 
 ### 局限
 
 1. 没有在真实浏览器里看到 toast 的操作按钮，也没有点击过：专用 E2E Chrome 里打开 `localhost:3000/settings/kanban` 时页面长时间停在 `readyState: loading`，正文为空，没有领导者标记（主机负载 30 至 40，开发服务器在这种负载下没能让页面完成加载；`-007` 局限 1 记过同一现象）。运行中的开发 API 进程启动在本次修改之前，所以也没有在上面核对 SSE 载荷。操作按钮与点击的目标地址由单测覆盖，深链落地由读码（`KanbanSection.tsx`、`KanbanBoardView.tsx:66-71`）确认；窄屏、明暗主题下的呈现没有看过，桌面端（Tauri）系统通知的点击没有验证。
 2. 失败通知不再带任何原因：用户要看原因得打开看板的运行记录。原本偶尔恰好读得懂的整句（例如「所选模型不被组织策略允许」）也一并不再展示。这是有意的取舍：不能从一段异常文本里可靠地分出哪些能给用户看，所以失败一律不带文字；要恢复需要 harness 给出稳定的原因码，这次没有做。
-3. `/btw` 的 `background_failed` 模板里的 `{ $result }` 现在对失败恒为空，模板本身没有改。
+3. `/btw` 的 `background_failed` 模板里的 `{ $result }` 现在对失败恒为空，模板本身没有改；IM 与 `/btw` 的失败通知因此只有「失败」与任务名，没有告诉用户去哪里看原因。
 4. 深链落在带状态过滤的看板上，不会定位到具体那张任务卡。
 5. 本次回归里的 12 个失败与本条无关：`test_task_runner.py` 的 `test_extract_enabled_empty_pdf_falls_back_to_reference`；`test_background_command.py` 两例（`/btw` 别名已被他人移除：`assert 'btw' in ('bg',)`）；`test_group_routing.py` 六例与 `test_prefix_trigger.py` 一例（WhatsApp 身份解析得到 `guest_whatsapp…` 而不是 `local-user`，伴随 `no such savepoint` 的数据库警告）；`test_locale_key_parity.py` 的孤儿键与 `test_onebot_enhancements.py` 一例。它们的断言内容都不经过看板结果路径，我没有在干净的 HEAD 上逐个重跑来证明「改动前就失败」，只是按断言内容与他人在途改动判断。
 6. `useGlobalEvents.ts` 仍超过 500 行（他人正在抽 `backupAlertToast.ts`），这次只改了一行，没有顺手拆。
 7. 没有用真实模型与真实 IM 渠道跑；`next build` 没跑。
-8. 评估后放弃的方案：失败时回退到 `result`（会报旧结果）；用字符串规则从异常文本里「净化」出能给用户看的部分（无法可靠区分）；toast 直接定位到任务卡（要新增看板抽屉的路由状态，改动面大，收益有限）。
+8. 自动阻塞的原因仍以英文原句外发，这是同一类泄漏，本条没有处理：`Auto-blocked after N consecutive failures (last: crashed)` 或 `(last: timed_out)`（`dispatcher_failure.py:196-198`，`last` 只会是这两个固定词，不含异常文本）与 `Auto-blocked after zombie reclaim (N failures)`（`dispatcher_zombie.py:172`）带数字，不在 `kanban_blocked_reasons.json` 的整句表里，所以 toast、系统通知、IM 与 `/btw` 都原样显示，含 `crashed`、`timed_out`、`zombie reclaim` 这类内部词。要处理得让这两句可带参数地翻译，或由 harness 给稳定的原因码。
+9. 评估后放弃的方案：失败时回退到 `result`（会报旧结果）；用字符串规则从异常文本里「净化」出能给用户看的部分（无法可靠区分）；toast 直接定位到任务卡（要新增看板抽屉的路由状态，改动面大，收益有限）。
 
 ### 踩坑经验
 
@@ -5208,7 +5209,8 @@ except Exception:
 2. 面向用户的文案只给用户能据此行动的事实；运行时的异常原文属于运行记录，不属于通知。
 3. 动手前先看有没有现成的唯一出处与现成的能力：深链构造函数、`notifyIfLeader` 的点击回调、设置页对 `status` 的处理早就在，缺的只是把它们接起来。
 4. 共享工作区里编号会被他人抢先：写日志条目前再核对一次最后一个编号。
-5. 在 patchright 里用 `time.sleep` 会让事件循环停转，等待要用 `page.wait_for_timeout`；开发服务器在高负载下的页面可能永远停在 `loading`，先探页面状态，再决定是否值得继续等。
+5. 写进注释与文档的论据要追到源头：我把「重试后仍带着旧 `error`」写进了 docstring、`_ARCH.md` 和日志，复核时发现 `retry.py:60` 的重试会清 `error`，已全部更正；论据要写到「谁清、谁不清」，不能凭印象。
+6. 在 patchright 里用 `time.sleep` 会让事件循环停转，等待要用 `page.wait_for_timeout`；开发服务器在高负载下的页面可能永远停在 `loading`，先探页面状态，再决定是否值得继续等。
 
 ## BUG-AGENT-2026-10-16-015: 成长页「五环状态」面板的第 2、3 环计数在生产里恒为 0，其余多项数字由别的计数推算或写死，页头还有恒为 100 分的「闭环健康度」与不分语言的英文固定句
 
