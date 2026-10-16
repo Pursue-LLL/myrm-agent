@@ -48,6 +48,7 @@ MESSAGE_ID = "msg-lifecycle"
 CALL_ID = "call-skill-manage-1"
 DELETE_CALL_ID = "call-skill-manage-2"
 SECOND_CALL_ID = "call-skill-manage-3"
+THIRD_CALL_ID = "call-skill-manage-4"
 
 
 class _Host(ToolSetupMixin):
@@ -192,7 +193,7 @@ async def test_deleting_a_skill_is_final_and_leaves_no_undo_record(
     output, step = await _run_turn(skill_manage_tool, [{"action": "delete", "name": SKILL_NAME}], DELETE_CALL_ID)
 
     assert "deleted successfully" in output, output
-    # The collector turns this text into an Undo entry; a delete has no snapshot to undo.
+    # A delete has no snapshot to undo, so its output must not read like a committed batch.
     assert "Batch applied successfully" not in output
     assert not (skills_root / SKILL_NAME).exists()
     assert "skill_mutation_batch_id" not in step, step
@@ -217,6 +218,26 @@ async def test_undo_of_a_second_batch_keeps_what_the_first_batch_created(
         await rollback_skill_mutation_batch(session, _batch_id_of(step))
     assert (skills_root / SKILL_NAME / "SKILL.md").read_text(encoding="utf-8") == stored
     assert not (skills_root / SKILL_NAME / "references" / "notes.md").exists()
+
+
+async def test_undo_of_a_file_removal_puts_the_file_back(
+    skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _save_skill(skill_manage_tool)
+    notes = skills_root / SKILL_NAME / "references" / "notes.md"
+    written: list[dict[str, object]] = [
+        {"action": "write_file", "name": SKILL_NAME, "file_path": "references/notes.md", "content": "notes"}
+    ]
+    await _run_turn(skill_manage_tool, written, SECOND_CALL_ID)
+    removal: list[dict[str, object]] = [{"action": "remove_file", "name": SKILL_NAME, "file_path": "references/notes.md"}]
+
+    output, step = await _run_turn(skill_manage_tool, removal, THIRD_CALL_ID)
+
+    assert "removed from skill" in output, output
+    assert not notes.exists()
+    async with session_factory() as session:
+        await rollback_skill_mutation_batch(session, _batch_id_of(step))
+    assert notes.read_text(encoding="utf-8") == "notes"
 
 
 async def test_undo_of_a_full_rewrite_restores_the_previous_content(
