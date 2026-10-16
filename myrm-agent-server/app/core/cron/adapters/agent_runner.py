@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.api.security import is_untrusted_ingress_active
+from myrm_agent_harness.core.security.audit import get_audit_entries
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
     enter_cron_execution_context,
     exit_cron_execution_context,
@@ -52,6 +53,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     SessionTarget,
 )
 
+from .blocked_actions import blocked_actions_metadata
 from .injection_scan import scan_cron_prompt
 from .research_lease import grant_run_lease, release_run_lease
 
@@ -1031,11 +1033,7 @@ class _StreamAccumulator:
         if self.usage:
             metadata["usage"] = self.usage
 
-        from myrm_agent_harness.agent.security.audit import get_audit_entries
-
-        audit = get_audit_entries()
-        if audit:
-            metadata["securityAudit"] = [e.to_dict() for e in audit]
+        metadata.update(blocked_actions_metadata(get_audit_entries()))
 
         if self.error or self.circuit_broken:
             return JobResult(

@@ -3,6 +3,7 @@
 [INPUT]
 - settings.database.event_log_dir (POS: harness JSONL event-log location)
 - myrm_agent_harness.agent.event_log (POS: FileEventLogBackend + EventFilter)
+- myrm_agent_harness.core.security.audit::is_policy_denial (POS: the deny rule behind policy_denial_total)
 
 [OUTPUT]
 - GET /api/admin/agent-audit/events: read-only agent event pull for org audit
@@ -23,6 +24,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.types import EventFilter
+from myrm_agent_harness.core.security.audit import is_policy_denial
 from pydantic import BaseModel
 
 from app.config.settings import settings
@@ -51,15 +53,6 @@ class AgentAuditQueryResponse(BaseModel):
     security_deny_total: int
     window_hours: int
     limit: int
-
-
-# Harness 权威 deny 语义（myrm-agent-harness/core/security/audit.py record_decision 的
-# policy_denial_total 口径）：决策字符串含 BLOCK/DENY/REDACT/LEAK 即为拦截类。
-_DENY_TOKENS = ("BLOCK", "DENY", "REDACT", "LEAK")
-
-
-def _is_deny_decision(decision: str) -> bool:
-    return any(token in decision for token in _DENY_TOKENS)
 
 
 @router.get("/api/admin/agent-audit/events", response_model=AgentAuditQueryResponse)
@@ -151,6 +144,6 @@ def _count_security_denies(events: list[AgentAuditEventResponse]) -> int:
             if not isinstance(decision, dict):
                 continue
             kind = decision.get("decision")
-            if isinstance(kind, str) and _is_deny_decision(kind):
+            if isinstance(kind, str) and is_policy_denial(kind):
                 deny_total += 1
     return deny_total
