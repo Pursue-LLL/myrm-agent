@@ -862,7 +862,7 @@ class AgentJobRunner:
             run_started_at = time.monotonic()
             model_name: str | None = getattr(agent.model_cfg, "model", None)
 
-            from myrm_agent_harness.agent.security import user_credentials_ctx
+            from myrm_agent_harness.core.security.types import user_credentials_ctx
 
             from app.services.agent.execution_cache import (
                 ExecutionMode,
@@ -1040,7 +1040,7 @@ class _StreamAccumulator:
         if self.error or self.circuit_broken:
             return JobResult(
                 success=False,
-                output=output or None,
+                output=output,
                 error=self.error or "Runaway circuit break triggered",
                 metadata=metadata or None,
                 circuit_broken=self.circuit_broken,
@@ -1086,7 +1086,8 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
                 len(history),
                 job.chat_id,
             )
-        return history
+        # The agent entry point types history entries loosely; re-wrap so the invariant list types line up.
+        return [list[str | object](entry) for entry in history]
     except Exception:
         logger.warning(
             "Cron job %s: failed to load thread history for chat %s",

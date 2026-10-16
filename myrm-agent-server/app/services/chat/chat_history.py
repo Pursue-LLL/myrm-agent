@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
+from app.core.types.business import ChatHistoryReq
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
@@ -43,10 +44,10 @@ class _ChatHistoryMixin(_ChatServiceBase):
         exclude_message_id: str | None = None,
         max_messages: int = 50,
         api_key: str | None = None,
-    ) -> list[list[str | dict[str, object]]]:
+    ) -> ChatHistoryReq:
         async with UnitOfWork() as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id)
-            history: list[list[str | dict[str, object]]] = []
+            history: ChatHistoryReq = []
             anchor_ts = None
             if chat and chat.compacted_summary and chat.compacted_before_id:
                 history.append(
