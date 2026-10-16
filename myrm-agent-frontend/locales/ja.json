@@ -8209,7 +8209,7 @@
     "blockKind": {
       "human": "対応が必要です",
       "scheduled": "予約済み",
-      "external": "外部待ち"
+      "external": "外部イベント待ち"
     },
     "autoUnblocking": "自動で解除しています…",
     "cardActions": "タスクの操作",

@@ -4,7 +4,7 @@
  * - ./kanban-styles (POS: 优先级样式、超时预设、可编辑审批的状态、时间格式化)
  * - ./KanbanMarkdown、./KanbanSkillPicker、./ReviewCommentThread (POS: 富文本、技能选择、验收意见)
  * - @/lib/kanban/kanbanChatBoard::buildKanbanBoardDeepLink (POS: 回到来源会话的看板链接)
- * - @/lib/kanban/kanbanBlockedReason::blockedReasonText (POS: 阻塞原因的界面语言文案)
+ * - ./KanbanTaskBlockedNotice (POS: 阻塞提示条：类型标签、界面语言的原因、定时解除时间)
  * - @/lib/utils/a11y::activateOnKey (POS: 非原生按钮的键盘激活)
  *
  * [OUTPUT]
@@ -31,12 +31,12 @@ import {
 } from './kanban-styles';
 import KanbanMarkdown from './KanbanMarkdown';
 import { KanbanSkillPicker } from './KanbanSkillPicker';
+import { KanbanTaskBlockedNotice } from './KanbanTaskBlockedNotice';
 import type { KanbanModelOption } from './KanbanInlineAddForm';
-import { Clock, ExternalLink, User } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import type { AgentListItem } from '@/services/agent';
 import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
-import { blockedReasonText } from '@/lib/kanban/kanbanBlockedReason';
 import { ReviewCommentThread } from './ReviewCommentThread';
 import type { AcceptanceResultItem } from './ReviewCommentThread';
 import { activateOnKey } from '@/lib/utils/a11y';
@@ -363,25 +363,7 @@ export function TaskDetailsSection({
       {task.status === 'running' && task.progress_note && !hasKanbanCompletionIntent(task.metadata) && (
         <p className="text-xs text-chart-4 bg-chart-4/5 rounded px-2 py-1 mt-1 font-medium">{task.progress_note}</p>
       )}
-      {task.blocked_reason && (
-        <div className="text-xs text-destructive bg-destructive/5 rounded px-2 py-1 mt-1 space-y-0.5">
-          <p className="flex items-center gap-1">
-            {task.block_kind === 'scheduled' && <Clock className="w-3.5 h-3.5 shrink-0" />}
-            {task.block_kind === 'external' && <ExternalLink className="w-3.5 h-3.5 shrink-0" />}
-            {task.block_kind === 'human' && <User className="w-3.5 h-3.5 shrink-0" />}
-            <span className="font-medium">
-              {task.block_kind ? t(`blockKind.${task.block_kind}`) : t('status.blocked')}
-            </span>
-            <span className="text-muted-foreground">—</span>
-            {blockedReasonText(task.blocked_reason, t)}
-          </p>
-          {task.block_kind === 'scheduled' && task.scheduled_until && (
-            <p className="text-[10px] text-chart-4 font-mono">
-              {t('autoUnblockAt')}: {new Date(task.scheduled_until).toLocaleString()}
-            </p>
-          )}
-        </div>
-      )}
+      <KanbanTaskBlockedNotice task={task} t={t} />
 
       {/* Completion criteria */}
       <div className="mt-1.5">

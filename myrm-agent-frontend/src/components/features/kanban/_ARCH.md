@@ -37,6 +37,7 @@
 | useKanbanTaskDrawerWorkflow.ts       | 辅助 | Promote / Move / Reclaim / 驳回工作流子 hook（重试与归档交给看板的确认流程，抽屉随即关闭；驳回与回收理由被服务端风控拦下时只有统一风控提示，对应对话框与理由保留，不另弹失败提示）                                                                                                                                                                                                    | ✅    |
 | KanbanTaskDrawerHeader.tsx           | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                                                                                                                                                                                       | ✅    |
 | KanbanTaskDrawerDetails.tsx          | 辅助 | 抽屉详情（超时/技能/模型覆盖/审批开关/来源 Chat 与 Board 深链/ReviewCommentThread 接入）                                                                                                                                                  | ✅    |
+| KanbanTaskBlockedNotice.tsx          | 辅助 | 抽屉里的阻塞提示条（阻塞类型标签 `kanban.blockKind.*`、界面语言的原因、定时阻塞的自动解除时间） | ✅    |
 | RaceSection.tsx                      | 辅助 | 赛马扇出与裁决（lane 数选择+变体指令+成本预估确认发起；lane 状态/token/结果展开；变更文件列表+Monaco 双栏 diff；IN_REVIEW lane 一键选 winner；事件+条件轮询实时刷新；错误码友好映射；六套 locale；Tailwind v4 主题 tokens，禁原生 emoji） | ✅    |
 | ReviewCommentThread.tsx              | 辅助 | 验收标准通过/失败详情卡片与 Critical/Warning/Info 三级评审意见流展示（支持 severity 过滤、修复建议折叠展开、快捷复制与一键修复动作）                                                                                                      | ✅    |
 | KanbanSkillPicker.tsx                | 辅助 | 任务技能多选选择器（搜索 + 已选 chip + 未知 id 标记；数据源 useSkillStore，创建/详情共用）                                                                                                                                                | ✅    |
@@ -123,7 +124,7 @@
 
 ## Blocked reason
 
-- `KanbanTaskCard` / `KanbanTaskDrawerDetails`：阻塞原因经 `@/lib/kanban/kanbanBlockedReason::blockedReasonText` 显示——服务端写入的是英文句子或标记（频道命令、诊断、活动流原样展示），服务端自己拥有的几种（依赖任务合并失败、模型用量上限、批次暂停，见 `shared/config/kanban_blocked_reasons.json`）译成界面语言（`kanban.blockedReason.<key>`，六语言），其余原因（目标模式暂停原因、预算耗尽、智能体写的原因）集合是开放的，原样显示；抽屉里的阻塞类型标签用 `kanban.blockKind.*`，定时任务到点后的提示用 `kanban.autoUnblocking`；任务完成/阻塞/失败的 toast 与系统通知走同一入口（`hooks/globalEvents/kanbanTaskToast.ts`）
+- `KanbanTaskCard` / `KanbanTaskBlockedNotice`（抽屉）：阻塞原因经 `@/lib/kanban/kanbanBlockedReason::blockedReasonText` 显示——服务端写入的是英文句子或标记（频道命令、诊断、活动流原样展示），服务端自己拥有的几种（依赖任务合并失败、模型用量上限、批次暂停，见 `shared/config/kanban_blocked_reasons.json`）译成界面语言（`kanban.blockedReason.<key>`，六语言），其余原因（目标模式暂停原因、预算耗尽、智能体写的原因）集合是开放的，原样显示；抽屉的阻塞提示条（`KanbanTaskBlockedNotice`）用 `kanban.blockKind.*` 标注阻塞类型，定时任务到点后的提示用 `kanban.autoUnblocking`；任务完成/阻塞/失败的 toast 与系统通知走同一入口（`hooks/globalEvents/kanbanTaskToast.ts`）
 
 ## Completion intent UI
 

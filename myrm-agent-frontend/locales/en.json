@@ -8277,7 +8277,7 @@
     "blockKind": {
       "human": "Needs you",
       "scheduled": "Scheduled",
-      "external": "Waiting on external"
+      "external": "Waiting on an external event"
     },
     "autoUnblocking": "Auto-unblocking…",
     "cardActions": "Task actions",

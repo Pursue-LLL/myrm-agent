@@ -8209,7 +8209,7 @@
     "blockKind": {
       "human": "需要你處理",
       "scheduled": "定時恢復",
-      "external": "等待外部"
+      "external": "等待外部事件"
     },
     "autoUnblocking": "自動解除阻塞中…",
     "cardActions": "任務操作",

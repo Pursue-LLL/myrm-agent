@@ -8207,9 +8207,9 @@
       "batchPause": "Mit dem Batch pausiert. Wird fortgesetzt, sobald der Batch fortgesetzt wird."
     },
     "blockKind": {
-      "human": "Braucht Sie",
+      "human": "Wartet auf Sie",
       "scheduled": "Geplant",
-      "external": "Wartet auf Extern"
+      "external": "Wartet auf ein externes Ereignis"
     },
     "autoUnblocking": "Wird automatisch freigegeben…",
     "cardActions": "Aufgabenaktionen",

@@ -8277,7 +8277,7 @@
     "blockKind": {
       "human": "需要你处理",
       "scheduled": "定时恢复",
-      "external": "等待外部"
+      "external": "等待外部事件"
     },
     "autoUnblocking": "自动解除阻塞中…",
     "cardActions": "任务操作",

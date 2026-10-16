@@ -8209,7 +8209,7 @@
     "blockKind": {
       "human": "확인이 필요합니다",
       "scheduled": "예약됨",
-      "external": "외부 대기"
+      "external": "외부 이벤트 대기"
     },
     "autoUnblocking": "자동으로 해제하는 중…",
     "cardActions": "작업 메뉴",

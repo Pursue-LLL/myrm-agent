@@ -48,8 +48,8 @@ async def _newest_merge_failure(store: KanbanStore, task_id: str) -> int:
     A completed task can never be completed again (shared/config/kanban_move_guard.json), so no later completion
     supersedes a recorded failure.
     """
-    failures = [event.event_id for event in await store.list_events(task_id) if event.kind == TaskEventKind.MERGE_CONFLICT]
-    return max(failures, default=0)
+    events = await store.list_events(task_id)
+    return max((event.event_id for event in events if event.kind == TaskEventKind.MERGE_CONFLICT), default=0)
 
 
 async def hold_for_unlanded_parents(store: KanbanStore, task: KanbanTask) -> TaskExecutionResult | None:

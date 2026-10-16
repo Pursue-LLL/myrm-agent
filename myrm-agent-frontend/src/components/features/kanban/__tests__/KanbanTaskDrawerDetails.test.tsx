@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ComponentProps } from 'react';
+import type { AbstractIntlMessages } from 'next-intl';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import blockedReasons from '@shared/config/kanban_blocked_reasons.json';
+import zh from '../../../../../locales/zh.json';
 import { TaskDetailsSection } from '../KanbanTaskDrawerDetails';
 
 const stableT = (key: string) => key;
@@ -162,6 +164,21 @@ describe('TaskDetailsSection blocked reason', () => {
     renderSection(makeTask({ status: 'blocked', block_kind: 'scheduled', blocked_reason: 'Waiting for the reviewer' }));
     expect(screen.getByText('blockKind.scheduled')).toBeTruthy();
     expect(screen.queryByText('scheduled')).toBeNull();
+  });
+
+  it('shows a scheduled usage-limit wait in Chinese, with neither the English sentence nor the raw kind', async () => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
+    const t = createTranslator({ locale: 'zh', messages: zh as AbstractIntlMessages, namespace: 'kanban' });
+    renderSection(
+      makeTask({ status: 'blocked', block_kind: 'scheduled', blocked_reason: blockedReasons.usageLimit }),
+      vi.fn(),
+      false,
+      { t: t as (key: string) => string },
+    );
+
+    const line = screen.getByText('正在等待模型用量额度重置，重置后自动继续').closest('p');
+    expect(line?.textContent).toContain('定时恢复');
+    expect(line?.textContent).not.toMatch(/scheduled|usage limit/i);
   });
 
   it('falls back to the blocked status label when the block has no kind', () => {
