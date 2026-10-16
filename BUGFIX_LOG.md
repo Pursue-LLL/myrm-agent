@@ -4929,7 +4929,7 @@ except Exception:
 
 1. 红灯先行：harness 5 例 `remove_session_log` 先因 `AttributeError` 失败；server 四个入口的拆除用例先因日志仍在而失败；子 Agent 的两条无痕用例在改前失败。事件日志后端的 4 例守卫没有先红（门禁代码在我动手前已出现在工作区），改用变异证明它有效。
 2. 变异检查：把工厂的无痕分支改成 `if False`，守卫的无痕一行失败；目录忽略无痕标志，`test_subagent_catalog_incognito.py` 的两条无痕用例失败；拆除链去掉 `remove_chat_event_log`，四个入口用例全部失败；各还原后重跑全部通过。
-3. 构造点枚举：新增 AST 守卫，扫描 `app/` 里所有 `DatabaseSubagentCatalog(`、`SubagentManagementExtension(` 调用必须传入一个计算得到的 `incognito_mode`（缺省与字面量如 `incognito_mode=False` 都会被指出），唯一豁免是无人值守的定时任务事后验证（不属于任何会话）；去掉豁免后守卫能指出该处，守卫本身另有 5 个用临时源码跑的用例。
+3. 构造点枚举：新增 AST 守卫，扫描 `app/` 里所有 `DatabaseSubagentCatalog(`、`SubagentManagementExtension(` 调用必须传入一个计算得到的 `incognito_mode`（缺省与字面量如 `incognito_mode=False` 都会被指出），唯一豁免是无人值守的定时任务事后验证（不属于任何会话）；去掉豁免后守卫能指出该处，`module.DatabaseSubagentCatalog(...)` 这种带前缀的调用也会被扫到（`import ... as 别名` 跟不上）；守卫本身另有 6 个用临时源码跑的用例。
 4. 测试：harness `tests/agent/event_log` 235 通过；server `tests/services/chat`、`tests/ai_agents`、`tests/core/agents`、`tests/services/agent/stream_session`、`tests/architecture` 等 3268 通过、14 失败，14 例均与本条无关（`test_agent_middlewares_exports` 与 `test_explore_subagent_preset` 来自他人未提交的中间件与预设改动，`tests/architecture` 的路由、域词表、深层 harness 导入清单、前端路径、文本入口门禁各例来自他人在途改动，另有一例指向本日志第 4726 行他人条目里的私有路径），失败信息里没有本条涉及的模块。
 
 ### 局限

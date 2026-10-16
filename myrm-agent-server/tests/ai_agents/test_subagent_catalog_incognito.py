@@ -104,6 +104,13 @@ def _passes_the_chats_flag(call: ast.Call) -> bool:
     return any(keyword.arg == "incognito_mode" and not isinstance(keyword.value, ast.Constant) for keyword in call.keywords)
 
 
+def _called_name(call: ast.Call) -> str | None:
+    """The class name of `Name(...)` and `module.Name(...)`; an import alias cannot be followed."""
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    return call.func.attr if isinstance(call.func, ast.Attribute) else None
+
+
 def _consumer_calls_missing_the_flag(app_dir: Path) -> list[str]:
     missing: list[str] = []
     for source in app_dir.rglob("*.py"):
@@ -111,8 +118,7 @@ def _consumer_calls_missing_the_flag(app_dir: Path) -> list[str]:
         if relative in _CATALOG_SITES_WITHOUT_A_CHAT:
             continue
         for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
-            is_consumer = isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _CATALOG_CONSUMERS
-            if is_consumer and not _passes_the_chats_flag(node):
+            if isinstance(node, ast.Call) and _called_name(node) in _CATALOG_CONSUMERS and not _passes_the_chats_flag(node):
                 missing.append(f"{relative}:{node.lineno}")
     return missing
 
@@ -127,6 +133,7 @@ def test_every_chat_bound_catalog_site_passes_the_incognito_flag() -> None:
     [
         "DatabaseSubagentCatalog()",
         "DatabaseSubagentCatalog(incognito_mode=False)",
+        "catalog_module.DatabaseSubagentCatalog()",
         "SubagentManagementExtension(incognito_mode=True)",
         "SubagentManagementExtension(**options)",
     ],
