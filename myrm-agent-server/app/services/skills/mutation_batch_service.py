@@ -6,6 +6,7 @@
 - app.services.skills.write_orchestrator (POS: 回滚写入走统一写编排)
 [OUTPUT]
 - rollback_skill_mutation_batch (按 batch_id 恢复 skill_mutation / market_replace 批次，成功后消费快照)
+- batch_rollback_lock (同一批次的撤销请求串行：后到者读到已消费的快照，答 already_consumed，而不是回写过期现场)
 - MutationBatchRollbackError / MutationBatchCompensationError / MutationBatchAlreadyConsumedError (fail-closed 错误族)
 [POS]
 批次回滚服务：先捕获现场、逐 skill 应用快照，失败则反向补偿恢复，成功后清理快照与替换指针。
@@ -15,7 +16,11 @@ SQLITE_BUSY_SNAPSHOT 失败（busy_timeout 不覆盖），消费快照的 DELETE
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import weakref
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
@@ -40,6 +45,21 @@ class MutationBatchAlreadyConsumedError(MutationBatchRollbackError):
 
 
 _ROLLBACK_BATCH_KINDS = frozenset({"skill_mutation", "market_replace"})
+
+# One lock per batch, alive only while a request holds or awaits it.
+_BATCH_LOCKS: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+
+
+@asynccontextmanager
+async def batch_rollback_lock(batch_id: str) -> AsyncIterator[None]:
+    """Serialize undo requests of one batch from the read of its snapshot rows through the caller's commit.
+
+    A second request that starts before the first one commits captures the skill as it was before the undo, fails on
+    the work the first already did, and "compensates" by writing that stale capture back as a version of a skill the
+    first request removed. Serialized, it finds the rows consumed and answers "already undone".
+    """
+    async with _BATCH_LOCKS.setdefault(batch_id, asyncio.Lock()):
+        yield
 
 
 @dataclass
@@ -247,6 +267,7 @@ async def rollback_skill_mutation_batch(session: AsyncSession, batch_id: str) ->
 
     ``session`` carries only the read of the snapshot rows and the DELETE that consumes them; the caller commits
     after this returns. The session's transaction is ended after the read, so pass a session without pending work.
+    Hold ``batch_rollback_lock(batch_id)`` around this call and the commit.
     """
     rows = await _load_snapshot_rows(session, batch_id)
     if not rows:

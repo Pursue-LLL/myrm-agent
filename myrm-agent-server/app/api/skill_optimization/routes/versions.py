@@ -165,12 +165,14 @@ async def rollback_skill_mutation_batch_route(
         MutationBatchAlreadyConsumedError,
         MutationBatchCompensationError,
         MutationBatchRollbackError,
+        batch_rollback_lock,
         rollback_skill_mutation_batch,
     )
 
     try:
-        restored = await rollback_skill_mutation_batch(db, batch_id)
-        await db.commit()
+        async with batch_rollback_lock(batch_id):
+            restored = await rollback_skill_mutation_batch(db, batch_id)
+            await db.commit()
     except MutationBatchAlreadyConsumedError as exc:
         await db.rollback()
         raise HTTPException(

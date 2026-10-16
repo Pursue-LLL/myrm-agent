@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -15,6 +15,7 @@ from app.api.skill_optimization.routes import versions as versions_routes
 from app.database.connection import get_db
 from app.database.models import Base
 from app.services.skill_optimization.rollback_service import RollbackService
+from app.services.skills.mutation_batch_service import MutationBatchCompensationError, MutationBatchRollbackError
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def rollback_http_client() -> Iterator[tuple[TestClient, async_sessionmaker[Asyn
     asyncio.run(init_db())
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-    async def override_get_db():
+    async def override_get_db() -> AsyncIterator[AsyncSession]:
         async with session_factory() as session:
             yield session
 
@@ -103,3 +104,29 @@ def test_mutation_batch_rollback_route_already_consumed(
     assert response.status_code == 409
     detail = response.json()["detail"]
     assert detail["code"] == "batch_already_consumed"
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_code"),
+    [
+        (MutationBatchCompensationError("restoring the live state failed"), "compensation_failed"),
+        (MutationBatchRollbackError("snapshot is not rollback-eligible"), "rollback_failed"),
+    ],
+)
+def test_mutation_batch_rollback_route_maps_failures_to_the_codes_the_frontend_reads(
+    rollback_http_client: tuple[TestClient, async_sessionmaker[AsyncSession]],
+    failure: MutationBatchRollbackError,
+    expected_code: str,
+) -> None:
+    """The undo action picks its toast from ``detail.code``; a renamed code would silently fall back to the generic one."""
+    client, _session_factory = rollback_http_client
+    with patch(
+        "app.services.skills.mutation_batch_service.rollback_skill_mutation_batch",
+        AsyncMock(side_effect=failure),
+    ):
+        response = client.post("/api/v1/skill-optimization/mutations/batch-failing/rollback")
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["code"] == expected_code
+    assert detail["message"] == str(failure)
