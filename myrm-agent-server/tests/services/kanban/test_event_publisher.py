@@ -8,6 +8,7 @@ task-level update whose detail is the reason for the task's current state.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
@@ -105,6 +106,20 @@ def test_emit_task_rejected_publishes_rejected() -> None:
 
 
 STALE_RESULT = "Draft summary written by the first attempt"
+STALE_ERROR = "ServiceUnavailableError: litellm.ServiceUnavailableError: Service unavailable"
+
+# What a failed run leaves in ``task.error``: exception messages that name internals a user cannot act on.
+FAILURE_TEXTS = (
+    STALE_ERROR,
+    "MyrmLLMError: provider rejected the request (HTTP 400) for model gpt-4o-mini",
+    "Worker finished without calling kanban_complete or kanban_block",
+    "OperationalError: database is locked [SQL: UPDATE kanban_tasks SET status=? WHERE task_id=?] "
+    "[parameters: ('failed', 't-1')]",
+    "ConnectError: https://llm-gateway.internal.example.com/v1/chat/completions: connection refused",
+    "Model gpt-5 is not allowed by your organization's model policy",
+    "agent returned empty response",
+    "Worker crashed: disk full",
+)
 
 
 def _published_task_event(action: str, task: KanbanTask) -> dict[str, str]:
@@ -112,6 +127,18 @@ def _published_task_event(action: str, task: KanbanTask) -> dict[str, str]:
         publish_task_event(action, task)
     get_bus.return_value.publish.assert_called_once()
     return get_bus.return_value.publish.call_args.args[0].data
+
+
+def _background_done_results(task: KanbanTask, action: str) -> list[str]:
+    """``result`` of the chat notice for a source-chat task and for a /btw task: IM, push and voice read it."""
+    btw_task = replace(task, metadata={"background_source": "btw", "channel": "telegram", "chat_id": "ch-9"})
+    results: list[str] = []
+    for emit, target in ((event_publisher.emit_source_chat_done, task), (event_publisher.emit_btw_done, btw_task)):
+        with patch.object(event_publisher, "_publish_background_done") as publish:
+            emit(action, target)
+        publish.assert_called_once()
+        results.append(publish.call_args.args[0]["result"])
+    return results
 
 
 def test_blocked_task_reports_its_reason_not_the_result_of_an_earlier_attempt() -> None:
@@ -126,19 +153,42 @@ def test_blocked_task_reports_its_reason_not_the_result_of_an_earlier_attempt() 
     assert data["block_kind"] == "human"
 
 
-def test_failed_task_reports_its_error_not_the_result_of_an_earlier_attempt() -> None:
-    task = _make_task(status=TaskStatus.FAILED, error="Worker crashed: disk full", result=STALE_RESULT)
-    assert _published_task_event("task_failed", task)["detail"] == "Worker crashed: disk full"
+def test_blocked_task_without_a_reason_does_not_report_an_old_error() -> None:
+    task = _make_task(status=TaskStatus.BLOCKED, block_kind=BlockKind.HUMAN, blocked_reason=None, error=STALE_ERROR)
+    assert "detail" not in _published_task_event("task_blocked", task)
+    assert _background_done_results(task, "task_blocked") == ["", ""]
 
 
-def test_failed_task_without_an_error_falls_back_to_its_result() -> None:
-    task = _make_task(status=TaskStatus.FAILED, result="partial output")
-    assert _published_task_event("task_failed", task)["detail"] == "partial output"
+@pytest.mark.parametrize("error", FAILURE_TEXTS)
+def test_failed_task_forwards_none_of_its_exception_text(error: str) -> None:
+    task = _make_task(status=TaskStatus.FAILED, error=error, result=STALE_RESULT)
+    assert "detail" not in _published_task_event("task_failed", task)
+    assert _background_done_results(task, "task_failed") == ["", ""]
+
+
+def test_failed_task_does_not_report_the_result_of_an_earlier_attempt_as_its_reason() -> None:
+    task = _make_task(status=TaskStatus.FAILED, error="", result=STALE_RESULT)
+    assert "detail" not in _published_task_event("task_failed", task)
+    assert _background_done_results(task, "task_failed") == ["", ""]
 
 
 def test_completed_task_reports_its_result() -> None:
-    task = _make_task(status=TaskStatus.COMPLETED, result="Report ready", error="earlier attempt failed")
+    task = _make_task(status=TaskStatus.COMPLETED, result="Report ready", error=STALE_ERROR)
     assert _published_task_event("task_completed", task)["detail"] == "Report ready"
+    assert _background_done_results(task, "task_completed") == ["Report ready", "Report ready"]
+
+
+def test_completed_task_without_a_result_does_not_report_an_old_error() -> None:
+    task = _make_task(status=TaskStatus.COMPLETED, result="", error=STALE_ERROR)
+    assert "detail" not in _published_task_event("task_completed", task)
+    assert _background_done_results(task, "task_completed") == ["", ""]
+
+
+def test_rejected_task_without_a_reason_does_not_report_the_draft_it_rejected() -> None:
+    task = _make_task(error="", result=STALE_RESULT)
+    with patch.object(event_publisher, "_publish_background_done") as publish:
+        emit_task_rejected(task)
+    assert publish.call_args.args[0]["result"] == ""
 
 
 def test_scheduled_block_is_published_with_its_kind_and_without_a_reason_to_show() -> None:
@@ -158,6 +208,7 @@ def test_scheduled_block_is_published_with_its_kind_and_without_a_reason_to_show
         (TaskStatus.BLOCKED, BlockKind.HUMAN, "Need a decision", "human"),
         (TaskStatus.BLOCKED, BlockKind.SCHEDULED, None, "scheduled"),
         (TaskStatus.COMPLETED, None, "Report ready", None),
+        (TaskStatus.FAILED, None, None, None),
         (TaskStatus.READY, None, None, None),
     ],
 )

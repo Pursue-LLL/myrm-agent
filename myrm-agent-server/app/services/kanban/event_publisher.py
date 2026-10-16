@@ -195,7 +195,7 @@ def emit_task_rejected(task: KanbanTask) -> None:
     or /btw user learns the rework reason instead of silently waiting for the
     next attempt. The rejection reason is carried in ``task.error``.
     """
-    _publish_task_notice(task, status="rejected", result=task.error or task.result or "")
+    _publish_task_notice(task, status="rejected", result=task.error or "")
 
 
 def _terminal_status(event_type: str, task: KanbanTask) -> str | None:
@@ -221,16 +221,18 @@ def _outcome(action: str, task: KanbanTask) -> str | None:
 
 
 def _terminal_result(task: KanbanTask, status: str) -> str:
-    """The reason to show for a terminal outcome.
+    """The text to show for a terminal outcome: only the field that belongs to that outcome.
 
-    A task keeps the result of an earlier completed attempt after it is rejected and run again, so a blocked or
-    failed task reports its own reason first; only a completed task reports its result first.
+    A task keeps the result of an earlier attempt after it is rejected and run again, and keeps an old error after
+    it is retried or moved by hand, so reading across fields would report a stale outcome as the current one.
+    A failed task has no text of its own to show: its ``error`` is the exception message of the run, which names
+    internals (provider classes, tool names, SQL) a user cannot act on; the board's run history keeps it in full.
     """
+    if status == "completed":
+        return task.result or ""
     if status == "blocked":
-        return task.blocked_reason or task.error or ""
-    if status == "failed":
-        return task.error or task.result or ""
-    return task.result or task.error or ""
+        return task.blocked_reason or ""
+    return ""
 
 
 def emit_source_chat_done(event_type: str, task: KanbanTask) -> None:

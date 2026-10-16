@@ -233,14 +233,9 @@ def _format_background_task_done(data: dict[str, Any]) -> FormattedNotification 
     task_id = str(data.get("task_id", ""))
     status = str(data.get("status", "completed"))
     title = str(data.get("title", data.get("task_title", "Task")))
-    summary = str(data.get("summary", data.get("detail", "")))
 
     icon = "✅" if status in ("completed", "complete") else ("🛑" if status == "failed" else "⚠️")
     header = f"{icon} **Task {status.capitalize()}: {title}**"
-
-    lines = [header]
-    if summary:
-        lines.append(f"\n{summary}")
 
     components: tuple[ComponentRow, ...] = ()
     board_id = data.get("board_id")
@@ -253,7 +248,7 @@ def _format_background_task_done(data: dict[str, Any]) -> FormattedNotification 
         components = ((view_btn,),)
 
     return FormattedNotification(
-        content="\n".join(lines),
+        content=header,
         components=components,
         metadata={
             "task_id": task_id,

@@ -9,9 +9,10 @@
 
 [OUTPUT]
 Pins three tasks that carry the result of an earlier attempt: one the runner blocks for the user, one that fails for
-good, and one that hits a provider rate limit and is retried on its own. The first two report their own reason, not the
-old result; the retry produces no message at all, because it resumes by itself. The same holds for a card moved into a
-blocked column, by a user or by an agent that waits until a given time.
+good, and one that hits a provider rate limit and is retried on its own. The first reports its own reason, not the old
+result; the second says it failed without forwarding the run's exception text or the old result; the retry produces
+no message at all, because it resumes by itself. The same holds for a card moved into a blocked column, by a user or
+by an agent that waits until a given time.
 
 [POS]
 tests/services/kanban/test_task_event_notifications.py
@@ -129,15 +130,15 @@ def test_a_task_blocked_for_the_user_reports_the_question_not_the_old_result(out
     assert STALE_RESULT not in text
 
 
-def test_a_task_that_failed_for_good_reports_the_error_not_the_old_result(outcomes: dict[str, dict[str, str]]) -> None:
+def test_a_task_that_failed_for_good_reports_neither_the_exception_nor_the_old_result(
+    outcomes: dict[str, dict[str, str]],
+) -> None:
     data = outcomes[FAILED_FOR_GOOD]
     assert data["action"] == "task_failed"
-    assert CRASH_ERROR in data["detail"]
-    assert STALE_RESULT not in data["detail"]
+    assert "detail" not in data
 
     text = _channel_text(data)
-    assert text is not None
-    assert CRASH_ERROR in text
+    assert text == '[Myrm AI] Kanban task "Task failed01" failed'
 
 
 def test_a_task_retried_on_its_own_after_a_rate_limit_sends_no_message(outcomes: dict[str, dict[str, str]]) -> None:

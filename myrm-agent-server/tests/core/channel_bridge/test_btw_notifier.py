@@ -58,7 +58,7 @@ class TestEmitBtwDone:
         assert event.data["locale"] == "zh-CN"
         assert event.data["title"] == "analyse report"
 
-    def test_publishes_on_task_failed(self) -> None:
+    def test_publishes_on_task_failed_without_the_exception_text(self) -> None:
         from app.services.kanban.service import _emit_btw_done
 
         bus = _make_event_bus()
@@ -70,7 +70,7 @@ class TestEmitBtwDone:
 
         event = queue.get_nowait()
         assert event.data["status"] == "failed"
-        assert event.data["result"] == "timeout"
+        assert event.data["result"] == ""
 
     def test_ignores_non_terminal_events(self) -> None:
         from app.services.kanban.service import _emit_btw_done
@@ -151,7 +151,7 @@ class TestEmitBtwDone:
 
         assert queue.empty()
 
-    def test_result_falls_back_to_error(self) -> None:
+    def test_completed_result_does_not_fall_back_to_an_old_error(self) -> None:
         from app.services.kanban.service import _emit_btw_done
 
         bus = _make_event_bus()
@@ -162,7 +162,7 @@ class TestEmitBtwDone:
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
-        assert event.data["result"] == "crash"
+        assert event.data["result"] == ""
 
     def test_result_empty_when_both_none(self) -> None:
         from app.services.kanban.service import _emit_btw_done
