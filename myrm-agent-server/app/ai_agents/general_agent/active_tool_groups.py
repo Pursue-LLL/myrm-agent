@@ -30,7 +30,6 @@ class ActiveToolGroupSource(Protocol):
     enable_computer_use: bool
     enable_memory: bool
     incognito_mode: bool
-    enable_conversation_search: bool
     enable_kanban: bool
     enable_wiki: bool
     enable_answer_tool: bool
@@ -49,7 +48,6 @@ ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
     "shell",
     "computer_use",
     "memory",
-    "conversation_history",
     "kanban",
     "wiki",
     "planning",
@@ -76,10 +74,6 @@ def derive_active_tool_groups(
         ("shell", agent.enable_shell_tools),
         ("computer_use", agent.enable_computer_use),
         ("memory", agent.enable_memory and not agent.incognito_mode),
-        (
-            "conversation_history",
-            agent.enable_memory and not agent.incognito_mode and agent.enable_conversation_search,
-        ),
         ("kanban", agent.enable_kanban),
         ("wiki", agent.enable_wiki),
         ("planning", enable_planning),
@@ -104,7 +98,6 @@ def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
         enable_computer_use=bool(getattr(params, "enable_computer_use", False)),
         enable_memory=bool(getattr(params, "enable_memory", True)),
         incognito_mode=bool(getattr(params, "incognito_mode", False)),
-        enable_conversation_search=bool(getattr(params, "enable_conversation_search", False)),
         enable_kanban=bool(getattr(params, "enable_kanban", False)),
         enable_wiki=bool(getattr(params, "enable_wiki", False)),
         enable_answer_tool=bool(getattr(params, "enable_answer_tool", False)),

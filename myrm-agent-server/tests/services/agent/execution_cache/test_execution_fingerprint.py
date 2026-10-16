@@ -455,8 +455,9 @@ def _base_wrapper() -> GeneralAgent:
 
 
 def test_execution_fingerprint_changes_when_conversation_search_toggles() -> None:
-    """conversation_history tool group is derived at build time (active_tool_groups:83-88),
-    so toggling history search must bust the POOLED cache."""
+    """The sessions corpus ACL is solidified into memory_search_tool at build time
+    (tool_setup MemorySearchPolicy.allow_sessions), so toggling history search must
+    bust the POOLED cache."""
     wrapper = _base_wrapper()
     off_fp = compute_execution_fingerprint(wrapper)
     wrapper.enable_conversation_search = True

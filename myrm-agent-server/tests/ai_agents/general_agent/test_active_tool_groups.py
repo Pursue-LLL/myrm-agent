@@ -21,7 +21,6 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_computer_use=False,
         enable_memory=True,
         incognito_mode=False,
-        enable_conversation_search=False,
         enable_kanban=False,
         enable_wiki=False,
         enable_answer_tool=False,
@@ -46,7 +45,6 @@ def test_active_tool_group_keys_match_derive_tuple_length() -> None:
         enable_structured_clarify=True,
         enable_external_cli=True,
         enable_cron_eager=True,
-        enable_conversation_search=True,
         image_generation_params=object(),
         video_generation_params=object(),
         tts_params=object(),
@@ -99,29 +97,14 @@ def test_derive_media_groups_from_params_presence() -> None:
     assert "tts" in groups
 
 
-def test_incognito_excludes_memory_and_conversation_history() -> None:
-    groups = derive_active_tool_groups(
-        _agent(incognito_mode=True, enable_conversation_search=True),
-        enable_planning=False,
-    )
+def test_incognito_excludes_memory() -> None:
+    groups = derive_active_tool_groups(_agent(incognito_mode=True), enable_planning=False)
     assert "memory" not in groups
-    assert "conversation_history" not in groups
 
 
-def test_conversation_history_requires_explicit_flag() -> None:
-    groups = derive_active_tool_groups(_agent(enable_conversation_search=False), enable_planning=False)
-    assert "conversation_history" not in groups
-    groups_on = derive_active_tool_groups(_agent(enable_conversation_search=True), enable_planning=False)
-    assert "conversation_history" in groups_on
-
-
-def test_memory_off_excludes_conversation_history_even_when_flag_on() -> None:
-    groups = derive_active_tool_groups(
-        _agent(enable_memory=False, enable_conversation_search=True),
-        enable_planning=False,
-    )
+def test_memory_off_excludes_memory_group() -> None:
+    groups = derive_active_tool_groups(_agent(enable_memory=False), enable_planning=False)
     assert "memory" not in groups
-    assert "conversation_history" not in groups
 
 
 def test_builtin_tool_id_to_group_values_subset_of_active_keys() -> None:
