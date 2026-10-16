@@ -55,7 +55,8 @@ export async function resumeApprovalStream(
     message_id: request.messageId,
     chat_id: request.chatId,
     action_mode: request.actionMode,
-    resume_value: resumeValue,
+    // The interrupt the card was announced for: the answer settles that interrupt only, never a later one.
+    resume_value: request.interruptId ? { ...resumeValue, interruptId: request.interruptId } : resumeValue,
     model_selection: modelSelection,
     timezone: getBrowserTimezone(),
     ...(liteModelSelection && { lite_model_selection: liteModelSelection }),

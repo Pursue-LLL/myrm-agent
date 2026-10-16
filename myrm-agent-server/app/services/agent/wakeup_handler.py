@@ -19,6 +19,7 @@ import logging
 import uuid
 from typing import cast
 
+from myrm_agent_harness.agent.sub_agents.result_output import answer_text
 from myrm_agent_harness.agent.sub_agents.types import SubAgentResult
 
 from app.core.security.privacy_settings import privacy_agent_params
@@ -52,14 +53,15 @@ class ServerWakeupHandler:
         """Process the wakeup event in a detached background task."""
         try:
             # 1. Format the result
+            answer = answer_text(result.result)
             status_str = "completed successfully" if result.success else "failed"
             content = f"Async subagent '{result.agent_type}' (task_id: {result.task_id}) {status_str}."
             if result.duration_seconds:
                 content += f" Duration: {result.duration_seconds:.1f}s."
             if result.error:
                 content += f"\nError: {result.error}"
-            elif result.result:
-                content += f"\nResult:\n{result.result}"
+            elif answer:
+                content += f"\nResult:\n{answer}"
 
             content += "\n\nPlease continue your workflow or provide the final answer to the user based on this result."
 

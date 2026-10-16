@@ -210,6 +210,8 @@ export interface SourcesStreamEvent extends BaseAgentEvent {
 
 export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOL_APPROVAL_REQUEST;
+  /** LangGraph interrupt the card answers; the same interrupt is announced again while it stays pending. */
+  interruptId?: string;
   data: {
     // Standard LangChain HITL structure
     actionRequests: Array<{
@@ -249,6 +251,7 @@ export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
 
 export interface ApprovalRequiredStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.APPROVAL_REQUIRED;
+  interruptId?: string;
   data: {
     type: string;
     message?: string;

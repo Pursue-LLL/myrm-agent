@@ -32,6 +32,20 @@ describe('buildToolApprovalRequest', () => {
     expect(request.toolName).toBe('bash_code_execute_tool');
   });
 
+  it('keeps the interrupt the card was announced for', () => {
+    const request = buildToolApprovalRequest({
+      action: { action: 'bash_code_execute_tool', args: { command: 'ls' }, description: 'needs approval' },
+      requestId: 'req-1',
+      messageId: 'msg-1',
+      chatId: 'chat-1',
+      actionMode: 'agent',
+      extensions: { timeout: { seconds: 60, expiresAt: 1_700_000_000 }, displayMode: 'approval' },
+      interruptId: 'int-1',
+    });
+
+    expect(request.interruptId).toBe('int-1');
+  });
+
   it('maps workspace root from extensions', () => {
     const request = buildToolApprovalRequest({
       action: {

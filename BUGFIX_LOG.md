@@ -5653,3 +5653,60 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 注释里的路径通配符 `*/` 会结束块注释；语法错误不会在任何测试里出现，除非有一个用例真正加载该文件。给每个浏览器扩展 ESM 加一次加载级检查，比读代码可靠。
 2. 「安全例外清单」用黑名单会在新增字段时默认放行；放行条件写成白名单，新增字段才会默认回到网页端。
 3. 无人发布的事件、无人调用的清理函数，都在读代码时被当成「已有保护」；先查发布方与调用方，再决定留还是删。
+
+## BUG-AGENT-2026-10-16-019: 同一条消息里两个委派同时要审批时，网页只收到第一张卡，答复被拒；同一个中断再次被宣告会叠出重复的卡，「全部批准」把不同中断的卡合进同一次 resume；已被别处处理过的旧卡点击后答复落到下一个审批上；后台子代理完成的唤醒消息会把隔离合并元数据当结果文本
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（#436 复审：对「卡片答复靠什么指向它要答的那个中断」逐条追问；`BUG-HARNESS-2026-10-16-007` 的前端与服务端一半） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（需要模型在同一条消息里并行发起两个都要审批的委派才会碰到；碰到时用户答不成，或答复落在没看到的审批上） |
+| 影响范围 | frontend：`src/store/chat/types/{toolApproval,agentStream/part1}.ts`、`src/lib/approval/{buildToolApprovalRequest,approvalBulkGroups,resumeApprovalStream}.ts`、`src/store/useToolApprovalStore.ts`、`src/store/chat/messageStream/handlers/toolsProgressEvents.ts`；server：`app/services/agent/wakeup_handler.py` |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-16-007`（harness 侧：每个中断一个带 `interruptId` 的事件、按 id 寻址的 resume 咽喉）；本地提交，未 push |
+
+### 现象
+
+1. 一条消息里两个委派各自停在审批上时，harness 只发出第一个中断的事件，网页只有一张卡；答复它时两个中断仍同时待决，被 LangGraph 拒绝。
+2. 部分作答后图会在仍待决的中断上重新暂停并把它再发一遍；前端队列没有去重，同一个中断会叠出两张卡。
+3. 「全部批准 / 全部拒绝」按 `chatId:messageId` 把单卡合并成同一次 resume，不同中断的卡被塞进同一个 `decisions` 列表，只能答一个中断的 resume 因此答错或被拒。
+4. 卡片不带中断身份，resume 请求也无从指明答的是哪一个，已被超时计时器或另一台设备处理过的旧卡被点击后，答复落到「此刻待决的」下一个审批上。
+5. 后台子代理（`wait=False`）完成后的唤醒消息直接拼接 `result.result`；`SubAgentResult.result` 实际可能是隔离合并的元数据字典，字典会被原样写进发给模型的文字里。
+
+### 根因
+
+1. `ToolApprovalRequest` 没有承载中断 id 的字段，流事件类型也没有（`part1.ts`）；
+2. `useToolApprovalStore.addRequest` 无条件入队；
+3. `approvalBulkGroups` 的单卡分组键只有 `chatId:messageId`；
+4. `resumeApprovalStream` 的 `resume_value` 不带 id；
+5. 唤醒处理把联合类型当字符串用（读码结论）。
+
+### 修复
+
+1. 流事件与卡片都带 `interruptId`：`ApprovalRequiredStreamEvent` / `ToolApprovalRequestStreamEvent` / `ToolApprovalRequest` 新增可选字段，`buildToolApprovalRequest` 与 `toolsProgressEvents` 透传。
+2. `useToolApprovalStore.addRequest` 只在新卡与队列里某张卡有同一个已定义的 `interruptId`（且批内序号相同）时丢弃，没有 id 的卡（抽屉合成的、旧事件）照旧入队。
+3. `approvalBulkGroups` 的单卡分组键优先用 `interruptId`，一次 resume 只答一个中断；`batchId` 分组不变。
+4. `resumeApprovalStream` 在卡片带 `interruptId` 时把它放进 `resume_value`；harness 咽喉据此改写为按 id 的 resume，该中断已不待决则什么也不改变。没有 id 的卡走原路径。
+5. `wakeup_handler.py` 经 harness 的 `answer_text` 读取结果文本，字典结果取其 `text`。
+
+### 验证
+
+1. frontend vitest：`src/store/__tests__/useToolApprovalStore.test.ts` 4 例（不同中断的卡并排入队；同一中断在别的卡被答复后再次宣告只留一张；同一批内按序号区分的卡各自保留；无 id 的卡照旧入队）、`toolsProgressEvents.interruptId.test.ts` 3 例（用真实的流事件处理器与真实 store：并行两个中断各一张卡且各自带 id、`approval_required` 事件同样保留 id、同一中断再次宣告不叠第二张卡）、`resumeApprovalStream` / `buildToolApprovalRequest` / `approvalBulkGroups` 各新增 1 例；`src/lib/approval/__tests__` 全部加这两个新文件共 18 个测试文件 124 例通过；对这几处手工注入 6 个变异，每一个都至少被一个用例杀掉。
+2. 没有新增任何界面文案、样式或图标：不涉及语言包、主题变量与响应式（卡片的外观与交互原样）。
+
+### 局限
+
+1. 没有在浏览器里用真实模型同时看到两张卡并分别答复；并行委派在真实模型里出现的频率没有量过。
+2. 旧卡（其中断已被别处处理）被点击后，答复被忽略、运行回到真正待决的中断上暂停；界面上这张旧卡随后的去向，以及是否闪一下空的助手消息，没有验证。
+3. IM 里的 `/approve` 与超时计时器的「允许」在多个待决中断下仍被拒（失败关闭），IM 没有逐张卡的寻址。
+4. 服务端在进入 harness 之前就应用了目录授权，带授权的旧卡答复，授权会生效而答复本身被忽略（既有顺序，未改）。
+5. 唤醒消息读字典结果这一处没有单写服务端用例：当前工作区里该处理器的后半段在被他人改写（改走自适应唤醒服务），用例会绑在那段未提交的改动上；`tests/api/agent/test_wakeup_handler_e2e.py` 是现有的覆盖，没有字典结果的用例。
+6. `src/lib/approval/_ARCH.md` 里三行说明（分组、请求构建、resume）已按代码更新，但与他人对同一张表的改动混在一起，没有随本条提交，留在工作区。
+
+### 踩坑经验
+
+1. 用「按 id 去重」之前先确认 id 的稳定性：LangGraph 的中断 id 只取决于挂起它的任务，重放时不变，所以同一个中断每次被再次宣告都是同一个 id；若用随机的卡片 id 去重则一张也去不掉。
+2. 去重条件必须要求 id 已定义：旧事件与抽屉合成的卡没有 id，两个 `undefined` 相等会把互不相干的卡互相吞掉。
+3. 前端状态库的测试要用真实 store 与真实事件处理器串起来，只测纯函数的话，「处理器忘了透传 id」这类缺口测不出来。
+
+---

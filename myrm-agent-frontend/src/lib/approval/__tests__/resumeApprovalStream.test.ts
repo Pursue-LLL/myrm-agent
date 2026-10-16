@@ -79,11 +79,38 @@ function sseRiskBlockedResponse(): Response {
   });
 }
 
+function emptyStreamResponse(): Response {
+  return new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+function sentResumeValue(): unknown {
+  const [body] = mockCreateAISearchStream.mock.calls[0] as [{ resume_value: unknown }];
+  return body.resume_value;
+}
+
 describe('resumeApprovalStream', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetModelSelection.mockReturnValue({ providerId: 'openai', model: 'test-model' });
     mockHandleMessageStream.mockResolvedValue({ added: false, recievedMessage: '' });
+  });
+
+  it('echoes the interrupt the card was announced for, so the answer settles that interrupt only', async () => {
+    mockCreateAISearchStream.mockResolvedValue(emptyStreamResponse());
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+    await resumeApprovalStream({ ...buildRequest(), interruptId: 'int-1' }, { decision: 'approve' }, 'resume failed');
+
+    expect(sentResumeValue()).toEqual({ decision: 'approve', interruptId: 'int-1' });
+  });
+
+  it('sends the answer untouched when the card carries no interrupt id', async () => {
+    mockCreateAISearchStream.mockResolvedValue(emptyStreamResponse());
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+    await resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed');
+
+    expect(sentResumeValue()).toEqual({ decision: 'approve' });
   });
 
   it('throws AgentBusyError on HTTP 200 SSE AgentBusyError envelope', async () => {

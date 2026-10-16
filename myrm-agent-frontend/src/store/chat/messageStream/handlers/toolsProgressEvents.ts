@@ -331,6 +331,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         batchId: batchId || undefined,
         batchIndex: isBatch ? i : undefined,
         batchSize: isBatch ? actionRequests.length : undefined,
+        interruptId: data.interruptId,
       });
       H.useToolApprovalStore.getState().addRequest(approvalRequest);
     }

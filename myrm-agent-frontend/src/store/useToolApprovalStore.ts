@@ -31,13 +31,28 @@ interface ToolApprovalState {
   isProcessing: (messageId: string) => boolean;
 }
 
+/**
+ * A pending interrupt is announced again each time the run pauses on it after another card of the chat was answered;
+ * the card already queued for it stays the only one.
+ */
+function isAnnouncedAgain(queued: ToolApprovalRequest, incoming: ToolApprovalRequest): boolean {
+  return (
+    queued.interruptId !== undefined &&
+    queued.interruptId === incoming.interruptId &&
+    (queued.batchIndex ?? 0) === (incoming.batchIndex ?? 0)
+  );
+}
+
 const useToolApprovalStore = create<ToolApprovalState>((set, get) => ({
   queue: [],
   processingMessageIds: new Set(),
   isResolving: false,
   batchDecisions: new Map(),
 
-  addRequest: (request) => set((state) => ({ queue: [...state.queue, request] })),
+  addRequest: (request) =>
+    set((state) =>
+      state.queue.some((queued) => isAnnouncedAgain(queued, request)) ? state : { queue: [...state.queue, request] },
+    ),
 
   removeRequest: (requestId) =>
     set((state) => ({

@@ -30,6 +30,8 @@ export interface ToolApprovalRequest {
   batchId?: string;
   batchIndex?: number;
   batchSize?: number;
+  /** LangGraph interrupt this card answers; echoed on resume so the answer can only settle this interrupt */
+  interruptId?: string;
   /** URL-bearing tools: hostnames extracted from tool arguments */
   domains?: string[];
   /** Whether Domain HITL is active for this request */
