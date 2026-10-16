@@ -20,6 +20,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Chat, Message
+from app.services.agent.gateway import get_agent_gateway
 from app.services.chat import chat_retention
 from app.services.chat.chat_bound_rows import CHAT_BOUND_TABLES, ChatBoundTable
 from app.services.chat.chat_service import ChatService
@@ -62,13 +63,14 @@ async def _seed_chat(
     trashed_for: timedelta | None = None,
     incognito: bool = False,
     idle_for: timedelta = timedelta(0),
+    source: str = "web",
 ) -> None:
     now = datetime.now(UTC).replace(tzinfo=None)
     db.add(
         Chat(
             id=chat_id,
             title="disposal",
-            source="web",
+            source=source,
             is_incognito=incognito,
             sandbox_base_dir=f"{SANDBOX_ROOT}/{chat_id}",
             created_at=now - idle_for,
@@ -255,3 +257,40 @@ async def test_soft_delete_stops_runtime_work_but_keeps_everything_restorable(
     spies.workspace.assert_not_awaited()
     assert await is_stored(checkpointer, CHAT_ID)
     assert is_granted()
+
+
+@pytest.mark.asyncio
+async def test_incognito_auto_purge_spares_imported_transcripts(
+    db_session: AsyncSession,
+    checkpointer: BaseCheckpointSaver[str],
+    spies: Spies,
+) -> None:
+    """Imported agent transcripts are hidden through ``is_incognito`` but belong to no incognito session."""
+    await _seed_chat(db_session, incognito=True, idle_for=timedelta(hours=2), source="external:claude_code")
+
+    assert await chat_retention.purge_idle_incognito_chats() == 0
+
+    assert await _count(db_session, Chat) == 1
+    assert await _count(db_session, Message) == 1
+    spies.memory_purge.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_incognito_auto_purge_waits_for_the_running_turn_to_end(
+    db_session: AsyncSession,
+    checkpointer: BaseCheckpointSaver[str],
+    spies: Spies,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A long task keeps the chat idle for hours; the purge must not delete the conversation under the agent."""
+    await _seed_chat(db_session, incognito=True, idle_for=timedelta(hours=2))
+    gateway = get_agent_gateway()
+    monkeypatch.setattr(gateway, "active_session_ids", lambda: frozenset({CHAT_ID}))
+
+    assert await chat_retention.purge_idle_incognito_chats() == 0
+    assert await _count(db_session, Chat) == 1
+
+    monkeypatch.setattr(gateway, "active_session_ids", lambda: frozenset())
+
+    assert await chat_retention.purge_idle_incognito_chats() == 1
+    assert await _count(db_session, Chat) == 0
