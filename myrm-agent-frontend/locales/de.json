@@ -15117,6 +15117,10 @@
             "name": "Anmeldedatenzuweisung",
             "desc": "Explizite Passwort-, Secret-, Token- oder API-Schlüsselzuweisung erkennen."
           },
+          "password_phrase": {
+            "name": "Passwort im Satz",
+            "desc": "Ein in einem Satz oder nach einer Bezeichnung genanntes Passwort erkennen, z. B. „mein Passwort ist …“. Bestätigungscodes werden nicht blockiert."
+          },
           "jwt_token_like": {
             "name": "JWT-Token",
             "desc": "JWT-ähnliche Bearer-Tokens erkennen."

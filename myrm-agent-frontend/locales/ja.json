@@ -15117,6 +15117,10 @@
             "name": "認証情報の割り当て",
             "desc": "パスワード、Secret、Token または API Key への明示的な値の割り当てを検出します"
           },
+          "password_phrase": {
+            "name": "文中のパスワード",
+            "desc": "文中やラベルの後に書かれたパスワードを検出します（例:「パスワードは …」）。認証コードは対象外です。"
+          },
           "jwt_token_like": {
             "name": "JWTトークン",
             "desc": "JWT 形式の Bearer Token を検出"

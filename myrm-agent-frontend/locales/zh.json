@@ -15792,6 +15792,10 @@
             "name": "凭证赋值",
             "desc": "检测密码、Secret、Token 或 API Key 赋值"
           },
+          "password_phrase": {
+            "name": "句中的密码",
+            "desc": "检测写在句子里或标签后的密码，如“我的密码是 ……”；不拦截验证码"
+          },
           "jwt_token_like": {
             "name": "JWT Token",
             "desc": "检测 JWT 格式的 Bearer Token"

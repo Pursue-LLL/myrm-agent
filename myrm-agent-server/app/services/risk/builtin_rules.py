@@ -4,28 +4,32 @@
 - .constants::RiskCategory, RiskSeverity (POS: Vocabulary of rule severity and category.)
 - .builtin_business_rules::BUSINESS_RULES (POS: The seed definitions of the business and compliance rules.)
 - .patterns (POS: The pattern builders and shared pattern parts the rules are written with.)
-- myrm_agent_harness.core.security.detection (POS: The privacy detectors' own patterns for e-mail, mobile number, ID card and bank card.)
+- myrm_agent_harness.core.security.detection (POS: The privacy detectors' own patterns for e-mail, mobile number, ID card and bank card, and the credential keywords of the password heuristic.)
+- .match_checks::PASSWORD_PHRASE_RULE_ID (POS: The id of the rule whose hit is the password beside a credential keyword.)
 
 [OUTPUT]
 - builtin_risk_rules: the seed definition of every built-in rule
 
 [POS]
 The e-mail, mobile number, ID card and bank card rules use the privacy detectors' own patterns, so the channel gate and
-the privacy classifier read the same data the same way. Which categories start enabled is ``DEFAULT_ENABLED_CATEGORIES``.
+the privacy classifier read the same data the same way; the password-phrase rule reads the heuristic's credential
+keywords. Which categories start enabled is ``DEFAULT_ENABLED_CATEGORIES``.
 """
 
 from __future__ import annotations
 
 from myrm_agent_harness.core.security.detection.card_context import CARD_CONTEXT_RE
+from myrm_agent_harness.core.security.detection.password_heuristic import PASSWORD_KEYWORD_RE
 from myrm_agent_harness.core.security.detection.pii_patterns import CHINA_ID_RE, CHINA_PHONE_RE, EMAIL_RE
 
 from .builtin_business_rules import BUSINESS_RULES
 from .constants import RiskCategory, RiskSeverity, RuleSeed
+from .match_checks import PASSWORD_PHRASE_RULE_ID
 from .patterns import API_KEY_PATTERN, ASSIGNED_VALUE, ASSIGNMENT_OPERATOR, KEY_START, detector_pattern, keyword_pattern
 
 
 def builtin_risk_rules() -> list[RuleSeed]:
-    """Return the 31 built-in risk rule seed definitions."""
+    """Return the 32 built-in risk rule seed definitions."""
     personal_and_security: list[RuleSeed] = [
         # ── Personal Information ──
         {
@@ -135,6 +139,16 @@ def builtin_risk_rules() -> list[RuleSeed]:
             "severity": RiskSeverity.HIGH,
             "category": RiskCategory.SECURITY,
             "sort_order": 120,
+        },
+        {
+            "rule_id": PASSWORD_PHRASE_RULE_ID,
+            "display_name": "Password stated in a sentence",
+            "description": 'Detect a password written into a sentence or after a label, such as "my password is ..." or "密码：...".',
+            # Only finds the credential keywords; ``match_checks`` hits when the heuristic finds a password beside one.
+            "pattern": detector_pattern(PASSWORD_KEYWORD_RE),
+            "severity": RiskSeverity.HIGH,
+            "category": RiskCategory.SECURITY,
+            "sort_order": 125,
         },
         {
             "rule_id": "jwt_token_like",

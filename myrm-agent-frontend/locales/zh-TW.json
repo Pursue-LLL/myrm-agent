@@ -15117,6 +15117,10 @@
             "name": "憑證賦值",
             "desc": "檢測密碼、Secret、Token 或 API Key 賦值"
           },
+          "password_phrase": {
+            "name": "句中的密碼",
+            "desc": "檢測寫在句子裡或標籤後的密碼，如「我的密碼是 ……」；不攔截驗證碼"
+          },
           "jwt_token_like": {
             "name": "JWT Token",
             "desc": "檢測 JWT 格式的 Bearer Token"

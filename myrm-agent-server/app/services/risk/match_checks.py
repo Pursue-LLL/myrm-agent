@@ -3,9 +3,13 @@
 [INPUT]
 - myrm_agent_harness.core.security.detection.pii_patterns::china_id_valid, is_placeholder (POS: Single definition of the built-in PII patterns and their validators: classification, redaction and pseudonymization all read it, so they never disagree about what a hit is.)
 - myrm_agent_harness.core.security.detection.secret_value::secret_value_span, is_reference_token (POS: The one definition of a secret value versus a reference to one, and of a token made only of readable words and numbers.)
+- myrm_agent_harness.core.security.detection.password_heuristic::find_keyword_password_spans (POS: The one definition of a password written next to a credential keyword, shared with the privacy classifier.)
+- .constants::INLINE_DETECT_CHARS (POS: The longest text a check that holds the interpreter lock may read.)
 
 [OUTPUT]
 - is_confirmed_match: whether what a built-in rule's pattern matched is a real hit
+- first_confirmed_span: where the first real hit of a rule lies among the matches its pattern found
+- PASSWORD_PHRASE_RULE_ID: the rule whose pattern only finds credential keywords and whose hit is the password beside one
 
 [POS]
 A pattern finds what a value looks like; whether it is one takes the checks the privacy classifier and the leak detector
@@ -15,13 +19,27 @@ while ``password: Zk9#mango42`` is. The gate refuses a message, so it adds what 
 value that documentation fills in (``YourSecurePassword123!``, ``change_me``) or a pointer into a secret store
 (``env:API_KEY``) is not a secret either, and a session or bearer token is held only when it is long and random
 (``session-1`` and ``test-token-123`` are fixtures).
+
+A password said in a sentence ("my password is Zk9#mango42", "密码是 Zk9#mango42") has no ``key = value`` shape for a pattern
+to find. The rule for it matches only the credential keywords and the harness heuristic, which the privacy classifier runs
+too, judges the text once however many keywords it has. It sets aside the numeric PIN and one-time codes, which a user
+hands an agent so that it can finish a login and which are worthless a minute later, and the same documentation values
+and secret-store pointers the assignment rules set aside.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import regex
+from myrm_agent_harness.core.security.detection.password_heuristic import find_keyword_password_spans
 from myrm_agent_harness.core.security.detection.pii_patterns import china_id_valid, is_placeholder
 from myrm_agent_harness.core.security.detection.secret_value import is_reference_token, secret_value_span
+
+from .constants import INLINE_DETECT_CHARS
+
+# The rule whose pattern finds only the credential keywords of a text; its hit is the password the heuristic finds beside one.
+PASSWORD_PHRASE_RULE_ID = "password_phrase"
 
 # Sample values ("user@example.com", "00000000000") are not a person's data.
 _REJECTS_PLACEHOLDERS = frozenset({"email_address", "cn_mobile_number"})
@@ -80,6 +98,36 @@ def is_confirmed_match(rule_id: str, match: regex.Match[str]) -> bool:
     return True
 
 
+def first_confirmed_span(rule_id: str, matches: Iterator[regex.Match[str]]) -> tuple[int, int] | None:
+    """Where the first real hit of the rule *rule_id* lies among the *matches* its pattern found, or None.
+
+    The matches are read as far as the hit needs, so the time budget of the iterator bounds the reading.
+    """
+    if rule_id == PASSWORD_PHRASE_RULE_ID:
+        keyword = next(matches, None)
+        return None if keyword is None else _password_span(keyword.string)
+    return next((match.span() for match in matches if is_confirmed_match(rule_id, match)), None)
+
+
+def _password_span(text: str) -> tuple[int, int] | None:
+    """The first password of *text* that is not a documentation value or a secret-store pointer, or None.
+
+    The heuristic holds the interpreter lock and cannot be stopped by a time budget, so it reads only a text short enough
+    to be checked in place (a longer one is a pasted document or log, whose assignments the other rules read).
+    """
+    if len(text) > INLINE_DETECT_CHARS:
+        return None
+    return next(
+        ((start, end) for start, end in find_keyword_password_spans(text) if not _is_documentation_value(text[start:end])),
+        None,
+    )
+
+
+def _is_documentation_value(value: str) -> bool:
+    """Whether *value* is one a reader is told to fill in or a pointer into a secret store, not a secret itself."""
+    return bool(_PLACEHOLDER_START_RE.match(value) or _SECRET_STORE_POINTER_RE.match(value))
+
+
 def _assigns_secret(match: regex.Match[str]) -> bool:
     """Whether the ``value`` group is a secret and not a reference to one (call, identifier, template), a mask, a word,
     a placeholder or a token cut short with an ellipsis.
@@ -95,7 +143,7 @@ def _assigns_secret(match: regex.Match[str]) -> bool:
     value = _cut_at_value_end(value)
     start = match.start("value")
     span = secret_value_span(match.string, start, start + len(value), allow_letters_only=False, key=groups.get("key") or "")
-    return span is not None and not _PLACEHOLDER_START_RE.match(value) and not _SECRET_STORE_POINTER_RE.match(value)
+    return span is not None and not _is_documentation_value(value)
 
 
 def _holds_session_token(match: regex.Match[str]) -> bool:

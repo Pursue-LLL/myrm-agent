@@ -213,7 +213,7 @@ async def test_only_credential_rules_start_enabled(session_factory: async_sessio
         str(seed["rule_id"]) for seed in builtin_risk_rules() if seed["category"] in DEFAULT_ENABLED_CATEGORIES
     }
     assert {rule.category for rule in rules if rule.is_enabled} == {RiskCategory.SECURITY}
-    assert sum(1 for rule in rules if rule.is_enabled) == 8
+    assert sum(1 for rule in rules if rule.is_enabled) == 9
 
 
 @pytest.mark.parametrize("text", EVERYDAY_TEXT + CODE_THAT_NAMES_SECRETS)

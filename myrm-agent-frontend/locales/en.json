@@ -15792,6 +15792,10 @@
             "name": "Credential assignment",
             "desc": "Detect explicit password, secret, token, or API key assignment."
           },
+          "password_phrase": {
+            "name": "Password in a sentence",
+            "desc": "Detect a password stated in a sentence or after a label, such as 'my password is ...'. Verification codes are not blocked."
+          },
           "jwt_token_like": {
             "name": "JWT token",
             "desc": "Detect JWT-like bearer tokens."

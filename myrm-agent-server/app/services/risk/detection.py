@@ -23,7 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import RiskHit, RiskRule
 
-from .match_checks import is_confirmed_match
+from .constants import INLINE_DETECT_CHARS
+from .match_checks import first_confirmed_span
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +38,6 @@ MAX_PATTERN_LENGTH = 4096
 # measured), so a slower host does not turn a harmless paste into a hit.
 MATCH_TIMEOUT_SECONDS = 0.25
 MATCH_SECONDS_PER_MEGACHAR = 0.5
-
-# A text up to this long is matched where it is: the match takes under 7 ms (measured), so a thread hand-off would not
-# pay for itself.
-_INLINE_DETECT_CHARS = 32_000
 
 # What a hit's ``match_summary`` holds: where the match lies, or that matching ran out of time. Never the matched text.
 POSITION_SUMMARY_PREFIX = "chars:"
@@ -115,9 +112,7 @@ def _first_hit(rule: _CompiledRule, text: str) -> str | None:
     """
     budget = match_budget(len(text))
     try:
-        for m in rule.compiled.finditer(text, timeout=budget):
-            if is_confirmed_match(rule.rule_id, m):
-                return f"{POSITION_SUMMARY_PREFIX}{m.start()}-{m.end()}"
+        span = first_confirmed_span(rule.rule_id, rule.compiled.finditer(text, timeout=budget))
     except TimeoutError:
         logger.warning(
             "Risk rule %s did not finish a %d-character text in %.2fs; the text counts as its hit",
@@ -126,7 +121,7 @@ def _first_hit(rule: _CompiledRule, text: str) -> str | None:
             budget,
         )
         return TIMED_OUT_SUMMARY
-    return None
+    return None if span is None else f"{POSITION_SUMMARY_PREFIX}{span[0]}-{span[1]}"
 
 
 @dataclass
@@ -199,7 +194,7 @@ class RiskDetectionService:
         A long text is matched on a worker thread. ``reload`` replaces the whole rule list in one assignment, so a match
         in flight keeps reading the list it started with.
         """
-        if len(text) <= _INLINE_DETECT_CHARS:
+        if len(text) <= INLINE_DETECT_CHARS:
             return self.detect(text)
         return await asyncio.to_thread(self.detect, text)
 
