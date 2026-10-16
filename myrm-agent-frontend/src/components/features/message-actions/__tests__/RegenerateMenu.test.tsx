@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RegenerateMenu from '../RegenerateMenu';
 
@@ -22,7 +22,7 @@ vi.mock('next-intl', () => ({
 }));
 
 describe('RegenerateMenu', () => {
-  const onRegenerateMock = vi.fn().mockResolvedValue(undefined);
+  const onRegenerateMock = vi.fn().mockResolvedValue(true);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,5 +72,51 @@ describe('RegenerateMenu', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onRegenerateMock).toHaveBeenCalledWith('Translate to French');
+  });
+
+  describe('a custom instruction', () => {
+    const PLACEHOLDER = 'Tell the AI how to respond...';
+
+    function openCustomBox() {
+      fireEvent.click(screen.getByLabelText('Regenerate options'));
+      fireEvent.click(screen.getByText('Custom Instruction...'));
+      return screen.getByPlaceholderText(PLACEHOLDER);
+    }
+
+    async function submit(input: HTMLElement, text: string) {
+      fireEvent.change(input, { target: { value: text } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      await waitFor(() => expect(screen.getByTitle('Regenerate')).not.toBeDisabled());
+    }
+
+    it('stays in the box, open for editing, when the regeneration was refused', async () => {
+      const refused = vi.fn().mockResolvedValue(false);
+      render(<RegenerateMenu onRegenerate={refused} />);
+
+      await submit(openCustomBox(), 'use the key I pasted');
+
+      expect(screen.getByPlaceholderText(PLACEHOLDER)).toHaveValue('use the key I pasted');
+    });
+
+    it('is cleared once the regeneration went through', async () => {
+      render(<RegenerateMenu onRegenerate={onRegenerateMock} />);
+
+      await submit(openCustomBox(), 'Translate to French');
+
+      expect(screen.queryByPlaceholderText(PLACEHOLDER)).not.toBeInTheDocument();
+      expect(openCustomBox()).toHaveValue('');
+    });
+
+    it('leaves the menu closed after a refused preset, which has no text to keep', async () => {
+      const refused = vi.fn().mockResolvedValue(false);
+      render(<RegenerateMenu onRegenerate={refused} />);
+      fireEvent.click(screen.getByLabelText('Regenerate options'));
+
+      fireEvent.click(screen.getByText('More Concise'));
+      await waitFor(() => expect(screen.getByTitle('Regenerate')).not.toBeDisabled());
+
+      expect(screen.queryByText('More Concise')).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(PLACEHOLDER)).not.toBeInTheDocument();
+    });
   });
 });

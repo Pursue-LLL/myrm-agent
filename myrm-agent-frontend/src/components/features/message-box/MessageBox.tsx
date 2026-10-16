@@ -211,9 +211,10 @@ const MessageBox = ({
     }
   }, [isReasoningExpanded, message.reasoning, reasoningDisplayMode]);
 
-  const handleRegenerate = async (instruction?: string) => {
+  // Resolves whether the regeneration went through, so the menu keeps a custom instruction that was refused.
+  const handleRegenerate = async (instruction?: string): Promise<boolean> => {
     if (!chatId) {
-      return;
+      return false;
     }
 
     try {
@@ -232,10 +233,12 @@ const MessageBox = ({
         void usePlanStore.getState().fetchPlan(chatId);
 
         const cleanQuery = stripDatetimeTag(result.query);
-        await sendMessage(cleanQuery);
+        return await sendMessage(cleanQuery);
       }
+      return false;
     } catch (error) {
       console.error('Regenerate failed:', error);
+      return false;
     } finally {
       useChatStore.setState({ regenerateSiblingGroupId: undefined, regenerateInstruction: undefined });
     }

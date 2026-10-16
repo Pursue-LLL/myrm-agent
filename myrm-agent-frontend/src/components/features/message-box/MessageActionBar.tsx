@@ -45,7 +45,7 @@ interface MessageActionBarProps {
   enableEvalLab: boolean;
   markdownRef: RefObject<HTMLDivElement | null>;
   onCancel: () => Promise<void>;
-  onRegenerate: (instruction?: string) => Promise<void>;
+  onRegenerate: (instruction?: string) => Promise<boolean>;
 }
 
 export default function MessageActionBar({
