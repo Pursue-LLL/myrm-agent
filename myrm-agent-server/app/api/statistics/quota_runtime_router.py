@@ -114,12 +114,8 @@ async def get_browser_runtime_summary(
         summary = await runtime_meter_service.get_browser_runtime_summary(session)
         return success_response(summary)
     except Exception as exc:
-        logger.error(
-            "Failed to retrieve browser runtime summary: %s", exc, exc_info=True
-        )
-        raise internal_error(
-            "Failed to retrieve browser runtime summary", exception=exc
-        ) from exc
+        logger.error("Failed to retrieve browser runtime summary: %s", exc, exc_info=True)
+        raise internal_error("Failed to retrieve browser runtime summary", exception=exc) from exc
 
 
 @router.post("/browser-runtime")
@@ -172,9 +168,7 @@ async def record_sandbox_workload(
         )
     except Exception as exc:
         logger.error("Failed to record sandbox workload: %s", exc, exc_info=True)
-        raise internal_error(
-            "Failed to record sandbox workload", exception=exc
-        ) from exc
+        raise internal_error("Failed to record sandbox workload", exception=exc) from exc
 
 
 @router.get("/runtime-cost-gauge")
@@ -197,12 +191,8 @@ async def reset_search_quota(
 ) -> JSONResponse:
     """Reset used count and depletion status for one or all providers."""
     try:
-        reset_count = await runtime_meter_service.reset_search_quota(
-            session, provider=req.provider
-        )
-        return success_response(
-            {"reset_records_count": reset_count, "provider": req.provider}
-        )
+        reset_count = await runtime_meter_service.reset_search_quota(session, provider=req.provider)
+        return success_response({"reset_records_count": reset_count, "provider": req.provider})
     except Exception as exc:
         logger.error("Failed to reset search quota: %s", exc, exc_info=True)
         raise internal_error("Failed to reset search quota", exception=exc) from exc
@@ -229,6 +219,4 @@ async def update_search_quota_limit(
         )
     except Exception as exc:
         logger.error("Failed to update search quota limit: %s", exc, exc_info=True)
-        raise internal_error(
-            "Failed to update search quota limit", exception=exc
-        ) from exc
+        raise internal_error("Failed to update search quota limit", exception=exc) from exc
