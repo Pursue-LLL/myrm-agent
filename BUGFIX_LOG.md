@@ -3198,6 +3198,10 @@ except Exception:
 4. 文案要在真实目录里渲染一遍再下结论：Fluent 会去掉多行值开头的空行，只断言「包含标题」的测试发现不了拼接缺口；用真实捕获的事件跑完整路径才看到。
 5. 不要对整个目录运行 `ruff format`：它会顺手改掉别人未碰的文件（本次改了两个无关文件，已按 HEAD 内容原样还原）。
 
+### 更正（BUG-AGENT-2026-10-16-001）
+
+「局限」第 1 项「执行器分不出所有者与访客」不成立：`is_untrusted_sender`（`app/channels/routing/identity_scope.py:121`）按用户前缀与访客回合标记判定，执行器在 `executor.py:100` 早已用它剥离工具，再加 `msg.is_group` 就能认出「可信所有者的私聊」。所有者指引已在 `BUG-AGENT-2026-10-16-001` 补上；第 5 项里 `render_style` 引起的两条 mypy 报错同条消除（`message_effects.py` 的报错 5 → 3）。
+
 ## BUG-AGENT-2026-10-15-007: 全局事件总线里 7 个无人发布的事件类型连同 IM 模板与前端处理分支仍在；记忆透视抽屉整簇组件没有任何入口，且「遗忘 / 纠偏 / 升格」只改本地数组、不写后端；创建审批时对枚举的判断恒为真
 
 | 属性 | 值 |
@@ -4365,3 +4369,70 @@ except Exception:
 4. 「表面上多余的守卫」要用变异检查确认：`and not ai_calls.stopped` 在行为上冗余，删掉后其余变异仍全部被抓住，代码因此更短。
 5. 修竞态时，读取要放在最后一个 await 之后：第一版在变更检查的 await 之前读取处理中的条目，只有「检查期间被认领」那个用例能抓住它。
 6. 提示里点名其他界面元素时，用该元素自己的文案作参数，不要在六份语言包里各写一遍。
+
+## BUG-AGENT-2026-10-16-001: 委派任务把累计的流式快照拼成摘要、把失败回合记成「完成」、被超时清理或取消的任务又被改回「完成」，失败时把异常原文发进聊天；IM 执行器对一般异常回 `[Error] Agent execution failed: {原文}`，FAQ 命中必抛 `TypeError`；可信所有者在私聊里遇到余额 / 凭据 / 模型缺失也只看到「请联系管理员」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（对 `BUG-AGENT-2026-10-15-006` 做终极叩问时，枚举 `execute_stream` 的全部消费者——`finalize_channel_stream_reply`、委派协调器、路由器——逐个读调用点后发现） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（委派是用户主动发起的后台任务，失败却显示「完成」，卡片还可能带异常原文；FAQ 命中必抛异常，但只影响配置了 FAQ 的智能体） |
+| 影响范围 | server：`app/channels/delegation/{delegation_coordinator,delegation_delivery}.py`、`app/channels/routing/friendly_errors.py`、`app/core/channel_bridge/agent_executor/{execute_errors,execute_finalize,executor}.py`、`app/channels/core/base.py`、四个渠道 `.ftl`、四份 `_ARCH.md`、`tests/`（新增 3 个文件，改 4 个）；harness：五个诊断语言目录、`ERROR_SYSTEM.md`、`tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py`（新增） |
+| 出现次数 | 1（桩执行器加真实协调器复现、真实 `OutboundMessage` 构造复现，没有用户数据） |
+| 关联 | 更正 `BUG-AGENT-2026-10-15-006` 的局限 1；提交：server `1d551f00ef`，harness `fa8c3e58d`；本地提交，未 push |
+
+### 现象
+
+1. 委派任务的摘要是把每个 `StreamingText` 事件的文字拼起来，而这类事件是累计快照（`app/channels/types/streaming.py:65`），`Hello`、`Hello world` 拼成 `HelloHello world`。
+2. 失败回合在 IM 里是一条带 `error_type` 标记的普通回复（`BUG-AGENT-2026-10-15-006`），不是异常；协调器只看「流结束且没抛异常」就把任务记成 `COMPLETED`，卡片写「执行完成」。
+3. `reap_stale_tasks`（超时清理）与 `cancel_task` 已把任务置成 `FAILED` / `CANCELLED` 之后，生命周期收尾的无条件 `COMPLETED` 又把状态改了回去。
+4. 协调器的异常路径把 `{exc}` 原文写进 `error_message` 并发进聊天（`执行失败：{exc}`）；卡片标题无论成败都写「后台委派任务执行完成」。
+5. 执行器对一般异常回复 `[Error] Agent execution failed: {exc}`，访客、配对成员与群聊都看得到原文。
+6. 执行器的 FAQ 拦截构造 `OutboundMessage(receiver_id=..., chat_id=...)`，这两个字段不存在，实测 `TypeError: OutboundMessage.__init__() got an unexpected keyword argument 'receiver_id'`；该段在 `try` 之前，异常不经过本文件的 `except`，每次 FAQ 命中都如此。
+7. 所有者在私聊里遇到余额、凭据、模型缺失时，同样只看到「请联系管理员」。
+8. harness 的 `unknown` 诊断在英文与简体中文里把用户指向 LiteLLM 文档、`LLMConfig` 与调试日志；德、日、韩的占位符写成 `{original_error}`，而引擎只填 `{error_message}`，缺失参数被静默替成空串，实测德语文案是 `'Ein unerwarteter Fehler ist aufgetreten: '`，以冒号结尾、没有原文。
+
+### 根因
+
+1. 协调器把「流正常结束」等同于成功，没读流里最后那条 `OutboundMessage`，又把累计快照当增量。
+2. 收尾的状态写入不检查终态；清理、取消与收尾各写各的，没有共同的终态约定。
+3. `BUG-AGENT-2026-10-15-006` 只改了流内失败路径，`except Exception` 分支仍是旧文案。
+4. FAQ 回复绕过 `create_reply`，字段名按另一种消息类型写；没有测试走过 FAQ 命中。
+5. `BUG-AGENT-2026-10-15-006` 局限 1 的前提「执行器分不出所有者与访客」不成立（见该条更正）。
+6. 语言目录的占位符名没有和引擎传的参数名对齐，也没有测试在每个语言里渲染一遍。
+
+### 修复
+
+1. 协调器：任务结果取流里最后一条 `OutboundMessage`，没有时取最后一个快照；带失败标记的回复让任务记为 `FAILED`，文案就是回复里已有的成员安全文案；异常路径走 `friendly_error_message`，原文只按参考编号进日志；`_settle_finished_stream` 在任务已是终态时不再写状态；`_TERMINAL_STATUSES` 取代四处手写元组；卡片标题随终态（完成 / 失败 / 已取消）。
+2. 执行器：新增 `build_generic_error_reply`，回成员安全文案加参考编号并带失败标记；`account_guidance` 只在发送者可信且不是群聊时为真，`friendly_error_text` 据此对余额、凭据、模型缺失换成所有者文案（`error_billing_owner`、`error_billing_owner_platform`、`error_auth_owner`、`error_model_not_found_owner`，四个 `.ftl`；托管部署的余额文案指向网页端充值，凭据类在托管部署上保持通用文案，因为没有可检查的密钥）；`finalize_channel_stream_reply` 去掉 `.strip()` 补丁并写失败标记；`MyrmLLMError` 异常只有所有者私聊走诊断回复，其余走通用文案。
+3. FAQ 回复改走 `create_reply(faq_reply, reply_to_id=msg.message_id)`。
+4. `BaseChannel.render_style` 补类型标注、`broadcast` 的 metadata 改成带类型的 `dict[str, object]`。
+5. harness：英文与简体中文的 `unknown` 步骤改成「重新发送、换模型或服务商、查看错误信息」；德、日、韩的占位符改成 `{error_message}`，原文随之出现；新增 `test_unknown_diagnostic_copy.py`（五种语言：原文在、不以冒号结尾、步骤里没有内部术语）。
+
+### 验证
+
+1. 红灯先行：协调器的摘要重复、失败回合记成 `COMPLETED`、清理与取消被改回、异常原文进聊天、执行器一般异常原文泄露、FAQ `TypeError` 都先写出失败的用例再改；德语占位符用真实 `diagnose` 复现（见现象 8）。
+2. 变异检查（进程内替换函数，不改磁盘文件）：协调器忽略失败标记，`test_delegation_lifecycle.py` 2 个失败；协调器去掉终态守卫，3 个失败；一般异常回复末尾拼上异常原文，`test_executor_error_replies.py` 8 个失败；所有人都拿到账户指引，3 个失败（访客、配对成员、群里的所有者）；德语占位符改回 `{original_error}`，原文消失，新用例会失败。
+3. 测试：server `tests/channels/delegation` 加 `tests/core/channel_bridge` 700 通过；`tests/channels/routing`、`i18n`、`core` 690 通过、1 失败，失败的是 `test_ftl_locales_have_no_orphaned_keys`（`cmd_btw`、`cmd_design-image`、`cmd_memo`、`cmd_review-week` 缺翻译，`BUG-AGENT-2026-10-15-006` 局限 4 已记，与本条无关）；harness `tests/agent/errors/diagnostics` 131 通过。
+4. 门禁：触及文件 ruff 与 format 干净；文件行数脚本在 `channels`、`channel_bridge` 范围内没有新增超限（协调器 391 行）；触及文件的 mypy 剩余报错都是本条之前就有的（见局限 7）。
+5. 提交内容与工作区的差只剩他人的块：`executor.py` 的 `track_background_agent_run`、`execute_errors.py` 的冷却提示删除、四个 `.ftl` 的 `goal_usage_limit_*` 与 `cooldown_retry`、harness 语言目录的 `cooldown_hint_*`。
+
+### 局限
+
+1. 计划里「`unknown` 诊断的原文不进 `user_message`」没有照做：网页前端把 `diagnostic_result.user_message` 原样显示（`agentControlEvents.ts:16-19`），去掉后所有者在网页上看不到提供方的原因，而 harness 有三个测试把「带原文」当作约定（`test_error_diagnostics.py:115`、`test_error_diagnostics_i18n.py:117`、`test_error_diagnostics_e2e.py:164`）；IM 一侧已不读诊断文案，原先担心的泄露路径不存在了。
+2. `build_llm_error_reply` 与执行器里「所有者私聊走诊断回复」的分支保留：harness 在 `agent_runtime.py` 的外层 `except Exception` 里发 error 事件后不再抛出（`:831-890`），所以这条分支在真实路径上基本走不到；删除它与外部在途的 `tests/core/channel_bridge/test_execute_errors_cooldown.py` 相冲突，没有得到删除的确认，所以没动。
+3. 委派卡片（标题表、「任务交付通知」、`✅` / `❌`、失败消息）是写死的中文并带 emoji，是本条之前就有的；本条只让标题随状态变化，没有改成多语言。
+4. 所有者指引只有 en、zh-CN、zh-TW、ja 四个 `.ftl`；韩语、德语成员得到英文（与 `BUG-AGENT-2026-10-15-006` 局限 6 相同）。
+5. de、ja、ko 的诊断目录里还有引擎从不填写的占位符：`custom_model_not_found` 步骤里的 `{list_models_url}`、`context_overflow` 文案里的 `{token_count}`，会渲染成「Verfügbare Modelle prüfen: 」「(~ Token)」「（約  トークン）」这类残缺文案；本条只处理 `unknown`，这两处没动。
+6. 偶发失败一次：第一次整套委派测试在负载很高时，`test_delegation_pipeline.py:350` 失败过一次，之后连续 70 多次与今天的 700 例整套均通过，没有复现，原因没有定位。
+7. 触及文件的 mypy 剩余报错：`base.py:498`（`**kwargs: object` 传给 `InboundMessage`，11 条同一行）、`base.py:646`（`start_login` 缺返回类型，改成具体类型会和各渠道的覆盖冲突）、`executor.py` 四条（`process_stream` 的 `chat_history` 类型、`stream_with_swarm_fission_resume` 的 agent 参数、`yield` 的类型、`user_credentials_ctx.reset`）；`message_effects.py` 还剩 3 条 `reply_to_id` 类型。
+8. 没有对真实 IM 平台与真实委派任务做端到端联调；协调器用桩执行器加真实协调器验证，执行器用桩 Agent 验证。
+9. 没有改动任何提示词；写进会话历史的失败文案沿用 `BUG-AGENT-2026-10-15-006` 的约定。
+
+### 踩坑经验
+
+1. 改一个生产者的输出约定之前，先列全消费者：这次的协调器就是上一条没覆盖的消费者，它把「没抛异常」当成功。
+2. 复用自己上一条日志里的「有意取舍」之前先读代码核对：局限 1 的前提一次搜索就能证伪。
+3. 语言目录的占位符名要和引擎传的参数名一致：缺失的参数被静默替成空串，没有任何报错，德、日、韩的 `unknown` 文案因此一直以冒号结尾；用真实 `diagnose` 在每个语言里各渲染一遍才看得到。
+4. 在共享工作区提交时只提交自己的块：同一文件里有他人未提交的改动，所以用「HEAD 加自己的改动」生成提交内容，再核对它与工作区的差只剩他人的块。
+5. 多会话下 `index.lock` 会被短暂占用：提交已经落地后，同步共享索引这一步失败要重试，不能当成提交失败。
