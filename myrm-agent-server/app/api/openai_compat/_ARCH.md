@@ -12,7 +12,7 @@ OpenAI 兼容 `/v1` 聚合路由（Agent API）。上级文档：[../_ARCH.md](.
 |------|------|------|-------|
 | `__init__.py` | 入口 | OpenAI-compatible API endpoints. | ✅ |
 | `auth.py` | 模块 | Strict Bearer token auth (SHA-256 hash vs database) | ✅ |
-| `completions.py` | 模块 | Agent-only `/v1/chat/completions` (streaming + non-streaming)；端点入口用 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，流式/非流式统一提前拒绝）；流式/非流式均注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
+| `completions.py` | 模块 | Agent-only `/v1/chat/completions` (streaming + non-streaming)；端点入口用 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，流式/非流式统一提前拒绝）；流式/非流式均注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`）；非流式用 `AnswerDraft` 拼装回复，恢复重启只替换在途段落；流式逐段下发，OpenAI SSE 无撤回语义，已发出的增量无法收回，故不套用该契约 | ✅ |
 | `models.py` | 模块 | Lists configured agents as OpenAI-compatible model objects | ✅ |
 | `router.py` | 路由 | Aggregates all OpenAI-compatible sub-routers under the /v1 prefix | ✅ |
 | `types.py` | 模块 | Type definitions for OpenAI-compatible endpoint request/response serialization | ✅ |
