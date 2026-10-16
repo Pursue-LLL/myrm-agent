@@ -1227,9 +1227,8 @@ export const resumePlanConfirmStream = async (
     }),
   };
 
-  const { AgentBusyError, ApprovalAlreadyResolvedError, isAgentBusySseEvent } = await import(
-    '@/store/chat/streamErrors'
-  );
+  const { AgentBusyError, ApprovalAlreadyResolvedError, isAgentBusySseEvent } =
+    await import('@/store/chat/streamErrors');
   const response = await createAISearchStream(requestBody, chatState.abortController || undefined);
   if (!response.ok) {
     if (response.status === 409) {

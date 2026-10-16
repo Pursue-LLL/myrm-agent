@@ -9,7 +9,7 @@
  *
  * [OUTPUT]
  * PlanConfirmationCard: Renders plan review card with confirm/edit/skip actions; a plan another client already
- * answered settles into a neutral handled state instead of a failure toast.
+ * answered settles into a neutral handled state.
  *
  * [POS]
  * Plan-phase HITL gate. Supports both Deep Research (PhaseWaiter REST)
