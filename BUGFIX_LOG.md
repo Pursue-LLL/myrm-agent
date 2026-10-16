@@ -4327,6 +4327,12 @@ except Exception:
 7. 改文件之前先量行数：`KanbanTaskDrawerDetails.tsx` 原来正好 500 行，加 2 行就越线，事后才把阻塞提示条抽成独立组件；越线要靠拆分解决，不靠压缩换行。
 8. 全局的 next-intl mock 是恒等翻译器，缺文案时测试照样通过：核对文案要用 `createTranslator` 的真实翻译器并收集 `onError`；第一版只检查 JSON 里有没有键，没有覆盖 `blockKind.*` 与 `autoUnblocking`，复审时发现后补上。
 
+### 更正（BUG-AGENT-2026-10-16-007）
+
+1. 「局限」第 6 条把 `wait_provider_window.py:50`（「Provider usage limit reached; paused until it resets」）列成会原样显示的原因，举例不对：它是 harness 写在目标（goal）上的暂停原因，不是看板任务的 `blocked_reason`；看板任务撞上用量上限时走 `runner.py:166-167` 自己的原因（已在共享表里），`usage_limit_resume/hold.py:17-19` 也写明看板目标不走这条续跑路径、由各自的调度器重排。该条列出的其余几个 harness 行号没有逐条重核。
+2. 「修复」第 3 条说任务 toast 与系统通知按整句匹配译成界面语言，只对没有旧结果的任务成立：任务被驳回重跑后带着上一次完成的 `result`，事件的 `detail` 取的是 `result or blocked_reason or error`，toast 与系统通知显示的是旧结果。该问题与定时阻塞的重复提醒在 `BUG-AGENT-2026-10-16-007` 里一并修复；该条补充的 toast 验证（「验证」第 7 点）只有前端组件测试，它们直接把 `detail` 传给 toast，覆盖不到服务端怎么填这个字段。
+3. 「局限」第 10 条写的 627 行是工作区里带他人未提交改动的行数，`useGlobalEvents.ts` 在 HEAD 是 624 行，同样超过 500 行上限。
+
 ## BUG-AGENT-2026-10-15-025: 维护的模型一次都没答，结果与「没有可改进之处」无法区分，运行中也停不下来；手动编译是一次要等完整个编译的同步请求，会把健康的上游送进控制平面熔断；收到 ingest 快照后「维护」与「重建索引」按钮被一直禁用
 
 | 属性 | 值 |
@@ -4703,3 +4709,63 @@ except Exception:
 4. 状态的生命周期按「什么时候需要用到」来定，而不是按「请求什么时候结束」：草稿只在要放回时才需要。
 5. `rg -rn` 里的 `-r` 是替换参数不是递归，会把匹配到的内容显示成 `n`，查字段名时别这样写。
 6. 工作区里别人的改动会让一整个目录的测试在你完全没碰的地方失败：先看失败原因再判断是不是自己的，必要时用「HEAD 加自己的改动」的干净导出复跑。
+
+## BUG-AGENT-2026-10-16-007: 看板任务被阻塞或失败时，toast、系统通知与频道消息常报成它上一次完成的结果，真正的原因被盖住；到点会自己恢复的定时阻塞与需要人处理的阻塞发出同样的提醒
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（逐项复核 `BUG-AGENT-2026-10-15-024` 补充的 toast：它声称显示本地化原因，沿「谁来填 detail、detail 可能是什么」追到） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（没有数据丢失，不影响执行；通知里的文字错误，并且会自己恢复的任务也在打扰所有者） |
+| 影响范围 | server：`app/services/kanban/event_publisher.py`、`dispatcher_lifecycle.py`、`move_orchestrator.py`（只改一处发布调用）、`app/core/notifications/adaptive_cards.py`、`tests/services/kanban/test_event_publisher.py`、`test_task_event_notifications.py`（新）、`tests/core/notifications/test_dispatcher.py`、三份 `_ARCH.md`；frontend：`src/hooks/globalEvents/kanbanTaskToast.ts` 与测试、两份 `_ARCH.md`；harness 没有改，提示词与工具描述没有改，`useGlobalEvents.ts` 没有改 |
+| 出现次数 | 1（读码，真实派发器的用例复现，在运行中的开发 API 上核对了 SSE 载荷；没有生产数据，不知道线上频率） |
+| 关联 | 复核并更正 `BUG-AGENT-2026-10-15-024`（见该条末尾的更正）；提交 `aabd0493b8`；本地提交，未 push |
+
+### 现象
+
+1. 任务被驳回后重跑，会一直带着上一次完成时的 `result`：全仓没有一处把它清空（`_worker_tools.py:124`、`dispatcher.py:547`、`:572`、`move_orchestrator.py:190`、`task_ops.py:192` 都只在赋值）。看板任务更新事件的 `detail` 却是 `result or blocked_reason or error`，于是被阻塞的任务发出的 toast、系统通知与 IM 频道消息写的是「上一次完成的结果」，而不是它现在要所有者回答的问题。两处各自手写了这个表达式：`dispatcher_lifecycle.py` 的派发器回调与 `move_orchestrator.py` 的 `moved` 事件。
+2. 聊天里的完成提示用的是另一套规则（`_terminal_status` 与 `_terminal_result`）：阻塞先报 `blocked_reason`、定时阻塞不提示，这两点是对的；但失败仍是 `result or error`，同样会报旧结果。任务级的更新没有共用这套规则，同一个任务在两处说的不是同一件事。
+3. 定时阻塞（遇到限流或过载的自动重试、用量上限、智能体自己「等到某个时间」）会自己恢复，但和需要人处理的阻塞一样触发警告 toast、系统通知与频道消息：`dispatcher_failure.py:40-44` 把限流、429、配额、过载、503 判成瞬时错误，`:215-221` 记为 `SCHEDULED` 阻塞并 15 分钟后重试（`_TRANSIENT_BACKOFF_SECONDS = 900`），`runner.py:166-167` 的用量上限同理，`dispatcher_zombie.py:106` 到点唤醒。非瞬时错误的自动重试发的是 `task_retrying`，toast 本来就不理它，两种「会自己重试」的待遇不一致。
+4. toast 的原因超过 200 字符时直接 `slice` 截断，句子断在半截。
+
+### 根因
+
+1. 「这次通知该说什么」没有唯一的出处：三处消费者（前端 toast 与系统通知、聊天提示、IM 频道）各取各的，任务级更新的取值顺序又与任务「重跑后仍保留旧结果」的事实相冲突。
+2. 事件不带阻塞类型，消费者无从区分「会自己恢复」与「要人处理」。
+
+### 修复
+
+1. `event_publisher.py` 新增 `publish_task_event(action, task)`：`detail` 由聊天提示用的 `_terminal_status` / `_terminal_result` 决定，阻塞先报 `blocked_reason`，失败先报 `error`（这一条是本次改的，聊天提示因此也不再把失败报成旧结果），完成先报 `result`；派发器回调（`dispatcher_lifecycle.py:89`）与手动、智能体发起的 `moved`（`move_orchestrator.py` 末尾的发布调用）都改走它，签名与派发器回调一致，直接注册。
+2. 已阻塞任务的事件多带可选字段 `block_kind`（`publish_kanban_event` 新增参数，其余事件不变）。定时阻塞的事件不带 `detail`。
+3. 定时阻塞整体安静：前端 `kanbanTaskToast.ts` 在 `block_kind === 'scheduled'` 时既不弹 toast 也不发系统通知；`adaptive_cards._format_kanban_text` 对定时阻塞返回 `None`（调用方本来就处理 `None`）。卡片上的倒计时（`KanbanTaskCard.tsx:300-301`）与抽屉里的自动解除时间（`KanbanTaskBlockedNotice.tsx:37-39`）照旧说明它何时恢复；重试用完后任务变为 `FAILED`，`dispatcher_failure.py:276-291` 发的 `task_failed` 照常提醒。
+4. toast 原因超过 200 字符时截成 199 字符加省略号（总长 200）。
+5. 没有改 harness、提示词、工具描述与存储；没有新增语言键（定时阻塞选择完全安静而不是「提示级 toast」，所以不需要新文案）。
+
+### 验证
+
+1. 先复现：一次性探针用真实派发器（`start_dispatcher`）与内存存储，任务带着旧结果被人为阻塞时，频道文本写的是旧结果（探针已删除，没有保留输出）。
+2. 新增 `test_task_event_notifications.py`：模块内起真实派发器，三个任务都带旧结果——人为阻塞、重试用完的失败、遇到 429 被安排重试；经真实的 `_format_message` 看频道文本；另有两例走 `move_task` 移入人为阻塞与定时阻塞。`test_event_publisher.py` 新增 9 例（旧结果下的阻塞与失败、失败时 `error` 缺失退回 `result`、完成、定时阻塞载荷、`moved` 参数化、`block_kind` 门控、非结果事件没有 `detail`）；`test_dispatcher.py` 的参数化例覆盖 `task_blocked` 与 `moved` 两种事件下定时阻塞不发送、人为与外部阻塞照发；前端 `kanbanTaskToast.test.ts` 共 13 例，含省略号、刚好 200 字、人为与外部阻塞仍弹窗、定时阻塞与 `moved` 的定时阻塞安静。
+3. 变异：服务端 9 种全部被杀（失败改回先报 `result`、阻塞改回先报 `result`、`block_kind` 从不发布、对已不是阻塞的任务也发布 `block_kind`、`moved` 不当作结果事件、`moved` 不带状态、频道仍发送定时阻塞、派发器接线改回手写 detail、`move_task` 的发布改回手写 detail）；前端 5 种全部被杀（不跳过定时阻塞、只跳过 `task_blocked` 而不跳过 `moved`、把所有非人为阻塞都跳过、截断不带省略号、刚好 200 字也被截断）；每次变异后恢复，文件与备份逐字节一致。
+4. 运行中的开发 API（在本次源码修改之后启动）：人为阻塞且带旧结果的任务，SSE 事件的 `detail` 是阻塞原因、`block_kind` 为 `human`；定时阻塞的事件 `block_kind` 为 `scheduled` 且没有 `detail`。
+5. 门禁：`pytest` 宽范围 922 通过、2 失败、1 跳过（这 2 个与本条无关，见局限 6）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban`：46 个文件 567 例通过（改动前相关的服务端测试 80 例通过，作为基线）；ruff、ruff format、pyright（4 个改动源文件 0 错误）、prettier、oxlint 干净；`tsc --noEmit` 49 条错误，输出里没有本条改动的文件。
+6. 提交内容为「HEAD 加自己的改动」：`move_orchestrator.py` 与两份看板 `_ARCH.md` 在工作区里带有他人未提交的改动，提交只含本条的块（逐行差异核对：`move_orchestrator.py` 只有导入一行与发布调用一处）。
+
+### 局限
+
+1. toast 与系统通知的实际呈现没有在浏览器里看到：一次尝试里移动端截图没有出现 toast，原因没有查清（那次打开的是 `127.0.0.1` 而不是 `localhost`，SSE 来源是否因此不同没有核实）；之后后端因他人进行中的改动起不来（先是 harness 的 `DEFAULT_SCENES` 导入，后是 `ALL_MEMORY_TYPES` 导入），没有再试。IM 投递与操作系统通知只验证到代码路径。
+2. 僵尸回收后直接失败（`dispatcher_zombie.py:178-181`）不写 `task.error`，通知仍退回到旧的 `result`，与改前一样；要修得在 harness 里写 `error`，本条没有动 harness。
+3. 定时阻塞整体安静是有意取舍：一个在 `max_retries` 内反复被限流的任务全程没有提醒，只有卡片倒计时与抽屉；用尽重试后才提醒。没有生产数据，不知道这类任务的实际占比。
+4. 没有用真实模型与真实 IM 渠道跑；`next build` 没跑。
+5. `useGlobalEvents.ts` 没有改，它仍是 624 行（HEAD），超过 500 行上限，本条之前就超（`-024` 局限 10 写的 627 行是工作区里带他人未提交改动的行数）。
+6. 工作区里有 2 个失败与本条无关：`test_extract_enabled_empty_pdf_falls_back_to_reference`，以及 `test_move_with_result_and_metadata`（断言被他人未提交的 `move_orchestrator.py` 移交元数据 `summary`、`timestamp` 打破，与 `-024` 记的是同一组）。
+7. 评估后放弃的方案：为通知另起结构化原因码（现有整句匹配已够用，改动面大）；复用 `suppress_im_notification`（它是死信事件用的布尔位，语义不同）；给定时阻塞弹「提示级 toast」（要新文案，而卡片已经在倒计时）；顺手拆 `useGlobalEvents.ts`（他人正在抽 `backupAlertToast.ts`）。
+
+### 踩坑经验
+
+1. 同一个事实有多个消费者时，先找出「谁来决定说什么」：聊天提示早有正确规则，任务级更新各写各的，才会在一个任务上说出两种话；统一出处比分别修三处可靠。
+2. 取值顺序要按「字段会不会残留」来定：`result` 在重跑后仍然存在，所以阻塞与失败不能把它放第一位。
+3. 写完一条改动里自己的断言之前，用真实组件复现一次：`-024` 补充的 toast 声称显示本地化原因，用带旧结果的真实派发器一跑就露馅，而它的测试直接把 `detail` 传给 toast，覆盖不到服务端怎么填这个字段。
+4. 跟着改事件载荷时先列出所有消费者：这次的 `KANBAN_TASK_UPDATED` 有前端 toast、聊天提示与 IM 频道三处，看板刷新监听只读 `board_id` 与 `task_id`，加可选字段不会影响它们。
+5. 在 zsh 里不要用 `path` 做循环变量：它与 `PATH` 绑定，赋值会让后续所有命令都找不到。
+6. 共享主机上别人进行中的改动会让开发服务起不来，且不是你的文件：先看日志里的导入错误是谁的，不要为了跑浏览器去修别人的文件。
+7. 提交说明里写了「聊天提示对失败早已先报原因」，不准确：提交前的 `_terminal_result` 对失败是 `result or error`，失败这一支是本次才改的（本条「现象」第 2 点与「修复」第 1 点以此为准；提交未 push，没有改写历史）。
