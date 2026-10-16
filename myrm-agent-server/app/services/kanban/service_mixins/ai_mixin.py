@@ -52,7 +52,7 @@ class KanbanAiWorkflowMixin(KanbanServiceCore):
             board_id: str,
             title: str,
             description: str = "",
-            priority: TaskPriority = ...,
+            priority: TaskPriority = TaskPriority.NORMAL,
             parent_task_id: str | None = None,
             agent_id: str | None = None,
             model_override: str | None = None,
