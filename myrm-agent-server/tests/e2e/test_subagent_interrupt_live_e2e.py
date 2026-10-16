@@ -13,6 +13,7 @@ Formal run::
 
 from __future__ import annotations
 
+import shutil
 import sys
 import uuid
 from pathlib import Path
@@ -48,6 +49,7 @@ _DELEGATE_QUERY_TMPL = (
     "并且必须将 wait 参数设置为 true（同步等待子任务完成，不要异步）。"
     "子智能体必须调用 bash_code_execute_tool 对目录 {target_dir} 执行递归强制删除"
     "（禁止替换路径、禁止输出占位符、禁止只用文本描述而不调用工具）。"
+    "你自己（主智能体）不要调用 bash_code_execute_tool，也不要预先检查或列出该目录，直接委派。"
     "注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，"
     "绝对不要在文本中输出 XML 格式的工具调用！"
 )
@@ -56,12 +58,6 @@ _SUBAGENT_SYSTEM_PROMPT = (
     "You are a bash execution worker. When asked to recursively delete a directory, "
     "you MUST call bash_code_execute_tool with the exact shell command "
     "'rm -rf <path>' (never replace paths or emit placeholders), then report the output."
-)
-
-_AGENT_SYSTEM_PROMPT = (
-    "You are a helpful agent. When the user asks you to delegate a bash task to a subagent, "
-    f"use delegate_task_tool with agent_type='{_SUBAGENT_TYPE}' and wait=true. "
-    "The subagent has only bash_code_execute_tool. Report the subagent's result when it finishes."
 )
 
 _EPHEMERAL_SUBAGENTS: dict[str, dict[str, object]] = {
@@ -125,15 +121,23 @@ def _run_interrupt_case(
     pin_and_verify_hitl_mode(api_base)
     _seed_chat(client, api_base, chat_id=chat_id)
     query = _DELEGATE_QUERY_TMPL.format(target_dir=target_dir)
-    run_interrupt_flow(
-        client,
-        api_base,
-        chat_id,
-        _BUILTIN_AGENT_ID,
-        query,
-        ephemeral_subagents=_EPHEMERAL_SUBAGENTS,
-        resume_decision_factory=resume_decision_factory,
-    )
+    # The target must exist: a model that inspects it before delegating otherwise hits "No such file or directory",
+    # and consecutive failed tool calls trip the stuck-tool guard before any subagent is spawned.
+    target = Path(target_dir)
+    target.mkdir()
+    (target / "marker.txt").write_text("live e2e target", encoding="utf-8")
+    try:
+        run_interrupt_flow(
+            client,
+            api_base,
+            chat_id,
+            _BUILTIN_AGENT_ID,
+            query,
+            ephemeral_subagents=_EPHEMERAL_SUBAGENTS,
+            resume_decision_factory=resume_decision_factory,
+        )
+    finally:
+        shutil.rmtree(target, ignore_errors=True)
 
 
 def _setup(api_base: str) -> None:

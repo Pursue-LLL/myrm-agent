@@ -18,6 +18,7 @@ _STREAM_TIMEOUT_SEC = 300.0
 _STREAM_ROUND_WALL_SEC = 600.0
 _STREAM_IDLE_AFTER_MEANINGFUL_SEC = 180.0
 _MAX_RESUME_ROUNDS = 8
+# Events that prove the agent is still working; ``tool_heartbeat`` is a keep-alive and deliberately absent.
 _PROGRESS_EVENT_TYPES = frozenset(
     {
         "message_start",
@@ -35,6 +36,16 @@ _PROGRESS_EVENT_TYPES = frozenset(
         "tasks_steps",
         "status",
         "capability_gap",
+        "phase_transition",
+        "reasoning",
+        "message",
+        "token_usage",
+        "tool_start",
+        "tool_stdout_chunk",
+        "subagent_log",
+        "subagent_progress",
+        "subagent_completion",
+        "async_wakeup",
     }
 )
 
@@ -59,6 +70,18 @@ def _stream_terminal_risk_blocked(events: list[dict[str, object]]) -> str | None
                     return f"risk_blocked: {', '.join(names)}"
         return "risk_blocked by input risk gate"
     return None
+
+
+def summarize_interrupts(events: list[dict[str, object]]) -> list[str]:
+    """Name what each approval/stuck interrupt in one round is about, so a failed run shows which tool stalled."""
+    summaries: list[str] = []
+    for event in events:
+        if event.get("type") not in _APPROVAL_EVENT_TYPES:
+            continue
+        data = event.get("data")
+        if isinstance(data, dict):
+            summaries.append(json.dumps(data, ensure_ascii=False, default=str)[:600])
+    return summaries
 
 
 def consume_agent_stream(
@@ -247,6 +270,7 @@ def run_interrupt_flow(
         )
         action_type, last_events, errors = consume_agent_stream(client, api_base, payload)
         _log_progress(f"round={round_idx + 1} action_type={action_type!r} event_types={[e.get('type') for e in last_events]}")
+        _log_progress(f"round={round_idx + 1} interrupts={summarize_interrupts(last_events)}")
 
         if completed_without_approval(last_events) and not approval_seen:
             raise AssertionError(
@@ -277,7 +301,8 @@ def run_interrupt_flow(
         raise AssertionError(
             f"No subagent_approval after {_MAX_RESUME_ROUNDS} rounds; "
             f"last action_type={action_type!r} "
-            f"events={[e.get('type') for e in last_events]}"
+            f"events={[e.get('type') for e in last_events]} "
+            f"interrupts={summarize_interrupts(last_events)}"
         )
 
     _log_progress("run_interrupt_flow final resume after subagent_approval")
