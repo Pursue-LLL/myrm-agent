@@ -143,7 +143,7 @@ def seed_providers_from_test_env(backend_url: str) -> bool:
 
     basic_entry = _entry(basic_model, basic_key, basic_url)
     lite_entry = _entry(lite_model, lite_key, lite_url) if lite_model and lite_key else None
-    base_primary = {"providerId": basic_entry["id"], "model": basic_entry["enabledModels"][0]}
+    base_primary = {"providerId": _provider_id(basic_model), "model": _model_id(basic_model)}
     payload = {
         "deviceId": "e2e-bash-compressor",
         "value": {
@@ -158,8 +158,8 @@ def seed_providers_from_test_env(backend_url: str) -> bool:
                 "liteModel": (
                     {
                         "primary": {
-                            "providerId": lite_entry["id"],
-                            "model": lite_entry["enabledModels"][0],
+                            "providerId": _provider_id(lite_model),
+                            "model": _model_id(lite_model),
                         },
                         "fallback": None,
                     }

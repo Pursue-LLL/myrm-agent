@@ -36,4 +36,4 @@ def resolve_verify_api_base(*, ensure_backend: bool = True) -> str:
         ctx = resolve_e2e_api_context(retry_after_apply=False)
     if ctx.blocked:
         pytest.skip(f"verify-api blocked: {ctx.blocked_reason}")
-    return ctx.verify_api_base.rstrip("/")
+    return str(ctx.verify_api_base).rstrip("/")

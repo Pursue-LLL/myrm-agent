@@ -92,7 +92,7 @@ def _wave_state_path() -> Path:
         sys.path.insert(0, dev_lib_str)
     from e2e_core.wave_state_paths import resolve_wave_state_file
 
-    return resolve_wave_state_file()
+    return Path(resolve_wave_state_file())
 
 
 def _isolated_e2e_mode() -> bool:
@@ -105,7 +105,7 @@ def _stack_scoped_runtime_id() -> str:
         sys.path.insert(0, str(dev_lib))
     from e2e_core.runtime_identity import read_stack_scoped_runtime_id
 
-    return read_stack_scoped_runtime_id()
+    return str(read_stack_scoped_runtime_id())
 
 
 def _stack_fingerprint_runtime_id() -> str:
@@ -124,7 +124,7 @@ def _formal_chrome_e2e_runtime_heal_allowed() -> bool:
         sys.path.insert(0, str(dev_lib))
     from dev_gate.contract import formal_chrome_e2e_runtime_heal_agent
 
-    return formal_chrome_e2e_runtime_heal_agent(os.environ.get("MYRM_E2E_AGENT_ID", ""))
+    return bool(formal_chrome_e2e_runtime_heal_agent(os.environ.get("MYRM_E2E_AGENT_ID", "")))
 
 
 def _runtime_drift_heal_allowed() -> bool:
@@ -161,7 +161,7 @@ def _shared_hot_stack_runtime_id() -> str:
         sys.path.insert(0, str(dev_lib))
     from e2e_core.runtime_probe import _read_shared_hot_stack_runtime_id
 
-    return _read_shared_hot_stack_runtime_id()
+    return str(_read_shared_hot_stack_runtime_id())
 
 
 def _read_open_wave_runtime_id(state_path: Path) -> str:
@@ -274,7 +274,7 @@ def _runtime_id_reader() -> str:
         sys.path.insert(0, str(dev_lib))
     from e2e_core.runtime_probe import read_current_runtime_id
 
-    return read_current_runtime_id()
+    return str(read_current_runtime_id())
 
 
 def _assert_isolated_stack_unchanged(*, expected: str) -> None:
