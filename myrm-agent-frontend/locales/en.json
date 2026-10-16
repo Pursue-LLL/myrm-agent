@@ -21763,6 +21763,9 @@
         "snapshots": "State snapshots",
         "other": "Other"
       },
+      "loadFailedTitle": "Storage usage could not be measured",
+      "loadFailedDesc": "Something went wrong while measuring your data. Try again later.",
+      "loadFailedStaleDesc": "The figures below come from the last successful measurement and may be out of date.",
       "snapshotsAndRollback": "State Snapshots & Rollback",
       "snapshotsDesc": "Create immutable state snapshots prior to major upgrades or skill behavioral changes for instant rollback.",
       "snapshotLabelPlaceholder": "Snapshot label (e.g. Pre-upgrade backup)",

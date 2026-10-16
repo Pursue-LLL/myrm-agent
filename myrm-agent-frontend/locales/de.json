@@ -21064,6 +21064,9 @@
         "snapshots": "Zustandssnapshots",
         "other": "Sonstiges"
       },
+      "loadFailedTitle": "Speicherbelegung konnte nicht ermittelt werden",
+      "loadFailedDesc": "Beim Messen Ihrer Daten ist ein Problem aufgetreten. Bitte später erneut versuchen.",
+      "loadFailedStaleDesc": "Die Werte unten stammen aus der letzten erfolgreichen Messung und sind möglicherweise veraltet.",
       "snapshotsAndRollback": "Zustandssnapshots & Rollback",
       "snapshotsDesc": "Erstellen Sie vor Upgrades unveränderliche Zustandssnapshots für sofortige Wiederherstellung.",
       "snapshotLabelPlaceholder": "Snapshot-Bezeichnung (z. B. Backup vor Upgrade)",

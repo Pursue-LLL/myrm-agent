@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { StorageGovernanceCard } from '../StorageGovernanceCard';
 import { systemService } from '@/services/system';
@@ -28,6 +28,15 @@ vi.mock('@/services/system', () => ({
     deleteStateSnapshot: vi.fn(),
   },
 }));
+
+// A promise the test settles by hand, to hold one measurement back while another one completes.
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
 
 describe('StorageGovernanceCard', () => {
   const mockReport = {
@@ -148,6 +157,80 @@ describe('StorageGovernanceCard', () => {
         variant: 'destructive',
       });
     });
+  });
+
+  it('shows neither figures nor a failure while the first report is being measured', async () => {
+    const firstScan = deferred<typeof mockReport>();
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockReturnValue(firstScan.promise);
+
+    render(<StorageGovernanceCard />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('categories.sqlite_database')).not.toBeInTheDocument();
+
+    await act(async () => {
+      firstScan.resolve(mockReport);
+    });
+    expect(screen.getByText('categories.sqlite_database')).toBeInTheDocument();
+  });
+
+  it('explains a failed first measurement in the user language and recovers on retry', async () => {
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockRejectedValueOnce(
+      new Error('Request failed with status 500'),
+    );
+
+    render(<StorageGovernanceCard />);
+
+    expect(await screen.findByText('loadFailedTitle')).toBeInTheDocument();
+    expect(screen.getByText('loadFailedDesc')).toBeInTheDocument();
+    expect(screen.queryByText(/status 500/)).not.toBeInTheDocument();
+    expect(screen.queryByText('categories.sqlite_database')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+
+    expect(await screen.findByText('categories.sqlite_database')).toBeInTheDocument();
+    expect(screen.queryByText('loadFailedTitle')).not.toBeInTheDocument();
+    expect(systemService.getStorageGovernanceReport).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the last report on screen and says it may be out of date when a refresh fails', async () => {
+    render(<StorageGovernanceCard />);
+    expect(await screen.findByText('50.00 MB')).toBeInTheDocument();
+
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockRejectedValue(new Error('offline'));
+    (systemService.createStateSnapshot as unknown as Mock).mockResolvedValue({
+      success: true,
+      message: 'Snapshot created',
+    });
+    fireEvent.change(screen.getByPlaceholderText('snapshotLabelPlaceholder'), { target: { value: 'Refresh me' } });
+    fireEvent.click(screen.getByText('createSnapshot'));
+
+    expect(await screen.findByText('loadFailedStaleDesc')).toBeInTheDocument();
+    expect(screen.getByText('50.00 MB')).toBeInTheDocument();
+    expect(screen.getByText('categories.sqlite_database')).toBeInTheDocument();
+  });
+
+  it('never lets a slow earlier measurement overwrite a newer one', async () => {
+    const slowFirstScan = deferred<typeof mockReport>();
+    (systemService.getStorageGovernanceReport as unknown as Mock)
+      .mockReturnValueOnce(slowFirstScan.promise)
+      .mockResolvedValueOnce({ ...mockReport, total_storage_bytes: 62914560 }); // 60 MB
+    (systemService.createStateSnapshot as unknown as Mock).mockResolvedValue({
+      success: true,
+      message: 'Snapshot created',
+    });
+
+    render(<StorageGovernanceCard />);
+    fireEvent.change(screen.getByPlaceholderText('snapshotLabelPlaceholder'), { target: { value: 'During the scan' } });
+    fireEvent.click(screen.getByText('createSnapshot'));
+    expect(await screen.findByText('60.00 MB')).toBeInTheDocument();
+
+    await act(async () => {
+      slowFirstScan.resolve(mockReport); // 50 MB, measured before the snapshot existed
+    });
+
+    expect(screen.getByText('60.00 MB')).toBeInTheDocument();
+    expect(screen.queryByText('50.00 MB')).not.toBeInTheDocument();
   });
 
   it('creates and restores state snapshot', async () => {

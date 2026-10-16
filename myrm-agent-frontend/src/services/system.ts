@@ -19,6 +19,12 @@ export type StorageCategoryKey =
   | 'snapshots'
   | 'other';
 
+/**
+ * Measuring the space ledger walks every file under the state directory, so a large instance on a slow disk
+ * needs far more than the default request budget.
+ */
+const STORAGE_REPORT_TIMEOUT_MS = 120_000;
+
 export const systemService = {
   /**
    * Get the computed public ingress base URL.
@@ -58,7 +64,8 @@ export const systemService = {
   },
 
   /**
-   * Storage Governance APIs
+   * Storage Governance APIs. The report request is silent: the card renders its own localized failure state
+   * with a retry instead of a global error toast.
    */
   async getStorageGovernanceReport(): Promise<{
     total_storage_bytes: number;
@@ -81,7 +88,10 @@ export const systemService = {
     }>;
     generated_at: string;
   }> {
-    return apiRequest(`/system/storage/governance?t=${Date.now()}`);
+    return apiRequest(`/system/storage/governance?t=${Date.now()}`, {
+      silent: true,
+      timeout: STORAGE_REPORT_TIMEOUT_MS,
+    });
   },
 
   async createStateSnapshot(label: string): Promise<{

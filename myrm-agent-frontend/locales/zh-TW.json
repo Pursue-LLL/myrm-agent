@@ -21064,6 +21064,9 @@
         "snapshots": "狀態快照",
         "other": "其他"
       },
+      "loadFailedTitle": "無法統計儲存空間占用",
+      "loadFailedDesc": "統計資料占用時發生問題，請稍後再試。",
+      "loadFailedStaleDesc": "下方數字來自上一次成功的統計，可能已不是最新。",
       "snapshotsAndRollback": "狀態快照與一鍵復原",
       "snapshotsDesc": "在重大升級或 Skill 行為變更前建立不可變狀態快照，故障時可秒級復原至上一檢查點。",
       "snapshotLabelPlaceholder": "快照說明 (如：升級前備份)",

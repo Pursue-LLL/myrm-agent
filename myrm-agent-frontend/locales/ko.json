@@ -21064,6 +21064,9 @@
         "snapshots": "상태 스냅샷",
         "other": "기타"
       },
+      "loadFailedTitle": "저장 공간 사용량을 측정하지 못했습니다",
+      "loadFailedDesc": "데이터 사용량을 측정하는 중 문제가 발생했습니다. 나중에 다시 시도해 주세요.",
+      "loadFailedStaleDesc": "아래 수치는 마지막으로 성공한 측정 결과이며 최신이 아닐 수 있습니다.",
       "snapshotsAndRollback": "상태 스냅샷 및 롤백",
       "snapshotsDesc": "주요 업그레이드 또는 스킬 동작 변경 전에 불변 상태 스냅샷을 생성하여 즉시 롤백할 수 있습니다.",
       "snapshotLabelPlaceholder": "스냅샷 라벨 (예: 업그레이드 전 백업)",

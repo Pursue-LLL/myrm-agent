@@ -21763,6 +21763,9 @@
         "snapshots": "状态快照",
         "other": "其他"
       },
+      "loadFailedTitle": "无法统计存储占用",
+      "loadFailedDesc": "统计数据占用时出了点问题，请稍后重试。",
+      "loadFailedStaleDesc": "下方数字来自上一次成功的统计，可能已不是最新。",
       "snapshotsAndRollback": "状态快照与一键回滚",
       "snapshotsDesc": "在重大升级或 Skill 行为变更前创建不可变状态快照，故障时可秒级恢复至上一检查点。",
       "snapshotLabelPlaceholder": "快照说明 (如：升级前备份)",
