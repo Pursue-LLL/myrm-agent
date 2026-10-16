@@ -11,7 +11,9 @@
 
 [POS]
 Server-level ephemeral session enclave. Completely bypasses SQLAlchemy UnitOfWork
-and FTS5 disk indexing. Guarantees zero plaintext traces on disk or in standard logs.
+and FTS5 disk indexing, so the messages of an incognito chat are never written to the database.
+Other per-chat state (LangGraph checkpoint threads, runtime caches) is not held here; ``chat_disposal``
+removes it when the chat is purged, and the event log is never created for an incognito chat.
 """
 
 from __future__ import annotations

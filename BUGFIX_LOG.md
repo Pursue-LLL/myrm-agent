@@ -4885,3 +4885,56 @@ except Exception:
 3. 把「写文件」和「读文件」放进同一批并行调用，读到的是旧内容；有依赖的调用不能并行。
 4. 压实后的事件流里既有对象也有字典，测试里不能只按一种类型过滤，否则恰好漏掉重启事件。
 5. 共享文件（如本日志）会被别的会话整文件覆盖：追加后要立刻核对是否还在，提交前再核对一次。
+
+## BUG-AGENT-2026-10-16-009: 无痕会话仍写下含完整提示词的事件日志，永久删除与自动清除也从不删它；无痕会话委派的自定义子 Agent 仍会打开用户的记忆
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（对无痕合同的终极叩问：枚举「一次会话在磁盘上留下的东西」的全部写入点与读取方，并用真实组件逐个复现） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P1（违反界面上的承诺「对话结束后不留痕迹」：提示词原文留在磁盘，且删除会话后仍在） |
+| 影响范围 | harness：`agent/event_log/backends/file_backend.py`（新增 `remove_session_log`）、`event_log/EVENT_LOG_SYSTEM.md`、`event_log/_ARCH.md`、`backends/_ARCH.md`；server：`app/ai_agents/agents.py`、`subagent_catalog.py`、`extensions/subagent_extension.py`、`general_agent/factory.py`、`app/services/agent/stream_session/stream_lane_factory.py`、`app/services/chat/chat_disposal.py`、`ephemeral_session_store.py`，各目录 `_ARCH.md` |
+| 出现次数 | 1（真实 `EventLogger` 与 `llm_request` 钩子、真实目录与工厂复现，没有用户数据） |
+| 关联 | 提交本地，未 push；server 调用 harness 新方法，推送前需先发 harness 并同步锁文件（`./myrm harness sync-lock`），锁里的旧版 harness 没有该方法时清理步骤会记警告并跳过，不会中断删除 |
+
+### 现象
+
+1. 无痕会话照常写每会话事件日志 `{chat_id}.jsonl`：`llm_request` 钩子把 `[user] <提示词>`（最长 32768 字）与工具结果写进去，支持包、数据集导出、日报、导出包、统计页都会读它。
+2. 永久删除、清空回收站、回收站 30 天自动清除、无痕 1 小时自动清除共用的拆除链不含事件日志，文件只会被「30 天按龄清扫」删除，而清扫只在日志器启动时跑一次。
+3. 无痕会话委派数据库里的自定义子 Agent 时，子 Agent 仍创建记忆管理器：目录在构造配置时把记忆隔离写死成 `READ_ONLY_GLOBAL`，工厂只对 `EPHEMERAL_SESSION` 才跳过。它能检索已存记忆；会话结束的自动抽取会写新记忆并多一次模型调用（这一条链是静态读码结论，没有用真实模型跑）。
+
+### 根因
+
+1. 事件日志后端的创建条件只看目录与会话标识，没有看无痕标志。
+2. 拆除链没有这一步，harness 后端也只有「按龄清扫」，没有「按会话删除」。
+3. 委派时子 Agent 工厂拿到的父对象是运行时 `SkillAgent`，它没有 `incognito_mode` 属性；在工厂里读父标志（先前路线图的写法）会成为恒不生效的分支，而且现有单测用 `SimpleNamespace` 替身会让它看起来有效。标志只有会话的拥有者知道，必须在构造目录时传入。
+
+### 修复
+
+1. `create_general_agent`：无痕对话不创建事件日志后端（`event_log_backend=None` 是框架支持的契约）。
+2. harness `FileEventLogBackend.remove_session_log(session_id)`：写锁内删除，解析到日志目录之外的标识抛 `ValueError`，删除的是自己会话时重置去重水位；server `chat_disposal.remove_chat_event_log`：放在 `clear_runtime_caches` 之后（先停生产者），fail-open；四个入口走同一条链，不用各自处理。
+3. `DatabaseSubagentCatalog(incognito_mode=…)`：数据库自定义子 Agent 在无痕对话里配成 `EPHEMERAL_SESSION`；`SubagentManagementExtension` 与动态工作流入口各自传入会话的标志。工厂本身没有改。
+4. 文档：`ephemeral_session_store.py` 里「零明文痕迹」的表述改成实际范围（消息不入库），其余状态由 `chat_disposal` 清理；harness 与 server 的 `_ARCH.md`、`EVENT_LOG_SYSTEM.md` 同步。
+5. 顺手：`subagent_extension.py` 的 `_tool_registry_getter` 返回类型改为 `list[BaseTool]`，消除 2 条 pyright 报错。
+
+### 验证
+
+1. 红灯先行：harness 5 例 `remove_session_log` 先因 `AttributeError` 失败；server 四个入口的拆除用例先因日志仍在而失败；子 Agent 的两条无痕用例在改前失败。事件日志后端的 4 例守卫没有先红（门禁代码在我动手前已出现在工作区），改用变异证明它有效。
+2. 变异检查：把工厂的无痕分支改成 `if False`，守卫的无痕一行失败；目录忽略无痕标志，`test_subagent_catalog_incognito.py` 的两条无痕用例失败；拆除链去掉 `remove_chat_event_log`，四个入口用例全部失败；各还原后重跑全部通过。
+3. 构造点枚举：新增 AST 守卫，扫描 `app/` 里所有 `DatabaseSubagentCatalog(`、`SubagentManagementExtension(` 调用必须显式传 `incognito_mode`，唯一豁免是无人值守的定时任务事后验证（不属于任何会话）；去掉豁免后守卫能指出该处。
+4. 测试：harness `tests/agent/event_log` 235 通过；server `tests/services/chat`、`tests/ai_agents`、`tests/core/agents`、`tests/services/agent/stream_session`、`tests/architecture` 等 3268 通过、14 失败，14 例均与本条无关（`test_agent_middlewares_exports` 与 `test_explore_subagent_preset` 来自他人未提交的中间件与预设改动，`tests/architecture` 的路由、域词表、深层 harness 导入清单、前端路径、文本入口门禁各例来自他人在途改动，另有一例指向本日志第 4726 行他人条目里的私有路径），失败信息里没有本条涉及的模块。
+
+### 局限
+
+1. 会话进行中的 LangGraph checkpoint 仍在，会话被清除时才删；超过 16000 字的粘贴会落到 `~/.myrm/spillover/`，保留 24 小时；模型供应商侧的保留不在我们控制内。这三项与改动前一致，没有扩大。
+2. 删除日志与仍在写日志的日志器之间没有锁协调（两个后端实例各有一把锁）；永久删除只作用于回收站内的会话且先停运行时，无痕会话现在根本不写，所以实际不会交错，但没有用真实并发验证。
+3. 子 Agent 里「`memory_manager=None` 则跳过会话结束抽取」是静态读码结论，没有用真实模型跑过一次委派。
+4. `subagent_extension.py` 第 96 行的 `AgentMiddleware[object, object]` 仍有 2 条 pyright 报错：五个扩展共用这种写法，协议在 harness 里写成 `Any`，要改需要同时动协议与五个扩展，不是本条的范围。
+5. `custom_agent_factory.py` 仍有 593 行（超过 500 行上限）：本条最终没有改它，所以没有拆；其中另有他人未提交的 `_subagent_write_backend` 改动。
+6. harness 仓库里一次按 hunk 局部提交把新方法放在了 `cleanup_old_logs` 文档字符串中间（`d05451ee0`），该提交里的 `file_backend.py` 无法解析，下一次修复提交 `6098b4da1` 才恢复；这两个提交之间的 harness 状态不能单独检出使用（没有改写历史，因为同一工作区还有他人未提交的改动）。
+
+### 教训
+
+1. 先查生产里被传入对象的真实类型再写守卫：工厂里读父对象标志的写法在单测里通过、在生产里永不触发，是看起来有效的死代码。
+2. 「合同的消费者」要枚举到磁盘上的每一种产物：消息、检查点、记忆、技能草稿、事件日志，各有各的写入点，逐个核对而不是只修最显眼的一个。
+3. 用 `-U0` 的局部 hunk 提交在前面有被排除的改动时会放错位置：提交后要在纯 HEAD 检出（`git archive`）上重跑测试，而不是在带他人改动的工作区里看绿。
