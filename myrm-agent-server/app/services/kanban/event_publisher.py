@@ -223,8 +223,8 @@ def _outcome(action: str, task: KanbanTask) -> str | None:
 def _terminal_result(task: KanbanTask, status: str) -> str:
     """The text to show for a terminal outcome: only the field that belongs to that outcome.
 
-    A task keeps the result of an earlier attempt after it is rejected and run again, and keeps an old error after
-    it is retried or moved by hand, so reading across fields would report a stale outcome as the current one.
+    A task keeps the result of an earlier attempt after it is rejected or retried, and a card moved by hand keeps
+    whatever error it had, so reading across fields would report a stale outcome as the current one.
     A failed task has no text of its own to show: its ``error`` is the exception message of the run, which names
     internals (provider classes, tool names, SQL) a user cannot act on; the board's run history keeps it in full.
     """
