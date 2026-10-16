@@ -105,7 +105,7 @@ async def _complete(
     task.status = TaskStatus.COMPLETED
     await store.save_task(task)
     await store.append_event(task.task_id, marker)
-    _make_task_completed_merge_hook(runner, store)("task_completed", task)  # type: ignore[arg-type]
+    _make_task_completed_merge_hook(runner, store)("task_completed", task)
 
 
 async def _settle() -> None:

@@ -12,8 +12,9 @@ A dependent's worktree is cut from the repository as it is when the dependent st
 dependent as soon as its parent completes, while the parent's merge still runs in the background, so the dependent
 would start from a repository without the parent's work. ``worktree_ops.spawn_worktree_op`` registers each such merge
 here under the completed task's id; ``task_runner.worktree.lifecycle.resolve_workspace`` waits for the merges of the
-task's parents before it resolves the workspace. Nothing is persisted: a restart loses the merge itself, so there is
-nothing left to wait for.
+task's parents before it resolves the workspace, and ``task_runner.worktree.landing_gate.hold_for_unlanded_parents``
+before it reads their outcome. Nothing is persisted: a restart loses the merge itself, so there is nothing left to
+wait for.
 """
 
 from __future__ import annotations
