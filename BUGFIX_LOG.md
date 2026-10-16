@@ -5757,7 +5757,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 迁移里的 `DROP TABLE` 只在合成的 DDL 上测过，没有在真实用户库上跑；表里若有人通过 POST 手写过数据，会随之丢失（仓内没有调用方，仓外调用方排除不了）。
 2. 删除了 `/statistics/` 下的 11 个路由处理器（10 个路径：`search-quotas`、`search-quotas/record`、`search-quotas/reset`、`search-quotas/limit`、`browser-runtime`、`browser-runtime/summary`、`browser-runtime/record`、`sandbox-workload`、`sandbox-workload/record`、`runtime-cost-gauge`），仓外脚本若调用会得到 404。
 3. 没有做视觉验收：卡片只是被删除，设置页用量统计区删除后的版面没有截图复核。
-4. `BrowserObservability.check_action_watchdog` 没有调用方，本条只更正了对外文案，没有删除这段代码，留作后续项。
+4. `BrowserObservability.check_action_watchdog` 没有调用方，本条只更正了对外文案，没有删除这段代码；这段代码与只写不读的浏览器运行遥测随 harness `BUG-HARNESS-2026-10-16-012` 一并删除。
 5. 删除烟雾报警钩子后，定时任务的失控防线是 `RunawayCircuitBreakException` 熔断，以及用户在设置里开启后才生效的预算守卫 `services/budget/enforcer.py`（默认关闭）；烟雾报警原本就没有触发任何动作，所以防线没有变弱，但也没有因此变强。
 6. 回读时发现 `SessionAnalyticsDialog.tsx` 的 Markdown 导出模板里有一个原生 emoji，违反前端规范，不在本条范围内，未改。
 
