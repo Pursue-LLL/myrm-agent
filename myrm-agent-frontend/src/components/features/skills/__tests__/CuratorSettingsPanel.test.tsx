@@ -36,11 +36,6 @@ describe('CuratorSettingsPanel Component', () => {
     });
 
     vi.spyOn(skillService, 'getSkillDiagnostics').mockResolvedValue({
-      total_skills: 5,
-      active_skills: 4,
-      stale_skills: 1,
-      archived_skills: 0,
-      pinned_skills: 1,
       findings: [
         {
           skill_name: 'toxic_crawler',
@@ -49,8 +44,7 @@ describe('CuratorSettingsPanel Component', () => {
           call_count: 30,
           success_rate: 0.1,
           pinned: true,
-          recommended_action: 'unpin_and_archive',
-          details: { observed_count: 30, success_count: 3, failure_count: 27, trust: 'local' },
+          details: { observed_count: 30, success_count: 3, failure_count: 27, trust: 'trusted' },
         },
       ],
       health_score: 75.0,
@@ -68,7 +62,7 @@ describe('CuratorSettingsPanel Component', () => {
   });
 });
 
-describe('CuratorSettingsPanel save footer', () => {
+describe('CuratorSettingsPanel settings form', () => {
   const baseConfig: skillService.CuratorConfigResponse = {
     enabled: true,
     interval_hours: 168,
@@ -86,11 +80,6 @@ describe('CuratorSettingsPanel save footer', () => {
   function mockPanelServices(config: skillService.CuratorConfigResponse = baseConfig) {
     vi.spyOn(skillService, 'getCuratorConfig').mockResolvedValue(config);
     vi.spyOn(skillService, 'getSkillDiagnostics').mockResolvedValue({
-      total_skills: 0,
-      active_skills: 0,
-      stale_skills: 0,
-      archived_skills: 0,
-      pinned_skills: 0,
       findings: [],
       health_score: 100,
     });
@@ -159,5 +148,30 @@ describe('CuratorSettingsPanel save footer', () => {
     await user.click(screen.getAllByRole('switch')[1]);
 
     expect(screen.getAllByRole('button', { name: 'save' })).toHaveLength(1);
+  });
+
+  it('names every control so assistive tech and label taps reach it', async () => {
+    mockPanelServices({ ...baseConfig, consolidation_enabled: true });
+    render(<CuratorSettingsPanel />);
+    await screen.findByDisplayValue('30');
+
+    const numberFields = [
+      'staleAfterDays',
+      'archiveAfterDays',
+      'gracePeriodDays',
+      'intervalHours',
+      'maxSkills',
+      'consolidation.minClusterSize',
+      'consolidation.similarityThreshold',
+    ];
+    for (const name of numberFields) {
+      expect(screen.getByRole('spinbutton', { name })).toBeInTheDocument();
+    }
+    for (const name of ['title', 'protectInstalled', 'consolidation.title']) {
+      expect(screen.getByRole('switch', { name })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('spinbutton', { name: 'staleAfterDays' })).toHaveAccessibleDescription(
+      'staleAfterDaysDesc',
+    );
   });
 });

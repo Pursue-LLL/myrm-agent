@@ -1,10 +1,10 @@
 'use client';
 
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { Play, Loader2, Combine, AlertTriangle, Video } from 'lucide-react';
 import { WorkflowRecorderModal } from './WorkflowRecorderModal';
-import CuratorNumberInput from './CuratorNumberInput';
+import CuratorNumberField from './CuratorNumberField';
 import CuratorDiagnosticsSection from './CuratorDiagnosticsSection';
 import CuratorHistorySection from './CuratorHistorySection';
 import { Switch } from '@/components/primitives/switch';
@@ -34,6 +34,10 @@ const CuratorSettingsPanel = memo(
   ({ className, onSweepComplete }: { className?: string; onSweepComplete?: () => void }) => {
     const t = useTranslations('settings.skills.curator');
     const tCommon = useTranslations('common');
+    const baseId = useId();
+    const titleId = `${baseId}-title`;
+    const protectInstalledId = `${baseId}-protect-installed`;
+    const consolidationTitleId = `${baseId}-consolidation-title`;
     const [config, setConfig] = useState<CuratorConfigResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRunning, setIsRunning] = useState(false);
@@ -230,7 +234,9 @@ const CuratorSettingsPanel = memo(
 
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-medium">{t('title')}</h4>
+              <h4 id={titleId} className="text-sm font-medium">
+                {t('title')}
+              </h4>
               <p className="text-xs text-muted-foreground mt-0.5">{t('description')}</p>
               <p className="text-[11px] text-emerald-600 dark:text-emerald-500 mt-1.5 font-medium">
                 {t('safetyPromise')}
@@ -247,7 +253,11 @@ const CuratorSettingsPanel = memo(
                 <Video className="h-3.5 w-3.5 text-primary" />
                 <span>{t('recordWorkflowBtn')}</span>
               </Button>
-              <Switch checked={config.enabled} onCheckedChange={(v) => updateField('enabled', v)} />
+              <Switch
+                aria-labelledby={titleId}
+                checked={config.enabled}
+                onCheckedChange={(v) => updateField('enabled', v)}
+              />
             </div>
           </div>
 
@@ -263,67 +273,51 @@ const CuratorSettingsPanel = memo(
           {config.enabled && (
             <div className="space-y-4 pl-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('staleAfterDays')}</Label>
-                  <CuratorNumberInput
-                    min={1}
-                    value={config.stale_after_days}
-                    onCommit={(v) => updateField('stale_after_days', v)}
-                    className="h-8"
-                  />
-                  <p className="text-[11px] text-muted-foreground">{t('staleAfterDaysDesc')}</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('archiveAfterDays')}</Label>
-                  <CuratorNumberInput
-                    min={1}
-                    value={config.archive_after_days}
-                    onCommit={(v) => updateField('archive_after_days', v)}
-                    className="h-8"
-                  />
-                  <p className="text-[11px] text-muted-foreground">{t('archiveAfterDaysDesc')}</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('gracePeriodDays')}</Label>
-                  <CuratorNumberInput
-                    min={0}
-                    value={config.grace_period_days}
-                    onCommit={(v) => updateField('grace_period_days', v)}
-                    className="h-8"
-                  />
-                  <p className="text-[11px] text-muted-foreground">{t('gracePeriodDaysDesc')}</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('intervalHours')}</Label>
-                  <CuratorNumberInput
-                    min={1}
-                    value={config.interval_hours}
-                    onCommit={(v) => updateField('interval_hours', v)}
-                    className="h-8"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{t('maxSkills')}</Label>
-                  <CuratorNumberInput
-                    min={5}
-                    value={config.max_skills}
-                    onCommit={(v) => updateField('max_skills', v)}
-                    className="h-8"
-                  />
-                  <p className="text-[11px] text-muted-foreground">{t('maxSkillsDesc')}</p>
-                </div>
+                <CuratorNumberField
+                  label={t('staleAfterDays')}
+                  description={t('staleAfterDaysDesc')}
+                  min={1}
+                  value={config.stale_after_days}
+                  onCommit={(v) => updateField('stale_after_days', v)}
+                />
+                <CuratorNumberField
+                  label={t('archiveAfterDays')}
+                  description={t('archiveAfterDaysDesc')}
+                  min={1}
+                  value={config.archive_after_days}
+                  onCommit={(v) => updateField('archive_after_days', v)}
+                />
+                <CuratorNumberField
+                  label={t('gracePeriodDays')}
+                  description={t('gracePeriodDaysDesc')}
+                  min={0}
+                  value={config.grace_period_days}
+                  onCommit={(v) => updateField('grace_period_days', v)}
+                />
+                <CuratorNumberField
+                  label={t('intervalHours')}
+                  min={1}
+                  value={config.interval_hours}
+                  onCommit={(v) => updateField('interval_hours', v)}
+                />
+                <CuratorNumberField
+                  label={t('maxSkills')}
+                  description={t('maxSkillsDesc')}
+                  min={5}
+                  value={config.max_skills}
+                  onCommit={(v) => updateField('max_skills', v)}
+                />
               </div>
 
               <div className="flex items-center justify-between py-1">
                 <div>
-                  <Label className="text-xs">{t('protectInstalled')}</Label>
+                  <Label htmlFor={protectInstalledId} className="text-xs">
+                    {t('protectInstalled')}
+                  </Label>
                   <p className="text-[11px] text-muted-foreground">{t('protectInstalledDesc')}</p>
                 </div>
                 <Switch
+                  id={protectInstalledId}
                   checked={config.protect_installed_skills}
                   onCheckedChange={(v) => updateField('protect_installed_skills', v)}
                 />
@@ -349,13 +343,14 @@ const CuratorSettingsPanel = memo(
           <div className="pt-3 border-t">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-medium flex items-center gap-1.5">
+                <h4 id={consolidationTitleId} className="text-sm font-medium flex items-center gap-1.5">
                   <Combine size={14} />
                   {t('consolidation.title')}
                 </h4>
                 <p className="text-xs text-muted-foreground mt-0.5">{t('consolidation.description')}</p>
               </div>
               <Switch
+                aria-labelledby={consolidationTitleId}
                 checked={config.consolidation_enabled}
                 onCheckedChange={(v) => updateField('consolidation_enabled', v)}
               />
@@ -364,29 +359,23 @@ const CuratorSettingsPanel = memo(
             {config.consolidation_enabled && (
               <div className="mt-3 space-y-3 pl-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">{t('consolidation.minClusterSize')}</Label>
-                    <CuratorNumberInput
-                      min={2}
-                      max={10}
-                      value={config.consolidation_min_cluster_size}
-                      onCommit={(v) => updateField('consolidation_min_cluster_size', v)}
-                      className="h-8"
-                    />
-                    <p className="text-[11px] text-muted-foreground">{t('consolidation.minClusterSizeDesc')}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">{t('consolidation.similarityThreshold')}</Label>
-                    <CuratorNumberInput
-                      min={0.5}
-                      max={0.95}
-                      step={0.05}
-                      value={config.consolidation_similarity_threshold}
-                      onCommit={(v) => updateField('consolidation_similarity_threshold', v)}
-                      className="h-8"
-                    />
-                    <p className="text-[11px] text-muted-foreground">{t('consolidation.similarityThresholdDesc')}</p>
-                  </div>
+                  <CuratorNumberField
+                    label={t('consolidation.minClusterSize')}
+                    description={t('consolidation.minClusterSizeDesc')}
+                    min={2}
+                    max={10}
+                    value={config.consolidation_min_cluster_size}
+                    onCommit={(v) => updateField('consolidation_min_cluster_size', v)}
+                  />
+                  <CuratorNumberField
+                    label={t('consolidation.similarityThreshold')}
+                    description={t('consolidation.similarityThresholdDesc')}
+                    min={0.5}
+                    max={0.95}
+                    step={0.05}
+                    value={config.consolidation_similarity_threshold}
+                    onCommit={(v) => updateField('consolidation_similarity_threshold', v)}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">

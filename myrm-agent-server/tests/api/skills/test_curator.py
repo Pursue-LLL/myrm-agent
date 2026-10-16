@@ -71,9 +71,7 @@ def test_curator_run(client: TestClient):
     response = client.post("/api/v1/skills/curator/run")
     assert response.status_code == 200
     data = response.json()
-    assert "skills_scanned" in data
-    assert "total_transitions" in data
-    assert "stale_count" in data
+    assert set(data) == {"skills_scanned", "total_transitions", "stale_count", "archived_count", "transitions"}
 
 
 def test_curator_history(client: TestClient):
@@ -81,6 +79,34 @@ def test_curator_history(client: TestClient):
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
+
+
+def test_curator_history_exposes_only_fields_the_panel_reads(client: TestClient) -> None:
+    """The on-disk ledger keeps run internals (duration, errors); the API sends only what the UI renders."""
+    stored_entry = {
+        "timestamp": "2026-10-16T08:00:00+00:00",
+        "trigger": "manual",
+        "duration_ms": 412,
+        "skills_scanned": 24,
+        "total_transitions": 1,
+        "stale_count": 1,
+        "archived_count": 0,
+        "skipped_pinned": 0,
+        "transitions": [{"skill_name": "ppt", "from_status": "active", "to_status": "stale", "reason": "inactive"}],
+        "errors": [],
+    }
+    with patch("app.core.skills.curator.service.get_curator_history", return_value=[stored_entry]):
+        response = client.get("/api/v1/skills/curator/history")
+    assert response.status_code == 200
+    assert set(response.json()[0]) == {
+        "timestamp",
+        "trigger",
+        "skills_scanned",
+        "total_transitions",
+        "stale_count",
+        "archived_count",
+        "transitions",
+    }
 
 
 # ── Lifecycle action tests (mocked backend) ────────────────────────────
@@ -340,8 +366,17 @@ def test_get_skill_diagnostics(client: TestClient):
         response = client.get("/api/v1/skills/curator/diagnostics")
     assert response.status_code == 200
     data = response.json()
-    assert data["total_skills"] == 10
+    assert set(data) == {"findings", "health_score"}
     assert len(data["findings"]) == 1
+    assert set(data["findings"][0]) == {
+        "skill_name",
+        "finding_type",
+        "severity",
+        "call_count",
+        "success_rate",
+        "pinned",
+        "details",
+    }
     assert data["findings"][0]["skill_name"] == "buggy_scraper"
     assert data["health_score"] == 75.0
 

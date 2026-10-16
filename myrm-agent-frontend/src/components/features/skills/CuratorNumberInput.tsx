@@ -11,6 +11,8 @@ interface CuratorNumberInputProps {
   step?: number;
   onCommit: (value: number) => void;
   className?: string;
+  id?: string;
+  'aria-describedby'?: string;
 }
 
 function parseDraft(text: string): number | null {
@@ -29,7 +31,16 @@ function parseDraft(text: string): number | null {
  * reverts to the last committed value instead of becoming 0.
  */
 const CuratorNumberInput = memo(
-  ({ value, min, max = Number.POSITIVE_INFINITY, step = 1, onCommit, className }: CuratorNumberInputProps) => {
+  ({
+    value,
+    min,
+    max = Number.POSITIVE_INFINITY,
+    step = 1,
+    onCommit,
+    className,
+    id,
+    'aria-describedby': describedBy,
+  }: CuratorNumberInputProps) => {
     const [draft, setDraft] = useState(String(value));
     const integerOnly = Number.isInteger(step);
 
@@ -65,6 +76,8 @@ const CuratorNumberInput = memo(
 
     return (
       <Input
+        id={id}
+        aria-describedby={describedBy}
         type="number"
         min={min}
         max={Number.isFinite(max) ? max : undefined}

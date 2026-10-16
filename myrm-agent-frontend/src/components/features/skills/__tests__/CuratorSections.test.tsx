@@ -31,11 +31,6 @@ function renderIn(locale: Locale, ui: React.ReactElement) {
 const noop = () => undefined;
 
 const diagnostics: SkillDoctorDiagnosticsResponse = {
-  total_skills: 12,
-  active_skills: 12,
-  stale_skills: 0,
-  archived_skills: 0,
-  pinned_skills: 1,
   health_score: 70,
   findings: [
     {
@@ -45,8 +40,7 @@ const diagnostics: SkillDoctorDiagnosticsResponse = {
       call_count: 8,
       success_rate: 0.125,
       pinned: true,
-      recommended_action: 'unpin_and_archive',
-      details: { observed_count: 8, success_count: 1, failure_count: 7, trust: 'local' },
+      details: { observed_count: 8, success_count: 1, failure_count: 7, trust: 'trusted' },
     },
     {
       skill_name: 'old-notes',
@@ -55,7 +49,6 @@ const diagnostics: SkillDoctorDiagnosticsResponse = {
       call_count: 3,
       success_rate: 1,
       pinned: true,
-      recommended_action: 'unpin_and_archive',
       details: { days_inactive: 1 },
     },
     {
@@ -65,7 +58,6 @@ const diagnostics: SkillDoctorDiagnosticsResponse = {
       call_count: 0,
       success_rate: 1,
       pinned: false,
-      recommended_action: 'archive',
       details: { active_count: 52, max_skills: 50, excess: 2 },
     },
   ],
@@ -76,13 +68,10 @@ const DAY_MS = 86_400_000;
 const historyEntry: CuratorHistoryEntry = {
   timestamp: new Date(Date.now() - 3 * DAY_MS).toISOString(),
   trigger: 'background',
-  duration_ms: 12,
   skills_scanned: 41,
   total_transitions: 4,
   stale_count: 2,
   archived_count: 2,
-  skipped_pinned: 0,
-  errors: [],
   transitions: [
     { skill_name: 'ppt-style', from_status: 'active', to_status: 'stale', reason: 'inactive' },
     { skill_name: 'old-report', from_status: 'stale', to_status: 'archived', reason: 'archive' },

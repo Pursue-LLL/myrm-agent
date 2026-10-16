@@ -77,7 +77,6 @@ class CuratorRunResponse(BaseModel):
     total_transitions: int
     stale_count: int
     archived_count: int
-    skipped_pinned: int
     transitions: list[dict[str, str]]
 
 
@@ -210,7 +209,6 @@ async def run_curator() -> CuratorRunResponse:
         total_transitions=result.total_transitions,
         stale_count=result.stale_count,
         archived_count=result.archived_count,
-        skipped_pinned=result.skipped_pinned,
         transitions=[
             {
                 "skill_name": t.skill_name,
@@ -228,14 +226,11 @@ class CuratorHistoryEntry(BaseModel):
 
     timestamp: str
     trigger: str
-    duration_ms: int
     skills_scanned: int
     total_transitions: int
     stale_count: int
     archived_count: int
-    skipped_pinned: int
     transitions: list[dict[str, str]]
-    errors: list[str]
 
 
 @router.get("/history", response_model=list[CuratorHistoryEntry])
@@ -318,16 +313,10 @@ class SkillDoctorFindingItem(BaseModel):
     call_count: int
     success_rate: float
     pinned: bool
-    recommended_action: str
     details: dict[str, object] = {}
 
 
 class SkillDoctorDiagnosticsResponse(BaseModel):
-    total_skills: int
-    active_skills: int
-    stale_skills: int
-    archived_skills: int
-    pinned_skills: int
     findings: list[SkillDoctorFindingItem]
     health_score: float
 

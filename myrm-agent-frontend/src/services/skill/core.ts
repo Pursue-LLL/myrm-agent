@@ -762,7 +762,6 @@ export interface CuratorRunResponse {
   total_transitions: number;
   stale_count: number;
   archived_count: number;
-  skipped_pinned: number;
   transitions: CuratorTransition[];
 }
 
@@ -796,14 +795,11 @@ export async function runCuratorSweep(): Promise<CuratorRunResponse> {
 export interface CuratorHistoryEntry {
   timestamp: string;
   trigger: 'manual' | 'background';
-  duration_ms: number;
   skills_scanned: number;
   total_transitions: number;
   stale_count: number;
   archived_count: number;
-  skipped_pinned: number;
   transitions: CuratorTransition[];
-  errors: string[];
 }
 
 export async function getCuratorHistory(limit: number = 10): Promise<CuratorHistoryEntry[]> {
@@ -818,7 +814,6 @@ interface SkillDoctorFindingBase {
   call_count: number;
   success_rate: number;
   pinned: boolean;
-  recommended_action: 'unpin_and_archive' | 'archive' | 'reset_stats' | 'evolve';
 }
 
 /** The server sends a type code plus its parameters; the UI phrases each finding in the user's language. */
@@ -833,11 +828,6 @@ export type SkillDoctorFindingItem = SkillDoctorFindingBase &
   );
 
 export interface SkillDoctorDiagnosticsResponse {
-  total_skills: number;
-  active_skills: number;
-  stale_skills: number;
-  archived_skills: number;
-  pinned_skills: number;
   findings: SkillDoctorFindingItem[];
   health_score: number;
 }
