@@ -567,8 +567,8 @@ class TestQuotaRuntimeRouterEndpoints:
         health_data = json.loads(health_resp.body)
         assert health_data["code"] == 0
         assert "circuit_breakers" in health_data["data"]
-        assert "test-provider:model-x" in health_data["data"]["circuit_breakers"]
-        assert health_data["data"]["circuit_breakers"]["test-provider:model-x"]["state"] == "open"
+        entries = {item["provider"]: item for item in health_data["data"]["circuit_breakers"]}
+        assert entries["test-provider:model-x"]["state"] == "open"
 
         # POST reset single
         reset_req = LLMProviderCircuitResetRequest(provider_or_key="test-provider:model-x")

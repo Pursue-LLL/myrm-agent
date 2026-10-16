@@ -81,20 +81,26 @@ describe('RuntimeCostMeterCard', () => {
     (getSearchQuotas as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockQuotas);
     (getBrowserRuntimeSummary as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowserSummary);
     (getLLMProviderHealth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      circuit_breakers: {
-        'openai:gpt-4o': {
+      circuit_breakers: [
+        {
+          provider: 'openai:gpt-4o',
           state: 'closed',
+          health: 'healthy',
           failure_count: 0,
           half_open_calls: 0,
           retry_after_ms: 0,
+          timestamp: 0,
         },
-        'deepseek:deepseek-chat': {
+        {
+          provider: 'deepseek:deepseek-chat',
           state: 'open',
+          health: 'critical',
           failure_count: 5,
           half_open_calls: 0,
           retry_after_ms: 25000,
+          timestamp: 0,
         },
-      },
+      ],
     });
   });
 

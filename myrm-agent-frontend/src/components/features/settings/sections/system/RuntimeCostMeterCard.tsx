@@ -358,7 +358,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                 <p className="text-[10px] text-muted-foreground">{t('circuitBreakersDesc')}</p>
               </div>
             </div>
-            {Object.keys(circuitBreakers).length > 0 && (
+            {circuitBreakers.length > 0 && (
               <button
                 onClick={() => handleResetCircuit()}
                 disabled={isResettingCircuit}
@@ -370,22 +370,19 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
             )}
           </div>
 
-          {Object.keys(circuitBreakers).length === 0 ? (
-            <div className="p-3 rounded-lg bg-muted/30 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span className="font-medium text-[11px]">{t('circuitAllHealthy')}</span>
-              </div>
-              <span className="text-[10px] text-muted-foreground font-mono">0 / 0 tripped</span>
+          {circuitBreakers.length === 0 ? (
+            <div className="p-3 rounded-lg bg-muted/30 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span className="font-medium text-[11px]">{t('circuitAllHealthy')}</span>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {Object.entries(circuitBreakers).map(([providerKey, stats]) => {
+              {circuitBreakers.map((stats) => {
                 const isOpen = stats.state === 'open';
                 const isHalfOpen = stats.state === 'half_open';
                 return (
                   <div
-                    key={providerKey}
+                    key={stats.provider}
                     className={cn(
                       'p-2.5 rounded-lg border text-xs flex items-center justify-between transition-all',
                       isOpen
@@ -396,7 +393,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                     )}
                   >
                     <div className="space-y-0.5 truncate pr-2">
-                      <div className="font-medium truncate text-[11px] font-mono">{providerKey}</div>
+                      <div className="font-medium truncate text-[11px] font-mono">{stats.provider}</div>
                       <div className="text-[10px] text-muted-foreground flex items-center gap-2">
                         <span>
                           {isOpen
@@ -413,7 +410,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                     </div>
                     {isOpen && (
                       <button
-                        onClick={() => handleResetCircuit(providerKey)}
+                        onClick={() => handleResetCircuit(stats.provider)}
                         disabled={isResettingCircuit}
                         className="shrink-0 px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-all"
                       >
