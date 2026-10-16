@@ -57,9 +57,7 @@ def _safe_ids(items: list[dict[str, str]], *, limit: int = 3) -> list[str]:
 
 def _snapshot_id(memory_ctx: MemoryContextPayload) -> str:
     """Digest for execution snapshot — matches middleware inject (stable memory_ctx only)."""
-    raw = json.dumps({"memory_ctx": memory_ctx}, ensure_ascii=False, sort_keys=True, default=str).encode(
-        "utf-8"
-    )
+    raw = json.dumps({"memory_ctx": memory_ctx}, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.blake2s(raw, digest_size=10).hexdigest()
 
 
@@ -169,8 +167,9 @@ def _build_preview(
         },
     }
     if proactive_pack is not None:
+        snippets = proactive_pack.get("snippets")
         preview_data["proactive_knowledge_pack"] = {
-            "snippet_count": len(proactive_pack.get("snippets", [])),
+            "snippet_count": len(snippets) if isinstance(snippets, list) else 0,
             "source_count": proactive_pack.get("source_count", 0),
             "total_chars": proactive_pack.get("total_chars", 0),
             "latency_ms": proactive_pack.get("latency_ms", 0.0),
@@ -196,7 +195,6 @@ async def build_memory_brief_snapshot(
     if not effective_chat_id:
         return None
 
-    workspace_root = params.declared_allowed_roots[0] if params.declared_allowed_roots else None
     binding = resolve_context_binding(
         namespaces=None,
         agent_id=params.agent_id or "default",
@@ -205,7 +203,6 @@ async def build_memory_brief_snapshot(
         task_id=params.memory_task_id,
         shared_context_ids=params.memory_shared_context_ids,
         memory_policy=params.memory_policy,
-        task_workspace_root=workspace_root,
     )
 
     manager = await create_memory_manager(

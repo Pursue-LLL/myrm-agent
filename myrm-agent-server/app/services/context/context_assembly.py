@@ -74,7 +74,6 @@ class ContextAssemblyService:
         facade = ContextAssemblyService.build_facade(ensure_layout=False)
         binding: ResolvedContextBinding | None = None
         if enable_memory:
-            task_root = agent.declared_allowed_roots[0] if agent.declared_allowed_roots else None
             extra_namespaces_raw = getattr(agent, "memory_extra_namespaces", None)
             extra_namespaces = [str(item) for item in extra_namespaces_raw] if isinstance(extra_namespaces_raw, list) else None
             project_id = getattr(agent, "project_id", None)
@@ -87,7 +86,6 @@ class ContextAssemblyService:
                 project_id=project_id,
                 shared_context_ids=agent.memory_shared_context_ids,
                 memory_policy=agent.memory_policy,
-                task_workspace_root=task_root,
             )
         return ContextAssembly(facade=facade, binding=binding)
 
@@ -124,8 +122,6 @@ class ContextAssemblyService:
             project_id=chat.project_id,
         )
 
-        task_workspace_root = chat.workspace_dir or chat.sandbox_base_dir
-
         binding = resolve_context_binding(
             namespaces=None,
             agent_id=agent_id,
@@ -135,7 +131,6 @@ class ContextAssemblyService:
             project_id=chat.project_id,
             shared_context_ids=shared_context_ids,
             memory_policy=memory_policy,
-            task_workspace_root=task_workspace_root,
         )
         return ChatMemoryBindingContext(
             binding=binding,

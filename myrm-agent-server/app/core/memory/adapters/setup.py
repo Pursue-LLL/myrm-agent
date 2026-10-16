@@ -60,7 +60,7 @@ _memory_manager_cache_lock = asyncio.Lock()
 
 
 class _CreateMemoryTools(Protocol):
-    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode) -> list[object]: ...
+    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode, **options: object) -> list[object]: ...
 
 
 def _memory_policy_signature(
@@ -79,7 +79,7 @@ def _memory_policy_signature(
     )
 
 
-def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[str, object]:
+def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[object, ...]:
     """Stable cache token for dedup LLM (avoid splitting cache per object id)."""
     if dedup_llm is None:
         return ("platform_default",)
@@ -89,7 +89,7 @@ def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[str, object]:
     return ("object", id(dedup_llm))
 
 
-def _consolidation_llm_cache_token(consolidation_llm: object | None) -> tuple[str, object]:
+def _consolidation_llm_cache_token(consolidation_llm: object | None) -> tuple[object, ...]:
     if consolidation_llm is None:
         return ("none",)
     model_id = getattr(consolidation_llm, "model_name", None) or getattr(consolidation_llm, "model", None)
@@ -283,14 +283,14 @@ async def create_memory_tools_for_user(
         time_decay_half_life_days=time_decay_half_life_days,
         on_conflict=on_conflict,
     )
-    tool_kwargs: dict[str, object] = {"recall_mode": recall_mode}
+    tool_options: dict[str, object] = {}
     if search_policy is not None:
-        tool_kwargs["search_policy"] = search_policy
+        tool_options["search_policy"] = search_policy
     if search_backends is not None:
-        tool_kwargs["search_backends"] = search_backends
+        tool_options["search_backends"] = search_backends
     if description_locale is not None:
-        tool_kwargs["description_locale"] = description_locale
-    tools = create_memory_tools_fn(manager, **tool_kwargs)
+        tool_options["description_locale"] = description_locale
+    tools = create_memory_tools_fn(manager, recall_mode=recall_mode, **tool_options)
     return manager, tools
 
 
@@ -305,10 +305,7 @@ def resolve_context_binding(
     shared_context_ids: list[str] | None = None,
     memory_policy: AgentMemoryPolicy | None = None,
     bundle_id: str | None = None,
-    task_workspace_root: str | None = None,
 ) -> ResolvedContextBinding:
-    from myrm_agent_harness.toolkits.context_bundle import AgentContextOverlay
-
     normalized_shared_context_ids = list(
         dict.fromkeys(context_id.strip() for context_id in (shared_context_ids or []) if context_id.strip())
     )
@@ -323,9 +320,6 @@ def resolve_context_binding(
         conversation_id=conversation_id,
         task_id=task_id,
         memory_policy=memory_policy,
-    )
-    overlay = (
-        AgentContextOverlay(task_workspace_root=task_workspace_root, memory_scenes_pinned=True) if task_workspace_root else None
     )
     return ResolvedContextBinding(
         agent_id=resolved_agent_id or "default",
@@ -346,7 +340,6 @@ def resolve_context_binding(
         task_id=resolved_task_id,
         project_id=project_id.strip() if project_id else None,
         bundle_id=bundle_id or DEFAULT_BUNDLE_ID,
-        agent_overlay=overlay,
     )
 
 

@@ -31,7 +31,7 @@ ContextBundle 卷布局由 `myrm_agent_harness.toolkits.context_bundle` 定义�
 
 ### 外部依赖
 - `myrm_agent_harness.toolkits.memory` — `MemoryManager`, `create_local_memory_manager`
-- `myrm_agent_harness.toolkits.context_bundle` — bundle spec types (`IncognitoPolicy`, `AgentContextOverlay`)
+- `myrm_agent_harness.toolkits.context_bundle` — bundle identity constants (`DEFAULT_BUNDLE_ID`, schema/layout versions) and `ContextBundleFacade`
 
 ---
 

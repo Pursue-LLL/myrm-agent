@@ -39,12 +39,13 @@ if TYPE_CHECKING:
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
     from myrm_agent_harness.toolkits.browser import BrowserSession
+    from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
     from myrm_agent_harness.utils import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-    from app.ai_agents.agents import ImageGenerationParams, VideoGenerationParams
+    from app.ai_agents.agents import ImageGenerationParams, TTSParams, VideoGenerationParams
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +138,7 @@ class GeneralAgent(ToolSetupMixin):
         force_external_agent: str | None = None,
         image_generation_params: "ImageGenerationParams | None" = None,
         video_generation_params: "VideoGenerationParams | None" = None,
-        tts_params: "dict[str, object] | None" = None,
+        tts_params: "TTSParams | None" = None,
         privacy_enabled: bool = False,
         privacy_s2_action: str = "warn",
         privacy_s3_action: str = "redact",
@@ -284,7 +285,7 @@ class GeneralAgent(ToolSetupMixin):
         self._browser_session: BrowserSession | None = None
         self._browser_spaces: dict[str, BrowserSession] = {}
         self._desktop_session: object | None = None
-        self._executor = None
+        self._executor: CodeExecutor | None = None
         self._current_chat_id: str | None = None
         self._session_vault = None
         self._runtime_pool: RuntimePool | None = None
@@ -361,7 +362,6 @@ class GeneralAgent(ToolSetupMixin):
         if not self.enable_memory or self.incognito_mode:
             return None
 
-        task_root = self.declared_allowed_roots[0] if self.declared_allowed_roots else None
         return resolve_context_binding(
             namespaces=self.memory_extra_namespaces or None,
             agent_id=self.agent_id or "default",
@@ -371,7 +371,6 @@ class GeneralAgent(ToolSetupMixin):
             project_id=self.project_id,
             shared_context_ids=self.memory_shared_context_ids,
             memory_policy=self.memory_policy,
-            task_workspace_root=task_root,
         )
 
     def _build_runtime_context(
