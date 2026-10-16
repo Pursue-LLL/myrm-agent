@@ -2,6 +2,7 @@ import MessageInput from './MessageInput';
 import NewTaskWorkContextCard from './NewTaskWorkContextCard';
 import CompanionWidget from '../companion/CompanionWidget';
 import NoProviderBanner from './NoProviderBanner';
+import IncognitoNotice from './IncognitoNotice';
 import { useTranslations } from 'next-intl';
 import React, { useMemo } from 'react';
 import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
@@ -84,6 +85,8 @@ const EmptyChat = React.memo(() => {
             <MessageInput loading={false} hideWorkspacePicker />
           </div>
         </div>
+
+        <IncognitoNotice />
 
         <NewTaskWorkContextCard />
 
