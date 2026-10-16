@@ -134,6 +134,7 @@ class CronBlueprint:
 _CAP_WEB = ("web_search_tool", "net_fetch")
 _TOOLS_WEB = ("web_search",)
 _CAP_RESEARCH = ("web_search_tool", "net_fetch", "file_read")
+_CAP_RESEARCH_SAVE = (*_CAP_RESEARCH, "file_write")
 _TOOLS_RESEARCH = ("web_search", "file_ops")
 _CAP_DEVOPS = ("shell_exec", "file_read", "file_write", "code_interpreter")
 _TOOLS_DEVOPS = ("web_search", "file_ops", "code_execute")
@@ -1143,7 +1144,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="marketing-growth",
         tags=("seo", "audit", "marketing", "website", "weekly"),
         sort_order=17,
-        default_required_capabilities=_CAP_RESEARCH,
+        default_required_capabilities=_CAP_RESEARCH_SAVE,
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekday",
     ),
@@ -1198,7 +1199,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         category="marketing-growth",
         tags=("marketing", "viral", "quote", "social-media", "content"),
         sort_order=18,
-        default_required_capabilities=_CAP_RESEARCH,
+        default_required_capabilities=_CAP_RESEARCH_SAVE,
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekdays",
     ),
