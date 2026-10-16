@@ -300,13 +300,6 @@ const CuratorSettingsPanel = memo(
                   value={config.interval_hours}
                   onCommit={(v) => updateField('interval_hours', v)}
                 />
-                <CuratorNumberField
-                  label={t('maxSkills')}
-                  description={t('maxSkillsDesc')}
-                  min={5}
-                  value={config.max_skills}
-                  onCommit={(v) => updateField('max_skills', v)}
-                />
               </div>
 
               <div className="flex items-center justify-between py-1">

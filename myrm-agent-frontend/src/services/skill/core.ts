@@ -740,7 +740,6 @@ export interface CuratorConfigResponse {
   archive_after_days: number;
   grace_period_days: number;
   min_success_rate: number;
-  max_skills: number;
   protect_installed_skills: boolean;
   consolidation_enabled: boolean;
   consolidation_min_cluster_size: number;
@@ -821,7 +820,6 @@ export type SkillDoctorFindingItem = SkillDoctorFindingBase &
   (
     | { finding_type: 'wrong_but_frequent'; details: { observed_count: number } }
     | { finding_type: 'stale_pinned'; details: { days_inactive: number } }
-    | { finding_type: 'hoarding_bloat'; details: { active_count: number; max_skills: number; excess: number } }
   );
 
 export interface SkillDoctorDiagnosticsResponse {

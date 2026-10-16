@@ -34,8 +34,6 @@
         "gracePeriodDays": "Schonfrist (Tage)",
         "gracePeriodDaysDesc": "Neue Fähigkeiten sind für diesen Zeitraum vom Kurator ausgenommen",
         "protectInstalled": "Installierte Fähigkeiten schützen",
-        "maxSkills": "Max. aktive Fähigkeiten",
-        "maxSkillsDesc": "Bei Überschreitung werden am seltensten verwendete Fähigkeiten als veraltet markiert",
         "runNow": "Jetzt ausführen",
         "runNowDesc": "Einen Kurator-Sweep manuell auslösen",
         "runSuccess": "Kurator-Sweep abgeschlossen",

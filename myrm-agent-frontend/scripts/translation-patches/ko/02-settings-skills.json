@@ -14,8 +14,6 @@
         "gracePeriodDays": "유예 기간 (일)",
         "gracePeriodDaysDesc": "새 스킬은 이 기간 동안 큐레이터에서 제외됩니다",
         "protectInstalled": "설치된 스킬 보호",
-        "maxSkills": "최대 활성 스킬 수",
-        "maxSkillsDesc": "초과 시 가장 오래 사용되지 않은 스킬이 유휴로 표시됩니다",
         "runNow": "지금 실행",
         "runNowDesc": "큐레이터 정리를 수동으로 실행",
         "running": "실행 중...",

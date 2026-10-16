@@ -9,7 +9,6 @@ import type { SkillDoctorDiagnosticsResponse, SkillDoctorFindingItem, SkillRemed
 
 const TYPE_LABEL_KEYS = {
   wrong_but_frequent: 'doctor.typeWrongButFrequent',
-  hoarding_bloat: 'doctor.typeHoarding',
   stale_pinned: 'doctor.typeStalePinned',
 } as const satisfies Record<SkillDoctorFindingItem['finding_type'], string>;
 
@@ -38,12 +37,6 @@ const CuratorDiagnosticsSection = memo(
           });
         case 'stale_pinned':
           return t('doctor.findingStalePinned', { days: finding.details.days_inactive });
-        case 'hoarding_bloat':
-          return t('doctor.findingHoarding', {
-            active: finding.details.active_count,
-            max: finding.details.max_skills,
-            excess: finding.details.excess,
-          });
       }
     };
 
@@ -97,9 +90,7 @@ const CuratorDiagnosticsSection = memo(
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {f.finding_type !== 'hoarding_bloat' && (
-                        <span className="font-medium text-foreground">{f.skill_name}</span>
-                      )}
+                      <span className="font-medium text-foreground">{f.skill_name}</span>
                       {f.pinned && (
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-muted">
                           {tCard('pinned')}
@@ -119,53 +110,51 @@ const CuratorDiagnosticsSection = memo(
                     <p className="text-[11px] text-muted-foreground">{describeFinding(f)}</p>
                   </div>
 
-                  {f.finding_type !== 'hoarding_bloat' && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {f.pinned && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => onRemediate(f.skill_name, 'unpin_and_archive')}
-                          className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
-                        >
-                          {busy ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Archive className="h-3 w-3 text-amber-500" />
-                          )}
-                          <span>{t('doctor.actionUnpinArchive')}</span>
-                        </Button>
-                      )}
-                      {!f.pinned && f.finding_type === 'wrong_but_frequent' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => onRemediate(f.skill_name, 'archive')}
-                          className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
-                        >
-                          {busy ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Archive className="h-3 w-3 text-amber-500" />
-                          )}
-                          <span>{t('doctor.actionArchive')}</span>
-                        </Button>
-                      )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {f.pinned && (
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         disabled={busy}
-                        onClick={() => onRemediate(f.skill_name, 'reset_stats')}
-                        className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
-                        title={t('doctor.actionResetTooltip')}
+                        onClick={() => onRemediate(f.skill_name, 'unpin_and_archive')}
+                        className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
                       >
-                        <RotateCcw className="h-3 w-3" />
-                        <span>{t('doctor.actionReset')}</span>
+                        {busy ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Archive className="h-3 w-3 text-amber-500" />
+                        )}
+                        <span>{t('doctor.actionUnpinArchive')}</span>
                       </Button>
-                    </div>
-                  )}
+                    )}
+                    {!f.pinned && f.finding_type === 'wrong_but_frequent' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => onRemediate(f.skill_name, 'archive')}
+                        className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
+                      >
+                        {busy ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Archive className="h-3 w-3 text-amber-500" />
+                        )}
+                        <span>{t('doctor.actionArchive')}</span>
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => onRemediate(f.skill_name, 'reset_stats')}
+                      className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                      title={t('doctor.actionResetTooltip')}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      <span>{t('doctor.actionReset')}</span>
+                    </Button>
+                  </div>
                 </div>
               );
             })}

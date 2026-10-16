@@ -51,15 +51,6 @@ const diagnostics: SkillDoctorDiagnosticsResponse = {
       pinned: true,
       details: { days_inactive: 1 },
     },
-    {
-      skill_name: '[Library Bloat]',
-      finding_type: 'hoarding_bloat',
-      severity: 'warning',
-      call_count: 0,
-      success_rate: 1,
-      pinned: false,
-      details: { active_count: 52, max_skills: 50, excess: 2 },
-    },
   ],
 };
 
@@ -81,8 +72,7 @@ const historyEntry: CuratorHistoryEntry = {
 };
 
 /** Anything an English-only or developer-facing rendering would leak into a localized UI. */
-const LEAKED_IDENTIFIERS =
-  /PINNED|Score|stale|archived|inactive|low_quality|lru_eviction|\[Library Bloat\]|\bago\b|\d\s?ms\b/;
+const LEAKED_IDENTIFIERS = /PINNED|Score|stale|archived|inactive|low_quality|lru_eviction|\bago\b|\d\s?ms\b/;
 /** What a missing translation key degrades to. */
 const MISSING_KEY_FALLBACK = /settings\.skills|historyReason|doctor\./;
 
@@ -96,7 +86,6 @@ describe('CuratorDiagnosticsSection', () => {
 
     expect(text).toContain('已运行 8 次，成功率仅 12.5%');
     expect(text).toContain('已固定，但已有 1 天未使用');
-    expect(text).toContain('活跃技能 52 个，比上限 50 个多出 2 个');
     expect(text).toContain('70/100');
     expect(text).not.toMatch(LEAKED_IDENTIFIERS);
   });
@@ -110,18 +99,16 @@ describe('CuratorDiagnosticsSection', () => {
 
     expect(text).toContain('Ran 8 times with only 12.5% success');
     expect(text).toContain('Pinned but unused for 1 day');
-    expect(text).toContain('52 active skills, 2 over the limit of 50');
   });
 
-  it('offers no skill-level actions on the library-wide finding', () => {
+  it('offers the remedy plus reset on every finding', () => {
     const { container } = renderIn(
       'en',
       <CuratorDiagnosticsSection diagnostics={diagnostics} remediatingSkill={null} onRemediate={noop} />,
     );
 
-    // Each skill finding offers its remedy plus reset; the library-wide row offers nothing.
     const rows = container.querySelectorAll('[data-testid="curator-diagnostic-row"]');
-    expect(Array.from(rows, (row) => row.querySelectorAll('button').length)).toEqual([2, 2, 0]);
+    expect(Array.from(rows, (row) => row.querySelectorAll('button').length)).toEqual([2, 2]);
   });
 
   it.each(LOCALES)('renders no developer identifiers or missing keys in %s', (locale) => {
@@ -132,7 +119,6 @@ describe('CuratorDiagnosticsSection', () => {
     const text = container.textContent ?? '';
 
     expect(text).not.toMatch(MISSING_KEY_FALLBACK);
-    expect(text).not.toContain('[Library Bloat]');
     expect(text).not.toContain('PINNED');
   });
 });

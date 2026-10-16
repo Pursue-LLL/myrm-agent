@@ -28,7 +28,6 @@ describe('CuratorSettingsPanel Component', () => {
       archive_after_days: 90,
       grace_period_days: 7,
       min_success_rate: 0.3,
-      max_skills: 50,
       protect_installed_skills: true,
       consolidation_enabled: false,
       consolidation_min_cluster_size: 3,
@@ -70,7 +69,6 @@ describe('CuratorSettingsPanel settings form', () => {
     archive_after_days: 90,
     grace_period_days: 7,
     min_success_rate: 0.3,
-    max_skills: 50,
     protect_installed_skills: true,
     consolidation_enabled: false,
     consolidation_min_cluster_size: 3,
@@ -160,7 +158,6 @@ describe('CuratorSettingsPanel settings form', () => {
       'archiveAfterDays',
       'gracePeriodDays',
       'intervalHours',
-      'maxSkills',
       'consolidation.minClusterSize',
       'consolidation.similarityThreshold',
     ];
