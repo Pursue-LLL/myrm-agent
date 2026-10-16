@@ -5102,8 +5102,8 @@ except Exception:
 2. 会话中途切入无痕：切换前已写入的标题与预览保留到自动清除；这一小窗口没有补。
 3. 会话地图、统计页等诊断类读取方仍会列出无痕会话的 id、时间与用量（标题与预览现在是空的），没有逐个加过滤。
 4. 清除前的「回合是否在跑」检查与删除之间有毫秒级窗口，没有加锁。
-5. `app/services/instance_archive/`（另一会话的未提交工作）的 `scrub_sensitive_surface` 不删 `is_incognito=1` 的会话及其消息，需要该改动的负责人补一条规则；本次没有改它。
-6. `/zdr` 命令条目（`app/services/chat/command_matrix/registry.py:141-153`，该目录是另一会话的未提交工作）仍写着「纯内存无痕会话、退出时 0x00 物理覆写抹零」，服务端 `app/` 里没有任何处理它的代码；需要该目录的负责人改掉，本次没有改。
+5. `app/services/instance_archive/`（另一会话的未提交工作）的 `scrub_sensitive_surface` 不删 `is_incognito=1` 的会话及其消息，需要该改动的负责人补一条规则；本次没有改它。（已在 `BUG-AGENT-2026-10-16-019` 处理。）
+6. `/zdr` 命令条目（`app/services/chat/command_matrix/registry.py:141-153`，该目录是另一会话的未提交工作）仍写着「纯内存无痕会话、退出时 0x00 物理覆写抹零」，服务端 `app/` 里没有任何处理它的代码；需要该目录的负责人改掉，本次没有改。（已在 `BUG-AGENT-2026-10-16-019` 处理。）
 
 ### 教训
 
@@ -5535,3 +5535,230 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 可有可无的装饰数据不要绑在全有或全无的接口上；入口固定，数字锦上添花。
 3. 同一个概念在两页用两个词，用户会以为口径不同；有一处已经叫对了（设置页筛选器），其余向它看齐。
 4. 改文件时先在内存里算出新内容，再打开文件写入：我用 `open(f, "w").write(fn(open(f).read()))` 改 `statistics.ts`，写入模式在读取之前就把文件截断为空，随后读到的是空串、编辑函数抛错，文件停在 0 字节。别人未提交的改动因此在约三分钟里不在文件里；我按 HEAD 加自己的编辑还原了文件，其后对方的改动重新出现在文件里（不是我还原的）。这种事靠写入前的预检查与「失败不落盘」避免，不靠事后补救。
+
+## BUG-AGENT-2026-10-16-019: 同一条消息里两个委派同时要审批时，网页只收到第一张卡，答复被拒；同一个中断再次被宣告会叠出重复的卡，「全部批准」把不同中断的卡合进同一次 resume；已被别处处理过的旧卡点击后答复落到下一个审批上；后台子代理完成的唤醒消息会把隔离合并元数据当结果文本
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（#436 复审：对「卡片答复靠什么指向它要答的那个中断」逐条追问；`BUG-HARNESS-2026-10-16-007` 的前端与服务端一半） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（需要模型在同一条消息里并行发起两个都要审批的委派才会碰到；碰到时用户答不成，或答复落在没看到的审批上） |
+| 影响范围 | frontend：`src/store/chat/types/{toolApproval,agentStream/part1}.ts`、`src/lib/approval/{buildToolApprovalRequest,approvalBulkGroups,resumeApprovalStream}.ts`、`src/store/useToolApprovalStore.ts`、`src/store/chat/messageStream/handlers/toolsProgressEvents.ts`；server：`app/services/agent/wakeup_handler.py` |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-16-007`（harness 侧：每个中断一个带 `interruptId` 的事件、按 id 寻址的 resume 咽喉）；本地提交，未 push |
+
+### 现象
+
+1. 一条消息里两个委派各自停在审批上时，harness 只发出第一个中断的事件，网页只有一张卡；答复它时两个中断仍同时待决，被 LangGraph 拒绝。
+2. 部分作答后图会在仍待决的中断上重新暂停并把它再发一遍；前端队列没有去重，同一个中断会叠出两张卡。
+3. 「全部批准 / 全部拒绝」按 `chatId:messageId` 把单卡合并成同一次 resume，不同中断的卡被塞进同一个 `decisions` 列表，只能答一个中断的 resume 因此答错或被拒。
+4. 卡片不带中断身份，resume 请求也无从指明答的是哪一个，已被超时计时器或另一台设备处理过的旧卡被点击后，答复落到「此刻待决的」下一个审批上。
+5. 后台子代理（`wait=False`）完成后的唤醒消息直接拼接 `result.result`；`SubAgentResult.result` 实际可能是隔离合并的元数据字典，字典会被原样写进发给模型的文字里。
+
+### 根因
+
+1. `ToolApprovalRequest` 没有承载中断 id 的字段，流事件类型也没有（`part1.ts`）；
+2. `useToolApprovalStore.addRequest` 无条件入队；
+3. `approvalBulkGroups` 的单卡分组键只有 `chatId:messageId`；
+4. `resumeApprovalStream` 的 `resume_value` 不带 id；
+5. 唤醒处理把联合类型当字符串用（读码结论）。
+
+### 修复
+
+1. 流事件与卡片都带 `interruptId`：`ApprovalRequiredStreamEvent` / `ToolApprovalRequestStreamEvent` / `ToolApprovalRequest` 新增可选字段，`buildToolApprovalRequest` 与 `toolsProgressEvents` 透传。
+2. `useToolApprovalStore.addRequest` 只在新卡与队列里某张卡有同一个已定义的 `interruptId`（且批内序号相同）时丢弃，没有 id 的卡（抽屉合成的、旧事件）照旧入队。
+3. `approvalBulkGroups` 的单卡分组键优先用 `interruptId`，一次 resume 只答一个中断；`batchId` 分组不变。
+4. `resumeApprovalStream` 在卡片带 `interruptId` 时把它放进 `resume_value`；harness 咽喉据此改写为按 id 的 resume，该中断已不待决则什么也不改变。没有 id 的卡走原路径。
+5. `wakeup_handler.py` 经 harness 的 `answer_text` 读取结果文本，字典结果取其 `text`。
+
+### 验证
+
+1. frontend vitest：`src/store/__tests__/useToolApprovalStore.test.ts` 4 例（不同中断的卡并排入队；同一中断在别的卡被答复后再次宣告只留一张；同一批内按序号区分的卡各自保留；无 id 的卡照旧入队）、`toolsProgressEvents.interruptId.test.ts` 3 例（用真实的流事件处理器与真实 store：并行两个中断各一张卡且各自带 id、`approval_required` 事件同样保留 id、同一中断再次宣告不叠第二张卡）、`resumeApprovalStream` / `buildToolApprovalRequest` / `approvalBulkGroups` 各新增 1 例；`src/lib/approval/__tests__` 全部加这两个新文件共 18 个测试文件 124 例通过；对这几处手工注入 6 个变异，每一个都至少被一个用例杀掉。
+2. 没有新增任何界面文案、样式或图标：不涉及语言包、主题变量与响应式（卡片的外观与交互原样）。
+
+### 局限
+
+1. 没有在浏览器里用真实模型同时看到两张卡并分别答复；并行委派在真实模型里出现的频率没有量过。
+2. 旧卡（其中断已被别处处理）被点击后，答复被忽略、运行回到真正待决的中断上暂停；界面上这张旧卡随后的去向，以及是否闪一下空的助手消息，没有验证。
+3. IM 里的 `/approve` 与超时计时器的「允许」在多个待决中断下仍被拒（失败关闭），IM 没有逐张卡的寻址。
+4. 服务端在进入 harness 之前就应用了目录授权，带授权的旧卡答复，授权会生效而答复本身被忽略（既有顺序，未改）。
+5. 唤醒消息读字典结果这一处没有单写服务端用例：当前工作区里该处理器的后半段在被他人改写（改走自适应唤醒服务），用例会绑在那段未提交的改动上；`tests/api/agent/test_wakeup_handler_e2e.py` 是现有的覆盖，没有字典结果的用例。
+6. `src/lib/approval/_ARCH.md` 里三行说明（分组、请求构建、resume）已按代码更新，但与他人对同一张表的改动混在一起，没有随本条提交，留在工作区。
+
+### 踩坑经验
+
+1. 用「按 id 去重」之前先确认 id 的稳定性：LangGraph 的中断 id 只取决于挂起它的任务，重放时不变，所以同一个中断每次被再次宣告都是同一个 id；若用随机的卡片 id 去重则一张也去不掉。
+2. 去重条件必须要求 id 已定义：旧事件与抽屉合成的卡没有 id，两个 `undefined` 相等会把互不相干的卡互相吞掉。
+3. 前端状态库的测试要用真实 store 与真实事件处理器串起来，只测纯函数的话，「处理器忘了透传 id」这类缺口测不出来。
+
+---
+
+## BUG-AGENT-2026-10-16-020: Curator 的「保护已安装技能」开关没有任何效果（本地扫描把所有技能的信任级写死为 TRUSTED）；清理还把其他工具（Cursor、Claude Code、Codex）的技能目录一并纳入；技能页签的动作空间噪声计在界面上露出键路径
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（清理只翻转状态、不删文件，归档可恢复，自动合并默认关闭；但用户明确打开的保护不生效，装来的技能会被标陈旧乃至归档；噪声计的键路径是每次打开技能页签都可见的界面缺陷） |
+| 影响范围 | harness `agent/skills/curator/engine.py`、`backends/skills/forgetting_strategy.py`、`backends/skills/skill_doctor.py`（新增，纯搬移）、`backends/skills/curator_config.py`；服务端 `app/core/skills/curator/local_skills.py`（新增）、`service.py`、`consolidation.py`、`app/core/infra/health/skill_diagnostics.py`；前端 `SkillsSectionPanel.tsx`、`SkillsSectionPanelParts.tsx`、`services/skill/core.ts`、六份 locale |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-15-013`（其修复 11 引入的 `details.trust` 在本条删除）；路线图 topic_08 #43 ② ④；harness 提交 `be603d65e3`、`a1c333607`、`0ab80880e`；服务端仓提交 `30df898ab2`、`c155847960`、`688f8b8d00`、`efcf98fa02`；本地提交，未 push，未发布 harness 版本 |
+
+### 现象
+
+1. 打开「保护已安装技能」后，装来的技能超期未用仍会被标为陈旧：遗忘策略只在 `trust == INSTALLED` 时豁免，而本地扫描把所有技能的信任级固定为 `TRUSTED`（`myrm-agent-harness/src/myrm_agent_harness/backends/skills/local.py:151`），这个分支没有任何可达路径；
+2. 默认扫描目录除 Myrm 自己的技能目录外，还有其他工具（Cursor、Claude Code、Codex 等）的目录；清理只看 Myrm 自己的运行记录，别的工具正在用的技能因此看起来「闲置」；
+3. 体检与清理各写了一份扫描循环，体检同样用失效的信任级判断「已安装受保护」；
+4. 既有的预置技能豁免集成用例是空转的：夹具使它不论豁免是否生效都通过；
+5. 诊断发现 `wrong_but_frequent` 的 `details` 带 `success_count`、`failure_count`、`trust` 三个键，界面只读 `observed_count`；`trust` 正是上面那个恒为 `TRUSTED` 的值；
+6. 智能体配置里「技能」页签的动作空间噪声计收到的是 `agent.configPanel` 的翻译函数，而它用的 5 个文案键在 `agent.configEditor` 下。用真实 next-intl 和 `en.json` 实测：载荷标签、两条状态提示、陈旧提示都直接输出键路径（如 `agent.configPanel.actionSpaceRadar.loadMeterLabel`）；`verify:i18n-references` 看不到模板字符串拼出来的键，所以一直通过；
+7. `agent.configEditor.actionSpaceRadar.smartPruneSuccess / smartPruneFailed` 六种语言共 12 条文案键没有引用（清理吐司用的是 `agent.configPanel` 下的同名键）；
+8. `forgetting_strategy.py` 423 行，遗忘策略与体检报告两件事挤在一个文件里；
+9. 动作空间噪声计与雷达上的清理按钮，进行中文案写成「Curator 清扫」「Running curator sweep…」，而产品里这个功能叫「技能管理器」，且同一动作的吐司写的是「正在清理动作空间」，同一动作两种说法、其中一种是内部术语。
+
+### 根因
+
+1. 信任级是运行时工具权限的输入（`agent/skills/runtime/attenuator.py:105-111` 取 `min(s.trust)` 定权限上限），不能为了让清理策略识别「装来的」而在扫描里改它；原判定把「来源」与「权限信任」混成了一个字段；
+2. 三处扫描各自演化，没有共同的「这批技能哪些是装来的」来源；
+3. 翻译函数沿调用链传递，参数名 `tPanel` 掩盖了它属于哪个命名空间，单测用恒等翻译函数，看不出键放错了地方。
+
+### 修复
+
+1. 引擎的 `run` 与 `run_async` 新增 `installed_names`：开关开启时与 `protected_names` 并成同一个豁免集（`engine.py:202-206` `_exempt_names`），逐技能判定（`:142`）、LRU 池（`:147`）、合并候选（`:196-197`）共用；删除遗忘策略里永不触发的 trust 分支；
+2. 服务端新增 `scan_local_skills`（`app/core/skills/curator/local_skills.py:43-59`）：一次扫描全部根目录，带市场安装标记 `origin.json`，或位于默认路径第一项（Myrm 自己的目录）之外的技能算「已安装」；自动扫描、合并预览与执行、体检三处共用同一次扫描；
+3. `details` 只留 `observed_count`，前端类型与三处夹具同步；
+4. 噪声计改收 `agent.configEditor` 的翻译函数，新增用真实 en、zh 消息渲染的用例；删除 12 条无引用的文案键；`protectInstalledDesc` 六种语言改为如实描述（含其他工具目录）；
+5. 预置技能豁免用例改为参数化，同时断言开关关闭时被清理；
+6. 体检部分（`SkillDoctorFinding`、`SkillHealthDiagnosis`、`evaluate_skill_health_findings`）原样搬到 `backends/skills/skill_doctor.py`，及其 4 个测试搬到 `test_skill_doctor.py`；`forgetting_strategy.py` 423 → 246 行；服务端深层导入基线把 `forgetting_strategy` 换成 `skill_doctor`，条数不变；
+7. 路线图 topic_08 #43 的 ② ④ 记为已落地并列出生产调用点，①③⑤ 余项保持待做。
+
+### 验证
+
+1. harness：`tests/agent/skills/curator`、`tests/agent/skills/test_curator_engine.py`、`tests/backends/skills` 共 708 通过（拆分前）；拆分后 `test_forgetting_strategy.py` 与 `test_skill_doctor.py` 共 21 通过（拆分前同一批也是 21），搬走的函数体与 HEAD 逐字一致；新增的 5 例 `installed_names` 用例覆盖：开关开启时豁免、关闭时仍被清理、退出 LRU 池、合并候选跟随开关；
+2. 服务端：`tests/core/skills/curator`、`test_curator_consolidation.py`、`tests/core/infra/health`、`test_curator_usage_pipeline_integration.py` 共 109 通过；`test_local_skills.py` 用真实 `LocalSkillBackend` 目录断言「主目录自写不算、市场安装算、其他工具目录算、主目录缺失时不把其他目录当主目录、没有目录时无事可扫」；集成用例跑通「扫描 → 引擎 → 统计账本」：市场安装与其他工具的技能保持活跃、闲置的自写技能转陈旧，关闭开关后全部转陈旧；
+3. 前端：技能与智能体配置面板两个目录 39 文件 217 通过；`verify:i18n`、`verify:i18n-references`、`verify:theme-colors` 通过；触及文件 prettier、oxlint 0 告警；把 `t={t}` 改回 `t={tPanel}` 做变异验证，新增用例在 en 与 zh 各失败 1 例（共 2 例），还原后通过；
+4. 拆分后 `check_module_reachability` 不再提到 `skill_doctor`（服务端改从新模块导入之前，它被报为「无生产调用方」，门禁共 19 项；现在 18 项，都是他人的模块）。
+
+### 局限
+
+1. 真机 E2E 没有在最终代码上跑：23:36 本机负载均值 49.45，且有至少 4 个他人的 `chrome_e2e` 进程在跑；E2E 夹具只改了 `details` 一个键，界面只读 `observed_count`，由单测覆盖，没有目视检查；
+2. 日、韩、德、繁体中文的新文案没有母语复核；
+3. 服务端的 `protect_system_skills` 实际无效：预置技能在存储提供方里，本地扫描触不到，本次没有改动；
+4. 清理标记的「已归档」在运行时是否真正不再加载，取决于他人尚未提交的运行时归档闸门（`app/core/skills/gates/runtime_load.py`），不属本条；
+5. 本机有 24 个技能账本的写入方没有查清；
+6. 仍失败、且不涉及本条文件的：服务端 `tests/architecture/test_server_harness_imports.py`（136 条新增深层导入，均来自他人未提交的改动，没有一条与 `skill_doctor` 或 `forgetting_strategy` 有关）、harness `check_module_reachability` 18 项、`tests/agent/skills/test_anti_sycophancy_curator_engine.py` 的 3 条 ruff 未使用导入、前端 `LearningLoopFiveRingHub.test.tsx` 的 1 条 `tsc` 类型错误；
+7. 服务端导入基线位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，用带锚点校验的脚本编辑（与 `BUG-AGENT-2026-10-15-003` 局限 8 相同）；
+8. 服务端依赖 harness 的新模块 `skill_doctor`，要先发布 harness 版本再 `./myrm harness sync-lock`；本次只做了 sync-lock 的本地检查，没有发布。
+
+### 踩坑经验
+
+1. 「来源」与「权限信任」要分开：为了让清理识别「装来的」去改扫描信任级，会连带收紧运行时的工具权限；让调用方汇报来源，引擎只接收名单；
+2. 同一件事在三个调用点各写一份循环，其中一份用了失效条件时没有任何测试会红；共用一份产出，并用真实的目录扫描写用例；
+3. 用恒等翻译函数的单测看不出文案键放错命名空间；至少有一条用例要读真实的 locale 文件、用真实的 next-intl 翻译；模板字符串拼出来的键，静态引用检查也看不到；
+4. 编辑器工具读不到文件不等于被禁止：我先把基线文件当成权限限制，回退了刚做完的拆分，后来在 `BUG-AGENT-2026-10-15-003` 的局限里查到这是 `.cursorignore` 的 `data/` 屏蔽、有既定的脚本编辑做法，才重做。遇到读不到先查忽略规则与既有记录。
+
+## BUG-AGENT-2026-10-16-021: 聊天空白页「越用越懂」胶囊的数字绑在整个五环状态接口上、其中「技能数」是内置加本地的技能总数且要付出整个接口的代价；成长页第 3 环与设置页统计卡写「被拦截或失败」，口径里并没有「失败」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（展示失真与不必要的开销，不影响数据） |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json` |
+| 出现次数 | 1 |
+| 关联条目 | BUG-AGENT-2026-10-16-015（其「局限」里的技能总数在本条删除） |
+
+### 现象
+
+1. 每次打开聊天空白页，胶囊都请求整个五环状态接口；开发库里该接口 3 次实测 1.3 至 2.4 s，而 `GET /api/v1/memory/stats` 只要 8 至 12 ms。胶囊只有记忆数与技能数同时读到才显示数字，五环里任何一环读不到、或接口整体失败，整条入口都不出现。
+2. 胶囊上的「技能数」是 198，由内置 134 与本地 64 相加，用户会读成「它学会了 198 项」。
+3. 成长页第 3 环写着「被拦截或失败: 0」，正下方统计卡写着「30 failed」，同屏对不上。
+
+### 根因
+
+1. 技能总数来自 `skills_service.list_skills()`，开销大，只为胶囊上一个数而放进了五环接口，并且让第 2 环依赖它：技能目录读不到时第 2 环整环为 `null`。
+2. 胶囊把可有可无的计数绑在一个全有或全无的接口上，入口的出现与否取决于计数。
+3. 第 3 环与设置页统计卡的口径是 `BLOCKED_LOCKED` 加 `FAILED_SCAN`（`queries.py` 的 `blocked_statuses`），应用失败的 `APPLY_FAILED` 在待审核口径里；设置页筛选器 `matchesFilter('blocked')` 同口径，且叫「已拦截」。「或失败」是多出来的词，与同屏另一处的「失败」撞车。
+
+### 修复
+
+1. 后端：删除第 2 环的 `total_skills` 与 `_count_skills`，第 2 环只依赖成长统计，五环状态接口不再触碰技能目录。
+2. 前端：胶囊入口固定渲染、不等任何请求；记忆数改读 `GET /memory/stats`，读到且大于 0 才在宽屏显示，读不到只留入口；请求带 `silent`，读不到时不弹全局错误提示（`apiRequest` 默认会弹，原先胶囊取五环状态时同样会弹，是复查时才发现的遗漏）；`getMemoryStats` 为此加了可选的 `silent` 参数，记忆页的调用不变；删除 `Ring2DistillationStatus.total_skills` 与所有夹具；文案键 `discoveryChip.stats` 改为 `memoriesCount`（带复数）。
+3. 文案：六语种的 `ring3.metricsBlocked` 与 `settings.skills.growth.summary.blocked` 去掉「或失败」，与同页筛选器 `filters.blocked` 同词。
+4. 测试：后端删去技能目录夹具与对应的失败用例；胶囊测试改为：请求未返回前入口已可点并能跳转、有数时显示、数为 0 或请求失败时只省略数字，且固定请求带 `silent`；服务层测试固定 `getMemoryStats` 默认保留全局错误提示、传 `silent` 才压住。
+
+### 验证
+
+1. 变异检查：后端 3 种（第 2 环误依赖记忆来源、已自动落地取成了拦截数、成长统计失败时第 2 环仍显示 0）与前端 4 种（0 条时也显示计数、跳转到别处、计数取成类型数、计数为 0 时整条隐藏）逐个重跑，全部被拦住并核对还原（另有 2 种：胶囊去掉 `silent`、服务层不转发 `silent`，均被拦住）；另一种把计数初值改成 -1 的变异行为与原来相同（`-1 > 0` 与 `0 > 0` 同为假），属等价变异，没有被也不该被拦。
+2. 开发后端实测：五环状态接口 5 次为 31 至 46 ms，改动前 3 次为 1.3 至 2.4 s；两组数据不在同一时刻采集，改动前那几次机器上还有并发的测试在跑，只据此说「从秒级降到几十毫秒」，不给精确倍数。提速来自不再统计技能总数；胶囊改读 `/memory/stats` 的好处是入口不再因某一环失败而消失，不是速度。
+3. 真实浏览器（无头 Chromium，桌面 1440 与手机 390，深色与浅色截图均已核对）：空白页胶囊在 0.5 s 内已在页面里，着陆页只发出 `/memory/stats` 一个相关请求、没有 `learning-loop/status`；桌面显示「· 22 memories」，手机宽度不显示计数但入口在；点击进入 `/journey`；第 3 环显示「Blocked: 0」，页面上没有「Blocked or failed」；设置页统计卡与筛选器同为「Blocked」。
+4. `ruff`、pyright 对触碰的后端文件清零，`test_learning_loop_integration.py` 10 例通过；两个组件测试文件 10 例通过；`oxlint`、`prettier`、`verify:i18n`（含引用检查）、`verify:theme-colors` 通过。全量 `tsc --noEmit` 仍有 57 个错误，全部在他人改动的测试文件里（语言包类型推断），触碰的文件为 0；没有在纯 HEAD 上复验这 57 个。
+
+### 局限
+
+1. 第 3 环的「已拦截」与同页统计卡的「92 evolutions · 30 failed」仍是两套口径（案例状态与事件台账），本条只去掉了第 3 环标签里不属于它的「失败」，没有统一两套口径。
+2. 胶囊的记忆数来自 `/memory/stats`，该接口把单个类型读取失败按 0 计，数字可能偏小；偏小只影响一个装饰数字，入口不受影响。
+3. 删除 `ring2_distillation.total_skills`：仓库内没有其他读取方，仓库外的脚本无法证明没有。
+4. 设置页统计卡「全部案例」在韩语与德语里仍是「最近案例 / Recent Cases」，与累计口径不符，本条没有改。
+5. 「读不到时不弹全局错误提示」依据 `api.ts` 的 catch 分支（`!silent` 才调用 `showApiError`）与单测，没有在真实浏览器里注入 500 复现弹窗。
+
+### 教训
+
+1. 一个数字值不值得放上首屏，先问它的获取成本和它的含义：内置 134 加本地 64 不等于「学会了 198 项」。
+2. 可有可无的装饰数据不要绑在全有或全无的接口上；入口固定，数字锦上添花。
+3. 同一个概念在两页用两个词，用户会以为口径不同；有一处已经叫对了（设置页筛选器），其余向它看齐。
+   装饰性请求在代码注释里写「失败就算了」不够，得让请求本身 `silent`：`apiRequest` 的默认行为是失败即弹错误提示，注释管不住它。
+4. 改文件时先在内存里算出新内容，再打开文件写入：我用 `open(f, "w").write(fn(open(f).read()))` 改 `statistics.ts`，写入模式在读取之前就把文件截断为空，随后读到的是空串、编辑函数抛错，文件停在 0 字节。别人未提交的改动因此在约三分钟里不在文件里；我按 HEAD 加自己的编辑还原了文件，其后对方的改动重新出现在文件里（不是我还原的）。这种事靠写入前的预检查与「失败不落盘」避免，不靠事后补救。
+
+## BUG-AGENT-2026-10-16-019: 导出、定时备份与导入暂存带走网页无痕会话的全部消息；「ZDR 零留存 / 退出时抹零」只存在于文案与一个无人调用的拦截器里；无痕开启后页面上没有任何说明
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（`-012` 之后对无痕合同的终审：把导出、备份、导入暂存、命令面板、公开文档与界面逐处用真实组件复现；对照 OpenClaw、Cherry Studio、Claude Code、Codex、ChatGPT、Claude、Gemini、Perplexity 的无痕/临时会话语义，只取与本产品形态相符的部分） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P1（界面承诺「闲置超过 1 小时自动删除」，导出文件与备份却会把同一批对话原文带走并长期保存） |
+| 影响范围 | server：`app/services/instance_archive/table_policy.py`、`_ARCH.md`、`tests/services/instance_archive/test_incognito_scrub.py`、`test_schema_reconciliation.py`、`tests/e2e/test_incognito_notice_chrome_e2e.py`、`tests/_ARCH.md`、`app/services/chat/command_matrix/registry.py`（删 `/zdr` 条目）；harness：`toolkits/llms/adapters/wire/` 删除 `zdr_interceptor.py` 及其测试、导出与 `_ARCH` 行，`native_compaction.py` 的类型收窄，`capability_matrix/models.py` 一行注释；前端：新增 `chat-window/IncognitoNotice.tsx`、`message-input-actions/IncognitoIcon.tsx`（从开关里抽出共用），`EmptyChat.tsx` 挂载一行，两处 `_ARCH.md`；公开文档仓：`security-architecture.mdx` 删除 §16 |
+| 出现次数 | 1（真实库、真实快照与真实浏览器复现，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-16-012` 局限 5、6 在此处理；harness 提交 `3ae0e7957a`、公开文档仓提交 `c605fe2223`；`instance_archive/`、`command_matrix/`、harness `capability_matrix/` 是别的会话尚未提交的目录，本次改动只在工作区，未提交、未 push |
+
+### 现象
+
+1. 导出、定时备份（与导出共用同一条流水线）、导入暂存都共用 `scrub_sensitive_surface`，它只清分享链接、白名单密钥与进行中的状态，不碰无痕会话。在真实结构的库（ORM 表 + 迁移 + 全文索引触发器 + WAL 源库 + 真实快照）上：导出副本里无痕会话与它的消息原样都在，原文还能在文件字节里搜到；导入暂存只把它们从「恢复预览」的计数里隐去，行本身仍写进恢复后的库。
+2. 命令面板的 `/zdr` 条目与公开安全架构页 §16 写着「纯内存无痕会话、退出时 0x00 物理覆写抹零」，服务端没有任何处理它的代码；harness 的 `zdr_interceptor.py` 只给出站请求加厂商头，两个函数除自己的测试外没有调用方，而零留存是与服务商签的组织级协议，不是请求头能开关的。
+3. 无痕开启后页面上没有任何说明：开关的解释只在悬停提示里（读 Radix 源码，触屏不触发悬停），手机上开关在底部抽屉里，标签 `hidden xl:inline`，桌面窄窗口里同样只剩图标。
+
+### 根因
+
+1. 无痕的「删除」只落在线上库的定时清除里，归档的 scrub 当初是按「哪些行不能换机器」设计的，没有把「这类会话到期即删」算进去。
+2. 先写了合规文案、没有实现，文案又同时出现在命令表、公开文档和一个拦截器里，互相印证，看起来像真有这个功能。
+3. 说明文字挂在悬停上，没有人考虑过触屏与抽屉布局。
+
+### 修复
+
+1. `scrub_sensitive_surface` 先删 `is_incognito = 1 AND source = 'web'` 的会话。消息、全文索引、回忆索引靠 `ON DELETE CASCADE` 与 FTS 触发器随之删除，而 SQLite 只在 `foreign_keys` 打开时才执行级联：所以删除窗口内临时打开它。该 pragma 在事务里会被忽略，因此先提交；打开后回读，没生效就抛错让整个导出/暂存失败（宁可失败也不留孤儿消息）；结束后恢复原值，之后的嫁接与清空行为不变。`source != 'web'` 的转写导入借用无痕标志只是为了不进侧栏，是真实数据，照常携带。恢复点是本机的原样回退保险，有意不做 scrub。没有无痕列的旧库原样跳过；两个列名被钉在 `test_schema_reconciliation.py` 里，改名会让测试变红而不是悄悄失效。
+2. 删除 `zdr_interceptor.py`、测试、导出与 `_ARCH` 行，`/zdr` 命令条目，`capability_matrix/models.py` 注释里的 `/zdr`，公开文档 §16。顺手把 `native_compaction.py` 里对 `object` 的遍历收窄成 isinstance 判断，pyright 清零。
+3. 空会话态在无痕开启时就地显示说明：复用已有的 `memory.incognitoModeDesc`（六种语言早已存在，没有新增文案），标题复用 `memory.incognitoMode`；`<output>`（隐含 `status` 语义），只用主题变量；图标从开关里抽成 `IncognitoIcon` 共用。
+
+### 验证
+
+1. 红灯先行：新增 `test_incognito_scrub.py` 8 例（导出与导入暂存两条路径各 3 例 + 2 例单点），修复前 5 例失败（泄漏），3 例本就通过（保留项）；修复后全部通过；`tests/services/instance_archive` 全目录 280 例通过。
+2. 变异检查：把 `foreign_keys` 开关改成关并去掉回读，5 例失败；把谓词里的 `source = 'web'` 去掉，4 例失败（转写导入被误删）；各还原后重跑通过。测试含：原文不在文件字节里、副本没有 `-wal`、全文索引查不到、回忆索引行数为 0、`foreign_keys` 开不起来时抛错。
+3. 前端：`IncognitoNotice` 单测 2 例，把「关闭时不渲染」改成恒渲染后一例失败；prettier、`tsc --noEmit` 退出 0、`verify:theme-colors`、`verify:stable-mocks` 通过；`bun run lint` 里 a11y 与硬编码文案两个门禁本来就失败，输出里没有本次触碰的文件。
+4. 真实浏览器：走项目规定的 `./myrm test -m chrome_e2e …/test_incognito_notice_chrome_e2e.py`（共享 Chrome 的 MCP 对本地页面有意拒绝，没有绕开）。点真实开关后，说明在 14 ms 内出现，文字 63 个字符，不溢出视口、页面不横向撑宽；对比度按「祖先背景逐层合成」量：浅色标题 17.0:1、正文 14.6:1，深色标题 18.3:1、正文 16.9:1（门槛 4.5）；390px 同源 iframe 里手机布局同样不溢出；再点一次说明消失。`scripts/dev/tests` 里关于 e2e 等待与副作用的静态审计 53 例通过。
+5. 测试自身的踩坑（已修）：点击早于 React 水合会丢（DOM 与 `aria-pressed` 都在，但没有处理器），现在等标题与开关都带 `__reactProps` 再点；颜色过渡会让切换主题后立刻量到旧主题的值，量之前关掉过渡；冷启动时开发服务器按需编译，脚本加载最慢的几个分块用了约 57 秒，手机 iframe 的等待放宽到 240 秒。
+
+### 局限
+
+1. 恢复点不做 scrub：创建时尚存的无痕会话会留在点里，直到该点被保留策略清理或手动删除。
+2. 手机宽度用的是同源 390px 的 iframe（真实媒体查询），不是真机；触屏不出现悬停提示来自读 Radix 源码，没有在真机上点过。
+3. E2E 只用了简体中文；其他五种语言的文案更长，容器按词换行，没有逐个在浏览器里看。
+4. 无痕会话被清除时，它的分享链接随之失效；在清除之前，分享链接仍可访问，没有额外限制（本次不做）。
+5. 暂存与导出都只剔除 `source = 'web'` 的无痕会话；若将来有第二种「到期即删」的来源，要同时改清除条件与这里的谓词（两处现在各写了一份）。
+6. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`_ARCH.md`、两个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
+
+### 教训
+
+1. 承诺一个删除时限，就要把「所有会复制这批数据的出口」逐个列出来：线上库、导出、备份、导入暂存、恢复点各自要回答「带不带」。
+2. 依赖 SQLite 级联的删除必须自己打开 `foreign_keys`（默认关，且事务里设置无效）并回读确认；只检查「删了几行」不能证明子表也删了。
+3. 看起来能互相印证的几处文案，要各自追到代码里的调用方；没有调用方就删，不要留着当「已实现」。
+4. 浏览器里的断言要等「可交互」而不是「元素在」；量颜色要先关过渡；这类基础设施行为写进测试的注释里，下一个人才不会重走一遍。
