@@ -24,9 +24,9 @@ describe('isLoopbackProbeUrl', () => {
 
 describe('resolveProbeUrl', () => {
   it('prefers an explicit loopback probeUrl over the entry url', () => {
-    expect(
-      resolveProbeUrl({ probeUrl: 'http://127.0.0.1:8000/mcp', url: 'https://example.com/mcp' }),
-    ).toBe('http://127.0.0.1:8000/mcp');
+    expect(resolveProbeUrl({ probeUrl: 'http://127.0.0.1:8000/mcp', url: 'https://example.com/mcp' })).toBe(
+      'http://127.0.0.1:8000/mcp',
+    );
   });
 
   it('falls back to a loopback entry url when probeUrl is missing', () => {

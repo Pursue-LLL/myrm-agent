@@ -17,3 +17,4 @@ Integration Catalog 的静态预配置数据。按服务分类组织，每个 JS
 | `docs.json` | docs | 3 | Context7, Microsoft Learn, AWS Documentation |
 | `design.json` | design | 3 | Figma, Unreal Engine, Blender |
 | `api.json` | api | 2 | Postman, QiChaCha |
+| `social.json` | social | 1 | Postiz |
