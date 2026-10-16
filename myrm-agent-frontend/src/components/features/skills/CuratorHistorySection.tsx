@@ -69,7 +69,7 @@ const CuratorHistorySection = memo(({ open, loading, entries, onToggle }: Curato
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <span>{t('historyScanned', { count: entry.skills_scanned })}</span>
                   {entry.stale_count > 0 && (
-                    <span className="text-yellow-600 dark:text-yellow-500">
+                    <span className="text-yellow-700 dark:text-yellow-500">
                       {tCard('stale')} {entry.stale_count}
                     </span>
                   )}
@@ -79,7 +79,7 @@ const CuratorHistorySection = memo(({ open, loading, entries, onToggle }: Curato
                     </span>
                   )}
                   {entry.total_transitions === 0 && (
-                    <span className="text-green-600 dark:text-green-400">{t('noChanges')}</span>
+                    <span className="text-green-700 dark:text-green-400">{t('noChanges')}</span>
                   )}
                 </div>
                 {entry.transitions.length > 0 && (
@@ -90,7 +90,7 @@ const CuratorHistorySection = memo(({ open, loading, entries, onToggle }: Curato
                         className="text-[11px] text-muted-foreground pl-2 border-l-2 border-muted"
                       >
                         <span className="font-medium text-foreground">{tr.skill_name}</span> → {tCard(tr.to_status)}
-                        <span className="ml-1 opacity-60">({t(REASON_KEYS[tr.reason])})</span>
+                        <span className="ml-1 opacity-70">({t(REASON_KEYS[tr.reason])})</span>
                       </div>
                     ))}
                   </div>

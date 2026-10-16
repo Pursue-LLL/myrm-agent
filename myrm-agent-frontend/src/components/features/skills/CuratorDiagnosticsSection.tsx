@@ -75,8 +75,8 @@ const CuratorDiagnosticsSection = memo(
             variant="outline"
             className={`text-[11px] font-mono px-2 py-0.5 ${
               diagnostics.health_score >= 85
-                ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
-                : 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                ? 'border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
+                : 'border-amber-500/30 text-amber-800 dark:text-amber-400 bg-amber-500/10'
             }`}
           >
             {diagnostics.health_score}/100
@@ -109,8 +109,8 @@ const CuratorDiagnosticsSection = memo(
                         variant="outline"
                         className={`text-[10px] h-4 px-1.5 ${
                           f.severity === 'critical'
-                            ? 'border-destructive/40 text-destructive bg-destructive/10'
-                            : 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                            ? 'border-destructive/40 text-red-700 dark:text-red-400 bg-destructive/10'
+                            : 'border-amber-500/40 text-amber-800 dark:text-amber-400 bg-amber-500/10'
                         }`}
                       >
                         {t(TYPE_LABEL_KEYS[f.finding_type])}

@@ -32,6 +32,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_expert_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（SHARED+NAMESPACE_WRITE×1）：`/settings/agents` 带密钥与本机路径的智能体，预览 API 返回 `api_token`/`absolute_path` 代码，导出对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框 |
 | `e2e/test_bulk_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（SHARED+NAMESPACE_WRITE×1）：`/settings/agents` 点“批量导出”→下一步，带密钥与本机路径的智能体，批量预览 API 返回 `api_token`/`absolute_path` 代码，向导自身按钮/标题与复核面板在 zh/en 均本地化，点导出脱敏版后下载并关闭对话框 |
 | `e2e/test_featured_expert_lucide_icons_chrome_e2e.py` | E2E | Chrome E2E（SHARED+READ×1）：空聊天首页精选专家芯片（`empty-chat-featured-chips`）按模板 API 的 `lucide:<name>` 逐个懒加载图标；每个芯片须为已解析的具名 svg（非 Bot/Users 占位），且不同图标几何互异 |
+| `e2e/test_curator_panel_sections_chrome_e2e.py` | E2E | Chrome E2E（SHARED+READ×1）：页内替换 Curator 历史与诊断两个接口的响应，`/settings/skills` 已安装页签在 zh 下逐字核对转移原因、发现句子、库级发现无操作按钮；桌面与 375px 同源 iframe 各量深浅主题的文字对比度（≥4.5:1）与横向溢出 |
 | `e2e/test_skill_export_redaction_kinds_chrome_e2e.py` | E2E | Chrome E2E（PRIVATE+GLOBAL_WRITE×1）：经 `.zip` 上传装一个带密钥与本机路径的技能，`/settings/skills` 已安装列表搜索 → 详情抽屉 → 导出，对话框在 zh/en 渲染本地化句子，点导出脱敏版后下载并关闭对话框；结束卸载该技能 |
 | `support/test_chrome_bridge_diagnostics.py` | 单元 | `wait_for_react_e2e_bridge` 超时诊断：快照辅助返回页面 readyState/脚本加载/未捕获错误，自身异常不覆盖原始超时，超时信息携带 `diagnostics=` 以区分「未 hydrate」与「脚本未加载完」 |
 | `support/test_chrome_bridge_load.py` | 单元 | `wait_for_load_to_settle` 及其在 `wait_for_react_e2e_bridge` 中的接线（假时钟）：脚本仍在完成时不触发 heal 重载（慢 hydrate 的页面能等到 bridge），45s 无进展才重载，截止时间到仍带诊断失败；探针 JS 暴露等待所读信号，API 轮询不算加载进度 |
