@@ -1087,7 +1087,7 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
                 job.chat_id,
             )
         # The agent entry point types history entries loosely; re-wrap so the invariant list types line up.
-        return [list[str | object](entry) for entry in history]
+        return [list(entry) for entry in history]
     except Exception:
         logger.warning(
             "Cron job %s: failed to load thread history for chat %s",
