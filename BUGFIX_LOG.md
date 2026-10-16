@@ -5959,3 +5959,59 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. 把多个节点塞进一个 detach 会话，会被协调器的 BODY 600 秒、进程 810 秒上限回收，受害会话的日志里没有任何原因，只有 `coordinator.log` 里有 `E2E_HUNG_PYTEST_REAP`：真机 E2E 一个节点一个会话，失败先查 `coordinator.log`。
 
 ---
+
+## BUG-AGENT-2026-10-17-003: 技能医生对被 Agent 档案或定时任务绑定的技能仍给出「归档」按钮，点下去要么静默弄坏那条自动化、要么必然失败；健康探针对故障技能的建议「触发清理」不会起作用
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-17 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P3（只影响「成功率低且被绑定」的技能；归档不删文件、可恢复，但绑定它的定时任务与 Agent 会静默丢失该技能） |
+| 影响范围 | 服务端 `app/core/skills/curator/service.py`（`get_skill_diagnostics`）、`app/api/skills/curator.py`（`SkillDoctorFindingItem`）、`app/core/infra/health/skill_diagnostics.py`；前端 `CuratorDiagnosticsSection.tsx`、`CuratorSettingsPanel.tsx`、新增 `useCuratorDiagnostics.ts`、`useCuratorHistory.ts`、`services/skill/core.ts`、六份 locale |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-16-025`（本条同批更正了它里面关于 `is_stale` 的错误表述）；服务端提交 `60697675a3`，前端提交 `62fd80392d`、`9c10285f60`；本地提交，未 push |
+
+### 现象
+
+1. 一个技能同时满足「观察次数不少于 5 且成功率低于 0.3」和「被 Agent 档案或未结束的定时任务绑定」时，诊断面板仍给它「归档」或「解 Pin 归档」按钮。同一个技能在自动清理里是被豁免的（`service.py` 的 `run_curator_sweep` 把 `bound_skill_names(scan.skills)` 交给引擎当 `protected_names`），三处对「被绑定」的口径各不相同：harness 的体检只认置顶，健康探针只认置顶、进化锁定与装来技能，界面按钮不看任何豁免；
+2. 在本条之前的 HEAD 上点击会成功：技能被标为已归档，运行时加载把已归档技能判为不可加载（`myrm-agent-server/app/core/skills/gates/runtime_load.py:60`），绑定它的定时任务与 Agent 此后静默拿不到该技能。用真实技能目录加真实 SQLite 在临时目录里复现过（去掉「拒绝归档被绑定技能」的守卫后归档成功），复现脚本放在仓库外，没有入库；
+3. 另一项尚未提交的改动给手动归档加了「被绑定就拒绝」的守卫；它落地后，这个按钮就变成「点了必然报错」。本条不含该守卫；
+4. 健康探针对故障技能的 `fix_suggestion` 写「触发一次清理」，而清理对近期用过的故障技能只标「陈旧」、不归档，这条建议不会起作用。
+
+### 根因
+
+1. 「被绑定」是服务端的业务概念（Agent 档案与定时任务都在服务端数据库里），harness 的体检不知道、也不该知道（引擎的 `protected_names` 本来就由宿主注入）；诊断接口只把体检结果原样往外送，界面于是没有可用来判断的信息；
+2. 前端按钮只按 `pinned` 与发现类型决定，没有「这个动作会不会成功」这一维。
+
+### 修复
+
+1. 服务端 `get_skill_diagnostics` 给每条发现加 `bound`，用与清理同一个 `bound_skill_names`；只对有发现的技能查库，没有发现时不查库；`SkillDoctorFindingItem` 与前端类型同步加字段。harness 不动（没有把业务概念塞进框架，`recommended_action` 仍写 archive，由界面用 `bound` 覆盖）；
+2. 前端：`bound` 的发现隐藏「归档」与「解 Pin 归档」，只留「重置计数」，并在说明下多一行原因（六种语言，`doctor.boundNote`）；
+3. 健康探针的告警建议改成「到技能页的清理里检查失败的技能，修复或归档」；
+4. `CuratorSettingsPanel.tsx` 从 453 行降到 374 行：技能医生与运行历史的状态拆到 `useCuratorDiagnostics`、`useCuratorHistory`，各有测试；顺手删掉只写不读的 `diagLoading` 状态；行为不变；
+5. 测试里读真实数据库的 `session` fixture 抽到 `tests/core/skills/curator/conftest.py`，`test_bound_skills.py` 复用，并修了该文件里原有的一条 mypy 报错；
+6. 同批更正文档：`BUG-AGENT-2026-10-16-025` 与路线图 topic_08 #43 ⑥ 写过「`is_stale` 没有调用方」，实际 `registry.py` 有一处读取（给目录条目加 `stale="true"`），已改成准确说法，没有动这个属性（改它会让所有对话的提示词字节变化）；素材文档里 Hermes 的「自我修剪」单元格改成它确有后台 curator（`agent/curator.py`：按闲置过期与归档，默认 14 与 30 天，置顶豁免，只归档不删除，LLM 合并默认关闭）。
+
+### 验证
+
+1. 服务端：新增 `tests/core/skills/curator/test_skill_diagnostics_bound.py`（绑定到定时任务与 Agent 的故障技能标 `bound`、未绑定的不标、置顶且绑定、健康的绑定技能没有发现、没有发现时不查库）；`tests/core/skills/curator`、`tests/api/skills/test_curator.py`、`tests/core/infra/health/test_skill_quality_diagnostic.py` 共 60 通过；触及文件 ruff 无告警，mypy 在触及文件上 0 错误（服务端 mypy 跟随导入共报 1153 条，均不在这些文件里）；
+2. 前端：`CuratorSections`（新增被绑定技能只剩重置与原因行、六个语言无缺失键）、`CuratorSettingsPanel`、两个新 hook 的测试、`CuratorNumberInput` 共 5 个文件 38 例通过；触及文件 prettier、oxlint 通过；`verify:i18n`、`verify:theme-colors` 通过；
+3. 限定到触及文件的 `tsc`：触及的源文件与新测试没有类型错误，只剩 `CuratorSettingsPanel.test.tsx` 里 jest-dom 匹配器（`toBeInTheDocument` 等）找不到类型，那是限定范围的配置没有带上全局测试初始化造成的，不是本次改动；全量 `tsc` 没有跑（主机负载均值约 23）。
+
+### 局限
+
+1. 「故障且被绑定」的真实出现频率没有量过；本机账本里全部技能的总调用次数只有 3；
+2. 没有跑真机浏览器 E2E，界面没有目视检查，手机端布局没有真机验证（该 E2E 的 375px 手机框从未跑通，见 `BUG-AGENT-2026-10-16-025` 局限 1）；E2E 的桩数据只补了 `bound: false`；
+3. 日、韩、德、繁体中文新增的 `doctor.boundNote` 没有母语复核；
+4. 「被绑定」按技能名匹配（与清理一致）：不同目录里有同名技能时，只要其中一个被绑定，这个名字的发现都标 `bound`；
+5. 数据库读取失败时，诊断请求会失败（与清理一致：不知道绑定情况就不继续），前端把诊断卡整块隐藏；没有为此单独做降级；
+6. 诊断接口在有发现时多一次数据库读取，没有做基准测试，不声称性能影响；
+7. 「手动归档拒绝被绑定技能」的守卫不在本条，提交时仍是别人未提交的改动；它落地前，经其他入口（例如接口直接调用）仍可归档被绑定技能。
+
+### 踩坑经验
+
+1. 同一个豁免概念散在多处（清理、体检、探针、界面按钮）时，给其中一处加守卫，其余入口仍会给出会失败或会出错的操作；加守卫的同一次改动要顺着「谁会触发这个动作」把入口一起核对；
+2. 已落盘的历史数据决定哪些「残留」能删：看起来是容量机制残留的 `lru_eviction` 历史标签，本机 `curator_history.jsonl` 的 30 次清理 73 条迁移里有 19 条是它，删掉映射会让这些历史行渲染成缺失键，所以保留；
+3. 自己的改动与别人未提交的改动落在同一文件时，按精确文本替换在 HEAD 的内容上提交，不整文件提交，提交后核对对方的改动仍在工作区。
+
+---
