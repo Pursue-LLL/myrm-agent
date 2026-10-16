@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.database.connection import init_database
 from app.services.wiki.vault import (
+    resolve_agent_wiki_vault_path,
     seed_agent_vault_from_default,
     vault_has_wiki_content,
 )
@@ -642,6 +643,10 @@ def test_apply_second_brain_wiki_morning_delta_uses_blueprint() -> None:
             second_call = mock_mgr.create_job.await_args_list[1]
             assert second_call.args[1] == "Second Brain · Wiki Morning Delta"
             assert second_call.kwargs["tools_allowed"] == ("wiki", "memory", "file_ops")
+            assert second_call.kwargs["required_capabilities"] == ("file_read", "knowledge_read", "knowledge_write")
+            assert second_call.kwargs["allowed_roots"] == (str(resolve_agent_wiki_vault_path("agent-second-brain-1")),)
             assert second_call.args[3].expr == "0 7 * * *"
+            other_calls = [mock_mgr.create_job.await_args_list[0], mock_mgr.create_job.await_args_list[2]]
+            assert [call.kwargs["allowed_roots"] for call in other_calls] == [(), ()]
     finally:
         app.router.lifespan_context = original_lifespan

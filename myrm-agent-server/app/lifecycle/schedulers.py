@@ -113,6 +113,15 @@ async def start_cron_scheduler() -> None:
     except Exception as exc:
         logger.warning("Cron startup read-it-later hygiene failed: %s", exc)
 
+    try:
+        from app.services.onboarding.second_brain_preset import (
+            repair_wiki_delta_job_security,
+        )
+
+        await repair_wiki_delta_job_security()
+    except Exception as exc:
+        logger.warning("Cron startup wiki-delta job repair failed: %s", exc)
+
     await get_cron_scheduler().start()
     logger.info("Cron scheduler started")
 

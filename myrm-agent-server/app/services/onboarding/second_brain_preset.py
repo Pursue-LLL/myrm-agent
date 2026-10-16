@@ -10,6 +10,7 @@
 [OUTPUT]
 - apply_second_brain_preset(): create/reuse agent + read-it-later + wiki-morning-delta + wiki-maintain crons, persist checklist state
 - get_second_brain_preset_status(): honest 5-item readiness checklist; clears stale preset when stored agent was deleted
+- repair_wiki_delta_job_security(): startup repair of a wiki-delta job created before its capability declaration was fixed
 - _apply_success_message(): localized apply toast copy
 - _clear_preset_state(): delete persisted secondBrainPreset config
 
@@ -54,7 +55,9 @@ from app.services.onboarding.schemas import (
     SecondBrainPresetState,
     SecondBrainStatusResponse,
 )
+from app.services.onboarding.second_brain_job_repair import repair_wiki_delta_job
 from app.services.wiki.vault import (
+    resolve_agent_wiki_vault_path,
     seed_agent_vault_from_default,
     vault_has_wiki_content,
 )
@@ -154,6 +157,12 @@ async def reconcile_second_brain_cron_ids(id_remaps: dict[str, str]) -> None:
             }
         )
     )
+
+
+async def repair_wiki_delta_job_security() -> bool:
+    """Startup repair of a wiki-delta job created before its capability declaration was fixed."""
+    job_id = await _find_wiki_morning_delta_cron_job()
+    return job_id is not None and await repair_wiki_delta_job(job_id, user_id=_USER_ID)
 
 
 async def _run_read_it_later_hygiene() -> None:
@@ -310,6 +319,7 @@ async def _ensure_blueprint_cron(
     agent_id: str,
     locale: str,
     find_existing_job_id: Callable[[], Awaitable[str | None]],
+    allowed_roots: tuple[str, ...] = (),
 ) -> tuple[str | None, bool]:
     mgr = get_cron_manager()
     fill = fill_blueprint(blueprint_id, slot_values, locale=locale)
@@ -325,7 +335,11 @@ async def _ensure_blueprint_cron(
                 await mgr.delete_job(existing_id, _USER_ID)
                 existing_id = None
             elif job.agent_id != agent_id:
-                await mgr.update_job(existing_id, _USER_ID, CronJobPatch(agent_id=agent_id))
+                await mgr.update_job(
+                    existing_id,
+                    _USER_ID,
+                    CronJobPatch(agent_id=agent_id, allowed_roots=allowed_roots or None),
+                )
                 return existing_id, False
             else:
                 return existing_id, False
@@ -344,6 +358,7 @@ async def _ensure_blueprint_cron(
         agent_id=agent_id,
         required_capabilities=fill.required_capabilities,
         tools_allowed=fill.tools_allowed,
+        allowed_roots=allowed_roots,
         session_target=SessionTarget(fill.session_target),
         deduplicate=fill.deduplicate,
         skip_if_active=fill.skip_if_active,
@@ -373,6 +388,7 @@ async def _ensure_wiki_morning_delta_cron(*, agent_id: str, locale: str) -> tupl
         agent_id=agent_id,
         locale=locale,
         find_existing_job_id=_find_wiki_morning_delta_cron_job,
+        allowed_roots=(str(resolve_agent_wiki_vault_path(agent_id)),),
     )
 
 
