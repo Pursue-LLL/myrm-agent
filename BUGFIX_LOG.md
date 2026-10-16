@@ -5626,7 +5626,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 ### 修复
 
-1. 新增纯函数模块 `approval.js`：`describeApproval` 逐项描述全部动作，`buildResumeValue`（`:114`）生成 `{decision:"approve"}` 或带反馈的拒绝，`buildStreamBody`（`:122`）组装 resume 请求体；`sidepanel.js` 的 `respondApproval`（`:339`）在原回合的助手消息上续写，409 落成中性提示（`:219`）；SSE 读取抽到 `sse.js`。
+1. 新增纯函数模块 `approval.js`：`describeApproval` 逐项描述全部动作，`buildResumeValue`（`:114`）生成 `{decision:"approve"}` 或带反馈的拒绝，`buildStreamBody`（`:122`）组装 resume 请求体；`sidepanel.js` 的 `respondApproval`（`:333`）在原回合的助手消息上续写，409 落成中性提示（`:224`）；答复没有送达（网络失败、服务端错误）时弹窗重新出现并给出提示（`:237`、`:334`），用户取消或开新会话时不重现；SSE 读取抽到 `sse.js`，工具进度行的渲染抽到 `tool_steps.js`（工具名按文本写入）。
 2. 安全边界按白名单失败关闭：审批配置里出现 `allowedDecisions`/`hideAllowAlways`/`domainApproval` 之外的任何开启字段（金额、二次确认、不可逆、影响摘要……含将来新增的字段），或不允许批准，或 `displayMode` 为 `handover`，侧边栏只能拒绝，并提示去网页端批准（`approval.js:21` 白名单、`:59` 判定）。
 3. 弹窗文案、提示全部走 `chrome.i18n`（`_locales/en`、`_locales/zh_CN` 各 9 个新键，占位符一致）；侧边栏脚本改为 ES module 并在初始化时应用文档翻译。
 4. 修正 `i18n.js` 头注释。
@@ -5634,9 +5634,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 ### 验证
 
-1. frontend vitest：`src/lib/extension` 5 个文件 51 例（审批判定与白名单、请求体、文案、SSE 解析，以及加载真实 `sidepanel.html` 的 jsdom 控制器用例：批准发出 `resume_value`、拒绝带反馈、409 中性提示、新会话清弹窗、重复点击只发一次、高风险只能拒绝）；把白名单改成放行所有字段后 12 例失败，还原后通过。`approvalAlertService` 新增 3 例（队列清空时收口、仍有待决时保留、`clearAll`），把判定条件改错后 2 例失败，还原后通过。涉及目录合计 97 个文件 633 例通过。
+1. frontend vitest：`src/lib/extension` 6 个文件 61 例（审批判定与白名单、请求体、文案、SSE 解析、工具进度行，以及加载真实 `sidepanel.html` 的 jsdom 控制器用例：批准发出 `resume_value`、拒绝带反馈、409 中性提示、答复未送达后可再答复、取消后不重现、新会话清弹窗、高风险只能拒绝、工具调用渲染成行）；把白名单改成放行所有字段后 12 例失败，去掉取消保护后 1 例失败，各自还原后通过；「答复未送达可再答复」先写用例、在改代码前失败。`approvalAlertService` 新增 3 例（队列清空时收口、仍有待决时保留、`clearAll`），把判定条件改错后 2 例失败，还原后通过。
 2. harness 现有用例 `test_approval_rare_branches.py::test_global_decision_normalization` 确认全局 `{decision:"approve"}` 作用于该中断的全部动作；服务端 `AgentRequest` 解析探测接受扩展发出的请求体。
-3. 真实无头 Chromium 加载扩展、连模拟服务端：批准发出 `{"message_id":同一个,"chat_id":同一个,"query":"","resume_value":{"decision":"approve"}}`，气泡续写为 `Hello world`，弹窗收起，页面无报错；高风险变体只剩「拒绝」与提示，拒绝发出 `{"decision":"reject","feedback":"User rejected this action."}`；中文文案生效。提交版扩展在同一探测里后台监听器为未注册、弹窗为英文（见现象 4）。
+3. 真实无头 Chromium 加载扩展、连模拟服务端：批准发出 `{"message_id":同一个,"chat_id":同一个,"query":"","resume_value":{"decision":"approve"}}`，气泡续写为 `Hello world`，弹窗收起，页面无报错；高风险变体只剩「拒绝」与提示，拒绝发出 `{"decision":"reject","feedback":"User rejected this action."}`；中文文案生效。提交版扩展在同一探测里后台监听器为未注册、弹窗为英文（见现象 4）。再按真实面板宽度（380×720）复测：4 个动作的批量审批全部可见、无横向滚动；服务端第一次返回 500 时弹窗重新出现并提示，再点批准成功续写；高风险变体只剩「拒绝」。1024 宽的首轮截图曾掩盖「明细区只有 100px 高、4 个动作被截断」，已改为 `min(40vh, 240px)`。
 4. `tsc` 对涉及路径无报错（全量运行只在 `doctorLocaleKeys.test.ts`、`GoalStatusCard.tsx` 报错，二者都不在本条改动里，属于工作区中他人未提交的改动）；prettier、oxlint、`verify:theme-colors`、`tests/architecture/test_sse_event_type_parity.py` 通过；`verify:i18n` 当前因他人未完成的 `cron.blockedMore` 等键失败，本条没有改动前端语言包。
 
 ### 局限
@@ -5645,7 +5645,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 扩展答复不带 `interruptId`：只在同一时刻仅有一个待决中断时有效；多个待决时 harness 会拒绝未寻址的 resume（`-019`），扩展在这种情形下的表现没有验证。
 3. 服务端超时自动处理后，侧边栏的弹窗不会自己消失，点击后经 409 落成中性提示；在弹窗未答复时发送新消息会收起弹窗，被暂停的回合交给服务端超时处理，未验证该路径的服务端表现。
 4. 白名单偏保守：带影响摘要、恢复提示等信息的审批也只能在网页端批准；这类审批占比没有量过。
-5. `sidepanel.js` 为 490 行，超过 400 行的目标、低于 500 行的上限，没有继续拆分。
+5. `sidepanel.js` 为 479 行，仍高于 400 行的目标、低于 500 行的上限；侧边栏聊天界面的其余文案（输入框占位、「Thinking…」「Using …」、错误前缀与服务端错误原文）仍是写死的英文，这次只处理审批相关文案，扩展 `_ARCH.md` 的 i18n 范围表按此记录。
 6. 后台脚本不执行对 WebSocket 桥、右键菜单、剪藏的影响，由「监听器未注册」推得，没有逐项运行。
 
 ### 踩坑经验
@@ -5653,7 +5653,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 注释里的路径通配符 `*/` 会结束块注释；语法错误不会在任何测试里出现，除非有一个用例真正加载该文件。给每个浏览器扩展 ESM 加一次加载级检查，比读代码可靠。
 2. 「安全例外清单」用黑名单会在新增字段时默认放行；放行条件写成白名单，新增字段才会默认回到网页端。
 3. 无人发布的事件、无人调用的清理函数，都在读代码时被当成「已有保护」；先查发布方与调用方，再决定留还是删。
-
+4. 侧边栏要用真实面板宽度验收：1024 宽的截图里看起来正常，380 宽时批量审批的明细被截断；还有「提交答复」这类单次动作，要单独测网络失败与服务端报错后用户还能不能再答复。
 ## BUG-AGENT-2026-10-16-019: 同一条消息里两个委派同时要审批时，网页只收到第一张卡，答复被拒；同一个中断再次被宣告会叠出重复的卡，「全部批准」把不同中断的卡合进同一次 resume；已被别处处理过的旧卡点击后答复落到下一个审批上；后台子代理完成的唤醒消息会把隔离合并元数据当结果文本
 
 | 属性 | 值 |

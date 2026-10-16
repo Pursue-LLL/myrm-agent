@@ -25,6 +25,7 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat 控制器：发送消息、渲染 SSE 事件、展示审批弹窗并用 `resume_value` 恢复暂停的回合（聊天界面英文，对话文案由 server/WebUI i18n 覆盖） | ✅ |
 | `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（可答复范围与逐项描述）、`resolveApprovalCopy`、`buildResumeValue`/`buildStreamBody`、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
 | `src/sidepanel/sse.js` | 辅助 | `readSSE`：解析 agent SSE 流（`data:` 行、`[DONE]` 终止；坏行跳过、回调异常记录后继续） | ✅ |
+| `src/sidepanel/tool_steps.js` | 辅助 | 工具进度行渲染：`addToolStep` / `updateLastToolStep`（工具名只作文本写入，不解析为 HTML）；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
 | `src/content/selection.js` | 辅助 | Content Script（manifest 注入）：监听 mouseup 捕获用户选中文本，转发至 Side Panel | ✅ |
 | `src/content/clip_image_urls.js` | 核心 | srcset/lazy/picture 图片 URL 解析（`MyrmClipImageUrls` SSOT） | ✅ |
 | `src/content/clip.js` | 核心 | Content Script（动态注入）：捕获 page/selection HTML + credentialed 图片 fetch | ✅ |
@@ -66,6 +67,8 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 | `tool_approval_request`（普通） | 弹窗逐项列出全部动作；一次批准/拒绝应用于该中断的全部动作 |
 | `tool_approval_request` 且任一动作的 `reviewConfigs` 项带有 `allowedDecisions` / `hideAllowAlways` / `domainApproval` 之外的开启字段（如 `isSpend`、`requiresDualInsurance`、`irreversibleDestructive`、`smartDenied`、`batchImpactSummary`），或 `allowedDecisions` 不含 `approve`，或 `displayMode` 为 `handover` | 只能拒绝；批准须回 Web 端（Web 端有额外确认与信息展示，Side Panel 不绕过；未知新字段同样视为需要 Web 端，默认拒绝批准） |
 | `approval_required` 等其他审批 | 仅提示去 Web 端处理，弹窗可忽略 |
+| 答复请求未送达（网络失败、服务端错误） | 提示「答复没有送达」并让弹窗重新出现，可再次答复；用户取消或开新会话时不重现 |
+| 答复请求返回 409（超时或已在别处处理） | 提示该审批已被处理，不再重试 |
 
 ## Wiki clip 产品默认
 

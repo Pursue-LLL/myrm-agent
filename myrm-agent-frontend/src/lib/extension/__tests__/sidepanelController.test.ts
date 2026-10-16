@@ -28,8 +28,12 @@ const approvalEvent = (extra: { reviewConfigs?: object[] } = {}) => ({
   },
 });
 
+/** A request the server never answers; it settles only when the panel aborts it. */
+const HANGS = Symbol('hangs');
+type Served = Response | Error | typeof HANGS;
+
 /** Boots the panel against `streams` (served in order to each POST /agent-stream) and returns the requests it made. */
-async function bootPanel(streams: Response[]): Promise<StreamBody[]> {
+async function bootPanel(streams: Served[]): Promise<StreamBody[]> {
   const requests: StreamBody[] = [];
   const queue = [...streams];
   vi.stubGlobal('chrome', {
@@ -49,12 +53,21 @@ async function bootPanel(streams: Response[]): Promise<StreamBody[]> {
   });
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (input: string, init: { body?: string }) => {
+    vi.fn(async (input: string, init: { body?: string; signal?: AbortSignal }) => {
       if (input.endsWith('/api/v1/health')) {
         return new Response('{}');
       }
       requests.push(JSON.parse(init.body ?? '{}'));
-      return queue.shift() ?? sse([]);
+      const served = queue.shift() ?? sse([]);
+      if (served instanceof Error) {
+        throw served;
+      }
+      if (served === HANGS) {
+        return new Promise<Response>((_, reject) =>
+          init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))),
+        );
+      }
+      return served;
     }),
   );
 
@@ -139,6 +152,47 @@ describe('side panel approval', () => {
     expect(element('btn-send').disabled).toBe(false);
   });
 
+  it.each([
+    ['the server fails', new Response('boom', { status: 500 })],
+    ['the network is down', new TypeError('Failed to fetch')],
+  ])('offers the answer again when %s before it was taken', async (_label, failure) => {
+    const requests = await bootPanel([
+      sse([{ type: 'message', data: 'Hello' }, approvalEvent()]),
+      failure,
+      sse([{ type: 'message', data: ' world' }, { type: 'message_end' }]),
+    ]);
+    await sendAndAwaitApproval();
+
+    element('btn-approve').click();
+
+    await vi.waitFor(() => expect(overlayVisible()).toBe(true));
+    expect(document.querySelector('.turn-notice')?.textContent).toBe('approvalSendFailed');
+    expect(assistantBubbles()[0].textContent).toBe('Hello');
+    expect(assistantBubbles()[0].getAttribute('style') ?? '').not.toContain('error');
+    expect(element('btn-approve').disabled).toBe(false);
+
+    element('btn-approve').click();
+
+    await vi.waitFor(() => expect(assistantBubbles()[0].textContent).toBe('Hello world'));
+    expect(requests).toHaveLength(3);
+    expect(requests[2]).toMatchObject({ message_id: requests[0].message_id, resume_value: { decision: 'approve' } });
+    expect(overlayVisible()).toBe(false);
+  });
+
+  it('does not offer the answer again after the user cancels the resume', async () => {
+    const requests = await bootPanel([sse([approvalEvent()]), HANGS]);
+    await sendAndAwaitApproval();
+
+    element('btn-approve').click();
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    element('btn-cancel').click();
+
+    await vi.waitFor(() => expect(element('btn-send').disabled).toBe(false));
+    await new Promise((resolve) => setTimeout(resolve, 20)); // lets the aborted request settle before asserting what did not happen
+    expect(overlayVisible()).toBe(false);
+    expect(document.querySelector('.turn-notice')).toBeNull();
+  });
+
   it('only lets an elevated request be rejected here', async () => {
     const requests = await bootPanel([
       sse([approvalEvent({ reviewConfigs: [{ irreversibleDestructive: true }] })]),
@@ -180,5 +234,31 @@ describe('side panel approval', () => {
 
     expect(overlayVisible()).toBe(false);
     expect(requests).toHaveLength(1);
+  });
+});
+
+describe('side panel stream', () => {
+  it('renders each tool call as a row in the assistant message and settles it', async () => {
+    await bootPanel([
+      sse([
+        { type: 'tool_start', tool_name: 'file_read_tool' },
+        { type: 'tool_end', tool_name: 'file_read_tool' },
+        { type: 'tool_start', tool_name: 'bash_code_execute_tool' },
+        { type: 'tool_failure', tool_name: 'bash_code_execute_tool' },
+        { type: 'message', data: 'Done' },
+        { type: 'message_end' },
+      ]),
+    ]);
+
+    element('chat-input').value = 'read it';
+    element('btn-send').click();
+
+    await vi.waitFor(() => expect(assistantBubbles()[0].textContent).toBe('Done'));
+    const steps = [...document.querySelectorAll('.message.assistant .tool-step')];
+    expect(steps.map((step) => step.className)).toEqual(['tool-step done', 'tool-step error']);
+    expect(steps.map((step) => step.querySelector('.name')?.textContent)).toEqual([
+      'file_read_tool',
+      'bash_code_execute_tool',
+    ]);
   });
 });

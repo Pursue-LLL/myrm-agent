@@ -20,6 +20,7 @@ import {
   resolveApprovalCopy,
 } from "./approval.js";
 import { readSSE } from "./sse.js";
+import { addToolStep, updateLastToolStep } from "./tool_steps.js";
 
 // --- State ---
 
@@ -129,7 +130,7 @@ function apiFetch(path, options = {}) {
   const headers = {
     "Content-Type": "application/json",
     ...(state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {}),
-    ...(options.headers || {}),
+    ...options.headers,
   };
   return fetch(`${state.serverBaseUrl}${path}`, { ...options, headers });
 }
@@ -192,11 +193,15 @@ function appendTurnNotice(turn, text) {
   turn.el.appendChild(notice);
 }
 
-/** Streams `turn` from the server: a new message (`query`), or the answer to its pending approval (`resumeValue`). */
+/**
+ * Streams `turn` from the server: a new message (`query`), or the answer to its pending approval (`resumeValue`).
+ * @returns {Promise<boolean>} true when an approval answer never reached the server, so it can be given again
+ */
 async function streamTurn(turn, { query = "", resumeValue } = {}) {
   state.currentMessageId = turn.messageId;
   setStreaming(true);
   state.abortController = new AbortController();
+  let reachedServer = false;
 
   try {
     const resp = await apiFetch("/api/v1/agents/agent-stream", {
@@ -217,25 +222,30 @@ async function streamTurn(turn, { query = "", resumeValue } = {}) {
 
     if (resumeValue && isResumeConflict(resp.status)) {
       appendTurnNotice(turn, msg("approvalHandledElsewhere"));
-      return;
+      return false;
     }
     if (!resp.ok) {
       const errText = await resp.text().catch(() => resp.statusText);
       throw new Error(`Server error ${resp.status}: ${errText}`);
     }
 
+    reachedServer = true;
     await readSSE(resp.body, (event) => handleSSEEvent(event, turn));
   } catch (err) {
-    if (err.name !== "AbortError") {
-      turn.bubble.textContent = `${turn.text}${turn.text ? "\n\n" : ""}Error: ${err.message}`;
-      turn.bubble.style.color = "var(--error)";
+    if (err.name === "AbortError") return false;
+    if (resumeValue && !reachedServer) {
+      appendTurnNotice(turn, msg("approvalSendFailed"));
+      return true;
     }
+    turn.bubble.textContent = `${turn.text}${turn.text ? "\n\n" : ""}Error: ${err.message}`;
+    turn.bubble.style.color = "var(--error)";
   } finally {
     setStreaming(false);
     state.abortController = null;
     state.currentMessageId = null;
     scrollToBottom();
   }
+  return false;
 }
 
 // --- SSE events ---
@@ -252,6 +262,7 @@ function handleSSEEvent(event, turn) {
     case "tool_start": {
       const name = event.tool_name || "tool";
       addToolStep(turnToolEl(turn), name, "running");
+      scrollToBottom();
       dom.streamingLabel.textContent = `Using ${name}\u2026`;
       notifyGlow(true);
       break;
@@ -285,36 +296,16 @@ function handleSSEEvent(event, turn) {
   }
 }
 
-// --- Tool progress ---
-
-const TOOL_ICONS = { running: "◎", done: "✓", error: "✗" };
-
-function addToolStep(container, name, status) {
-  if (!container) return;
-  const step = document.createElement("div");
-  step.className = `tool-step ${status}`;
-  step.dataset.tool = name;
-  step.innerHTML = `<span class="icon">${TOOL_ICONS[status] || "◎"}</span><span class="name">${escapeHtml(name)}</span>`;
-  container.appendChild(step);
-  scrollToBottom();
-}
-
-function updateLastToolStep(container, name, status) {
-  if (!container) return;
-  const last = container.querySelector(".tool-step:last-child");
-  if (last) {
-    last.className = `tool-step ${status}`;
-    last.querySelector(".icon").textContent = TOOL_ICONS[status] || "◎";
-    if (name) last.querySelector(".name").textContent = name;
-  }
-}
-
 // --- Tool approval ---
 
 function showApproval(event, turn) {
-  const view = describeApproval(event);
+  renderApproval({ view: describeApproval(event), turn });
+}
+
+function renderApproval(pending) {
+  const { view } = pending;
   const copy = resolveApprovalCopy(view, msg);
-  state.pendingApproval = { view, turn };
+  state.pendingApproval = pending;
   dom.approvalTitle.textContent = copy.title;
   dom.approvalDetail.textContent = copy.detail;
   dom.approvalDetail.hidden = !copy.detail;
@@ -330,13 +321,17 @@ function hideApproval() {
   dom.approvalOverlay.classList.remove("visible");
 }
 
-/** Answers the pending approval by resuming its turn; a request only the Web UI can answer is just dismissed. */
+/**
+ * Answers the pending approval by resuming its turn; a request only the Web UI can answer is just dismissed.
+ * An answer that did not reach the server brings the approval back, unless a newer one has taken its place.
+ */
 async function respondApproval(approved) {
   const pending = state.pendingApproval;
   if (!pending || state.streaming || (approved && !pending.view.canApprove)) return;
   hideApproval();
   if (pending.view.kind !== "tool") return;
-  await streamTurn(pending.turn, { resumeValue: buildResumeValue(approved) });
+  const answerLost = await streamTurn(pending.turn, { resumeValue: buildResumeValue(approved) });
+  if (answerLost && !state.pendingApproval) renderApproval(pending);
 }
 
 // --- Messages UI ---
@@ -356,12 +351,6 @@ function addMessage(role, content) {
 
 function scrollToBottom() {
   requestAnimationFrame(() => { dom.messagesEl.scrollTop = dom.messagesEl.scrollHeight; });
-}
-
-function escapeHtml(text) {
-  const d = document.createElement("div");
-  d.textContent = text;
-  return d.innerHTML;
 }
 
 // --- Streaming state ---
@@ -434,16 +423,16 @@ function clearSelection() {
 // --- Background message listener ---
 
 function listenForBackgroundMessages() {
-  chrome.runtime.onMessage.addListener((msg) => {
-    switch (msg.type) {
-      case "selected_text": setSelection(msg.text); break;
+  chrome.runtime.onMessage.addListener((message) => {
+    switch (message.type) {
+      case "selected_text": setSelection(message.text); break;
       case "context_menu_query":
-        setSelection(msg.text);
-        dom.chatInput.value = msg.prompt || "";
+        setSelection(message.text);
+        dom.chatInput.value = message.prompt || "";
         dom.chatInput.focus();
         break;
       case "connection_changed":
-        setConnectionState(msg.connected ? "connected" : "disconnected");
+        setConnectionState(message.connected ? "connected" : "disconnected");
         break;
     }
   });

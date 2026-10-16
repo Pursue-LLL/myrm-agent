@@ -217,5 +217,8 @@
   },
   "approvalHandledElsewhere": {
     "message": "此审批已被处理，可能已超时，或已在其他窗口处理。"
+  },
+  "approvalSendFailed": {
+    "message": "你的答复没有送达，请检查连接后重试。"
   }
 }

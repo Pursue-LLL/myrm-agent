@@ -217,5 +217,8 @@
   },
   "approvalHandledElsewhere": {
     "message": "This approval was already handled, either by timeout or in another window."
+  },
+  "approvalSendFailed": {
+    "message": "Your answer could not be sent. Check the connection and try again."
   }
 }
