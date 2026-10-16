@@ -17383,6 +17383,7 @@
           "typeStalePinned": "閒置置頂",
           "findingWrongButFrequent": "已執行 {count} 次，成功率僅 {rate}",
           "findingStalePinned": "已固定，但已有 {days} 天未使用",
+          "boundNote": "有智能體或定時任務仍在使用該技能，無法在此歸檔。請先在對應位置移除，或重置計數。",
           "actionUnpinArchive": "解 Pin 歸檔",
           "actionArchive": "一鍵歸檔",
           "actionReset": "重置計數",

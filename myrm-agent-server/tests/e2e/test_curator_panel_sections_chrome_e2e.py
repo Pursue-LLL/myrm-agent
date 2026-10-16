@@ -281,6 +281,7 @@ def _fixture() -> dict[str, object]:
                     "call_count": 30,
                     "success_rate": 0.1,
                     "pinned": False,
+                    "bound": False,
                     "details": {"observed_count": 30},
                 },
                 {
@@ -290,6 +291,7 @@ def _fixture() -> dict[str, object]:
                     "call_count": 3,
                     "success_rate": 1.0,
                     "pinned": True,
+                    "bound": False,
                     "details": {"days_inactive": 45},
                 },
             ],

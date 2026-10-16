@@ -18068,6 +18068,7 @@
           "typeStalePinned": "Stale Pinned",
           "findingWrongButFrequent": "Ran {count, plural, one {# time} other {# times}} with only {rate} success",
           "findingStalePinned": "Pinned but unused for {days, plural, one {# day} other {# days}}",
+          "boundNote": "An agent or scheduled task still uses this skill, so it can't be archived here. Remove it there first, or reset its stats.",
           "actionUnpinArchive": "Unpin & Archive",
           "actionArchive": "Archive",
           "actionReset": "Reset Stats",

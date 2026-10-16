@@ -43,6 +43,7 @@ describe('CuratorSettingsPanel Component', () => {
           call_count: 30,
           success_rate: 0.1,
           pinned: true,
+          bound: false,
           details: { observed_count: 30 },
         },
       ],

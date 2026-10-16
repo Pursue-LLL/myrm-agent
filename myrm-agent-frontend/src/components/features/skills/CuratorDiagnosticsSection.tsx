@@ -108,10 +108,15 @@ const CuratorDiagnosticsSection = memo(
                       </Badge>
                     </div>
                     <p className="text-[11px] text-muted-foreground">{describeFinding(f)}</p>
+                    {f.bound && (
+                      <p data-testid="curator-diagnostic-bound-note" className="text-[11px] text-muted-foreground">
+                        {t('doctor.boundNote')}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {f.pinned && (
+                    {!f.bound && f.pinned && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -127,7 +132,7 @@ const CuratorDiagnosticsSection = memo(
                         <span>{t('doctor.actionUnpinArchive')}</span>
                       </Button>
                     )}
-                    {!f.pinned && f.finding_type === 'wrong_but_frequent' && (
+                    {!f.bound && !f.pinned && f.finding_type === 'wrong_but_frequent' && (
                       <Button
                         size="sm"
                         variant="outline"

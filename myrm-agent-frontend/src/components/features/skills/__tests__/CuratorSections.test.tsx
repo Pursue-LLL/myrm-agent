@@ -40,6 +40,7 @@ const diagnostics: SkillDoctorDiagnosticsResponse = {
       call_count: 8,
       success_rate: 0.125,
       pinned: true,
+      bound: false,
       details: { observed_count: 8 },
     },
     {
@@ -49,7 +50,18 @@ const diagnostics: SkillDoctorDiagnosticsResponse = {
       call_count: 3,
       success_rate: 1,
       pinned: true,
+      bound: false,
       details: { days_inactive: 1 },
+    },
+    {
+      skill_name: 'daily-report',
+      finding_type: 'wrong_but_frequent',
+      severity: 'warning',
+      call_count: 12,
+      success_rate: 0.2,
+      pinned: false,
+      bound: true,
+      details: { observed_count: 12 },
     },
   ],
 };
@@ -86,6 +98,7 @@ describe('CuratorDiagnosticsSection', () => {
 
     expect(text).toContain('已运行 8 次，成功率仅 12.5%');
     expect(text).toContain('已固定，但已有 1 天未使用');
+    expect(text).toContain('有智能体或定时任务仍在使用该技能，无法在此归档。请先在对应位置移除，或重置计数。');
     expect(text).toContain('70/100');
     expect(text).not.toMatch(LEAKED_IDENTIFIERS);
   });
@@ -101,14 +114,34 @@ describe('CuratorDiagnosticsSection', () => {
     expect(text).toContain('Pinned but unused for 1 day');
   });
 
-  it('offers the remedy plus reset on every finding', () => {
+  it('offers the remedy plus reset on every finding, but only reset on a skill an agent or cron job binds', () => {
     const { container } = renderIn(
       'en',
       <CuratorDiagnosticsSection diagnostics={diagnostics} remediatingSkill={null} onRemediate={noop} />,
     );
 
     const rows = container.querySelectorAll('[data-testid="curator-diagnostic-row"]');
-    expect(Array.from(rows, (row) => row.querySelectorAll('button').length)).toEqual([2, 2]);
+    expect(Array.from(rows, (row) => row.querySelectorAll('button').length)).toEqual([2, 2, 1]);
+    expect(
+      Array.from(rows, (row) => row.querySelector('[data-testid="curator-diagnostic-bound-note"]') !== null),
+    ).toEqual([false, false, true]);
+  });
+
+  it('leaves the stats reset as the only action on a bound skill', () => {
+    const onRemediate = vi.fn();
+    const { getByRole } = renderIn(
+      'en',
+      <CuratorDiagnosticsSection
+        diagnostics={{ health_score: 85, findings: [diagnostics.findings[2]] }}
+        remediatingSkill={null}
+        onRemediate={onRemediate}
+      />,
+    );
+
+    getByRole('button', { name: 'Reset Stats' }).click();
+
+    expect(onRemediate).toHaveBeenCalledTimes(1);
+    expect(onRemediate).toHaveBeenCalledWith('daily-report', 'reset_stats');
   });
 
   it.each(LOCALES)('renders no developer identifiers or missing keys in %s', (locale) => {

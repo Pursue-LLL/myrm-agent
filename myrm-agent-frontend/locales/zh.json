@@ -18068,6 +18068,7 @@
           "typeStalePinned": "闲置置顶",
           "findingWrongButFrequent": "已运行 {count} 次，成功率仅 {rate}",
           "findingStalePinned": "已固定，但已有 {days} 天未使用",
+          "boundNote": "有智能体或定时任务仍在使用该技能，无法在此归档。请先在对应位置移除，或重置计数。",
           "actionUnpinArchive": "解 Pin 归档",
           "actionArchive": "一键归档",
           "actionReset": "重置计数",

@@ -813,6 +813,8 @@ interface SkillDoctorFindingBase {
   call_count: number;
   success_rate: number;
   pinned: boolean;
+  /** An agent profile or cron job still references the skill, so the server refuses to archive it. */
+  bound: boolean;
 }
 
 /** The server sends a type code plus its parameters; the UI phrases each finding in the user's language. */
