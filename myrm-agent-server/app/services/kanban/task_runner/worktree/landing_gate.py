@@ -41,18 +41,15 @@ logger = logging.getLogger(__name__)
 PARENT_MERGE_FAILED_REASON = "Merging a dependency's changes failed; resolve it, then continue"
 ACKNOWLEDGED_MERGE_FAILURE_KEY = "acknowledged_merge_failure_event_id"
 
-# Each of these starts the merge whose failure is recorded after it.
-_COMPLETION_EVENTS = frozenset({TaskEventKind.COMPLETED, TaskEventKind.APPROVED})
 
+async def _newest_merge_failure(store: KanbanStore, task_id: str) -> int:
+    """Id of the task's newest MERGE_CONFLICT event; 0 when it has none, i.e. its code landed or is still merging.
 
-async def _merge_failure_after_completion(store: KanbanStore, task_id: str) -> int:
-    """Id of the failure recorded after the task's latest completion; 0 when its code landed or is still merging."""
-    for event in reversed(await store.list_events(task_id)):
-        if event.kind == TaskEventKind.MERGE_CONFLICT:
-            return event.event_id
-        if event.kind in _COMPLETION_EVENTS:
-            return 0
-    return 0
+    A completed task can never be completed again (shared/config/kanban_move_guard.json), so no later completion
+    supersedes a recorded failure.
+    """
+    failures = [event.event_id for event in await store.list_events(task_id) if event.kind == TaskEventKind.MERGE_CONFLICT]
+    return max(failures, default=0)
 
 
 async def hold_for_unlanded_parents(store: KanbanStore, task: KanbanTask) -> TaskExecutionResult | None:
@@ -76,7 +73,7 @@ async def hold_for_unlanded_parents(store: KanbanStore, task: KanbanTask) -> Tas
             continue
         if await resolve_base_dir(store, parent) != base_dir:
             continue
-        newest_failure = max(newest_failure, await _merge_failure_after_completion(store, parent_id))
+        newest_failure = max(newest_failure, await _newest_merge_failure(store, parent_id))
 
     acknowledged = task.metadata.get(ACKNOWLEDGED_MERGE_FAILURE_KEY)
     if newest_failure <= (acknowledged if isinstance(acknowledged, int) else 0):

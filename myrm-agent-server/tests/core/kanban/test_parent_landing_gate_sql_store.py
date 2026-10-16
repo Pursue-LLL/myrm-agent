@@ -5,11 +5,11 @@
 - app.services.kanban.task_runner.worktree.landing_gate::hold_for_unlanded_parents (POS: run-entry gate on parents' failed merges)
 
 [OUTPUT]
-Pins that the gate's reading of a parent's event stream (newest failure after the latest completion) and its stored
-acknowledgement behave the same on the real schema as on the in-memory store.
+Pins that the gate's reading of a parent's event stream (its newest merge failure) and its stored acknowledgement
+behave the same on the real schema as on the in-memory store.
 
 [POS]
-tests/core/kanban/test_landing_gate_sql_store.py
+tests/core/kanban/test_parent_landing_gate_sql_store.py
 """
 
 from __future__ import annotations
@@ -68,13 +68,6 @@ async def test_a_failure_holds_once_and_a_newer_failure_holds_again(board: tuple
     acknowledged = await store.get_task(child.task_id)
     assert acknowledged is not None
     assert await hold_for_unlanded_parents(store, acknowledged) is None
-
-    # A completion after the failure means the parent's code landed since, so even a dependent that never saw the
-    # failure is not held.
-    await store.append_event(parent.task_id, TaskEventKind.COMPLETED)
-    bystander = await store.save_task(_task(board_id, TaskStatus.READY))
-    await store.add_edge(parent.task_id, bystander.task_id)
-    assert await hold_for_unlanded_parents(store, bystander) is None
 
     newer = await store.append_event(parent.task_id, TaskEventKind.MERGE_CONFLICT)
     again = await hold_for_unlanded_parents(store, acknowledged)

@@ -9,7 +9,7 @@
 [OUTPUT]
 Pins that a dependent whose parent's merge failed does not start its agent (nothing is built for it either) until the
 user has acknowledged that failure; that an acknowledgement covers only the failures it saw; and that a parent which
-landed, was completed again, lives in another repository, or is not completed never holds a dependent back.
+landed, lives in another repository, or is not completed never holds a dependent back.
 
 [POS]
 tests/services/kanban/test_parent_landing_gate.py
@@ -45,7 +45,7 @@ from app.services.kanban.task_runner.worktree.landing_gate import (
 )
 
 BOARD_ID = "b1"
-WAIT_SECONDS = 20
+WAIT_SECONDS = 60  # a real merge takes about a second; the slack only matters on a heavily loaded host
 RUNNER_MODULE = "app.services.kanban.task_runner.runner"
 
 
@@ -98,13 +98,11 @@ def _write(path: Path, name: str, text: str) -> None:
     (path / name).write_text(text, encoding="utf-8")
 
 
-async def _complete(
-    store: InMemoryKanbanStore, runner: _MergeRunner, task: KanbanTask, marker: TaskEventKind = TaskEventKind.COMPLETED
-) -> None:
+async def _complete(store: InMemoryKanbanStore, runner: _MergeRunner, task: KanbanTask) -> None:
     """What the dispatcher does when a task finishes: record it, then start the merge in the background."""
     task.status = TaskStatus.COMPLETED
     await store.save_task(task)
-    await store.append_event(task.task_id, marker)
+    await store.append_event(task.task_id, TaskEventKind.COMPLETED)
     _make_task_completed_merge_hook(runner, store)("task_completed", task)
 
 
@@ -112,20 +110,14 @@ async def _settle() -> None:
     await wait_all_background_tasks(timeout_seconds=WAIT_SECONDS)
 
 
-async def _fail_to_land(
-    store: InMemoryKanbanStore,
-    runner: _MergeRunner,
-    repo: Path,
-    task_id: str,
-    marker: TaskEventKind = TaskEventKind.COMPLETED,
-) -> KanbanTask:
+async def _fail_to_land(store: InMemoryKanbanStore, runner: _MergeRunner, repo: Path, task_id: str) -> KanbanTask:
     """A parent whose merge conflicts with an edit another task made to the same file on the branch."""
     parent = await _parent(store, repo, task_id)
     workdir = Path(await resolve_workspace(store, parent) or "")
     _write(workdir, "shared.txt", f"{task_id} edit\n")
     _write(repo, "shared.txt", f"main edit before {task_id}\n")
     _git(repo, "commit", "-qam", f"main edit before {task_id}")
-    await _complete(store, runner, parent, marker)
+    await _complete(store, runner, parent)
     return parent
 
 
@@ -176,16 +168,6 @@ async def test_a_dependent_is_held_while_its_parent_failed_to_land(git_repo: Pat
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("marker", [TaskEventKind.COMPLETED, TaskEventKind.APPROVED])
-async def test_either_way_of_completing_a_task_counts(git_repo: Path, store: InMemoryKanbanStore, marker: TaskEventKind) -> None:
-    runner = _MergeRunner(store)
-    parent = await _fail_to_land(store, runner, git_repo, "parent01", marker)
-    await _settle()
-
-    assert await hold_for_unlanded_parents(store, await _child(store, git_repo, parent)) is not None
-
-
-@pytest.mark.asyncio
 async def test_the_gate_waits_for_the_merge_still_in_flight_before_it_judges(git_repo: Path, store: InMemoryKanbanStore) -> None:
     runner = _MergeRunner(store, delay=0.3)
     parent = await _fail_to_land(store, runner, git_repo, "parent01")
@@ -221,19 +203,6 @@ async def test_one_failed_parent_among_landed_ones_holds_the_dependent(git_repo:
     await _settle()
 
     assert await hold_for_unlanded_parents(store, await _child(store, git_repo, landed, failed)) is not None
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("marker", [TaskEventKind.COMPLETED, TaskEventKind.APPROVED])
-async def test_completing_the_parent_again_clears_its_earlier_failure(
-    git_repo: Path, store: InMemoryKanbanStore, marker: TaskEventKind
-) -> None:
-    runner = _MergeRunner(store)
-    parent = await _fail_to_land(store, runner, git_repo, "parent01")
-    await _settle()
-    await store.append_event("parent01", marker)
-
-    assert await hold_for_unlanded_parents(store, await _child(store, git_repo, parent)) is None
 
 
 @pytest.mark.asyncio
