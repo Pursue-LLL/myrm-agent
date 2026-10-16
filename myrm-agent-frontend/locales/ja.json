@@ -185,7 +185,7 @@
     "goalActionSuccess_resume": "ゴールを再開しました",
     "goalActionSuccess_cancel": "ゴールキャンセル済み",
     "goalActionSuccess_approve": "ゴールを承認しました",
-    "goalActionSuccess_reject": "ゴールを拒否しました",
+    "goalActionSuccess_reject": "却下して再試行します",
     "goalActionSuccess_unwait": "ゴールを再開しました",
     "stepProgress": "ステップ進捗",
     "cancel": "キャンセル",

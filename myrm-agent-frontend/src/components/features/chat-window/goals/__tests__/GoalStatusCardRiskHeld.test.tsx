@@ -4,13 +4,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import en from '../../../../../../locales/en.json';
 
-const { fetchMock, sendMessage, sonnerToast, riskToast, stableT } = vi.hoisted(() => ({
-  stableT: (key: string) => key,
-  fetchMock: vi.fn(),
-  sendMessage: vi.fn<(input: string) => Promise<boolean>>(),
-  sonnerToast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
-  riskToast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
-}));
+const { fetchMock, sendMessage, chatState, addInputHistory, sonnerToast, riskToast, stableT } = vi.hoisted(() => {
+  const sendMessage = vi.fn<(content: string, ...rest: unknown[]) => Promise<boolean>>();
+  return {
+    stableT: (key: string) => key,
+    fetchMock: vi.fn(),
+    sendMessage,
+    /** The open chat as the store holds it; a test changes `chatId` to open another chat. */
+    chatState: {
+      chatId: 'chat-1',
+      agentConfig: { agentId: 'agent-1' },
+      incognitoMode: false,
+      inputMessage: '',
+      files: [],
+      pendingExplicitSkillActivation: null,
+      sendMessage,
+      setInputMessage: vi.fn(),
+      setFiles: vi.fn(),
+      setPendingExplicitSkillActivation: vi.fn(),
+    },
+    addInputHistory: vi.fn(),
+    sonnerToast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
+    riskToast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+  };
+});
 
 vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 vi.mock('sonner', () => ({ toast: sonnerToast }));
@@ -20,10 +37,11 @@ vi.mock('@/services/notification', () => ({
   notificationService: { permission: 'default', requestPermission: vi.fn() },
 }));
 vi.mock('@/store/useChatStore', () => ({
-  default: Object.assign((selector: (state: { chatId: string }) => unknown) => selector({ chatId: 'chat-1' }), {
-    getState: () => ({ inputMessage: '', sendMessage, setInputMessage: vi.fn() }),
+  default: Object.assign((selector: (state: typeof chatState) => unknown) => selector(chatState), {
+    getState: () => chatState,
   }),
 }));
+vi.mock('@/hooks/message-input/useInputHistory', () => ({ addInputHistory }));
 
 import { setGlobalTranslator } from '@/services/i18nToastService';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
@@ -88,6 +106,7 @@ function saveObjective(value: string): HTMLElement {
 describe('GoalStatusCard when the server holds the text', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatState.chatId = 'chat-1';
     sendMessage.mockResolvedValue(true);
     setGlobalTranslator(translatorFor(en as Messages));
   });
@@ -178,13 +197,33 @@ describe('GoalStatusCard when the server holds the text', () => {
     fireEvent.change(input, { target: { value: 'use the staging data' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    await waitFor(() => expect(sendMessage).toHaveBeenCalledWith('use the staging data'));
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    // The feedback is the next message of the chat and carries none of the files staged in the composer.
+    const [content, ...rest] = sendMessage.mock.calls[0];
+    expect(content).toBe('use the staging data');
+    expect(rest.at(-1)).toEqual({ files: [] });
     expect(useGoalStore.getState().activeGoal?.status).toBe('active');
     expect(useGoalStore.getState().activeGoal?.reason).toBeUndefined();
     const posted = fetchMock.mock.calls
       .filter(([url, init]) => String(url).endsWith('/goals/chat-1/status') && (init as RequestInit)?.method === 'POST')
       .map(([, init]) => JSON.parse(String((init as RequestInit).body)));
     expect(posted).toEqual([{ action: 'reject', note: 'use the staging data' }]);
+  });
+
+  it('neither moves the goal of another chat nor sends the feedback into it when that chat was opened meanwhile', async () => {
+    answer('POST', '/goals/chat-1/status', () => {
+      chatState.chatId = 'chat-2';
+      return jsonResponse(200, {});
+    });
+    await openCard('needs_human_review');
+
+    const input = screen.getByPlaceholderText('feedbackPlaceholder');
+    fireEvent.change(input, { target: { value: 'use the staging data' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(addInputHistory).toHaveBeenCalledWith('use the staging data', 'agent-1'));
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(useGoalStore.getState().activeGoal?.status).toBe('needs_human_review');
   });
 
   it('still reports any other sub-goal failure with its own toast', async () => {

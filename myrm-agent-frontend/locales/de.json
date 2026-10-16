@@ -185,7 +185,7 @@
     "goalActionSuccess_resume": "Ziel fortgesetzt",
     "goalActionSuccess_cancel": "Ziel abgebrochen",
     "goalActionSuccess_approve": "Ziel genehmigt",
-    "goalActionSuccess_reject": "Ziel abgelehnt",
+    "goalActionSuccess_reject": "Abgelehnt, neuer Versuch",
     "goalActionSuccess_unwait": "Ziel fortgesetzt",
     "stepProgress": "Schrittfortschritt",
     "cancel": "Abbrechen",

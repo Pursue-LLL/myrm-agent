@@ -185,7 +185,7 @@
     "goalActionSuccess_resume": "目標已恢復",
     "goalActionSuccess_cancel": "目標已取消",
     "goalActionSuccess_approve": "目標已批准",
-    "goalActionSuccess_reject": "目標已拒絕",
+    "goalActionSuccess_reject": "已打回，重新執行",
     "goalActionSuccess_unwait": "目標已恢復",
     "stepProgress": "步驟進度",
     "cancel": "取消",

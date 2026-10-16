@@ -2,61 +2,16 @@
 
 import { useRef } from 'react';
 import type { useTranslations } from 'next-intl';
+import { readSendOrigin, sendGoalReviewFeedback } from '@/components/features/message-box/userMessageResend';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { isImeComposing } from '@/lib/utils/imeUtils';
-import { showI18nToast } from '@/services/i18nToastService';
-import useChatStore from '@/store/useChatStore';
 import { AlertIcon, CheckCircleIcon } from './goal-icons';
 
 interface GoalHumanReviewActionProps {
   /** Resolves whether the server took the action. */
   onAction: (action: 'approve' | 'reject', note?: string) => Promise<boolean>;
   t: ReturnType<typeof useTranslations>;
-}
-
-/** The store explains a send it refused itself; only a rejected send (the agent is still busy, or it failed) is reported here. */
-function notifyFeedbackNotSent(error: unknown): void {
-  if (error instanceof Error && error.name === 'AgentBusyError') {
-    showI18nToast('chat.sendBlocked.title', undefined, {
-      descriptionKey: 'chat.sendBlocked.busyDescription',
-      type: 'warning',
-      duration: 3000,
-    });
-    return;
-  }
-  console.error('[GoalHumanReviewAction] feedback not sent:', error);
-  showI18nToast('chat.messageFailed.title', undefined, {
-    descriptionKey: 'chat.messageFailed.generic',
-    type: 'error',
-    duration: 3000,
-  });
-}
-
-/** The review panel is gone once the goal is back at work, so a feedback the agent did not take goes to the composer. */
-function returnToComposer(feedback: string): void {
-  const chat = useChatStore.getState();
-  if (!chat.inputMessage.trim()) {
-    chat.setInputMessage(feedback);
-  }
-}
-
-/** Fire and forget: the call settles when the whole turn has ended, long after the panel is gone. */
-function sendFeedback(feedback: string): void {
-  void useChatStore
-    .getState()
-    .sendMessage(feedback)
-    .then(
-      (sent) => {
-        if (!sent) {
-          returnToComposer(feedback);
-        }
-      },
-      (error: unknown) => {
-        notifyFeedbackNotSent(error);
-        returnToComposer(feedback);
-      },
-    );
 }
 
 export function GoalHumanReviewAction({ onAction, t }: GoalHumanReviewActionProps) {
@@ -72,6 +27,8 @@ export function GoalHumanReviewAction({ onAction, t }: GoalHumanReviewActionProp
       return;
     }
     sending.current = true;
+    // The chat the review belongs to, before the request is out: the user may open another chat while it is.
+    const origin = readSendOrigin();
     const typed = input.value;
     const feedback = typed.trim() ? typed : t('resetRetriesMessage');
     try {
@@ -82,7 +39,8 @@ export function GoalHumanReviewAction({ onAction, t }: GoalHumanReviewActionProp
       if (input.value === typed) {
         input.value = '';
       }
-      sendFeedback(feedback);
+      // Fire and forget: the send settles when the whole turn has ended, long after the panel is gone.
+      void sendGoalReviewFeedback(origin, feedback);
     } finally {
       sending.current = false;
     }

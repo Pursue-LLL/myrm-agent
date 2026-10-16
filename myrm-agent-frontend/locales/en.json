@@ -209,7 +209,7 @@
     "goalActionSuccess_resume": "Goal resumed",
     "goalActionSuccess_cancel": "Goal cancelled",
     "goalActionSuccess_approve": "Goal approved",
-    "goalActionSuccess_reject": "Goal rejected",
+    "goalActionSuccess_reject": "Rejected, retrying",
     "goalActionSuccess_unwait": "Goal resumed",
     "stepProgress": "Step Progress",
     "cancel": "Cancel",

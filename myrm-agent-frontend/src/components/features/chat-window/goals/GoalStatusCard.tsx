@@ -154,7 +154,10 @@ export function GoalStatusCard() {
       };
       // Only a pause note is a status reason; the note of a rejected review is the agent's next message.
       const reason = action === 'pause' ? note?.trim() || undefined : undefined;
-      useGoalStore.getState().updateGoalStatus(statusMap[action] ?? goal.status, reason);
+      // The store holds only the open chat's goal: a chat opened while the request was out must not take this status.
+      if (useChatStore.getState().chatId === chatId) {
+        useGoalStore.getState().updateGoalStatus(statusMap[action] ?? goal.status, reason);
+      }
       return true;
     } catch (e) {
       console.error(`Network error: failed to ${action} goal`, e);

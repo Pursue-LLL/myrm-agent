@@ -185,7 +185,7 @@
     "goalActionSuccess_resume": "목표가 재개되었습니다",
     "goalActionSuccess_cancel": "목표가 취소되었습니다",
     "goalActionSuccess_approve": "목표가 승인되었습니다",
-    "goalActionSuccess_reject": "목표가 거부되었습니다",
+    "goalActionSuccess_reject": "거부하고 다시 시도합니다",
     "goalActionSuccess_unwait": "목표가 재개되었습니다",
     "stepProgress": "단계 진행도",
     "cancel": "취소",
