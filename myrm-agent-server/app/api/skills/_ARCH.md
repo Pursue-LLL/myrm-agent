@@ -33,3 +33,4 @@
 | `schemas.py` | 模块 | Skills API request/response schemas；`redaction_responses` 把逐文件脱敏发现映射成审阅对话框的 diff 形状（技能预览与专家导出预览共用）；每条发现带 `kinds`（`SecretKind` 稳定码，由前端按用户语言渲染） | ✅ |
 | `solidify_router.py` | 路由 | 交付物一键固化与隔离真机预览路由：`POST /solidify`（4合1资产打包）、`POST /preview`、`GET /preview/{preview_id}`（Relaxed CSP + no-referrer 放行） | ✅ |
 | `sync.py` | 模块 | Skill synchronization and backup protocol；export 打包 `manifest.json`（format/format_version/skills[].sha256+version），import 按 manifest 做完整性校验并返回 `imported/updated/unchanged/hash_mismatch` 恢复摘要；`_safe_extract` 逐成员校验路径（绝对路径/`..` 穿越/反斜杠分隔符归一化），恶意 ZIP 返回 400；import 受沙箱能力门控（export 只读天然安全） | ✅ |
+| `test_fixtures.py` | 测试 | Local-only E2E 夹具路由（非本地模式返回 404）：`POST /test/ensure-prebuilt-catalog` 同步内置技能；`POST /test/seed-skill-manage-mutation-batch` 把内置技能 `systematic-debugging` 写成 v1、经真实 `RollbackService.insert_mutation_batch_snapshot` 记下 `skill_mutation` 批次快照、再写成 v2，返回 `batch_id` 与两个内容标记，供 Task Steps 撤销回滚 Chrome E2E 使用 | ✅ |
