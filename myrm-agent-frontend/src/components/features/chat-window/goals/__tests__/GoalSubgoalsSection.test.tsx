@@ -101,6 +101,17 @@ describe('GoalSubgoalsSection adding a sub-goal', () => {
     expect(input).toHaveValue('write the docs and the changelog');
   });
 
+  it('ignores the Enter that confirms an input-method candidate', () => {
+    const { input, onAddSubgoal } = setup();
+    type(input, 'ni hao');
+
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
+    expect(onAddSubgoal).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 });
+    expect(onAddSubgoal).toHaveBeenCalledWith('ni hao');
+  });
+
   it('sends nothing for a blank text and empties the box', () => {
     const { input, onAddSubgoal } = setup();
 
@@ -117,7 +128,7 @@ describe('GoalSubgoalsSection listing', () => {
     const { onRemoveSubgoal } = setup({ goal: goal('active', [{ text: 'first' }, { text: 'second' }]) });
 
     expect(screen.getByText('first')).toBeInTheDocument();
-    const removeButtons = screen.getAllByRole('button', { name: 'Remove subgoal' });
+    const removeButtons = screen.getAllByRole('button', { name: 'removeSubgoal' });
     expect(removeButtons).toHaveLength(2);
     fireEvent.click(removeButtons[1] as HTMLElement);
 
@@ -137,6 +148,6 @@ describe('GoalSubgoalsSection listing', () => {
 
     expect(screen.getByText('first')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('subgoalPlaceholder')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Remove subgoal' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'removeSubgoal' })).toBeNull();
   });
 });

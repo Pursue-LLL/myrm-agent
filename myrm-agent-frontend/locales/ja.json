@@ -113,6 +113,7 @@
     "constraintsLabel": "制約条件（絶対に違反できません）",
     "subgoals": "実行子ゴール",
     "addSubgoal": "子ゴールを追加",
+    "removeSubgoal": "子ゴールを削除",
     "subgoalPlaceholder": "検収基準または子タスクを追加...",
     "subgoalAdded": "子ゴールを追加しました",
     "subgoalRemoved": "サブゴールを削除しました",

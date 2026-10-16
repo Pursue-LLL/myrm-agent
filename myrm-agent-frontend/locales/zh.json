@@ -137,6 +137,7 @@
     "constraintsLabel": "约束条件（绝不可违反）",
     "subgoals": "运行子目标",
     "addSubgoal": "追加子目标",
+    "removeSubgoal": "移除子目标",
     "subgoalPlaceholder": "输入验收标准或子任务...",
     "subgoalAdded": "子目标已添加",
     "subgoalRemoved": "子目标已移除",

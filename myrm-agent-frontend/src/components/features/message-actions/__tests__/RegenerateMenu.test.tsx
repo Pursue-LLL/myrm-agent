@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { IME_CONFIRM_ENTER_WINDOW_MS } from '@/lib/utils/imeUtils';
 import RegenerateMenu from '../RegenerateMenu';
 
 const stableT = (key: string) => {
@@ -117,6 +118,21 @@ describe('RegenerateMenu', () => {
 
       expect(screen.queryByText('More Concise')).not.toBeInTheDocument();
       expect(screen.queryByPlaceholderText(PLACEHOLDER)).not.toBeInTheDocument();
+    });
+
+    it('is not submitted by the Enter that confirms an input-method candidate', async () => {
+      render(<RegenerateMenu onRegenerate={onRegenerateMock} />);
+      const input = openCustomBox();
+      fireEvent.change(input, { target: { value: 'bonjour' } });
+
+      // Safari / WebKit end the composition first and deliver the confirming Enter as a plain keydown.
+      fireEvent.compositionEnd(input);
+      fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 });
+      expect(onRegenerateMock).not.toHaveBeenCalled();
+
+      await new Promise((resolve) => setTimeout(resolve, IME_CONFIRM_ENTER_WINDOW_MS + 20));
+      fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 });
+      expect(onRegenerateMock).toHaveBeenCalledWith('bonjour');
     });
   });
 });

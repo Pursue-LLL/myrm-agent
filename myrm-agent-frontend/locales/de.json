@@ -113,6 +113,7 @@
     "constraintsLabel": "Einschränkungen (dürfen nicht verletzt werden)",
     "subgoals": "Teilziele",
     "addSubgoal": "Teilziel hinzufügen",
+    "removeSubgoal": "Teilziel entfernen",
     "subgoalPlaceholder": "Akzeptanzkriterien oder Unteraufgabe hinzufügen...",
     "subgoalAdded": "Teilziel hinzugefügt",
     "subgoalRemoved": "Teilziel entfernt",

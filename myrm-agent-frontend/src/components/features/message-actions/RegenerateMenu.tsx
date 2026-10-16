@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/services/chat::regenerateLastTurn (POS: Chat API service layer)
+ * @/lib/utils/imeUtils::isImeComposing (POS: IME composition guard for Enter-to-submit)
  *
  * [OUTPUT]
  * RegenerateMenu: Dropdown button with regenerate options (Try Again, More Concise, More Detailed, Custom).
@@ -16,6 +17,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { RefreshCw, ChevronDown, AlignLeft, AlignJustify, MessageSquarePlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 
 interface RegenerateMenuProps {
   onRegenerate: (instruction?: string) => Promise<boolean>;
@@ -144,10 +146,7 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing) {
-                    return;
-                  }
-                  if (e.key === 'Enter') {
+                  if (e.key === 'Enter' && !isImeComposing(e)) {
                     void handleCustomSubmit();
                   }
                 }}

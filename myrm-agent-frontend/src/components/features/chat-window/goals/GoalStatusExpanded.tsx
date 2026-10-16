@@ -2,14 +2,13 @@
 
 import type { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
-import { Input } from '@/components/primitives/input';
 import { Progress } from '@/components/primitives/progress';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
-import useChatStore from '@/store/useChatStore';
 import { AcceptanceCriteriaPanel } from './AcceptanceCriteriaPanel';
+import { GoalHumanReviewAction } from './GoalHumanReviewAction';
 import { GoalSubgoalsSection } from './GoalSubgoalsSection';
-import { CheckCircleIcon, AlertIcon, BellIcon } from './goal-icons';
+import { AlertIcon, BellIcon } from './goal-icons';
 import type { GoalState } from './goalStatusTypes';
 import { formatEta, formatBurnRate, getProgressColor } from './goalStatusUtils';
 import { notificationService } from '@/services/notification';
@@ -252,7 +251,7 @@ export function GoalStatusExpanded({
         {goal.status === 'budget_limited' && <BudgetLimitedAction chatId={chatId} onAction={onAction} t={t} />}
 
         {/* Needs Human Review Action */}
-        {goal.status === 'needs_human_review' && <HumanReviewAction onAction={onAction} t={t} />}
+        {goal.status === 'needs_human_review' && <GoalHumanReviewAction onAction={onAction} t={t} />}
       </div>
     </div>
   );
@@ -349,71 +348,6 @@ function BudgetLimitedAction({
           }}
         >
           {t('addTokensAndResume')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function HumanReviewAction({
-  onAction,
-  t,
-}: {
-  onAction: (action: 'approve' | 'reject', note?: string) => void;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  return (
-    <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-      <div className="flex items-center gap-2 mb-2">
-        <AlertIcon className="h-4 w-4 text-orange-600" />
-        <p className="text-sm text-orange-600 font-medium">{t('reviewFailedMessage')}</p>
-      </div>
-      <p className="text-xs text-orange-600/80 mb-3">{t('reviewFailedHint')}</p>
-      <div className="flex flex-col gap-2">
-        <div className="flex gap-2">
-          <Input
-            placeholder={t('feedbackPlaceholder')}
-            className="h-8 text-xs bg-background/50 border-orange-200 focus-visible:ring-orange-500"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const val = e.currentTarget.value || '';
-                const msg = val.trim() ? val : t('resetRetriesMessage');
-                useChatStore.getState().sendMessage(msg);
-                onAction('reject');
-                e.currentTarget.value = '';
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-orange-200 hover:bg-orange-50 text-orange-700 shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-              const val = input?.value || '';
-              const msg = val.trim() ? val : t('resetRetriesMessage');
-              useChatStore.getState().sendMessage(msg);
-              onAction('reject');
-              if (input) {
-                input.value = '';
-              }
-            }}
-          >
-            {t('rejectAndRetry')}
-          </Button>
-        </div>
-        <Button
-          size="sm"
-          className="w-full bg-green-500 hover:bg-green-600 text-white"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAction('approve');
-          }}
-        >
-          <CheckCircleIcon className="h-4 w-4 mr-1" />
-          {t('forceApprove')}
         </Button>
       </div>
     </div>

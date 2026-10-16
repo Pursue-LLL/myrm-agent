@@ -113,6 +113,7 @@
     "constraintsLabel": "約束條件（絕不可違反）",
     "subgoals": "執行子目標",
     "addSubgoal": "追加子目標",
+    "removeSubgoal": "移除子目標",
     "subgoalPlaceholder": "輸入驗收標準或子任務...",
     "subgoalAdded": "子目標已新增",
     "subgoalRemoved": "子目標已移除",

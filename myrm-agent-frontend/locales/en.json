@@ -137,6 +137,7 @@
     "constraintsLabel": "Constraints (Must Not Violate)",
     "subgoals": "Subgoals",
     "addSubgoal": "Add Subgoal",
+    "removeSubgoal": "Remove subgoal",
     "subgoalPlaceholder": "Add acceptance criteria or sub-task...",
     "subgoalAdded": "Subgoal added",
     "subgoalRemoved": "Subgoal removed",

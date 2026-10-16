@@ -8,6 +8,7 @@ import { CheckCircleIcon, XCircleIcon } from './goal-icons';
 import type { GoalState } from './goalStatusTypes';
 import { cn } from '@/lib/utils/classnameUtils';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 
 interface GoalSubgoalsSectionProps {
   goal: GoalState;
@@ -19,11 +20,13 @@ interface GoalSubgoalsSectionProps {
 }
 
 export function GoalSubgoalsSection({ goal, isTerminal, onAddSubgoal, onRemoveSubgoal, t }: GoalSubgoalsSectionProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const adding = useRef(false);
 
   // The text leaves the box only once the server took it, so a refused sub-goal stays there to be edited.
   // One add at a time: a second submit while the request is out would add the same text twice.
-  const addFrom = async (input: HTMLInputElement | null) => {
+  const addTypedSubgoal = async () => {
+    const input = inputRef.current;
     if (!input || adding.current) {
       return;
     }
@@ -46,7 +49,7 @@ export function GoalSubgoalsSection({ goal, isTerminal, onAddSubgoal, onRemoveSu
   return (
     <div className="mt-4 border-t border-border/50 pt-3">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-foreground">{t('subgoals') || 'Subgoals'}</span>
+        <span className="text-xs font-medium text-foreground">{t('subgoals')}</span>
       </div>
       {goal.subgoals && goal.subgoals.length > 0 && (
         <ul className="space-y-1.5 mb-3">
@@ -66,7 +69,7 @@ export function GoalSubgoalsSection({ goal, isTerminal, onAddSubgoal, onRemoveSu
                     onRemoveSubgoal(idx);
                   }}
                   className={cn('text-muted-foreground hover:text-destructive transition-opacity', REVEAL_ON_HOVER)}
-                  aria-label="Remove subgoal"
+                  aria-label={t('removeSubgoal')}
                 >
                   <XCircleIcon className="h-3.5 w-3.5" />
                 </button>
@@ -78,13 +81,14 @@ export function GoalSubgoalsSection({ goal, isTerminal, onAddSubgoal, onRemoveSu
       {!isTerminal && (
         <div className="flex gap-2">
           <Input
-            placeholder={t('subgoalPlaceholder') || 'Add acceptance criteria or sub-task...'}
+            ref={inputRef}
+            placeholder={t('subgoalPlaceholder')}
             className="h-8 text-xs bg-background/50 border-border/50"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !isImeComposing(e)) {
                 e.preventDefault();
-                void addFrom(e.currentTarget);
+                void addTypedSubgoal();
               }
             }}
           />
@@ -94,10 +98,10 @@ export function GoalSubgoalsSection({ goal, isTerminal, onAddSubgoal, onRemoveSu
             className="h-8 px-3 shrink-0 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              void addFrom(e.currentTarget.previousElementSibling as HTMLInputElement | null);
+              void addTypedSubgoal();
             }}
           >
-            {t('addSubgoal') || 'Add'}
+            {t('addSubgoal')}
           </Button>
         </div>
       )}
