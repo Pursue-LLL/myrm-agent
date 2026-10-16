@@ -225,8 +225,8 @@ def _terminal_result(task: KanbanTask, status: str) -> str:
 
     A task keeps the result of an earlier attempt after it is rejected or retried, and a card moved by hand keeps
     whatever error it had, so reading across fields would report a stale outcome as the current one.
-    A block's reason exists only while the task is blocked (every move out of the column clears it), so a blocked
-    task's reason is always the current block's.
+    A block's reason exists only while the task is blocked (the store keeps none for a task in another column), so a
+    blocked task's reason is always the current block's.
     A failed task has no text of its own to show: its ``error`` is the exception message of the run, which names
     internals (provider classes, tool names, SQL) a user cannot act on; the board's run history keeps it in full.
     """

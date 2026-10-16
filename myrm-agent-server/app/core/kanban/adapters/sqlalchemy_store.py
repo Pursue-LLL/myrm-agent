@@ -615,6 +615,7 @@ class SqlAlchemyKanbanStore:
                     m = await session.get(KanbanTaskModel, item.task_id)
                     if m:
                         m.status = TaskStatus.ARCHIVED.value
+                        m.blocked_reason = m.block_kind = m.scheduled_until = None
                         m.completed_at = datetime.now(UTC)
                         m.updated_at = datetime.now(UTC)
                         # Cascade clean edges from DB

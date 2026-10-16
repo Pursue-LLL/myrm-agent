@@ -9,13 +9,15 @@ app.database.models.kanban::KanbanBoardModel/KanbanTaskModel (POS: Kanban domain
 
 [OUTPUT]
 board_to_domain / board_to_model / apply_board_to_model / task_to_domain /
-task_to_model / apply_task_to_model / get_attachment_ids / set_attachment_ids
+task_to_model / apply_task_to_model / stored_block_details / get_attachment_ids / set_attachment_ids
 
 [POS]
-Kanban ORM Model <-> Domain Entity 双向映射适配层。持久化与域模型的字段级转换枢纽。
+Kanban ORM Model <-> Domain Entity 双向映射适配层。持久化与域模型的字段级转换枢纽。阻塞的原因、类型与到点时间只对阻塞态任务落库（``stored_block_details``），所有写任务行的路径共用这一条规则。
 """
 
 from __future__ import annotations
+
+from datetime import datetime
 
 from myrm_agent_harness.toolkits.kanban.types import (
     BlockKind,
@@ -126,7 +128,19 @@ def task_to_domain(m: KanbanTaskModel) -> KanbanTask:
     )
 
 
+def stored_block_details(t: KanbanTask) -> tuple[str | None, str | None, datetime | None]:
+    """The reason, kind and wake-up time a row stores for ``t``.
+
+    They describe one block, so a task outside the blocked column stores none of them, whichever code path set its
+    status (a move, a cancel, a plan revision).
+    """
+    if t.status != TaskStatus.BLOCKED:
+        return None, None, None
+    return t.blocked_reason, t.block_kind.value if t.block_kind else None, t.scheduled_until
+
+
 def task_to_model(t: KanbanTask) -> KanbanTaskModel:
+    blocked_reason, block_kind, scheduled_until = stored_block_details(t)
     return KanbanTaskModel(
         id=t.task_id,
         board_id=t.board_id,
@@ -149,9 +163,9 @@ def task_to_model(t: KanbanTask) -> KanbanTaskModel:
         block_cycle_count=t.block_cycle_count,
         last_heartbeat_at=t.last_heartbeat_at,
         progress_note=t.progress_note,
-        blocked_reason=t.blocked_reason,
-        block_kind=t.block_kind.value if t.block_kind else None,
-        scheduled_until=t.scheduled_until,
+        blocked_reason=blocked_reason,
+        block_kind=block_kind,
+        scheduled_until=scheduled_until,
         result=t.result,
         error=t.error,
         metadata_json=t.metadata if t.metadata else None,
@@ -181,9 +195,7 @@ def apply_task_to_model(t: KanbanTask, m: KanbanTaskModel) -> None:
     m.block_cycle_count = t.block_cycle_count
     m.last_heartbeat_at = t.last_heartbeat_at
     m.progress_note = t.progress_note
-    m.blocked_reason = t.blocked_reason
-    m.block_kind = t.block_kind.value if t.block_kind else None
-    m.scheduled_until = t.scheduled_until
+    m.blocked_reason, m.block_kind, m.scheduled_until = stored_block_details(t)
     m.result = t.result
     m.error = t.error
     m.metadata_json = t.metadata if t.metadata else None
