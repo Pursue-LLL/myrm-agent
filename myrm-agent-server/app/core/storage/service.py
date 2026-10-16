@@ -13,13 +13,14 @@ from datetime import datetime, timedelta
 import nanoid
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
-from app.core.storage.models import File, FilePurpose
+from app.core.storage.models import File
 from app.core.storage.paths import (
     FILE_METADATA_SUFFIX,
     get_file_metadata_path,
     get_file_storage_path,
     get_user_files_prefix,
 )
+from app.core.storage.types import FilePurpose
 
 logger = logging.getLogger(__name__)
 

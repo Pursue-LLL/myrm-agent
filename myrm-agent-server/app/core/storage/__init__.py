@@ -4,8 +4,8 @@
 """
 
 from .models import File as File
-from .models import FilePurpose as FilePurpose
 from .service import FilesService, files_service
+from .types import FilePurpose as FilePurpose
 
 __all__ = [
     # Models

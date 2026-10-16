@@ -26,7 +26,8 @@ class TestSyncUploadedFilesToWorkspace:
     @pytest.mark.asyncio
     async def test_skips_small_files(self):
         """Files under threshold should not be copied."""
-        from app.core.storage.models import File, FilePurpose
+        from app.core.storage.models import File
+        from app.core.storage.types import FilePurpose
 
         small_file = File(
             id="file_small",
@@ -49,7 +50,8 @@ class TestSyncUploadedFilesToWorkspace:
     @pytest.mark.asyncio
     async def test_copies_large_file(self):
         """Files exceeding threshold should be copied to _uploaded/."""
-        from app.core.storage.models import File, FilePurpose
+        from app.core.storage.models import File
+        from app.core.storage.types import FilePurpose
 
         content = b"x" * (_SYNC_THRESHOLD_BYTES + 1)
         large_file = File(
@@ -91,7 +93,8 @@ class TestSyncUploadedFilesToWorkspace:
     @pytest.mark.asyncio
     async def test_deduplicates_filenames(self):
         """Duplicate filenames across turns should not overwrite each other."""
-        from app.core.storage.models import File, FilePurpose
+        from app.core.storage.models import File
+        from app.core.storage.types import FilePurpose
 
         content = b"y" * (_SYNC_THRESHOLD_BYTES + 1)
         file_meta = File(
@@ -124,7 +127,8 @@ class TestSyncUploadedFilesToWorkspace:
     @pytest.mark.asyncio
     async def test_respects_budget_limit(self):
         """Files that would exceed 50 MB budget should be skipped."""
-        from app.core.storage.models import File, FilePurpose
+        from app.core.storage.models import File
+        from app.core.storage.types import FilePurpose
 
         file_size = _MAX_SYNC_TOTAL_BYTES - 1024
         content_fit = b"a" * file_size
