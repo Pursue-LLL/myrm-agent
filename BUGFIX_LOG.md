@@ -4440,3 +4440,53 @@ except Exception:
 3. 语言目录的占位符名要和引擎传的参数名一致：缺失的参数被静默替成空串，没有任何报错，德、日、韩的 `unknown` 文案因此一直以冒号结尾；用真实 `diagnose` 在每个语言里各渲染一遍才看得到。
 4. 在共享工作区提交时只提交自己的块：同一文件里有他人未提交的改动，所以用「HEAD 加自己的改动」生成提交内容，再核对它与工作区的差只剩他人的块。
 5. 多会话下 `index.lock` 会被短暂占用：提交已经落地后，同步共享索引这一步失败要重试，不能当成提交失败。
+
+
+---
+
+## BUG-AGENT-2026-10-16-002: 聊天窗口目录下的「记忆健康看板」没有任何入口，数据是写死的默认值与本地模拟，却被路线图记为「已完成 100%」、写进素材库与公开文档站
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（复核记忆领域的孤儿模块与对外宣称时，沿「谁会渲染它」「谁在监听这个事件」追到） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（无运行时影响；对外失实宣称：路线图、素材库、公开文档站） |
+| 影响范围 | frontend：`src/components/features/chat-window/memory-inspector/`（整目录删除：5 个源文件、5 个测试文件）、`src/locales/namespaces/{en,zh}/memoryInspector.json`（游离的两个语言文件）；根仓：`temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #201、`temp-docs/materials/MEMORY_ADVANTAGE.md` 第 43、82 行；brand 仓：`myrm-docs/docs/core-concepts/memory-system.mdx`（英文页一节） |
+| 出现次数 | 1（逐项用全仓扫描与调用链核实；没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-15-007`（同名旧目录 `features/memory-inspector/` 的删除）；本地提交，未 push |
+
+### 现象
+
+1. `chat-window/memory-inspector/` 没有入口：全仓对 `VisualMemoryHealthCard`、`useMemoryInspectorStore`、`memoryInspectorEngine` 的引用只在该目录内部（含它自己的测试）；`check-orphan-modules` 把 5 个源文件全部列为孤儿。
+2. 看板的数据不是真的：store 的初始值写死 provider `openai`、模型 `text-embedding-3-small`、1536 维、4280 个 chunk、3950 条 FTS 与固定的 `lastSyncAt`（`useMemoryInspectorStore.ts:46-53`）；「深度自检」是等 50ms 再调本地的 `computeSimulatedDiagnostic`（`useMemoryInspectorStore.ts:86-88`、`memoryInspectorEngine.ts:70`），不请求后端；广播的 `myrm:memory-inspector-diagnostic` 没有监听方（`memoryInspectorEngine.ts:98-103`，全仓只有它自己的测试在 `addEventListener`）。文案是写死的中文，没有 `useTranslations`，六个语言包里没有对应的键。
+3. 对外宣称与代码相反：路线图 topic_09 #201 记为「已完成 (100%)」并写着「vitest 30/30 passed」；`MEMORY_ADVANTAGE.md` 第 43、82 行把它写成「WebUI 白盒看板、毫秒级端到端细分延迟探针、重索引实时进度条与 Token 预估、全链路事件总线」；brand 仓英文文档页有一整节（含「3 阶延迟评级」「可取消的重索引进度条」）。真实可用的只有两样：共享上下文面板里的嵌入依赖健康横幅（`SharedContextMemoryHealthBanner`，`GET /memory/shared-contexts/health/memory?probe=`），与设置页的孤儿记忆估算和一键重索引（`GET /memory/reindex/estimate`、`POST /memory/reindex`，`DefaultModelSection.tsx`）。
+4. `src/locales/namespaces/{en,zh}/memoryInspector.json` 是两个游离文件：真正的拆分产物在被忽略的 `locales/namespaces/`（`i18n:split` 从 `locales/{lang}.json` 生成，运行时只读这里），`src/i18n/_ARCH.md:39` 还明确禁止另建 `src/locales/` 这类并行目录；它们的内容（标题「Memory Inspector & Epistemic Veracity Governance」）属于更早被删除的 `features/memory-inspector/`（`BUG-AGENT-2026-10-15-007`）。`locales/{lang}.json` 里没有 `memoryInspector` 键，全仓没有代码读取这两个文件。
+
+### 根因
+
+1. 路线图条目按「交付物清单加测试全绿」闭环，没有核对入口与数据来源；这 30 个测试验证的是组件在孤立环境里能渲染、模拟引擎能算出评级，没有一条断言数据来自后端，所以「全绿」不能说明这个功能存在。
+2. 孤儿门禁只在 `pretest` 里跑，没有拦住这批新增的孤儿；素材库与文档站是按路线图的完成状态转写的，没有回到代码核对。
+
+### 修复
+
+1. 删除 `memory-inspector/` 整目录与两个游离的语言文件，没有新增代码；真实能力（嵌入依赖健康横幅、重索引估算与一键重索引）原样保留。
+2. 路线图 #201 回退为「待分析」，补上「复核更新」与「Myrm 现状」，写明缺口需要新的后端接口（嵌入 / 写入 / 检索的分段探针、可轮询或流式的重索引进度），不复活已删除的前端；`MEMORY_ADVANTAGE.md` 两行与文档站一节只保留真实能力（根仓、brand 仓各一个提交）。
+
+### 验证
+
+1. 全仓扫描（排除 `node_modules`、`external_reference_project`、`temp-docs/temp-task-context` 里的历史提取备份与本日志）：`VisualMemoryHealthCard`、`useMemoryInspectorStore`、`memoryInspectorEngine`、`myrm:memory-inspector-diagnostic`、`memory-inspector/` 在删除前只被目录自身、路线图 #201、素材库与英文文档页引用；删除并改写文档后，只剩路线图 #201 里带「已删除」标注的几处与素材库第 82 行的能力名称（该行已改写为真实能力）；`_ARCH.md`、`hardcoded_copy_baseline.json` 与其他门禁基线里没有这个目录的条目。
+2. `check-orphan-modules`：1061 个孤儿降到 1056，前后孤儿集合的差正好是被删的 5 个源文件，没有任何其他模块因此变成孤儿。
+3. `tsc --noEmit`：删除前后各跑一次，错误都是 50 条，排序后的错误集合完全相同，没有一条提到被删文件（这 50 条在别的会话的文件里，本条没有处理）。
+4. `vitest run src/components/features/chat-window`：314 个文件、1672 例全部通过（被删的 30 例不在其中）。
+
+### 局限
+
+1. 孤儿门禁整体仍是红的：其余 1056 个孤儿不在本条范围内，没有处理；也没有为「新增孤儿」加提交时的拦截。
+2. 没有在浏览器里目测：目录没有入口，删除不改变任何页面渲染的 DOM，等价性靠扫描与 1672 例回归。
+3. 引擎级健康看板、分段延迟探针、重索引进度条与 Token 预估仍然没有；它们需要新的后端接口，已作为 #201 的缺口写回路线图，没有在本条实现。
+
+### 踩坑经验
+
+1. 「交付物清单加测试全绿」不等于已交付：关闭路线图条目前先沿入口找调用方，再看数据是不是从后端来的。
+2. 判断一个事件有没有人监听时要排除测试文件：测试里的 `addEventListener` 只证明测试在听。
+3. 对外材料（素材库、文档站）里的能力描述要能指到一个渲染它的入口和一个提供数据的接口，否则会把没接上的界面当成产品能力宣传出去。
