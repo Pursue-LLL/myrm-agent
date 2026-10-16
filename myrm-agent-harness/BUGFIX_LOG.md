@@ -2,6 +2,92 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-10-15-007 · 审批 / 澄清 / 目录授权的超时计时器到点后取消了自己的恢复回调，回合没有恢复；没有计时器的中断恢复后仲裁键无法重开；审批文字拦截探针对真实检查点永远判「不在等」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-15（核对 server 一条前提「计时器到点会以 Auto-rejected 恢复回合」时，用真实调度器加会挂起的回调复现） |
+| **修复时间** | 2026-10-15 |
+| **症状** | ① 计时器到点认领仲裁键后，运行恢复回调；回调在第一个真正挂起的 `await` 处被取消，回合不恢复、不落库，而键已被认领，之后用户再手动答复被当成「已超时处理」拒绝；② 恢复后停在没有计时器的新中断（计划确认、浏览器接管）时，键保持「已认领」，之后的手动恢复被拒；③ `approval_interception` 的探针用 `aget_tuple` 的 `.tasks` 判断是否在等审批，真实 `CheckpointTuple` 没有该字段，探针永远返回 False，每次运行开始前白跑一次检查点读取 |
+| **关联产品** | myrm-agent-harness `agent/middlewares/approval/scheduler.py`、已删除的审批文字拦截模块 `approval_interception`、`agent/_internals/agent_runtime.py`、`core/events`；server `streaming_support/hitl_timeout.py`；server 台账 `BUG-AGENT-2026-10-15-018` |
+| **根因** | ① `resolve_if_first` 同时认领并取消键下登记的任务，计时器的 `_run` 也调它，此时登记的就是计时器自己，`await callback(...)` 在回调第一次挂起处收到 `CancelledError`，被「手动恢复取消」分支吞掉；原有测试的回调都不挂起；② 键只在 `schedule()` 时被清掉，没有出口；③ 测试 mock 出 `.tasks`，没有对照真实检查点的返回结构（`CheckpointTuple._fields` 为 `config, checkpoint, metadata, parent_config, pending_writes`） |
+| **修复** | ① 拆成 `_claim`（只标记）与 `resolve_if_first`（标记并取消，只给手动路径）；计时器调 `_claim`，并在运行回调前把自己从登记表摘掉；② 新增 `reopen(key)`，对没有计时器的新中断重新接受一次手动答复，已有计时器时不动；③ 删除 `approval_interception` 模块、`agent_runtime.py` 里的调用点、`AgentEventType.APPROVAL_INTERCEPTED` 与 `ApprovalInterceptedEventData`，文档同步 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | 「认领」与「取消」要分开：同一个函数对手动路径取消计时器是对的，对计时器自己是自杀；链路测试要用会挂起的回调，同步 stub 暴露不了这一类问题 |
+| **回归** | `tests/agent/middlewares/approval/test_scheduler.py` 20 例通过，新增 5 例；把计时器的认领临时换回旧的 `resolve_if_first`，其中 3 例失败（3 failed、17 passed），还原后 20 例通过；harness 相关目录（`tests/agent`、`core`、`api`、`architecture`、`unit`、`goals`、`sub_agents`、`integration`）在工作区 23380 通过、33 失败、15 跳过，33 例都不在本条的文件里（`test_skill_manage_lock` 3 例 HEAD 上同样失败；委派 / 子代理配置 / 隐私上下文 12 例由他人未提交的改动引起；架构门禁 18 例来自他人新增目录与行数基线）；把「HEAD + 本条改动」导出到独立目录跑 `tests/agent/middlewares`、`tests/core/events`、`tests/architecture`：7938 通过、10 失败，10 例都是架构门禁，原因是他人新增的目录缺 `_ARCH.md`、分发清单与行数基线，以及导出目录没有 `uv` 与虚拟环境 |
+| **局限** | 没有现网日志证明计时器到点恢复从未成功过，结论来自读码与真实调度器复现；server 钉的 harness 版本是 `0.1.0rc5`，server 现在调用 `reopen` 并不再导入已删除的类型，两边必须一起发版并同步锁文件 |
+| **代码位置** | `agent/middlewares/approval/scheduler.py::_run/_claim/resolve_if_first/reopen/_detach` · `agent/_internals/agent_runtime.py` · `core/events/types.py` |
+
+### BUG-HARNESS-2026-10-15-004 · 体检页的两条红色是假的：网络探针被一个被屏蔽的地址拖到 5 秒上限后报「没有网络」，macOS 上交换区用满就报「系统即将抖动」；向量库探针的异常原文也从技术详情里丢了
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-15（逐项核对 `/api/v1/health/doctor` 实际返回，对 HEAD 的探针逐个计时 / 对照系统计数器，不靠读代码推断） |
+| **修复时间** | 2026-10-15 |
+| **症状** | ① 网络探针按顺序请求三个地址、每个等 5 秒，而管理器给每个探针的上限也是 5 秒：第一个地址（`cloudflare-dns.com`）在这台机器上不通，探针还没走到备用地址就被管理器截断，体检显示「Internet is not available」，实际网络是通的；② `SystemExhaustion` 只看交换区占用，macOS 的交换文件按需增长，占用接近 100% 是常态，体检却报红色「Swap/Pagefile is critically saturated. System thrashing imminent.」；③ 超时 / 崩溃的兜底报告写着「component may be deadlocked」「Try restarting the application」，一次超时并不能说明死锁，也不该劝人重启；④ 向量库探针的 `detail` 在上一轮被改成固定句子，异常原文只进日志，支持包里看不到失败原因 |
+| **关联产品** | myrm-agent-harness `observability/diagnostics`（`probes.py`、`manager.py`、`system_exhaustion.py`、`vector_probe.py`、`desktop_probe.py`） |
+| **根因** | ① 备用地址按顺序尝试，总预算没有和管理器的单探针上限对齐；② 把「交换区占用高」直接等同于「内存紧张」，没有第二个独立证据；③ 兜底文案按「最坏情况」写，没有区分「没得出结论」和「确认损坏」；④ 上一轮把「用户可见文案不带技术细节」和「技术详情字段」混为一谈，连 `detail` 一起改掉了 |
+| **修复** | ① `check_network_health` 改为错峰竞速：第一个地址先发，慢于 1 秒才开下一个，前一个失败则立刻开下一个，第一个成功即取消其余；单请求 2.5 秒，探针自己的预算为 `DIAGNOSTIC_HOOK_TIMEOUT_S - 1`（4 秒），保证由探针自己给出结论；健康网络仍只发 1 个请求；② 交换区 ≥90% 的失败需要同时满足可用内存 <10%（读不到可用内存时仍按严格结论），否则落入原有的「交换区使用率高」警告，原因文案改为与证据一致；快照改成 `TypedDict`（同时消掉 8 个 `float(object)` 的 mypy 错误）；③ 超时报告改为「A system check did not finish in time.」，不再断言死锁、不再建议重启；④ 向量库探针的异常原文回到 `detail`（`message` / `fix_suggestion` 仍不带后端名与异常），`desktop_probe` 与 `_ARCH.md` 里指向具体产品路由 / 界面的措辞改为宿主无关 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 单看「探针单独跑 2.7 秒能通过」会得出「网络探针本来就没问题」的错误结论，必须在管理器的 5 秒限制下并发跑；② 在全新进程里第一次跑体检会得到一堆「没有在时限内完成」，原因是 `check_hook_health` 在探针里同步导入 `agent.hooks.executor`（约 5.5 秒，同一事件循环被阻塞，所有探针的挂钟超时一起走完），不是本条的网络问题，要先预热模块再测；③ 把 `memory_short` 的默认值写成「内存充足」会让读不到内存的机器静默降级，所以默认取严格结论 |
+| **回归** | 新增 `tests/observability/test_network_probe.py`（6 例：首个地址挂起时备用地址仍通过；首个地址立刻失败时不等错峰间隔；健康网络只发 1 个请求；全部失败；全部过慢时在自己的预算内给出结论且不留任务；预算低于管理器上限的不变式）；`test_diagnostics_manager.py` 钉住超时报告不含「deadlock」「restart」；`test_system_exhaustion_diagnostics.py` 新增「交换区用满 + 内存充足 → 警告」「交换区用满 + 内存读不到 → 仍为失败」，原有失败用例改为显式给出短缺内存并钉住 `measured`；`test_vector_probe.py` / `test_probes.py` 钉住异常原文只在 `detail` 与日志里 |
+| **实测** | 网络（同一台机器，管理器 5 秒限制下）：改前体检为失败，改后预热进程里连续 2 次完整体检 Network 均通过，整套体检 1.35 / 1.56 秒；单探针 1.70–2.71 秒（gstatic 在错峰 1 秒后接手）。交换区：改前 `SystemExhaustion` 红色失败，改后同一台机器上为警告（交换区 93.6%，24.9/26.6 GB，可用内存 26.0%）；8 秒内 `vm_stat` 换出计数 +0、换页计数 +24（累计 1066 万），没有抖动迹象 |
+| **局限** | ① 全新进程第一次体检仍会因探针里的同步导入被阻塞而出现「没有在时限内完成」（实测 11.7 秒，随后几次 1.4 秒）：服务进程启动时已加载这些模块，不受影响，只有「新进程里直接调 `run_all_diagnostics`」的宿主会遇到，本条未改；② 交换区与可用内存的判据只在这一台 macOS 机器上取证，Linux / Windows 沿用同一规则，没有实机数据；③ 网络探针在被降级到更慢地址时最长要 1–2 秒，换来的是不再误报；④ 运行中的服务进程需要重启才会加载新代码，本条的实测来自同一批函数的进程内调用，没有重启共享的开发服务做在线复测 |
+| **代码位置** | `observability/diagnostics/probes.py::check_network_health/_first_reachable_url` · `manager.py::DIAGNOSTIC_HOOK_TIMEOUT_S/_safe_execute_hook` · `system_exhaustion.py::check_system_exhaustion/SystemExhaustionSnapshot` · `vector_probe.py::check_qdrant_health` |
+
+### BUG-HARNESS-2026-10-15-003 · wiki 的两个「相关概念」写入方互不相认：编译后的反向链接把 `## Related Concepts` 之后的整段内容删掉，维护期的链接发现把草稿 / 已拦截页面改回已发布，并且每次只问同样的前 20 页
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-15（#140 链接图谱专项，对 HEAD 两个写入方用桩 LLM 逐条做探针，不靠读代码推断） |
+| **修复时间** | 2026-10-15 |
+| **症状** | ① `postprocess.generate_backlinks` 用 `\n+## Related Concepts\n[\s\S]*$` 整段替换，该标题之后的所有章节（手写的「来源」「时间线」等）被一并删除；② `BacklinkDiscoveryMixin._discover_connections` 经 `publish_concept_article` 回写，`ensure_published_frontmatter` 把 `draft` / `blocked` 页面改成 `published`，等于绕过人工审核；③ 候选页固定取 `list_concepts()[:20]`，30 页的库每次都只问同样的 20 页，后 10 页永远没有机会；④ 候选与建议只用裸文件名，`rust/overview` 与 `go/overview` 撞名，建议按小写字符串去重，条目追加到文件末尾（而不是 Related 章节），计数还把 lint 之后会判为断链的链接算进去；⑤ 摘录 `content[:1500]` 把 frontmatter 算在内，带长 frontmatter 的页面几乎看不到正文；⑥ 读文件到写文件之间隔着 `await llm.ainvoke`，期间人手编辑的内容被覆盖；⑦ 只读的联邦公共挂载页面与模板页也被当作候选改写；⑧ 手写的非规范文件名（`Alpha Notes.md`）经发布路径落到 `alpha-notes.md`，原文件不变、多出一份副本；⑨ `related_concepts` 来自读取不可信原文的模型输出，名字里带换行或 `]]` 时被原样写进页面，可以植入章节（红灯用例里植入的标题真的出现在页面里），模型把页面自己列为相关概念时也照写；⑩ vault 里只要有一页不是合法 UTF-8，链接解析器的整库扫描（`core/link_resolver.py::scan_concept_pages` 只捕获 `OSError`）就抛 `UnicodeDecodeError`，经它的调用整体失败（本批的合并与发现已复现；边提取与 lint 也经同一解析器，按代码路径判断，未单独复现） |
+| **关联产品** | myrm-agent-harness `toolkits/wiki`（`core/related_links.py`、`maintenance/backlink_discovery.py`、`pipeline/postprocess.py`、`pipeline/cognitive_map/writer.py`、`core/frontmatter_contract.py`、`retrieval/fts_write.py`）；server `/api/v1/wiki/maintain` 的 `backlinks_created` 语义 |
+| **根因** | 同一个章节有两个互不知情的写入方，各自手写一套「找章节 / 去重 / 追加」：一个用贪婪正则、一个用文件末尾追加；链接身份各自按字符串比较，没有走已有的 `WikiLinkResolver`；发现流程没有范围概念（谁能被改写、谁能被推荐），也没有覆盖进度，取前 20 页当作「全库」 |
+| **修复** | ① 新增 `core/related_links.py::merge_related_links`，成为 `## Related Concepts` 的唯一写入方（基于已有的 `section_contract` 取 / 换章节正文，`WikiLinkResolver` 判同一页面，只并集、不删除、无新增则不写）；`generate_backlinks` 与发现流程都走它，`cognitive_map/writer.py` 的私有 `_concept_wikilink_name` 改用 `link_resolver.concept_link_name`；② `frontmatter_contract.resolve_publish_status` 成为页面状态的唯一读取方（`fts_write` 的索引闸门同源），发现流程只处理 `published` 的本地非模板页面；③ 覆盖轮转：游标 `link_discovery_cursor` 存在 `.metadata.json`（`save_metadata` 改为合并写，编译不会冲掉它；该文件本就被 vault_git 忽略、不进 vault 归档；一个只含游标的文件对各读取方等同于没有该文件：`pipeline/compiler.py:526` 的变更筛选得到空哈希表、全部算变更，`maintenance/stale_summary.py:48` 与 `pipeline/cognitive_map/snapshot.py:53` 缺字段时返回空结果，逐个读代码核对，未单独加用例），每轮仍然只问 20 页，下一轮接着问，页数 ≤ 20 时不留游标；模型一页都没答出来（宕机）不推进，页面自身写不进去（frontmatter 无效）不拖住轮转；④ 候选改用库内相对路径（`rust/overview`），摘录取去掉 frontmatter 的正文，计数改为实际新增且发布结果为 `PUBLISHED` 的链接数（`backlinks_created` 同步改为新增链接数，原先是写入的全部相关名）；⑤ 写之前重读页面并在同一事件循环里不 await 地合并写出，保住 LLM 调用期间的人手编辑，页面被删则不重建；⑥ 发布路径与原文件不是同一个文件时只被链接、不被改写（`samefile` 判断，大小写不敏感文件系统上仅大小写不同的名字仍就地改写）。⑦ `merge_related_links` 丢弃不可能是单行 `[[...]]` 目标的名字（带换行、方括号）并且不把页面列为自己的相关概念；⑧ `scan_concept_pages` 与发现的页面扫描一并跳过无法解码的页面；⑨ 游标写盘失败只记警告、下一轮重问同一批，不让维护整体失败；⑩ 「发布路径是否就是原文件」的检查只计算路径、不创建目录（`get_concept_file_path` 会 `mkdir`，扫描手写文件夹 `Work Notes/` 时会凭空多出 `work-notes/`）。系统提示词文本一字未改，只是数据词汇变了（候选是路径键、标题是 `## Article: {key}`） |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 第一版把「每个批次全部失败」都当成宕机、不推进游标，结果一批 frontmatter 无效的页面会让轮转永远停在第一批，改为只统计「模型没有答出来」；② 第一版的越界保护用 `Path ==`，macOS / Windows 上 `Beta.md` 对 `beta.md` 会被误跳过，改为 `samefile`，并让测试在两类文件系统上都有判别力（拿掉保护、改回 `==` 各让一条用例失败）；③ 先写的模板页用例对旧代码也能通过（空转），加了「只问 alpha、beta」「提示里没有 note」之后才真正卡住旧行为；④ 一次突变检查中用了错误的 `git show` 路径（harness 是独立仓库，应为 `HEAD:src/...`），重定向把两份工作文件截断，靠事先备份恢复并重做，之后一律在临时副本上做突变；⑤ 首次提交后的对抗式复核又用红灯用例复现并修掉三处自己引入的缺陷：无法解码的页面让整轮发现抛出（旧版逐页 `try/except` 能扛过去）、越界检查为了算路径创建了多余目录、游标写盘失败会让整个维护失败；第四处（解析器扫描不吞 `UnicodeDecodeError`）是既有缺陷，因为新代码依赖解析器才暴露 |
+| **回归** | 新增 `tests/toolkits/wiki/test_related_links.py`（14 例：合并语义 6 例、不可作链接目标的名字 5 例、自指 1 例、`generate_backlinks` 2 例）、`test_backlink_discovery.py`（20 例）与 `test_backlink_discovery_rotation.py`（6 例，共用 `discovery_support.py`；覆盖：Related 章节落点与后续章节保留、人手文本保留、同名页面无断链、拼写不同只算一条、已链接不算、被发布闸门拒绝不算、草稿 / 拦截页不被改写也不被推荐、模板与公共挂载在范围外、非规范文件名只被链接、大小写文件名不生副本、轮转 30 页两轮覆盖全库、小库不留游标、游标在 `save_metadata` 后保留、宕机不推进、写不进去的页面不拖住轮转、游标写盘失败不让维护失败、摘录不含 frontmatter、调用期间的编辑与删除、无法解码的页面被跳过、单页库不问模型、非列表回复只加有效名字、手写文件夹不产生新文件夹）；`test_link_resolver.py` 增加无法解码页面被扫描跳过一例；`test_frontmatter_contract.py` 增加 `resolve_publish_status` 参数化用例；旧用例按新语义调整（`[[Concept Beta]]` 变为 `[[concept-beta]]`、发布结果的桩改为 `ArticlePublishOutcome.PUBLISHED`、`extract_and_upsert_edges` 的桩由 `AsyncMock` 改为 `MagicMock`，它本来就是同步函数）。突变检查：把两个生产写入方换回 HEAD 版，当时已有的 25 条新用例中 15 条失败；之后追加的三条各自拿掉对应保护后失败。`tests/toolkits/wiki` 除真实 LLM 的 `test_sidecar_integration.py` 外 931 项通过；ruff、mypy 对触及文件通过；三个触及模块（`related_links`、`backlink_discovery`、`postprocess`）行覆盖率 100%（复核补用例前为 97%；`backlink_discovery` 里一段永远走不到的 `except (TypeError, ValueError)` 已删，`parse_llm_json_list` 的契约是失败返回 `None`）；server `tests/api/wiki` 与 `tests/services/wiki`（不含真实 LLM）409 项通过、3 项失败，与 roadmap 第六批记录的三个既有安全拦截失败是同名用例（`test_wiki_clip_security_blocked_job_response`、`test_import_folder_blocks_credential_content`、`test_import_urls_security_blocked`），未在 HEAD 基线上重跑 |
+| **实测** | 桩 LLM、每轮调用次数 20 不变；提示总量（字符 / 4 估算）30 页 7592→7355、100 页 12142→11905、1000 页 70642→70405，略降；1000 页的库每轮多出的页面扫描约 10 ms→82 ms，相对 LLM 往返可忽略；`generate_backlinks` 每批多一次解析器的整库扫描：100 页 3→10 ms、1000 页 5→57 ms、5000 页 2→294 ms，相对编译 LLM 往返可忽略；提示缓存前缀不受影响（发现调用是两条消息的独立 `ainvoke`）；真实 LLM（`.env.test` 的基础模型）对 14 页合成库连跑 3 轮的健全性检查：旧版新增链接 22 / 4 / 1 条，新版 21 / 1 / 1 条，增量都收敛，抽查 4 页的链接合理（`llm-prompt-caching` 与其余主题无关，两版都没有给它加链接）；每个版本各跑一次、模型输出非确定，不构成统计结论 |
+| **局限** | ① 候选名单仍是全库列表，随页数线性增长（每轮仍然只有 20 次调用）；② 根因在 `publish_concept_article` 写到规范化路径，本条只在发现流程里挡住，其他调用方不变；③ Related 章节只并集：过期链接不会被清除，旧版本写在别处的条目不迁移；④ 没有跨进程锁（调用期间的编辑保护只覆盖同一事件循环）；⑤ 标题变体（大小写、CRLF、文件末尾无换行的标题）按既有的章节契约处理，未单独放宽；`replace_section_inner` 会吃掉被替换块前后的空行，仅影响排版；⑥ claims / methods 页面仍在发现范围内，没有实证危害所以未排除；⑥′ 每次 FULL 维护只问 20 页：200 页的库要 10 次 FULL 维护才走完一轮（按周执行即 10 周）；⑦ `test_sidecar_integration.py` 是真实 LLM 用例，依赖 LLM 输出，同一份 HEAD 代码上 7 次中也有 2 次失败，与本条无关；`tests/integration/llm_extraction/test_wiki_compile_e2e.py` 未跑 |
+| **代码位置** | `toolkits/wiki/core/related_links.py::merge_related_links` · `maintenance/backlink_discovery.py::_discovery_pages/_next_batch/_publishes_in_place/_suggest_links/_add_links` · `pipeline/postprocess.py::generate_backlinks/save_metadata` · `core/frontmatter_contract.py::resolve_publish_status` |
+
+### BUG-HARNESS-2026-10-15-001 · 只读研究租约的默认白名单是 7 个没有任何内置工具使用的名字，挂租约的运行里所有真实工具一律被拒；撤销后租约记录永远留在管理器里；围栏只有整轮开关，宿主没法只给常驻循环派生的任务打标
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-14（核对 server 定时任务挂租约之后的运行时绑定时，直接对 HEAD 的租约管理器做探针） |
+| **修复时间** | 2026-10-15 |
+| **症状** | ① `ReadOnlyLeaseRecord.allowed_tools` 与 `ReadOnlyLeaseManager.grant_lease` 各存一份默认白名单（`read_file`、`web_search`、`read_web_page`、`fetch_doc`、`grep_search`、`list_dir`、`view_image`），没有一个是内置工具名，租约又是默认拒绝，所以挂了租约的运行里 `file_read_tool`、`grep_tool`、`glob_tool`、`web_search_tool`、`web_fetch_tool` 全部被拒；② `blocked_side_effects` 的 10 个名字（`write_file`、`run_shell`、`database_execute`、`send_webhook` 等）多数不是真实工具名，拒绝本身来自默认拒绝，这张表只决定拒绝文案；③ `revoke_lease` 把记录改成 REVOKED 后仍留在字典里，每个结束的会话留下一条；④ 宿主想把「某段代码里派生的任务」标为不可信时，只有 `set_untrusted_ingress(True)` 这种整轮开关，用在常驻的消费循环里会连循环自己一起打上 |
+| **关联产品** | myrm-agent-harness `core/security/readonly_research_sandbox` · `agent/security/guards`（`untrusted_ingress_fence.py`、`taint_tracker.py`）· `api/security`；server `BUG-AGENT-2026-10-15-002` |
+| **根因** | ① 白名单按想象中的通用工具名手写，测试里用的是同一批名字，所以一直通过，没人对照过安全注册表；② 拒绝文案用的第二张手写表，与注册表的 `is_destructive` 重复；③ 撤销被当成「改状态」而不是「忘记」；④ 围栏只提供了整轮开关，没有按块限定的版本 |
+| **修复** | ① `types.py` 新增单一常量 `DEFAULT_READ_ONLY_TOOLS`（`file_read_tool`、`grep_tool`、`glob_tool`、`web_search_tool`、`web_fetch_tool`），记录类型与管理器共用，门面导出；② 删除 `blocked_side_effects`，拒绝文案改看 `resolve_safety_metadata(tool).is_destructive`（注册表标为破坏性的工具显示「physically stripped」，其余显示「not in the safe read-only whitelist」，文案本身未改）；③ `revoke_lease` 弹出记录；④ 新增 `untrusted_ingress_scope()` 上下文管理器：只标记块内及块内派生的任务，退出（含抛异常）时还原先前状态，经 `api.security` 导出；`taint_tracker.record_ingress_taint` 的 docstring 写明运行开始时跟踪器会被重建，回合前登记不会保留 |
+| **反复次数** | 第 1 次发现 |
+| **踩坑** | ① 手写的放行清单必须有一个把它钉在注册表上的测试，否则改名或改标志不会有人发现；② 默认拒绝的策略下，白名单写错的后果不是「漏拦」而是「全拒」，只断言「写工具被拒」的测试发现不了；③ 回合前的污点登记会被运行开始时的 `reset_all_guards()` 清掉，围栏的 ContextVar 不会，所以不可信标记只能走围栏 |
+| **回归** | `tests/unit/test_readonly_research_sandbox_suite.py` 新增 `test_default_read_only_tools_stay_in_sync_with_the_safety_registry`（五个名字都是内置工具、只读、非破坏性），生命周期用例改用真实工具名，覆盖「五个默认工具放行、注册表标为破坏性的工具按 physically stripped 文案拒绝、其余非白名单工具按白名单文案拒绝、撤销后记录被忘记、自定义白名单替换默认值」；`tests/agent/middlewares/approval/test_approval_readonly_research_lease.py` 改用真实工具名；`tests/agent/security/guards/test_untrusted_ingress_fence.py` 新增 `untrusted_ingress_scope` 四例（退出还原、块抛异常也还原、整轮已标记时块内外都保持、块内派生的任务带围栏而派生者不带）与 `test_run_start_clears_ingress_taint_but_keeps_the_fence`（`reset_all_guards()` 清掉回合前登记的污点、围栏保留）；这三个文件所在的 `tests/unit/test_readonly_research_sandbox_suite.py`、`tests/agent/middlewares/approval`、`tests/agent/security/guards` 共 371 通过；触及文件 `ruff check` 无问题 |
+| **局限** | 租约的拒绝是否生效依赖宿主把 `approval_session_key` 绑到租约键上（server 在 `BUG-AGENT-2026-10-15-002` 绑定）；租约到期后默认放行（既有行为，TTL 由宿主按运行超时加余量设置）；CoW 临时层与快照在生产代码里没有调用方（`facade.py` 只被测试使用），本条未涉及；`readonly_research_sandbox` 下的 `facade.py`、`ephemeral_cow_overlay.py` 与 `readonly_lease_manager.py::get_lease` 的签名没有按 `ruff format` 折行，属本条之前的状态，未动 |
+| **代码位置** | `core/security/readonly_research_sandbox/types.py::DEFAULT_READ_ONLY_TOOLS` · `readonly_lease_manager.py::grant_lease/revoke_lease/evaluate_tool` · `agent/security/guards/untrusted_ingress_fence.py::untrusted_ingress_scope` · `agent/security/guards/taint_tracker.py::record_ingress_taint` · `api/security.py` |
+
+### BUG-HARNESS-2026-10-15-002 · 体检的向量库探针每次都拿一份临时内存库自检：真实的嵌入式库因数据目录被锁、不可写或磁盘满而退化成纯内存后，体检、运维快照、支持包仍报「向量库健康」，之后写入的记忆重启即丢
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | FIXED |
+| **发现时间** | 2026-10-15（审计默认挂载的记忆栈时，把探针与 `create_embedded_store` 的退化分支对读，两者没有任何联系） |
+| **修复时间** | 2026-10-15 |
+| **症状** | ① `create_embedded_store` 打不开数据目录时退化成 `:memory:` 库，只记一条 ERROR 日志；② `check_qdrant_health` 固定初始化 `local_path=":memory:"` 的一次性库、从不碰真实目录，所以这种状态下 `VectorDB` 一律返回 pass 与 `Vector database is healthy.`；③ 用户在 `/api/v1/health/doctor`、`/api/v1/ops/snapshot` 与支持包里看到的是「健康」，记忆其实只在内存里，下次启动消失 |
+| **关联产品** | myrm-agent-harness `observability/diagnostics`（`vector_probe.py`、`probes.py`）· `toolkits/vector/qdrant`（`factory.py`）；server 三个读取方：`app/api/health/router.py::system_doctor`、`app/services/ops/snapshot_service.py`、`app/services/system/support_bundle_service.py`，均经 `collect_health_snapshot` / `run_all_diagnostics`，无需改动 |
+| **根因** | 探针只验证「库能不能初始化」，没有验证「真实的库是不是正在用」；每个 store 能读自己的 `is_persistent`（`MemoryManager.vector_is_persistent` 据此透出，记忆指挥中心据此告警，但该面板只在 Memory Labs 打开时可见），而体检探针手里没有真实 store，只有自己新建的一次性库，工厂也没有按目录列出退化库的接口 |
+| **修复** | ① `factory.py` 新增 `embedded_fallback_paths()`（只列退化库的数据目录，显式要求的 `:memory:` 不算退化；后缀提成 `_FALLBACK_KEY_SUFFIX` 常量，读写同源），`qdrant/__init__.py` 导出；② 探针迁到新文件 `vector_probe.py`（`probes.py` 行数预算），先查退化表：有退化库就直接 FAIL，文案面向用户（「新记忆没有被永久保存」+ 退出其他副本、检查可写与磁盘空间、重启应用），带 `code=ERR_VECTOR_STORE_ON_MEMORY_FALLBACK`，体检页按 code 取 `settings.systemHealth.doctor.errors` 下六个语言文件的译文，`measured` 写退化库个数，原有的一次性库自检保留在后面；③ `probes.py` 仍按原顺序注册同一个函数，对外名字不变；④ 探针通过 / 失败文案不再出现后端名与原始异常（异常写日志），同批删除永远通过的 `GraphEmbedding` 探针（提交 `441f874fc`） |
+| **验证** | `tests/observability/test_probes.py` + `test_probes_extended.py` + `tests/toolkits/vector/test_qdrant_factory.py` 共 89 项通过（2026-10-15）；新增两条：`TestCheckQdrantHealth::test_fallback_store_returns_fail_even_when_the_throwaway_probe_would_pass`（有退化库时 FAIL，且不再创建一次性库）、`test_embedded_fallback_paths_lists_only_fallback_stores`（正常落盘库与显式 `:memory:` 都不列出，evict 后清空）；另在真实被锁目录上做过端到端复现：另一个 `QdrantClient` 持有数据目录的文件锁、工厂退化为内存库时，修复前的探针返回 pass 与 `Vector database is healthy.`，修复后返回 fail、`measured` 为 `1 vector store(s) on the in-memory fallback`，该场景已入库为 `tests/observability/test_vector_probe.py::test_probe_fails_while_another_client_holds_the_data_directory_lock`（工厂与探针都不打桩） |
+| **局限** | ① 体检 / 运维快照 / 支持包只在被请求时才检查；默认库退化时 Web UI 另有常驻 toast（server 的 `system_status.vector_degraded`，只覆盖默认库，不覆盖 harness 为隔离运行自建的库）；② 退化表是本进程的，别的进程里的退化看不到；③ 退化记录随进程存在，目录恢复后要重启应用（或宿主调用 `evict_embedded_store`）才会消失，与文案里的「重启应用」一致；④ 远程 Qdrant（`create_remote_store`）仍不被探测，探针对它仍只做库可初始化的自检；⑤ 体检页只按 code 翻译 `message`，同一条报告的 `detail` 与 `fix_suggestion` 在页面上仍是英文原文（体检页对所有探针都是这样） |
+| **反复次数** | 第 1 次发现 |
+| **代码位置** | `observability/diagnostics/vector_probe.py::check_qdrant_health` · `toolkits/vector/qdrant/factory.py::embedded_fallback_paths/_FALLBACK_KEY_SUFFIX` · 提交 `b13264595e` |
+
 ### BUG-HARNESS-2026-10-14-024 · 技能复盘在宿主没有挂 `on_skill_review_ready` 时照样触发：每个满足条件的会话结束都白做一次复盘 LLM 调用，结果在 `if on_skill_review_ready` 处被丢弃
 
 | 字段 | 内容 |
@@ -105,13 +191,13 @@
 | **发现时间** | 2026-10-14（xAI SuperGrok 订阅登录终极叩问阶段，把 Hermes 里记录的 xAI 403 响应体喂给真实的 `LLMErrorDiagnostic.diagnose`，对照它对同一响应体的分类） |
 | **修复时间** | 2026-10-14 |
 | **症状** | xAI 对额度耗尽或没有套餐的账号返回 403，体为 `{"code": "personal-team-blocked:spending-limit", "error": "You have run out of credits or need a Grok subscription. ..."}`（取自 Hermes `tests/agent/test_codex_xai_oauth_recovery.py:407-437`，Hermes 把它归为 billing）。真实 harness 执行：`error_type=api_key`、`user_message="API key authentication failed"`、恢复按钮「Update API Key」→ `/settings`。用户被引导去更新一个本来有效的密钥或重新登录订阅，而真正的原因是额度 / 套餐 |
-| **关联产品** | myrm-agent-harness `agent/errors/diagnostics/engine.py`；所有走 `LLMErrorDiagnostic` 的前端错误卡与 IM 回复，Local / 桌面 / 云托管相同；server 产品台账 `BUG-AGENT-2026-10-14-014`（同一批次：xAI 刷新被 403 拦截的分类） |
-| **根因** | `billing` 分支的关键词表没有这句话，而 `api_key` 分支把消息里出现的 `401` / `403` 当作兜底，于是任何带 403 的额度类拒绝都落入 `api_key` |
-| **修复** | `billing_keywords` 增加 `"run out of credits"`（`billing` 分支先于 `api_key` 分支判定）；其余分类、文案、恢复动作不变 |
+| **关联产品** | myrm-agent-harness `agent/errors/diagnostics/engine.py` · `toolkits/llms/errors/classifier.py`；所有走 `LLMErrorDiagnostic` 的前端错误卡与 IM 回复及 failover 冷却策略，Local / 桌面 / 云托管相同；server 产品台账 `BUG-AGENT-2026-10-14-014`（同一批次：xAI 刷新被 403 拦截的分类） |
+| **根因** | `billing` 分支的关键词表没有这句话，而 `api_key` 分支把消息里出现的 `401` / `403` 当作兜底，于是任何带 403 的额度类拒绝都落入 `api_key`；failover 分类器 `toolkits/llms/errors/classifier.py::_BILLING_RE` 同样没有这些短语（并且其中「请充值」被写成了乱码 `请充Value`，该短语从未生效）。真实 `classify_failover_reason` 复现：xAI 的 403 额度 / 套餐拒绝判 `auth_permanent`、`is_quota_exhausted` 为假；429「used all available credits」判 `rate_limit`，会按瞬时限流重试而不是按额度耗尽处理 |
+| **修复** | 诊断引擎 `billing_keywords` 与 failover `_BILLING_RE` 同步收录三条短语：`run out of credits`、`used all available credits`、`grok subscription`（诊断引擎的 `billing` 分支先于 `api_key` 分支判定；failover 侧三类响应均改判 `billing` 且 `is_quota_exhausted` 为真）；`请充Value` 改回 `请充值`；`classifier.py` 中 `NormalizedError.body` 与 `_extract_error_body` 的裸 `dict` 标注改为 `dict[str, object]`。恢复动作表与构建函数从 `engine.py` 移到 `recovery_actions.py`，`LLMErrorDiagnostic.get_recovery_actions` 签名不变、转调该函数，`engine.py` 回到 500 行以内并移除行数基线项；其余分类、文案、恢复动作不变 |
 | **反复次数** | 第 1 次发现 |
-| **踩坑** | 只加短语、不放宽 403：同为 xAI 的 `{"code": "unauthenticated:bad-credentials", "error": "The OAuth2 access token could not be validated."}` 仍判 `api_key`（对照用例）；短语来自 Hermes 测试里的 xAI 响应，不是自行抓到的原始响应；`billing` 的文案是「API 账户余额不足」，对订阅用户的「没有套餐」不完全贴切，没有改动（该处文案与恢复动作模板由他人同时在重构） |
-| **回归** | `tests/agent/errors/diagnostics/test_error_diagnostics_provider_403.py`（`test_diagnose_xai_out_of_credits_403_is_billing_not_api_key`：spending-limit 的 403 判 `billing` 且不可重试；`test_diagnose_xai_rejected_token_403_stays_api_key`：令牌被拒的 403 仍判 `api_key`）；变异检查：删掉该关键词，测试变红 |
-| **代码位置** | `agent/errors/diagnostics/engine.py` 的 `billing_keywords`（「2. Billing / insufficient balance errors」段，位于 `api_key` 分支之前） |
+| **踩坑** | 只加短语、不放宽 403：同为 xAI 的 `{"code": "unauthenticated:bad-credentials", "error": "The OAuth2 access token could not be validated."}` 仍判 `api_key`（对照用例）；响应体取自 Hermes、OpenClaw 测试夹具里的 xAI 响应（测试中两个过期令牌用例按 Hermes 文档化的信号拼出），不是自行抓到的原始响应；没有 xAI 过期令牌的原始样本，无法排除其 `error` 文本同时含 `Grok subscription`（两个分类器的 24 小时冷却对 auth 与 billing 相同，误判只影响卡片文案与不重试标志）；xAI 改措辞后会退回改前行为；第一版只给诊断引擎加了一条短语，同一份响应在 failover 分类器里仍判认证失败，且 `engine.py` 因此超出行数基线 1 行；`monthly spending limit`、`run out of available resources` 不收录——已知响应体里它们都与已收录短语同句出现，没有需要它们单独命中的响应；`billing` 的文案是「API 账户余额不足」，对订阅用户的「没有套餐」不完全贴切，没有改动（该处文案与恢复动作模板由他人同时在重构） |
+| **回归** | `tests/agent/errors/diagnostics/test_provider_entitlement_classification.py`：8 个额度 / 套餐响应（403 无有效订阅、403 需要订阅、403 额度耗尽、403 团队被封、403 花费上限、429 额度用尽、402、中文充值提示）在诊断引擎判 `billing` 且不可重试，在 failover 分类器判 `BILLING` 且 `is_quota_exhausted` 为真；3 个被拒凭证（过期 OAuth 令牌、bad-credentials、401 无效密钥）两侧都不判 billing，诊断仍为 `api_key`；变异检查：在诊断引擎与 failover 各自删掉三条短语之一（6 个）以及把 `请充值` 改回乱码，共 7 个变异体全部变红，恢复动作表 4 个变异体（url、动作条目、语言前缀回退、空 locale 探测）被既有恢复动作测试杀死 |
+| **代码位置** | `agent/errors/diagnostics/engine.py` 的 `billing_keywords`（「2. Billing / insufficient balance errors」段，位于 `api_key` 分支之前）· `toolkits/llms/errors/classifier.py::_BILLING_RE` · `agent/errors/diagnostics/recovery_actions.py::build_recovery_actions` |
 
 ### BUG-HARNESS-2026-10-14-017 · 隐私检测的邮箱正则对不含 `@` 的长连续字符是二次方耗时：3 万字符的 base64 / 哈希串让 `classify_content` 与 `redact_pii` 各卡 0.7 秒，30 万字符跑满 2 分半钟 CPU 仍不返回
 

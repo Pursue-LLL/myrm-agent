@@ -111,7 +111,6 @@ class AgentEventType(StrEnum):
     TOOL_TOKEN_USAGE = "tool_token_usage"
     ARTIFACT_CONTENT = "artifact_content"
     TOKEN_USAGE = "token_usage"
-    APPROVAL_INTERCEPTED = "approval_intercepted"
     REASONING = "reasoning"
     STEERING = "steering"
     REDIRECTED = "redirected"
@@ -158,7 +157,6 @@ class AgentEventType(StrEnum):
     WORKING_MEMORY = "working_memory"
     CUSTOM = "custom"
     CUSTOM_MESSAGE = "custom_message"
-    TTSR_TRIGGERED = "ttsr_triggered"
     ASYNC_USER_MESSAGE = "async_user_message"
 
 
@@ -260,16 +258,6 @@ class ContextBudgetSnapshot:
         if self.builtin_tools_tokens is not None:
             payload["builtin_tools_tokens"] = self.builtin_tools_tokens
         return payload
-
-
-@dataclass(frozen=True, slots=True)
-class ApprovalInterceptedEventData:
-    """Strongly typed payload for AgentEventType.APPROVAL_INTERCEPTED."""
-
-    decision: str
-    original_text: str | None = None
-    visual_context: dict[str, Any] | None = field(default=None)
-    action_description: str | None = field(default=None)
 
 
 @dataclass(frozen=True, slots=True)

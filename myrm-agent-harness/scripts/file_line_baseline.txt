@@ -13,7 +13,6 @@ myrm_agent_harness/agent/context_management/strategies/summary/summarizer.py	915
 myrm_agent_harness/agent/context_management/tracking/task_metrics_model.py	570
 myrm_agent_harness/agent/dynamic_workflow/__init__.py	692
 myrm_agent_harness/agent/dynamic_workflow/tools.py	790
-myrm_agent_harness/agent/errors/diagnostics/engine.py	547
 myrm_agent_harness/agent/event_log/analytics_queries.py	597
 myrm_agent_harness/agent/file_snapshot/shadow_git_store.py	649
 myrm_agent_harness/agent/goals/continuation.py	656
@@ -38,16 +37,14 @@ myrm_agent_harness/agent/skills/evolution/pipeline/screener.py	625
 myrm_agent_harness/agent/skills/market/service.py	852
 myrm_agent_harness/agent/streaming/recovery/stream_recovery.py	810
 myrm_agent_harness/agent/streaming/recovery/stream_recovery_oneshot.py	673
-myrm_agent_harness/agent/streaming/stream_executor.py	642
+myrm_agent_harness/agent/streaming/stream_executor.py	611
 myrm_agent_harness/agent/sub_agents/checkpoint/checkpoint_manager.py	502
 myrm_agent_harness/agent/sub_agents/event_forwarder.py	622
 myrm_agent_harness/agent/sub_agents/manager.py	608
 myrm_agent_harness/agent/sub_agents/orchestrator.py	930
 myrm_agent_harness/agent/sub_agents/prompts.py	546
 myrm_agent_harness/agent/sub_agents/types.py	546
-myrm_agent_harness/backends/commerce/memory_backend.py	578
 myrm_agent_harness/backends/skills/_utils.py	837
-myrm_agent_harness/backends/skills/forgetting_strategy.py	545
 myrm_agent_harness/backends/skills/scanning/patterns.py	875
 myrm_agent_harness/backends/skills/scanning/scanner.py	555
 myrm_agent_harness/core/security/egress/proxy_server.py	724
@@ -55,11 +52,9 @@ myrm_agent_harness/core/security/tool_registry/registry.py	587
 myrm_agent_harness/core/security/types.py	648
 myrm_agent_harness/eval/assertions.py	693
 myrm_agent_harness/eval/protocols.py	670
-myrm_agent_harness/infra/delivery/queue.py	604
 myrm_agent_harness/infra/delivery/storage.py	536
 myrm_agent_harness/infra/sqlite_salvage.py	621
 myrm_agent_harness/infra/tracing/tracer.py	700
-myrm_agent_harness/observability/diagnostics/probes.py	616
 myrm_agent_harness/runtime/context/instance_metrics.py	694
 myrm_agent_harness/runtime/paths/execution_paths.py	509
 myrm_agent_harness/toolkits/browser/pool/browser_launcher.py	535
@@ -98,7 +93,7 @@ myrm_agent_harness/toolkits/llms/video/generator.py	532
 myrm_agent_harness/toolkits/llms/video/video_engine.py	544
 myrm_agent_harness/toolkits/mcp/connection_manager.py	546
 myrm_agent_harness/toolkits/mcp/session_actor.py	1058
-myrm_agent_harness/toolkits/memory/__init__.py	482
+myrm_agent_harness/toolkits/memory/__init__.py	265
 myrm_agent_harness/toolkits/memory/_internal/search_service.py	850
 myrm_agent_harness/toolkits/memory/_manager/import_export.py	628
 myrm_agent_harness/toolkits/memory/ephemeral.py	539
@@ -125,6 +120,6 @@ myrm_agent_harness/utils/text_utils.py	503
 myrm_agent_harness/utils/token_economics/tracker.py	595
 myrm_agent_harness/utils/url_utils.py	505
 myrm_agent_harness/toolkits/wiki/core/structure.py	507
-myrm_agent_harness/agent/streaming/stream_dispatcher.py	534
+myrm_agent_harness/agent/streaming/stream_dispatcher.py	498
 myrm_agent_harness/toolkits/memory/strategies/merger.py	554
 myrm_agent_harness/toolkits/retriever/bm25_retrieval.py	501

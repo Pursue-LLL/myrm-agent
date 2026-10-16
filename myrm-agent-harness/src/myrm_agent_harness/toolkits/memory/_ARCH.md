@@ -70,25 +70,13 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | auto_recall/ | Targeted Experience Auto-Recall Trigger with Multi-Turn Dedup and Fail-Open Reranking Engine: 5 sensitive lifecycle triggers (task_start, skill_load, subagent_start, write_preflight, cron_start), 5-turn sliding window deduplication to prevent context fatigue, and SLA-bounded fail-open neural reranker fallback. |
 | drift_defense/ | Ground Truth Priority & Code Drift Stale Memory Defense: zero-LLM reference extraction, sub-5ms physical presence & symbol AST validation, prompt-level stale warning decoration, and confidence decay. |
 | sovereign_migration/ | Sovereign Asset Package Cross-Machine Migration Protocol & One-Click Restore: portable bundle packaging (.myrmpkg), checksum verification, dynamic path relativization, atomic restoring, and competitor ingestion adapters (Hermes, Claude Code, Codex). |
-| dreaming/ | Grounded dreaming (idle-time cross-session fact consolidation into the Dream Diary) and surgical session memory unlearning. See [dreaming/_ARCH.md](dreaming/_ARCH.md). |
 | graph_rrf/ | Knowledge Graph and Vector Reciprocal Rank Fusion Memory Engine package. See [graph_rrf/_ARCH.md](graph_rrf/_ARCH.md). |
 | handoff/ | Strongly typed cross-agent/cross-session handoff protocol with atomic exactly-once claim and durable session finalizer. See [handoff/_ARCH.md](handoff/_ARCH.md). |
 | onboarding/ | Onboarding insight sampling and first-encounter reporting for users migrating from other agent tools (sliding-window sampling, local redaction, fact distillation). See [onboarding/_ARCH.md](onboarding/_ARCH.md). |
 | tool_guidance/ | Deterministic, cache-stable synthesis of procedural tool memory (traps) into bounded, zero-LLM tool guidance. See [tool_guidance/_ARCH.md](tool_guidance/_ARCH.md). |
-| git_okf/ | Git-native loader for Google OKF v0.2 knowledge bundles. See [git_okf/_ARCH.md](git_okf/_ARCH.md). |
-| hybrid_engine/ | Orchestrates zero-config SQLite FTS5, offline synonym expansion,. See [hybrid_engine/_ARCH.md](hybrid_engine/_ARCH.md). |
 | ephemeral_delta/ | In-memory, session-scoped transient buffer for prompt-cache-preserving deltas. See [ephemeral_delta/_ARCH.md](ephemeral_delta/_ARCH.md). |
-| markdown_curator/ | Calculates bi-directional deltas between in-memory stores and Markdown mirrors. See [markdown_curator/_ARCH.md](markdown_curator/_ARCH.md). |
-| peer_cognition/ | Self-evolving standing persona card engine and low-token context projector. See [peer_cognition/_ARCH.md](peer_cognition/_ARCH.md). |
-| relational_backtrack/ | Core backtracking engine for cross-session entity and temporal causal recall. See [relational_backtrack/_ARCH.md](relational_backtrack/_ARCH.md). |
-| rule_cascade/ | Hierarchical deterministic rule cascade loader inspired by Claude Code. See [rule_cascade/_ARCH.md](rule_cascade/_ARCH.md). |
 | two_layer_dialectic/ | Dual-layer context injection engine preserving LLM Prompt Cache while resolving contradictions. See [two_layer_dialectic/_ARCH.md](two_layer_dialectic/_ARCH.md). |
-| quadruple_retrieval/ | Goal-Driven Quadruple Parallel Retrieval and Reasoner Suite: deconstructs task goals, recalls via Graph/Vector/Lexical/Metadata channels, and reranks via Reasoner. See [quadruple_retrieval/_ARCH.md](quadruple_retrieval/_ARCH.md). |
 | chunking/ | Incremental Sliding Window Markdown Chunker Suite: semantic sliding window with 80-token overlap, content-hash incremental diffing, and line-level pointers. See [chunking/_ARCH.md](chunking/_ARCH.md). |
-| pitfall_alert/ | Proactive Past-Pitfall Alert and Decision Assist Suite: deterministic shadow intent recognizer, causal triad retrieval, session mute governance, and non-intrusive alert callouts. See [pitfall_alert/_ARCH.md](pitfall_alert/_ARCH.md). |
-| experience_compounding/ | Experience Compounding and Knowledge Condensation Suite: bounded logarithmic frequency compounding, semantic Golden Rule synthesis with lineage preservation, and obsolete context annealing governor. See [experience_compounding/_ARCH.md](experience_compounding/_ARCH.md). |
-| skill_triad/ | Memory Skill Triad and Physical Scope Isolation Suite: API manual, machine CLI JSON envelope, integration pipeline double-seam verification, length-prefixed isolated scopes, and visible degraded state. See [skill_triad/_ARCH.md](skill_triad/_ARCH.md). |
-| bitemporal_truth_maintenance/ | Bitemporal Truth Maintenance and Causal Inference Filter Suite: valid_at/known_at explicit half-open intervals, SupportDependency DAG, non-destructive retraction, and recursive active support filtering. See [bitemporal_truth_maintenance/_ARCH.md](bitemporal_truth_maintenance/_ARCH.md). |
 
 ## Key Dependencies
 
