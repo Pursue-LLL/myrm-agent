@@ -44,7 +44,7 @@ describe('CuratorSettingsPanel Component', () => {
           call_count: 30,
           success_rate: 0.1,
           pinned: true,
-          details: { observed_count: 30, success_count: 3, failure_count: 27, trust: 'trusted' },
+          details: { observed_count: 30 },
         },
       ],
       health_score: 75.0,

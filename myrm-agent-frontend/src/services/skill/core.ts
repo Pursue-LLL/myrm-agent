@@ -819,10 +819,7 @@ interface SkillDoctorFindingBase {
 /** The server sends a type code plus its parameters; the UI phrases each finding in the user's language. */
 export type SkillDoctorFindingItem = SkillDoctorFindingBase &
   (
-    | {
-        finding_type: 'wrong_but_frequent';
-        details: { observed_count: number; success_count: number; failure_count: number; trust: string };
-      }
+    | { finding_type: 'wrong_but_frequent'; details: { observed_count: number } }
     | { finding_type: 'stale_pinned'; details: { days_inactive: number } }
     | { finding_type: 'hoarding_bloat'; details: { active_count: number; max_skills: number; excess: number } }
   );

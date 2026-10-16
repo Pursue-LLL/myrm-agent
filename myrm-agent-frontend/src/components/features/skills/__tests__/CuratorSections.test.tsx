@@ -40,7 +40,7 @@ const diagnostics: SkillDoctorDiagnosticsResponse = {
       call_count: 8,
       success_rate: 0.125,
       pinned: true,
-      details: { observed_count: 8, success_count: 1, failure_count: 7, trust: 'trusted' },
+      details: { observed_count: 8 },
     },
     {
       skill_name: 'old-notes',
