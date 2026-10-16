@@ -188,7 +188,7 @@ async def build_channel_execution_agent(
         set_current_turn_id,
     )
 
-    turn_id = msg.metadata.get("turn_id") or msg.message_id or "unknown"
+    turn_id = str(msg.metadata.get("turn_id") or msg.message_id or "unknown")
     set_current_turn_id(turn_id)
     set_current_chat_id(chat_id)
     set_current_agent_id(resolved_agent_id or "default")
@@ -196,7 +196,7 @@ async def build_channel_execution_agent(
     from app.core.channel_bridge.executor_helpers import extract_external_agents
     from app.core.channel_bridge.learn_handler import (
         apply_learn_skill_manage_permission_overlay,
-        is_learn_skill_authoring_prompt,
+        learn_authoring_prompt_text,
     )
     from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
@@ -261,7 +261,7 @@ async def build_channel_execution_agent(
         code_execution_allow_network=_extract_code_exec_network(memory_settings),
         **privacy_agent_params(memory_settings),
         notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
-        force_skill_manage=is_learn_skill_authoring_prompt(query),
+        force_skill_manage=learn_authoring_prompt_text(query) is not None,
         locale=resolve_message_locale(msg),
     )
 
@@ -279,13 +279,13 @@ async def build_channel_execution_agent(
                 ),
             )
 
-    query_input: str | Command[object]
+    query_input: str | list[dict[str, object]] | Command[object]
     if is_resume:
         query_input = Command(resume=msg.resume_value)
     else:
         query_input = query
 
-    from myrm_agent_harness.agent.security import user_credentials_ctx
+    from myrm_agent_harness.core.security.types import user_credentials_ctx
 
     from app.services.agent.session_credential_assembler import (
         assemble_session_credentials,

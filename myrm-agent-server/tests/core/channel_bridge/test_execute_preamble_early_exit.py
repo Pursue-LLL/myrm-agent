@@ -18,6 +18,7 @@ from app.core.channel_bridge.agent_executor.execute_preamble.types import (
     ChannelAgentBuildResult,
 )
 from app.core.channel_bridge.config_loader import UserConfigs
+from app.core.channel_bridge.learn_handler import LEARN_PROMPT_PREFIX
 from app.core.types.business import ModelConfig
 
 _OWNER_MEMORY_SCOPE = TurnMemoryScope(policy=None, extra_namespaces=(), is_compartment=False)
@@ -182,6 +183,50 @@ async def test_build_agent_keeps_resume_claim_after_successful_assembly() -> Non
         assert scheduler.resolve_if_first(_RESUME_APPROVAL_KEY) is False
     finally:
         scheduler.reopen(_RESUME_APPROVAL_KEY)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("text", "expect_force_skill_manage"),
+    [
+        (f"{LEARN_PROMPT_PREFIX} Save it with the `skill_manage_tool`.", True),
+        ("What is in this picture?", False),
+    ],
+)
+async def test_build_agent_accepts_multimodal_query(text: str, expect_force_skill_manage: bool) -> None:
+    query: list[dict[str, object]] = [
+        {"type": "text", "text": text},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
+    ]
+    kwargs = _agent_build_kwargs(
+        _inbound_message(),
+        is_resume=False,
+        configs=_minimal_user_configs(),
+        enabled_builtin_tools=["code_execution"],
+    )
+    kwargs["query"] = query
+
+    with (
+        patch(
+            "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch(
+            "app.core.channel_bridge.agent_executor.execute_preamble.agent.AgentFactory.create_general_agent",
+            return_value=MagicMock(),
+        ) as mock_create_agent,
+        patch(
+            "app.services.agent.session_credential_assembler.assemble_session_credentials",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+    ):
+        outcome = await build_channel_execution_agent(**kwargs)
+
+    assert outcome.result is not None
+    assert outcome.result.query_input == query
+    assert mock_create_agent.call_args.args[0].force_skill_manage is expect_force_skill_manage
 
 
 @pytest.mark.asyncio

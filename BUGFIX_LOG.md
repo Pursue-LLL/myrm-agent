@@ -5104,3 +5104,42 @@ except Exception:
 2. 承诺式文案要对着「磁盘上实际还剩什么」逐项核对；写不出来的部分就不要承诺。
 3. 要在多个调用点保证一条不变量，就放在写入出口（仓储）而不是各调用方；一条 UPDATE 里的 `CASE` 不需要多一次读。
 4. 用临时索引拼提交时，必须先固定当前提交，并用「旧值比对」移动分支：这次的提交先读了旧提交的树，写入时父提交却已被另一会话推进，悄悄回滚了它两个提交里的文件，随后用固定了父提交的修正提交恢复；提交工具现在先固定提交、旧值比对后才移动分支。
+
+## BUG-AGENT-2026-10-16-013: IM 渠道的图片消息在构建 Agent 时抛 AttributeError：`/learn` 判定函数只收字符串，却收到多模态块列表
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（对 `-011` 的触碰文件逐个跑 pyright 时发现） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P1（带图片的 IM 消息在主模型支持视觉时无法构建 Agent，回合直接失败） |
+| 影响范围 | `myrm-agent-server/app/core/channel_bridge/agent_executor/execute_preamble/agent.py`、`execute_preamble/types.py`、`tests/core/channel_bridge/test_execute_preamble_early_exit.py`、`execute_preamble/_ARCH.md` |
+| 出现次数 | 1（真实函数复现，没有用户数据） |
+| 关联 | 与 `-011` 同一文件的静态检查中发现；提交本地，未 push |
+
+### 现象
+
+渠道消息带图片时，`build_channel_inbound_query` 返回多模态块列表；主模型本身支持视觉（无需视觉回落预处理）时，该列表原样进入 `build_channel_execution_agent`，在装配参数处调用 `is_learn_skill_authoring_prompt(query)`，其内部 `content.strip()` 抛 `AttributeError: 'list' object has no attribute 'strip'`。
+
+### 根因
+
+同一个函数里有两处判断「是否 /learn 回合」：权限叠加走多模态安全的 `learn_authoring_prompt_text`，`force_skill_manage` 却直接调用只收字符串的 `is_learn_skill_authoring_prompt`。两处口径不一致，只有文本消息被测试覆盖。
+
+### 修复
+
+1. `force_skill_manage` 改用 `learn_authoring_prompt_text(query) is not None`，与同函数的权限叠加、`converter.py` 的 Web 路径同一口径（`agent.py:264`）。
+2. 顺带清掉同文件的其余 3 条类型报错：`turn_id` 显式转 `str`；`query_input` 与 `ChannelAgentBuildResult` / `ChannelExecutionPrep` 的声明放宽为「文本、多模态块列表或 resume `Command`」；`user_credentials_ctx` 改从定义模块导入（`agent.security` 的惰性导出被推断为 `object`），`token_ctx` 的声明收紧为 `Token[tuple[EphemeralUserCredential, ...]]`。
+
+### 验证
+
+1. 新增参数化测试 `test_build_agent_accepts_multimodal_query`（含 /learn 与普通两种文本块）；变异检查：把调用改回旧函数，2 例都以 `AttributeError` 失败，改回后通过。
+2. `tests/core/channel_bridge` 整个目录 679 例通过；`ruff check`、`ruff format --check`、pyright 对三个触碰文件为 0 个问题。
+
+### 局限
+
+1. `executor.py:220` 仍从 `agent.security` 导入 `user_credentials_ctx`（同样被推断为 `object`），以及 `executor.py`、`preamble.py` 里另外 4 条既有的 pyright 报错未处理：这两个文件当前有他人的在途改动。
+2. 没有在真实 IM 渠道发送带图片的消息做端到端验证。
+
+### 教训
+
+1. 同一个判断在同一函数里出现两次、用了两个签名不同的函数，就是下一次类型漂移的入口；入参类型是联合类型时，只收其中一种的函数不能直接接。
+2. 联合类型的入参只被文本用例测试覆盖，等于没有测试另一半；参数化测试要把每个分支都走一遍。
