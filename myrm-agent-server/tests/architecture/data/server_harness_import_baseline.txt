@@ -268,6 +268,7 @@ myrm_agent_harness.observability.metrics.db_pool_collector
 myrm_agent_harness.observability.storage_governance
 myrm_agent_harness.observability.tracing
 myrm_agent_harness.runtime.checkpointing.factory
+myrm_agent_harness.runtime.checkpointing.pruning
 myrm_agent_harness.runtime.cognitive_clock.signals
 myrm_agent_harness.runtime.context.archive_restore_action
 myrm_agent_harness.runtime.context.cleanup_task
