@@ -5457,7 +5457,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 ### 修复
 
 1. 引擎的 `run` 与 `run_async` 新增 `installed_names`：开关开启时与 `protected_names` 并成同一个豁免集（`engine.py:202-206` `_exempt_names`），逐技能判定（`:142`）、LRU 池（`:147`）、合并候选（`:196-197`）共用；删除遗忘策略里永不触发的 trust 分支；
-2. 服务端新增 `scan_local_skills`（`app/core/skills/curator/local_skills.py:43-59`）：一次扫描全部根目录，带市场安装标记 `origin.json`，或位于默认路径第一项（Myrm 自己的目录）之外的技能算「已安装」；自动扫描、合并预览与执行、体检三处共用同一次扫描；
+2. 服务端新增 `scan_local_skills`（`app/core/skills/curator/local_skills.py:43-59`）：一次扫描全部根目录，带市场安装标记 `origin.json`，或位于默认路径第一项（Myrm 自己的目录）之外的技能算「已安装」；自动扫描、合并预览与执行、体检三处共用这一个扫描函数（每次调用各自重新扫描）；
 3. `details` 只留 `observed_count`，前端类型与三处夹具同步；
 4. 噪声计改收 `agent.configEditor` 的翻译函数，新增用真实 en、zh 消息渲染的用例；删除 12 条无引用的文案键；`protectInstalledDesc` 六种语言改为如实描述（含其他工具目录）；
 5. 预置技能豁免用例改为参数化，同时断言开关关闭时被清理；
@@ -5471,7 +5471,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 服务端：`tests/core/skills/curator`、`test_curator_consolidation.py`、`tests/core/infra/health`、`test_curator_usage_pipeline_integration.py` 共 109 通过；`test_local_skills.py` 用真实 `LocalSkillBackend` 目录断言「主目录自写不算、市场安装算、其他工具目录算、主目录缺失时不把其他目录当主目录、没有目录时无事可扫」；集成用例跑通「扫描 → 引擎 → 统计账本」：市场安装与其他工具的技能保持活跃、闲置的自写技能转陈旧，关闭开关后全部转陈旧；
 3. 前端：技能与智能体配置面板两个目录 39 文件 217 通过；`verify:i18n`、`verify:i18n-references`、`verify:theme-colors` 通过；触及文件 prettier、oxlint 0 告警；把 `t={t}` 改回 `t={tPanel}` 做变异验证，新增用例在 en 与 zh 各失败 1 例（共 2 例），还原后通过；
 4. 拆分后 `check_module_reachability` 不再提到 `skill_doctor`（服务端改从新模块导入之前，它被报为「无生产调用方」，门禁共 19 项；现在 18 项，都是他人的模块）；
-5. 文案改动后：`verify:i18n`（含代码引用检查）、`verify:theme-colors`、六份 locale 与 ko 补丁的 prettier、智能体配置面板目录 7 文件 29 例通过；harness 与服务端触及文件 ruff 无告警，harness 3 个触及文件与服务端 4 个触及文件的 mypy 在这些文件内 0 错误（服务端整仓另有 1134 条，均不在这些文件里）。
+5. 文案改动后：`verify:i18n`（含代码引用检查）、`verify:theme-colors`、六份 locale 与 ko 补丁的 prettier、智能体配置面板目录 7 文件 29 例通过；harness 与服务端触及文件 ruff 无告警，harness 3 个触及文件与服务端 4 个触及文件的 mypy 在这些文件内 0 错误（服务端 mypy 跟随导入共报 1134 条，均不在这些文件里）；`scan_local_skills` 实测：200 个技能（主目录 150 个，一半带 `origin.json`）7 次中位数 61.2 ms，把 `origin.json` 检查桩掉后 57.5 ms，多出约 4 ms。
 
 ### 局限
 
@@ -5479,7 +5479,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 日、韩、德、繁体中文的新文案没有母语复核；
 3. 服务端的 `protect_system_skills` 实际无效：预置技能在存储提供方里，本地扫描触不到，本次没有改动；
 4. 清理标记的「已归档」在运行时是否真正不再加载，取决于他人尚未提交的运行时归档闸门（`app/core/skills/gates/runtime_load.py`），不属本条；
-5. 本机其他工具的技能目录里有 24 个 `.stats.json` 账本（账本是清理对一个技能生效的前提），写入方没有查清；
+5. 本机 `~/.cursor/skills-cursor` 下 24 个技能的 `.stats.json` 全部在 2026-10-09 13:18:34 同一秒创建、调用数均为 0，批量写入方没有查清；机制已确认：统计收集器第一次读到某个没有账本的技能就会建账本（`myrm-agent-harness/src/myrm_agent_harness/backends/skills/stats_collector.py:193-205`），所以对其他工具目录里的技能并不是「只读」，关闭保护时清理还会改它们的账本状态（文件不删）；注释与路线图里「Myrm 只读不写」的说法已删；
 6. 仍失败、且不涉及本条文件的：服务端 `tests/architecture/test_server_harness_imports.py`（136 条新增深层导入，均来自他人未提交的改动，没有一条与 `skill_doctor` 或 `forgetting_strategy` 有关）、harness `check_module_reachability` 18 项、`tests/agent/skills/test_anti_sycophancy_curator_engine.py` 的 3 条 ruff 未使用导入、前端 `LearningLoopFiveRingHub.test.tsx` 的 1 条 `tsc` 类型错误；
 7. 服务端导入基线位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，用带锚点校验的脚本编辑（与 `BUG-AGENT-2026-10-15-003` 局限 8 相同）；
 8. 服务端依赖尚未发布的 harness：`service.py` 从新模块 `skill_doctor` 导入，`curator.run` 传入新参数 `installed_names`；服务端依赖声明固定为 `myrm-agent-harness==0.1.0rc5`（`myrm-agent-server/pyproject.toml:25`），要先发布 harness 版本再 `./myrm harness sync-lock`；本次只做了 sync-lock 的本地检查，没有发布；

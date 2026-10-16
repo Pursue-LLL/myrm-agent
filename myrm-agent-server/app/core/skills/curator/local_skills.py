@@ -27,7 +27,7 @@ from myrm_agent_harness.backends.skills.types import SkillMetadata
 from app.core.skills import models
 
 # The first root is the one Myrm writes to (see ``DEFAULT_LOCAL_SKILL_PATHS``); every other root
-# belongs to another tool (Cursor, Claude Code, Codex, ...) that Myrm only reads.
+# belongs to another tool (Cursor, Claude Code, Codex, ...).
 _PRIMARY_ROOT_INDEX = 0
 
 
