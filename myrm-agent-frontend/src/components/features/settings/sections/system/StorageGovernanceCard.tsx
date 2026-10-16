@@ -35,6 +35,18 @@ import { systemService } from '@/services/system';
 
 type StorageReport = Awaited<ReturnType<typeof systemService.getStorageGovernanceReport>>;
 
+// Categories the backend reports; each has a localized label, anything newer falls back to its display_name.
+const LOCALIZED_CATEGORIES: ReadonlySet<string> = new Set([
+  'sqlite_database',
+  'checkpoints',
+  'workspaces',
+  'vector_store',
+  'memory_archive',
+  'event_logs',
+  'snapshots',
+  'other',
+]);
+
 function formatBytes(bytes: number): string {
   if (bytes <= 0) {
     return '0 B';
@@ -82,7 +94,7 @@ export const StorageGovernanceCard = memo(() => {
       } else {
         toast({
           title: t('compactionFailedTitle'),
-          description: res.message,
+          description: t('compactionFailedDesc'),
           variant: 'destructive',
         });
       }
@@ -239,7 +251,7 @@ export const StorageGovernanceCard = memo(() => {
               ) : (
                 <IconWrench className="w-3.5 h-3.5" />
               )}
-              {t('compactAndPurge')}
+              {t('compactDatabase')}
             </Button>
           </div>
 
@@ -250,7 +262,9 @@ export const StorageGovernanceCard = memo(() => {
                 className="rounded-lg border border-border/30 bg-muted/20 p-3 flex flex-col justify-between space-y-2"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-foreground truncate">{cat.display_name}</span>
+                  <span className="text-xs font-medium text-foreground truncate">
+                    {LOCALIZED_CATEGORIES.has(cat.category) ? t(`categories.${cat.category}`) : cat.display_name}
+                  </span>
                   <span className="text-xs font-semibold">{formatBytes(cat.bytes)}</span>
                 </div>
                 <div className="w-full bg-border/40 h-1.5 rounded-full overflow-hidden">

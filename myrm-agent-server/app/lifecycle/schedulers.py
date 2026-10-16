@@ -501,6 +501,13 @@ async def _incognito_cleanup_job() -> None:
         logger.warning("Incognito chat auto-purge failed: %s", e)
 
 
+async def _checkpoint_history_prune_job() -> None:
+    """Drop superseded checkpoint history and hand the freed space back to the filesystem."""
+    from app.services.system.checkpoint_history_service import run_checkpoint_history_prune
+
+    await run_checkpoint_history_prune()
+
+
 _db_maintenance_scheduler_task: asyncio.Task[None] | None = None
 
 
@@ -509,6 +516,8 @@ async def start_db_maintenance_scheduler() -> None:
     global _db_maintenance_scheduler, _db_maintenance_scheduler_task
 
     try:
+        from datetime import UTC, datetime, timedelta
+
         from apscheduler import AsyncScheduler
         from apscheduler.triggers.interval import IntervalTrigger
 
@@ -524,6 +533,13 @@ async def start_db_maintenance_scheduler() -> None:
                     _incognito_cleanup_job,
                     IntervalTrigger(minutes=60),
                     id="incognito_cleanup",
+                )
+                # Delayed so the first pass over a long-grown checkpoint database does not compete with startup;
+                # it works in small lock-releasing batches, so conversations keep running meanwhile.
+                await scheduler.add_schedule(
+                    _checkpoint_history_prune_job,
+                    IntervalTrigger(hours=6, start_time=datetime.now(UTC) + timedelta(minutes=10)),
+                    id="checkpoint_history_prune",
                 )
                 global _db_maintenance_scheduler
                 _db_maintenance_scheduler = scheduler

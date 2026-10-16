@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { StorageGovernanceCard } from '../StorageGovernanceCard';
 import { systemService } from '@/services/system';
+import { toast } from '@/hooks/shared/useToast';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
   if (params?.freed) {
@@ -55,6 +56,14 @@ describe('StorageGovernanceCard', () => {
         percentage: 40.0,
         details: { collections: 2 },
       },
+      {
+        category: 'future_subsystem',
+        display_name: 'Future Subsystem',
+        bytes: 1024,
+        item_count: 1,
+        percentage: 0.1,
+        details: {},
+      },
     ],
     snapshots: [
       {
@@ -81,8 +90,11 @@ describe('StorageGovernanceCard', () => {
 
     await waitFor(() => {
       expect(screen.getByText('50.00 MB')).toBeInTheDocument();
-      expect(screen.getByText('SQLite Core Databases')).toBeInTheDocument();
-      expect(screen.getByText('Vector Embeddings (Qdrant)')).toBeInTheDocument();
+      expect(screen.getByText('categories.sqlite_database')).toBeInTheDocument();
+      expect(screen.getByText('categories.vector_store')).toBeInTheDocument();
+      // A category the card has no label for keeps the name the backend reports.
+      expect(screen.getByText('Future Subsystem')).toBeInTheDocument();
+      expect(screen.queryByText('SQLite Core Databases')).not.toBeInTheDocument();
       expect(screen.getByText('Pre-upgrade stable backup')).toBeInTheDocument();
     });
   });
@@ -93,7 +105,6 @@ describe('StorageGovernanceCard', () => {
       initial_bytes: 52428800,
       final_bytes: 41943040,
       freed_bytes: 10485760,
-      purged_checkpoints: 2,
       wal_truncated: true,
       duration_ms: 12.5,
       message: 'Compacted',
@@ -102,16 +113,42 @@ describe('StorageGovernanceCard', () => {
     render(<StorageGovernanceCard />);
 
     await waitFor(() => {
-      expect(screen.getByText('compactAndPurge')).toBeInTheDocument();
+      expect(screen.getByText('compactDatabase')).toBeInTheDocument();
     });
 
-    const compactBtn = screen.getByText('compactAndPurge');
+    const compactBtn = screen.getByText('compactDatabase');
     fireEvent.click(compactBtn);
 
     await waitFor(() => {
       expect(systemService.executeStorageCompaction).toHaveBeenCalled();
       expect(systemService.getStorageGovernanceReport).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('tells the user in their language when compaction did not complete', async () => {
+    (systemService.executeStorageCompaction as unknown as Mock).mockResolvedValue({
+      success: false,
+      initial_bytes: 52428800,
+      final_bytes: 52428800,
+      freed_bytes: 0,
+      wal_truncated: false,
+      duration_ms: 3.1,
+      message: 'State database compaction did not complete.',
+    });
+
+    render(<StorageGovernanceCard />);
+    fireEvent.click(await screen.findByText('compactDatabase'));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'compactionFailedTitle',
+          description: 'compactionFailedDesc',
+          variant: 'destructive',
+        }),
+      );
+    });
+    expect(systemService.getStorageGovernanceReport).toHaveBeenCalledTimes(1);
   });
 
   it('creates and restores state snapshot', async () => {

@@ -76,25 +76,18 @@ export const systemService = {
     return apiRequest(`/system/storage/governance?t=${Date.now()}`);
   },
 
-  async executeStorageCompaction(options?: {
-    purge_orphan_checkpoints?: boolean;
-    incremental_pages?: number;
-  }): Promise<{
+  async executeStorageCompaction(options?: { incremental_pages?: number }): Promise<{
     success: boolean;
     initial_bytes: number;
     final_bytes: number;
     freed_bytes: number;
-    purged_checkpoints: number;
     wal_truncated: boolean;
     duration_ms: number;
     message: string;
   }> {
     return apiRequest('/system/storage/compaction', {
       method: 'POST',
-      body: JSON.stringify({
-        purge_orphan_checkpoints: options?.purge_orphan_checkpoints ?? true,
-        incremental_pages: options?.incremental_pages ?? 500,
-      }),
+      body: JSON.stringify({ incremental_pages: options?.incremental_pages ?? 500 }),
     });
   },
 

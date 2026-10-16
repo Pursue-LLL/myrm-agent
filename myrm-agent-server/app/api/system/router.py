@@ -418,7 +418,7 @@ def get_storage_governance_report() -> StorageGovernanceReportResponse:
     data_dir = Path(settings.database.state_dir)
     snapshot_mgr = StateSnapshotManager(data_dir)
     snapshots = snapshot_mgr.list_snapshots()
-    inspector = StorageGovernanceInspector(data_dir)
+    inspector = StorageGovernanceInspector(data_dir, checkpoints_db=Path(settings.database.sqlite_db_path))
     report = inspector.inspect(snapshots=snapshots)
 
     return StorageGovernanceReportResponse(
@@ -458,7 +458,7 @@ def get_storage_governance_report() -> StorageGovernanceReportResponse:
 def execute_storage_compaction(
     req: StorageCompactionRequest,
 ) -> StorageCompactionResponse:
-    """Execute safe non-blocking storage compaction, incremental vacuum, and checkpoint pruning."""
+    """Compact the state database: truncate its WAL and reclaim free pages."""
     from myrm_agent_harness.observability.storage_governance import (
         StateStorageCompactor,
     )
@@ -466,17 +466,13 @@ def execute_storage_compaction(
     settings = get_settings()
     data_dir = Path(settings.database.state_dir)
     compactor = StateStorageCompactor(data_dir)
-    result = compactor.compact(
-        purge_orphan_checkpoints=req.purge_orphan_checkpoints,
-        incremental_pages=req.incremental_pages,
-    )
+    result = compactor.compact(incremental_pages=req.incremental_pages)
 
     return StorageCompactionResponse(
         success=result.success,
         initial_bytes=result.initial_bytes,
         final_bytes=result.final_bytes,
         freed_bytes=result.freed_bytes,
-        purged_checkpoints=result.purged_checkpoints,
         wal_truncated=result.wal_truncated,
         duration_ms=result.duration_ms,
         message=result.message,

@@ -110,7 +110,6 @@ class StorageGovernanceReportResponse(BaseModel):
 
 
 class StorageCompactionRequest(BaseModel):
-    purge_orphan_checkpoints: bool = True
     incremental_pages: int = 500
 
 
@@ -119,7 +118,6 @@ class StorageCompactionResponse(BaseModel):
     initial_bytes: int
     final_bytes: int
     freed_bytes: int
-    purged_checkpoints: int
     wal_truncated: bool
     duration_ms: float
     message: str
