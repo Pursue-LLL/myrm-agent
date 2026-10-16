@@ -4491,3 +4491,61 @@ except Exception:
 2. 判断一个事件有没有人监听时要排除测试文件：测试里的 `addEventListener` 只证明测试在听。
 3. 对外材料（素材库、文档站）里的能力描述要能指到一个渲染它的入口和一个提供数据的接口，否则会把没接上的界面当成产品能力宣传出去。
 4. 写「没有某能力」之前要先全仓按能力而不是按名字找一遍：本条第一版把缺口写成「没有引擎级看板」，是复核时才发现记忆指挥中心已有 Memory Doctor，随后在根仓改正。
+
+## BUG-AGENT-2026-10-16-003: 澄清卡与目录授权卡回答后只剩一句「已回答」，看不出答了什么、是否跳过或超时；连环出现的下一张卡在重新打开后把旧卡留成未答的幽灵或被当场标成已答；续跑被拒后放回的卡是一张空白卡；需要确认的表单被跳过时模型得到的是「按你的判断继续」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（对 `BUG-AGENT-2026-10-15-022` 局限的追问：卡片结案后的呈现、续跑被拒后的重挂载、跳过与超时对「需要确认」表单的语义） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（不丢数据；跳过或超时一张需要确认的表单后，模型被告知「按你的判断继续」，有把沉默当成同意的风险；其余是结案后看不出结果、重新打开后卡片状态错乱、续跑被拒后用户要重填） |
+| 影响范围 | server：`app/ai_agents/general_agent/{ask_question_result,tool_setup}.py`（P4）、`app/services/agent/stream_session/{answered_cards,stream_finalize}.py`、`app/services/agent/streaming.py`、`app/services/agent/streaming_support/{hitl_timeout,stream_collector,stream_collector_helpers}.py` 与各自 `_ARCH.md`；frontend：`store/chat/{hitlAnswerRecord,hitlCardDraft,hitlCardAnswer}.ts`、`types/messages.ts`、`messageStream/handlers/statusStreamPhaseData.ts`、`components/features/message-box/{HitlAnsweredNote,HitlSettledNotes,ClarificationInput,DirectoryApprovalInput,MessageBox}.tsx`、六份语言包（6 个键）与对应测试和 `_ARCH.md`；不涉及系统提示词、工具 schema 与存储表 |
+| 出现次数 | 1（读码、桩流与 jsdom 复现；没有真实模型与真实浏览器验证） |
+| 关联 | `BUG-AGENT-2026-10-15-022` 的后续；提交：agent `44cc794664`（P4）、`83a4287d16`（server）、`e220080bae`（frontend）；后两个提交信息里写成了 `BUG-AGENT-2026-10-16-002`，该编号已被另一条占用，以本条 `-003` 为准；本地提交，未 push |
+
+### 现象
+
+1. 澄清卡与目录授权卡回答后，卡片折叠成固定一行「已回答 / 已处理」（`ClarificationInput.tsx`、`DirectoryApprovalInput.tsx` 旧的结案分支），不论用户选了什么、是跳过、是超时，还是授予了哪个目录、是只读还是读写。
+2. 服务端结案（`finalize` 与超时恢复）只把卡片置 `answered`，不记录是谁结的案、结案值是什么。
+3. `finalize` 在持久化续写之后才结案：续写里又出现新的澄清时，旧卡因 `not clarification.pending` 守卫而不被标记，重新打开会话后它是一张未答的幽灵卡并重新占住输入区；续写里出现新的目录请求时，被标成已答的是刚落库的新卡，重新打开后它直接消失。
+4. 续跑请求被拒后卡片放回，但输入区接管的卡片在点击时已卸载，重新挂载的是一张空白卡，用户要重填文本与选项（目录卡丢失路径与写权限）。
+5. `ask_question` 的 `requires_confirmation` 表单被跳过或超时，与普通澄清一样得到「Proceed with your best judgment」（`ask_question_result.py` 旧行为），用于不可逆或高风险操作前的签字被当成了许可。
+
+### 根因
+
+1. 结案只存一个布尔值，没有「谁答的、答了什么」的数据模型。
+2. 结案点放在持久化续写之后，而 `_mark_latest_unanswered` 按「最新一张未答卡」翻转，续写里的新卡会抢走这次翻转。
+3. 卡片的草稿只存在于组件 state，而输入区接管的卡片在点击后被卸载。
+4. 「没有回答」与「没有同意」没有区分。
+
+### 修复
+
+1. P4（`44cc794664`）：`format_ask_question_result` 对 `requires_confirmation` 表单在无回答时返回「未确认，操作未获批准，不要执行也不要再问」，普通澄清文案不变；只改运行期工具结果（英文，与同文件已有的兄弟文案一致），不改系统提示词与工具 schema，提示词缓存不受影响。
+2. P3 server：卡片新增 `answerRecord = {by: 'user'|'timeout', value}`（`HitlAnswerRecord`，`hitl_timeout.py:51`）；`_mark_latest_unanswered` 在同一次翻转里写入记录（`hitl_timeout.py:73`）；新增 `stream_session/answered_cards.py::settle_answered_cards`，`finalize` 在持久化续写之前调用（`stream_finalize.py:421`），旧的事后标记块与 `not clarification.pending` 守卫随之删除（结案先于持久化，续写里的新卡不再被误翻）；超时路径写 `{by:'timeout', value:<超时默认值>}`（`hitl_timeout.py:239`）；Deep Research 的 `clarify` / `resolved` 事件携带记录并由 collector 合并进卡片（`streaming.py:649`、`stream_collector.py` 的 `resolved` 分支）；顺带删除目录卡里无人读取的 `isResumeMode`、修掉 `parse_tool_end_result` 的一处 mypy 错误。记录字段在 `chat_history.py:86-96` 不进入 LLM 历史，零 token 成本。
+3. P3 frontend：`HitlAnswerRecord` 类型与无 store 的 `hitlAnswerRecord.ts`（`isHitlAnswerRecord`、`summarizeClarificationRecord`、`summarizeDirectoryRecord`；记录是持久化数据，按所在卡片校验，不符回落到「已回答 / 已处理」）；`hitlCardAnswer.ts` 的 `answerHitlCardWithResume` 点击即写入用户记录，续跑已过期（`ApprovalExpiredError`）时改写为超时记录，被拒时只在行上仍是同一张卡对象时放回；结案横幅拆成 `HitlAnsweredNote`（展示）与 `HitlSettledNotes`（文案），澄清卡展示所答选项标签、已跳过、已超时，目录卡展示授予目录（只读 / 读写）、已拒绝、已超时；六种语言新增 6 个键。
+4. P1：`hitlCardDraft.ts` 在点击时按「卡片类型 + messageId」保存已填内容（澄清：文本、选项、各题文本与选择；目录：路径与写权限），被拒放回后重挂载的卡片据此恢复，成功或已超时即丢弃；只在内存里，不落盘。
+
+### 验证
+
+1. 红灯先行：finalize 的记录、连环新澄清、连环目录请求、DR 记录、超时记录与结案横幅、草稿恢复都先写出失败的用例再改。
+2. 变异检查（改一处、跑、写回）：server 7 个全部被抓住（resume 记录丢失、存储的卡不带记录、finalize 不结案、结案挪回持久化之后、超时记成用户答、`clarify` 事件把超时与用户对调、collector 丢记录），frontend 11 个全部被抓住。第一次 server 变异运行因还原脚本用 `replace('None', ...)` 命中了函数签名里的 `-> None:`，把被测文件改坏、7 个结果全部失效，修回后用唯一标记重跑，上面的结果来自重跑；确认没有 `MUTATED` 标记残留。
+3. 测试：frontend `message-box`、`hitlAnswerRecord`、水合往返、`messageStream/handlers` 共 93 个文件 621 例通过；server 7 个文件 75 例通过。最终运行的第一次里 `test_hitl_timeout.py::test_approval_timeout_leaves_stored_cards_alone`（审批类，20 ms 计时器，本条未改动该用例与审批路径）失败过一次，当时机器负载约 100；之后该文件单独三次 29/29、七个文件合并重跑 75/75、该用例单独循环 12 次均通过，没有定位到原因，按偶发记录。
+4. 门禁：server 触及文件 ruff 与 format 干净，mypy 对 5 个触及模块无错误（跟随导入的其他模块有既有报错）；frontend 触及文件 oxlint 0、prettier 干净、`verify:theme-colors` 与 `verify:icu-syntax` 通过；`tsc` 报 50 条错误，全部在其他开发者的文件里（`needs-you`、`mobile-companion`、`ergonomic-cockpit` 等目录），触及文件无报错；`verify:i18n` 因其他开发者的组件引用了缺失的键而退出 1（多智能体面板、拓扑裁剪、看板移交、技能详情），其中没有本条的 6 个键；`verify:hardcoded-copy`、`verify:orphans`、`verify:a11y` 当前退出 1，输出里没有本条的任何文件。
+5. 提交内容均为「HEAD 加自己的改动」：`stream_collector.py`、`streaming_support/_ARCH.md`、`messages.ts` 与六份语言包在工作区里带有他人未提交的改动，提交只含本条的块（语言包每份 +6 行）；提交后工作区与提交的差只剩他人的块；提交的 24 个前端文件的相对导入在 HEAD 上全部可解析。
+
+### 局限
+
+1. 没有真实模型、真实浏览器与截图验证：跳过签字表单后模型的实际行为、结案横幅与窄屏、明暗主题下的呈现只有 jsdom、类名审阅与主题色门禁。
+2. 旧会话里已落库的卡片没有记录，一律回落到「已回答 / 已处理」，没有迁移。
+3. 草稿只在内存里，刷新页面即丢；回答内容现在随卡片落库（此前只在智能体检查点里），现有的落库前密钥清理是否覆盖 `answerRecord` 没有核对（未验证）。
+4. 目录卡「卡片已被续跑流替换」的过期分支与澄清卡共用同一段代码，只用澄清卡的用例覆盖。
+5. 第一版工作区里 `streaming_support/_ARCH.md` 曾被我的脚本截断（先以写模式打开目标、再读同一路径），之后用 HEAD 加他人那一句加我的改动重建；他人那一句来自被截断的 diff 输出，与其原文是否逐字一致没有验证。提交的是只含我的改动的版本，工作区里是重建版本。
+6. 与本条无关、未动：`MessageBox.tsx`（828 行，HEAD 为 826）、`stream_finalize.py`（660 行，HEAD 为 672）超过文件行数建议。
+
+### 踩坑经验
+
+1. 「结案」要放在「持久化续写」之前：按「最新一张未答卡」翻转的标记，一旦续写里有新卡就会翻错对象；先结案再持久化，旧的守卫条件也就不再需要。
+2. 写脚本改文件时先读后写：`open(dst, 'w')` 会在读取之前截断同一路径。
+3. 变异检查的还原步骤要用唯一标记，并在读结果之前确认被测文件已恢复；用 `replace('None', ...)` 这类通用文本会命中别处。
+4. 共享工作区里提交失败后先看 `git log` 再重试：提交脚本在引用已更新之后、同步共享索引时遇到 `index.lock` 会报错退出，此时提交已经落地，只需补同步索引。
+5. 持久化数据不可信任：读取 `answerRecord` 时按所在卡片校验形状，不符就回落到最朴素的文案，不要让一条坏数据让整张卡渲染出错。
