@@ -3600,7 +3600,7 @@ except Exception:
 
 1. **真机 E2E 的可信范围**：共跑 12 次，只有第 12 次是真通过。前 11 次：第 1、4、8、10 次启动器种子失败（`E2E_EPOCH_PIN_FAILED`）；第 2、7、11 次 `E2E_EPOCH_PIN_DEFER_SKIP`（exit=0 但是跳过，第 11 次原因是 `private backend cap reached (4/4)`，不算通过）；第 3 次 pytest 以 247（SIGKILL）退出；第 5 次后台任务随 shell 结束被杀，无结果；第 6 次真实失败：`desktop/dark: 高频低效 1.85:1 at 10px`（即修复 7 的缺陷）；第 9 次真实失败于手机 iframe 的就绪探测（`{'ready': False, 'width': 375}`），根因没有查实，第 10 次起探测只看 `settings-layout` 与路径并带出更多状态，随后通过，无法区分当时是主机负载（load 100+）还是探测条件所致。深色主题的检测只在缺陷版本上被抓到过一次；浅色主题与手机宽度的检测没有用故意破坏的版本验证过会不会变红；`rounded-lg` 没有目视；第 12 次通过发生在删除耗时显示、E2E 加 `\d\s?ms\b` 之前。之后为证明浅色与手机宽度的检测会变红，写了一次性变异用例（在 375px 框内插入 700px 宽元素并把一行说明改成浅灰），尝试 5 次：1 次因用例自身的导入写法失败、1 次 SIGKILL（247）、1 次预检 360 秒超时、2 次种子失败（`E2E_EPOCH_PIN_FAILED`），都没有跑出结论，用例已删除；所以这两项检测的灵敏度，以及删除耗时显示之后的真机页面，都没有再验证过；
 2. 日、韩、德、繁中文案没有母语者审校，词汇沿用各语言文件里 `card.stale` / `card.archived` / `card.pinned` 的既有译法；
-3. 两套囤积判断仍各自一套阈值（诊断面板的 `hoarding_bloat` 与 `SkillHoardingHealthDiagnostic` 的 80% 预警）；
+3. 两套囤积判断仍各自一套阈值（诊断面板的 `hoarding_bloat` 与 `SkillHoardingHealthDiagnostic` 的 80% 预警；两者已在 `BUG-AGENT-2026-10-16-025` 随容量机制一并删除）；
 4. harness 的 `SkillDoctorFinding.message` 仍在产生并序列化，本产品不再读它；它是框架公开接口，删除需要先发布 harness 再 `sync-lock`，本条不涉及；
 5. 可访问名称只由单测（`getByRole(..., { name })`）保证，真机 E2E 没有断言它；
 6. 英文对次数与天数用 ICU 复数，德文只对天数用复数（`{days, plural, one {seit # Tag} other {seit # Tagen}}`），中日韩繁体不分单复数。
@@ -5477,13 +5477,13 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 1. 真机 E2E 没有在最终代码上跑：23:36 本机负载均值 49.45，且有至少 4 个他人的 `chrome_e2e` 进程在跑；E2E 夹具只改了 `details` 一个键，界面只读 `observed_count`，由单测覆盖，没有目视检查；
 2. 日、韩、德、繁体中文的新文案没有母语复核；
-3. 服务端的 `protect_system_skills` 实际无效：预置技能在存储提供方里，本地扫描触不到，本次没有改动；
+3. 服务端的 `protect_system_skills` 实际无效：预置技能在存储提供方里，本地扫描触不到，本次没有改动（已在 `BUG-AGENT-2026-10-16-025` 随开关一并删除）；
 4. 清理标记的「已归档」在运行时是否真正不再加载，取决于他人尚未提交的运行时归档闸门（`app/core/skills/gates/runtime_load.py`），不属本条；
 5. 本机 `~/.cursor/skills-cursor` 下 24 个技能的 `.stats.json` 全部在 2026-10-09 13:18:34 同一秒创建、调用数均为 0，批量写入方没有查清；机制已确认：统计收集器第一次读到某个没有账本的技能就会建账本（`myrm-agent-harness/src/myrm_agent_harness/backends/skills/stats_collector.py:193-205`），所以对其他工具目录里的技能并不是「只读」，关闭保护时清理还会改它们的账本状态（文件不删）；注释与路线图里「Myrm 只读不写」的说法已删；
 6. 仍失败、且不涉及本条文件的：服务端 `tests/architecture/test_server_harness_imports.py`（136 条新增深层导入，均来自他人未提交的改动，没有一条与 `skill_doctor` 或 `forgetting_strategy` 有关）、harness `check_module_reachability` 18 项、`tests/agent/skills/test_anti_sycophancy_curator_engine.py` 的 3 条 ruff 未使用导入、前端 `LearningLoopFiveRingHub.test.tsx` 的 1 条 `tsc` 类型错误；
 7. 服务端导入基线位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，用带锚点校验的脚本编辑（与 `BUG-AGENT-2026-10-15-003` 局限 8 相同）；
 8. 服务端依赖尚未发布的 harness：`service.py` 从新模块 `skill_doctor` 导入，`curator.run` 传入新参数 `installed_names`；服务端依赖声明固定为 `myrm-agent-harness==0.1.0rc5`（`myrm-agent-server/pyproject.toml:25`），要先发布 harness 版本再 `./myrm harness sync-lock`；本次只做了 sync-lock 的本地检查，没有发布；
-9. 体检与健康探针的容量告警仍按全部活跃技能计数，清理的 LRU 池却不含受保护技能：构造 60 个装来 + 5 个自写、上限 50，一次清理 0 次转换（`skipped_protected` 为 60），体检报 `active_count` 65、超出 15；探针超上限判 `fail` 并建议「运行清理」，对受保护技能无效；设置里「超出后将最久未使用的技能标记为闲置」对受保护技能也不成立。绑定技能自被豁免起就有同样的口径差，装来技能把它放大（本机 `~/.cursor/skills-cursor` 下就有 24 个其他工具的技能被扫进来；本机自写技能数没有量）。清理结果里的 `skipped_protected`（`engine.py:292`）没有出现在任何接口或界面（server 的 `app` 与 frontend 的 `src` 全文检索 0 处引用），保护开关又默认开启（`curator_config.py:102`），用户看到「清理了 0 个」不知道有多少被保护跳过。本条不处理，记在路线图 topic_08 #43 ⑥；
+9. 体检与健康探针的容量告警仍按全部活跃技能计数，清理的 LRU 池却不含受保护技能：构造 60 个装来 + 5 个自写、上限 50，一次清理 0 次转换（`skipped_protected` 为 60），体检报 `active_count` 65、超出 15；探针超上限判 `fail` 并建议「运行清理」，对受保护技能无效；设置里「超出后将最久未使用的技能标记为闲置」对受保护技能也不成立。绑定技能自被豁免起就有同样的口径差，装来技能把它放大（本机 `~/.cursor/skills-cursor` 下就有 24 个其他工具的技能被扫进来；本机自写技能数没有量）。清理结果里的 `skipped_protected`（`engine.py:292`）没有出现在任何接口或界面（server 的 `app` 与 frontend 的 `src` 全文检索 0 处引用），保护开关又默认开启（`curator_config.py:102`），用户看到「清理了 0 个」不知道有多少被保护跳过。本条不处理，记在路线图 topic_08 #43 ⑥（已在 `BUG-AGENT-2026-10-16-025` 以删除容量机制的方式解决）；
 10. 「已安装」依据 `origin.json`：此仓最早的历史（2026-06-02 初始导入）就带 `write_origin`，更早安装的技能是否有这个标记查不到，没有验证，没有标记的主目录技能会被当作自写技能清理（归档可恢复）；用户备份的导出导入保留它（`app/api/skills/sync.py:122-126` 导出按 `.json` 等后缀打包、`:270` 导入整目录复制），发布打包有意剔除（`app/core/skills/packaging/collect.py:33`）。
 
 ### 踩坑经验
@@ -5766,5 +5766,66 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 评估「功能是否真实存在」要从写入侧反查：读取、展示、文档、测试都齐全并不说明有人写入；先在删除前的提交上查调用方，再决定删。
 2. 版本化的迁移列表不能删历史语句，只能追加；删表要补一条测试，证明升级的库真的丢了表、而同一库里的其他表还在。
 3. 文案里的「已落地」常常比代码活得久：同一个能力会散落在文档、网站轮播、对比表、素材与路线图里，删代码时要把这些一起反查。
+
+---
+
+## BUG-AGENT-2026-10-16-025: Curator 的「技能数量上限」告警对用户清不掉，且上限触发的淘汰只会给技能打「陈旧」标记、运行时没有任何地方读取；一个没有写入方也没有入口的 `protect_system_skills` 开关把业务路径约定写进了框架
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（清理只翻转状态、不删文件，归档可恢复；但健康探针对用户消不掉的情形报 `fail` 并建议「运行清理」，设置里还有一项对运行没有任何影响的上限） |
+| 影响范围 | harness `backends/skills/curator_config.py`、`forgetting_strategy.py`、`skill_doctor.py`、`agent/skills/curator/engine.py`；服务端 `app/api/skills/curator.py`、`app/core/infra/health/skill_diagnostics.py`、`server_diagnostics.py`；前端 `CuratorSettingsPanel.tsx`、`CuratorDiagnosticsSection.tsx`、`services/skill/core.ts`、六份 locale 与两份翻译补丁 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-16-020` 局限 3、9；路线图 topic_08 #43 ⑥；harness 提交 `15a430bb9d`；服务端仓提交 `f1aa2e2546`、`bbd2f7c0c7`；本地提交，未 push，未发布 harness 版本 |
+
+### 现象
+
+1. 健康探针按全部活跃技能数对比 `max_skills`（默认 50）告警，而清理只处理没被豁免的技能。按本机目录结构复刻的临时布局（65 个技能，其中 62 个因装来或被绑定而豁免）：探针判 `fail`（65/50）并建议「运行清理」，一次清理只有 3 次转换、跳过 62 个，计数仍是 65，告警消不掉；
+2. 上限触发的淘汰（LRU）只把技能标为「陈旧」，不归档也不卸载：`SkillUsageStats.is_stale` 没有调用方（`myrm-agent-harness/src/myrm_agent_harness/backends/skills/types/types_usage.py:117`），harness 的 `agent/` 与服务端的 `app/` 里没有读取该状态的运行时代码，界面只拿它画徽标；
+3. 本机账本（改动前查看）：59 个技能处于陈旧，5 个已归档，其中 4 个是 `~/.claude/skills` 下的第三方技能；这些归档来自本条之前的清理行为（`BUG-AGENT-2026-10-16-020` 之前清理把其他工具的目录一并纳入），账本里区分不出自动归档与手动归档；
+4. `protect_system_skills` 没有任何写入方，也没有界面入口；它的实现是 `"/prebuilt/" in storage_path`，预置技能来自存储提供方，不在被扫描的本地目录里，这条路径从不可达；
+5. 设置里的「技能数量上限」一行与诊断里的「库膨胀」一行，向用户描述的是一个对运行没有影响的状态。
+
+### 根因
+
+1. `BUG-AGENT-2026-10-16-020` 局限 9 的出路原本是把告警口径与清理的管辖范围对齐；核对「超限 → 标陈旧」的读取方后发现这个状态没有下游：提示词曝光另有上限（`myrm-agent-harness/src/myrm_agent_harness/agent/skills/runtime/registry.py:27` 的 `MAX_SKILLS_IN_PROMPT` 与 `get_metadata_summary` 的 `max_skills` 参数，超出部分走检索），容量机制既不降低提示成本，也不降低运行风险，对齐口径只会让一个没有收益的告警更精确；
+2. 本地源码里的 Hermes、OpenClaw、MateClaw、deer-flow、agentscope-java 的策展都没有按库容量淘汰的做法，只有 Myrm 有；
+3. 框架里的路径约定 `/prebuilt/` 是业务层的存储布局，没有生产方，配置项也没有入口，成了死路径。
+
+### 修复
+
+1. harness 删除 `CuratorConfig.max_skills` 与 `protect_system_skills`（`backends/skills/curator_config.py`）、遗忘策略的 `select_lru_candidates` 与 `/prebuilt/` 判定（`backends/skills/forgetting_strategy.py`）、引擎的 `_apply_lru_eviction`（`agent/skills/curator/engine.py`，现在只剩逐技能判定 `:142` 与合并候选 `:194-195`，共用 `_exempt_names :200`）、体检的 `hoarding_bloat` 发现（`backends/skills/skill_doctor.py`）；
+2. 服务端：配置接口去掉 `max_skills`（`app/api/skills/curator.py`）；健康探针更名为 `SkillQualityHealthDiagnostic`（`app/core/infra/health/skill_diagnostics.py:30`），只判两件事：存在失败的高频技能时 `WARN_SKILL_FAULTY`（`:140`），受豁免的故障技能达到 3 个时 `ERR_SKILL_PROTECTED_FAULTY`（`:114-118`），不再有容量判定；注册处同步改名（`app/core/infra/health/server_diagnostics.py:225`）；
+3. 前端：删除设置里的数量上限行、诊断里的库膨胀行与六种语言的相关文案；诊断「全部正常」的文案改为不再提技能数量；`lru_eviction` 保留为历史项的可读标签（旧账本行仍带这个原因）；
+4. 磁盘上的 `curator_config.json` 带着旧键 `max_skills`、`protect_system_skills` 时读取会忽略它们（`CuratorConfig.from_dict` 只读已知键），下次保存时被丢掉；
+5. 路线图 topic_08 #43 ⑥ 记为「以删除机制的方式解决」，并更正同一条目里引用了已删除代码的行号；`BUG-AGENT-2026-10-16-020` 局限 3、9 加指向本条。
+
+### 验证
+
+1. harness：新增 `tests/agent/skills/test_curator_engine.py::TestNoLibrarySizeLimit`、`tests/agent/skills/curator/test_curator_engine.py::test_curator_leaves_a_large_active_library_alone`、`tests/backends/skills/test_skill_doctor.py::test_doctor_does_not_flag_library_size`、`tests/backends/skills/test_curator_config.py::test_from_dict_ignores_keys_of_retired_settings`；触及的测试文件共 87 通过，更大范围的技能测试 2459 通过；触及文件 ruff、mypy 无错误；
+2. 服务端：新增 `tests/core/infra/health/test_skill_quality_diagnostic.py`（取代旧的容量探针用例）与 `tests/api/skills/test_curator_config_validation.py::test_config_written_before_the_size_limit_was_removed_still_loads`（带旧键的配置文件仍能加载）；触及的两组测试 76 与 68 通过；更宽的 `tests/core/skills`、`tests/api/skills`、`tests/core/infra/health`、`tests/integration/skills` 共 714 通过、1 跳过、14 取消选择，耗时 1208.74 秒（本机负载均值约 30–40）；触及文件 ruff 无告警，`server_diagnostics.py` 里原有的 4 条 mypy 错误顺手以类型标注修掉，触及文件的 mypy 0 错误（服务端 mypy 跟随导入共报 1157 条，均不在这些文件里）；
+3. 前端：`CuratorSections`、`CuratorSettingsPanel` 两个测试文件共 22 例通过；`verify:i18n`、`verify:theme-colors`、触及文件 prettier 与 oxlint 通过；限定到触及文件的 `tsc` 无错误；
+4. 残留检索（提交后的 HEAD）：harness 的 `src`、`tests` 里 `max_skills` 只剩提示词上限、市场仓库上限两处同名但无关的标识；`protect_system_skills`、`max_skills` 只在「旧键被忽略」的用例里出现；服务端同类用例同理；前端 `lru_eviction` 只在历史原因的类型、标签与对应用例里，其余命中都是与本机制无关的缓存与渠道去重的 LRU。
+
+### 局限
+
+1. 真机 E2E 没有运行：`tests/e2e/test_curator_panel_sections_chrome_e2e.py` 已去掉容量相关的断言，但没有执行；收尾时本机负载均值 28.84、33.71、34.89，界面由 vitest 覆盖，没有目视检查，也没有 375px 宽度的实机验收；
+2. 日、韩、德、繁体中文新增的 `doctor.allHealthyDesc` 文案没有母语复核；
+3. 服务端依赖声明仍固定 `myrm-agent-harness==0.1.0rc5`（`myrm-agent-server/pyproject.toml:25`）：本次只改了本地源码，没有发布 harness；按 README 要先发布再 `./myrm harness sync-lock`，发布前按锁文件安装的环境仍是旧行为（带容量机制）；服务端本地测试跑的是本地的 harness 源码；
+4. 本机上 4 个第三方技能的归档没有动：账本区分不出自动与手动归档，不能替用户决定恢复哪些；
+5. 前端「超出技能数量上限」这个历史标签保留给旧账本行，设置里已没有对应的上限；
+6. 有多少真实用户碰到过容量告警没有量过，只有本机一份账本；
+7. `BUG-AGENT-2026-10-16-020` 局限 6 列出的他人未提交改动造成的红灯门禁，本次没有重新逐项核对；
+8. harness 的 `tests/backends/skills/test_forgetting_strategy.py` 工作区仍带着他人的格式化改动，本条只提交了去掉 LRU 用例的部分；
+9. 归档目录里更早的路线图分析仍写着旧的库膨胀说法，按历史记录保留，没有改。
+
+### 踩坑经验
+
+1. 修告警之前先查它守护的状态有没有下游：本条一开始的方案是把告警口径与清理对齐，直到去查「陈旧」状态的读取方才发现没有，才改成删除机制；先问「这个状态被谁用」，比先问「两个口径怎么对齐」省一整轮修复；
+2. 框架里出现业务路径约定（`/prebuilt/`）又没有生产方时，配置项就是死路径；框架只放自己的规则，存储布局的约定留在业务层；
+3. 同名标识（提示词技能数上限、市场仓库上限、计费的 `max_skills` 配额）只能按符号与调用点区分，不能按字符串批量删除；
+4. 已经落盘的配置与历史记录要在删字段时一并考虑：读取忽略旧键、保留旧原因的可读标签，并各写一条用例，否则升级后要么加载失败，要么历史页出现原始码。
 
 ---
