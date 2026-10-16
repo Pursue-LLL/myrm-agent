@@ -27,7 +27,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryArchiveSectionName,
     MemoryManager,
 )
-from sqlalchemy import desc, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -63,7 +63,12 @@ class MemoryArchiveService:
         if hasattr(manager, "export_memcube_envelopes"):
             try:
                 raw_envelopes = await manager.export_memcube_envelopes()
-                memcube_envelopes = self._redact(raw_envelopes)
+                redacted_envelopes = self._redact(raw_envelopes)
+                memcube_envelopes = (
+                    [item for item in redacted_envelopes if isinstance(item, dict)]
+                    if isinstance(redacted_envelopes, list)
+                    else []
+                )
             except Exception:
                 memcube_envelopes = []
 
@@ -164,7 +169,7 @@ class MemoryArchiveService:
             select(Chat)
             .options(selectinload(Chat.messages))
             .where(or_(Chat.is_incognito.is_(False), Chat.source != "web"))
-            .order_by(desc(Chat.updated_at))
+            .order_by(Chat.updated_at.desc())
         )
         result = await self._db.execute(stmt)
         chats = list(result.scalars().unique().all())
@@ -200,7 +205,7 @@ class MemoryArchiveService:
 
     async def _export_audit(self) -> list[dict[str, object]]:
         result = await self._db.execute(
-            select(MemoryOperationEventModel).order_by(desc(MemoryOperationEventModel.occurred_at)).limit(1000)
+            select(MemoryOperationEventModel).order_by(MemoryOperationEventModel.occurred_at.desc()).limit(1000)
         )
         rows = list(result.scalars().all())
         return [
