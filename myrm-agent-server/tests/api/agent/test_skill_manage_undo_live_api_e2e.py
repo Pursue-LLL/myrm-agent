@@ -4,7 +4,9 @@ Task flow (no browser): a custom agent with only skill_manage mounted gets a pla
 model calls ``skill_manage_tool``; the skill lands in the catalog with the SKILL.md the model sent; the server
 announces the committed batch on the stream after the call's arguments and persists it on that step; rolling the
 batch back (what the Undo dialog calls) removes the skill the batch created. A second flow rewrites that skill in a
-later turn and expects the undo to bring back what the rewrite replaced instead of removing the skill.
+later turn and expects the undo to bring back what the rewrite replaced instead of removing the skill. A third flow has
+the model delete a skill: the skill is gone, the step is not a failure, and no batch is announced because a delete has
+nothing to undo.
 
 Run::
 
@@ -39,7 +41,9 @@ _AGENT_SYSTEM_PROMPT = (
     f"You manage the user's skills with {_SAVE_TOOL}. When the user asks you to save a skill, call "
     f"{_SAVE_TOOL} exactly once with one operation: action=save, the given name and description, and a valid "
     "SKILL.md as content (YAML frontmatter with name and description, then the body the user asks for). "
-    "Never claim a skill was saved without calling the tool. "
+    f"When the user asks you to delete a skill, call {_SAVE_TOOL} exactly once with one operation: "
+    "action=delete and the given name. "
+    "Never claim a skill was saved or deleted without calling the tool. "
     "After the call finishes, reply with exactly the words the user asks for."
 )
 
@@ -59,6 +63,13 @@ def _rewrite_request(name: str, marker: str) -> str:
         f"description={_SKILL_DESCRIPTION}. The new SKILL.md content is YAML frontmatter with that name and "
         f"description, then a heading, then one body line that is exactly: {marker} . "
         f"After it is saved, reply with exactly: {_DONE_TOKEN}"
+    )
+
+
+def _delete_request(name: str) -> str:
+    return (
+        f"Delete the skill {name} with {_SAVE_TOOL}: one operation, action=delete, name={name}. "
+        f"After it is deleted, reply with exactly: {_DONE_TOKEN}"
     )
 
 
@@ -147,6 +158,10 @@ def _batch_id_of(event: dict[str, object]) -> str | None:
 
 def _announced_batch(events: list[dict[str, object]]) -> str | None:
     return next((batch_id for event in events if (batch_id := _batch_id_of(event))), None)
+
+
+def _announced_batches(events: list[dict[str, object]]) -> set[str]:
+    return {batch_id for event in events if (batch_id := _batch_id_of(event))}
 
 
 def _skill_md(client: httpx.Client, backend_url: str, skill_id: str) -> str:
@@ -304,3 +319,45 @@ def test_live_agent_rewrites_a_skill_and_the_undo_brings_back_what_it_replaced()
         assert _catalog_skill_id(client, backend_url, skill_name) == skill_id, "the undo of a rewrite removed the skill"
         restored = _skill_md(client, backend_url, skill_id)
         assert first_marker in restored and second_marker not in restored, f"the undo kept the rewrite:\n{restored[:600]}"
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"),
+    reason="Requires BASIC_API_KEY and LITE_API_KEY",
+)
+def test_live_agent_deletes_a_skill_for_good_and_offers_no_undo_for_it() -> None:
+    backend_url = os.environ.get("BACKEND_URL", "").rstrip("/") or resolve_verify_api_base()
+    if _backend_runtime_data_dir(backend_url) is None:
+        pytest.skip(f"{backend_url} is not an isolated runtime; refusing to write skills into a shared backend")
+
+    suffix = uuid.uuid4().hex[:8]
+    skill_name = f"api-delete-{suffix}"
+    chat_id = f"apidelete{suffix}"
+
+    with httpx.Client() as client:
+        agent_id = _create_agent(client, backend_url, suffix)
+        _create_chat(client, backend_url, chat_id, agent_id)
+        saved = _announced_batch(_stream_turn(client, backend_url, agent_id, chat_id, _user_request(skill_name, suffix)))
+        assert saved, "the save never announced a committed batch"
+        assert _catalog_skill_id(client, backend_url, skill_name), f"skill {skill_name!r} is not in the catalog after the save"
+
+        deleted_turn = _stream_turn(client, backend_url, agent_id, chat_id, _delete_request(skill_name))
+        assert _catalog_skill_id(client, backend_url, skill_name) is None, "the model's delete did not remove the skill"
+        assert not _announced_batches(deleted_turn) - {saved}, "a delete has nothing to undo, yet the stream announced a batch"
+
+        delete_steps = [
+            step
+            for step in _persisted_skill_steps(client, backend_url, chat_id)
+            if "'delete'" in json.dumps(step.get("items"), default=str)
+        ]
+        assert delete_steps, "the persisted steps hold no delete call"
+        assert all(
+            step.get("status") not in _FAILED_STATUSES and not step.get("skill_mutation_batch_id") for step in delete_steps
+        ), f"a finished delete must be neither a failure nor an undo target: {delete_steps}"
+
+        # The save's Undo is still on screen after the delete: pressing it is refused cleanly and nothing comes back.
+        stale_undo = client.post(f"{backend_url}/api/v1/skill-optimization/mutations/{saved}/rollback", timeout=60.0)
+        assert stale_undo.status_code == 409, f"undoing a save whose skill is gone must be a 409: {stale_undo.text[:300]}"
+        assert _catalog_skill_id(client, backend_url, skill_name) is None, "the stale undo brought the deleted skill back"
