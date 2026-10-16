@@ -34,10 +34,10 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 )
 from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals_json
 
-from .batch_import_helpers import _build_batch_import_error_detail
 from app.core.skills.utils import render_skill_md
 
 
+from .batch_import_helpers import _build_batch_import_error_detail
 if TYPE_CHECKING:
     from pathlib import Path
 
