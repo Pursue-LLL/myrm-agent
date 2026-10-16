@@ -76,12 +76,13 @@ _REPAIR_PLAN_CATALOG: dict[str, _RepairPlanSpec] = {
         expected_effect="Identifies which retrieval stage stopped producing trace or recall evidence.",
     ),
     "reindex_memories": _RepairPlanSpec(
-        label="Reindex orphan memories",
-        risk_level="confirmation_required",
+        label="Migrate orphan memories",
+        risk_level="manual",
         dry_run_result="Memories from previous embedding models exist in orphan collections.",
-        expected_effect="Re-embeds orphan memories with the current model, restoring full recall coverage.",
-        requires_confirmation=True,
-        executable=True,
+        expected_effect=(
+            "Migrate runs from Settings > Models > Embedding: it re-embeds them with the current model, "
+            "restoring full recall coverage."
+        ),
     ),
     "restore_disciplined_defaults": _RepairPlanSpec(
         label="Restore disciplined defaults",

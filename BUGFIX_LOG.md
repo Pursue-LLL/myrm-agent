@@ -4478,7 +4478,7 @@ except Exception:
 | 发现日期 | 2026-10-16（复核记忆领域的孤儿模块与对外宣称时，沿「谁会渲染它」「谁在监听这个事件」追到） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P3（无运行时影响；对外失实宣称：路线图、素材库、公开文档站） |
-| 影响范围 | frontend：`src/components/features/chat-window/memory-inspector/`（整目录删除：5 个源文件、5 个测试文件）、`src/locales/namespaces/{en,zh}/memoryInspector.json`（游离的两个语言文件）；根仓：`temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #201、`temp-docs/materials/MEMORY_ADVANTAGE.md` 第 43、82 行；brand 仓：`myrm-docs/docs/core-concepts/memory-system.mdx`（英文页一节） |
+| 影响范围 | frontend：`src/components/features/chat-window/memory-inspector/`（整目录删除：5 个源文件、5 个测试文件）、`src/locales/namespaces/{en,zh}/memoryInspector.json`（游离的两个语言文件）；根仓私有文档：路线图 `topic_09_frontend_ux_roadmap.md` #201、素材库 `MEMORY_ADVANTAGE.md` 第 43、82 行；brand 仓：`myrm-docs/docs/core-concepts/memory-system.mdx`（英文页一节） |
 | 出现次数 | 1（逐项用全仓扫描与调用链核实；没有用户数据） |
 | 关联 | `BUG-AGENT-2026-10-15-007`（同名旧目录 `features/memory-inspector/` 的删除）；本地提交，未 push |
 
@@ -4486,7 +4486,7 @@ except Exception:
 
 1. `chat-window/memory-inspector/` 没有入口：全仓对 `VisualMemoryHealthCard`、`useMemoryInspectorStore`、`memoryInspectorEngine` 的引用只在该目录内部（含它自己的测试）；`check-orphan-modules` 把 5 个源文件全部列为孤儿。
 2. 看板的数据不是真的：store 的初始值写死 provider `openai`、模型 `text-embedding-3-small`、1536 维、4280 个 chunk、3950 条 FTS 与固定的 `lastSyncAt`（`useMemoryInspectorStore.ts:46-53`）；「深度自检」是等 50ms 再调本地的 `computeSimulatedDiagnostic`（`useMemoryInspectorStore.ts:86-88`、`memoryInspectorEngine.ts:70`），不请求后端；广播的 `myrm:memory-inspector-diagnostic` 没有监听方（`memoryInspectorEngine.ts:98-103`，全仓只有它自己的测试在 `addEventListener`）。文案是写死的中文，没有 `useTranslations`，六个语言包里没有对应的键。
-3. 对外宣称与代码相反：路线图 topic_09 #201 记为「已完成 (100%)」并写着「vitest 30/30 passed」；`MEMORY_ADVANTAGE.md` 第 43、82 行把它写成「WebUI 白盒看板、毫秒级端到端细分延迟探针、重索引实时进度条与 Token 预估、全链路事件总线」；brand 仓英文文档页有一整节（含「3 阶延迟评级」「可取消的重索引进度条」）。真实能力早已存在，只是不是这个目录：记忆指挥中心的 Memory Doctor（`MemoryCommandCenterDoctorPanel.tsx`，17 项检查、15 个带耗时的可执行探针、写入再读取的召回基准与 P50/P95/P99 延迟、历史趋势与修复动作；`MemorySection.tsx:655` 与服务端 `router.py:75` 都由 Memory Labs 开关控制，默认关闭）、共享上下文面板里的嵌入依赖健康横幅（`GET /memory/shared-contexts/health/memory?probe=`），以及更换嵌入模型后的孤儿记忆估算与一键重索引（`GET /memory/reindex/estimate`、`POST /memory/reindex`，`DefaultModelSection.tsx`，存在孤儿记忆时才显示）。
+3. 对外宣称与代码相反：路线图 topic_09 #201 记为「已完成 (100%)」并写着「vitest 30/30 passed」；`MEMORY_ADVANTAGE.md` 第 43、82 行把它写成「WebUI 白盒看板、毫秒级端到端细分延迟探针、重索引实时进度条与 Token 预估、全链路事件总线」；brand 仓英文文档页有一整节（含「3 阶延迟评级」「可取消的重索引进度条」）。真实能力早已存在，只是不是这个目录：记忆指挥中心的 Memory Doctor（`MemoryCommandCenterDoctorPanel.tsx`，17 项检查、15 个带耗时的可执行探针、写入再读取的召回基准与 P50/P95/P99 延迟、历史趋势与修复动作；`MemorySection.tsx:655` 与服务端 `router.py:75` 都由 Memory Labs 开关控制，默认关闭）、共享上下文面板里的嵌入依赖健康横幅（`GET /memory/shared-contexts/health/memory?probe=`），以及更换嵌入模型后的孤儿记忆估算与一键重索引（`GET /memory/reindex/estimate`、`POST /memory/reindex`，`DefaultModelSection.tsx`，存在孤儿记忆时才显示；**更正：这一项当时并不可用**，它在真实向量库上从未迁过任何记忆，见 `BUG-AGENT-2026-10-16-006`）。
 4. `src/locales/namespaces/{en,zh}/memoryInspector.json` 是两个游离文件：真正的拆分产物在被忽略的 `locales/namespaces/`（`i18n:split` 从 `locales/{lang}.json` 生成，运行时只读这里），`src/i18n/_ARCH.md:39` 还明确禁止另建 `src/locales/` 这类并行目录；它们的内容（标题「Memory Inspector & Epistemic Veracity Governance」）属于更早被删除的 `features/memory-inspector/`（`BUG-AGENT-2026-10-15-007`）。`locales/{lang}.json` 里没有 `memoryInspector` 键，全仓没有代码读取这两个文件。
 
 ### 根因
@@ -4501,7 +4501,7 @@ except Exception:
 
 ### 验证
 
-1. 全仓扫描（排除 `node_modules`、`external_reference_project`、`temp-docs/temp-task-context` 里的历史提取备份与本日志）：`VisualMemoryHealthCard`、`useMemoryInspectorStore`、`memoryInspectorEngine`、`myrm:memory-inspector-diagnostic`、`memory-inspector/` 在删除前只被目录自身、路线图 #201、素材库与英文文档页引用；删除并改写文档后，只剩路线图 #201 里带「已删除」标注的几处与素材库第 82 行的能力名称（该行已改写为真实能力）；`_ARCH.md`、`hardcoded_copy_baseline.json` 与其他门禁基线里没有这个目录的条目。
+1. 全仓扫描（排除 `node_modules`、`external_reference_project`、私有任务上下文目录 `temp-task-context` 里的历史提取备份与本日志）：`VisualMemoryHealthCard`、`useMemoryInspectorStore`、`memoryInspectorEngine`、`myrm:memory-inspector-diagnostic`、`memory-inspector/` 在删除前只被目录自身、路线图 #201、素材库与英文文档页引用；删除并改写文档后，只剩路线图 #201 里带「已删除」标注的几处与素材库第 82 行的能力名称（该行已改写为真实能力）；`_ARCH.md`、`hardcoded_copy_baseline.json` 与其他门禁基线里没有这个目录的条目。
 2. `check-orphan-modules`：1061 个孤儿降到 1056，前后孤儿集合的差正好是被删的 5 个源文件，没有任何其他模块因此变成孤儿。
 3. `tsc --noEmit`：删除前后各跑一次，错误都是 50 条，排序后的错误集合完全相同，没有一条提到被删文件（这 50 条在别的会话的文件里，本条没有处理）。
 4. `vitest run src/components/features/chat-window`：314 个文件、1672 例全部通过（被删的 30 例不在其中）。
@@ -4518,6 +4518,7 @@ except Exception:
 2. 判断一个事件有没有人监听时要排除测试文件：测试里的 `addEventListener` 只证明测试在听。
 3. 对外材料（素材库、文档站）里的能力描述要能指到一个渲染它的入口和一个提供数据的接口，否则会把没接上的界面当成产品能力宣传出去。
 4. 写「没有某能力」之前要先全仓按能力而不是按名字找一遍：本条第一版把缺口写成「没有引擎级看板」，是复核时才发现记忆指挥中心已有 Memory Doctor，随后在根仓改正。
+5. 写「有某能力」同样要在真实环境里跑过一遍：本条把「更换模型后一键重索引」写成真实能力，之后发现它从没迁过任何记忆（`BUG-AGENT-2026-10-16-006`），也没写明 Memory Doctor 默认关闭。
 
 ## BUG-AGENT-2026-10-16-003: 澄清卡与目录授权卡回答后只剩一句「已回答」，看不出答了什么、是否跳过或超时；连环出现的下一张卡在重新打开后把旧卡留成未答的幽灵或被当场标成已答；续跑被拒后放回的卡是一张空白卡；需要确认的表单被跳过时模型得到的是「按你的判断继续」
 
@@ -4709,6 +4710,66 @@ except Exception:
 4. 状态的生命周期按「什么时候需要用到」来定，而不是按「请求什么时候结束」：草稿只在要放回时才需要。
 5. `rg -rn` 里的 `-r` 是替换参数不是递归，会把匹配到的内容显示成 `n`，查字段名时别这样写。
 6. 工作区里别人的改动会让一整个目录的测试在你完全没碰的地方失败：先看失败原因再判断是不是自己的，必要时用「HEAD 加自己的改动」的干净导出复跑。
+
+---
+
+## BUG-AGENT-2026-10-16-006: 更换嵌入模型后设置页的「迁移」从没迁过任何记忆，界面却无条件清除提醒；迁移占着一次 30 秒的请求、没有进度；Memory Doctor 的「重建索引」修复项标着可执行实际无人执行；我自己还把它写进了素材库与公开文档站
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（`BUG-AGENT-2026-10-16-002` 把「重索引」写成真实能力之后，把它在真实向量库上从头跑一遍才发现从没生效） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P1（用户换嵌入模型后旧记忆在召回里静默消失，界面还显示迁移成功）；对外失实宣称 P3 |
+| 影响范围 | harness（根因与迁移本体见 `BUG-HARNESS-2026-10-16-002`）；server：`app/services/memory/reindex_run.py`（新）、`app/api/memory/operations/reindex.py`、`app/services/memory/diagnostics/diagnostic/diagnostic_repair_plans.py`；frontend：`src/services/memory/reindex.ts`（新）、`src/store/useRetrievalStore.ts`、`ai-core/MemoryMigrationNotice.tsx`（新）、`ai-core/DefaultModelSection.tsx`、六个语言包 `settings.defaultModel.retrieval` 下 5 个新键；根仓 `temp-docs/materials/MEMORY_ADVANTAGE.md` 与路线图 topic_09 #201；brand 仓 `memory-system.mdx`、`api-reference/memory.mdx`、`dialectic-profiling.mdx`、`competitor-comparison.mdx`（英文与中文） |
+| 出现次数 | 1（真实嵌入式 Qdrant 上的红灯用例、组件与存储测试；没有开浏览器目测） |
+| 关联 | `BUG-AGENT-2026-10-16-002`（其现象第 3 条把这项能力写成「真实能力早已存在」，已在该条更正）、`BUG-HARNESS-2026-10-16-002`；本地提交，未 push |
+
+### 现象
+
+1. harness 的迁移本体从没生效（检测打错对象、对话集合读不出数量、迁移通道丢身份、失败记成跳过，详见 harness 条目）。
+2. 服务端 `POST /memory/reindex` 同步等整个迁移结束才返回：迁移要经用户的嵌入服务重嵌每一条旧记忆，量大时远超前端 `fetchWithTimeout` 的 30 秒默认上限（`lib/api.ts:264`），且没有任何进度。
+3. 前端 `executeReindex` 只要收到 2xx 就把 `orphanCount` 清零并移除提醒（旧代码 `useRetrievalStore.ts:363`），不看 `failed` 是多少；请求出错时只返回 `failed: -1`，界面不显示任何东西。
+4. Memory Doctor 的修复计划 `reindex_memories` 标成 `confirmation_required` 且 `executable=True`，但执行器的白名单（`RepairPlanId`）与前端面板的可执行动作表（`MemoryCommandCenterDoctorPanel.tsx` 的 `isExecutableDoctorAction`）里都没有它：计划卡片宣称「确认后可执行」，实际没有任何入口执行。
+5. 对外：`BUG-AGENT-2026-10-16-002` 的修复把「更换模型后一键重索引」写进了素材库第 74、82 行、路线图 #201 的「Myrm 现状」与 brand 仓的「Embedding Model Migration」一节，后者还写着「复用已有的导出 / 导入管道」；同一批材料把 Memory Command Center / Memory Doctor 当成默认可见（实际由 Memory Labs 控制，默认关闭）。
+
+### 根因
+
+1. 我只读了代码与模拟存储用例就把「接口通、前端有按钮」当成功能可用，没有把迁移在真实向量库上跑一遍；
+2. 迁移被设计成一次请求内同步完成，没有「后台运行 + 轮询状态」的形态（wiki 维护已有现成范式 `services/wiki/maintain/run_registry.py`）；
+3. 前端把「请求成功」当成「迁移成功」，把结果计数丢掉；
+4. 修复计划目录与执行器是两处各自维护的表，没有一致性检查。
+
+### 修复
+
+1. harness：见 `BUG-HARNESS-2026-10-16-002`（按页迁移、原样保留身份与归属、只换向量、失败如实计数、`_with_retry` 不再对「集合不存在」退避）。
+2. server：新增 `services/memory/reindex_run.py`，进程内单飞（进行中再次触发直接加入同一轮）与实时 done / total；`POST /memory/reindex` 改为 202 启动或加入、`GET /memory/reindex/status` 返回 idle / running / succeeded / failed 与迁移 / 已存在 / 失败三个计数；意外异常记 `logger.exception` 并标 FAILED；与 harness 的结果类型解耦，服务层不导入 harness 私有模块（架构守卫 `test_no_server_harness_private_module_imports` 的违规列表里没有本条的文件）；Doctor 的 `reindex_memories` 改为 manual，预期效果指向 设置 > 模型 > 嵌入。
+3. frontend：`services/memory/reindex.ts` 封装估算 / 启动 / 状态三个调用（全部 `silent`）；`useRetrievalStore.executeReindex` 启动后轮询状态（2 秒一次，连续 5 次出错才放弃，服务端已忘记这一轮按失败处理），把进度与结果放进 store，因此离开设置页后迁移与轮询照常继续；提醒只在 `failed == 0` 时清除，否则保留并显示剩余数量；新增 `MemoryMigrationNotice`：迁移中显示进度条与「已处理 x / 共 y」，有孤儿记忆时显示迁移入口，部分失败显示「已迁移 n 条，m 条未能迁移，可再次尝试」，请求或轮询出错显示可重试提示，全部完成显示成功提示；文案六种语言，不出现集合 / 向量 / 嵌入维度等内部词，颜色全部取主题变量，窄屏纵向排列，进度区与成功提示用 `<output>`（实时区域），不含原生 emoji。
+4. 对外材料更正到修复后的事实：素材库第 74、82 行改为后台迁移、进度与失败计数，去掉「重索引进度条」的缺口并保留「Token 预估未做」；OpenClaw 一栏改成它在索引身份不符时自动整库重建、影子库原子发布，但以 Markdown 文件为事实来源，与 Myrm 迁移向量库内记忆不是同一件事；Mem0 只写「开源代码里只见逐条记忆更新时的重嵌入，未见换模型后的整库迁移入口」；Letta 与其余产品写「没有逐一核实」；路线图 #201 同日二次复核；brand 仓的迁移一节改为后台迁移 / 进度 / 失败重试，所有 Memory Command Center、Memory Doctor 的提及补上「Memory Labs，默认关闭」，持久性可视化一段改为默认可见的是内存回退时的常驻警告提示，运行时面板与 Doctor 在 Memory Labs 里。
+
+### 验证
+
+1. harness：`tests/toolkits/memory` + `tests/toolkits/vector` 3288 通过、5 跳过；迁移 16 例跑在真实嵌入式 Qdrant 上（红灯对旧实现得到 `(0, 0, 0)`）；store 的 3 例新测试在去掉修复后失败。另跑的 `tests/observability` 等有 2 例失败（`vector_probe` 的提示文案、jieba 语法错误降级），均在他人改动的文件里，与本条无关。
+2. server：新增 `test_reindex_run.py` 5 例、`test_reindex_api.py` 5 例，`test_diagnostic_static_checks.py` 加 1 例（Doctor 计划为 manual），三个文件共 32 例通过；`tests/services/memory` + `tests/api/memory` 855 通过、1 失败（`test_repo_evidence_api::test_get_repo_evidence_digest_endpoint`，单独跑通过，是机器平均负载上百时的超时），4 条按默认配置排除；`ruff check`、`ruff format --check` 通过，`mypy` 在触及文件上没有错误（全库 1420 条是既有的）。
+3. frontend：新增 `useRetrievalStore.reindex.test.ts` 9 例、`MemoryMigrationNotice.test.tsx` 10 例（真实 next-intl 与中英文案）全部通过；`verify:theme-colors`、`verify:stable-mocks`、`verify:icu-syntax` 通过；`oxlint` 在触及文件上无告警；`tsc --noEmit` 49 条，没有一条在触及文件里；`verify:orphans` 的 1059 条里没有本条的新文件（他人新增了 3 条）；`verify:i18n` 失败只有 `de.json` 的 `kanban.statusBacklog`（他人的键）；`verify:a11y`、`verify:hardcoded-copy` 的失败都在他人的文件里。
+4. 对外材料：路线图完整性检查在 #201 上无违规（其余违规来自他人改动）。
+
+### 局限
+
+1. 没有在浏览器里目测迁移提示（进度、部分失败、错误三种状态的外观与窄屏排版）：只有 jsdom 组件测试，没有真实服务端与真实孤儿记忆的端到端；
+2. 迁移状态只存在服务进程内存里，重启会丢；重启后用户需要再点一次迁移（迁移是幂等的，已迁移的会被跳过），页面刷新后不会自动恢复对一轮进行中迁移的轮询；
+3. 旧集合保留，迁移结束后提醒要等下一次应用嵌入配置才会重新检查，不会自行消失；换模型时不会自动迁移；
+4. 机器负载上百时测得的墙钟偏高且波动，确定的是退避次数与总时长（见 harness 条目）；没有真实远程嵌入服务与远程 Qdrant 的实测；
+5. brand 仓只改了英文与中文页，韩文页（由脚本翻译生成）与官网 `memoryDoctor` 区块没有同步，仍未写「Memory Labs，默认关闭」；
+6. 未改动任何提示词。
+
+### 踩坑经验
+
+1. 「接口通、界面有按钮、测试全绿」不等于功能可用：这类需要多层配合的功能，必须在真实存储上从头跑一遍再写进对外材料，并且在材料里写清它默认是否可见；
+2. 前端不要把「请求成功」当成「业务成功」：长任务返回的是计数而不是布尔，清除提醒的条件必须取决于失败数；
+3. 服务层不要为了一个类型注解导入 harness 私有模块：架构守卫会把它列进违规，用服务层自己的小数据类承接结果；
+4. 重试原语对确定性错误退避，只有统计重试日志才能看出来，机器负载高时墙钟会把它淹没；
+5. 后台起的 `tsc` 或测试在工具调用结束时会被一并结束，输出文件里只有第一行不代表还在跑，要前台运行或确认进程在；
+6. 前端的 lint 是 `oxlint`（`bun run lint:oxlint`），没有项目配置的 `bunx eslint` 只会先下载再报「找不到配置」。
 
 ## BUG-AGENT-2026-10-16-007: 看板任务被阻塞或失败时，toast、系统通知与频道消息常报成它上一次完成的结果，真正的原因被盖住；到点会自己恢复的定时阻塞与需要人处理的阻塞发出同样的提醒
 

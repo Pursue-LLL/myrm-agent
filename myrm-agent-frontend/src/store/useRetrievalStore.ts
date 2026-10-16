@@ -15,7 +15,12 @@
 import { create } from 'zustand';
 import { getConfigSyncManager, type RetrievalConfigValue } from '@/services/config';
 import { toLiteLLMFormat, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
-import { fetchWithTimeout } from '@/lib/api';
+import {
+  getMemoryOrphanEstimate,
+  getMemoryReindexStatus,
+  startMemoryReindex,
+  type MemoryReindexResult,
+} from '@/services/memory/reindex';
 
 export type ApplyStatus = 'idle' | 'applying' | 'success' | 'error';
 
@@ -47,7 +52,14 @@ export interface RetrievalConfig {
   // Orphan collection 状态（模型切换后的旧记忆检测）
   orphanCount: number;
   orphanOldModels: string[];
+
+  // 旧记忆迁移运行状态：'running' 期间轮询服务端后台任务，'done' 带逐条计数，'error' 表示运行中断
+  reindexStatus: ReindexRunStatus;
+  reindexProgress: { done: number; total: number };
+  reindexResult: MemoryReindexResult | null;
 }
+
+export type ReindexRunStatus = 'idle' | 'running' | 'done' | 'error';
 
 interface RetrievalActions {
   // 初始化
@@ -68,7 +80,7 @@ interface RetrievalActions {
 
   // Orphan 重建
   checkOrphanCollections: () => Promise<void>;
-  executeReindex: () => Promise<{ migrated: number; failed: number }>;
+  executeReindex: () => Promise<void>;
   dismissOrphanWarning: () => void;
 
   // 重置所有配置
@@ -101,7 +113,19 @@ const DEFAULT_CONFIG: RetrievalConfig = {
   enableAdvancedRetrieval: false,
   orphanCount: 0,
   orphanOldModels: [],
+  reindexStatus: 'idle',
+  reindexProgress: { done: 0, total: 0 },
+  reindexResult: null,
 };
+
+// 迁移要经过用户的 embedding 服务，大库需数分钟：启动请求立即返回，之后按此节奏轮询状态
+export const REINDEX_POLL_INTERVAL_MS = 2000;
+export const REINDEX_POLL_MAX_CONSECUTIVE_ERRORS = 5;
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 // 初始化标志
 let isStoreInitialized = false;
@@ -340,35 +364,54 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
 
   checkOrphanCollections: async () => {
     try {
-      const response = await fetchWithTimeout('/memory/reindex/estimate');
-      if (!response.ok) {
-        return;
-      }
-      const data = await response.json();
-      const models = (data.orphan_collections ?? []).map((c: { old_model_suffix: string }) => c.old_model_suffix);
-      const uniqueModels = [...new Set<string>(models)];
-      set({ orphanCount: data.total_memories ?? 0, orphanOldModels: uniqueModels });
+      const estimate = await getMemoryOrphanEstimate();
+      const uniqueModels = [...new Set(estimate.orphan_collections.map((c) => c.old_model_suffix))];
+      set({ orphanCount: estimate.total_memories, orphanOldModels: uniqueModels });
     } catch {
       // Non-critical; silently ignore
     }
   },
 
   executeReindex: async () => {
+    if (get().reindexStatus === 'running') {
+      return;
+    }
+    set({ reindexStatus: 'running', reindexProgress: { done: 0, total: 0 }, reindexResult: null });
     try {
-      const response = await fetchWithTimeout('/memory/reindex', { method: 'POST' });
-      if (!response.ok) {
-        throw new Error('Reindex request failed');
+      let status = await startMemoryReindex();
+      let failedPolls = 0;
+      while (status.state === 'running') {
+        set({ reindexProgress: { done: status.done, total: status.total } });
+        await sleep(REINDEX_POLL_INTERVAL_MS);
+        try {
+          status = await getMemoryReindexStatus();
+          failedPolls = 0;
+        } catch (error) {
+          failedPolls += 1;
+          if (failedPolls >= REINDEX_POLL_MAX_CONSECUTIVE_ERRORS) {
+            throw error;
+          }
+        }
       }
-      const data = await response.json();
-      set({ orphanCount: 0, orphanOldModels: [] });
-      return { migrated: data.migrated ?? 0, failed: data.failed ?? 0 };
-    } catch {
-      return { migrated: 0, failed: -1 };
+      // 'idle' after following a run means the server forgot it (restarted): nothing finished.
+      if (status.state !== 'succeeded' || !status.result) {
+        throw new Error('Memory reindex did not finish');
+      }
+      // Only memories that could not migrate keep the reminder; running again retries just those.
+      set({
+        reindexStatus: 'done',
+        reindexResult: status.result,
+        orphanCount: status.result.failed,
+        orphanOldModels: status.result.failed > 0 ? get().orphanOldModels : [],
+      });
+    } catch (error) {
+      console.warn('Memory reindex did not finish:', error);
+      set({ reindexStatus: 'error' });
     }
   },
 
   dismissOrphanWarning: () => {
-    set({ orphanCount: 0, orphanOldModels: [] });
+    set({ orphanCount: 0, orphanOldModels: [], reindexStatus: 'idle', reindexResult: null });
   },
 
   // ============ 重置 ============

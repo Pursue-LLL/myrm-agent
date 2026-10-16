@@ -22,7 +22,7 @@
 | `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理（列表/审批/拒绝/批量）与结构化元数据（置信度/类别/有效期/依据）投影；审批透传审批者改写文本 `edited_content`（不可编辑的提案 → 400；提案所针对的记忆在入队后已变化 → 409 且提案保持待审），遗忘类提案批准即归档目标记忆（保留期内可恢复）；批准/拒绝（含批量）统一经 `pending_review` 写审计。 | ✅ |
 | `conflicts.py` | 模块 | 待裁决记忆冲突 API 操作层。列出并裁决 `pending_memories.is_conflict` 记录，复用 Harness 记忆变更（`update_memory` / `add_knowledge`）保持新旧事实生命周期一致；裁决结果经 `pending_review.record_pending_event` 写入操作账本。 | ✅ |
 | `shared_context/`（子包） | 模块 | 共享上下文 API 子域：CRUD、健康检查、历史证据、遗留迁移 + 序列化辅助。5 个 `shared_context_*` 模块聚合于此，`shared_context/__init__.py` 为聚合门面统一 re-export | ✅ |
-| `reindex.py` | 模块 | Memory reindex API — orphan detection, estimation, and execution for embedding model migration. | ✅ |
+| `reindex.py` | 模块 | 嵌入模型迁移 API：`GET /reindex/estimate` 检测孤儿集合与待迁移数量；`POST /reindex` 202 启动（已有进行中则加入同一轮，经 `services/memory/reindex_run.py` 后台执行，不占用请求）；`GET /reindex/status` 返回 idle/running/succeeded/failed 与 done/total/结果（migrated/skipped/failed）。 | ✅ |
 | `radar.py` | 模块 | 动态偏好雷达 API。暴露当前会话雷达状态、手动微调与隐式反馈记录 HTTP 接口。 | ✅ |
 | `tool_guidance.py` | 模块 | 工具规约与动态经验 API。暴露工具黄金指南列表（JIT 合成）、人工置顶/取消置顶与规则清理端点。 | ✅ |
 | `working_state.py` | 模块 | Working State API — cross-session task continuity endpoint. 提供读/写/清除 `__working_state` Profile 属性的 HTTP 入口。 | ✅ |
