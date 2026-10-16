@@ -297,6 +297,10 @@ async def rollback_skill_mutation_batch(session: AsyncSession, batch_id: str) ->
             paths = {p for p in resources if isinstance(p, str)}
         if row.skill_id not in live_by_id:
             live_by_id[row.skill_id] = await _capture_live_state(row.skill_id, paths)
+        # A deleted skill stays deleted: writing its SKILL.md back would persist a version row for a directory that is
+        # gone and still answer "restored". Refusing before anything is applied leaves nothing to compensate.
+        if meta.get("existed_before_batch") and not live_by_id[row.skill_id].skill_existed:
+            raise MutationBatchRollbackError(f"Skill {row.skill_id} no longer exists; nothing to restore.")
 
     applied_ids: list[str] = []
     current_skill_id: str | None = None

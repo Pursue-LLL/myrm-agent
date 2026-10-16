@@ -36,7 +36,7 @@ from app.database.models.skill_optimization.batch_snapshot import BatchSnapshot
 from app.services.agent.execution_cache import ExecutionMode
 from app.services.agent.runtime_context import build_agent_runtime_context
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
-from app.services.skills.mutation_batch_service import rollback_skill_mutation_batch
+from app.services.skills.mutation_batch_service import MutationBatchRollbackError, rollback_skill_mutation_batch
 from app.services.skills.write_orchestrator import resolve_skill_id_by_name
 
 if TYPE_CHECKING:
@@ -256,3 +256,20 @@ async def test_undo_of_a_full_rewrite_restores_the_previous_content(
     async with session_factory() as session:
         await rollback_skill_mutation_batch(session, _batch_id_of(step))
     assert (skills_root / SKILL_NAME / "SKILL.md").read_text(encoding="utf-8") == stored
+
+
+async def test_undo_of_a_rewrite_is_refused_once_the_skill_was_deleted(
+    skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """A deleted skill stays deleted: the rewrite's Undo is still on screen, and answering "restored" for it would lie."""
+    await _save_skill(skill_manage_tool)
+    rewritten = SKILL_MD.replace("Do the thing.", "Do it differently.")
+    _, step = await _run_turn(skill_manage_tool, [{"action": "save", "name": SKILL_NAME, "content": rewritten}], SECOND_CALL_ID)
+    await _run_turn(skill_manage_tool, [{"action": "delete", "name": SKILL_NAME}], DELETE_CALL_ID)
+
+    async with session_factory() as session:
+        with pytest.raises(MutationBatchRollbackError):
+            await rollback_skill_mutation_batch(session, _batch_id_of(step))
+
+    assert not (skills_root / SKILL_NAME).exists(), "the undo brought the deleted skill back"
+    assert await resolve_skill_id_by_name(SKILL_NAME) is None
