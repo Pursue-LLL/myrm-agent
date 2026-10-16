@@ -58,6 +58,7 @@ from app.channels.types import (
     IssueKind,
     IssueSeverity,
     OutboundMessage,
+    RenderStyle,
     StartMode,
 )
 
@@ -125,6 +126,7 @@ class BaseChannel(ABC, EventEmitter):
     display_name: str = ""
     credential_spec: ChannelCredentialSpec | None = None
     capabilities: ChannelCapabilities = ChannelCapabilities()
+    render_style: RenderStyle  # every concrete channel declares how its replies are rendered
     retry_config: RetryConfig = RetryConfig()
     allow_policy: AllowPolicy = SELECTIVE_POLICY
     rate_limit_config: RateLimitConfig = DISABLED_RATE_LIMIT
@@ -336,7 +338,8 @@ class BaseChannel(ABC, EventEmitter):
                 metadata={"job_name": "daily_report"}
             )
         """
-        metadata = kwargs.pop("metadata", None) or {}
+        raw_metadata = kwargs.pop("metadata", None)
+        metadata: dict[str, object] = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
         if thread_ts:
             metadata["thread_ts"] = thread_ts
 
@@ -346,7 +349,7 @@ class BaseChannel(ABC, EventEmitter):
                 recipient_id=recipient_id,
                 content=content,
                 user_id=user_id,
-                metadata=metadata if metadata else None,  # type: ignore[arg-type]
+                metadata=metadata or None,
                 **kwargs,  # type: ignore[arg-type]
             )
         )

@@ -46,6 +46,7 @@ async def _finalize(
     lite_model_cfg: object | None = None,
     workspace_root: str | None = None,
     message: InboundMessage | None = None,
+    account_guidance: bool = False,
 ) -> tuple[MagicMock, OutboundMessage]:
     """Run finalize with deep-link build mocked; return (persist_mock, reply)."""
     with (
@@ -77,6 +78,7 @@ async def _finalize(
             chat_history=chat_history if chat_history is not None else [object()],
             session_was_auto_reset=session_was_auto_reset,
             session_policy=SessionPolicy(),
+            account_guidance=account_guidance,
         )
     return persist_mock, reply
 

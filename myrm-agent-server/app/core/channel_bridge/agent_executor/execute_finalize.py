@@ -7,7 +7,7 @@
 - agent_executor.deliverable::build_artifact_deep_links (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 - agent_executor.deliverable::append_deliverable_notes, collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: Channel deliverable attachment mode (Hermes parity). Complements artifact event collection in deliverable.deep_links.collect_channel_artifacts.)
 - app.channels.i18n::channel_t, resolve_message_locale (POS: Channel i18n message catalog and locale resolution)
-- app.channels.routing.friendly_errors::friendly_error_text (POS: member-safe error wording with reference id)
+- app.channels.routing.friendly_errors::ERROR_TYPE_METADATA_KEY, friendly_error_text (POS: member-safe error wording with reference id)
 [OUTPUT]
 - finalize_channel_stream_reply: persist assistant turn and build OutboundMessage reply (temp files ride along
   as ``ephemeral`` attachments; the message bus deletes them once delivery is final)
@@ -29,7 +29,7 @@ import tempfile
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
 from app.channels.core.outbound_media import discard_ephemeral_media
-from app.channels.routing.friendly_errors import friendly_error_text
+from app.channels.routing.friendly_errors import ERROR_TYPE_METADATA_KEY, friendly_error_text
 from app.channels.types import (
     InboundMessage,
     MediaAttachment,
@@ -67,8 +67,14 @@ async def finalize_channel_stream_reply(
     chat_history: list[object],
     session_was_auto_reset: bool,
     session_policy: SessionPolicy,
+    account_guidance: bool,
 ) -> OutboundMessage:
-    """Build the final channel reply after stream accumulation."""
+    """Build the final channel reply after stream accumulation.
+
+    A failed turn is flagged with ``ERROR_TYPE_METADATA_KEY`` so hosts that run the turn for someone else
+    (the delegation coordinator) can tell it from an answer. ``account_guidance`` lets the owner's direct
+    chat name the account state to fix.
+    """
     from app.channels.i18n import channel_t, resolve_message_locale
 
     content = strip_internal_markers("".join(acc.chunks))
@@ -142,13 +148,14 @@ async def finalize_channel_stream_reply(
     oversized_notes = [(fname, size) for fname, size in oversized_raw if fname not in linked_filenames]
     compressed_notes = compressed_raw
 
+    error_type: str | None = None
     if not content.strip() and not oversized_notes and not compressed_notes:
         if artifact_components or media_list:
             locale = resolve_message_locale(msg)
             content = str(channel_t(locale, "deliverable_attached_only"))
         elif acc.error_message:
-            content, ref_id = friendly_error_text(acc.error_kind, msg)
-            content = content.strip()
+            content, ref_id = friendly_error_text(acc.error_kind, msg, account_guidance=account_guidance)
+            error_type = acc.error_kind.value
             logger.warning(
                 "ChannelAgentExecutor: agent error for %s [ref: %s]: %s",
                 msg.sender_id,
@@ -196,18 +203,18 @@ async def finalize_channel_stream_reply(
             )
         )
 
-    metadata: dict[str, object] | None = None
+    metadata: dict[str, object] = {}
+    if error_type:
+        metadata[ERROR_TYPE_METADATA_KEY] = error_type
     if acc.sources:
 
         def _sort_key(s: dict[str, object]) -> int:
             v = s.get("index")
             return int(v) if isinstance(v, (int, float)) else 0
 
-        metadata = {"sources": sorted(acc.sources, key=_sort_key)}
+        metadata["sources"] = sorted(acc.sources, key=_sort_key)
 
     if session_was_auto_reset:
-        if metadata is None:
-            metadata = {}
         metadata["session_auto_reset"] = {
             "reason": session_policy.mode.value,
             "idle_minutes": session_policy.idle_minutes,
@@ -215,8 +222,6 @@ async def finalize_channel_stream_reply(
         }
 
     if acc.cost_usd > 0 and memory_settings.get("enableCostEstimation"):
-        if metadata is None:
-            metadata = {}
         metadata["cost_metadata"] = {
             "cost_usd": acc.cost_usd,
             "model_name": acc.model_name,
@@ -229,7 +234,7 @@ async def finalize_channel_stream_reply(
 
     reply = msg.get_or_create_correlation_context().create_reply(
         content=content,
-        metadata=metadata,
+        metadata=metadata or None,
         media=tuple(media_list),
         reasoning=reasoning,
         tool_steps=tool_steps,

@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
 import pytest
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
-from app.channels.routing.friendly_errors import friendly_error_message, friendly_error_text
-from app.channels.types import InboundMessage
+from app.channels.routing.friendly_errors import (
+    ERROR_TYPE_METADATA_KEY,
+    friendly_error_message,
+    friendly_error_text,
+    is_error_reply,
+)
+from app.channels.types import InboundMessage, OutboundMessage
 
 
 class TestFriendlyErrorMessage:
@@ -75,6 +84,72 @@ def test_every_error_kind_has_catalog_text(kind: ErrorKind) -> None:
     assert text.strip().endswith(f"[ref: {ref_id}]")
     assert text.strip() != f"[ref: {ref_id}]"
     assert "error_" not in text
+
+
+def test_text_has_no_surrounding_whitespace() -> None:
+    text, _ = friendly_error_text(ErrorKind.TIMEOUT)
+
+    assert text == text.strip()
+
+
+_OWNER_KINDS = (ErrorKind.BILLING, ErrorKind.AUTH, ErrorKind.MODEL_NOT_FOUND)
+_LOCALES = ("en", "zh-CN", "zh-TW", "ja")
+
+
+def _deployment(*, platform_budget: bool) -> AbstractContextManager[MagicMock]:
+    return patch(
+        "app.channels.routing.friendly_errors.get_deployment_capabilities",
+        return_value=SimpleNamespace(uses_platform_budget=platform_budget),
+    )
+
+
+@pytest.mark.parametrize("locale", _LOCALES)
+@pytest.mark.parametrize("kind", _OWNER_KINDS)
+def test_owner_wording_replaces_the_generic_one_in_every_locale(kind: ErrorKind, locale: str) -> None:
+    generic, _ = friendly_error_text(kind, locale=locale)
+    with _deployment(platform_budget=False):
+        owner, ref_id = friendly_error_text(kind, locale=locale, account_guidance=True)
+
+    assert owner != generic
+    assert owner.endswith(f"[ref: {ref_id}]")
+    assert "error_" not in owner
+
+
+@pytest.mark.parametrize("locale", _LOCALES)
+def test_platform_billing_wording_differs_from_the_byok_one(locale: str) -> None:
+    with _deployment(platform_budget=False):
+        byok, _ = friendly_error_text(ErrorKind.BILLING, locale=locale, account_guidance=True)
+    with _deployment(platform_budget=True):
+        platform, _ = friendly_error_text(ErrorKind.BILLING, locale=locale, account_guidance=True)
+
+    assert byok.rsplit(" [ref", 1)[0] != platform.rsplit(" [ref", 1)[0]
+    assert "error_" not in platform
+
+
+def test_platform_deployment_keeps_the_generic_credential_wording() -> None:
+    with _deployment(platform_budget=True):
+        owner, _ = friendly_error_text(ErrorKind.AUTH, account_guidance=True)
+    generic, _ = friendly_error_text(ErrorKind.AUTH)
+
+    assert owner.rsplit(" [ref", 1)[0] == generic.rsplit(" [ref", 1)[0]
+
+
+@pytest.mark.parametrize("kind", [k for k in ErrorKind if k not in _OWNER_KINDS])
+def test_other_kinds_ignore_account_guidance(kind: ErrorKind) -> None:
+    generic, _ = friendly_error_text(kind)
+    guided, _ = friendly_error_text(kind, account_guidance=True)
+
+    assert guided.rsplit(" [ref", 1)[0] == generic.rsplit(" [ref", 1)[0]
+
+
+def test_is_error_reply_reads_the_failed_turn_flag() -> None:
+    def reply(metadata: dict[str, object] | None) -> OutboundMessage:
+        return OutboundMessage(channel="test", recipient_id="r", user_id="u", content="x", metadata=metadata)
+
+    assert is_error_reply(reply({ERROR_TYPE_METADATA_KEY: "billing"}))
+    assert not is_error_reply(reply(None))
+    assert not is_error_reply(reply({"sources": []}))
+    assert not is_error_reply(reply({ERROR_TYPE_METADATA_KEY: ""}))
 
 
 def test_error_kind_text_follows_message_locale() -> None:

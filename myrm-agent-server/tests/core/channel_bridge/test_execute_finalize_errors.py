@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import logging
 import re
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind
 
+from app.channels.routing.friendly_errors import ERROR_TYPE_METADATA_KEY, is_error_reply
 from app.channels.types import InboundMessage
 from app.core.channel_bridge.executor_helpers import StreamAccumulator
 from tests.core.channel_bridge.test_execute_finalize import _finalize
@@ -21,6 +24,7 @@ _RAW_PROVIDER_ERROR = (
     "'error': 'Your team has either used all available credits or reached its monthly spending limit.'}"
 )
 _REF = re.compile(r" \[ref: ([0-9a-f]{8})\]$")
+_CAPABILITIES = "app.channels.routing.friendly_errors.get_deployment_capabilities"
 
 
 def _failed_acc(kind: ErrorKind = ErrorKind.BILLING) -> StreamAccumulator:
@@ -85,3 +89,48 @@ async def test_streamed_text_wins_over_a_later_error() -> None:
     _persist_mock, reply = await _finalize(acc, ((), frozenset()))
 
     assert reply.content == "Partial answer."
+    assert not is_error_reply(reply)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", list(ErrorKind))
+async def test_failed_turn_reply_is_flagged_with_its_error_kind(kind: ErrorKind) -> None:
+    _persist_mock, reply = await _finalize(_failed_acc(kind), ((), frozenset()))
+
+    assert is_error_reply(reply)
+    assert reply.metadata is not None
+    assert reply.metadata[ERROR_TYPE_METADATA_KEY] == kind.value
+
+
+@pytest.mark.asyncio
+async def test_an_answer_is_not_flagged_as_a_failed_turn() -> None:
+    acc = StreamAccumulator()
+    acc.chunks.append("Here is your answer.")
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+
+    assert not is_error_reply(reply)
+
+
+@pytest.mark.asyncio
+async def test_account_guidance_swaps_in_the_owner_wording() -> None:
+    _persist_mock, generic = await _finalize(_failed_acc(), ((), frozenset()))
+    with patch(_CAPABILITIES, return_value=SimpleNamespace(uses_platform_budget=False)):
+        persist_mock, owner = await _finalize(_failed_acc(), ((), frozenset()), account_guidance=True)
+
+    assert "administrator" in generic.content
+    assert "balance or quota" in owner.content
+    assert _REF.search(owner.content) is not None
+    assert "_XaiEntitlementError" not in owner.content
+    assert persist_mock.call_args.args[1] == owner.content
+
+
+@pytest.mark.asyncio
+async def test_a_failed_turn_keeps_its_flag_next_to_the_other_reply_metadata() -> None:
+    acc = _failed_acc()
+    acc.cost_usd = 0.05
+    acc.model_name = "m"
+    _persist_mock, reply = await _finalize(acc, ((), frozenset()), memory_settings={"enableCostEstimation": True})
+
+    assert reply.metadata is not None
+    assert reply.metadata[ERROR_TYPE_METADATA_KEY] == ErrorKind.BILLING.value
+    assert "cost_metadata" in reply.metadata
