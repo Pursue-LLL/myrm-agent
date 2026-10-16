@@ -9,6 +9,7 @@
 [OUTPUT]
 - get_system_telemetry_posture: GET /telemetry-posture SRE OpenTelemetry Posture Probe
 - get_storage_info: GET /storage
+- get_storage_governance_report: GET /storage/governance (space ledger of the whole data directory)
 - optimize_storage: POST /storage/optimize
 - get_ingress_requirement: GET /ingress/requirement
 
@@ -491,7 +492,7 @@ def get_system_telemetry_posture() -> TelemetryPostureResponse:
         from myrm_agent_harness.infra.tracing import get_telemetry_posture
 
         data = get_telemetry_posture()
-        return TelemetryPostureResponse(**data)
+        return TelemetryPostureResponse.model_validate(data)
     except Exception as exc:
         logger.warning("Failed to retrieve telemetry posture: %s", exc)
         return TelemetryPostureResponse(
