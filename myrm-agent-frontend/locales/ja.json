@@ -1293,7 +1293,7 @@
         "statusGood": "優れた精度：アクション空間がスリムです。幻覚を抑えてツールを呼び出せます。",
         "staleSkillsNotice": "リマインダー：{count} 個の休眠スキルが精度を下げています。",
         "smartPrune": "休眠スキルを整理してアクション空間を解放",
-        "smartPruneRunning": "Curator による掃除を実行中…",
+        "smartPruneRunning": "アクション空間を整理しています…",
         "turn1CatalogTitle": "Turn 1 スキルカタログ",
         "turn1CatalogSummary": "{inline} インライン · {hidden} 非表示 · 検索 {searchState}",
         "turn1CatalogSearchOn": "オン",

@@ -20,9 +20,7 @@
       "goToSettings": "설정으로 이동",
       "addMore": "더 추가",
       "actionSpaceRadar": {
-        "smartPruneRunning": "큐레이터 정리 실행 중…",
-        "smartPruneSuccess": "큐레이터 정리 완료 — {stale}개 유휴 표시, {archived}개 보관",
-        "smartPruneFailed": "큐레이터 정리 실패",
+        "smartPruneRunning": "액션 공간을 정리하는 중…",
         "turn1CatalogTitle": "1턴 스킬 카탈로그",
         "turn1CatalogSummary": "인라인 {inline} · 숨김 {hidden} · 검색 {searchState}",
         "turn1CatalogSearchOn": "켬",

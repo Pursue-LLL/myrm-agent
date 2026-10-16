@@ -1317,7 +1317,7 @@
         "statusGood": "极佳决策准确率：动作空间极度精简，Agent 能发挥最高级别的零幻觉调用。",
         "staleSkillsNotice": "管家提醒：发现 {count} 个沉睡技能，正在拖累您的准确度！",
         "smartPrune": "一键净化释放动作空间",
-        "smartPruneRunning": "正在运行 Curator 清扫…",
+        "smartPruneRunning": "正在清理动作空间…",
         "turn1CatalogTitle": "Turn 1 技能目录",
         "turn1CatalogSummary": "{inline} 内联 · {hidden} 隐藏 · search {searchState}",
         "turn1CatalogSearchOn": "开启",

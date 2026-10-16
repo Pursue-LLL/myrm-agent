@@ -5442,7 +5442,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 5. 诊断发现 `wrong_but_frequent` 的 `details` 带 `success_count`、`failure_count`、`trust` 三个键，界面只读 `observed_count`；`trust` 正是上面那个恒为 `TRUSTED` 的值；
 6. 智能体配置里「技能」页签的动作空间噪声计收到的是 `agent.configPanel` 的翻译函数，而它用的 5 个文案键在 `agent.configEditor` 下。用真实 next-intl 和 `en.json` 实测：载荷标签、两条状态提示、陈旧提示都直接输出键路径（如 `agent.configPanel.actionSpaceRadar.loadMeterLabel`）；`verify:i18n-references` 看不到模板字符串拼出来的键，所以一直通过；
 7. `agent.configEditor.actionSpaceRadar.smartPruneSuccess / smartPruneFailed` 六种语言共 12 条文案键没有引用（清理吐司用的是 `agent.configPanel` 下的同名键）；
-8. `forgetting_strategy.py` 423 行，遗忘策略与体检报告两件事挤在一个文件里。
+8. `forgetting_strategy.py` 423 行，遗忘策略与体检报告两件事挤在一个文件里；
+9. 动作空间噪声计与雷达上的清理按钮，进行中文案写成「Curator 清扫」「Running curator sweep…」，而产品里这个功能叫「技能管理器」，且同一动作的吐司写的是「正在清理动作空间」，同一动作两种说法、其中一种是内部术语。
 
 ### 根因
 
@@ -5458,14 +5459,16 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. 噪声计改收 `agent.configEditor` 的翻译函数，新增用真实 en、zh 消息渲染的用例；删除 12 条无引用的文案键；`protectInstalledDesc` 六种语言改为如实描述（含其他工具目录）；
 5. 预置技能豁免用例改为参数化，同时断言开关关闭时被清理；
 6. 体检部分（`SkillDoctorFinding`、`SkillHealthDiagnosis`、`evaluate_skill_health_findings`）原样搬到 `backends/skills/skill_doctor.py`，及其 4 个测试搬到 `test_skill_doctor.py`；`forgetting_strategy.py` 423 → 246 行；服务端深层导入基线把 `forgetting_strategy` 换成 `skill_doctor`，条数不变；
-7. 路线图 topic_08 #43 的 ② ④ 记为已落地并列出生产调用点，①③⑤ 余项保持待做。
+7. 路线图 topic_08 #43 的 ② ④ 记为已落地并列出生产调用点，①③⑤ 余项保持待做，新增 ⑥ 记录下面局限 9；
+8. `agent.configEditor.actionSpaceRadar.smartPruneRunning` 六种语言改为与 `agent.configPanel` 同名键一致的用语；`scripts/translation-patches/ko/20-agent-config-editor.json` 里同一批旧文案与两条已删除的键一并改掉，免得重新应用补丁时把它们带回来。
 
 ### 验证
 
 1. harness：`tests/agent/skills/curator`、`tests/agent/skills/test_curator_engine.py`、`tests/backends/skills` 共 708 通过（拆分前）；拆分后 `test_forgetting_strategy.py` 与 `test_skill_doctor.py` 共 21 通过（拆分前同一批也是 21），搬走的函数体与 HEAD 逐字一致；新增的 5 例 `installed_names` 用例覆盖：开关开启时豁免、关闭时仍被清理、退出 LRU 池、合并候选跟随开关；
 2. 服务端：`tests/core/skills/curator`、`test_curator_consolidation.py`、`tests/core/infra/health`、`test_curator_usage_pipeline_integration.py` 共 109 通过；`test_local_skills.py` 用真实 `LocalSkillBackend` 目录断言「主目录自写不算、市场安装算、其他工具目录算、主目录缺失时不把其他目录当主目录、没有目录时无事可扫」；集成用例跑通「扫描 → 引擎 → 统计账本」：市场安装与其他工具的技能保持活跃、闲置的自写技能转陈旧，关闭开关后全部转陈旧；
 3. 前端：技能与智能体配置面板两个目录 39 文件 217 通过；`verify:i18n`、`verify:i18n-references`、`verify:theme-colors` 通过；触及文件 prettier、oxlint 0 告警；把 `t={t}` 改回 `t={tPanel}` 做变异验证，新增用例在 en 与 zh 各失败 1 例（共 2 例），还原后通过；
-4. 拆分后 `check_module_reachability` 不再提到 `skill_doctor`（服务端改从新模块导入之前，它被报为「无生产调用方」，门禁共 19 项；现在 18 项，都是他人的模块）。
+4. 拆分后 `check_module_reachability` 不再提到 `skill_doctor`（服务端改从新模块导入之前，它被报为「无生产调用方」，门禁共 19 项；现在 18 项，都是他人的模块）；
+5. 文案改动后：`verify:i18n`（含代码引用检查）、`verify:theme-colors`、六份 locale 与 ko 补丁的 prettier、智能体配置面板目录 7 文件 29 例通过；harness 与服务端触及文件 ruff 无告警，harness 3 个触及文件与服务端 4 个触及文件的 mypy 在这些文件内 0 错误（服务端整仓另有 1134 条，均不在这些文件里）。
 
 ### 局限
 
@@ -5476,7 +5479,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 5. 本机其他工具的技能目录里有 24 个 `.stats.json` 账本（账本是清理对一个技能生效的前提），写入方没有查清；
 6. 仍失败、且不涉及本条文件的：服务端 `tests/architecture/test_server_harness_imports.py`（136 条新增深层导入，均来自他人未提交的改动，没有一条与 `skill_doctor` 或 `forgetting_strategy` 有关）、harness `check_module_reachability` 18 项、`tests/agent/skills/test_anti_sycophancy_curator_engine.py` 的 3 条 ruff 未使用导入、前端 `LearningLoopFiveRingHub.test.tsx` 的 1 条 `tsc` 类型错误；
 7. 服务端导入基线位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，用带锚点校验的脚本编辑（与 `BUG-AGENT-2026-10-15-003` 局限 8 相同）；
-8. 服务端依赖 harness 的新模块 `skill_doctor`，要先发布 harness 版本再 `./myrm harness sync-lock`；本次只做了 sync-lock 的本地检查，没有发布。
+8. 服务端依赖尚未发布的 harness：`service.py` 从新模块 `skill_doctor` 导入，`curator.run` 传入新参数 `installed_names`；服务端依赖声明固定为 `myrm-agent-harness==0.1.0rc5`（`myrm-agent-server/pyproject.toml:25`），要先发布 harness 版本再 `./myrm harness sync-lock`；本次只做了 sync-lock 的本地检查，没有发布；
+9. 体检与健康探针的容量告警仍按全部活跃技能计数，清理的 LRU 池却不含受保护技能：构造 60 个装来 + 5 个自写、上限 50，一次清理 0 次转换（`skipped_protected` 为 60），体检报 `active_count` 65、超出 15；探针超上限判 `fail` 并建议「运行清理」，对受保护技能无效；设置里「超出后将最久未使用的技能标记为闲置」对受保护技能也不成立。绑定技能自被豁免起就有同样的口径差，装来技能把它放大（本机 `~/.cursor/skills-cursor` 下就有 24 个其他工具的技能被扫进来；本机自写技能数没有量）。本条不处理，记在路线图 topic_08 #43 ⑥；
+10. 「已安装」依据 `origin.json`：此仓最早的历史（2026-06-02 初始导入）就带 `write_origin`，更早安装的技能是否有这个标记查不到，没有验证，没有标记的主目录技能会被当作自写技能清理（归档可恢复）；用户备份的导出导入保留它（`app/api/skills/sync.py:122-126` 导出按 `.json` 等后缀打包、`:270` 导入整目录复制），发布打包有意剔除（`app/core/skills/packaging/collect.py:33`）。
 
 ### 踩坑经验
 

@@ -4,6 +4,7 @@
 - myrm_agent_harness.agent.skills.curator::SkillCurator (POS: Stateless curator engine)
 - myrm_agent_harness.backends.skills.curator_config::CuratorConfig (POS: Curator configuration with construction-time range validation)
 - myrm_agent_harness.backends.skills.stats_collector::SkillStatsCollector (POS: Usage stats collector)
+- myrm_agent_harness.backends.skills.skill_doctor::evaluate_skill_health_findings (POS: Skill library health findings)
 - app.core.skills.models::DEFAULT_LOCAL_SKILL_PATHS (POS: Skill models and paths)
 - app.core.skills.curator.local_skills::scan_local_skills (POS: Scan of all skill roots with installed-skill marking)
 - app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper; invalidates warm-chat agents)

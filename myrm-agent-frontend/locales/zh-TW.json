@@ -1293,7 +1293,7 @@
         "statusGood": "極佳決策準確率：動作空間極度精簡，Agent 能發揮最高階別的零幻覺呼叫。",
         "staleSkillsNotice": "管家提醒：發現 {count} 個沉睡技能，正在拖累您的準確度！",
         "smartPrune": "一鍵淨化釋放動作空間",
-        "smartPruneRunning": "正在執行 Curator 清掃…",
+        "smartPruneRunning": "正在清理動作空間…",
         "turn1CatalogTitle": "Turn 1 技能目錄",
         "turn1CatalogSummary": "{inline} 內聯 · {hidden} 隱藏 · search {searchState}",
         "turn1CatalogSearchOn": "開啟",

@@ -1293,7 +1293,7 @@
         "statusGood": "우수한 정확도: 액션 공간이 간결합니다. 최소 환각으로 도구를 호출할 수 있습니다.",
         "staleSkillsNotice": "알림: {count}개의 휴면 스킬이 정확도에 영향을 줍니다.",
         "smartPrune": "휴면 스킬 정리로 액션 공간 확보",
-        "smartPruneRunning": "큐레이터 정리 실행 중…",
+        "smartPruneRunning": "액션 공간을 정리하는 중…",
         "turn1CatalogTitle": "1턴 스킬 카탈로그",
         "turn1CatalogSummary": "인라인 {inline} · 숨김 {hidden} · 검색 {searchState}",
         "turn1CatalogSearchOn": "켬",

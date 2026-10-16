@@ -1293,7 +1293,7 @@
         "statusGood": "Hervorragende Genauigkeit: schlanker Aktionsraum; minimale Halluzination beim Tool-Aufruf.",
         "staleSkillsNotice": "Hinweis: {count} inaktive Skill(s) beeinträchtigen die Genauigkeit.",
         "smartPrune": "Inaktive Skills bereinigen und Aktionsraum freigeben",
-        "smartPruneRunning": "Curator-Durchlauf läuft…",
+        "smartPruneRunning": "Aktionsraum wird bereinigt…",
         "turn1CatalogTitle": "Skill-Katalog Runde 1",
         "turn1CatalogSummary": "{inline} inline · {hidden} ausgeblendet · Suche {searchState}",
         "turn1CatalogSearchOn": "ON",
