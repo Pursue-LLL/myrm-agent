@@ -36,7 +36,7 @@ from typing import Literal
 
 from myrm_agent_harness.agent.skills.curator import CuratorRunResult, SkillCurator
 from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
-from myrm_agent_harness.backends.skills.forgetting_strategy import evaluate_skill_health_findings
+from myrm_agent_harness.backends.skills.skill_doctor import evaluate_skill_health_findings
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 

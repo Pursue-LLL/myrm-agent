@@ -201,7 +201,6 @@ myrm_agent_harness.backends.skills.creation_protocols
 myrm_agent_harness.backends.skills.credential_checker
 myrm_agent_harness.backends.skills.curator_config
 myrm_agent_harness.backends.skills.decorators.version_aware
-myrm_agent_harness.backends.skills.forgetting_strategy
 myrm_agent_harness.backends.skills.local
 myrm_agent_harness.backends.skills.local_skill_id
 myrm_agent_harness.backends.skills.market_protocols
@@ -214,6 +213,7 @@ myrm_agent_harness.backends.skills.scanning.scanner
 myrm_agent_harness.backends.skills.scanning.scanning_write_backend
 myrm_agent_harness.backends.skills.scanning.zip_extract
 myrm_agent_harness.backends.skills.similarity
+myrm_agent_harness.backends.skills.skill_doctor
 myrm_agent_harness.backends.skills.snapshot
 myrm_agent_harness.backends.skills.state_manager
 myrm_agent_harness.backends.skills.stats_collector
