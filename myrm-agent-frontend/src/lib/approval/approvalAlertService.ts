@@ -22,6 +22,7 @@ import { isTauriEnvironment } from '@/lib/tauri';
 import { getClientLocale } from '@/lib/utils/locale';
 import { getConfigSyncManager } from '@/services/config';
 import type { ToolApprovalRequest } from '@/store/chat/types';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
 
 const MAX_ACTIVE_NOTIFICATIONS = 5;
 const TITLE_FLASH_INTERVAL_MS = 1000;
@@ -270,7 +271,7 @@ export function isTitleFlashing(): boolean {
 }
 
 /**
- * Clear all approval notifications (e.g. when all approvals are resolved or user focuses window).
+ * Clear all approval notifications and the title flash.
  */
 export function clearAllNotifications(): void {
   for (const [id] of activeNotifications) {
@@ -279,3 +280,10 @@ export function clearAllNotifications(): void {
   activeNotifications.clear();
   stopTitleFlash();
 }
+
+// The alerts describe the approvals waiting in the queue, so they end with it, wherever the last one was answered.
+useToolApprovalStore.subscribe((state, previous) => {
+  if (previous.queue.length > 0 && state.queue.length === 0) {
+    clearAllNotifications();
+  }
+});

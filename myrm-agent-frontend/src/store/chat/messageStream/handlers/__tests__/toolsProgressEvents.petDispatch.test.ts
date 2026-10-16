@@ -16,7 +16,6 @@ vi.mock('./handlerDeps', () => {
     APPROVAL_REQUIRED: 'approval_required',
     CLARIFICATION_REQUIRED: 'clarification_required',
     TOOL_APPROVAL_REQUEST: 'tool_approval_request',
-    APPROVAL_PROCESSED: 'approval_processed',
     TOOLS_SNAPSHOT: 'tools_snapshot',
   } as const;
 
@@ -29,7 +28,6 @@ vi.mock('./handlerDeps', () => {
     useToolApprovalStore: {
       getState: vi.fn(() => ({
         addRequest: vi.fn(),
-        removeRequestsByMessageId: vi.fn(),
         queue: [],
       })),
     },
@@ -127,12 +125,6 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
     expect(dispatchedEvents).toHaveLength(0);
   });
 
-  it('APPROVAL_PROCESSED does not dispatch pet-status-event', async () => {
-    const ctx = makeCtx('approval_processed', {});
-    await toolsProgressEvents(ctx);
-    expect(dispatchedEvents).toHaveLength(0);
-  });
-
   it('returns done StreamTurn for HITL event types', async () => {
     const types = [
       { type: 'approval_required', extra: { data: { type: 'manual' } } },
@@ -147,7 +139,6 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
           },
         },
       },
-      { type: 'approval_processed', extra: {} },
     ];
 
     for (const { type, extra } of types) {

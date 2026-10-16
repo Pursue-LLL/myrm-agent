@@ -11,7 +11,6 @@
 
 import type { AgentCancelledStreamEvent } from './part1';
 import type {
-  ApprovalProcessedStreamEvent,
   ApprovalRequiredStreamEvent,
   ArtifactContentStreamEvent,
   ArtifactFocusStreamEvent,
@@ -104,7 +103,6 @@ export type AgentStreamEvent =
   | ToolHeartbeatStreamEvent
   | SourcesStreamEvent
   | ToolApprovalRequestStreamEvent
-  | ApprovalProcessedStreamEvent
   | ApprovalRequiredStreamEvent
   | AsyncUserMessageStreamEvent
   | ClarificationRequiredStreamEvent

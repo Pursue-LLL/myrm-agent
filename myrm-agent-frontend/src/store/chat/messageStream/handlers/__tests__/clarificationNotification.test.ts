@@ -20,7 +20,6 @@ vi.mock('@/lib/approval/buildToolApprovalRequest', () => ({
 
 vi.mock('@/lib/approval/approvalAlertService', () => ({
   notifyIdleApproval: vi.fn(),
-  clearAllNotifications: vi.fn(),
 }));
 
 vi.mock('../handlerDeps', () => ({
@@ -31,7 +30,6 @@ vi.mock('../handlerDeps', () => ({
     APPROVAL_REQUIRED: 'approval_required',
     CLARIFICATION_REQUIRED: 'clarification_required',
     TOOL_APPROVAL_REQUEST: 'tool_approval_request',
-    APPROVAL_PROCESSED: 'approval_processed',
     TOOLS_SNAPSHOT: 'tools_snapshot',
   },
   findAssistantMessageIndex: vi.fn(() => 0),
@@ -44,7 +42,6 @@ vi.mock('../handlerDeps', () => ({
   useToolApprovalStore: {
     getState: vi.fn(() => ({
       addRequest: vi.fn(),
-      removeRequestsByMessageId: vi.fn(),
       queue: [],
     })),
   },

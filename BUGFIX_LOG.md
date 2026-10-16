@@ -5595,3 +5595,58 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 依赖 SQLite 级联的删除必须自己打开 `foreign_keys`（默认关，且事务里设置无效）并回读确认；只检查「删了几行」不能证明子表也删了。
 3. 看起来能互相印证的几处文案，要各自追到代码里的调用方；没有调用方就删，不要留着当「已实现」。
 4. 浏览器里的断言要等「可交互」而不是「元素在」；量颜色要先关过渡；这类基础设施行为写进测试的注释里，下一个人才不会重走一遍。
+
+## BUG-AGENT-2026-10-16-023: 浏览器扩展侧边栏的工具审批点了不起作用（答复发往不存在的记录、只显示第一个动作）；`i18n.js` 的语法错误让扩展后台脚本整个不执行、弹窗文案不翻译；前端一条无人发布的 `approval_processed` 事件链与一个无人调用的通知清理函数
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（#436 终审：核对扩展侧边栏的审批答复走哪条路径） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P1（`i18n.js` 解析失败使后台脚本不执行，影响整个扩展；侧边栏审批必然无效） |
+| 影响范围 | extension：`src/i18n.js`、`src/sidepanel/{sidepanel.js,sidepanel.html,sidepanel.css,approval.js,sse.js}`、`_locales/{en,zh_CN}/messages.json`、`_ARCH.md`；frontend：`src/store/chat/messageStream/handlers/toolsProgressEvents.ts`、`src/store/chat/types/agentStream/{part1,union}.ts`、`src/store/useToolApprovalStore.ts`、`src/lib/approval/approvalAlertService.ts` 与对应测试；server：`tests/fixtures/frontend_sse_event_types.json` |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-16-019`（网页端按 `interruptId` 寻址的 resume；扩展答复尚未回传该字段，见局限）；本地提交，未 push |
+
+### 现象
+
+1. 侧边栏的批准/拒绝向 `/api/v1/approvals/{id}/resolve` 提交 `extensions.approval.requestId`，而这个值是 harness 每次中断新生成的随机 UUID（`myrm-agent-harness/src/myrm_agent_harness/agent/middlewares/approval/_batch_decisions.py:317`），工具审批并不写入 `approvals` 记录，服务端按记录查不到即 404（`myrm-agent-server/app/api/approvals/router.py:187-189`）；扩展把错误只记进控制台，用户看到弹窗消失，被暂停的回合并没有继续。
+2. 弹窗只读 `actionRequests[0]`，一次中断含多个动作时其余动作看不到。
+3. 弹窗文案是写死的英文。
+4. `src/i18n.js` 头注释里的 `_locales/*/messages.json` 含 `*/`，提前结束了块注释，整个文件解析失败（自 `3eafedff53` 引入）；后台脚本与弹窗都 import 它。在无头 Chromium 中加载已提交的扩展：后台的 `runtime.onMessage`、`alarms.onAlarm`、`tabs.onRemoved` 监听器都没有注册，弹窗状态显示未翻译的 `Disconnected`；修复后三者都已注册，弹窗显示「未连接」。
+5. 前端处理 `approval_processed` 的分支、类型与 `removeRequestsByMessageId` 没有任何发布方（全仓库检索无事件来源），`clearAllNotifications` 只被这条死分支调用，因此审批在别处被处理后，通知与标题闪烁没有任何收口。
+
+### 根因
+
+1. 侧边栏沿用了「审批是一条可按 id 结案的记录」的假设，而工具审批是 LangGraph 中断，答复必须以同一 `message_id`/`chat_id` 发起带 `resume_value` 的新 `agent-stream` 请求（网页端同此路径）。
+2. `i18n.js` 的头注释里写了含 `*/` 的路径通配符，没有任何测试加载过该文件。
+3. 前端的 `approval_processed` 是为一条从未实现的服务端推送预留的消费端。
+
+### 修复
+
+1. 新增纯函数模块 `approval.js`：`describeApproval` 逐项描述全部动作，`buildResumeValue`（`:114`）生成 `{decision:"approve"}` 或带反馈的拒绝，`buildStreamBody`（`:122`）组装 resume 请求体；`sidepanel.js` 的 `respondApproval`（`:339`）在原回合的助手消息上续写，409 落成中性提示（`:219`）；SSE 读取抽到 `sse.js`。
+2. 安全边界按白名单失败关闭：审批配置里出现 `allowedDecisions`/`hideAllowAlways`/`domainApproval` 之外的任何开启字段（金额、二次确认、不可逆、影响摘要……含将来新增的字段），或不允许批准，或 `displayMode` 为 `handover`，侧边栏只能拒绝，并提示去网页端批准（`approval.js:21` 白名单、`:59` 判定）。
+3. 弹窗文案、提示全部走 `chrome.i18n`（`_locales/en`、`_locales/zh_CN` 各 9 个新键，占位符一致）；侧边栏脚本改为 ES module 并在初始化时应用文档翻译。
+4. 修正 `i18n.js` 头注释。
+5. 删除 `approval_processed` 的事件常量、类型、联合成员、处理分支、`removeRequestsByMessageId` 与服务端 fixture 项；`approvalAlertService.ts` 改为订阅审批队列，队列由非空变空时关闭通知并停止标题闪烁，不论最后一张卡在哪里被答复。
+
+### 验证
+
+1. frontend vitest：`src/lib/extension` 5 个文件 51 例（审批判定与白名单、请求体、文案、SSE 解析，以及加载真实 `sidepanel.html` 的 jsdom 控制器用例：批准发出 `resume_value`、拒绝带反馈、409 中性提示、新会话清弹窗、重复点击只发一次、高风险只能拒绝）；把白名单改成放行所有字段后 12 例失败，还原后通过。`approvalAlertService` 新增 3 例（队列清空时收口、仍有待决时保留、`clearAll`），把判定条件改错后 2 例失败，还原后通过。涉及目录合计 97 个文件 633 例通过。
+2. harness 现有用例 `test_approval_rare_branches.py::test_global_decision_normalization` 确认全局 `{decision:"approve"}` 作用于该中断的全部动作；服务端 `AgentRequest` 解析探测接受扩展发出的请求体。
+3. 真实无头 Chromium 加载扩展、连模拟服务端：批准发出 `{"message_id":同一个,"chat_id":同一个,"query":"","resume_value":{"decision":"approve"}}`，气泡续写为 `Hello world`，弹窗收起，页面无报错；高风险变体只剩「拒绝」与提示，拒绝发出 `{"decision":"reject","feedback":"User rejected this action."}`；中文文案生效。提交版扩展在同一探测里后台监听器为未注册、弹窗为英文（见现象 4）。
+4. `tsc` 对涉及路径无报错（全量运行只在 `doctorLocaleKeys.test.ts`、`GoalStatusCard.tsx` 报错，二者都不在本条改动里，属于工作区中他人未提交的改动）；prettier、oxlint、`verify:theme-colors`、`tests/architecture/test_sse_event_type_parity.py` 通过；`verify:i18n` 当前因他人未完成的 `cron.blockedMore` 等键失败，本条没有改动前端语言包。
+
+### 局限
+
+1. 真实 `chrome.sidePanel` 宿主、真实服务端带着真实中断的端到端恢复没有运行：探测把侧边栏页当作扩展页打开并连接模拟服务端。
+2. 扩展答复不带 `interruptId`：只在同一时刻仅有一个待决中断时有效；多个待决时 harness 会拒绝未寻址的 resume（`-019`），扩展在这种情形下的表现没有验证。
+3. 服务端超时自动处理后，侧边栏的弹窗不会自己消失，点击后经 409 落成中性提示；在弹窗未答复时发送新消息会收起弹窗，被暂停的回合交给服务端超时处理，未验证该路径的服务端表现。
+4. 白名单偏保守：带影响摘要、恢复提示等信息的审批也只能在网页端批准；这类审批占比没有量过。
+5. `sidepanel.js` 为 490 行，超过 400 行的目标、低于 500 行的上限，没有继续拆分。
+6. 后台脚本不执行对 WebSocket 桥、右键菜单、剪藏的影响，由「监听器未注册」推得，没有逐项运行。
+
+### 踩坑经验
+
+1. 注释里的路径通配符 `*/` 会结束块注释；语法错误不会在任何测试里出现，除非有一个用例真正加载该文件。给每个浏览器扩展 ESM 加一次加载级检查，比读代码可靠。
+2. 「安全例外清单」用黑名单会在新增字段时默认放行；放行条件写成白名单，新增字段才会默认回到网页端。
+3. 无人发布的事件、无人调用的清理函数，都在读代码时被当成「已有保护」；先查发布方与调用方，再决定留还是删。

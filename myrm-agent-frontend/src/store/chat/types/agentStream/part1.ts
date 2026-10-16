@@ -41,7 +41,6 @@ export const AgentEventType = {
   TOOL_APPROVAL_REQUEST: 'tool_approval_request',
   APPROVAL_REQUIRED: 'approval_required',
   CLARIFICATION_REQUIRED: 'clarification_required',
-  APPROVAL_PROCESSED: 'approval_processed',
   ASYNC_USER_MESSAGE: 'async_user_message',
   GOAL_STATUS: 'goal_status',
   RATE_LIMIT_UPDATED: 'rate_limit_updated',
@@ -246,11 +245,6 @@ export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
       displayMode: 'approval' | 'handover';
     };
   };
-}
-
-export interface ApprovalProcessedStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.APPROVAL_PROCESSED;
-  decision: 'approve' | 'reject' | 'approve_always' | 'feedback';
 }
 
 export interface ApprovalRequiredStreamEvent extends BaseAgentEvent {

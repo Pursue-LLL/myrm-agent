@@ -21,7 +21,6 @@ interface ToolApprovalState {
 
   addRequest: (request: ToolApprovalRequest) => void;
   removeRequest: (requestId: string) => void;
-  removeRequestsByMessageId: (messageId: string) => void;
   clearAll: () => void;
   setResolving: (isResolving: boolean) => void;
   setBatchDecision: (requestId: string, decision: BatchApprovalDecision) => void;
@@ -44,16 +43,6 @@ const useToolApprovalStore = create<ToolApprovalState>((set, get) => ({
     set((state) => ({
       queue: state.queue.filter((r) => r.requestId !== requestId),
     })),
-
-  removeRequestsByMessageId: (messageId) =>
-    set((state) => {
-      const newSet = new Set(state.processingMessageIds);
-      newSet.delete(messageId);
-      return {
-        queue: state.queue.filter((r) => r.messageId !== messageId),
-        processingMessageIds: newSet,
-      };
-    }),
 
   clearAll: () =>
     set({

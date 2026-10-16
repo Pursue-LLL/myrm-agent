@@ -7,7 +7,7 @@ import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import { buildToolApprovalRequest } from '@/lib/approval/buildToolApprovalRequest';
-import { notifyIdleApproval, clearAllNotifications } from '@/lib/approval/approvalAlertService';
+import { notifyIdleApproval } from '@/lib/approval/approvalAlertService';
 import { getClarificationNotificationTitle, resolveClarificationFormFromEventData } from '../streamHelpers';
 import * as H from './handlerDeps';
 
@@ -339,15 +339,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const allRequests = H.useToolApprovalStore.getState().queue;
     notifyIdleApproval(allRequests.slice(-actionRequests.length));
 
-    return done(ctx);
-  }
-
-  if (data.type === H.AgentEventType.APPROVAL_PROCESSED) {
-    H.useToolApprovalStore.getState().removeRequestsByMessageId(data.messageId);
-    const remaining = H.useToolApprovalStore.getState().queue;
-    if (remaining.length === 0) {
-      clearAllNotifications();
-    }
     return done(ctx);
   }
 
