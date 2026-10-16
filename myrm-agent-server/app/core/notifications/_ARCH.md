@@ -51,7 +51,7 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 |------|------|-------------|-------|
 | `__init__.py` | Facade | Module public facade — exports NotificationDispatcher, FormattedNotification, format_notification | ✅ |
 | `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats one card per configured target (channel-aware; the owner's language is resolved once per event, only for `LOCALIZED_EVENT_TYPES`) and sends it via Gateway | ✅ |
-| `adaptive_cards.py` | Core | `format_notification(event, *, channel, locale)` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers; `_EVENT_TEMPLATES` holds the plain-text templates; `LOCALIZED_EVENT_TYPES` lists the events whose card is localized | ✅ |
+| `adaptive_cards.py` | Core | `format_notification(event, *, channel, locale)` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers; `_EVENT_TEMPLATES` holds the plain-text templates; `LOCALIZED_EVENT_TYPES` lists the events whose card is localized; a kanban update whose `block_kind` is `scheduled` formats to None (the task resumes by itself) | ✅ |
 | `approval_card.py` | Core | `build_approval_card` — `APPROVAL_REQUIRED` card text and buttons per target channel; shows a held reply (`outbound_draft`) with the incoming message, the draft and the expiry outcome; Approve/Deny buttons only for `APPROVAL_CLICK_CHANNELS`, the `/draft` commands for a held reply everywhere else | ✅ |
 
 ## Approval Cards

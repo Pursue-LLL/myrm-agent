@@ -6,10 +6,10 @@
 - app.core.channel_bridge.persistent_background (POS: Background task source constants.)
 
 [OUTPUT]
-- publish_kanban_event, emit_btw_done, emit_review_requested, emit_task_rejected, emit_source_chat_done (completed/failed/blocked; skips scheduled blocks)
+- publish_kanban_event, publish_task_event (task-level update whose detail is the reason for the task's current state), emit_btw_done, emit_review_requested, emit_task_rejected, emit_source_chat_done (completed/failed/blocked; skips scheduled blocks)
 
 [POS]
-SSE event publishing for kanban task updates and BTW terminal events.
+SSE event publishing for kanban task updates and BTW terminal events. One outcome rule (`_terminal_status` / `_terminal_result`) decides what every user-facing consumer of a task update is told.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from __future__ import annotations
 from myrm_agent_harness.toolkits.kanban.types import (
     BlockKind,
     KanbanTask,
+    TaskStatus,
     extract_source_chat_id,
 )
 
@@ -36,6 +37,7 @@ def publish_kanban_event(
     title: str = "",
     detail: str = "",
     status: str = "",
+    block_kind: str = "",
 ) -> None:
     """Publish a kanban task update event to the global SSE event bus."""
     data: dict[str, str] = {
@@ -49,11 +51,32 @@ def publish_kanban_event(
         data["detail"] = detail
     if status:
         data["status"] = status
+    if block_kind:
+        data["block_kind"] = block_kind
     get_event_bus().publish(
         AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
             data=data,
         )
+    )
+
+
+def publish_task_event(action: str, task: KanbanTask) -> None:
+    """Publish a task-level update; the detail is the reason for the task's current state.
+
+    Dispatcher events (``task_*``) and manual moves (``moved``) share the chat notice's outcome rule, so the
+    toast, the system notification and the outbound channels report the same reason. A blocked task also
+    carries its ``block_kind``: a scheduled block resumes by itself, so those consumers stay quiet about it.
+    """
+    outcome = _outcome(action, task)
+    publish_kanban_event(
+        task.board_id,
+        task.task_id,
+        action,
+        title=task.title,
+        detail=_terminal_result(task, outcome) if outcome else "",
+        status=task.status.value if action == "moved" else "",
+        block_kind=task.block_kind.value if task.block_kind and task.status == TaskStatus.BLOCKED else "",
     )
 
 
@@ -192,9 +215,21 @@ def _terminal_status(event_type: str, task: KanbanTask) -> str | None:
     return None
 
 
+def _outcome(action: str, task: KanbanTask) -> str | None:
+    """The completed/blocked/failed outcome an update tells the user about; None when it is none of them."""
+    return _terminal_status(f"task_{task.status.value}" if action == "moved" else action, task)
+
+
 def _terminal_result(task: KanbanTask, status: str) -> str:
+    """The reason to show for a terminal outcome.
+
+    A task keeps the result of an earlier completed attempt after it is rejected and run again, so a blocked or
+    failed task reports its own reason first; only a completed task reports its result first.
+    """
     if status == "blocked":
         return task.blocked_reason or task.error or ""
+    if status == "failed":
+        return task.error or task.result or ""
     return task.result or task.error or ""
 
 

@@ -30,7 +30,7 @@ from app.services.kanban.event_publisher import (
     emit_review_requested,
     emit_source_chat_done,
     emit_task_rejected,
-    publish_kanban_event,
+    publish_task_event,
 )
 from app.services.kanban.worktree_ops import merge_task_worktree, spawn_worktree_op
 
@@ -86,15 +86,7 @@ async def start_dispatcher(
         worker_id=worker_id,
         verifier=KanbanCompletionVerifier(),
     )
-    dispatcher.on_event(
-        lambda event_type, task: publish_kanban_event(
-            task.board_id,
-            task.task_id,
-            event_type,
-            title=task.title,
-            detail=task.result or task.blocked_reason or task.error or "",
-        )
-    )
+    dispatcher.on_event(publish_task_event)
     dispatcher.on_event(emit_btw_done)
     dispatcher.on_event(emit_source_chat_done)
     dispatcher.on_event(lambda event_type, task: emit_review_requested(task) if event_type == "task_review_requested" else None)

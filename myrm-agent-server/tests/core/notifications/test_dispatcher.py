@@ -365,6 +365,38 @@ class TestFormatMessage:
         assert result is not None
         assert '"FailedTask" failed' in result
 
+    @pytest.mark.parametrize(
+        "data",
+        [
+            {"action": "task_blocked", "block_kind": "scheduled"},
+            {"action": "moved", "status": "blocked", "block_kind": "scheduled"},
+        ],
+    )
+    def test_kanban_scheduled_block_skipped(self, data: dict[str, str]) -> None:
+        event = AppEvent(
+            event_type=AppEventType.KANBAN_TASK_UPDATED,
+            data={"board_id": "b1", "task_id": "t1", "title": "Nightly", "detail": "Transient error", **data},
+        )
+        assert _format_message(event) is None
+
+    @pytest.mark.parametrize("block_kind", ["human", "external"])
+    def test_kanban_block_waiting_for_someone_still_sent(self, block_kind: str) -> None:
+        event = AppEvent(
+            event_type=AppEventType.KANBAN_TASK_UPDATED,
+            data={
+                "board_id": "b1",
+                "task_id": "t1",
+                "action": "task_blocked",
+                "title": "Release",
+                "detail": "Need your decision",
+                "block_kind": block_kind,
+            },
+        )
+        result = _format_message(event)
+        assert result is not None
+        assert '"Release" blocked' in result
+        assert "Need your decision" in result
+
     def test_kanban_updated_skipped(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,

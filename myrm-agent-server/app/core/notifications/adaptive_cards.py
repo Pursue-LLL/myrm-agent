@@ -4,6 +4,7 @@ Transforms AppEvents into rich OutboundMessage payloads containing structured
 Markdown content, indicator headers, and interactive ActionButtons/QuickReplies.
 
 [INPUT]
+- myrm_agent_harness.toolkits.kanban.types::BlockKind (POS: a scheduled block is not sent to channels)
 - app.services.event.app_event_bus::AppEvent, AppEventType
 - app.core.notifications.approval_card::build_approval_card (POS: approval text and decision buttons per channel)
 - app.channels.types.components::ActionButton, ButtonStyle, QuickReply, ComponentRow
@@ -27,6 +28,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import Any
+
+from myrm_agent_harness.toolkits.kanban.types import BlockKind
 
 from app.channels.types.components import (
     ActionButton,
@@ -130,6 +133,9 @@ def _format_kanban_text(data: dict[str, Any]) -> str | None:
     suffix = f"\n{detail[:200]}" if detail else ""
 
     resolved_status = status or action.removeprefix("task_")
+    # A scheduled block resumes by itself, so it is not worth a message to the owner's phone.
+    if resolved_status == "blocked" and data.get("block_kind") == BlockKind.SCHEDULED:
+        return None
     if resolved_status == "completed":
         return f'[Myrm AI] Kanban task "{title}" completed{suffix}'
     if resolved_status == "blocked":

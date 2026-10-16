@@ -22,9 +22,14 @@ function statusLabelKey(status: string): string {
   return status === 'blocked' ? 'kanbanTaskBlocked' : 'kanbanTaskFailed';
 }
 
+function clipDescription(text: string): string {
+  return text.length > MAX_DESCRIPTION_LENGTH ? `${text.slice(0, MAX_DESCRIPTION_LENGTH - 1)}…` : text;
+}
+
 /**
  * Toast and system notification for a kanban task that completed, blocked or failed.
  * The server sends the reason as written (`detail`); a blocked reason it knows is shown in the interface language.
+ * A scheduled block is silent: the task resumes by itself and its card shows when.
  */
 export function showKanbanTaskToast(data: Record<string, unknown>, deps: KanbanTaskToastDeps): void {
   const action = String(data.action ?? '');
@@ -40,9 +45,12 @@ export function showKanbanTaskToast(data: Record<string, unknown>, deps: KanbanT
 
   const { t, tKanban, pushToast, notifyIfLeader } = deps;
   const status = String(data.status ?? '') || action.replace('task_', '');
+  if (status === 'blocked' && data.block_kind === 'scheduled') {
+    return;
+  }
   const label = `${t(statusLabelKey(status))}: ${title}`;
   const detail = String(data.detail ?? '');
-  const description = detail ? blockedReasonText(detail, tKanban).slice(0, MAX_DESCRIPTION_LENGTH) : undefined;
+  const description = detail ? clipDescription(blockedReasonText(detail, tKanban)) : undefined;
 
   if (status === 'completed') {
     pushToast.success(label, { description, duration: 8_000, dismissible: true });

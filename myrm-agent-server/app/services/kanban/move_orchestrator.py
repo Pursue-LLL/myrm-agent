@@ -35,7 +35,7 @@ from myrm_agent_harness.toolkits.kanban.types import (
 
 from app.core.kanban.adapters import SqlAlchemyKanbanStore
 from app.services.kanban.dependency_ops import promote_dependents
-from app.services.kanban.event_publisher import publish_kanban_event
+from app.services.kanban.event_publisher import publish_kanban_event, publish_task_event
 from app.services.kanban.service_mixins.types import (
     STATUS_TO_EVENT_KIND,
     SYNTHETIC_RUN_TARGETS,
@@ -296,14 +296,7 @@ async def move_task(
 
     if task.board_id in dispatchers:
         wake_dispatcher(task.board_id)
-    publish_kanban_event(
-        saved.board_id,
-        task_id,
-        "moved",
-        title=saved.title,
-        detail=saved.result or saved.blocked_reason or saved.error or "",
-        status=saved.status.value,
-    )
+    publish_task_event("moved", saved)
     return saved
 
 

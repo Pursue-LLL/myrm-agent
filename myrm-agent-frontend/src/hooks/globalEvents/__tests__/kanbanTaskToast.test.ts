@@ -27,8 +27,17 @@ describe('showKanbanTaskToast', () => {
     expect(notifyIfLeader).toHaveBeenCalledWith('notifications:kanbanTaskBlocked: Write docs', description);
   });
 
-  it('shows a reason it does not know as written, cut to 200 characters', () => {
+  it('shows a reason it does not know as written, cut to 200 characters with an ellipsis', () => {
     show({ action: 'task_failed', title: 'Build', detail: 'x'.repeat(250) });
+
+    expect(pushToast.warning).toHaveBeenCalledWith(
+      'notifications:kanbanTaskFailed: Build',
+      expect.objectContaining({ description: `${'x'.repeat(199)}…` }),
+    );
+  });
+
+  it('does not cut a reason of exactly 200 characters', () => {
+    show({ action: 'task_failed', title: 'Build', detail: 'x'.repeat(200) });
 
     expect(pushToast.warning).toHaveBeenCalledWith(
       'notifications:kanbanTaskFailed: Build',
@@ -57,9 +66,28 @@ describe('showKanbanTaskToast', () => {
   });
 
   it.each([
+    ['a block that waits for the user', { action: 'task_blocked', block_kind: 'human' }],
+    ['a block that waits for an external event', { action: 'task_blocked', block_kind: 'external' }],
+    ['a card moved to blocked that waits for the user', { action: 'moved', status: 'blocked', block_kind: 'human' }],
+  ])('still interrupts for %s', (_name, extra) => {
+    show({ ...extra, title: 'Review', detail: 'Need a decision' });
+
+    expect(pushToast.warning).toHaveBeenCalledWith(
+      'notifications:kanbanTaskBlocked: Review',
+      expect.objectContaining({ description: 'Need a decision' }),
+    );
+    expect(notifyIfLeader).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
     ['a task that only started', { action: 'task_started', title: 'Run' }],
     ['a card moved to a non-terminal column', { action: 'moved', status: 'ready', title: 'Run' }],
     ['an event without a title or task id', { action: 'task_blocked' }],
+    ['a scheduled block that resumes by itself', { action: 'task_blocked', title: 'Nightly', block_kind: 'scheduled' }],
+    [
+      'a card moved to a scheduled block',
+      { action: 'moved', status: 'blocked', title: 'Nightly', block_kind: 'scheduled' },
+    ],
   ])('stays silent for %s', (_name, data) => {
     show(data);
 
