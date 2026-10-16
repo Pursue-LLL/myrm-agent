@@ -4431,6 +4431,7 @@ except Exception:
 7. 触及文件的 mypy 剩余报错：`base.py:498`（`**kwargs: object` 传给 `InboundMessage`，11 条同一行）、`base.py:646`（`start_login` 缺返回类型，改成具体类型会和各渠道的覆盖冲突）、`executor.py` 四条（`process_stream` 的 `chat_history` 类型、`stream_with_swarm_fission_resume` 的 agent 参数、`yield` 的类型、`user_credentials_ctx.reset`）；`message_effects.py` 还剩 3 条 `reply_to_id` 类型。
 8. 没有对真实 IM 平台与真实委派任务做端到端联调；协调器用桩执行器加真实协调器验证，执行器用桩 Agent 验证。
 9. 没有改动任何提示词；写进会话历史的失败文案沿用 `BUG-AGENT-2026-10-15-006` 的约定。
+10. 超时清理写进任务的 `error_message` 是英文硬编码句子 `Task timed out after N seconds`（`delegation_coordinator.py:299`），失败卡片在中文界面里原样显示；本条之前就有，没有处理。
 
 ### 踩坑经验
 
