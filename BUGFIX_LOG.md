@@ -5043,3 +5043,60 @@ except Exception:
 
 1. 一个状态码只能说出服务端真正知道的事。同一个 409 有两个可能的来源时，提示就不能只认其中一个，更不能据此推断「是否获批」；先看服务端到底有没有这个信息，再决定文案。
 2. 把错误前提写成断言的测试会让错误更难被发现；测试应当按用户能观察到的行为来写，并做变异检查确认它真的会红。
+
+## BUG-AGENT-2026-10-16-012: 无痕自动清除误删导入的外部转录并会清掉仍有回合在跑的会话；无痕会话仍存标题与消息预览，出现在 Catchup 收件箱与记忆归档导出里；一套无人填充的纯内存会话存储留在代码里；开关文案承诺「不留痕迹」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（在 `-009` 之后对无痕合同再做一次终极叩问：逐个读取方用真实组件复现，并对照 Claude / Gemini / Grok / Perplexity / ChatGPT / Cursor / OpenClaw 的无痕语义） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P1（界面承诺「不留痕迹」；自动清除误删用户的外部转录且无法恢复；无痕对话原文进入导出文件） |
+| 影响范围 | server：`app/services/chat/chat_retention.py`、`app/database/repositories/chat_repo.py`、`app/api/chats/chat/catchup.py`、`app/services/memory/archive/archive.py`、`app/services/chat/chat_message.py`，删除 `app/services/chat/ephemeral_session_store.py`，各目录 `_ARCH.md`；前端：`src/store/chat/chatTitleAutoSave.ts`、六个语言包的 `memory.incognitoModeDesc` 与韩语补丁、`_ARCH.md`；harness：`toolkits/memory/MEMORY_SYSTEM.md`（仅文档） |
+| 出现次数 | 1（真实仓储与服务复现，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-16-009` 的后续（其第 4 条提到的 `ephemeral_session_store.py` 本次已删除）；提交本地，未 push；harness 只改文档，与 server 没有发布先后依赖 |
+
+### 现象
+
+1. 外部转录同步为让导入的会话不出现在侧边栏，借用 `is_incognito=True`；每小时的无痕自动清除按这个标记删，于是把导入的 Claude Code 转录当成无痕会话永久删除，而同步水位文件（`external_transcript_watermarks.json`）不会重新导入被清掉的内容，这段历史从召回里永久消失。
+2. 自动清除只看空闲时间；空闲超过 1 小时但回合仍在跑的无痕会话也会被清除。
+3. 每条消息都把 `title`、`first_message`、`last_message` 写进会话行（共 4 个调用点），网页端还调用模型生成标题；会话地图（`api/session_map/routes.py`）直接把它们当标题与「当前任务」展示。
+4. Catchup 收件箱会列出无痕会话的提示词与回复摘要；`GET /memory/archive/export` 把无痕会话的完整消息写进 `conversation` 分区。
+5. `EphemeralSessionStore` 与 `chat_message.py` 里的 5 处分支只能经 `append_message(is_incognito=True)` 进入，全仓库没有调用方传 True，唯一的测试也只测它自己；每次读写消息还都先经过它的锁与查表。
+6. 开关提示写着「对话结束后不留痕迹」，实际是：消息留在数据库，直到闲置满 1 小时由自动清除删掉；模型服务商照常处理发送的内容。
+
+### 根因
+
+1. 「不进侧边栏」与「无痕会话」共用一个标志位，清除逻辑把两个含义当成一个。
+2. 无痕的承诺只落在记忆读写与列表过滤上，没有人逐个枚举「还有谁会读 chats 表」；标题与预览的写入分散在 4 个调用点，没有统一出口。
+3. 纯内存存储是早先的设计，后来改为落库加到期清除，旧分支与旧文案没有一并删除。
+
+### 修复
+
+1. 清除只取 `source == "web"` 的无痕会话，并在网关报告有回合在跑时顺延到下一轮（`chat_retention.py`）。
+2. 仓储两个写入口（`add_chat`、`update_chat_fields`）对无痕会话统一不落 `title` / `first_message` / `last_message`：单条 UPDATE 内用 `CASE WHEN is_incognito THEN 原值 ELSE 新值`，不多一次往返；网页端对无痕会话整体跳过标题生成。
+3. Catchup 候选查询加 `Chat.is_incognito.is_(False)`；归档导出排除无痕的网页会话，外部转录按 `source` 区分、照常导出。
+4. 删除 `EphemeralSessionStore`、5 处分支、`append_message` 的 `is_incognito` 形参与对应测试；顺手清掉 `archive.py` 的 3 条 pyright 错误。
+5. 六个语言包与韩语补丁改成如实描述：不读写记忆、不进历史与搜索、闲置超过 1 小时自动删除、模型服务商仍会处理发送的内容；`MEMORY_SYSTEM.md` 删掉「阅后即焚、零数据泄漏」，改为只说 harness 自己保证的部分。
+
+### 验证
+
+1. 外部转录同步后把会话改龄 2 小时，清除返回 0；追加一轮再同步，召回文档仍含两轮内容。有回合在跑的会话本轮不被清除，回合结束后下一轮才清除。把 `chat_retention.py` 换回修改前的版本，对应测试失败（变异检查）。
+2. 预览 3 项 × 无痕 / 普通共 6 例：无痕会话三列恒为空且消息照常保存，普通会话行为不变；前端 vitest 3 例通过。
+3. Catchup 与导出的新测试在修复前失败（无痕会话出现在收件箱 / 导出里），修复后通过；导出测试同时断言外部转录仍在。
+4. `ruff check` / `ruff format --check` 与 pyright 对全部触碰文件清零；6 个相关测试文件共 52 例通过，在 `git archive HEAD` 导出的纯提交树上同样 52 例通过；`tests/services/chat` + `tests/database` 501 例通过（删除了 3 例死测试）；前端 prettier、i18n 与 ICU 门禁通过。
+5. `tests/api/chats` + `tests/architecture` 共 2372 例通过，12 例失败不在本次改动里（路由消费方、服务词表、harness 深层导入基线、文本入口风控闸门、`BUGFIX_LOG.md:4730` 引用 temp-docs 路径）；`tests/services/memory` 之后接着跑 `tests/core/channel_bridge/test_config_loader.py` 有 5 例失败，去掉我的新测试仍复现、单独跑则通过，是已有的跨文件污染。前端 `tsc` 的 10 条错误与 `lint` 的 a11y / 硬编码文案两个门禁，都不指向本次触碰的文件。
+
+### 局限
+
+1. 删除是逻辑删除，SQLite 空闲页里仍可能残留旧内容，没有做 VACUUM；模型服务商是否保留请求由其自身策略决定，界面文案已如实说明。
+2. 会话中途切入无痕：切换前已写入的标题与预览保留到自动清除；这一小窗口没有补。
+3. 会话地图、统计页等诊断类读取方仍会列出无痕会话的 id、时间与用量（标题与预览现在是空的），没有逐个加过滤。
+4. 清除前的「回合是否在跑」检查与删除之间有毫秒级窗口，没有加锁。
+5. `app/services/instance_archive/`（另一会话的未提交工作）的 `scrub_sensitive_surface` 不删 `is_incognito=1` 的会话及其消息，需要该改动的负责人补一条规则；本次没有改它。
+
+### 教训
+
+1. 一个标志位只能有一个含义；借来「不出现在列表里」的字段，会在所有按它删除或排除的地方产生语义冲突。
+2. 承诺式文案要对着「磁盘上实际还剩什么」逐项核对；写不出来的部分就不要承诺。
+3. 要在多个调用点保证一条不变量，就放在写入出口（仓储）而不是各调用方；一条 UPDATE 里的 `CASE` 不需要多一次读。
+4. 用临时索引拼提交时，必须先固定当前提交，并用「旧值比对」移动分支：这次的提交先读了旧提交的树，写入时父提交却已被另一会话推进，悄悄回滚了它两个提交里的文件，随后用固定了父提交的修正提交恢复；提交工具现在先固定提交、旧值比对后才移动分支。
