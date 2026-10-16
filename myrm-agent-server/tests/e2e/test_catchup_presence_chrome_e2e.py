@@ -1,6 +1,6 @@
 """Chrome E2E: the catchup inbox follows what the user has and has not seen, in a real browser.
 
-Three scenarios, none of which involves a model:
+Three scenarios on seeded conversations, plus one with a real model:
 
 1. A reply stored while the user is looking at a chat is not reported as missed once the user switches to another
    chat: the page has to stamp the chat as read on the way out. The other signals of stopping to look (blur, hidden,
@@ -10,6 +10,9 @@ Three scenarios, none of which involves a model:
 2. A reply that arrived while the user was elsewhere shows up in the inbox on the home page (badge, card with the
    reply); opening it from the card marks it read.
 3. The same card can be dismissed with "mark as read" without opening the chat.
+4. A real model turn, driven through the WebUI like a user: a turn watched to its end is not reported as missed; a
+   second turn that the user walks away from (to a new chat) is finished by the agent in the background and then shows
+   up in the inbox with the model's actual reply, and opening it marks it read.
 
 Formal run::
 
@@ -19,17 +22,28 @@ Formal run::
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import sys
 import time
 import urllib.request
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from websockets.sync.client import connect
+
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
+from cdp_chat.support import chat_id_from_path  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
@@ -169,14 +183,18 @@ def _mark_read(api_url: str, chat_id: str) -> None:
     assert isinstance(marked, dict) and marked.get("success") is True, marked
 
 
-def _unseen_chat_ids(api_url: str) -> set[str]:
+def _catchup_items(api_url: str) -> list[dict[str, object]]:
     response = http_json("GET", f"{api_url}/api/v1/chats/catchup")
     assert isinstance(response, dict), response
     data = response["data"]
     assert isinstance(data, dict), response
     briefs = data["briefs"]
     assert isinstance(briefs, list), response
-    return {str(brief["chat_id"]) for brief in briefs}
+    return briefs
+
+
+def _unseen_chat_ids(api_url: str) -> set[str]:
+    return {str(item["chat_id"]) for item in _catchup_items(api_url)}
 
 
 def _seed_unseen_chat(api_url: str, title: str) -> str:
@@ -365,3 +383,88 @@ def test_mark_as_read_dismisses_the_card_without_opening_the_chat() -> None:
         print(f"E2E_CATCHUP_READ_AFTER_DISMISSING: {seconds:.1f}s", flush=True)
         path = client.evaluate(page, _AT_HOME_JS, timeout_sec=15.0)
         assert isinstance(path, dict) and path["ready"] is True, f"dismissing must not navigate: {path}"
+
+
+_LIVE_PROMPT_WATCHED = "【E2E 追赶收件箱】请用一句中文介绍你自己，回答必须以 OK 开头，并且必须包含 SUNSHINE 字样，不超过 60 字。"
+_LIVE_PROMPT_LEFT = (
+    "【E2E 追赶收件箱】请用一句中文说说今天的心情，回答必须以 OK 开头，并且必须包含 MOONLIGHT 字样，不超过 60 字。"
+)
+# Two turns plus the UI polls must fit the 600s chrome_e2e wall; a one-sentence reply takes seconds, not minutes.
+_LIVE_TURN_TIMEOUT_SEC = 200.0
+
+
+async def _poll_ui(chat: McpChatSession, js: str, *, timeout_sec: float) -> dict[str, object]:
+    """Evaluate `js` until it reports `ready`; the result is what the page showed last."""
+    deadline = time.monotonic() + timeout_sec
+    last: object = None
+    while time.monotonic() < deadline:
+        last = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
+        if isinstance(last, dict) and last.get("ready") is True:
+            return last
+        await asyncio.sleep(1.0)
+    raise AssertionError(f"the page never became ready within {timeout_sec:.0f}s: {last}")
+
+
+async def _wait_for_item(api_url: str, chat_id: str, *, status: str, timeout_sec: float) -> dict[str, object]:
+    """Wait for the chat's inbox entry to reach `status`; the statuses passed on the way are printed as evidence."""
+    deadline = time.monotonic() + timeout_sec
+    seen: list[str] = []
+    while time.monotonic() < deadline:
+        item = next((i for i in await asyncio.to_thread(_catchup_items, api_url) if i["chat_id"] == chat_id), None)
+        if item is not None:
+            if not seen or seen[-1] != item["status"]:
+                seen.append(str(item["status"]))
+            if item["status"] == status:
+                print(f"E2E_CATCHUP_LIVE_STATUSES: {seen}", flush=True)
+                return item
+        await asyncio.sleep(2.0)
+    raise AssertionError(f"{chat_id} never reached {status!r} in the inbox within {timeout_sec:.0f}s (saw {seen})")
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+async def test_a_real_turn_is_read_when_watched_and_caught_up_when_the_user_walked_away() -> None:
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url().rstrip("/")
+    prepare_e2e_ui_session(api_url)
+    warm_ui_route("/")
+    with _ready_page(ui_url, "/", None) as (client, page), _page_in_focus(str(page.target_id)):
+        chat = McpChatSession(client, page)
+        await chat.bootstrap(ui_url, timeout_sec=120.0)
+        await chat.click_new_chat()
+        await chat.ensure_chat_surface(ui_url)
+
+        # Turn 1: the user asks and watches the answer arrive; it must not be reported as missed.
+        await chat.send_message(_LIVE_PROMPT_WATCHED, _LIVE_PROMPT_WATCHED)
+        done = await chat.wait_turn_done(_LIVE_PROMPT_WATCHED, timeout_sec=_LIVE_TURN_TIMEOUT_SEC)
+        chat_id = str(done.get("chatId") or chat_id_from_path(str(done.get("path") or "")) or "").strip()
+        assert chat_id, f"expected a chat id after the first turn: {done}"
+        elapsed = await asyncio.to_thread(_wait_until, api_url, chat_id, unseen=False)
+        print(f"E2E_CATCHUP_LIVE_WATCHED_READ: {elapsed:.1f}s", flush=True)
+
+        # Turn 2: the user asks, then walks away to a new chat before the answer is in.
+        await chat.send_message(_LIVE_PROMPT_LEFT, _LIVE_PROMPT_LEFT, chat_id_hint=chat_id)
+        await chat.click_new_chat()
+        item = await _wait_for_item(api_url, chat_id, status="completed", timeout_sec=_LIVE_TURN_TIMEOUT_SEC)
+        preview = str(item["result_preview"])
+        print(f"E2E_CATCHUP_LIVE_PREVIEW: {preview!r}", flush=True)
+        assert "MOONLIGHT" in preview, f"the inbox must carry the model's actual reply: {item}"
+
+        # Back on the home surface the inbox offers the finished answer; opening it marks it read.
+        trigger = await _poll_ui(chat, _TRIGGER_JS, timeout_sec=120.0)
+        assert isinstance(trigger["count"], int) and trigger["count"] >= 1, trigger
+        clicked = await chat.evaluate(_CLICK_TRIGGER_JS, intent=EvaluateIntent.SYNC_PROBE)
+        assert isinstance(clicked, dict) and clicked["clicked"] is True, clicked
+        card = await _poll_ui(chat, _card_js(chat_id), timeout_sec=60.0)
+        assert "MOONLIGHT" in str(card["text"]), card
+        opened = await chat.evaluate(_click_in_card_js(chat_id, "catchup-view-chat"), intent=EvaluateIntent.SYNC_PROBE)
+        assert isinstance(opened, dict) and opened["clicked"] is True, opened
+        await _poll_ui(chat, f"({_HYDRATED_JS})({json.dumps(chat_id)})", timeout_sec=120.0)
+        elapsed = await asyncio.to_thread(_wait_until, api_url, chat_id, unseen=False)
+        print(f"E2E_CATCHUP_LIVE_READ_AFTER_OPENING: {elapsed:.1f}s", flush=True)
