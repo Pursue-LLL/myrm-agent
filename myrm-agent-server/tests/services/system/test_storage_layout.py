@@ -25,7 +25,7 @@ def _settings(state_dir: Path, **relocated: str) -> DatabaseSettings:
         "event_log_dir": str(state_dir / "event_logs"),
         "memory_base_path": str(state_dir / "memory"),
     }
-    return DatabaseSettings.model_construct(**{**paths, **relocated})
+    return DatabaseSettings.model_construct(_fields_set=None, **{**paths, **relocated})
 
 
 def _create_database(path: Path) -> None:

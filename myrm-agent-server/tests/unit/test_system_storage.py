@@ -4,7 +4,8 @@ import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from app.api.system.router import StorageInfoResponse, get_storage_info
+from app.api.system.router import get_storage_info
+from app.api.system.schemas import StorageInfoResponse
 
 
 def _storage_info(data_dir: Path) -> StorageInfoResponse:
