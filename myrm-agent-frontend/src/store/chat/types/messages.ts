@@ -166,9 +166,11 @@ export type Message = {
     form?: ClarificationForm;
     isResumeMode?: boolean;
     source?: string;
+    answerRecord?: HitlAnswerRecord;
   };
   directoryRequest?: {
     answered: boolean;
+    answerRecord?: HitlAnswerRecord;
     request?: {
       reason?: string;
       path?: string;
@@ -259,6 +261,12 @@ export interface ClarificationOption {
   id: string;
   label: string;
   description?: string;
+}
+
+/** How a clarification or directory card was settled, kept on the card so the transcript still shows it. */
+export interface HitlAnswerRecord {
+  by: 'user' | 'timeout';
+  value: unknown;
 }
 
 export interface ClarificationQuestion {

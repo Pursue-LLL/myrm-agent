@@ -4,13 +4,15 @@
  * [INPUT]
  * - @/store/useChatStore::sendMessage (POS: chat SSE resume 发送)
  * - @/store/chat/hitlCardAnswer::answerHitlCardWithResume (POS: 点击即把卡片行置 answered 释放被卡片接管的输入框；resume 未送达则放回)
+ * - @/store/chat/hitlCardDraft::loadHitlCardDraft (POS: resume 被拒后卡片放回时恢复用户已选的目录与写权限)
  * - @/lib/tauri::isTauriEnvironment (POS: 桌面原生 picker 分流)
  * - @/store/chat/streamErrors::ApprovalExpiredError (POS: 超时已先行拒绝该请求，回答不再生效)
  * - @/lib/sessionAccessRefresh::refreshSessionAccessRoots (POS: grant 后 FE store 与 DB 对齐)
  * - ./DirectoryBrowsePopover (POS: Web 目录浏览 Popover)
+ * - ./HitlSettledNotes::DirectorySettledNote (POS: 卡片结案后折叠成的横幅)
  *
  * [OUTPUT]
- * - DirectoryApprovalInput: 目录权限动态提权与 HITL 审批 UI 卡片
+ * - DirectoryApprovalInput: 目录权限动态提权与 HITL 审批 UI 卡片；结案后展示授予的目录/拒绝/超时
  *
  * [POS]
  * Chat 内嵌目录授权卡片；grant/deny 经 LangGraph interrupt resume 回传 server。
@@ -25,10 +27,13 @@ import { Button } from '@/components/primitives/button';
 import { isTauriEnvironment } from '@/lib/tauri';
 import useChatStore from '@/store/useChatStore';
 import { answerHitlCardWithResume } from '@/store/chat/hitlCardAnswer';
+import { loadHitlCardDraft } from '@/store/chat/hitlCardDraft';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
+import type { HitlAnswerRecord } from '@/store/chat/types';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 
 import DirectoryBrowsePopover, { rememberDirectoryGrantPath } from './DirectoryBrowsePopover';
+import { DirectorySettledNote } from './HitlSettledNotes';
 
 interface DirectoryRequestPayload {
   reason?: string;
@@ -42,14 +47,21 @@ interface DirectoryApprovalInputProps {
   messageId: string;
   answered: boolean;
   request?: DirectoryRequestPayload;
+  answerRecord?: HitlAnswerRecord;
 }
 
-export default function DirectoryApprovalInput({ messageId, answered, request }: DirectoryApprovalInputProps) {
+export default function DirectoryApprovalInput({
+  messageId,
+  answered,
+  request,
+  answerRecord,
+}: DirectoryApprovalInputProps) {
   const t = useTranslations('chat.directoryRequest');
   const sendMessage = useChatStore((state) => state.sendMessage);
   const chatId = useChatStore((state) => state.chatId);
-  const [path, setPath] = useState(request?.path ?? '');
-  const [writable, setWritable] = useState(Boolean(request?.writable));
+  const [draft] = useState(() => loadHitlCardDraft('directoryRequest', messageId));
+  const [path, setPath] = useState(draft?.path ?? request?.path ?? '');
+  const [writable, setWritable] = useState(draft?.writable ?? Boolean(request?.writable));
   const [submitting, setSubmitting] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
 
@@ -101,8 +113,11 @@ export default function DirectoryApprovalInput({ messageId, answered, request }:
   const submitDecision = async (decision: DirectoryDecision) => {
     setSubmitting(true);
     try {
-      await answerHitlCardWithResume('directoryRequest', messageId, () =>
-        sendMessage('', messageId, undefined, decision),
+      await answerHitlCardWithResume(
+        'directoryRequest',
+        messageId,
+        { value: decision, draft: { path, writable } },
+        () => sendMessage('', messageId, undefined, decision),
       );
       if (decision.granted && chatId) {
         await refreshSessionAccessRoots(chatId, {
@@ -136,11 +151,7 @@ export default function DirectoryApprovalInput({ messageId, answered, request }:
   };
 
   if (answered) {
-    return (
-      <div className="mt-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3">
-        <span className="font-medium text-emerald-700 dark:text-emerald-300">{t('answered')}</span>
-      </div>
-    );
+    return <DirectorySettledNote answerRecord={answerRecord} />;
   }
 
   return (

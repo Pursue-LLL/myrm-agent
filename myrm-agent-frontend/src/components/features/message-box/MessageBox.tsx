@@ -631,6 +631,7 @@ const MessageBox = ({
                 options={message.clarification.options}
                 allowMultiple={message.clarification.allowMultiple}
                 isResumeMode={message.clarification.isResumeMode}
+                answerRecord={message.clarification.answerRecord}
                 title={message.clarification.title}
                 form={message.clarification.form}
               />
@@ -641,6 +642,7 @@ const MessageBox = ({
                 messageId={message.messageId}
                 answered={message.directoryRequest.answered}
                 request={message.directoryRequest.request}
+                answerRecord={message.directoryRequest.answerRecord}
               />
             )}
 

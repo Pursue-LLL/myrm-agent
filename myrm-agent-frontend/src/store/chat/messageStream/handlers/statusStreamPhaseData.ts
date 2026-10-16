@@ -1,3 +1,5 @@
+import { isHitlAnswerRecord } from '@/store/chat/hitlAnswerRecord';
+
 import type { StreamCtx } from '../streamContext';
 import * as H from './handlerDeps';
 
@@ -26,8 +28,12 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
   if (sd.phase === 'clarify' && sd.status === 'resolved') {
     actions.setMessages((state) => {
       const idx = H.findAssistantMessageIndex(state.messages, messageId);
-      if (idx !== -1 && state.messages[idx].clarification) {
-        state.messages[idx].clarification.answered = true;
+      const card = idx === -1 ? undefined : state.messages[idx].clarification;
+      if (card) {
+        card.answered = true;
+        if (isHitlAnswerRecord(sd.answerRecord)) {
+          card.answerRecord = sd.answerRecord;
+        }
       }
     });
   }

@@ -5,13 +5,16 @@
  * @/store/chat/types::ClarificationForm (POS: structured clarification form schema)
  * @/services/chat::submitClarifyResponse (POS: clarification answer submission API)
  * @/store/useChatStore::sendMessage (POS: resume-mode clarification send path)
- * @/store/chat/hitlCardAnswer::answerHitlCardWithResume / setHitlCardAnswered (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
+ * @/store/chat/hitlCardAnswer::answerHitlCardWithResume / settleHitlCard (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
+ * @/store/chat/hitlCardDraft::loadHitlCardDraft (POS: what the user had written when a refused resume brings the card back)
  * @/store/chat/streamErrors::ApprovalExpiredError (POS: the timeout already continued the turn without this answer)
  * ./ClarificationOptions, ./ClarificationChrome (POS: option-list and card-shell presentation primitives)
+ * ./HitlSettledNotes::ClarificationSettledNote (POS: the banner the card collapses into once settled)
  *
  * [OUTPUT]
  * ClarificationInput: Renders single-question and structured clarification forms.
  * Structured answers submit option.id values keyed by question.id for agent resume contract.
+ * A settled card shows whether it was answered, skipped or timed out, and the answer given.
  *
  * [POS]
  * Chat clarification answer surface. Bridges assistant clarification messages to
@@ -23,9 +26,10 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { answerHitlCardWithResume, setHitlCardAnswered } from '@/store/chat/hitlCardAnswer';
+import { answerHitlCardWithResume, settleHitlCard } from '@/store/chat/hitlCardAnswer';
+import { loadHitlCardDraft } from '@/store/chat/hitlCardDraft';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
-import type { ClarificationForm } from '@/store/chat/types';
+import type { ClarificationForm, HitlAnswerRecord } from '@/store/chat/types';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import {
   buildSingleClarificationAnswer,
@@ -33,7 +37,6 @@ import {
   type ClarificationAnswer,
 } from './clarificationAnswer';
 import {
-  CheckCircleIcon,
   SendIcon,
   SkipIcon,
   clarificationTextareaClass,
@@ -42,6 +45,7 @@ import {
   resolveClarificationShellClass,
 } from './ClarificationChrome';
 import { COLLAPSED_OPTIONS_LIMIT, ExpandToggle, OptionPill } from './ClarificationOptions';
+import { ClarificationSettledNote } from './HitlSettledNotes';
 
 interface ClarificationInputProps {
   messageId: string;
@@ -51,6 +55,7 @@ interface ClarificationInputProps {
   title?: string;
   form?: ClarificationForm;
   isResumeMode?: boolean;
+  answerRecord?: HitlAnswerRecord;
   variant?: 'inline' | 'composer';
 }
 
@@ -62,14 +67,16 @@ const ClarificationInput = ({
   title,
   form,
   isResumeMode,
+  answerRecord,
   variant = 'inline',
 }: ClarificationInputProps) => {
   const t = useTranslations('chat.clarification');
-  const [input, setInput] = useState('');
+  const [draft] = useState(() => loadHitlCardDraft('clarification', messageId));
+  const [input, setInput] = useState(draft?.input ?? '');
   const [submitting, setSubmitting] = useState(false);
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [formTexts, setFormTexts] = useState<Record<string, string>>({});
-  const [formSelections, setFormSelections] = useState<Record<string, string[]>>({});
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(draft?.selectedOptions ?? []);
+  const [formTexts, setFormTexts] = useState<Record<string, string>>(draft?.formTexts ?? {});
+  const [formSelections, setFormSelections] = useState<Record<string, string[]>>(draft?.formSelections ?? {});
   const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
   const [isSimpleOptionsExpanded, setIsSimpleOptionsExpanded] = useState(false);
   const hasStructuredForm = Boolean(form?.questions && form.questions.length > 0);
@@ -118,12 +125,15 @@ const ClarificationInput = ({
     setSubmitting(true);
     try {
       if (isResumeMode) {
-        await answerHitlCardWithResume('clarification', messageId, () =>
-          sendMessage('', messageId, undefined, resumeValue),
+        await answerHitlCardWithResume(
+          'clarification',
+          messageId,
+          { value: resumeValue, draft: { input, selectedOptions, formTexts, formSelections } },
+          () => sendMessage('', messageId, undefined, resumeValue),
         );
       } else {
         await submitClarifyResponse(messageId, legacyAnswer);
-        setHitlCardAnswered('clarification', messageId, true);
+        settleHitlCard('clarification', messageId, { by: 'user', value: legacyAnswer });
       }
     } catch (err) {
       reportAnswerError(err);
@@ -163,12 +173,7 @@ const ClarificationInput = ({
   };
 
   if (answered) {
-    return (
-      <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3">
-        <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
-        <span className="font-medium text-emerald-700 dark:text-emerald-300">{t('answered')}</span>
-      </div>
-    );
+    return <ClarificationSettledNote answerRecord={answerRecord} form={form} />;
   }
 
   const hasStructuredAnswer = hasStructuredForm
