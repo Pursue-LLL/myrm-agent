@@ -3,7 +3,7 @@
  * @/lib/utils/networkResilience::FatalNetworkError (POS: 不可重试网络错误基类)
  *
  * [OUTPUT]
- * AgentBusyError / ApprovalExpiredError / RequestRefusedError / StreamInterruptedError: agent-stream 回合失败的分类错误
+ * AgentBusyError / ApprovalExpiredError / RequestRefusedError / RiskBlockedError / StreamInterruptedError: agent-stream 回合失败的分类错误
  * isAgentBusySseEvent: SSE error 帧是否为 busy 拒绝
  * isTransientNetworkError: 重试环路使用的瞬时网络错误判定
  *
@@ -35,6 +35,16 @@ export class ApprovalExpiredError extends Error {
  * Failures after the turn started (for example a refused re-attach) stay plain `FatalNetworkError`s.
  */
 export class RequestRefusedError extends FatalNetworkError {}
+
+/**
+ * The server held the turn's text with a risk rule (HTTP 200 plus a `risk_blocked` frame), so the turn never started.
+ * The risk event has already shown the one notice; callers that report a refusal add no failure notice of their own.
+ */
+export class RiskBlockedError extends RequestRefusedError {
+  constructor() {
+    super('The text was held by a risk rule');
+  }
+}
 
 /** Backend agent-stream busy uses HTTP 200 + SSE error (status_code 409 in payload). */
 export function isAgentBusySseEvent(event: { type: string } & Record<string, unknown>): boolean {

@@ -95,6 +95,18 @@ const busyResponse = (): Response =>
     { headers: { 'Content-Type': 'text/event-stream' } },
   );
 
+/** The production risk refusal: HTTP 200 whose event stream carries one `risk_blocked` frame naming the rules. */
+const riskBlockedResponse = (): Response =>
+  new Response(
+    `data: ${JSON.stringify({
+      type: 'risk_blocked',
+      data: { rules: [{ rule_id: 'api_key_like', display_name: 'API key', severity: 'high' }] },
+    })}\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  );
+
+const RISK_NOTICE_KEY = 'settings.securityPolicy.riskRules.blockedTitle';
+
 /** Runs a request that waits between retries on a fake clock until it settles. */
 async function runWithRetries<T>(start: () => Promise<T>): Promise<T> {
   vi.useFakeTimers();
@@ -282,6 +294,16 @@ describe('sendMessage failure handling', () => {
       expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
     });
 
+    it('stays undelivered, with the one risk notice, when a risk rule holds the answer', async () => {
+      vi.mocked(createAISearchStream).mockResolvedValue(riskBlockedResponse());
+
+      await expect(resume()).resolves.toBe(false);
+
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
+      expect(transcript()).toEqual([`user:${REQUEST_ID}`, `assistant:${REQUEST_ID}`]);
+      expect(vi.mocked(showI18nToast).mock.calls.map(([key]) => key)).toEqual([RISK_NOTICE_KEY]);
+    });
+
     it('rejects with ApprovalExpiredError, quietly and without a retry, when the timeout already resolved the interrupt', async () => {
       refusedWith(409, '{}');
 
@@ -303,6 +325,16 @@ describe('sendMessage failure handling', () => {
       expect(createAISearchStream).not.toHaveBeenCalled();
       expect(transcript()).toEqual([]);
       expect(showI18nToast).toHaveBeenCalledTimes(1);
+    });
+
+    it('is undelivered and retracts its bubble, with the one risk notice and no retry, when a risk rule holds the text', async () => {
+      vi.mocked(createAISearchStream).mockResolvedValue(riskBlockedResponse());
+
+      await expect(send()).resolves.toBe(false);
+
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
+      expect(transcript()).toEqual([]);
+      expect(vi.mocked(showI18nToast).mock.calls.map(([key]) => key)).toEqual([RISK_NOTICE_KEY]);
     });
 
     it('keeps retrying a workspace stream failure that looks like a dropped connection', async () => {

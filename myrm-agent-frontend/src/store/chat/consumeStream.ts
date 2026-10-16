@@ -3,10 +3,10 @@
  * ./schema::parseSseEnvelope (POS: SSE JSON 校验)
  * ./messageStreamHandler::handleMessageStream (POS: SSE 事件 reducer)
  * ./messageStream/streamWatchdog::createStreamWatchdog (POS: 流静默自愈)
- * ./streamErrors (POS: busy / interrupted 错误分类)
+ * ./streamErrors (POS: busy / risk-blocked / interrupted 错误分类)
  *
  * [OUTPUT]
- * consumeStream: 读取一个 SSE Response（POST 响应体或 multiplex 桥）→ 解密 e2ee 帧 → 校验 → reducer；busy 帧在 reducer 之前抛 AgentBusyError，首帧之后读取失败抛 StreamInterruptedError；回合被中止时立即以 AbortError 结束（取消 reader 唤醒挂起的读取，不触发 watchdog 自愈）
+ * consumeStream: 读取一个 SSE Response（POST 响应体或 multiplex 桥）→ 解密 e2ee 帧 → 校验 → reducer；busy 帧在 reducer 之前抛 AgentBusyError，reducer 抛出的 RiskBlockedError（服务端风控拦下）原样上抛，首帧之后读取失败抛 StreamInterruptedError；回合被中止时立即以 AbortError 结束（取消 reader 唤醒挂起的读取，不触发 watchdog 自愈）
  *
  * [POS]
  * 单段 SSE 消费循环（跳过心跳帧、喂养 watchdog、流结束清理调度器）；重试与 attach 编排由 streamConsumer 负责。
@@ -21,7 +21,7 @@ import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { recoverPendingApprovals } from '@/hooks/approval/usePendingApprovalsRecovery';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { createStreamWatchdog } from './messageStream/streamWatchdog';
-import { AgentBusyError, StreamInterruptedError, isAgentBusySseEvent } from './streamErrors';
+import { AgentBusyError, RiskBlockedError, StreamInterruptedError, isAgentBusySseEvent } from './streamErrors';
 
 export type ConsumeStreamOptions = {
   /** Stop once tool approval queue is populated (SHPOIB HITL attach recovery). */
@@ -229,7 +229,7 @@ export async function consumeStream(
                 break;
               }
             } catch (err) {
-              if (err instanceof AgentBusyError) {
+              if (err instanceof AgentBusyError || err instanceof RiskBlockedError) {
                 throw err;
               }
               console.warn('Invalid JSON skipped:', err);

@@ -14,6 +14,7 @@ const toastMock = vi.hoisted(() =>
 vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
 
 import { riskEvents } from '../riskEvents';
+import { RiskBlockedError } from '../../../streamErrors';
 import { setGlobalTranslator } from '@/services/i18nToastService';
 
 type Messages = Record<string, unknown>;
@@ -73,15 +74,14 @@ describe('riskEvents', () => {
     expect(toastMock.error).not.toHaveBeenCalled();
   });
 
-  it('words the notice in the user language, names the built-in rule as the settings page does, and ends the turn', async () => {
+  it('words the notice in the user language, names the built-in rule as the settings page does, and refuses the turn', async () => {
     setGlobalTranslator(translatorFor(zh as Messages));
     const { ctx, setLoading } = createCtx(AgentEventType.RISK_BLOCKED, {
       rules: [rule('api_key_like', 'API key or cloud credential pattern')],
     });
 
-    const turn = await riskEvents(ctx);
+    await expect(riskEvents(ctx)).rejects.toBeInstanceOf(RiskBlockedError);
 
-    expect(turn).not.toBeNull();
     expect(setLoading).toHaveBeenCalledWith(false);
     expect(toastMock.error).toHaveBeenCalledWith('内容已被风控规则拦截', {
       description: '命中规则：API 密钥 / 云凭证。如需放行，请在「设置 → 安全策略 → 风控规则」中关闭对应规则。',
