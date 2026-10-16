@@ -11,6 +11,7 @@ MemoryArchiveService: export of GUI-reviewed memory archives.
 [POS]
 单用户记忆归档服务。聚合普通记忆、Shared Context、会话和审计账本，
 生成可审查的本地 archive payload，不包含多租户或控制平面语义。
+无痕的网页会话不进入 conversation 分区。
 replay 分区始终为空：agent 事件回放以 harness JSONL event-log 为准，不入归档。
 """
 
@@ -26,7 +27,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryArchiveSectionName,
     MemoryManager,
 )
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -157,7 +158,15 @@ class MemoryArchiveService:
         }
 
     async def _export_conversation(self) -> list[dict[str, object]]:
-        result = await self._db.execute(select(Chat).options(selectinload(Chat.messages)).order_by(desc(Chat.updated_at)))
+        # Incognito web chats are the user's private scratch space and stay out of the file. Imported agent transcripts
+        # carry the same flag only to stay out of the sidebar, so they are matched by source and keep exporting.
+        stmt = (
+            select(Chat)
+            .options(selectinload(Chat.messages))
+            .where(or_(Chat.is_incognito.is_(False), Chat.source != "web"))
+            .order_by(desc(Chat.updated_at))
+        )
+        result = await self._db.execute(stmt)
         chats = list(result.scalars().unique().all())
         return [
             {

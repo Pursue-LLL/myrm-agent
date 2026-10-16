@@ -58,6 +58,7 @@ async def _seed_chat(
     messages: tuple[tuple[str, str, int], ...] = (),
     source: str = "web",
     deleted: bool = False,
+    incognito: bool = False,
     message_ids: tuple[str, ...] = (),
 ) -> str:
     """Create a chat; each message is (role, content, minutes_ago). ``message_ids`` optionally overrides row ids."""
@@ -69,6 +70,7 @@ async def _seed_chat(
                 title="Quarterly report",
                 action_mode="fast",
                 source=source,
+                is_incognito=incognito,
                 created_at=_ago(120),
                 updated_at=_ago(1),
                 last_read_at=_ago(last_read_minutes_ago) if last_read_minutes_ago is not None else None,
@@ -314,6 +316,28 @@ async def test_trashed_and_non_web_chats_are_never_listed(async_client: httpx.As
 
     assert trashed not in briefs
     assert cron not in briefs
+
+
+@pytest.mark.asyncio
+async def test_an_incognito_chat_is_never_listed_whatever_it_needs_from_the_user(
+    async_client: httpx.AsyncClient, digest_chats: list[str]
+) -> None:
+    unseen = (("user", "Private question", 11), ("assistant", "Private answer", 5))
+    incognito = await _seed_chat(last_read_minutes_ago=10, messages=unseen, incognito=True)
+    regular = await _seed_chat(last_read_minutes_ago=10, messages=unseen)
+    for chat_id in (incognito, regular):
+        digest_chats.append(chat_id)
+        RunDigestStore.end_run(chat_id, phase=RunDigestPhase.ERROR)
+        await _add_pending_approval(chat_id)
+    gateway = get_agent_gateway()
+    gateway.reserve_session(incognito, active_message_id="msg-private")
+    try:
+        briefs = await _briefs(async_client)
+    finally:
+        gateway.release_session(incognito)
+
+    assert incognito not in briefs
+    assert regular in briefs
 
 
 @pytest.mark.asyncio
