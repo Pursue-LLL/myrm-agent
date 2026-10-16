@@ -4262,11 +4262,11 @@ except Exception:
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-15 |
-| 修复日期 | 2026-10-15 |
+| 修复日期 | 2026-10-15（2026-10-16 补充：判定简化、toast、用量上限与批次暂停的译文、阻塞类型标签） |
 | 严重程度 | P2（人群与 `BUG-AGENT-2026-10-15-023` 相同：手填分支 + 设了依赖 + 由派发器自动执行；低频，但发生时子任务的整轮模型调用白费，并且它的改动会自动合进主分支，没有人看过） |
-| 影响范围 | server：`app/services/kanban/task_runner/worktree/landing_gate.py`（新）、`worktree/__init__.py`、`runner.py`、`worktree_landing.py` 与 `move_orchestrator.py`（只改注释）、三份 `_ARCH.md`、`tests/services/kanban/test_parent_landing_gate.py`、`test_parent_landing_gate_dispatch.py`、`test_blocked_reason_contract.py`、`tests/core/kanban/test_landing_gate_sql_store.py`（均新）；共享：`shared/config/kanban_blocked_reasons.json`（新）与其 `_ARCH.md`；frontend：`src/lib/kanban/kanbanBlockedReason.ts`（新）、`KanbanTaskCard.tsx`、`KanbanTaskDrawerDetails.tsx`、六个语言文件、对应测试与两份 `_ARCH.md`；harness 没有改 |
+| 影响范围 | server：`app/services/kanban/task_runner/worktree/landing_gate.py`（新）、`worktree/__init__.py`、`runner.py`、`worktree_landing.py` 与 `move_orchestrator.py`（只改注释）、三份 `_ARCH.md`、`tests/services/kanban/test_parent_landing_gate.py`、`test_parent_landing_gate_dispatch.py`、`test_blocked_reason_contract.py`、`tests/core/kanban/test_parent_landing_gate_sql_store.py`（均新）；共享：`shared/config/kanban_blocked_reasons.json`（新）与其 `_ARCH.md`；frontend：`src/lib/kanban/kanbanBlockedReason.ts`（新）、`src/hooks/globalEvents/kanbanTaskToast.ts`（新，从 `useGlobalEvents.ts` 抽出）、`KanbanTaskCard.tsx`、`KanbanTaskDrawerDetails.tsx`、六个语言文件、对应测试与 `_ARCH.md`；harness 没有改 |
 | 出现次数 | 1（复核 `BUG-AGENT-2026-10-15-023` 局限 3 时发现，一次性探针用真实 git 临时仓库复现，没有保留输出，也没有用户数据） |
-| 关联 | 处理 `BUG-AGENT-2026-10-15-023` 局限 3；提交：server `3b56e0ea09`、frontend `9ccf271db9`、派发器层用例与共享契约 `cc2670af89`、前端改读共享契约 `02faf4bed0`、SQL 存储用例 `82dadac04b`；本地提交，未 push |
+| 关联 | 处理 `BUG-AGENT-2026-10-15-023` 局限 3；提交：server `3b56e0ea09`、frontend `9ccf271db9`、派发器层用例与共享契约 `cc2670af89`、前端改读共享契约 `02faf4bed0`、SQL 存储用例 `82dadac04b`；2026-10-16 补充：判定简化 `ac78c0ada1`、toast 与系统通知 `57c3a3f6a2`、用量上限与批次暂停的译文及阻塞类型标签 `54a24d33a6`；本地提交，未 push |
 
 ### 现象
 
@@ -4279,28 +4279,33 @@ except Exception:
 
 ### 修复
 
-1. 新增 `landing_gate.hold_for_unlanded_parents`，在 `KanbanTaskRunner.run` 最开头调用，早于 `build_task_context`：先 `wait_parents_landed`，再对每个「已完成、有分支、与本任务同仓库」的父任务倒序读事件，先遇到 `MERGE_CONFLICT` 算没落地，先遇到 `COMPLETED` / `APPROVED` 算已落地（父任务重新完成会清掉旧失败）。有未确认的失败就返回 HUMAN 阻塞，`metadata_patch` 写入 `acknowledged_merge_failure_event_id`（最新失败事件的 id）。
+1. 新增 `landing_gate.hold_for_unlanded_parents`，在 `KanbanTaskRunner.run` 最开头调用，早于 `build_task_context`：先 `wait_parents_landed`，再对每个「已完成、有分支、与本任务同仓库」的父任务读事件，取最新一条 `MERGE_CONFLICT` 的事件 id，有就算没落地（已完成的任务不能再次完成：`shared/config/kanban_move_guard.json` 只允许 `completed → archived`，不存在「重新完成清掉旧失败」的路径）。有未确认的失败就返回 HUMAN 阻塞，`metadata_patch` 写入 `acknowledged_merge_failure_event_id`（最新失败事件的 id）。
 2. 用户把任务解除阻塞就是确认：同一个失败不会再拦第二次，更新的失败（事件 id 更大）才会再拦。没有新增任务状态，没有改 harness，没有改提示词与工具描述（拦下时没有构建上下文，也没有调用模型，下一轮运行的提示词不变）。
-3. 阻塞原因是一句固定的英文（频道命令、诊断、活动流原样展示它）；卡片与抽屉经 `blockedReasonText` 按整句匹配译成界面语言（六种语言），未知原因原样显示。这句话放在 `shared/config/kanban_blocked_reasons.json`（前端读它，服务端运行时不读、只在 `test_blocked_reason_contract.py` 里要求它与常量一致），两边的句子不会悄悄分叉。
+3. 阻塞原因是一句固定的英文（频道命令、诊断、活动流原样展示它）；卡片、抽屉、任务 toast 与系统通知经 `blockedReasonText` 按整句匹配译成界面语言（六种语言），未知原因原样显示。服务端自己拥有的原因放在 `shared/config/kanban_blocked_reasons.json`：依赖合并失败、模型用量上限（`runner.py` 的 `_USAGE_LIMIT_BLOCK_REASON`）、批次暂停（`batch_directory/_helpers.py` 的 `batch_pause`，它同时是批次恢复时筛选冻结任务的标记，值不能改，由前端译成可读文案）。前端读这张表并以 `blockedReason.<key>` 取文案；服务端运行时不读，只在 `test_blocked_reason_contract.py` 里要求它与三个常量一致，前端测试要求每个 key 在六个语言包里都有文案，所以两边的句子不会悄悄分叉，也不会漏译。抽屉里的阻塞类型标签改用 `kanban.blockKind.*`（原来直接显示 `human` 这样的枚举值），卡片的定时倒计时到点后改用 `kanban.autoUnblocking`（原来是写死的英文）。
 4. 同步更新旧注释（`worktree_landing.py`、`move_orchestrator.py`）和文档。
 
 ### 验证
 
-1. 新增 `test_parent_landing_gate_dispatch.py` 1 例：真实 `KanbanDispatcher`、真实 `KanbanTaskRunner.run`、真实合并钩子与 `move_task`，整条路径一次走通——父任务合并冲突、派发器启动子任务、子任务被 HUMAN 阻塞（没有调用智能体、`consecutive_failures` 为 0、该次运行的结果是 `BLOCKED`、确认的事件 id 写入元数据）、用户经 `move_task` 把它移回 READY、子任务运行并完成、全程只有一次 `BLOCKED` 事件。新增 `test_blocked_reason_contract.py` 1 例。新增 `tests/core/kanban/test_landing_gate_sql_store.py` 1 例：在产品实际使用的 SQLite 存储上（测试用的隔离数据库）走一遍事件 id、确认写入后重新读取、之后完成清掉从没见过该失败的另一个依赖任务的拦截、更新的失败再拦；对「历史上任何失败都算」与「忽略确认」两种变异都变红。新增 `test_parent_landing_gate.py` 16 例（真实 git、真实派发器合并钩子、真实 `worktree_ops` 事件、内存存储）：失败被拦、`COMPLETED` / `APPROVED` 两种完成方式、先等进行中的合并再判断、已落地不拦、无父任务不拦、混合父任务被拦、重新完成清掉旧失败、确认后不再拦、更新的失败再拦、其他仓库的父任务不拦、未完成的父任务不拦、无分支父任务不读事件、runner 层被拦时不构建上下文也不启动智能体、确认后启动智能体。
-2. 变异：判定函数 8 种（忽略 `APPROVED`、忽略确认、忽略仓库、不等合并、历史上任何失败都算、忽略状态、忽略无分支、取最小事件 id）全部被杀；派发器层的用例再对「不拦」与「不写确认元数据」两种变异各验证一次，都被杀；runner 调用点 3 种（不拦、忽略返回值、拦在 `build_task_context` 之后）全部被杀；前端卡片与抽屉各去掉 `blockedReasonText` 的变异被杀。每次变异后都恢复并复跑，文件与备份逐字节一致。
-3. `pytest tests/services/kanban tests/api/kanban`：722 通过、2 失败、1 跳过；2 个失败都不在本条的文件里：`test_extract_enabled_empty_pdf_falls_back_to_reference`，以及 `test_move_with_result_and_metadata`（断言显示移交元数据多出 `summary` 与 `timestamp`，来自他人未提交的 `move_orchestrator.py` 改动）。把 server 提交单独导出到干净目录（不含他人未提交的改动，补上 `shared/` 与 `.env.test`）跑 `tests/services/kanban`：239 通过、11 失败，11 个都是 `test_task_runner.py` 的 `TestBuildMultimodal*`（导出里报 `module 'app.core' has no attribute 'storage'`，是导出环境缺东西，不在本条文件里）；`test_kanban_attach_handler.py` 在导出里收集不到（harness 没有 `toolkits.storage.types`），`tests/api/kanban` 在导出里同样导入失败，没有跑。本条的 16 例在导出里通过。
+1. 新增 `test_parent_landing_gate_dispatch.py` 1 例：真实 `KanbanDispatcher`、真实 `KanbanTaskRunner.run`、真实合并钩子与 `move_task`，整条路径一次走通——父任务合并冲突、派发器启动子任务、子任务被 HUMAN 阻塞（没有调用智能体、`consecutive_failures` 为 0、该次运行的结果是 `BLOCKED`、确认的事件 id 写入元数据）、用户经 `move_task` 把它移回 READY、子任务运行并完成、全程只有一次 `BLOCKED` 事件。新增 `test_blocked_reason_contract.py` 1 例。新增 `tests/core/kanban/test_parent_landing_gate_sql_store.py` 1 例：在产品实际使用的 SQLite 存储上（测试用的隔离数据库）走一遍事件 id、确认写入后重新读取、同一父任务出现更新的失败时再拦。新增 `test_parent_landing_gate.py` 12 例（真实 git、真实派发器合并钩子、真实 `worktree_ops` 事件、内存存储）：失败被拦、先等进行中的合并再判断、已落地不拦、无父任务不拦、混合父任务被拦、确认后不再拦、更新的失败再拦、其他仓库的父任务不拦、未完成的父任务不拦、无分支父任务不读事件、runner 层被拦时不构建上下文也不启动智能体、确认后启动智能体。
+2. 变异：判定函数简化前 8 种（忽略 `APPROVED`、忽略确认、忽略仓库、不等合并、历史上任何失败都算、忽略状态、忽略无分支、取最小事件 id）全部被杀；派发器层的用例再对「不拦」与「不写确认元数据」两种变异各验证一次，都被杀；runner 调用点 3 种（不拦、忽略返回值、拦在 `build_task_context` 之后）全部被杀；前端卡片与抽屉各去掉 `blockedReasonText` 的变异被杀。每次变异后都恢复并复跑，文件与备份逐字节一致。判定函数简化后（取最新失败、删掉重新完成分支）只重跑了 3 种：忽略确认、事件类型写错，被 `test_parent_landing_gate.py` 杀；取最小事件 id 在该文件里存活（12 例通过），被 SQL 存储用例杀（同一父任务先后失败两次）；简化前的其余 5 种变异没有重跑。
+3. `pytest tests/services/kanban tests/api/kanban`：722 通过、2 失败、1 跳过；2 个失败都不在本条的文件里：`test_extract_enabled_empty_pdf_falls_back_to_reference`，以及 `test_move_with_result_and_metadata`（断言显示移交元数据多出 `summary` 与 `timestamp`，来自他人未提交的 `move_orchestrator.py` 改动）。把 server 提交单独导出到干净目录（不含他人未提交的改动，补上 `shared/` 与 `.env.test`）跑 `tests/services/kanban`：239 通过、11 失败，11 个都是 `test_task_runner.py` 的 `TestBuildMultimodal*`（导出里报 `module 'app.core' has no attribute 'storage'`，是导出环境缺东西，不在本条文件里）；`test_kanban_attach_handler.py` 在导出里收集不到（harness 没有 `toolkits.storage.types`），`tests/api/kanban` 在导出里同样导入失败，没有跑。本条当时的 16 例在导出里通过。
 4. 前端：`vitest run src/components/features/kanban src/lib/kanban` 35 个文件 458 例通过；prettier、oxlint、`verify:theme-colors`、i18n 的六语言对齐与 ICU 检查通过；`tsc --noEmit` 有 50 个错误，输出里没有本条改动的任何文件。`verify:i18n` 的引用检查、`verify:hardcoded-copy`、`verify:orphans`、`verify:a11y` 因他人进行中的文件失败，输出里没有本条的文件。
 5. `ruff check`、`ruff format --check` 通过；pyright（`-p pyproject.toml`）对改动的 5 个源文件 0 错误 0 警告。
+6. 2026-10-16 补充（主机负载 100～150，测试都很慢）：服务端契约 + 闸门 12 例 + 派发器 + SQL 存储共 15 例通过（3.5 分钟）；第一次全跑有 1 例失败：`_settle` 的 20 秒上限在慢主机上先到，合并事件还没写出（`IndexError`），单独重跑通过，测试里的等待上限放宽到 60 秒后 15 例全部通过，这是慢主机上的超时，不是逻辑错误。ruff、pyright 对本次改动的 Python 文件 0 错误 0 警告。
+7. 2026-10-16 补充（前端）：`vitest run src/components/features/kanban src/lib/kanban src/hooks/globalEvents` 530 例中 528 通过；2 个失败在 `KanbanDecomposeDialog.riskHeld.test.tsx`，不在本条文件里，把 `findBy` 的等待放宽到 20 秒的临时副本 2 例都通过（已删除），原因是慢主机上默认 1 秒不够，不是回归。变异：toast 去掉翻译、去掉 200 字截断、系统通知用原文、忽略 moved 事件、共享表多一个没有文案的原因（六个语言各红一例）、文案 key 前缀写错、抽屉显示原始类型、卡片倒计时写死英文，全部被杀；服务端契约测试把 `batch_pause` 改成 `batch-pause` 被杀。prettier、oxlint、`verify:i18n`、`verify:icu-syntax`、`verify:theme-colors` 通过；`tsc --noEmit` 仍是 50 个错误，输出里没有本条改动的任何文件；`verify-i18n-references`、`check-hardcoded-copy` 因他人进行中的文件报错，输出里没有本条的文件。
 
 ### 局限
 
 1. 完成与合并之间进程崩溃：没有任何事件，视为已落地（与 `BUG-AGENT-2026-10-15-023` 局限 1 同源，原有行为）。
-2. 用户手动合并了保留的分支、却没有重新完成父任务：子任务仍会被拦一次，点继续即可；原因句写的是「合并失败，处理后继续」，不声称「没有合并」。
+2. 用户手动合并了保留的分支：失败事件仍在，子任务仍会被拦一次，点继续即可；原因句写的是「合并失败，处理后继续」，不声称「没有合并」。
 3. 只看「已完成且有分支」的父任务：无分支的任务从不合并；`FAILED` / `ARCHIVED` 的父任务不看。
-4. 原因句靠整句匹配：服务端常量与共享 JSON 不一致时契约测试变红；新增一种原因要同时改常量、JSON 与六个语言文件。
-5. 没有用真实智能体跑（SQL 存储已用 `test_landing_gate_sql_store.py` 验证，事件顺序契约见 `protocols.py:247`、`sqlalchemy_store.py:959`）。无父任务的任务多一次 `list_parents`，带分支的父任务多读一次事件，这部分开销没有测。
-6. 既有的 `_USAGE_LIMIT_BLOCK_REASON`（`runner.py`）在同一位置仍显示英文，这次没有动。
-7. 评估后放弃的方案：读 git 状态判断是否落地（要起子进程，极性容易判反，且崩溃后与事件不一致）；新增任务状态（要改 harness 与全部状态消费方）；把拦截放在 `resolve_workspace`（`kanban_attach_handler.py` 也会调它，用户附加到任务时不该触发拦截）。
+4. 原因句靠整句匹配：服务端常量与共享 JSON 不一致时契约测试变红；新增一种原因要同时改常量、JSON 与六个语言文件（缺文案由前端测试拦下）。
+5. 没有用真实智能体跑（SQL 存储已用 `test_parent_landing_gate_sql_store.py` 验证，事件顺序契约见 `protocols.py:247`、`sqlalchemy_store.py:959`）。无父任务的任务多一次 `list_parents`，带分支的父任务多读一次事件，这部分开销没有测。
+6. 原因的集合是开放的，表里只有服务端自己拥有的三种；harness 写的目标暂停原因（`continuation.py:68`、`continuation.py:508`、`continuation_drift.py:125`、`wait_provider_window.py:50` 的「Provider usage limit reached; paused until it resets」）、`runner.py:405` 的目标元数据原因与 `runner.py:423` 的预算耗尽（含轮数）、智能体自己写的原因都原样显示，不翻译；harness 常量要进表，得由 harness 公开导出再由服务端契约测试核对，这次没有做。
+7. 已完成或已归档任务超过 30 天的事件会被清理（`app/services/kanban/gc.py:42`、`:104-125`），清理后闸门读不到失败记录，视为已落地。
+8. 没有应用内的冲突解决入口：失败的父任务在看板活动流里找得到（`BoardActivityFeed.tsx`），保留的分支在侧栏的 worktree 列表里（同仓库；没有在浏览器里验证）；没有做智能体协助解决冲突。
+9. toast、卡片、抽屉的实际渲染没有在浏览器里看过，只有组件测试；`next build` 没有跑。
+10. 评估后放弃的方案：读 git 状态判断是否落地（要起子进程，极性容易判反，且崩溃后与事件不一致）；新增任务状态（要改 harness 与全部状态消费方）；把拦截放在 `resolve_workspace`（`kanban_attach_handler.py` 也会调它，用户附加到任务时不该触发拦截）。
 
 ### 踩坑经验
 
@@ -4308,6 +4313,8 @@ except Exception:
 2. 修一个已知局限前先问「拦谁、谁来解」：这次把确认记在任务自己的元数据里（失败事件 id），而不是新状态，用户的一次「继续」即同意，不会反复拦。
 3. e2e 里让模拟的智能体只返回 `(True, "done")` 会被运行结果闸门判成协议违规，派发器记成「崩溃重试」，第一版 e2e 因此把失败误看成别的问题；模拟智能体要像 `kanban_complete` 那样留下完成意图与摘要。
 4. 旧代码里写明的策略（这里是「合并失败也放行」）要连同注释和测试一起核对，改行为时一并改掉，否则下一个读代码的人会照旧注释把它改回去。
+5. 写「清掉旧失败」这类分支前先问它能不能到达：已完成的任务不能再次完成（`kanban_move_guard.json`），那个分支和它的两条测试都是不可达路径，已删除；不可达的代码加上测试会让人误以为存在这条产品路径。
+6. 变异存活不等于测试缺口：取最小事件 id 在闸门测试文件里存活，因为只有 SQL 存储用例让同一父任务失败两次；变异要对整套相关测试跑，而不是只跑同名文件。
 
 ## BUG-AGENT-2026-10-15-025: 维护的模型一次都没答，结果与「没有可改进之处」无法区分，运行中也停不下来；手动编译是一次要等完整个编译的同步请求，会把健康的上游送进控制平面熔断；收到 ingest 快照后「维护」与「重建索引」按钮被一直禁用
 
