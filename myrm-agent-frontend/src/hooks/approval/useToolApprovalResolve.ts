@@ -14,7 +14,7 @@ import {
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import { isRiskHeldError } from '@/services/riskHeldToast';
-import { ApprovalExpiredError } from '@/store/chat/streamErrors';
+import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
@@ -102,8 +102,8 @@ export function useToolApprovalResolve() {
         }
       } catch (error) {
         console.error('[APPROVAL] Resume failed:', error);
-        if (error instanceof ApprovalExpiredError) {
-          toast.warning(t('approvalExpired'));
+        if (error instanceof ApprovalAlreadyResolvedError) {
+          toast.warning(t('approvalAlreadyHandled'));
           for (const req of requestsToRemove) {
             removeRequest(req.requestId);
           }
@@ -148,8 +148,8 @@ export function useToolApprovalResolve() {
         clearBatchDecisions();
       } catch (error) {
         console.error('[APPROVAL] Bulk resume failed:', error);
-        if (error instanceof ApprovalExpiredError) {
-          toast.warning(t('approvalExpired'));
+        if (error instanceof ApprovalAlreadyResolvedError) {
+          toast.warning(t('approvalAlreadyHandled'));
           for (const req of requests) {
             removeRequest(req.requestId);
           }

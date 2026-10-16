@@ -196,7 +196,7 @@ async def test_agent_stream_retry_while_active_is_idempotent_and_busy(app) -> No
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_agent_stream_resume_lost_to_the_timeout_is_refused_with_409_over_http(app) -> None:
+async def test_agent_stream_resume_lost_the_race_is_refused_with_409_over_http(app) -> None:
     """The client acts on the status code, so the refusal must reach it as a real HTTP 409."""
     chat_id = f"chat-resume-race-{uuid.uuid4().hex[:8]}"
     payload: dict[str, object] = {
@@ -211,7 +211,7 @@ async def test_agent_stream_resume_lost_to_the_timeout_is_refused_with_409_over_
     }
     scheduler = ApprovalTimeoutScheduler.get()
     scheduler.cancel_all()
-    scheduler.resolve_if_first(chat_id)  # the approval timer answered first
+    scheduler.resolve_if_first(chat_id)  # the approval timer or another client answered first
 
     try:
         async with httpx.AsyncClient(
@@ -221,6 +221,6 @@ async def test_agent_stream_resume_lost_to_the_timeout_is_refused_with_409_over_
             response = await client.post("/api/v1/agents/agent-stream", json=payload, timeout=30.0)
 
         assert response.status_code == 409
-        assert response.json() == {"detail": "This approval has already been resolved by timeout."}
+        assert response.json() == {"detail": "This approval has already been resolved."}
     finally:
         scheduler.cancel_all()

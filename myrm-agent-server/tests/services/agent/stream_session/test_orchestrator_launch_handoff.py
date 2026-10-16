@@ -97,15 +97,15 @@ async def test_reservation_is_released_when_the_launcher_fails(handoff: SimpleNa
 
 
 @pytest.mark.asyncio
-async def test_resume_already_answered_by_the_timeout_is_refused_with_409(handoff: SimpleNamespace) -> None:
+async def test_resume_already_resolved_by_someone_else_is_refused_with_409(handoff: SimpleNamespace) -> None:
     handoff.request.resume_value = {"decision": "approve"}
-    ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff")  # the timer fired first
+    ApprovalTimeoutScheduler.get().resolve_if_first("chat-handoff")  # the timer or another client resolved it first
 
     response = await run_agent_stream(handoff.request, handoff.http_request)
 
     assert isinstance(response, JSONResponse)
     assert response.status_code == 409
-    assert json.loads(response.body) == {"detail": "This approval has already been resolved by timeout."}
+    assert json.loads(response.body) == {"detail": "This approval has already been resolved."}
     handoff.launcher.assert_not_awaited()
     handoff.registry.get_or_create.assert_not_awaited()
     handoff.reservation.release.assert_called_once_with()

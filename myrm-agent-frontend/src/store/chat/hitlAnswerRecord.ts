@@ -3,7 +3,7 @@
  * - ./types::HitlAnswerRecord / ClarificationForm (POS: the record kept on a settled card and the form it answered)
  *
  * [OUTPUT]
- * - isHitlAnswerRecord: type guard for a record arriving from the server
+ * - isHitlAnswerRecord: type guard for a record arriving from the server (the client-only `already_handled` never does)
  * - summarizeClarificationRecord: what a settled card shows, or null to fall back to the plain answered label
  * - clarificationAnswerAsText: the user's answer as the message they would send, or '' when there is nothing to send
  *
@@ -21,7 +21,7 @@ export interface AnswerLine {
 }
 
 export type ClarificationOutcome =
-  { kind: 'timeout' } | { kind: 'skipped' } | { kind: 'answered'; lines: AnswerLine[] };
+  { kind: 'timeout' } | { kind: 'handled' } | { kind: 'skipped' } | { kind: 'answered'; lines: AnswerLine[] };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -44,6 +44,9 @@ export function summarizeClarificationRecord(
   }
   if (record.by === 'timeout') {
     return { kind: 'timeout' };
+  }
+  if (record.by === 'already_handled') {
+    return { kind: 'handled' };
   }
   const { value } = record;
   if (isTextAnswer(value)) {

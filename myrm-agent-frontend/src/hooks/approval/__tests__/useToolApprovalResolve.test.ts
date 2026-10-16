@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
-import { ApprovalExpiredError, RiskBlockedError } from '@/store/chat/streamErrors';
+import { ApprovalAlreadyResolvedError, RiskBlockedError } from '@/store/chat/streamErrors';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
@@ -87,12 +87,12 @@ describe('useToolApprovalResolve: a typed rejection reason', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('collapses the approval with a warning when the timeout already answered it', async () => {
-    mockResumeApprovalStream.mockRejectedValue(new ApprovalExpiredError());
+  it('collapses the approval with a warning when the timeout or another client already resolved it', async () => {
+    mockResumeApprovalStream.mockRejectedValue(new ApprovalAlreadyResolvedError());
 
     await reject();
 
     expect(useToolApprovalStore.getState().queue).toEqual([]);
-    expect(toastWarning).toHaveBeenCalledWith('approvalExpired');
+    expect(toastWarning).toHaveBeenCalledWith('approvalAlreadyHandled');
   });
 });
