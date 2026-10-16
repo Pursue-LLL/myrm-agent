@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MemoryStatsResponse } from '@/services/memory/core';
+import type { MemoryStatsResponse, MemoryType } from '@/services/memory/core';
 import { GrowingLoopDiscoveryChip } from '../GrowingLoopDiscoveryChip';
 
 const stableT = (key: string, values?: Record<string, unknown>) => (values ? `${key}|${JSON.stringify(values)}` : key);
@@ -18,7 +18,17 @@ const memoryService = vi.hoisted(() => ({ getMemoryStats: vi.fn() }));
 
 vi.mock('@/services/memory/core', () => memoryService);
 
-const statsWith = (total: number) => ({ total_memories: total, by_type: {} }) as unknown as MemoryStatsResponse;
+const EMPTY_BY_TYPE: Record<MemoryType, number> = {
+  profile: 0,
+  semantic: 0,
+  episodic: 0,
+  procedural: 0,
+  conversation: 0,
+  claim: 0,
+  task_digest: 0,
+};
+
+const statsWith = (total: number): MemoryStatsResponse => ({ total_memories: total, by_type: EMPTY_BY_TYPE });
 
 describe('GrowingLoopDiscoveryChip', () => {
   beforeEach(() => {
