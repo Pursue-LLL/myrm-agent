@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -29,6 +30,9 @@ from .match_checks import first_confirmed_span
 logger = logging.getLogger(__name__)
 
 MAX_PATTERN_LENGTH = 4096
+
+# How long a failed on-demand load of the rules (``RiskDetectionService.ensure_loaded``) is not tried again.
+LOAD_RETRY_COOLDOWN_SECONDS = 30.0
 
 # Time one rule may spend on one text. A legitimate pattern needs a fraction of a second even for a long text; a
 # backtracking blow-up has no end, so the budget bounds how long one message can occupy the matcher. A rule that runs
@@ -129,13 +133,38 @@ class RiskDetectionService:
     """Stateful risk detection engine with compiled regex cache.
 
     Lifecycle:
-    1. Call ``reload(session)`` to load rules from DB and compile patterns.
+    1. Call ``reload(session)`` to load rules from DB and compile patterns (startup does; ``ensure_loaded`` does when
+       startup could not).
     2. Call ``detect(text)`` to match content in place, or ``await detect_async(text)`` when the text may be long.
     3. Call ``record_hits(session, ...)`` to persist matches.
     """
 
     _rules: list[_CompiledRule] = field(default_factory=list)
     _version: int = 0
+    _load_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    _next_load_attempt: float = 0.0
+
+    async def ensure_loaded(self) -> None:
+        """Load the rules from the database when ``reload`` has never run in this process.
+
+        Startup gives up on loading after a few failed attempts, which would leave the process without any rule, and
+        every text unscreened, until a restart; the first text screened afterwards loads them instead. A load that fails
+        is not tried again for ``LOAD_RETRY_COOLDOWN_SECONDS``, so a database that stays down costs one attempt in that
+        time, not one per message. Rules that were loaded and turned out to be none (all disabled) are not loaded again.
+        """
+        if self._version:
+            return
+        async with self._load_lock:
+            if self._version or time.monotonic() < self._next_load_attempt:
+                return
+            try:
+                from app.platform_utils import get_session_factory
+
+                async with get_session_factory()() as db:
+                    await self.reload(db)
+            except Exception:
+                self._next_load_attempt = time.monotonic() + LOAD_RETRY_COOLDOWN_SECONDS
+                logger.error("Risk rules could not be loaded; texts are not screened until they are", exc_info=True)
 
     async def reload(self, session: AsyncSession) -> int:
         """Load enabled rules from DB and compile regex cache.

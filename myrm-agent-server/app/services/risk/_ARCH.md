@@ -25,8 +25,8 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 | — |
 | `rule_service.py` | 核心 | 风险规则 CRUD 服务；播种内置规则并刷新已存内置规则的 pattern | — |
-| `detection.py` | 核心 | 实时风险检测引擎：`compile_pattern`、随文本长度放宽的时间预算 `match_budget`、带预算的 `detect` / `detect_preview`、长文本放工作线程的 `detect_async`，命中摘要的写法 | — |
-| `ingress.py` | 核心 | 用户亲手输入文本的统一过闸入口 `screen_user_text`：检测、写位置记录，返回命中结果（`record=False` 只检测不写记录）；各入口自己决定怎样告知发送者 | `detection.py` / `platform_utils` |
+| `detection.py` | 核心 | 实时风险检测引擎：`compile_pattern`、随文本长度放宽的时间预算 `match_budget`、带预算的 `detect` / `detect_preview`、长文本放工作线程的 `detect_async`，命中摘要的写法；`ensure_loaded` 在启动没能载入规则的进程里首次过闸时从库补载入（并发只载一次，失败后 `LOAD_RETRY_COOLDOWN_SECONDS` 内不重试，已载入的空规则集不再重载） | — |
+| `ingress.py` | 核心 | 用户亲手输入文本的统一过闸入口 `screen_user_text`：先确保规则已载入（`ensure_loaded`），再检测、写位置记录，返回命中结果（`record=False` 只检测不写记录）；各入口自己决定怎样告知发送者 | `detection.py` / `platform_utils` |
 | `refusal.py` | 核心 | REST 入口的拒绝契约：`reject_if_risky(*texts)` 逐段过闸、命中即抛 HTTP 400 `risk_held`；`risk_rules_payload` 是 REST 与聊天 SSE 共用的规则载荷（id、名称、严重度） | `ingress.py` |
 | `match_checks.py` | 辅助 | 内置规则 pattern 命中后的确认（身份证校验位、示例值排除、赋值的 value 截到自己的范围后是否为密钥，且不是被省略号截短的示例、文档里的占位或密钥库指针；会话 / 访问令牌要求长而随机，`Cookie` 请求头只看凭证类 cookie）；`first_confirmed_span` 是引擎读一条规则命中的入口，句中的密码规则的命中是 harness 启发式对整段文本找到的密码，其余规则逐个确认 pattern 的命中 | harness `pii_patterns` / `secret_value` / `password_heuristic` |
 | `constants.py` | 辅助 | 风险等级、分类常量、默认启用的分类与就地检测的字符上限 `INLINE_DETECT_CHARS` | — |

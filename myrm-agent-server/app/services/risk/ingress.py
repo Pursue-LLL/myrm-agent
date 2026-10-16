@@ -11,6 +11,7 @@
 用户键入的文字进入 agent 之前的风险闸门的唯一入口：Web 发送、中途引导（聊天、子 agent、后台任务）、目标文字编辑、
 定时任务提示词、看板标题 / 描述 / 评论、IM 入站、委派与系统命令都经由它，所以「哪段文字被拦、怎么记录」只有一份实现；
 调用方只决定被拦之后怎样告知用户（REST 入口见 `refusal.py`）。长文本在工作线程里匹配，事件循环不被占住。
+启动时未能载入规则（`init_risk_rules` 重试后放弃）的进程，在第一段文字进来时补载入（`ensure_loaded`），不会一直放行到重启。
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ async def screen_user_text(text: str | None, *, session_id: str | None, record: 
     from app.services.risk.detection import get_detection_service
 
     service = get_detection_service()
+    await service.ensure_loaded()
     if service.rule_count == 0:
         return None
 
