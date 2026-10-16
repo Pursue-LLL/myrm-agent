@@ -5717,3 +5717,54 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 前端状态库的测试要用真实 store 与真实事件处理器串起来，只测纯函数的话，「处理器忘了透传 id」这类缺口测不出来。
 
 ---
+
+## BUG-AGENT-2026-10-16-024: 设置页「运行成本水表」读的三张表从没有任何写入方，搜索配额、浏览器算力与沙箱算力永远是空账，文档、网站与素材却把它写成已落地的卖点；定时任务里的「烧钱速率烟雾报警」只写进进程内窗口，判定只出现在一个前端无人调用的路由里
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（#366 实施前的复审：从「谁写入这三张表」反查，在删除前的提交 `2a3fddfbd^` 上用 `git grep` 核对调用方，不靠读码推断） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（用户看到的是一张读不到任何用量的卡片，以及对外宣传的不存在的能力；没有数据损坏） |
+| 影响范围 | server：`app/api/statistics/{quota_runtime_router,router}.py`、`app/services/observability/{runtime_meter_service,burn_rate_smoke_alarm}.py`、`app/database/{models/runtime_quota_metric,migrations}.py`、`app/core/cron/adapters/agent_runner.py` 与对应测试；frontend：`RuntimeCostMeterCard.tsx`、`services/statistics.ts`、`UsageStatisticsSection.tsx`、6 个语言包；brand：文档与网站文案；root：路线图与素材 |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-16-010`（同一轮里搜索供应商耗尽状态不到期的修复，那是水表里唯一真实存在的部分）；本地提交，未 push |
+
+### 现象
+
+1. 卡片通过 `getSearchQuotas`、`getBrowserRuntimeSummary` 读 `search_quota_records`、`browser_runtime_records`、`sandbox_workload_records`。这三张表的写入口只有 `quota_runtime_router.py` 里的 POST 路由；在 `2a3fddfbd^` 上，server 里 `record_search_usage`、`record_browser_runtime`、`record_sandbox_workload` 的调用方只有这个路由自己，前端只有读取、重置、改限额四个客户端函数，没有任何地方调用记录接口，所以卡片读到的只可能是初始值。
+2. 定时任务的 `agent_runner.py` 两处 `smoke_alarm_detector.record_usage` 把 Token 用量写进进程内 60 秒窗口；判定只在 `get_runtime_burn_rate_gauge`（路由 `/statistics/runtime-cost-gauge`）里被读取，而前端的 `getRuntimeCostGauge` 没有任何调用方，报警从没有到达过用户，也不触发任何动作。
+3. 文档（`cost-management`、`why-myrm-agent`、`competitor-comparison`）、网站亮点轮播与对比表、素材和路线图都把这些写成已落地的卖点；其中「3 分钟浏览器看门狗」对应的 `BrowserObservability.check_action_watchdog` 在 harness 与 server 里没有调用方，只有定义。
+
+### 根因
+
+1. 功能按「路由、服务、卡片、表、测试齐全」交付，却没有把「谁在搜索、浏览器、沙箱的真实调用路径里写入」接起来；读取侧、展示侧与文档都在，缺的是写入侧，所以没有任何一处会因此报错。
+2. 烟雾报警同理：写入在定时任务里，读取在一个没人调用的路由里，中间没有触发动作的一环。
+
+### 修复
+
+1. 删除整条链：server 的 `quota_runtime_router.py`、`runtime_meter_service.py`、`burn_rate_smoke_alarm.py`、`runtime_quota_metric.py` 与对应测试，`agent_runner.py` 的两处烟雾报警钩子；frontend 的 `RuntimeCostMeterCard.tsx`、`statistics.ts` 里对应的 70 行、`UsageStatisticsSection.tsx` 的挂载与 6 个语言包的 `runtimeMeter` 块。
+2. `MIGRATION_STATEMENTS` 是按序号追加的版本列表，所以历史的 `CREATE TABLE` 保留，追加三条 `DROP TABLE IF EXISTS`；新增 `tests/database/test_runtime_meter_tables_retired.py`（升级的库丢掉三张表且保留 `user_configs`，全新库从不创建它们），`test_chat_bound_rows.py` 与路由消费基线、行数基线同步收紧。
+3. 文档、网站、素材与路线图同步更正：水表与烟雾报警的段落删除，唯一真实的部分（搜索供应商耗尽时自动切流、到期恢复）改写成只描述它。
+
+### 验证
+
+1. server：目标测试 10 例（数据库迁移与会话绑定行分类）通过；`tests/core/cron/adapters`、`tests/database` 与 `test_chat_bound_rows.py` 共 377 例通过、5 例失败，5 例都是定时任务的 `project_id` TypeError，来自工作区里他人未提交的改动。
+2. 架构门禁：删除服务端路由后，本条造成的 5 个 `/statistics/*` 前端客户端越界项没有出现在 `test_frontend_clients_target_existing_routes` 里（客户端与路由在同一次提交里一起删除）。
+3. frontend：`vitest run src/components/features/settings/sections/system src/services` 144 个文件 1075 例通过；`verify:icu-syntax`、`verify:theme-colors` 通过，6 个语言包可解析；`tsc --noEmit` 只剩 1 个错误，在 `sidepanelToolSteps.test.ts`，属于他人未提交的改动。
+
+### 局限
+
+1. 迁移里的 `DROP TABLE` 只在合成的 DDL 上测过，没有在真实用户库上跑；表里若有人通过 POST 手写过数据，会随之丢失（仓内没有调用方，仓外调用方排除不了）。
+2. 删除了 `/statistics/` 下的 11 个路由处理器（10 个路径：`search-quotas`、`search-quotas/record`、`search-quotas/reset`、`search-quotas/limit`、`browser-runtime`、`browser-runtime/summary`、`browser-runtime/record`、`sandbox-workload`、`sandbox-workload/record`、`runtime-cost-gauge`），仓外脚本若调用会得到 404。
+3. 没有做视觉验收：卡片只是被删除，设置页用量统计区删除后的版面没有截图复核。
+4. `BrowserObservability.check_action_watchdog` 没有调用方，本条只更正了对外文案，没有删除这段代码，留作后续项。
+5. 删除烟雾报警钩子后，定时任务的失控防线是 `RunawayCircuitBreakException` 熔断，以及用户在设置里开启后才生效的预算守卫 `services/budget/enforcer.py`（默认关闭）；烟雾报警原本就没有触发任何动作，所以防线没有变弱，但也没有因此变强。
+6. 回读时发现 `SessionAnalyticsDialog.tsx` 的 Markdown 导出模板里有一个原生 emoji，违反前端规范，不在本条范围内，未改。
+
+### 踩坑经验
+
+1. 评估「功能是否真实存在」要从写入侧反查：读取、展示、文档、测试都齐全并不说明有人写入；先在删除前的提交上查调用方，再决定删。
+2. 版本化的迁移列表不能删历史语句，只能追加；删表要补一条测试，证明升级的库真的丢了表、而同一库里的其他表还在。
+3. 文案里的「已落地」常常比代码活得久：同一个能力会散落在文档、网站轮播、对比表、素材与路线图里，删代码时要把这些一起反查。
+
+---
