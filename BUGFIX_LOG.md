@@ -5440,7 +5440,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 1. 打开「保护已安装技能」后，装来的技能超期未用仍会被标为陈旧：遗忘策略只在 `trust == INSTALLED` 时豁免，而本地扫描把所有技能的信任级固定为 `TRUSTED`（`myrm-agent-harness/src/myrm_agent_harness/backends/skills/local.py:151`），这个分支没有任何可达路径；
 2. 默认扫描目录除 Myrm 自己的技能目录外，还有其他工具（Cursor、Claude Code、Codex 等）的目录；清理只看 Myrm 自己的运行记录，别的工具正在用的技能因此看起来「闲置」；
-3. 体检与清理各写了一份扫描循环，体检同样用失效的信任级判断「已安装受保护」；
+3. 技能的扫描循环被各处各写了一份（清理、合并、健康探针、技能医生），健康探针同样用失效的信任级判断「已安装受保护」；
 4. 既有的预置技能豁免集成用例是空转的：夹具使它不论豁免是否生效都通过；
 5. 诊断发现 `wrong_but_frequent` 的 `details` 带 `success_count`、`failure_count`、`trust` 三个键，界面只读 `observed_count`；`trust` 正是上面那个恒为 `TRUSTED` 的值；
 6. 智能体配置里「技能」页签的动作空间噪声计收到的是 `agent.configPanel` 的翻译函数，而它用的 5 个文案键在 `agent.configEditor` 下。用真实 next-intl 和 `en.json` 实测：载荷标签、两条状态提示、陈旧提示都直接输出键路径（如 `agent.configPanel.actionSpaceRadar.loadMeterLabel`）；`verify:i18n-references` 看不到模板字符串拼出来的键，所以一直通过；
@@ -5457,7 +5457,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 ### 修复
 
 1. 引擎的 `run` 与 `run_async` 新增 `installed_names`：开关开启时与 `protected_names` 并成同一个豁免集（`engine.py:202-206` `_exempt_names`），逐技能判定（`:142`）、LRU 池（`:147`）、合并候选（`:196-197`）共用；删除遗忘策略里永不触发的 trust 分支；
-2. 服务端新增 `scan_local_skills`（`app/core/skills/curator/local_skills.py:43-59`）：一次扫描全部根目录，带市场安装标记 `origin.json`，或位于默认路径第一项（Myrm 自己的目录）之外的技能算「已安装」；自动扫描、合并预览与执行、体检三处共用这一个扫描函数（每次调用各自重新扫描）；
+2. 服务端新增 `scan_local_skills`（`app/core/skills/curator/local_skills.py:43-59`）：一次扫描全部根目录，带市场安装标记 `origin.json`，或位于默认路径第一项（Myrm 自己的目录）之外的技能算「已安装」；自动扫描、合并预览与执行、体检、技能医生（`service.py` 的 `get_skill_diagnostics`）共用这一个扫描函数（每次调用各自重新扫描）；
 3. `details` 只留 `observed_count`，前端类型与三处夹具同步；
 4. 噪声计改收 `agent.configEditor` 的翻译函数，新增用真实 en、zh 消息渲染的用例；删除 12 条无引用的文案键；`protectInstalledDesc` 六种语言改为如实描述（含其他工具目录）；
 5. 预置技能豁免用例改为参数化，同时断言开关关闭时被清理；
@@ -5468,7 +5468,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 ### 验证
 
 1. harness：`tests/agent/skills/curator`、`tests/agent/skills/test_curator_engine.py`、`tests/backends/skills` 共 708 通过（拆分前）；拆分后 `test_forgetting_strategy.py` 与 `test_skill_doctor.py` 共 21 通过（拆分前同一批也是 21），搬走的函数体与 HEAD 逐字一致；新增的 5 例 `installed_names` 用例覆盖：开关开启时豁免、关闭时仍被清理、退出 LRU 池、合并候选跟随开关；
-2. 服务端：`tests/core/skills/curator`、`test_curator_consolidation.py`、`tests/core/infra/health`、`test_curator_usage_pipeline_integration.py` 共 109 通过；`test_local_skills.py` 用真实 `LocalSkillBackend` 目录断言「主目录自写不算、市场安装算、其他工具目录算、主目录缺失时不把其他目录当主目录、没有目录时无事可扫」；集成用例跑通「扫描 → 引擎 → 统计账本」：市场安装与其他工具的技能保持活跃、闲置的自写技能转陈旧，关闭开关后全部转陈旧；
+2. 服务端：`tests/core/skills/curator`、`test_curator_consolidation.py`、`tests/core/infra/health`、`test_curator_usage_pipeline_integration.py` 共 109 通过；技能医生改走共用扫描后，新增 `test_skill_diagnostics_scan.py`（两个根目录里共 3 个真实技能目录，医生要统计到 3 个），与 `tests/api/skills/test_curator.py` 共 20 通过，把医生拿到的扫描结果截成前两个后该用例失败；`test_local_skills.py` 用真实 `LocalSkillBackend` 目录断言「主目录自写不算、市场安装算、其他工具目录算、主目录缺失时不把其他目录当主目录、没有目录时无事可扫」；集成用例跑通「扫描 → 引擎 → 统计账本」：市场安装与其他工具的技能保持活跃、闲置的自写技能转陈旧，关闭开关后全部转陈旧；
 3. 前端：技能与智能体配置面板两个目录 39 文件 217 通过；`verify:i18n`、`verify:i18n-references`、`verify:theme-colors` 通过；触及文件 prettier、oxlint 0 告警；把 `t={t}` 改回 `t={tPanel}` 做变异验证，新增用例在 en 与 zh 各失败 1 例（共 2 例），还原后通过；
 4. 拆分后 `check_module_reachability` 不再提到 `skill_doctor`（服务端改从新模块导入之前，它被报为「无生产调用方」，门禁共 19 项；现在 18 项，都是他人的模块）；
 5. 文案改动后：`verify:i18n`（含代码引用检查）、`verify:theme-colors`、六份 locale 与 ko 补丁的 prettier、智能体配置面板目录 7 文件 29 例通过；harness 与服务端触及文件 ruff 无告警，harness 3 个触及文件与服务端 4 个触及文件的 mypy 在这些文件内 0 错误（服务端 mypy 跟随导入共报 1134 条，均不在这些文件里）；`scan_local_skills` 实测：200 个技能（主目录 150 个，一半带 `origin.json`）7 次中位数 61.2 ms，把 `origin.json` 检查桩掉后 57.5 ms，多出约 4 ms。
