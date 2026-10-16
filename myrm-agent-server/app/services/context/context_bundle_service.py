@@ -14,6 +14,9 @@ Server-side ContextBundle orchestration. Wraps Harness facade without duplicatin
 
 from __future__ import annotations
 
+import os
+import shutil
+from pathlib import Path
 from typing import Literal
 
 from myrm_agent_harness.runtime.paths.execution_paths import get_context_root
@@ -102,9 +105,7 @@ def _make_workspace_health_probe(facade: ContextBundleFacade) -> HealthProbe:
         path_status = _path_writable_status(harness_path)
         if path_status != "ready":
             return path_status
-        from shutil import which
-
-        return "ready" if which("rg") is not None else "degraded"
+        return "ready" if shutil.which("rg") is not None else "degraded"
 
     return probe
 
@@ -119,11 +120,8 @@ def _offload_scene_health() -> ContextBundleSceneHealth:
     )
 
 
-def _path_writable_status(path: object) -> str:
-    import os
-    from pathlib import Path
-
-    target = Path(str(path))
+def _path_writable_status(path: Path | str) -> str:
+    target = Path(path)
     check = target if target.exists() else target.parent
     if check.exists() and os.access(check, os.W_OK):
         return "ready"
