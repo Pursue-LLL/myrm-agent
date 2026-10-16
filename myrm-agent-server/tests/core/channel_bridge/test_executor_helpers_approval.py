@@ -100,19 +100,23 @@ def _channel_params() -> GeneralAgentParams:
 
 
 @contextmanager
-def _patched_channel_resume(scheduler: ApprovalTimeoutScheduler | MagicMock, agent: MagicMock) -> Iterator[None]:
-    """Run the channel timeout callback against a stand-in agent with every collaborator outside the helper replaced."""
+def _patched_channel_resume(scheduler: ApprovalTimeoutScheduler | MagicMock, agent: MagicMock) -> Iterator[AsyncMock]:
+    """Run the channel timeout callback against a stand-in agent with every collaborator outside the helper replaced.
+
+    Yields the mock that receives the result notification.
+    """
 
     @asynccontextmanager
     async def credentials_scope(**_kwargs: object) -> AsyncIterator[None]:
         yield
 
     helper = "app.core.channel_bridge.executor_helpers.approval"
+    notify = AsyncMock()
     with (
         patch(f"{helper}.ApprovalTimeoutScheduler.get", return_value=scheduler),
         patch(f"{helper}.load_history_without_persist", new=AsyncMock(return_value=("chat-db", []))),
         patch(f"{helper}.persist_assistant_message", new=AsyncMock()),
-        patch(f"{helper}.notify_channel_timeout_result", new=AsyncMock()),
+        patch(f"{helper}.notify_channel_timeout_result", new=notify),
         patch.object(AgentFactory, "create_general_agent", return_value=agent),
         patch("app.services.agent.runtime_context.build_agent_runtime_context", new=AsyncMock(return_value={})),
         patch("app.services.agent.execution_cache.finalize_agent_session", new=AsyncMock()),
@@ -121,7 +125,7 @@ def _patched_channel_resume(scheduler: ApprovalTimeoutScheduler | MagicMock, age
             new=credentials_scope,
         ),
     ):
-        yield
+        yield notify
 
 
 def _schedule_channel_timeout(params: GeneralAgentParams, timeout_seconds: float = 120) -> None:
@@ -154,6 +158,29 @@ async def test_channel_timeout_resume_runs_under_the_scheduler_key() -> None:
     assert agent.approval_session_key == "telegram:chat-1"
     assert agent.process_stream.call_args.kwargs["query"].resume == {"decision": "reject"}
     scheduler.reopen.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_channel_timeout_resume_reports_the_restarted_segment_once() -> None:
+    """A model switch inside the resumed run re-streams the segment in flight; the owner gets it once."""
+    scheduler = MagicMock()
+    agent = MagicMock()
+
+    async def stream(**_kwargs: object) -> AsyncIterator[dict[str, object]]:
+        yield {"type": "message", "data": "Rejected. "}
+        yield {"type": "tool_start", "data": {}}
+        yield {"type": "message", "data": "Nothing was dep"}
+        yield {"type": "status", "restart": True, "data": {}}
+        yield {"type": "message", "data": "Nothing was deployed."}
+
+    agent.process_stream = MagicMock(side_effect=stream)
+
+    with _patched_channel_resume(scheduler, agent) as notify:
+        _schedule_channel_timeout(_channel_params())
+        resume_callback = scheduler.schedule.call_args.kwargs["resume_callback"]
+        await resume_callback({"decision": "reject"})
+
+    assert notify.await_args.args[3] == "Rejected. Nothing was deployed."
 
 
 @pytest.mark.asyncio

@@ -4874,7 +4874,7 @@ except Exception:
 ### 局限
 
 1. 另一场会话正在重写 `diagnostics/engine.py` 的冷却提示与对应语言键，且 `executor.py`、`execute_errors.py` 有未提交改动。因此「IM 实时路径读取 `cooldown_remaining_ms` 并向所有者说明等待时间」没有做，「删除执行器里永远走不到的所有者私聊 `MyrmLLMError` 分支与其恢复按钮」也没有做；两项都要等那些改动落地后再做，否则会在别人未完成的接口上叠改。
-2. 看板、定时任务、评测、WebUI 收集器有新增的重放用例；审批超时恢复与自动续跑只有既有用例，没有新增的重放用例。
+2. 审批超时恢复与自动续跑的重放用例（`test_channel_timeout_resume_reports_the_restarted_segment_once`、`test_auto_continue_persists_a_restarted_segment_once`）只构造「工具步骤之后重启」一种事件序列，连续多次重启的幂等由 harness `test_answer_draft.py::test_consecutive_restarts_are_idempotent` 保证；把 `AnswerDraft.restart` 改成不删文字，这两个用例都失败。
 3. 推理文字与工具结果明细在切换时仍整段清空（与改动前一致），只有回复文字改为按段落作废。
 4. 重启后不会向 IM 发出一次「变短」的快照：中途的编辑是否更新取决于分块阈值，最终回复总会以正确文字覆盖，这点只是观感。
 

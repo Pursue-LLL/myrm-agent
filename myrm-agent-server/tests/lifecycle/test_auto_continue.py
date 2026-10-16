@@ -140,6 +140,54 @@ async def test_auto_continue_success_persists_message():
 
 
 @pytest.mark.asyncio
+async def test_auto_continue_persists_a_restarted_segment_once():
+    """A recovery restart inside the resumed turn re-streams the segment in flight; the stored reply keeps it once."""
+    marker = _make_marker()
+    factory, db = _mock_session_factory()
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "Checking. "}
+        yield {"type": "tool_start", "data": {}}
+        yield {"type": "message", "data": "The answ"}
+        yield {"type": "status", "restart": True, "data": {}}
+        yield {"type": "message", "data": "The answer."}
+        yield {"type": "message_end", "usage": {}}
+
+    mock_persist = AsyncMock()
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = [marker]
+    db.execute = AsyncMock(return_value=result_mock)
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch(
+            "app.core.channel_bridge.config_loader.load_user_configs",
+            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": True})),
+        ),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch("app.services.agent.streaming.ai_agent_service_stream", side_effect=_fake_stream),
+        patch("app.services.chat.chat_service.ChatService.load_web_chat_history", AsyncMock(return_value=[])),
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", mock_persist),
+        patch("app.services.infra.system_notification.SystemNotificationService.create_notification", AsyncMock()),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            query="hello",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.auto_continue import auto_continue_interrupted_turns
+
+        await auto_continue_interrupted_turns()
+        await asyncio.sleep(0.15)
+
+    mock_persist.assert_awaited_once()
+    assert mock_persist.call_args[0][1] == "Checking. The answer."
+
+
+@pytest.mark.asyncio
 async def test_auto_continue_replays_pending_steering_messages():
     """Pending steering messages in marker are restored to steering token upon recovery."""
     marker = _make_marker(pending_steering_messages=["redirect to topic b"])
