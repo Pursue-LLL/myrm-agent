@@ -17,7 +17,7 @@ export function NoiseGauge({
   staleCoreSkillCount,
   isSmartPruning = false,
   onSmartPrune,
-  tPanel,
+  t,
 }: {
   isNoiseHigh: boolean;
   isNoiseCritical: boolean;
@@ -27,9 +27,10 @@ export function NoiseGauge({
   staleCoreSkillCount: number;
   isSmartPruning?: boolean;
   onSmartPrune: () => void;
-  tPanel: (key: string, values?: Record<string, string | number>) => string;
+  /** Translator scoped to `agent.configEditor`, the namespace that owns `actionSpaceRadar.*`. */
+  t: (key: string, values?: Record<string, string | number>) => string;
 }) {
-  const tRadar = (key: string, values?: Record<string, string | number>) => tPanel(`actionSpaceRadar.${key}`, values);
+  const tRadar = (key: string, values?: Record<string, string | number>) => t(`actionSpaceRadar.${key}`, values);
 
   return (
     <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-2">

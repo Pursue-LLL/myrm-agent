@@ -5,8 +5,20 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { AbstractIntlMessages } from 'next-intl';
 import { SkillsSectionPanel } from '../SkillsSectionPanel';
 import type { Skill } from '@/store/skill/types';
+import en from '../../../../../../locales/en.json';
+import zh from '../../../../../../locales/zh.json';
+
+// The global setup stubs next-intl with an identity translator; the gauge-copy test below needs the real one.
+const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
+
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+// `useTranslations` is untyped in the app, so the panel props take free-form keys; mirror that here.
+const translatorFor = (locale: string, messages: AbstractIntlMessages, namespace: string): Translate =>
+  createTranslator({ locale, messages, namespace }) as Translate;
 
 describe('SkillsSectionPanel', () => {
   const mockSkills: Skill[] = [
@@ -101,5 +113,30 @@ describe('SkillsSectionPanel', () => {
 
     expect(setLocalSkillIds).toHaveBeenCalledWith([]);
     expect(setLocalSkillConfigs).toHaveBeenCalledWith({});
+  });
+
+  // The gauge copy lives in `agent.configEditor`; wiring it to the `agent.configPanel` translator renders raw key paths.
+  it.each([
+    ['en', en],
+    ['zh', zh],
+  ])('phrases the action-space gauge from the real %s messages', (locale, messages) => {
+    const t = translatorFor(locale, messages, 'agent.configEditor');
+    const tPanel = translatorFor(locale, messages, 'agent.configPanel');
+    const radar = messages.agent.configEditor.actionSpaceRadar;
+
+    render(
+      <SkillsSectionPanel
+        {...defaultProps}
+        t={t}
+        tPanel={tPanel}
+        noiseData={{ ...defaultProps.noiseData, isNoiseHigh: true }}
+        staleCoreSkills={['code_runner', 'pdf_extractor']}
+      />,
+    );
+
+    expect(screen.getByText(radar.loadMeterLabel)).toBeDefined();
+    expect(screen.getByText(radar.statusHigh)).toBeDefined();
+    expect(screen.getByText(radar.staleSkillsNotice.replace('{count}', '2'))).toBeDefined();
+    expect(screen.getByRole('button', { name: radar.smartPrune })).toBeDefined();
   });
 });

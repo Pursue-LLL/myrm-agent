@@ -1294,8 +1294,6 @@
         "staleSkillsNotice": "管家提醒：發現 {count} 個沉睡技能，正在拖累您的準確度！",
         "smartPrune": "一鍵淨化釋放動作空間",
         "smartPruneRunning": "正在執行 Curator 清掃…",
-        "smartPruneSuccess": "Curator 清掃完成 — {stale} 個標記為 stale，{archived} 個已歸檔",
-        "smartPruneFailed": "Curator 清掃失敗",
         "turn1CatalogTitle": "Turn 1 技能目錄",
         "turn1CatalogSummary": "{inline} 內聯 · {hidden} 隱藏 · search {searchState}",
         "turn1CatalogSearchOn": "開啟",

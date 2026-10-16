@@ -1294,8 +1294,6 @@
         "staleSkillsNotice": "Hinweis: {count} inaktive Skill(s) beeinträchtigen die Genauigkeit.",
         "smartPrune": "Inaktive Skills bereinigen und Aktionsraum freigeben",
         "smartPruneRunning": "Curator-Durchlauf läuft…",
-        "smartPruneSuccess": "Curator-Durchlauf abgeschlossen – {stale} als veraltet markiert, {archived} archiviert",
-        "smartPruneFailed": "Curator-Durchlauf fehlgeschlagen",
         "turn1CatalogTitle": "Skill-Katalog Runde 1",
         "turn1CatalogSummary": "{inline} inline · {hidden} ausgeblendet · Suche {searchState}",
         "turn1CatalogSearchOn": "ON",

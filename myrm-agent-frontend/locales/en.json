@@ -1318,8 +1318,6 @@
         "staleSkillsNotice": "Reminder: {count} dormant skill(s) are hurting accuracy.",
         "smartPrune": "Prune dormant skills to free action space",
         "smartPruneRunning": "Running curator sweep…",
-        "smartPruneSuccess": "Curator sweep complete — {stale} marked stale, {archived} archived",
-        "smartPruneFailed": "Curator sweep failed",
         "turn1CatalogTitle": "Turn 1 skill catalog",
         "turn1CatalogSummary": "{inline} inline · {hidden} hidden · search {searchState}",
         "turn1CatalogSearchOn": "ON",
