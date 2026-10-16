@@ -86,6 +86,19 @@ def persisted() -> Iterator[list[str]]:
         yield calls
 
 
+@pytest.fixture
+def answered_cards(persisted: list[str]) -> Iterator[dict[str, dict[str, object]]]:
+    """The ``extra_data`` written for each card flipped to answered, by message id (on top of ``persisted``)."""
+    stored: dict[str, dict[str, object]] = {}
+
+    async def update(message_id: str, extra_data: dict[str, object]) -> None:
+        persisted.append(f"answered:{message_id}")
+        stored[message_id] = extra_data
+
+    with patch("app.services.chat.chat_service.ChatService.update_message_extra_data", new=update):
+        yield stored
+
+
 def _params() -> MagicMock:
     params = MagicMock()
     params.chat_id = CHAT_ID
@@ -177,6 +190,30 @@ async def test_stored_card_is_marked_answered_before_the_continuation_is_persist
         await _settle()
 
     assert persisted == ["answered:assistant-row", "persist:continued"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("kind", "card_key", "other_key"),
+    [("clarification", "clarification", "directoryRequest"), ("directory", "directoryRequest", "clarification")],
+)
+async def test_a_timed_out_card_records_that_the_timeout_answered_it(
+    kind: HitlKind,
+    card_key: str,
+    other_key: str,
+    gateway: AgentGateway,
+    answered_cards: dict[str, dict[str, object]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    params = _params()
+    expected_value = _arm(kind, params, monkeypatch)
+
+    with patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [MESSAGE_EVENT], [])):
+        await _settle()
+
+    stored = answered_cards["assistant-row"]
+    assert stored[card_key] == {"answered": True, "answerRecord": {"by": "timeout", "value": expected_value}}
+    assert stored[other_key] == {"answered": False}
 
 
 @pytest.mark.asyncio

@@ -76,7 +76,7 @@ async def clarify_patch_chat(db_session: AsyncSession) -> str:
 async def test_mark_pending_clarification_answered_persists_to_sqlite(
     clarify_patch_chat: str,
 ) -> None:
-    await mark_pending_clarification_answered(clarify_patch_chat)
+    await mark_pending_clarification_answered(clarify_patch_chat, None)
 
     messages = await ChatService.get_all_messages(clarify_patch_chat)
     clarify_message = next(message for message in messages if message.id == "a1-clarify")

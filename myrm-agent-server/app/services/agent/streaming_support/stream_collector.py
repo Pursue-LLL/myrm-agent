@@ -758,9 +758,11 @@ class StreamContentCollector:
                         and phase_payload.get("status") == "resolved"
                         and self._clarification is not None
                     ):
+                        answer_record = phase_payload.get("answerRecord")
                         self._clarification = {
                             **self._clarification,
                             "answered": True,
+                            **({"answerRecord": answer_record} if isinstance(answer_record, dict) else {}),
                         }
             if step_key == "cache_break" and isinstance(data, dict):
                 self._cache_break = data

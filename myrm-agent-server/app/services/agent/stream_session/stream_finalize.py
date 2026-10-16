@@ -49,6 +49,7 @@ from app.services.agent.stream_session._memory_status_helpers import (
     enrich_memory_brief_status_with_session_ephemeral_deltas,
     observe_memory_brief_status_payload,
 )
+from app.services.agent.stream_session.answered_cards import settle_answered_cards
 from app.services.agent.stream_session.migration_readiness_anchor import (
     record_migration_first_turn_outcome,
 )
@@ -67,11 +68,7 @@ from app.services.agent.stream_session.turn_capability_terminal import (
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,
 )
-from app.services.agent.streaming_support.hitl_timeout import (
-    arm_interrupt_timeout,
-    mark_pending_clarification_answered,
-    mark_pending_directory_request_answered,
-)
+from app.services.agent.streaming_support.hitl_timeout import arm_interrupt_timeout
 from app.services.agent.streaming_support.sse_helpers import (
     clear_context_task_metrics,
     error_sse,
@@ -421,6 +418,8 @@ async def finalize_agent_stream_session(
 
             await commit_lazy_session_barrier(session)
 
+    await settle_answered_cards(session)
+
     if session.collector.has_persistable_turn and session.request.chat_id and (draft is None or draft.committed):
         import re
 
@@ -495,17 +494,6 @@ async def finalize_agent_stream_session(
         has_assistant_content=session.collector.has_content,
         live_readiness_status=session.migration_live_readiness_status,
     )
-
-    if session.request.chat_id:
-        extra = session.collector.extra_data
-        collector_clarification = extra.get("clarification") if isinstance(extra, dict) else None
-        collector_clarification_answered = (
-            isinstance(collector_clarification, dict) and collector_clarification.get("answered") is True
-        )
-        resume_completed = session.request.resume_value is not None and not clarification.pending
-        if resume_completed or collector_clarification_answered:
-            await mark_pending_clarification_answered(session.request.chat_id)
-            await mark_pending_directory_request_answered(session.request.chat_id)
 
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
     directory_sched_needed = _directory_timeout_needed(session, clarification)

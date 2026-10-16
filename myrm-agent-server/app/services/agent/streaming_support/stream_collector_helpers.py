@@ -33,9 +33,10 @@ def parse_tool_end_result(event: dict[str, object]) -> object | None:
     result = event.get("result")
     if isinstance(result, str):
         try:
-            return json.loads(result)
+            parsed: object = json.loads(result)
         except json.JSONDecodeError:
             return None
+        return parsed
     return result
 
 
@@ -218,7 +219,6 @@ def collect_directory_request_required(
 
     return {
         "answered": False,
-        "isResumeMode": True,
         "request": normalized_request,
     }
 

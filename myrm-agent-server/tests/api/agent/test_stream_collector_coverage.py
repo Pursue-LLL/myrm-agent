@@ -307,6 +307,43 @@ def test_stream_collector_persists_clarification_required() -> None:
     collector.cleanup()
 
 
+@pytest.mark.parametrize(
+    "answer_record",
+    [
+        {"by": "user", "value": {"framework": "langchain"}},
+        {"by": "timeout", "value": {}},
+    ],
+)
+def test_stream_collector_keeps_the_deep_research_answer_record_on_the_card(answer_record: dict[str, object]) -> None:
+    ACTIVE_COLLECTORS.clear()
+    collector = StreamContentCollector(chat_id="chat-clarify-record")
+    collector.feed_event(
+        {
+            "type": "clarification_required",
+            "messageId": "msg-clarify-2",
+            "data": {
+                "type": "ask_question",
+                "source": "deep_research",
+                "form": {"questions": [{"id": "framework", "prompt": "Which framework?"}]},
+            },
+        }
+    )
+
+    collector.feed_event(
+        {
+            "type": "status",
+            "messageId": "msg-clarify-2",
+            "data": {"phase": "clarify", "status": "resolved", "answerRecord": answer_record},
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    assert extra["clarification"]["answered"] is True
+    assert extra["clarification"]["answerRecord"] == answer_record
+    collector.cleanup()
+
+
 def test_stream_collector_persists_plan_confirmation_waiting() -> None:
     ACTIVE_COLLECTORS.clear()
     collector = StreamContentCollector(chat_id="chat-plan-persist")

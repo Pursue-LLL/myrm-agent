@@ -645,6 +645,8 @@ async def ai_deep_research_service_stream(
                     "phase": "clarify",
                     "status": "resolved",
                     "skipped": answer is None or answer == "",
+                    # The clarify endpoint requires a body answer, so None only comes from the timeout.
+                    "answerRecord": {"by": "timeout", "value": {}} if answer is None else {"by": "user", "value": answer},
                 },
             }
         )

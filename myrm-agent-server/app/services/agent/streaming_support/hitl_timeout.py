@@ -12,7 +12,9 @@
 - DIRECTORY_TIMEOUT_SECONDS / DIRECTORY_DENY_RESUME_VALUE: request_directory timeout and its denial
 - arm_interrupt_timeout: arm the timer of the interrupt a run stopped at, or reopen one that has no timer
 - schedule_approval_timeout / schedule_clarification_timeout / schedule_directory_timeout: arm one interrupt kind
+- HitlAnswerRecord: who settled a card (the user or the timeout default) and the resume value that settled it
 - mark_pending_clarification_answered / mark_pending_directory_request_answered: flip the stored card to answered
+  and keep the record on it
 
 [POS]
 A turn that stops at an interrupt leaves a suspended graph; when nobody answers, the timer resumes it with the
@@ -24,7 +26,7 @@ interrupt without a timer is reopened so its manual answer is not refused as alr
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 import orjson
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
@@ -45,6 +47,14 @@ logger = logging.getLogger(__name__)
 
 HitlKind = Literal["approval", "clarification", "directory"]
 
+
+class HitlAnswerRecord(TypedDict):
+    """How a card was settled, kept on the card so the transcript shows it after the card closes."""
+
+    by: Literal["user", "timeout"]
+    value: object
+
+
 # Web structured clarify: auto-resume when user leaves the form open (OpenClaw default 900s).
 CLARIFICATION_TIMEOUT_SECONDS = 900.0
 
@@ -60,8 +70,8 @@ _DEFAULT_APPROVAL_TIMEOUT_SECONDS = 300.0
 _DATA_PREFIX = "data: "
 
 
-async def _mark_latest_unanswered(chat_id: str, card_key: str) -> None:
-    """Flip the newest stored ``card_key`` card of the chat from unanswered to answered.
+async def _mark_latest_unanswered(chat_id: str, card_key: str, record: HitlAnswerRecord | None) -> None:
+    """Flip the newest stored ``card_key`` card of the chat from unanswered to answered and keep ``record`` on it.
 
     The card lives on the persisted assistant row (a UUID minted at finalize), not on the
     request message id, which is bound to the user row.
@@ -78,19 +88,19 @@ async def _mark_latest_unanswered(chat_id: str, card_key: str) -> None:
             continue
         if card.get("answered") is True:
             continue
-        extra_data[card_key] = {**card, "answered": True}
+        extra_data[card_key] = {**card, "answered": True, **({"answerRecord": record} if record else {})}
         await ChatService.update_message_extra_data(message.id, extra_data)
         return
 
 
-async def mark_pending_clarification_answered(chat_id: str) -> None:
+async def mark_pending_clarification_answered(chat_id: str, record: HitlAnswerRecord | None) -> None:
     """Mark the latest assistant clarification as answered after a successful resume."""
-    await _mark_latest_unanswered(chat_id, "clarification")
+    await _mark_latest_unanswered(chat_id, "clarification", record)
 
 
-async def mark_pending_directory_request_answered(chat_id: str) -> None:
+async def mark_pending_directory_request_answered(chat_id: str, record: HitlAnswerRecord | None) -> None:
     """Mark the latest assistant directoryRequest as answered after resume."""
-    await _mark_latest_unanswered(chat_id, "directoryRequest")
+    await _mark_latest_unanswered(chat_id, "directoryRequest", record)
 
 
 def schedule_approval_timeout(
@@ -226,10 +236,11 @@ async def _resume_after_timeout(
 
     try:
         # Mark before persisting: the continuation may carry a new unanswered card that must stay unanswered.
+        timeout_record: HitlAnswerRecord = {"by": "timeout", "value": resume_value}
         if kind == "clarification":
-            await mark_pending_clarification_answered(chat_id)
+            await mark_pending_clarification_answered(chat_id, timeout_record)
         elif kind == "directory":
-            await mark_pending_directory_request_answered(chat_id)
+            await mark_pending_directory_request_answered(chat_id, timeout_record)
 
         if collector.has_content:
             await ChatService.persist_assistant_message_safe(
