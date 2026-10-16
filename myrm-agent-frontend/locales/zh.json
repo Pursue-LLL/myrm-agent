@@ -9838,6 +9838,7 @@
     "kanbanTaskCompleted": "看板任务已完成",
     "kanbanTaskBlocked": "看板任务已阻塞",
     "kanbanTaskFailed": "看板任务已失败",
+    "viewKanbanBoard": "查看看板",
     "taskCompleted": "{taskType} 已完成",
     "taskFailed": "{taskType} 失败",
     "taskUnknownError": "未知错误",

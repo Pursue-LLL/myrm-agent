@@ -9838,6 +9838,7 @@
     "kanbanTaskCompleted": "Kanban task completed",
     "kanbanTaskBlocked": "Kanban task blocked",
     "kanbanTaskFailed": "Kanban task failed",
+    "viewKanbanBoard": "View board",
     "taskCompleted": "{taskType} completed",
     "taskFailed": "{taskType} failed",
     "taskUnknownError": "Unknown error",

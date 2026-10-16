@@ -90,12 +90,17 @@ export function resolveKanbanDefaultBoardIdForRequest(
   return id ?? undefined;
 }
 
-/** Deep link into Settings Kanban board view with optional session filter. */
-export function buildKanbanBoardDeepLink(opts: { sourceChatId: string; boardId: string }): string {
-  const params = new URLSearchParams({
-    source_chat: opts.sourceChatId.trim(),
-    board_id: opts.boardId.trim(),
-  });
+/** Deep link into Settings Kanban board view with optional session and status filters. */
+export function buildKanbanBoardDeepLink(opts: { boardId: string; sourceChatId?: string; status?: string }): string {
+  const params = new URLSearchParams();
+  const sourceChatId = opts.sourceChatId?.trim();
+  if (sourceChatId) {
+    params.set('source_chat', sourceChatId);
+  }
+  params.set('board_id', opts.boardId.trim());
+  if (opts.status) {
+    params.set('status', opts.status);
+  }
   return `/settings/kanban?${params.toString()}`;
 }
 

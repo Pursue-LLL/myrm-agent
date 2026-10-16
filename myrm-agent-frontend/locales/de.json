@@ -9770,6 +9770,7 @@
     "kanbanTaskCompleted": "Kanban-Aufgabe abgeschlossen",
     "kanbanTaskBlocked": "Kanban-Aufgabe blockiert",
     "kanbanTaskFailed": "Die Kanban-Aufgabe ist fehlgeschlagen",
+    "viewKanbanBoard": "Board ansehen",
     "taskCompleted": "{taskType} abgeschlossen",
     "taskFailed": "{taskType} fehlgeschlagen",
     "taskUnknownError": "Unbekannter Fehler",

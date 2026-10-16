@@ -9770,6 +9770,7 @@
     "kanbanTaskCompleted": "カンバンタスクが完了しました",
     "kanbanTaskBlocked": "カンバンタスクがブロックされました",
     "kanbanTaskFailed": "カンバンタスクが失敗しました",
+    "viewKanbanBoard": "ボードを表示",
     "taskCompleted": "{taskType} が完了しました",
     "taskFailed": "{taskType} 失敗",
     "taskUnknownError": "不明なエラー",

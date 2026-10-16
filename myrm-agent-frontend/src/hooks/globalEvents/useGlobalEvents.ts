@@ -366,7 +366,7 @@ export function useGlobalEvents(): void {
 
         window.dispatchEvent(new CustomEvent('budget_alert', { detail: payload.data }));
       } else if (payload.type === 'kanban_task_updated') {
-        showKanbanTaskToast(payload.data, { t, tKanban, pushToast, notifyIfLeader });
+        showKanbanTaskToast(payload.data, { t, tKanban, router, pushToast, notifyIfLeader });
         window.dispatchEvent(new CustomEvent('kanban-task-updated', { detail: payload.data }));
       } else if (payload.type === 'goal_terminal') {
         const status = String(payload.data.status ?? '');

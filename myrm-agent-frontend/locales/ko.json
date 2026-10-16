@@ -9770,6 +9770,7 @@
     "kanbanTaskCompleted": "칸반 작업 완료",
     "kanbanTaskBlocked": "칸반 작업 차단됨",
     "kanbanTaskFailed": "칸반 작업 실패",
+    "viewKanbanBoard": "보드 보기",
     "taskCompleted": "{taskType} 완료",
     "taskFailed": "{taskType} 실패",
     "taskUnknownError": "알 수 없는 오류",

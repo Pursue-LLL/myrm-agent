@@ -99,7 +99,7 @@
 - `KanbanBoardView` 读取 URL `?source_chat=`，REST `listTasks` 带 `source_chat_id` 过滤
 - `KanbanBoardView` 读取 URL `?status=`，`listTasks` 带 `status` 过滤（`activeStatusFilter` 校验合法状态后统一驱动 UI 过滤条与请求，非法值不生效）
 - `KanbanSection` 深链 `?source_chat=&board_id=` 时自动进入 Board 视图（非 Board 列表）；`?status=` 无 `board_id` 时智能选择首个含该状态任务的 board（Fleet Pending KPI 直达）；深链（`board_id`/`status`）无视 project filter 全量拉取 board，确保跨项目待审任务可达，浏览模式（无深链参数）保持 project scope
-- Chat 卡片与 Drawer 链接经 `buildKanbanBoardDeepLink`（`@/lib/kanban/kanbanChatBoard.ts`）统一生成
+- Chat 卡片、Drawer 链接与全局任务提示（完成/阻塞/失败的 toast 操作和系统通知点击，带 `status` 直达该列）经 `buildKanbanBoardDeepLink`（`@/lib/kanban/kanbanChatBoard.ts`）统一生成
 
 ## API 客户端映射（`@/services/kanban.ts`）
 
