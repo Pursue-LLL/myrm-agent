@@ -4843,16 +4843,17 @@ except Exception:
 
 | 属性 | 值 |
 |------|------|
-| 发现日期 | 2026-10-16（对 `BUG-AGENT-2026-10-16-001` 的终极叩问：枚举「拼接回复文本」的全部消费者，并用真实 LangGraph 图加检查点跑模型切换） |
+| 发现日期 | 2026-10-16（对 `BUG-AGENT-2026-10-16-001` 的终极叩问：核对 server 里 `process_stream` 的调用点如何拼接回复文本，并用真实 LangGraph 图加检查点跑模型切换；随后的复核又发现子智能体与 OpenAI 兼容接口两处） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P2（只在流式过程中途切换模型或失败时出现；成员看到的是重复或残缺的回答，没有数据丢失） |
-| 影响范围 | harness：`agent/streaming/answer_draft.py`（新增）、`agent/errors/diagnostics/i18n/locales/{de,ja,ko}.json`；server：`app/core/channel_bridge/{executor_helpers/stream,executor_helpers/approval,agent_executor/stream_events,agent_executor/execute_finalize}.py`、`app/core/cron/adapters/agent_runner.py`、`app/services/kanban/task_runner/stream.py`、`app/core/eval/stream_trace.py`、`app/lifecycle/auto_continue.py`、`app/services/agent/streaming_support/stream_collector.py` |
+| 影响范围 | harness：`agent/streaming/answer_draft.py`（新增）、`agent/sub_agents/executor_attempt_mixin.py`、`agent/errors/diagnostics/i18n/locales/{de,ja,ko}.json`；server：`app/api/openai_compat/completions.py`、`app/core/channel_bridge/{executor_helpers/stream,executor_helpers/approval,agent_executor/stream_events,agent_executor/execute_finalize}.py`、`app/core/cron/adapters/agent_runner.py`、`app/services/kanban/task_runner/stream.py`、`app/core/eval/stream_trace.py`、`app/lifecycle/auto_continue.py`、`app/services/agent/streaming_support/stream_collector.py` |
 | 出现次数 | 1（真实图加检查点的探针复现，没有用户数据） |
 | 关联 | 承接 `BUG-AGENT-2026-10-16-001`；提交本地，未 push；server 依赖 harness 新模块，推送前需先发 harness 并同步锁文件 |
 
 ### 现象
 
 1. 模型切换（`status` 事件带 `restart: true`）后，只有 WebUI 的落库收集器会丢弃已流出的文字；IM 流、审批超时恢复、定时任务、看板、评测和自动续跑都把它与重发的整段拼接，实测得到 `The capital of France is PaParis is the capital of France.`。
+   子智能体与主智能体跑在同一个 `StreamExecutor` 上，同样会在其事件流里看到重启：子智能体的回答（含失败时的 `partial_output`）是主模型读到的工具结果，实测得到 `…The price is 1The price is 12 USD.`；OpenAI 兼容接口的非流式响应同理。
 2. 切换发生在一次工具步骤之后时，WebUI 收集器整段清空，把工具步骤之前已经落定的文字也丢了。真实图加检查点的探针显示：备用模型从检查点续写，工具不会重跑，之前的文字也不会重发，所以重启只该作废「最近一次 `tool_start` 之后」的在途段落。
 3. IM 里文字已流出、随后出现致命错误时，回复只剩那段半截文字，既无提示也无失败标记；委派协调器因此把任务记为完成。
 4. 德、日、韩的 `context_overflow` 文案含 `{token_count}`，德、日、韩的 `custom_model_not_found` 步骤含 `{list_models_url}`，调用方都不提供，渲染成空串，用户看到 `(~ Token)`、`Verfügbare Modelle prüfen: ` 这样的断句。
@@ -4868,15 +4869,16 @@ except Exception:
 
 1. harness 新增 `AnswerDraft` 与 `is_answer_restart`：累积 `message` 文字，在 `tool_start` 处记段落起点，遇到重启事件只丢段落起点之后的文字，重复重启幂等；`restart()` 供收集器在 SSE 通道得知同一次切换时显式调用。
 2. server 的消费者改用它：IM 累积器与流事件映射、审批超时恢复、定时任务（两个循环）、看板、评测、自动续跑、WebUI 收集器（`_discard_draft` 里的内容清空换成 `restart()`，推理与工具结果明细的清空保持不变）。语音播报不用：已朗读的音频收不回。
+   子智能体的尝试循环与 OpenAI 兼容接口的非流式响应同样改用 `AnswerDraft`（子智能体仍不向外转发 `message` 事件）。
 3. IM 收尾：文字已流出后才失败时，保留这段文字，其后附同一条成员安全文案并带失败标记（原文仍只按同一参考编号进日志），协调器因此把任务记为失败。
 4. 德、日、韩把无人填充的占位符去掉并与英文步骤对齐；新增 `test_locale_placeholder_parity.py`，逐语言比对占位符集合。
-5. 顺手消除 `kanban/task_runner/stream.py` 里 `token_usage` 与 `message_end` 分支的四处 mypy 报错（先取局部变量再收窄）。
+5. 顺手消除 `kanban/task_runner/stream.py` 里 `token_usage` 与 `message_end` 分支的四处 mypy 报错（先取局部变量再收窄），以及 `openai_compat/completions.py` 用量计数与 `auto_continue.py`、`agent_runner.py` 的类型报错。
 
 ### 验证
 
 1. 红灯先行：占位符比对用例先在 de、ja、ko 三个语言失败（`token_count`、`list_models_url`），修后通过；IM 与收集器的「工具步骤之后切换」用例用真实事件序列。
 2. 真实图回归：harness `test_answer_draft.py` 用 LangGraph 图加 `InMemorySaver`、主模型在工具步骤后失败、备用模型续写，断言文字为 `Let me check. Paris is the capital of France.` 且工具只执行一次。
-3. 变异检查：把段落起点恒置 0，harness 4 个用例失败；关闭 `execute_finalize` 的半截回答分支，2 个用例失败。
+3. 变异检查：把段落起点恒置 0，harness 4 个用例失败；关闭 `execute_finalize` 的半截回答分支，2 个用例失败；去掉 OpenAI 兼容非流式的事件喂入，2 个重启用例失败；子智能体先红后绿（红灯输出即上面的 `…The price is 1The price is 12 USD.`），其既有的部分产出用例保持通过。
 4. 测试：harness `tests/agent/streaming/test_answer_draft.py` 13 通过，`tests/agent/errors/diagnostics` 加 `test_error_diagnostics_e2e.py` 共 145 通过；server 触及模块的 133 个定向用例通过，收集器相关加 `tests/lifecycle` 共 234 通过；更大范围 `tests/core/channel_bridge`、`tests/core/cron/adapters`、`tests/core/eval`、`tests/channels/routing`、`tests/services/kanban` 等 1745 通过、6 失败：5 个是 `test_cron_execution_policy.py`（`EntitlementGuardedCronManager.create_job() got an unexpected keyword argument 'project_id'`，来自他人未提交的 cron 改动），1 个是 `test_task_runner.py` 的空 PDF 提取断言（`Page 1` 文案，与本次无关，未深查）。
 
 ### 局限
@@ -4884,11 +4886,12 @@ except Exception:
 1. 另一场会话正在重写 `diagnostics/engine.py` 的冷却提示与对应语言键，且 `executor.py`、`execute_errors.py` 有未提交改动。因此「IM 实时路径读取 `cooldown_remaining_ms` 并向所有者说明等待时间」没有做，「删除执行器里永远走不到的所有者私聊 `MyrmLLMError` 分支与其恢复按钮」也没有做；两项都要等那些改动落地后再做，否则会在别人未完成的接口上叠改。
 2. 审批超时恢复与自动续跑的重放用例（`test_channel_timeout_resume_reports_the_restarted_segment_once`、`test_auto_continue_persists_a_restarted_segment_once`）只构造「工具步骤之后重启」一种事件序列，连续多次重启的幂等由 harness `test_answer_draft.py::test_consecutive_restarts_are_idempotent` 保证；把 `AnswerDraft.restart` 改成不删文字，这两个用例都失败。
 3. 推理文字与工具结果明细在切换时仍整段清空（与改动前一致），只有回复文字改为按段落作废。
-4. 重启后不会向 IM 发出一次「变短」的快照：中途的编辑是否更新取决于分块阈值，最终回复总会以正确文字覆盖，这点只是观感。
+4. OpenAI 兼容接口的流式响应逐段下发，SSE 没有撤回语义，已发出的增量收不回，因此流式分支不套用重启契约，只有非流式分支会替换在途段落。
+5. 重启后不会向 IM 发出一次「变短」的快照：中途的编辑是否更新取决于分块阈值，最终回复总会以正确文字覆盖，这点只是观感。
 
 ### 教训
 
-1. 「同一个契约有几个消费者」要在动手前枚举，而不是只修报错的那一处：只有一处实现了契约，其余都是各写各的 `append`。
+1. 「同一个契约有几个消费者」要在动手前枚举，而不是只修报错的那一处：只有一处实现了契约，其余都是各写各的 `append`。枚举也要覆盖 harness 内部的调用方：先前只核对了 server 的调用点，漏掉了在同一执行器上跑子智能体的 harness 代码与 OpenAI 兼容接口。
 2. 用真实组件（图加检查点）验证假设：先前对「切换后从头重放」的理解是错的，探针显示备用模型从检查点续写。
 3. 把「写文件」和「读文件」放进同一批并行调用，读到的是旧内容；有依赖的调用不能并行。
 4. 压实后的事件流里既有对象也有字典，测试里不能只按一种类型过滤，否则恰好漏掉重启事件。
