@@ -18,6 +18,8 @@
 | `CompanionIcons.tsx`          | 核心 | 15 物种 + 9 帽子的 SVG React 组件，支持 `currentColor` 主题适配                                  |
 | `CompanionSprite.tsx`         | 核心 | 伴侣视觉渲染组件（SVG 图标、稀有度光环、状态表情、情绪动画）                                     |
 | `CompanionWidget.tsx`         | 核心 | 主容器组件（InfoCard、SnackButton、HoverCard、Observer、情绪计算编排）                           |
+| `goalResonance.ts`            | 核心 | 同一目标两次观测间的状态变化 → 伴侣反应（暂停/完成/恢复）的纯函数                                |
+| `useGoalResonance.ts`         | 核心 | 目标反应 hook：状态变化 → 气泡，完成时跳动；新出现或被替换的目标不触发                           |
 | `CompanionBubble.tsx`         | 辅助 | 气泡对话框组件（思考/观察者反应/完成提示）                                                       |
 | `CompanionSettings.tsx`       | 辅助 | 伴侣设置面板（Tab 切换：设置/图鉴，名称/物种/帽子/精灵图）                                       |
 | `PetGallery.tsx`              | 辅助 | Petdex 图鉴编排：GET 已安装行 + spriteConfig 同步 + generation 守卫 refetch + manifest fail-open |

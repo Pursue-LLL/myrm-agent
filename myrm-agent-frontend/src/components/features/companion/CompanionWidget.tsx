@@ -25,6 +25,7 @@ import {
 import { SPECIES_ICON_MAP } from './CompanionIcons';
 import CompanionSettings from './CompanionSettings';
 import CompanionSprite from './CompanionSprite';
+import { useGoalResonance } from './useGoalResonance';
 
 import type { CompanionBones, CompanionStats, Rarity } from './companionGenerator';
 
@@ -285,7 +286,6 @@ function InfoCard({
 
 export default function CompanionWidget() {
   const t = useTranslations('companion');
-  const tGoal = useTranslations('Goal');
   const user = useAuthStore((s) => s.user);
   const loading = useChatStore((s) => s.loading);
   const goal = useGoalStore((s) => s.activeGoal);
@@ -294,7 +294,6 @@ export default function CompanionWidget() {
   const [showHeart, setShowHeart] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const prevLoadingRef = useRef(loading);
-  const prevGoalStatusRef = useRef(goal?.status);
   const heartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const bones = useMemo(() => {
@@ -359,27 +358,7 @@ export default function CompanionWidget() {
     };
   }, [loading, bones]);
 
-  // Goal status resonance
-  useEffect(() => {
-    if (goal?.status === prevGoalStatusRef.current) {
-      return;
-    }
-
-    const store = useCompanionStore.getState();
-    if (goal?.status === 'paused') {
-      store.setReaction(tGoal('statusPaused'));
-    } else if (goal?.status === 'complete') {
-      store.setReaction(tGoal('statusComplete'));
-      setAnimState('bounce');
-      const timer = setTimeout(() => setAnimState('idle'), 600);
-      prevGoalStatusRef.current = goal?.status;
-      return () => clearTimeout(timer);
-    } else if (goal?.status === 'active' && prevGoalStatusRef.current === 'paused') {
-      store.setReaction(tGoal('statusActive'));
-    }
-
-    prevGoalStatusRef.current = goal?.status;
-  }, [goal?.status, tGoal]);
+  useGoalResonance(setAnimState);
 
   // Auto-clear observer reaction after display (duration scales with rarity)
   const evolvedRarity = useCompanionStore((s) => s.evolvedRarity);
