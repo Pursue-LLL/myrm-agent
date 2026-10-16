@@ -4,12 +4,12 @@
  *
  * [OUTPUT]
  * - isHitlAnswerRecord: type guard for a record arriving from the server
- * - summarizeClarificationRecord / summarizeDirectoryRecord: what a settled card shows, or null to fall back to the
- *   plain answered label
+ * - summarizeClarificationRecord: what a settled card shows, or null to fall back to the plain answered label
+ * - clarificationAnswerAsText: the user's answer as the message they would send, or '' when there is nothing to send
  *
  * [POS]
- * Store-free reading of the record a clarification or directory card keeps after it is settled. The record is
- * persisted data, so every value is checked against the card it sits on before it is shown.
+ * Store-free reading of the record a clarification card keeps after it is settled. The record is persisted data, so
+ * every value is checked against the card it sits on before it is shown.
  */
 
 import type { ClarificationForm, HitlAnswerRecord } from './types';
@@ -22,9 +22,6 @@ export interface AnswerLine {
 
 export type ClarificationOutcome =
   { kind: 'timeout' } | { kind: 'skipped' } | { kind: 'answered'; lines: AnswerLine[] };
-
-export type DirectoryOutcome =
-  { kind: 'timeout' } | { kind: 'denied' } | { kind: 'granted'; path: string; writable: boolean };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -73,21 +70,10 @@ export function summarizeClarificationRecord(
   return lines.length > 0 ? { kind: 'answered', lines } : null;
 }
 
-export function summarizeDirectoryRecord(record: HitlAnswerRecord | undefined): DirectoryOutcome | null {
-  if (!record) {
-    return null;
+export function clarificationAnswerAsText(value: unknown, form: ClarificationForm | undefined): string {
+  const outcome = summarizeClarificationRecord({ by: 'user', value }, form);
+  if (outcome?.kind !== 'answered') {
+    return '';
   }
-  if (record.by === 'timeout') {
-    return { kind: 'timeout' };
-  }
-  const { value } = record;
-  if (!isRecord(value) || typeof value.granted !== 'boolean') {
-    return null;
-  }
-  if (!value.granted) {
-    return { kind: 'denied' };
-  }
-  return typeof value.path === 'string' && value.path
-    ? { kind: 'granted', path: value.path, writable: value.writable === true }
-    : null;
+  return outcome.lines.map((line) => (line.prompt ? `${line.prompt}: ${line.text}` : line.text)).join('\n');
 }

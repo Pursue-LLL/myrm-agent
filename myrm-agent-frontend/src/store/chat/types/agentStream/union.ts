@@ -21,7 +21,6 @@ import type {
   CapabilityGapStreamEvent,
   SkillGapStreamEvent,
   PhaseTransitionStreamEvent,
-  DirectoryRequestRequiredStreamEvent,
   ErrorStreamEvent,
   MessageStreamEvent,
   RateLimitThrottledStreamEvent,
@@ -109,7 +108,6 @@ export type AgentStreamEvent =
   | ApprovalRequiredStreamEvent
   | AsyncUserMessageStreamEvent
   | ClarificationRequiredStreamEvent
-  | DirectoryRequestRequiredStreamEvent
   | RedirectedStreamEvent
   | ArtifactFocusStreamEvent
   | RiskBlockedStreamEvent

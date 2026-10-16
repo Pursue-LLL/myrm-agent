@@ -20,13 +20,10 @@ from app.services.agent.streaming_support import hitl_timeout
 from app.services.agent.streaming_support.hitl_timeout import (
     CLARIFICATION_NO_ANSWER_RESUME_VALUE,
     CLARIFICATION_TIMEOUT_SECONDS,
-    DIRECTORY_DENY_RESUME_VALUE,
-    DIRECTORY_TIMEOUT_SECONDS,
     HitlKind,
     arm_interrupt_timeout,
     schedule_approval_timeout,
     schedule_clarification_timeout,
-    schedule_directory_timeout,
 )
 
 CHAT_ID = "chat-hitl"
@@ -36,7 +33,6 @@ CLARIFICATION_EVENT: dict[str, object] = {
     "type": "clarification_required",
     "data": {"type": "ask_question", "form": {"questions": []}},
 }
-DIRECTORY_EVENT: dict[str, object] = {"type": "directory_request_required", "data": {"request": {}}}
 APPROVAL_EVENT: dict[str, object] = {
     "type": "tool_approval_request",
     "data": {"extensions": {"timeout": {"seconds": 600, "behavior": "deny"}}},
@@ -74,7 +70,7 @@ def persisted() -> Iterator[list[str]]:
         calls.append(f"answered:{message_id}")
 
     unanswered = MagicMock(role="assistant", id="assistant-row")
-    unanswered.extra_data = {"clarification": {"answered": False}, "directoryRequest": {"answered": False}}
+    unanswered.extra_data = {"clarification": {"answered": False}}
     with (
         patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new=persist),
         patch("app.services.chat.chat_service.ChatService.get_all_messages", new=AsyncMock(return_value=[unanswered])),
@@ -139,16 +135,12 @@ def _arm(kind: HitlKind, params: MagicMock, monkeypatch: pytest.MonkeyPatch) -> 
         monkeypatch.setattr(hitl_timeout, "CLARIFICATION_TIMEOUT_SECONDS", FAST)
         schedule_clarification_timeout(CHAT_ID, params)
         return CLARIFICATION_NO_ANSWER_RESUME_VALUE
-    if kind == "directory":
-        monkeypatch.setattr(hitl_timeout, "DIRECTORY_TIMEOUT_SECONDS", FAST)
-        schedule_directory_timeout(CHAT_ID, params)
-        return DIRECTORY_DENY_RESUME_VALUE
     schedule_approval_timeout(CHAT_ID, {"seconds": FAST, "behavior": "deny"}, params)
     return {"decision": "reject"}
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind", ["clarification", "directory", "approval"])
+@pytest.mark.parametrize("kind", ["clarification", "approval"])
 async def test_fired_timer_resumes_the_agent_through_the_gateway(
     kind: HitlKind, gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -179,12 +171,11 @@ async def test_fired_timer_resumes_the_agent_through_the_gateway(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind", ["clarification", "directory"])
 async def test_stored_card_is_marked_answered_before_the_continuation_is_persisted(
-    kind: HitlKind, gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
+    gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     params = _params()
-    _arm(kind, params, monkeypatch)
+    _arm("clarification", params, monkeypatch)
 
     with patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [MESSAGE_EVENT], [])):
         await _settle()
@@ -193,27 +184,19 @@ async def test_stored_card_is_marked_answered_before_the_continuation_is_persist
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("kind", "card_key", "other_key"),
-    [("clarification", "clarification", "directoryRequest"), ("directory", "directoryRequest", "clarification")],
-)
 async def test_a_timed_out_card_records_that_the_timeout_answered_it(
-    kind: HitlKind,
-    card_key: str,
-    other_key: str,
     gateway: AgentGateway,
     answered_cards: dict[str, dict[str, object]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     params = _params()
-    expected_value = _arm(kind, params, monkeypatch)
+    expected_value = _arm("clarification", params, monkeypatch)
 
     with patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [MESSAGE_EVENT], [])):
         await _settle()
 
     stored = answered_cards["assistant-row"]
-    assert stored[card_key] == {"answered": True, "answerRecord": {"by": "timeout", "value": expected_value}}
-    assert stored[other_key] == {"answered": False}
+    assert stored["clarification"] == {"answered": True, "answerRecord": {"by": "timeout", "value": expected_value}}
 
 
 @pytest.mark.asyncio
@@ -233,7 +216,6 @@ async def test_approval_timeout_leaves_stored_cards_alone(
     ("event", "kind"),
     [
         (CLARIFICATION_EVENT, "clarification"),
-        (DIRECTORY_EVENT, "directory"),
         (APPROVAL_EVENT, "approval"),
     ],
 )
@@ -331,11 +313,25 @@ async def test_bookkeeping_failure_still_arms_the_next_interrupt(
     assert scheduler.pending_count == 1
 
 
+@pytest.mark.asyncio
+async def test_a_card_that_cannot_be_marked_does_not_lose_the_continuation(
+    gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _arm("clarification", _params(), monkeypatch)
+
+    with (
+        patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [MESSAGE_EVENT], [])),
+        patch("app.services.chat.chat_service.ChatService.get_all_messages", new=AsyncMock(side_effect=RuntimeError("db down"))),
+    ):
+        await _settle()
+
+    assert persisted == ["persist:continued"]
+
+
 @pytest.mark.parametrize(
     ("schedule", "seconds", "behavior", "override"),
     [
         (lambda params: schedule_clarification_timeout(CHAT_ID, params), CLARIFICATION_TIMEOUT_SECONDS, "deny", {}),
-        (lambda params: schedule_directory_timeout(CHAT_ID, params), DIRECTORY_TIMEOUT_SECONDS, "deny", {"granted": False}),
         (
             lambda params: schedule_approval_timeout(CHAT_ID, {"seconds": "45", "behavior": "allow"}, params),
             45.0,
@@ -361,9 +357,7 @@ def test_each_kind_registers_its_timeout_decision(
 
 def test_constants_match_the_documented_timeouts() -> None:
     assert CLARIFICATION_TIMEOUT_SECONDS == 900.0
-    assert DIRECTORY_TIMEOUT_SECONDS == 900.0
     assert CLARIFICATION_NO_ANSWER_RESUME_VALUE == {}
-    assert DIRECTORY_DENY_RESUME_VALUE == {"granted": False}
 
 
 @pytest.mark.parametrize("seconds", [object(), None, "soon", float("inf")])
@@ -376,24 +370,21 @@ def test_unusable_approval_seconds_fall_back_to_the_default(seconds: object) -> 
 
 
 @pytest.mark.parametrize(
-    ("approval_timeout", "clarification_pending", "directory_pending", "armed"),
+    ("approval_timeout", "clarification_pending", "armed"),
     [
-        ({"seconds": 1}, True, False, "clarification"),
-        (None, False, True, "directory"),
-        ({"seconds": 5, "behavior": "deny"}, False, False, "approval"),
+        ({"seconds": 1}, True, "clarification"),
+        ({"seconds": 5, "behavior": "deny"}, False, "approval"),
     ],
 )
 def test_arm_interrupt_timeout_picks_the_interrupt_that_carries_a_timer(
     approval_timeout: dict[str, object] | None,
     clarification_pending: bool,
-    directory_pending: bool,
     armed: str,
 ) -> None:
     scheduler = MagicMock()
     with (
         patch.object(ApprovalTimeoutScheduler, "get", return_value=scheduler),
         patch.object(hitl_timeout, "schedule_clarification_timeout") as clarification,
-        patch.object(hitl_timeout, "schedule_directory_timeout") as directory,
         patch.object(hitl_timeout, "schedule_approval_timeout") as approval,
     ):
         arm_interrupt_timeout(
@@ -401,13 +392,10 @@ def test_arm_interrupt_timeout_picks_the_interrupt_that_carries_a_timer(
             _params(),
             approval_timeout=approval_timeout,
             clarification_pending=clarification_pending,
-            directory_pending=directory_pending,
             awaiting_answer=True,
         )
 
-    called = {
-        name for name, mock in (("clarification", clarification), ("directory", directory), ("approval", approval)) if mock.called
-    }
+    called = {name for name, mock in (("clarification", clarification), ("approval", approval)) if mock.called}
     assert called == {armed}
     scheduler.reopen.assert_not_called()
 
@@ -421,7 +409,6 @@ def test_arm_interrupt_timeout_reopens_only_an_interrupt_without_a_timer(awaitin
             _params(),
             approval_timeout=None,
             clarification_pending=False,
-            directory_pending=False,
             awaiting_answer=awaiting_answer,
         )
 

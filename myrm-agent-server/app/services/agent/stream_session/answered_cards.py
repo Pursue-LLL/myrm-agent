@@ -1,14 +1,14 @@
-"""Settle the stored clarification / directory card a finished run answered.
+"""Settle the stored clarification card a finished run answered.
 
 [INPUT]
 - app.services.agent.stream_session.stream_session_types::AgentStreamSession (POS: request resume value and collector state)
-- app.services.agent.streaming_support.hitl_timeout::mark_pending_* (POS: flip the newest unanswered stored card)
+- app.services.agent.streaming_support.hitl_timeout::mark_pending_clarification_answered (POS: flip the newest unanswered stored card)
 
 [OUTPUT]
 - settle_answered_cards: mark the answered card done and keep how it was answered on it
 
 [POS]
-Finalize step of a turn that resumed from a clarification or directory interrupt, or whose Deep Research clarify phase
+Finalize step of a turn that resumed from a clarification interrupt, or whose Deep Research clarify phase
 resolved. The card lives on an earlier assistant row; the answer is recorded on it so the transcript still shows it.
 """
 
@@ -18,15 +18,14 @@ from app.services.agent.stream_session.stream_session_types import AgentStreamSe
 from app.services.agent.streaming_support.hitl_timeout import (
     HitlAnswerRecord,
     mark_pending_clarification_answered,
-    mark_pending_directory_request_answered,
 )
 
 
 async def settle_answered_cards(session: AgentStreamSession) -> None:
     """Close the stored card this run answered and keep how it was answered on the card.
 
-    Runs before the continuation is persisted: the continuation may carry a new unanswered card of either kind,
-    and marking after it was stored would settle that card instead of the one that was answered. A Deep Research
+    Runs before the continuation is persisted: the continuation may carry a new unanswered card, and marking after
+    it was stored would settle that card instead of the one that was answered. A Deep Research
     clarify resolves through a status event that already carries its own record, so only a resume value is recorded here.
     """
     chat_id = session.request.chat_id
@@ -42,4 +41,3 @@ async def settle_answered_cards(session: AgentStreamSession) -> None:
         return
     record: HitlAnswerRecord | None = {"by": "user", "value": resume_value} if resume_value is not None else None
     await mark_pending_clarification_answered(chat_id, record)
-    await mark_pending_directory_request_answered(chat_id, record)

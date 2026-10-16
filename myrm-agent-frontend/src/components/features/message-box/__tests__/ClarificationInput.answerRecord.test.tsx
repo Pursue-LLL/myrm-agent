@@ -163,6 +163,41 @@ describe('settled card', () => {
   });
 });
 
+describe('a card that asked for sign-off', () => {
+  const signOffForm: ClarificationForm = { ...form, requiresConfirmation: true };
+  const renderSignOff = (answerRecord: HitlAnswerRecord) =>
+    render(
+      <ClarificationInput
+        messageId={MESSAGE_ID}
+        answered
+        form={signOffForm}
+        isResumeMode
+        answerRecord={answerRecord}
+      />,
+    );
+
+  it('says the action was not approved when the user skipped it', () => {
+    renderSignOff({ by: 'user', value: {} });
+
+    expect(screen.getByText('answeredSkippedUnconfirmed')).toBeInTheDocument();
+    expect(screen.queryByText('answeredSkipped')).not.toBeInTheDocument();
+  });
+
+  it('says the action was not approved when nobody answered in time', () => {
+    renderSignOff({ by: 'timeout', value: {} });
+
+    expect(screen.getByText('answeredTimeoutUnconfirmed')).toBeInTheDocument();
+    expect(screen.queryByText('answeredTimeout')).not.toBeInTheDocument();
+  });
+
+  it('still shows what the user chose when they did answer', () => {
+    renderSignOff({ by: 'user', value: { strategy: ['blue-green'] } });
+
+    expect(screen.getByText('Blue green')).toBeInTheDocument();
+    expect(screen.queryByText('answeredSkippedUnconfirmed')).not.toBeInTheDocument();
+  });
+});
+
 describe('draft kept across the card closing', () => {
   const typeAnswer = () => {
     fireEvent.change(screen.getByPlaceholderText('freeTextWithOptionsPlaceholder'), {
@@ -219,6 +254,24 @@ describe('draft kept across the card closing', () => {
     renderCard();
 
     expect(screen.getByPlaceholderText('freeTextWithOptionsPlaceholder')).toHaveValue('');
+  });
+
+  it('starts empty when the resumed run raises another question while its request is still open', async () => {
+    const run = deferred<boolean>();
+    pipeline.sendMessage.mockReturnValue(run.promise);
+
+    const first = renderCard();
+    typeAnswer();
+    await waitFor(() => expect(record()).toBeDefined());
+    first.unmount();
+    useChatStore.setState((state) => {
+      state.messages[0].clarification = { answered: false, isResumeMode: true, form };
+    });
+
+    renderCard();
+
+    expect(screen.getByPlaceholderText('freeTextWithOptionsPlaceholder')).toHaveValue('');
+    run.resolve(true);
   });
 
   it('starts empty once the timeout had already continued the turn', async () => {

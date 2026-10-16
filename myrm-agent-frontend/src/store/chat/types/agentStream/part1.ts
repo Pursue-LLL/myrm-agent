@@ -41,7 +41,6 @@ export const AgentEventType = {
   TOOL_APPROVAL_REQUEST: 'tool_approval_request',
   APPROVAL_REQUIRED: 'approval_required',
   CLARIFICATION_REQUIRED: 'clarification_required',
-  DIRECTORY_REQUEST_REQUIRED: 'directory_request_required',
   APPROVAL_PROCESSED: 'approval_processed',
   ASYNC_USER_MESSAGE: 'async_user_message',
   GOAL_STATUS: 'goal_status',
@@ -271,18 +270,6 @@ export interface ClarificationRequiredWireData {
 export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.CLARIFICATION_REQUIRED;
   data: ClarificationRequiredWireData;
-}
-
-export interface DirectoryRequestRequiredStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.DIRECTORY_REQUEST_REQUIRED;
-  data: {
-    request?: {
-      reason?: string;
-      path?: string;
-      writable?: boolean;
-    };
-    [key: string]: unknown;
-  };
 }
 
 export interface SteeringStreamEvent extends BaseAgentEvent {

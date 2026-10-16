@@ -5,11 +5,11 @@
  * @/store/chat/types::ClarificationForm (POS: structured clarification form schema)
  * @/services/chat::submitClarifyResponse (POS: clarification answer submission API)
  * @/store/useChatStore::sendMessage (POS: resume-mode clarification send path)
- * @/store/chat/hitlCardAnswer::answerHitlCardWithResume / settleHitlCard (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
- * @/store/chat/hitlCardDraft::loadHitlCardDraft (POS: what the user had written when a refused resume brings the card back)
+ * @/store/chat/clarificationCardAnswer::answerClarificationWithResume / settleClarificationCard (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
+ * @/store/chat/clarificationCardDraft::loadClarificationDraft (POS: what the user had written when a refused resume brings the card back)
  * @/store/chat/streamErrors::ApprovalExpiredError (POS: the timeout already continued the turn without this answer)
  * ./ClarificationOptions, ./ClarificationChrome (POS: option-list and card-shell presentation primitives)
- * ./HitlSettledNotes::ClarificationSettledNote (POS: the banner the card collapses into once settled)
+ * ./ClarificationSettledNote (POS: the banner the card collapses into once settled)
  *
  * [OUTPUT]
  * ClarificationInput: Renders single-question and structured clarification forms.
@@ -26,8 +26,8 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { answerHitlCardWithResume, settleHitlCard } from '@/store/chat/hitlCardAnswer';
-import { loadHitlCardDraft } from '@/store/chat/hitlCardDraft';
+import { answerClarificationWithResume, settleClarificationCard } from '@/store/chat/clarificationCardAnswer';
+import { loadClarificationDraft } from '@/store/chat/clarificationCardDraft';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import type { ClarificationForm, HitlAnswerRecord } from '@/store/chat/types';
 import { isImeComposing } from '@/lib/utils/imeUtils';
@@ -45,7 +45,7 @@ import {
   resolveClarificationShellClass,
 } from './ClarificationChrome';
 import { COLLAPSED_OPTIONS_LIMIT, ExpandToggle, OptionPill } from './ClarificationOptions';
-import { ClarificationSettledNote } from './HitlSettledNotes';
+import { ClarificationSettledNote } from './ClarificationSettledNote';
 
 interface ClarificationInputProps {
   messageId: string;
@@ -71,7 +71,7 @@ const ClarificationInput = ({
   variant = 'inline',
 }: ClarificationInputProps) => {
   const t = useTranslations('chat.clarification');
-  const [draft] = useState(() => loadHitlCardDraft('clarification', messageId));
+  const [draft] = useState(() => loadClarificationDraft(messageId));
   const [input, setInput] = useState(draft?.input ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<string[]>(draft?.selectedOptions ?? []);
@@ -125,15 +125,14 @@ const ClarificationInput = ({
     setSubmitting(true);
     try {
       if (isResumeMode) {
-        await answerHitlCardWithResume(
-          'clarification',
+        await answerClarificationWithResume(
           messageId,
           { value: resumeValue, draft: { input, selectedOptions, formTexts, formSelections } },
           () => sendMessage('', messageId, undefined, resumeValue),
         );
       } else {
         await submitClarifyResponse(messageId, legacyAnswer);
-        settleHitlCard('clarification', messageId, { by: 'user', value: legacyAnswer });
+        settleClarificationCard(messageId, { by: 'user', value: legacyAnswer });
       }
     } catch (err) {
       reportAnswerError(err);

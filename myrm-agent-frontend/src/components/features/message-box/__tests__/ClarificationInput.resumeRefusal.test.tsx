@@ -98,6 +98,42 @@ describe('ClarificationInput resume', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  describe('when the timeout got there first', () => {
+    const answerWithBlueGreen = () => {
+      render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} isResumeMode />);
+      fireEvent.click(screen.getByRole('button', { name: /Blue green/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'submit' }));
+    };
+
+    beforeEach(() => {
+      pipeline.sendMessage.mockRejectedValue(new ApprovalExpiredError());
+      useChatStore.setState({ inputMessage: '' });
+    });
+
+    it('hands the late answer to the composer so it can still be sent', async () => {
+      answerWithBlueGreen();
+
+      await waitFor(() => expect(toast.warning).toHaveBeenCalledWith('expired'));
+      expect(useChatStore.getState().inputMessage).toBe('Choose a strategy: Blue green');
+    });
+
+    it('keeps what the user had already typed in the composer', async () => {
+      useChatStore.setState({ inputMessage: 'and one more thing  ' });
+
+      answerWithBlueGreen();
+
+      await waitFor(() => expect(toast.warning).toHaveBeenCalledWith('expired'));
+      expect(useChatStore.getState().inputMessage).toBe('and one more thing\n\nChoose a strategy: Blue green');
+    });
+
+    it('hands nothing back for a skip', async () => {
+      skipClarification();
+
+      await waitFor(() => expect(toast.warning).toHaveBeenCalledWith('expired'));
+      expect(useChatStore.getState().inputMessage).toBe('');
+    });
+  });
+
   it('releases the composer takeover while the resumed run is still streaming', async () => {
     const run = deferred<boolean>();
     pipeline.sendMessage.mockReturnValue(run.promise);

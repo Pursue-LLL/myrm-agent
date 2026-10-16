@@ -1,14 +1,14 @@
 /**
  * The record a card keeps survives the round trip through the database.
  *
- * Real scenario: the user answers a clarification and a directory request, closes the tab and reopens the chat. The
+ * Real scenario: the user answers a clarification, closes the tab and reopens the chat. The
  * rows come back from `/chats/{id}/messages` with the cards in `extra_data`; the cards must still say how they were
  * settled, and the summarizers must read what the server wrote.
  */
 import { describe, expect, it } from 'vitest';
 
 import { parseMessages } from '@/store/chat/messageHydration';
-import { summarizeClarificationRecord, summarizeDirectoryRecord } from '@/store/chat/hitlAnswerRecord';
+import { summarizeClarificationRecord } from '@/store/chat/hitlAnswerRecord';
 import type { Message } from '@/store/chat/types';
 
 function persisted(card: Record<string, unknown>): Message {
@@ -40,18 +40,40 @@ describe('parseMessages settled cards', () => {
     });
   });
 
-  it('keeps the timeout record of a directory request nobody answered', () => {
-    const [parsed] = parseMessages([
-      persisted({
-        directoryRequest: {
-          answered: true,
-          request: { path: '/work' },
-          answerRecord: { by: 'timeout', value: { granted: false } },
+  it('reads a pending form the way the live event does', () => {
+    // Shape of the server's `AskQuestionInput.model_dump()`, which is what extra_data persists.
+    const form = {
+      title: null,
+      requires_confirmation: true,
+      context: null,
+      questions: [
+        {
+          id: 'targets',
+          prompt: 'Which environments?',
+          options: [
+            { id: 'prod', label: 'Production', description: null },
+            { id: 'staging', label: 'Staging', description: null },
+          ],
+          allow_multiple: true,
         },
-      }),
-    ]);
+      ],
+    };
+    const [parsed] = parseMessages([persisted({ clarification: { answered: false, form } })]);
 
-    expect(summarizeDirectoryRecord(parsed.directoryRequest?.answerRecord)).toEqual({ kind: 'timeout' });
+    expect(parsed.clarification?.form).toEqual({
+      requiresConfirmation: true,
+      questions: [
+        {
+          id: 'targets',
+          prompt: 'Which environments?',
+          allowMultiple: true,
+          options: [
+            { id: 'prod', label: 'Production' },
+            { id: 'staging', label: 'Staging' },
+          ],
+        },
+      ],
+    });
   });
 
   it('reads a card settled before records existed as answered without a record', () => {

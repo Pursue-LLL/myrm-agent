@@ -53,7 +53,6 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'iteration_limit_reached',
   'approval_required',
   'clarification_required',
-  'directory_request_required',
   'goal_status',
   'memory_brief',
   'engine_limit_reached',

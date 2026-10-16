@@ -328,9 +328,6 @@
       "loadFailed": "MCP 앱 로드 실패: {error}",
       "title": "MCP 앱: {server}"
     },
-    "directoryRequest": {
-      "pathPlaceholder": "/Users/you/Documents/project"
-    },
     "planConfirmation": {
       "title": "리서치 계획",
       "badge": "실행 전 검토",

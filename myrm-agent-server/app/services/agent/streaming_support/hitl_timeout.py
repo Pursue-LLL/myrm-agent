@@ -9,12 +9,10 @@
 
 [OUTPUT]
 - CLARIFICATION_TIMEOUT_SECONDS / CLARIFICATION_NO_ANSWER_RESUME_VALUE: ask_question timeout and its empty answer
-- DIRECTORY_TIMEOUT_SECONDS / DIRECTORY_DENY_RESUME_VALUE: request_directory timeout and its denial
 - arm_interrupt_timeout: arm the timer of the interrupt a run stopped at, or reopen one that has no timer
-- schedule_approval_timeout / schedule_clarification_timeout / schedule_directory_timeout: arm one interrupt kind
+- schedule_approval_timeout / schedule_clarification_timeout: arm one interrupt kind
 - HitlAnswerRecord: who settled a card (the user or the timeout default) and the resume value that settled it
-- mark_pending_clarification_answered / mark_pending_directory_request_answered: flip the stored card to answered
-  and keep the record on it
+- mark_pending_clarification_answered: flip the stored card to answered and keep the record on it (best effort)
 
 [POS]
 A turn that stops at an interrupt leaves a suspended graph; when nobody answers, the timer resumes it with the
@@ -36,7 +34,6 @@ from app.services.agent.gateway import AgentBusyError, AgentDrainingError, get_a
 from app.services.agent.streaming_support.sse_helpers import (
     extract_approval_timeout,
     extract_clarification_required,
-    extract_directory_request_required,
 )
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
@@ -45,7 +42,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-HitlKind = Literal["approval", "clarification", "directory"]
+HitlKind = Literal["approval", "clarification"]
 
 
 class HitlAnswerRecord(TypedDict):
@@ -61,46 +58,36 @@ CLARIFICATION_TIMEOUT_SECONDS = 900.0
 # Empty dict is falsy in _on_ask_question and triggers best-judgment continuation.
 CLARIFICATION_NO_ANSWER_RESUME_VALUE: dict[str, object] = {}
 
-# request_directory HITL: auto-deny when user leaves the card open (parity with clarify).
-DIRECTORY_TIMEOUT_SECONDS = CLARIFICATION_TIMEOUT_SECONDS
-DIRECTORY_DENY_RESUME_VALUE: dict[str, object] = {"granted": False}
-
 _DEFAULT_APPROVAL_TIMEOUT_SECONDS = 300.0
 
 _DATA_PREFIX = "data: "
 
 
-async def _mark_latest_unanswered(chat_id: str, card_key: str, record: HitlAnswerRecord | None) -> None:
-    """Flip the newest stored ``card_key`` card of the chat from unanswered to answered and keep ``record`` on it.
+async def mark_pending_clarification_answered(chat_id: str, record: HitlAnswerRecord | None) -> None:
+    """Flip the newest unanswered stored clarification of the chat to answered and keep ``record`` on it.
 
     The card lives on the persisted assistant row (a UUID minted at finalize), not on the
-    request message id, which is bound to the user row.
+    request message id, which is bound to the user row. Best effort: a storage failure leaves the card
+    open (a late click is refused as already resolved) instead of dropping the reply the run just produced.
     """
     from app.services.chat.chat_service import ChatService
 
-    messages = await ChatService.get_all_messages(chat_id)
-    for message in reversed(messages):
-        if message.role != "assistant":
-            continue
-        extra_data = dict(message.extra_data or {})
-        card = extra_data.get(card_key)
-        if not isinstance(card, dict):
-            continue
-        if card.get("answered") is True:
-            continue
-        extra_data[card_key] = {**card, "answered": True, **({"answerRecord": record} if record else {})}
-        await ChatService.update_message_extra_data(message.id, extra_data)
-        return
-
-
-async def mark_pending_clarification_answered(chat_id: str, record: HitlAnswerRecord | None) -> None:
-    """Mark the latest assistant clarification as answered after a successful resume."""
-    await _mark_latest_unanswered(chat_id, "clarification", record)
-
-
-async def mark_pending_directory_request_answered(chat_id: str, record: HitlAnswerRecord | None) -> None:
-    """Mark the latest assistant directoryRequest as answered after resume."""
-    await _mark_latest_unanswered(chat_id, "directoryRequest", record)
+    try:
+        messages = await ChatService.get_all_messages(chat_id)
+        for message in reversed(messages):
+            if message.role != "assistant":
+                continue
+            extra_data = dict(message.extra_data or {})
+            card = extra_data.get("clarification")
+            if not isinstance(card, dict):
+                continue
+            if card.get("answered") is True:
+                continue
+            extra_data["clarification"] = {**card, "answered": True, **({"answerRecord": record} if record else {})}
+            await ChatService.update_message_extra_data(message.id, extra_data)
+            return
+    except Exception:
+        logger.warning("Failed to mark the answered clarification card: chat_id=%s", chat_id, exc_info=True)
 
 
 def schedule_approval_timeout(
@@ -132,25 +119,12 @@ def schedule_clarification_timeout(chat_id: str, params: GeneralAgentParams) -> 
     )
 
 
-def schedule_directory_timeout(chat_id: str, params: GeneralAgentParams) -> None:
-    """Register a backend timeout guard for a pending request_directory interrupt."""
-    _arm(
-        chat_id,
-        params,
-        "directory",
-        timeout_seconds=DIRECTORY_TIMEOUT_SECONDS,
-        behavior="deny",
-        resume_value_override=DIRECTORY_DENY_RESUME_VALUE,
-    )
-
-
 def arm_interrupt_timeout(
     chat_id: str,
     params: GeneralAgentParams,
     *,
     approval_timeout: dict[str, object] | None,
     clarification_pending: bool,
-    directory_pending: bool,
     awaiting_answer: bool,
 ) -> None:
     """Arm the timer of the interrupt a run stopped at.
@@ -160,8 +134,6 @@ def arm_interrupt_timeout(
     """
     if clarification_pending:
         schedule_clarification_timeout(chat_id, params)
-    elif directory_pending:
-        schedule_directory_timeout(chat_id, params)
     elif approval_timeout:
         schedule_approval_timeout(chat_id, approval_timeout, params)
     elif awaiting_answer:
@@ -217,7 +189,6 @@ async def _resume_after_timeout(
     collector = StreamContentCollector()
     next_approval_timeout: dict[str, object] | None = None
     clarification_pending = False
-    directory_pending = False
     try:
         extra_context = await build_agent_runtime_context(execution_mode=resolve_stream_execution_mode())
         async for chunk in ai_agent_service_stream(params=resume_params, extra_context=extra_context):
@@ -225,7 +196,6 @@ async def _resume_after_timeout(
             collector.feed_sse(sse_line)
             next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
             clarification_pending = clarification_pending or extract_clarification_required(sse_line)
-            directory_pending = directory_pending or extract_directory_request_required(sse_line)
     except Exception:
         # The suspended graph was not consumed by a finished run: let a manual answer through.
         scheduler.reopen(chat_id)
@@ -239,8 +209,6 @@ async def _resume_after_timeout(
         timeout_record: HitlAnswerRecord = {"by": "timeout", "value": resume_value}
         if kind == "clarification":
             await mark_pending_clarification_answered(chat_id, timeout_record)
-        elif kind == "directory":
-            await mark_pending_directory_request_answered(chat_id, timeout_record)
 
         if collector.has_content:
             await ChatService.persist_assistant_message_safe(
@@ -256,7 +224,6 @@ async def _resume_after_timeout(
             resume_params,
             approval_timeout=next_approval_timeout,
             clarification_pending=clarification_pending,
-            directory_pending=directory_pending,
             awaiting_answer=collector.has_pending_hitl_replay(),
         )
     logger.info("HITL timeout auto-resume completed: kind=%s, chat_id=%s", kind, chat_id)

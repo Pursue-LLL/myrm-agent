@@ -1,13 +1,13 @@
 /**
- * What a settled clarification or directory card shows is read back from the record the server persisted, so the
+ * What a settled clarification card shows is read back from the record the server persisted, so the
  * summarizers must trust nothing: a record that does not fit the card it sits on falls back to the plain answered label.
  */
 import { describe, expect, it } from 'vitest';
 
 import {
+  clarificationAnswerAsText,
   isHitlAnswerRecord,
   summarizeClarificationRecord,
-  summarizeDirectoryRecord,
 } from '@/store/chat/hitlAnswerRecord';
 import type { ClarificationForm, HitlAnswerRecord } from '@/store/chat/types';
 
@@ -106,39 +106,22 @@ describe('summarizeClarificationRecord', () => {
   });
 });
 
-describe('summarizeDirectoryRecord', () => {
-  it('has nothing to say about a card that was settled before records existed', () => {
-    expect(summarizeDirectoryRecord(undefined)).toBeNull();
+describe('clarificationAnswerAsText', () => {
+  it('writes each answered question as a line of the message the user would send', () => {
+    expect(clarificationAnswerAsText({ strategy: ['canary'], notes: 'after the freeze' }, form)).toBe(
+      'Choose a strategy: Canary\nAnything else?: after the freeze',
+    );
   });
 
-  it('reports the folder that was granted and whether it can be written', () => {
-    expect(summarizeDirectoryRecord(user({ granted: true, path: '/work/app', writable: true }))).toEqual({
-      kind: 'granted',
-      path: '/work/app',
-      writable: true,
-    });
-    expect(summarizeDirectoryRecord(user({ granted: true, path: '/work/app' }))).toEqual({
-      kind: 'granted',
-      path: '/work/app',
-      writable: false,
-    });
-  });
-
-  it('reports a denial', () => {
-    expect(summarizeDirectoryRecord(user({ granted: false }))).toEqual({ kind: 'denied' });
-  });
-
-  it('reports the timeout whatever default value it resumed with', () => {
-    expect(summarizeDirectoryRecord({ by: 'timeout', value: { granted: false } })).toEqual({ kind: 'timeout' });
+  it('sends a free-text answer as it was typed', () => {
+    expect(clarificationAnswerAsText('  ship it on Friday ', undefined)).toBe('ship it on Friday');
   });
 
   it.each([
-    ['a grant without a folder', { granted: true }],
-    ['a grant with a blank folder', { granted: true, path: '' }],
-    ['a decision that is not a boolean', { granted: 'yes', path: '/work' }],
-    ['a value of the wrong shape', 'granted'],
-    ['no value at all', null],
-  ])('falls back to the plain label for %s', (_label, value) => {
-    expect(summarizeDirectoryRecord(user(value))).toBeNull();
+    ['a skip', {}],
+    ['an empty answer', ''],
+    ['an answer the form cannot explain', { unrelated: 'x' }],
+  ])('has nothing to send for %s', (_label, value) => {
+    expect(clarificationAnswerAsText(value, form)).toBe('');
   });
 });

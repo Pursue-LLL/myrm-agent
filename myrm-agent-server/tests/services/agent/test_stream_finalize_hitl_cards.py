@@ -115,18 +115,6 @@ async def test_a_resume_records_the_users_clarification_answer(chat: _ChatRows) 
 
 
 @pytest.mark.asyncio
-async def test_a_resume_records_the_users_directory_decision(chat: _ChatRows) -> None:
-    decision = {"granted": True, "path": "/work/data", "writable": True}
-    chat.rows.append(_row("asked", "assistant", {"directoryRequest": _stored({"request": {"path": "/work"}})}))
-
-    await _finalize(_session(decision, {}), ClarificationTimeoutHolder())
-
-    card = chat.card("asked", "directoryRequest")
-    assert card["answered"] is True
-    assert card["answerRecord"] == {**_USER_RECORD, "value": decision}
-
-
-@pytest.mark.asyncio
 async def test_an_answer_that_leads_to_a_new_clarification_settles_the_old_card_and_keeps_the_new_one_open(
     chat: _ChatRows,
 ) -> None:
@@ -143,13 +131,14 @@ async def test_an_answer_that_leads_to_a_new_clarification_settles_the_old_card_
 
 
 @pytest.mark.asyncio
-async def test_an_answer_that_leads_to_a_directory_request_keeps_that_request_open(chat: _ChatRows) -> None:
+async def test_a_card_that_cannot_be_marked_does_not_lose_the_continuation(chat: _ChatRows) -> None:
     chat.rows.append(_row("asked", "assistant", {"clarification": _stored({"form": _FORM})}))
-    follow_up = _session({"stack": ["fastapi"]}, {"directoryRequest": _stored({"request": {"path": "/work"}})})
 
-    await _finalize(follow_up, ClarificationTimeoutHolder(directory_pending=True))
+    async def locked(_chat_id: str) -> list[SimpleNamespace]:
+        raise RuntimeError("database is locked")
 
-    assert chat.card("asked", "clarification")["answered"] is True
-    new_request = chat.card("row-2", "directoryRequest")
-    assert new_request["answered"] is False
-    assert "answerRecord" not in new_request
+    with patch("app.services.chat.chat_service.ChatService.get_all_messages", new=locked):
+        await _finalize(_session({"stack": ["fastapi"]}, {}), ClarificationTimeoutHolder())
+
+    assert [row.id for row in chat.rows if row.id != "asked" and row.role == "assistant"] == ["row-2"]
+    assert chat.card("asked", "clarification")["answered"] is False

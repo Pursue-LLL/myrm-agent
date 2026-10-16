@@ -32,6 +32,18 @@ def _reset_session_roots() -> None:
     set_session_access_roots(())
 
 
+def _path_ask_grant(path: object, *, writable: bool = False) -> dict[str, object]:
+    """The resume payload of an approved path-ASK card that grants ``path``."""
+    return {
+        "decisions": [
+            {
+                "type": "approve",
+                "extensions": {"grantDirectory": True, "grantDirectoryMeta": {"path": str(path), "writable": writable}},
+            }
+        ]
+    }
+
+
 @pytest.mark.asyncio
 async def test_directory_resume_grant_persists_and_allows_read(tmp_path) -> None:
     workspace = tmp_path / "ws"
@@ -47,7 +59,7 @@ async def test_directory_resume_grant_persists_and_allows_read(tmp_path) -> None
     ) as mock_persist:
         await apply_directory_resume_grant(
             "chat-session-access",
-            {"granted": True, "path": str(downloads), "writable": False},
+            _path_ask_grant(downloads),
             workspace_dir=str(workspace),
         )
         mock_persist.assert_awaited_once_with("chat-session-access")
@@ -104,7 +116,7 @@ async def test_directory_grant_blocked_in_sandbox_mode(tmp_path) -> None:
 
     await apply_directory_resume_grant(
         "chat-sandbox",
-        {"granted": True, "path": str(downloads), "writable": False},
+        _path_ask_grant(downloads),
         sandbox_active=True,
         workspace_dir=str(tmp_path / "ws"),
     )
@@ -164,7 +176,7 @@ async def test_persist_session_access_roots_writes_chat_fields(
 
     await apply_directory_resume_grant(
         "chat-persist-r2",
-        {"granted": True, "path": str(downloads), "writable": True},
+        _path_ask_grant(downloads, writable=True),
         workspace_dir=str(workspace),
     )
 
@@ -176,7 +188,7 @@ async def test_persist_session_access_roots_writes_chat_fields(
     assert len(roots_json) == 1
     assert roots_json[0]["path"] == os.path.realpath(str(downloads))
     assert roots_json[0]["writable"] is True
-    assert roots_json[0]["source"] == "hitl_grant"
+    assert roots_json[0]["source"] == "path_ask_grant"
 
 
 @pytest.mark.asyncio
@@ -234,7 +246,7 @@ async def test_directory_resume_grant_skips_persist_when_grant_rejected(
 
     await apply_directory_resume_grant(
         "chat-no-grant",
-        {"granted": True, "path": "/etc/passwd", "writable": False},
+        _path_ask_grant("/etc/passwd"),
         workspace_dir=str(tmp_path / "ws"),
     )
 
@@ -371,7 +383,7 @@ async def test_orchestrator_resume_grant_path_persists_via_service(
 
     await apply_directory_resume_grant(
         "chat-orchestrator-resume",
-        {"granted": True, "path": str(target), "writable": False},
+        _path_ask_grant(target),
         workspace_dir=str(workspace),
     )
 

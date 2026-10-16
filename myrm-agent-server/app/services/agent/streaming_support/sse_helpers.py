@@ -8,7 +8,6 @@
 - is_compression_exhausted: 检测上下文压缩耗尽事件
 - extract_approval_timeout: 提取审批超时信息
 - extract_clarification_required: 检测 structured clarify interrupt SSE
-- extract_directory_request_required: 检测 request_directory interrupt SSE
 - clear_context_task_metrics: 清理 harness 侧 TaskMetrics
 
 [POS]
@@ -99,18 +98,5 @@ def extract_clarification_required(sse_chunk: str) -> bool:
     try:
         event = orjson.loads(sse_chunk[len(_SSE_DATA_PREFIX) :].rstrip())
         return bool(event.get("type") == "clarification_required")
-    except (orjson.JSONDecodeError, TypeError):
-        return False
-
-
-def extract_directory_request_required(sse_chunk: str) -> bool:
-    """Return True when an SSE chunk signals a request_directory interrupt."""
-    if "directory_request_required" not in sse_chunk:
-        return False
-    if not sse_chunk.startswith(_SSE_DATA_PREFIX):
-        return False
-    try:
-        event = orjson.loads(sse_chunk[len(_SSE_DATA_PREFIX) :].rstrip())
-        return bool(event.get("type") == "directory_request_required")
     except (orjson.JSONDecodeError, TypeError):
         return False

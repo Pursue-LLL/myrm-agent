@@ -168,15 +168,6 @@ export type Message = {
     source?: string;
     answerRecord?: HitlAnswerRecord;
   };
-  directoryRequest?: {
-    answered: boolean;
-    answerRecord?: HitlAnswerRecord;
-    request?: {
-      reason?: string;
-      path?: string;
-      writable?: boolean;
-    };
-  };
   planConfirmation?: {
     plan: string;
     status: 'waiting' | 'confirmed' | 'edited' | 'skipped';

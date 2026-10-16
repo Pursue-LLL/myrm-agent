@@ -8,7 +8,6 @@ from app.services.agent.streaming_support.sse_helpers import (
     error_sse,
     extract_approval_timeout,
     extract_clarification_required,
-    extract_directory_request_required,
 )
 
 
@@ -96,13 +95,3 @@ def test_extract_approval_timeout_defaults_when_missing() -> None:
 
 def test_extract_approval_timeout_returns_none_for_invalid_payload() -> None:
     assert extract_approval_timeout("not sse") is None
-
-
-def test_extract_directory_request_required_detects_sse_event() -> None:
-    chunk = 'data: {"type":"directory_request_required","data":{"request":{}}}\n\n'
-    assert extract_directory_request_required(chunk) is True
-
-
-def test_extract_directory_request_required_rejects_unrelated_events() -> None:
-    chunk = 'data: {"type":"message","data":""}\n\n'
-    assert extract_directory_request_required(chunk) is False

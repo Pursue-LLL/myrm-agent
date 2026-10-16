@@ -195,7 +195,7 @@ def is_directory_grant_allowed_for_deployment(
         validate_mount_spec,
     )
 
-    allowed_boundaries = ()
+    allowed_boundaries: tuple[str, ...] = ()
     if _is_cloud_volume_deployment():
         from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT
 
@@ -251,29 +251,13 @@ async def apply_directory_resume_grant(
     sandbox_active: bool = False,
     workspace_dir: str | None = None,
 ) -> None:
-    """Persist and bootstrap grants from request_directory or path-ASK resume payloads."""
+    """Persist and bootstrap grants from path-ASK approval resume payloads."""
     if sandbox_active:
         logger.warning("Directory grant ignored: sandbox mode active (chat_id=%s)", chat_id)
         return
 
     policy = _default_path_policy()
     granted = False
-
-    if resume_value.get("granted") is True:
-        path_obj = resume_value.get("path")
-        writable_obj = resume_value.get("writable")
-        if isinstance(path_obj, str) and path_obj.strip():
-            granted = _apply_validated_grant(
-                path_obj,
-                writable=(bool(writable_obj) if isinstance(writable_obj, bool) else False),
-                source="hitl_grant",
-                workspace_dir=workspace_dir,
-                sandbox_active=sandbox_active,
-                policy=policy,
-            )
-        if granted and chat_id:
-            await persist_chat_session_access_roots(chat_id)
-        return
 
     decisions = resume_value.get("decisions")
     if not isinstance(decisions, list):

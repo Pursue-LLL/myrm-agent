@@ -75,11 +75,9 @@ import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
 import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
 import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import ClarificationInput from '../message-box/ClarificationInput';
-import DirectoryApprovalInput from '../message-box/DirectoryApprovalInput';
 import SessionAccessRootsBar from './SessionAccessRootsBar';
 import ProjectBoundaryBadge from './ProjectBoundaryBadge';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
-import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -130,9 +128,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   const removeMentionReference = useChatStore((s) => s.removeMentionReference);
   const keyterms = React.useMemo(() => extractKeyterms(messages), [messages]);
   const pendingClarification = React.useMemo(() => findActivePendingClarification(messages), [messages]);
-  const pendingDirectoryRequest = React.useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
   const isComposerClarifyMode = pendingClarification !== null;
-  const isComposerDirectoryMode = pendingDirectoryRequest !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
   const { triggerPrewarm, cancelPrewarm, shouldPrewarm } = useChatTurnPrewarm();
 
@@ -519,12 +515,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                 title={pendingClarification.clarification.title}
                 form={pendingClarification.clarification.form}
                 variant="composer"
-              />
-            ) : isComposerDirectoryMode && pendingDirectoryRequest ? (
-              <DirectoryApprovalInput
-                messageId={pendingDirectoryRequest.messageId}
-                answered={pendingDirectoryRequest.directoryRequest.answered}
-                request={pendingDirectoryRequest.directoryRequest.request}
               />
             ) : (
               <>

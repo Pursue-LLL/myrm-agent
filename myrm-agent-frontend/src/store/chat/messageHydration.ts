@@ -1,7 +1,6 @@
 /**
  * [INPUT]
  * @/store/chat/clarificationState::normalizeHydratedClarification (POS: pending clarify restore)
- * @/store/chat/directoryRequestState::normalizeHydratedDirectoryRequest (POS: pending directory request restore)
  * @/components/features/message-box/memoryLifecyclePhases::resolveMessageCreatedAtMs (POS: message timestamp)
  *
  * [OUTPUT]
@@ -14,7 +13,6 @@
 
 import type { Message } from '@/store/chat/types';
 import { normalizeHydratedClarification } from '@/store/chat/clarificationState';
-import { normalizeHydratedDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { resolveMessageCreatedAtMs } from '@/components/features/message-box/memoryLifecyclePhases';
 
 /** Metadata keys the server sets on assistant rows it appends itself (its `SYSTEM_NOTICE_EXTRA_KEYS`). */
@@ -54,10 +52,6 @@ export function parseMessages(raw: Message[]): Message[] {
 
     if (parsed.clarification) {
       parsed.clarification = normalizeHydratedClarification(parsed.clarification);
-    }
-
-    if (parsed.directoryRequest) {
-      parsed.directoryRequest = normalizeHydratedDirectoryRequest(parsed.directoryRequest);
     }
 
     if (!parsed.reasoning) {

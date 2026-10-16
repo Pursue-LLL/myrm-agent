@@ -23,7 +23,6 @@ import { AlertTriangle, Ban, Disc3, FileCode2, ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
-import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
@@ -49,7 +48,6 @@ import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
 import ArtifactErrorBoundary from '@/components/features/artifacts/ArtifactErrorBoundary';
 import { CustomMessageCard } from './CustomMessageCard';
 import ClarificationInput from './ClarificationInput';
-import DirectoryApprovalInput from './DirectoryApprovalInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
 import { HumanGateCard } from './HumanGateCard';
 import WorkflowSuggestionCard from './WorkflowSuggestionCard';
@@ -98,14 +96,12 @@ const MessageBox = ({
   const sendMessage = useChatStore((state) => state.sendMessage);
   const messages = useChatStore((state) => state.messages);
   const composerPendingClarification = useMemo(() => findActivePendingClarification(messages), [messages]);
-  const composerPendingDirectoryRequest = useMemo(() => findActivePendingDirectoryRequest(messages), [messages]);
   // Regenerate acts on the latest turn only, so only that turn's answer offers it.
   const isLastTurnAnswer = useMemo(
     () => message.role === 'assistant' && findLastTurnAnswerId(messages) === message.messageId,
     [messages, message.role, message.messageId],
   );
   const hideInlineClarification = composerPendingClarification?.messageId === message.messageId;
-  const hideInlineDirectoryRequest = composerPendingDirectoryRequest?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
   // Approval cards render inline under the assistant message that produced them,
   // so the pending flag is derived from the global approval queue keyed by messageId.
@@ -637,15 +633,6 @@ const MessageBox = ({
                 answerRecord={message.clarification.answerRecord}
                 title={message.clarification.title}
                 form={message.clarification.form}
-              />
-            )}
-
-            {message.directoryRequest && !hideInlineDirectoryRequest && (
-              <DirectoryApprovalInput
-                messageId={message.messageId}
-                answered={message.directoryRequest.answered}
-                request={message.directoryRequest.request}
-                answerRecord={message.directoryRequest.answerRecord}
               />
             )}
 

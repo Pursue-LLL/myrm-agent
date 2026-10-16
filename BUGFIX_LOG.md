@@ -4522,7 +4522,7 @@ except Exception:
 | 严重程度 | P2（不丢数据；跳过或超时一张需要确认的表单后，模型被告知「按你的判断继续」，有把沉默当成同意的风险；其余是结案后看不出结果、重新打开后卡片状态错乱、续跑被拒后用户要重填） |
 | 影响范围 | server：`app/ai_agents/general_agent/{ask_question_result,tool_setup}.py`（P4）、`app/services/agent/stream_session/{answered_cards,stream_finalize}.py`、`app/services/agent/streaming.py`、`app/services/agent/streaming_support/{hitl_timeout,stream_collector,stream_collector_helpers}.py` 与各自 `_ARCH.md`；frontend：`store/chat/{hitlAnswerRecord,hitlCardDraft,hitlCardAnswer}.ts`、`types/messages.ts`、`messageStream/handlers/statusStreamPhaseData.ts`、`components/features/message-box/{HitlAnsweredNote,HitlSettledNotes,ClarificationInput,DirectoryApprovalInput,MessageBox}.tsx`、六份语言包（6 个键）与对应测试和 `_ARCH.md`；不涉及系统提示词、工具 schema 与存储表 |
 | 出现次数 | 1（读码、桩流与 jsdom 复现；没有真实模型与真实浏览器验证） |
-| 关联 | `BUG-AGENT-2026-10-15-022` 的后续；提交：agent `44cc794664`（P4）、`83a4287d16`（server）、`e220080bae`（frontend）；后两个提交信息里写成了 `BUG-AGENT-2026-10-16-002`，该编号已被另一条占用，以本条 `-003` 为准；本地提交，未 push |
+| 关联 | `BUG-AGENT-2026-10-15-022` 的后续；提交：agent `44cc794664`（P4）、`83a4287d16`（server）、`e220080bae`（frontend）；后两个提交信息里写成了 `BUG-AGENT-2026-10-16-002`，该编号已被另一条占用，以本条 `-003` 为准；本地提交，未 push；其中目录授权卡的全部改动作用在已不可达的路径上，见 `BUG-AGENT-2026-10-16-005` |
 
 ### 现象
 
@@ -4558,7 +4558,7 @@ except Exception:
 
 1. 没有真实模型、真实浏览器与截图验证：跳过签字表单后模型的实际行为、结案横幅与窄屏、明暗主题下的呈现只有 jsdom、类名审阅与主题色门禁。
 2. 旧会话里已落库的卡片没有记录，一律回落到「已回答 / 已处理」，没有迁移。
-3. 草稿只在内存里，刷新页面即丢；回答内容现在随卡片落库（此前只在智能体检查点里），现有的落库前密钥清理是否覆盖 `answerRecord` 没有核对（未验证）。
+3. 草稿只在内存里，刷新页面即丢；回答内容现在随卡片落库（此前只在智能体检查点里），现有的落库前密钥清理是否覆盖 `answerRecord` 没有核对（`-005` 已核实：卡片写入路径没有任何清理，`chat_repo.py:193-197`）。
 4. 目录卡「卡片已被续跑流替换」的过期分支与澄清卡共用同一段代码，只用澄清卡的用例覆盖。
 5. 第一版工作区里 `streaming_support/_ARCH.md` 曾被我的脚本截断（先以写模式打开目标、再读同一路径），之后用 HEAD 加他人那一句加我的改动重建；他人那一句来自被截断的 diff 输出，与其原文是否逐字一致没有验证。提交的是只含我的改动的版本，工作区里是重建版本。
 6. 与本条无关、未动：`MessageBox.tsx`（828 行，HEAD 为 826）、`stream_finalize.py`（660 行，HEAD 为 672）超过文件行数建议。
@@ -4638,3 +4638,68 @@ except Exception:
 2. 懒加载导出要有静态镜像，否则带 `py.typed` 的包对使用方等于没有类型，`object` 会把真实的不匹配全部掩盖；加存根前后的错误数要整库实测，再决定要不要做；
 3. 怀疑「字典被当成策略对象传下去会炸」时先写最小复现：实测 pydantic 会转换，这一处只是类型写法问题，不是缺陷；
 4. zsh 里 `F="a b"` 不会按空格拆成多个参数，传文件列表要用数组。
+
+
+## BUG-AGENT-2026-10-16-005: 目录授权卡的唯一产生者早已删除，`-003` 为它做的修复全在不可达路径上；刷新后澄清卡丢风险徽标与多选；结案标记失败会丢掉整段续写；连环澄清预填上一轮答案；超时后迟到的回答被吞；需要确认的表单横幅说「助手已继续」
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（对 `BUG-AGENT-2026-10-16-003` 的逐项复核：它的卡片是否真有产生者、刷新后是否还是同一张卡、失败路径会丢什么） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（不丢已落库数据；刷新后风险徽标与多选丢失会让需要确认的表单看起来像普通提问；结案标记落库失败时整段超时续写或用户回合的续写不入库；其余是迟到回答丢失、预填错位与横幅措辞） |
+| 影响范围 | harness：`agent/streaming/stream_dispatcher.py`、`core/events/types.py`、`agent/middlewares/completion/completion_guard_safety.py`、`agent/security/session_access.py` 与对应测试；server：`app/services/agent/streaming_support/{hitl_timeout,sse_helpers,stream_collector,stream_collector_helpers}.py`、`stream_session/{answered_cards,stream_finalize,stream_loop}.py`、`session_access_service.py` 与测试、`frontend_sse_event_types.json` 夹具；frontend：`store/chat/{clarificationState,clarificationCardAnswer,clarificationCardDraft,hitlAnswerRecord,knownSseEventTypes,messageHydration}.ts`、`messageStream/handlers/toolsProgressEvents.ts`、`types/{messages,agentStream/part1,agentStream/union}.ts`、`components/features/message-box/{ClarificationInput,ClarificationSettledNote,MessageBox}.tsx`、`chat-window/MessageInput.tsx`、六份语言包与对应测试、`_ARCH.md`；不涉及系统提示词、工具 schema 与存储表 |
+| 出现次数 | 1（读码、桩流与 jsdom 复现；没有真实模型与真实浏览器验证） |
+| 关联 | `BUG-AGENT-2026-10-16-003` 的更正与后续；harness 提交 `f4ef49c53`；本地提交，未 push |
+
+### 现象
+
+1. `directory_request_required` 事件、目录授权卡、目录草稿与超时链路没有任何产生者：唯一的产生者 `request_directory_tool` 随 harness `2a9e85484`（`meta_tools/session_access/request_directory.py` 被删）移除，产品文档 `security-architecture.mdx:240-253` 写明替代方案是内核透明拦截（路径 ASK）。`-003` 却为这张卡写了结案记录、草稿恢复与超时记录，并把它们记为已修复。
+2. 澄清卡落库的是服务端原样的 snake_case 表单（`form.model_dump()`，`messages.py` 把 `extra_data` 原样作为 `metadata` 返回），水合时前端没有归一化，卡片读的是 camelCase：刷新后「需要确认」徽标与多选全部丢失。实时事件走的是 `normalizeClarificationForm`，两条路径读法不一致。
+3. `mark_pending_clarification_answered` 没有任何保护：数据库出错时，`finalize` 抛出，用户回合的续写不入库；超时路径抛出，超时续写不入库（`finally` 只保住了下一个中断的计时器）。
+4. 草稿在点击时保存、续跑流结束后才清除：续跑流还开着时链出了同一行上的下一张澄清卡，新卡挂载后预填的是上一轮的答案。
+5. 回答被超时抢先处理（HTTP 409 → `ApprovalExpiredError`）时，用户写的文字随卡片关闭一起丢掉，只留一条「已超时」的提示。
+6. 需要确认的表单被跳过或超时后，横幅写「助手已在没有回答的情况下继续」；服务端实际告诉模型的是「操作未获批准，不要执行」（`ask_question_result.py:26-30`），横幅与事实相反。
+
+### 根因
+
+1. `-003` 没有先核对「这张卡现在有没有产生者」，直接按当时的代码形态补功能。
+2. 水合与实时事件各写各的读法，没有共用同一个归一化函数。
+3. 卡片标记被当成必须成功的步骤，而它只是落库的附属记录。
+4. 草稿的生命周期按「请求结束」而不是「是否需要放回」来定。
+5. 迟到的回答只被当成错误处理，没有当成一份还可以发送的用户输入。
+
+### 修复
+
+1. 删除整条目录死链：harness 的 `directory_request` 中断分支与 `DIRECTORY_REQUEST_REQUIRED` 事件类型（`stream_dispatcher.py`、`types.py`）、安全豁免名单里的 `request_directory_tool`；server 的目录超时持有者、`schedule_directory_timeout`、`answered_cards` 的目录分支、`sse_helpers` / `stream_collector(_helpers)` 的目录收集、`session_access_service` 里 `{granted,path,writable}` 旧 resume 分支（唯一产生者 `DirectoryApprovalInput.tsx:143` 同时删除）；frontend 的 `DirectoryApprovalInput`、`DirectoryBrowsePopover`、`directoryRequestState`、`HitlSettledNotes` 与目录类型、SSE 白名单项、六份语言包与翻译补丁里的目录键。仍然有效的目录授权通道是 `SingleApprovalCard.tsx:237-244,648`（勾选「授权该目录」）→ `approvalDecision.ts:87-139` → `session_access_service.py` 的 `decisions` 分支（`grantDirectory` / `grantDirectoryMeta`，来源 `path_ask_grant`），未改动。`hitlCardAnswer` / `hitlCardDraft` 随之收窄为只服务澄清卡的 `clarificationCardAnswer` / `clarificationCardDraft`。
+2. 水合：`normalizeHydratedClarification` 对持久化的表单调用既有的 `normalizeClarificationForm`（`clarificationState.ts`），与实时事件同一条读法；用服务端真实的 `model_dump` 形态写红灯用例。
+3. 卡片标记改为尽力而为：`mark_pending_clarification_answered` 内部捕获异常并记 `WARNING`，不再向调用方抛出；卡片因此可能保持未答（之后的点击会被「已处理」拒绝），但续写照常入库。
+4. 草稿：点击时先清空，只在续跑被拒、卡片放回之前写入，成功与超时路径不再需要清除；续跑中链出的新卡片从空白开始。
+5. 迟到的回答：`ApprovalExpiredError` 时把回答经新增的 `clarificationAnswerAsText`（复用结案摘要，选项展示为标签，`问题: 回答` 逐行）追加到输入框，已有输入保留，跳过或没有内容时不放回；提示语加一句「你填写的内容已放回输入框」（六种语言）。
+6. 横幅：`ClarificationSettledNote` 对 `requiresConfirmation` 的表单，跳过与超时分别说「已跳过确认，该操作未获批准」「未在时限内确认，该操作未获批准」（新增 2 个键 × 6 种语言）；普通表单文案不变。
+
+### 验证
+
+1. 红灯先行：A1（真实 `model_dump` 形态的水合）、S2（`finalize` 与超时路径各一条，数据库抛错时续写仍入库）、S3（续跑中链出新卡预填为空）、S3b（放回输入框、保留已有输入、跳过不放回）、S4（跳过 / 超时 / 已答三条横幅）都先看到失败再改。
+2. 变异检查（改一处、跑、写回）：S2 去掉捕获 → 两条新用例失败；S3 退回「点击时保存、成功后清除」→ 链出新卡与超时后为空两条失败；S3b 去掉放回输入框 → 两条失败；每次变异后确认被测文件已还原。
+3. 测试：harness `tests/agent/streaming`、`tests/agent/security` 共 3668 例通过，`tests/core/events`、`tests/agent/middlewares/completion` 通过；server 在「HEAD 加本条改动」的干净导出里跑 `streaming_support`、`stream_session`、`test_stream_finalize_*`、`test_session_access_service`、`test_clarification_patch_db`、`test_sse_event_type_parity`：350 通过、1 失败（`test_stream_finalize_queue_timeout.py::test_myrm_llm_error_with_recovery_and_cooldown` 期望 `retry_after_ms`，而 HEAD 的 `stream_finalize.py:382-383` 产出的是 `cooldown_remaining_ms`，与本条无关）；工作区里同一批测试有 22 个失败，原因都是他人未提交的 `stream_collector.py` 用了未导入的 `AnswerDraft`（`NameError`），不是本条；frontend `message-box`、`store/chat`、`lib/hitl`、`companion`、`chat-window/__tests__` 共 314 个文件 2054 例通过。
+4. 门禁：server 触及文件 ruff 与 format 干净，mypy 对触及模块无错误（顺手给 `session_access_service.py` 里 `allowed_boundaries` 补了类型标注，消除一处原有报错）；frontend 触及文件 oxlint 0、prettier 干净；`verify:theme-colors`、`verify:icu-syntax` 通过；`tsc` 50 条错误全部在他人的文件里（`needs-you`、`mobile-companion`、`ergonomic-cockpit` 等），触及文件无报错；`verify:i18n`（`de.json` 一个键与英文相同，来自他人的 `routeAgentDiscoverChip`）、`verify:orphans`、`verify:hardcoded-copy`、`verify:a11y` 当前退出 1，输出里没有本条的任何文件或键。
+5. 全仓（四个仓库，排除依赖与参考项目目录和本日志）对已删除的类型、组件、事件、函数名检索结果为 0。
+6. 提交内容为「HEAD 加自己的改动」：`stream_collector.py`、`messages.ts`、`messageHydration.ts`、`MessageInput.tsx`、`part1.ts`、`union.ts`、六份语言包、`frontend_sse_event_types.json`、两份 `streaming_support` / `stream_session` 的 `_ARCH.md` 在工作区里带有他人未提交的改动，提交只含本条的块；提交前逐个确认这些文件自副本生成后 HEAD 没有变化。
+
+### 局限
+
+1. 没有真实模型、真实浏览器与截图验证：新横幅在 375px 窄屏与明暗主题下的折行、水合后风险徽标的实际呈现只有 jsdom 与主题色门禁；本条没有新增样式。当时机器负载在 90 以上，且工作区里已有他人的开发服务，没有再起第二个。
+2. 超时抢先之后，服务端已经落库的续写在已打开的页面上不会出现，刷新后才可见：`chatTranscriptRefresh.ts:50-52` 把「`requestMessageId` 指向屏幕上助手行」的落库行当作已显示。曾考虑在迟到回答时调 `loadMessages` 补拉，但它会把 `isMessagesLoaded` 置假（`messageManagement.ts:57-60`）并覆盖 `actionMode`、`workspaceDir`、已加载的更早消息页（`:128-153`），对一句提示不值得，没有做。放回输入框的文字不依赖它。
+3. 标记失败时卡片在数据库里保持未答：重新打开会话后它仍占着输入区，用户点击会得到「已处理」的拒绝；该窗口只在落库本身出错时出现，没有额外补救。
+4. `answerRecord` 随卡片落库，写入路径没有任何清理（`chat_repo.py:193-197`）；用户消息本身落库前是否清理没有核对（未验证）。
+5. 旧会话里已落库的目录卡不会再渲染（组件已删除），数据留在 `extra_data` 里，没有迁移。
+6. `ClarificationInput.tsx` 398 行已贴近 400 行上限，后续再加逻辑要先拆。
+
+### 踩坑经验
+
+1. 修一张卡之前先查它现在有没有产生者：`-003` 为一条已经不可达的链写了记录、草稿与超时三套逻辑，还写进日志记为已修复。
+2. 同一份持久化数据有两条读取路径（实时事件与水合）时，必须共用同一个归一化函数，否则只有刷新后才暴露差异。
+3. 「附属记录」类的写入不要让它决定主流程的成败：标记失败只需要记一条警告。
+4. 状态的生命周期按「什么时候需要用到」来定，而不是按「请求什么时候结束」：草稿只在要放回时才需要。
+5. `rg -rn` 里的 `-r` 是替换参数不是递归，会把匹配到的内容显示成 `n`，查字段名时别这样写。
+6. 工作区里别人的改动会让一整个目录的测试在你完全没碰的地方失败：先看失败原因再判断是不是自己的，必要时用「HEAD 加自己的改动」的干净导出复跑。

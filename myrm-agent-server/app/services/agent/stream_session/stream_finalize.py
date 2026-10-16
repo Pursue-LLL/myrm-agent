@@ -87,27 +87,6 @@ def _collector_has_unanswered_clarification(session: AgentStreamSession) -> bool
     return clarification.get("answered") is False
 
 
-def _collector_has_unanswered_directory_request(session: AgentStreamSession) -> bool:
-    extra = session.collector.extra_data
-    if not isinstance(extra, dict):
-        return False
-    directory_request = extra.get("directoryRequest")
-    if not isinstance(directory_request, dict):
-        return False
-    return directory_request.get("answered") is False
-
-
-def _directory_timeout_needed(
-    session: AgentStreamSession,
-    clarification: ClarificationTimeoutHolder,
-) -> bool:
-    if clarification.directory_pending:
-        return True
-    if session.request.chat_id is None:
-        return False
-    return _collector_has_unanswered_directory_request(session)
-
-
 def _clarification_timeout_needed(
     session: AgentStreamSession,
     clarification: ClarificationTimeoutHolder,
@@ -496,7 +475,6 @@ async def finalize_agent_stream_session(
     )
 
     clarification_sched_needed = _clarification_timeout_needed(session, clarification)
-    directory_sched_needed = _directory_timeout_needed(session, clarification)
 
     if session.request.chat_id:
         arm_interrupt_timeout(
@@ -504,7 +482,6 @@ async def finalize_agent_stream_session(
             session.params,
             approval_timeout=approval.value,
             clarification_pending=clarification_sched_needed,
-            directory_pending=directory_sched_needed,
             awaiting_answer=session.collector.has_pending_hitl_replay(),
         )
 

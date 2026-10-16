@@ -140,14 +140,6 @@
       "submitFailed": "Absenden der Klärung fehlgeschlagen. Bitte erneut versuchen.",
       "answered": "Klärung beantwortet"
     },
-    "directoryRequest": {
-      "title": "Verzeichniszugriff erforderlich",
-      "pathLabel": "Ordnerpfad",
-      "pathRequired": "Bitte einen Ordnerpfad eingeben",
-      "grant": "Zugriff gewähren",
-      "deny": "Ablehnen",
-      "answered": "Verzeichniszugriff geklärt"
-    },
     "planConfirmation": {
       "title": "Rechercheplan",
       "badge": "Vor Ausführung prüfen",
