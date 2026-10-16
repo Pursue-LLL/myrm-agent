@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentBusyError, ApprovalExpiredError } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalExpiredError, RiskBlockedError } from '@/store/chat/streamErrors';
 import type { ToolApprovalRequest } from '@/store/chat/types/toolApproval';
 
 const mockCreateAISearchStream = vi.hoisted(() => vi.fn());
@@ -70,6 +70,15 @@ function sseBusyResponse(): Response {
   });
 }
 
+function sseRiskBlockedResponse(): Response {
+  const body =
+    'data: {"type":"risk_blocked","data":{"rules":[{"rule_id":"api_key_like","display_name":"API key"}]}}\n\n';
+  return new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+
 describe('resumeApprovalStream', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -87,6 +96,17 @@ describe('resumeApprovalStream', () => {
     );
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
+  });
+
+  it('throws the refusal, so the approval stays pending, when a risk rule holds the typed reason', async () => {
+    mockCreateAISearchStream.mockResolvedValue(sseRiskBlockedResponse());
+    mockHandleMessageStream.mockRejectedValue(new RiskBlockedError());
+
+    const { resumeApprovalStream } = await import('../resumeApprovalStream');
+
+    await expect(
+      resumeApprovalStream(buildRequest(), { decision: 'reject', feedback: 'use the key' }, 'resume failed'),
+    ).rejects.toBeInstanceOf(RiskBlockedError);
   });
 
   it('throws ApprovalExpiredError when the timeout already answered the approval (HTTP 409)', async () => {

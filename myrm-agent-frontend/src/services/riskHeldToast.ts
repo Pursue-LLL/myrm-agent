@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * @/services/i18nToastService (POS: localized toasts outside React)
+ * @/store/chat/streamErrors::RiskBlockedError (POS: the chat stream's refusal of a held text)
  *
  * [OUTPUT]
  * - parseRiskRules: the rules in an SSE payload.
@@ -9,8 +10,8 @@
  * - showRiskHeldRefusal: shows that notice for a REST error body that is such a refusal, and says whether it was one.
  * - riskHeldErrorFromResponse: the same for a failed `fetch` that did not go through `apiRequest`; returns the error
  *   to throw once the notice is shown.
- * - isRiskHeldError: whether an error is such a refusal, so a caller whose notice is already shown adds no failure
- *   toast of its own.
+ * - isRiskHeldError: whether an error is such a refusal (a REST error or the chat stream's `RiskBlockedError`), so a caller
+ *   whose notice is already shown adds no failure toast of its own.
  *
  * [POS]
  * Shared by the chat SSE `risk_blocked` event, the central API error toast and every direct-fetch call of a text the
@@ -19,6 +20,7 @@
  */
 
 import { showI18nToast, translateI18nKeyIfPresent } from '@/services/i18nToastService';
+import { RiskBlockedError } from '@/store/chat/streamErrors';
 
 /** The `detail.code` of a REST refusal of text a server risk rule holds. */
 const RISK_HELD_CODE = 'risk_held';
@@ -81,9 +83,15 @@ export class RiskHeldRefusalError extends Error {
   }
 }
 
-/** Whether `error` is a refusal the user has already been told about (`apiRequest`'s `ApiError` or a `RiskHeldRefusalError`). */
+/**
+ * Whether `error` is a refusal the user has already been told about: `apiRequest`'s `ApiError`, a `RiskHeldRefusalError`
+ * or the chat stream's `RiskBlockedError`.
+ */
 export function isRiskHeldError(error: unknown): boolean {
-  return error instanceof Error && isRiskHeldDetail((error as { data?: unknown }).data);
+  return (
+    error instanceof RiskBlockedError ||
+    (error instanceof Error && isRiskHeldDetail((error as { data?: unknown }).data))
+  );
 }
 
 /**

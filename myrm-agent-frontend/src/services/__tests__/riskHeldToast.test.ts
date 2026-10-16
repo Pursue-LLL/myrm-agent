@@ -10,6 +10,7 @@ const toastMock = vi.hoisted(() =>
 vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
 
 import { setGlobalTranslator } from '@/services/i18nToastService';
+import { RiskBlockedError } from '@/store/chat/streamErrors';
 import {
   isRiskHeldError,
   parseRiskRules,
@@ -156,6 +157,10 @@ describe('riskHeldToast', () => {
       });
 
       expect(isRiskHeldError(apiError)).toBe(true);
+    });
+
+    it('recognises the chat stream refusal, whose notice the risk event has already shown', () => {
+      expect(isRiskHeldError(new RiskBlockedError())).toBe(true);
     });
 
     it.each([

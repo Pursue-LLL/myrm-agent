@@ -11,7 +11,7 @@ import {
   getFallbackLiteModelSelection,
 } from '@/store/chat/messageRequest';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import { AgentBusyError, ApprovalExpiredError, isAgentBusySseEvent } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalExpiredError, RiskBlockedError, isAgentBusySseEvent } from '@/store/chat/streamErrors';
 
 /**
  * [INPUT] ToolApprovalRequest anchor + resume decisions payload
@@ -127,7 +127,8 @@ export async function resumeApprovalStream(
         added = result.added;
         recievedMessage = result.recievedMessage;
       } catch (error) {
-        if (error instanceof AgentBusyError) {
+        // A held reason leaves the approval pending: the risk event has shown its notice and the card keeps its text.
+        if (error instanceof AgentBusyError || error instanceof RiskBlockedError) {
           throw error;
         }
         console.error('[APPROVAL] Stream parse error:', error);

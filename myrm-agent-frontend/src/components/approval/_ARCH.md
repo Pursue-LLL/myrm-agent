@@ -8,7 +8,7 @@
 
 | 文件                              | 地位 | 职责                                                                           |
 | --------------------------------- | ---- | ------------------------------------------------------------------------------ |
-| `ApprovalDrawer.tsx`              | 核心 | 全局审批抽屉（subagent 批量 decisions）                                        |
+| `ApprovalDrawer.tsx`              | 核心 | 全局审批抽屉（subagent 批量 decisions）；被风控拦下的理由让抽屉与卡片留着，不叠加失败提示 |
 | `BatchHighRiskConfirmDialog.tsx`  | UI   | 批量审批高危破坏操作二次确认弹窗                                               |
 | `PolymorphicApprovalCard.tsx`     | 核心 | 单条审批卡片（shell/MCP/视觉/`deploy_approval`/`knowledge_patch` 等形态）      |
 | `OutboundDraftApprovalBody.tsx`   | UI   | 渠道回复审核（`outbound_draft`）卡片主体：对方来信、待发回复及其附件、渠道/收件人 |

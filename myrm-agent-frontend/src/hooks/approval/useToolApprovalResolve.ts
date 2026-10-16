@@ -13,6 +13,7 @@ import {
 } from '@/lib/approval/resumeApprovalStream';
 import { refreshSessionAccessRoots } from '@/lib/sessionAccessRefresh';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
+import { isRiskHeldError } from '@/services/riskHeldToast';
 import { ApprovalExpiredError } from '@/store/chat/streamErrors';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import type { ToolApprovalRequest } from '@/store/chat/types';
@@ -106,7 +107,8 @@ export function useToolApprovalResolve() {
           for (const req of requestsToRemove) {
             removeRequest(req.requestId);
           }
-        } else {
+        } else if (!isRiskHeldError(error)) {
+          // A reason a risk rule holds has its notice already; the approval stays pending with the reason in its card.
           toast.error(t('resumeError'));
         }
       } finally {
