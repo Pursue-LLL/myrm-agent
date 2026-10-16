@@ -363,8 +363,16 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
   // ============ Orphan 重建 ============
 
   checkOrphanCollections: async () => {
+    // A run reports its own outcome; an estimate that overlapped one would only be stale.
+    if (get().reindexStatus === 'running') {
+      return;
+    }
+    const resultAtStart = get().reindexResult;
     try {
       const estimate = await getMemoryOrphanEstimate();
+      if (get().reindexStatus === 'running' || get().reindexResult !== resultAtStart) {
+        return;
+      }
       const uniqueModels = [...new Set(estimate.orphan_collections.map((c) => c.old_model_suffix))];
       set({ orphanCount: estimate.total_memories, orphanOldModels: uniqueModels });
     } catch {

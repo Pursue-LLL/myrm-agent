@@ -15887,7 +15887,7 @@
         "embeddingModel": "嵌入模型",
         "embeddingModelDescription": "文字向量化模型，用於支援知識庫、記憶、網路搜尋等能力的語義搜尋",
         "dismiss": "忽略",
-        "orphanWarning": "檢測到 {count} 條舊記憶需要遷移到新模型",
+        "orphanWarning": "有 {count} 條記憶尚未遷移到新的嵌入模型，遷移前不會用於回答",
         "reindex": "遷移",
         "reindexing": "遷移中...",
         "reindexProgress": "正在遷移記憶... {done} / {total}",

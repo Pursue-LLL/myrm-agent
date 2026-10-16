@@ -4727,7 +4727,7 @@ except Exception:
 | 发现日期 | 2026-10-16（`BUG-AGENT-2026-10-16-002` 把「重索引」写成真实能力之后，把它在真实向量库上从头跑一遍才发现从没生效） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P1（用户换嵌入模型后旧记忆在召回里静默消失，界面还显示迁移成功）；对外失实宣称 P3 |
-| 影响范围 | harness（根因与迁移本体见 `BUG-HARNESS-2026-10-16-002`）；server：`app/services/memory/reindex_run.py`（新）、`app/api/memory/operations/reindex.py`、`app/services/memory/diagnostics/diagnostic/diagnostic_repair_plans.py`；frontend：`src/services/memory/reindex.ts`（新）、`src/store/useRetrievalStore.ts`、`ai-core/MemoryMigrationNotice.tsx`（新）、`ai-core/DefaultModelSection.tsx`、六个语言包 `settings.defaultModel.retrieval` 下 5 个新键；根仓素材库的 `MEMORY_ADVANTAGE.md` 与路线图 topic_09 #201；brand 仓 `memory-system.mdx`、`api-reference/memory.mdx`、`dialectic-profiling.mdx`、`competitor-comparison.mdx`（英文与中文） |
+| 影响范围 | harness（根因与迁移本体见 `BUG-HARNESS-2026-10-16-002`）；server：`app/services/memory/reindex_run.py`（新）、`app/api/memory/operations/reindex.py`、`app/services/memory/diagnostics/diagnostic/diagnostic_repair_plans.py`；frontend：`src/services/memory/reindex.ts`（新）、`src/store/useRetrievalStore.ts`、`memory/settings/MemoryMigrationNotice.tsx`（新；原位于 `ai-core/`，`BUG-AGENT-2026-10-16-018` 起迁入记忆域）、`ai-core/DefaultModelSection.tsx`、六个语言包 `settings.defaultModel.retrieval` 下 5 个新键；根仓素材库的 `MEMORY_ADVANTAGE.md` 与路线图 topic_09 #201；brand 仓 `memory-system.mdx`、`api-reference/memory.mdx`、`dialectic-profiling.mdx`、`competitor-comparison.mdx`（英文与中文） |
 | 出现次数 | 1（真实嵌入式 Qdrant 上的红灯用例、组件与存储测试；没有开浏览器目测） |
 | 关联 | `BUG-AGENT-2026-10-16-002`（其现象第 3 条把这项能力写成「真实能力早已存在」，已在该条更正）、`BUG-HARNESS-2026-10-16-002`；本地提交，未 push |
 
@@ -4762,12 +4762,12 @@ except Exception:
 
 ### 局限
 
-1. 没有在浏览器里目测迁移提示（进度、部分失败、错误三种状态的外观与窄屏排版）：只有 jsdom 组件测试，没有真实服务端与真实孤儿记忆的端到端；
-2. 迁移状态只存在服务进程内存里，重启会丢；重启后用户需要再点一次迁移（迁移是幂等的，已迁移的会被跳过），页面刷新后不会自动恢复对一轮进行中迁移的轮询；
-3. 旧集合保留，迁移结束后提醒要等下一次应用嵌入配置才会重新检查，不会自行消失；换模型时不会自动迁移；
+1. 没有在浏览器里目测迁移提示（进度、部分失败、错误三种状态的外观与窄屏排版）：只有 jsdom 组件测试，没有真实服务端与真实孤儿记忆的端到端（提醒状态的外观已在 `BUG-AGENT-2026-10-16-018` 里于真实库上目测过）；
+2. 迁移状态只存在服务进程内存里，重启会丢；重启后用户需要再点一次迁移（迁移是幂等的，已迁移的会被跳过），页面刷新后不会自动恢复对一轮进行中迁移的轮询（`-018` 起，重开设置页或记忆页会重新读到剩余数量，点迁移加入同一轮）；
+3. 旧集合保留，迁移结束后提醒要等下一次应用嵌入配置才会重新检查，不会自行消失（已由 `BUG-HARNESS-2026-10-16-006` 与 `-018` 解决：迁移改为搬家，两个页面打开时都会重新读取）；换模型时不会自动迁移；
 4. 机器负载上百时测得的墙钟偏高且波动，确定的是退避次数与总时长（见 harness 条目）；没有真实远程嵌入服务与远程 Qdrant 的实测；
 5. brand 仓只改了英文与中文页，韩文页（由脚本翻译生成）与官网 `memoryDoctor` 区块没有同步，仍未写「Memory Labs，默认关闭」；
-6. 迁移前显示的数量是旧集合里的记忆总数，不是还没迁的数量：旧集合保留，迁移后再次应用嵌入配置会重新显示同样的数量，点开始得到「所有记忆已在新模型上」；连续换过两次模型时，两个旧集合里同一条记忆各算一次，数字最多偏大一倍。要变精确需要只取 id 的分页读取（`VectorStore.scroll` 目前总是带回载荷与向量）或迁移记账，未做；
+6. （已由 `BUG-HARNESS-2026-10-16-006` 解决：搬家后旧集合不再留副本，数量即剩余数。以下为当时的描述）迁移前显示的数量是旧集合里的记忆总数，不是还没迁的数量：旧集合保留，迁移后再次应用嵌入配置会重新显示同样的数量，点开始得到「所有记忆已在新模型上」；连续换过两次模型时，两个旧集合里同一条记忆各算一次，数字最多偏大一倍。要变精确需要只取 id 的分页读取（`VectorStore.scroll` 目前总是带回载荷与向量）或迁移记账，未做；
 7. 另一个模型的一轮进行中点击迁移会得到 409，界面显示的是通用的「迁移被中断，再次点击」，没有单独文案；
 8. 未改动任何提示词。
 
@@ -5357,3 +5357,57 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 「每种结果读自己的字段」之后要追问这个字段的生命周期：谁写、谁清、在哪些状态下仍然有效。`-014` 查了出处没查生命周期，才漏了这一条。
 2. 同一组字段有多个写入与清除出口时，逐个核对出口是否一并处理；一个字段清了、另一个没清，比整组都漏更难发现。
 3. 在后台起的长回归会随工具会话被结束（输出文件始终为空）：长回归改成前台、按目录分块、加并行 worker。
+
+## BUG-AGENT-2026-10-16-018: 更换嵌入模型后留在旧集合里的记忆，设置页重开就看不到迁移提示，记忆页根本没有提示，文案也没说这些记忆在迁移前不参与回复；级联删除管理器靠猜嵌入模型，只清猜中的那个模型的集合
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（`BUG-AGENT-2026-10-16-006` 之后追问「用户换完模型、重开页面、或根本没进模型设置页，会怎样」；本机开发库的估算接口仍返回 1591 条遗留在旧模型的记忆：对话 1515、情景 14、语义 62，在浏览器里确实看到了新提示） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（旧模型遗留的记忆静默不参与回复，用户没有任何线索；删除类操作清不到它们见 `BUG-HARNESS-2026-10-16-006`） |
+| 影响范围 | frontend：`src/components/features/memory/settings/MemoryMigrationNotice.tsx`（自 `settings/sections/ai-core/` 迁入记忆域，两处共用）、`settings/sections/knowledge/MemoryCenterSection.tsx`、`settings/sections/ai-core/DefaultModelSection.tsx`、`src/store/useRetrievalStore.ts`、六个语言包 `settings.defaultModel.retrieval.orphanWarning`；server：`app/core/memory/adapters/cascade.py`、新增 `tests/core/memory/adapters/test_cascade.py` |
+| 出现次数 | 1（浏览器里看到真实遗留记忆的提示；没有点迁移） |
+| 关联 | `BUG-HARNESS-2026-10-16-006`（集合族删除与搬家式迁移）、`BUG-AGENT-2026-10-16-006`（迁移提示首版）；本地提交，未 push |
+
+### 现象
+
+1. 迁移提示只在 `applyEmbedding` 成功后读一次估算（`useRetrievalStore.checkOrphanCollections` 只由它调用）：换模型的那次会话之外，刷新或重开设置页，提示就消失，即使旧模型里还有记忆。
+2. 提示只挂在 设置 > 模型 > 嵌入 一处；用户在记忆页只会觉得「记忆变少了」，没有任何线索。
+3. 文案是「N 条记忆来自旧模型，需要迁移」，没说后果：这些记忆在迁移前不会用于回答。
+4. server 的级联删除管理器（对话销毁、项目清空用）从集合列表里推断一个嵌入模型，只会清到推断出的那个模型的集合。
+
+### 根因
+
+1. 估算读取绑在「应用嵌入模型」这个事件上，而不是绑在「提示被看到」上；
+2. 提示组件放在 `ai-core` 的模型设置目录里，只有一个宿主；
+3. 文案只描述状态，没描述后果；
+4. 删除按集合名逐一操作，而级联管理器的模型名决定它能触及哪个模型的集合：从集合列表里推断只会选中其中一个。
+
+### 修复
+
+1. `MemoryMigrationNotice` 迁到记忆域 `memory/settings/`，挂载时自己读取估算；新增 `className`，由宿主页决定宽度。挂在记忆中心页顶部（`MemoryCenterSection`，与召回降级横幅并列）和嵌入模型区下方（`DefaultModelSection`）两处。
+2. `useRetrievalStore.checkOrphanCollections`：迁移进行中不取估算；估算返回时若这期间有一轮迁移开始或结束（运行中，或结果对象变了）则丢弃，因为那一轮会自己报告剩余数量。
+3. `orphanWarning` 六种语言改为说明后果：`N 条记忆在迁移到新的嵌入模型前不会用于回答`（英文与德文保留 ICU 复数）；提示文字改用前景色、图标保留警告色，长句在浅色与深色主题下都清楚。
+4. 级联管理器不再推断模型，用固定占位模型名（删除跨整个集合族，模型名不影响结果），`_ARCH.md` 同步；新增服务端用例，经真实级联管理器验证两个模型各存一条同源记忆时预览与清除都为 2。
+5. `DefaultModelSection.tsx` 顺带按 prettier 收了既有的格式问题（纯空白与换行，没有逻辑改动）。
+
+### 验证
+
+1. frontend：`useRetrievalStore.reindex.test.ts` 12 例（新增：迁移进行中不取估算；与迁移重叠的估算被丢弃，去掉对应判断后该例失败）、`MemoryMigrationNotice.test.tsx` 12 例（新增：挂载时读取估算；宿主可定制外观）全部通过；`src/components/features/{settings,memory}` 与 `src/store` 共 348 个测试文件 2425 例通过，唯一的失败套件 `centerSubtitles.test.tsx` 是因为记忆中心现在多挂了一个会取数的组件，已按同目录里对降级横幅的做法加了对它的 mock；`verify:theme-colors`、`verify:i18n`、`verify:icu-syntax`、`verify:stable-mocks` 通过，`oxlint`、`prettier` 在触及文件上干净，`tsc --noEmit` 无输出；`verify:a11y`、`verify:hardcoded-copy` 失败的位置都在他人的文件里，输出里没有触及的文件。
+2. 浏览器：用独立的无头 Chromium（项目的浏览器 MCP 只接受代理任务，拒绝了对本地页面的访问，没有绕过它）打开正在运行的开发服务 `/settings/memory`，后端是本机真实库：记忆页标题下、标签栏上方出现提示「1,591 memories are not used in replies until they are migrated to the new embedding model」与 忽略 / 迁移 两个按钮；1280 宽时是一行（高 62 px），390 宽时文字在上、按钮在下（高 134 px）；浅色与深色主题下都清楚。**没有点迁移**，那是用户真实数据。
+3. server：`tests/api/chats/test_trash.py`、`tests/services/chat`、`tests/unit/services/memory` 共 398 例通过（用的就是真实级联管理器），新增 `test_cascade.py` 1 例通过；`ruff check` 干净。
+
+### 局限
+
+1. 真实库上的迁移没有跑（只读了估算）：迁移本体在真实嵌入式 Qdrant 上有测试，但没有用用户的真实嵌入服务与真实数据走一遍，耗时与费用没量过；
+2. 页面刷新后不会恢复对进行中迁移的轮询：重开页面只读到剩余数量，点迁移会加入同一轮（服务端单飞）；
+3. 「忽略」只在当前页面生命周期内有效，重开页面会再提醒，因为这些记忆仍不参与回复；
+4. 两处挂载各读一次估算，没有缓存；
+5. `scripts/translation-patches/ko/42-default-model.json` 这份补丁源里仍是旧的韩文文案（且是 `{{count}}` 占位符，本来就不是现行写法），只有重新应用该补丁时才会覆盖 `locales/ko.json`，没有动；
+6. 浏览器里没有看到迁移中、部分失败、出错三种状态的外观（只有 jsdom 组件测试覆盖），因为真实库上不能点迁移。
+
+### 踩坑经验
+
+1. 「提示要看得见」要绑在「提示被渲染」上，而不是绑在某个一次性事件上，否则只有触发事件的那次会话能看到。
+2. 新组件挂到一个页面里，要同时检查该页面已有的测试：它们按「每个会取数的子组件都被 mock」的惯例写，漏一个就在无关的套件里失败。
+3. 项目的浏览器 MCP 对本地页面有访问限制，这是有意的护栏；需要目测时另起一个无头浏览器，不去动被限制的那个。

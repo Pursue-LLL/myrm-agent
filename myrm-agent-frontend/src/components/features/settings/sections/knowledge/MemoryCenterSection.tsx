@@ -15,6 +15,7 @@ import { SettingsSkeleton } from '../../common/SettingsSkeleton';
 import { Button } from '@/components/primitives/button';
 import { TeamAssetsHub } from '@/components/features/loadout/TeamAssetsHub';
 import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
+import MemoryMigrationNotice from '@/components/features/memory/settings/MemoryMigrationNotice';
 
 const MigrationWizardSection = dynamic(() => import('./MigrationWizardSection'), {
   loading: () => <SettingsSkeleton />,
@@ -89,6 +90,7 @@ const MemoryCenterSection = memo(() => {
       </div>
 
       <MemoryRecallDegradedBanner className="max-w-4xl" />
+      <MemoryMigrationNotice className="max-w-4xl" />
 
       {migrationUnavailable && (
         <div role="alert" className="rounded-xl border border-border/60 bg-secondary/40 px-4 py-4 sm:px-5 space-y-3">

@@ -11,7 +11,8 @@ shutdown_cascade_manager: 关闭级联管理器并释放资源
 
 [POS]
 GDPR 遗忘权实现层。提供全局 namespace 的 MemoryManager 单例，仅用于按 source_chat_id
-元数据删除/计数记忆，无需 embedding 服务。由 chat_disposal.py 在永久删除会话时调用。
+元数据删除/计数记忆，无需 embedding 服务。MemoryManager 的元数据删除/计数会覆盖每个 embedding
+模型的集合，所以该单例不必知道当前模型，切换模型后也无需重建。由 chat_disposal.py 在永久删除会话时调用。
 """
 
 from __future__ import annotations
@@ -26,23 +27,9 @@ logger = logging.getLogger(__name__)
 _cascade_manager: MemoryManager | None = None
 _cascade_manager_lock = asyncio.Lock()
 
-_SEMANTIC_PREFIX = "memory_semantic_"
-
-
-async def _infer_embedding_model(vector_store: object) -> str:
-    """Infer the embedding model name from existing Qdrant collections.
-
-    Looks for 'memory_semantic_{model}' and extracts the model suffix.
-    Falls back to a sensible default if no collection is found.
-    """
-    try:
-        collections: list[str] = await vector_store.list_collections()
-        for name in collections:
-            if name.startswith(_SEMANTIC_PREFIX):
-                return name[len(_SEMANTIC_PREFIX) :]
-    except Exception as e:
-        logger.warning("Failed to infer embedding model from collections: %s", e)
-    return "text-embedding-3-small"
+# Only names the collections this manager would write; it never writes or embeds, and its
+# deletions address every model's collections regardless.
+_CASCADE_EMBEDDING_MODEL = "cascade-deletion"
 
 
 async def get_cascade_memory_manager() -> MemoryManager:
@@ -73,8 +60,7 @@ async def get_cascade_memory_manager() -> MemoryManager:
         relational_store = SQLiteRelationalStore(db_path=str(base_path / "memory.db"))
         vector_store = await create_default_vector_store()
 
-        embedding_model = await _infer_embedding_model(vector_store)
-        config = MemoryConfig(embedding_model=embedding_model)
+        config = MemoryConfig(embedding_model=_CASCADE_EMBEDDING_MODEL)
         _cascade_manager = MemoryManager(
             config=config,
             user_id="sandbox_user",

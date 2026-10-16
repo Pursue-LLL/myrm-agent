@@ -28,7 +28,7 @@ import { useOrgModelPolicy } from '@/hooks/useOrgModelPolicy';
 import { ModelInfoDialog } from '../../model-service/ModelInfoCard';
 import SettingsSection from '../SettingsSection';
 import ProviderModelSelector from '../../retrieval/ProviderModelSelector';
-import MemoryMigrationNotice from './MemoryMigrationNotice';
+import MemoryMigrationNotice from '@/components/features/memory/settings/MemoryMigrationNotice';
 import { EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
 import useRetrievalStore from '@/store/useRetrievalStore';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/primitives/hover-card';
@@ -573,12 +573,7 @@ const DefaultModelSection = memo(() => {
             {basePrimary && (
               <button
                 type="button"
-                onClick={() =>
-                  openModelConfig(
-                    basePrimary.providerId,
-                    basePrimary.model,
-                  )
-                }
+                onClick={() => openModelConfig(basePrimary.providerId, basePrimary.model)}
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                 title={t('configureModel')}
               >
@@ -588,13 +583,12 @@ const DefaultModelSection = memo(() => {
           </div>
 
           {/* Local Model Warning */}
-          {basePrimary &&
-            getProviderCategory(basePrimary.providerId) === 'local' && (
-              <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
-                <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <div className="text-xs font-medium leading-relaxed">{t('localModelWarning')}</div>
-              </div>
-            )}
+          {basePrimary && getProviderCategory(basePrimary.providerId) === 'local' && (
+            <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-500">
+              <IconAlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="text-xs font-medium leading-relaxed">{t('localModelWarning')}</div>
+            </div>
+          )}
 
           {basePrimary && !baseFallback && (
             <div className="flex items-start gap-2.5 p-3.5 mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500">
@@ -623,12 +617,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {baseFallback && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      baseFallback.providerId,
-                      baseFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(baseFallback.providerId, baseFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -727,12 +716,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {visionPrimary && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      visionPrimary.providerId,
-                      visionPrimary.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(visionPrimary.providerId, visionPrimary.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -754,12 +738,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {visionFallback && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      visionFallback.providerId,
-                      visionFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(visionFallback.providerId, visionFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -841,12 +820,7 @@ const DefaultModelSection = memo(() => {
               {videoPrimary && (
                 <button
                   type="button"
-                  onClick={() =>
-                    openModelConfig(
-                      videoPrimary.providerId,
-                      videoPrimary.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(videoPrimary.providerId, videoPrimary.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -869,12 +843,7 @@ const DefaultModelSection = memo(() => {
               {videoFallback && (
                 <button
                   type="button"
-                  onClick={() =>
-                    openModelConfig(
-                      videoFallback.providerId,
-                      videoFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(videoFallback.providerId, videoFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -913,12 +882,7 @@ const DefaultModelSection = memo(() => {
             {litePrimary && (
               <button
                 type="button"
-                onClick={() =>
-                  openModelConfig(
-                    litePrimary.providerId,
-                    litePrimary.model,
-                  )
-                }
+                onClick={() => openModelConfig(litePrimary.providerId, litePrimary.model)}
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                 title={t('configureModel')}
               >
@@ -972,12 +936,7 @@ const DefaultModelSection = memo(() => {
               </div>
               {liteFallback && (
                 <button
-                  onClick={() =>
-                    openModelConfig(
-                      liteFallback.providerId,
-                      liteFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(liteFallback.providerId, liteFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -1016,12 +975,7 @@ const DefaultModelSection = memo(() => {
             {backgroundPrimary && (
               <button
                 type="button"
-                onClick={() =>
-                  openModelConfig(
-                    backgroundPrimary.providerId,
-                    backgroundPrimary.model,
-                  )
-                }
+                onClick={() => openModelConfig(backgroundPrimary.providerId, backgroundPrimary.model)}
                 className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                 title={t('configureModel')}
               >
@@ -1055,12 +1009,7 @@ const DefaultModelSection = memo(() => {
               {backgroundFallback && (
                 <button
                   type="button"
-                  onClick={() =>
-                    openModelConfig(
-                      backgroundFallback.providerId,
-                      backgroundFallback.model,
-                    )
-                  }
+                  onClick={() => openModelConfig(backgroundFallback.providerId, backgroundFallback.model)}
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                   title={t('configureModel')}
                 >
@@ -1129,12 +1078,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {routeLightPrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            routeLightPrimary.providerId,
-                            routeLightPrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(routeLightPrimary.providerId, routeLightPrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >
@@ -1189,12 +1133,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {routeReasoningPrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            routeReasoningPrimary.providerId,
-                            routeReasoningPrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(routeReasoningPrimary.providerId, routeReasoningPrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >
@@ -1272,12 +1211,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {codePrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            codePrimary.providerId,
-                            codePrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(codePrimary.providerId, codePrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >
@@ -1323,12 +1257,7 @@ const DefaultModelSection = memo(() => {
                     </div>
                     {longDocPrimary && (
                       <button
-                        onClick={() =>
-                          openModelConfig(
-                            longDocPrimary.providerId,
-                            longDocPrimary.model,
-                          )
-                        }
+                        onClick={() => openModelConfig(longDocPrimary.providerId, longDocPrimary.model)}
                         className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
                         title={t('configureModel')}
                       >

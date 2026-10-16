@@ -3,10 +3,11 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import en from '../../../../../../../locales/en.json';
-import zh from '../../../../../../../locales/zh.json';
+import en from '../../../../../locales/en.json';
+import zh from '../../../../../locales/zh.json';
 
 const executeReindex = vi.hoisted(() => vi.fn());
+const checkOrphanCollections = vi.hoisted(() => vi.fn());
 
 // The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
 vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('next-intl')>());
@@ -18,12 +19,12 @@ vi.mock('@/services/memory/reindex', () => ({
 }));
 
 import useRetrievalStore from '@/store/useRetrievalStore';
-import MemoryMigrationNotice from '../MemoryMigrationNotice';
+import MemoryMigrationNotice from '../settings/MemoryMigrationNotice';
 
-function renderNotice(locale: 'en' | 'zh' = 'en') {
+function renderNotice(locale: 'en' | 'zh' = 'en', className?: string) {
   return render(
     <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : zh}>
-      <MemoryMigrationNotice />
+      <MemoryMigrationNotice className={className} />
     </NextIntlClientProvider>,
   );
 }
@@ -31,6 +32,7 @@ function renderNotice(locale: 'en' | 'zh' = 'en') {
 describe('MemoryMigrationNotice', () => {
   beforeEach(() => {
     executeReindex.mockReset();
+    checkOrphanCollections.mockReset().mockResolvedValue(undefined);
     useRetrievalStore.setState({
       orphanCount: 0,
       orphanOldModels: [],
@@ -38,10 +40,17 @@ describe('MemoryMigrationNotice', () => {
       reindexProgress: { done: 0, total: 0 },
       reindexResult: null,
       executeReindex,
+      checkOrphanCollections,
     });
   });
 
   afterEach(cleanup);
+
+  it('reads the leftover memories itself when it appears', () => {
+    renderNotice();
+
+    expect(checkOrphanCollections).toHaveBeenCalledTimes(1);
+  });
 
   it('renders nothing while there is nothing to migrate', () => {
     const { container } = renderNotice();
@@ -53,10 +62,19 @@ describe('MemoryMigrationNotice', () => {
     useRetrievalStore.setState({ orphanCount: 12 });
     renderNotice();
 
-    expect(screen.getByText('12 memories from a previous model need migration')).toBeInTheDocument();
+    expect(
+      screen.getByText('12 memories are not used in replies until they are migrated to the new embedding model'),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Migrate' }));
 
     expect(executeReindex).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the host page shape the notice', () => {
+    useRetrievalStore.setState({ orphanCount: 1 });
+    renderNotice('en', 'max-w-4xl');
+
+    expect(screen.getByText(/1 memory is not used in replies/).closest('.max-w-4xl')).not.toBeNull();
   });
 
   it('dismisses the reminder', () => {

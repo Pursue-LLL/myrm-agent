@@ -15887,7 +15887,7 @@
         "embeddingModel": "エンベディングモデル",
         "embeddingModelDescription": "ナレッジベース、メモリ、ウェブ検索などのセマンティック検索用のテキストベクトル化モデル",
         "dismiss": "閉じる",
-        "orphanWarning": "以前のモデルの {count} 件のメモリを新しいモデルに移行する必要があります",
+        "orphanWarning": "{count} 件のメモリが新しいエンベディングモデルに未移行です。移行するまで回答には使われません",
         "reindex": "移行",
         "reindexing": "移行中...",
         "reindexProgress": "メモリを移行中... {done} / {total}",

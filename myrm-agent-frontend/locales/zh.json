@@ -16563,7 +16563,7 @@
         "embeddingModel": "嵌入模型",
         "embeddingModelDescription": "文本向量化模型，用于支持知识库、记忆、网络搜索等能力的语义搜索",
         "dismiss": "忽略",
-        "orphanWarning": "检测到 {count} 条旧记忆需要迁移到新模型",
+        "orphanWarning": "有 {count} 条记忆尚未迁移到新的嵌入模型，迁移前不会用于回答",
         "reindex": "迁移",
         "reindexing": "迁移中...",
         "reindexProgress": "正在迁移记忆... {done} / {total}",

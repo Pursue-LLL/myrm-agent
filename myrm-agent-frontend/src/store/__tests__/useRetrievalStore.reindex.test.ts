@@ -67,6 +67,29 @@ describe('memory migration after an embedding model switch', () => {
     expect(useRetrievalStore.getState().orphanOldModels).toEqual(['a', 'b']);
   });
 
+  it('does not ask for an estimate while a run is in flight', async () => {
+    useRetrievalStore.setState({ reindexStatus: 'running' });
+
+    await useRetrievalStore.getState().checkOrphanCollections();
+
+    expect(estimateMock).not.toHaveBeenCalled();
+    expect(useRetrievalStore.getState().orphanCount).toBe(12);
+  });
+
+  it('drops an estimate that overlapped a run, because the run reports the real remainder', async () => {
+    let resolveEstimate: (value: unknown) => void = () => {};
+    estimateMock.mockReturnValueOnce(new Promise((resolve) => (resolveEstimate = resolve)));
+    startMock.mockResolvedValueOnce(finished(12, 0, 0));
+
+    const check = useRetrievalStore.getState().checkOrphanCollections();
+    await runToEnd();
+    resolveEstimate({ total_memories: 12, orphan_collections: [{ old_model_suffix: 'old-model' }] });
+    await check;
+
+    expect(useRetrievalStore.getState().orphanCount).toBe(0);
+    expect(useRetrievalStore.getState().reindexResult).toEqual({ migrated: 12, skipped: 0, failed: 0 });
+  });
+
   it('follows the background run to the end and clears the reminder when every memory moved', async () => {
     startMock.mockResolvedValueOnce(status({ done: 0, total: 12 }));
     statusMock.mockResolvedValueOnce(status({ done: 5, total: 12 })).mockResolvedValueOnce(finished(10, 2, 0));
