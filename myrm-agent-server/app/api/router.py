@@ -26,7 +26,6 @@ from app.api.agents.agent_teams_router import router as agent_teams_router
 from app.api.agents.autonomous_loop_router import router as autonomous_loop_router
 from app.api.agents.bot_forge_router import router as bot_forge_router
 from app.api.agents.bot_mode_router import router as bot_mode_router
-from app.api.agents.capability_dispatch_router import router as capability_dispatch_router
 from app.api.agents.clean_code_pipeline_router import router as clean_code_pipeline_router
 from app.api.agents.cli_passthrough_router import router as cli_passthrough_router
 from app.api.agents.cloud_edge_relay_router import router as cloud_edge_relay_router
@@ -39,6 +38,7 @@ from app.api.agents.cross_surface_bridge_router import router as cross_surface_b
 from app.api.agents.dag_orchestrator_router import router as dag_orchestrator_router
 from app.api.agents.debate_synthesis_router import router as debate_synthesis_router
 from app.api.agents.debate_workroom_router import router as debate_workroom_router
+from app.api.agents.delegation_transcript_router import router as delegation_transcript_router
 from app.api.agents.device_mesh_router import router as device_mesh_router
 from app.api.agents.diamond_graph_router import router as diamond_graph_router
 from app.api.agents.durable_dispatch_router import router as durable_dispatch_router
@@ -63,7 +63,6 @@ from app.api.agents.mixed_fleet_router import router as mixed_fleet_router
 from app.api.agents.multi_bot_focus_router import router as multi_bot_focus_router
 from app.api.agents.multi_lane_router import router as multi_lane_router
 from app.api.agents.openapi_services import router as openapi_services_router
-from app.api.agents.delegation_transcript_router import router as delegation_transcript_router
 from app.api.agents.orthogonal_reviewer_router import router as orthogonal_reviewer_router
 from app.api.agents.pipeline_integrity_router import router as pipeline_integrity_router
 from app.api.agents.profile_audit import router as profile_audit_router
@@ -353,7 +352,6 @@ api_router.include_router(orthogonal_reviewer_router)
 api_router.include_router(delegation_transcript_router)
 api_router.include_router(agent_assembler_router)
 api_router.include_router(agent_avatar_router)
-api_router.include_router(capability_dispatch_router)
 api_router.include_router(agent_multiplexer_router)
 api_router.include_router(topology_pruning_router)
 api_router.include_router(memory_hub_router)

@@ -29,7 +29,6 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `agent_assembler_router.py` | 路由 | 智能体可视化装配器 REST API：提供积木依赖体检 `/assembler/validate`、微沙箱即时演练 `/assembler/dry-run` 与 6 大能力积木池 `/assembler/block-catalog`。 | ✅ |
 | `agent_avatar_router.py` | 路由 | 智能体头像生成与锁定 REST API：提供纯确定性多风格 SVG 种子生成 `/avatar/generate-svg`、AI 生图代理 `/avatar/generate-ai` 与智能体头像锁定持久化 `/{agent_id}/avatar`。 | ✅ |
 | `memory_hub_router.py` | 路由 | 智能体记忆资产中心与细粒度 ACL 授权 REST API：提供四大类资产检索/创建 `/memory-hub/assets`、ACL 策略变更 `/memory-hub/assets/{id}/acl`、以及智能体 4 槽位装备装配与卸载 `/agents/{agent_id}/equipment`。 | ✅ |
-| `capability_dispatch_router.py` | 路由 | 智能体能力目录与智能专职派发 REST API：提供能力的直达/插件发现 `/capabilities` 与防盲目误派防御评估 `/dispatch-fit`。 | ✅ |
 | `agent_multiplexer_router.py` | 路由 | 智能体会话多路复用器 REST API：提供多并发持久会话列表 `/multiplexer/sessions`、互视日志快照 `/sessions/{id}/inspect` 与指导注入 `/sessions/{id}/instruct`。 | ✅ |
 | `topology_pruning_router.py` | 路由 | 模型能力感知拓扑修剪 REST API：提供任务自适应拓扑修剪评估 `/topology/prune-evaluation` 与模型阶梯目录查询 `/topology/tiers`。 | ✅ |
 | `agent_handoff_router.py` | 路由 | 跨智能体移交与对话内任务委派 REST API：提供对话内委派卡片创建 `/handoff/in-chat`、五阶段生命周期推进 `/handoff/in-chat/{id}/advance-stage`、审批闸门与行内 CTA `/handoff/in-chat/{id}/action`、以及底层备忘录管理。 | ✅ |
