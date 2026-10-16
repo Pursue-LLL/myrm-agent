@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - next-intl::useTranslations (POS: i18n support)
+ * - @/services/system::systemService (POS: storage optimize preflight and execute APIs)
+ * - @/lib/deploy-mode::isTauriRuntime, getDeployMode (POS: whether the data directory can be moved from here)
+ *
+ * [OUTPUT]
+ * - StorageCard: Settings card for where the instance data lives and how full its disk is: data directory
+ *   migration with live progress, disk usage, a low-space warning and the database optimize panel (preflight,
+ *   deep or light mode, result). The optimize flow explains its failures and outcomes in the user's language only.
+ *
+ * [POS]
+ * Settings -> System -> Storage location. Per-category usage of the instance data is the storage governance card.
+ */
+
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Database, Sparkles, CheckCircle2, AlertCircle, RefreshCw, Layers, ChevronDown, ChevronUp } from 'lucide-react';
@@ -151,8 +166,8 @@ const StorageCard = memo<{
       const data = await systemService.getStorageOptimizePreflight();
       setPreflight(data);
       setSelectedMode(data.recommended_mode);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('storageOptimizeFailed'));
+    } catch {
+      toast.error(t('storageOptimizeFailed'));
     } finally {
       setIsPreflighting(false);
     }
@@ -179,8 +194,8 @@ const StorageCard = memo<{
         toast.info(t('storageOptimizeNoReclaim'));
       }
       await fetchStorageInfo();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('storageOptimizeFailed'));
+    } catch {
+      toast.error(t('storageOptimizeFailed'));
     } finally {
       setIsOptimizing(false);
     }
@@ -303,7 +318,7 @@ const StorageCard = memo<{
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                      <span>{showOptimizePanel ? t('storageOptimize') : t('storageOptimize')}</span>
+                      <span>{t('storageOptimize')}</span>
                       {showOptimizePanel ? (
                         <ChevronUp className="w-3.5 h-3.5" />
                       ) : (
@@ -346,11 +361,11 @@ const StorageCard = memo<{
                             </div>
                           </div>
 
-                          {/* 活跃后台任务安全拦截提示 */}
+                          {/* The only way a preflight turns unsafe is running background jobs. */}
                           {!preflight.is_safe_to_optimize && (
                             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs text-amber-300">
                               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                              <span>{preflight.reason || t('storageOptimizeActiveJobsWarning')}</span>
+                              <span>{t('storageOptimizeActiveJobsWarning')}</span>
                             </div>
                           )}
 
@@ -432,16 +447,13 @@ const StorageCard = memo<{
                           {optimizeResult && (
                             <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2.5 text-xs text-emerald-300">
                               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
-                              <div className="space-y-0.5">
-                                <div className="font-bold">
-                                  {optimizeResult.reclaimed_bytes > 0
-                                    ? t('storageOptimizeSuccess', {
-                                        reclaimed: formatBytes(optimizeResult.reclaimed_bytes),
-                                        percentage: optimizeResult.reclaimed_percentage,
-                                      })
-                                    : t('storageOptimizeNoReclaim')}
-                                </div>
-                                <div className="text-[11px] opacity-80">{optimizeResult.message}</div>
+                              <div className="font-bold">
+                                {optimizeResult.reclaimed_bytes > 0
+                                  ? t('storageOptimizeSuccess', {
+                                      reclaimed: formatBytes(optimizeResult.reclaimed_bytes),
+                                      percentage: optimizeResult.reclaimed_percentage,
+                                    })
+                                  : t('storageOptimizeNoReclaim')}
                               </div>
                             </div>
                           )}
