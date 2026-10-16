@@ -5203,6 +5203,7 @@ except Exception:
 8. 自动阻塞的原因仍以英文原句外发，这是同一类泄漏，本条没有处理：`Auto-blocked after N consecutive failures (last: crashed)` 或 `(last: timed_out)`（`dispatcher_failure.py:196-198`，`last` 只会是这两个固定词，不含异常文本）与 `Auto-blocked after zombie reclaim (N failures)`（`dispatcher_zombie.py:172`）带数字，不在 `kanban_blocked_reasons.json` 的整句表里，所以 toast、系统通知、IM 与 `/btw` 都原样显示，含 `crashed`、`timed_out`、`zombie reclaim` 这类内部词。要处理得让这两句可带参数地翻译，或由 harness 给稳定的原因码。
 9. 外发的生命周期 webhook 订阅了 `kanban_task_updated` 的接收方，对失败任务不再收到 `detail`：`lifecycle_webhook_service.py:126-131` 把 `event.data` 原样转发，载荷字段没有文档，也没有契约测试。取舍：异常原文含内部主机名与 SQL，发给第三方地址的风险与发给终端用户相当；需要原因的接收方应以看板运行记录为准。
 10. 评估后放弃的方案：失败时回退到 `result`（会报旧结果）；用字符串规则从异常文本里「净化」出能给用户看的部分（无法可靠区分）；toast 直接定位到任务卡（要新增看板抽屉的路由状态，改动面大，收益有限）。
+11. 更正（`BUG-AGENT-2026-10-16-017`）：修复 1 让阻塞通知读 `blocked_reason`，默认它就是当前这次阻塞的原因，这个前提不成立：卡片被手动移出阻塞列后，原因、类型与到点时间仍留在它身上（`move_task` 只在目标为就绪时清），之后再手动阻塞且没写原因，会把旧原因当作这次的通知出去。`-017` 改为移出阻塞列时一并清掉，并清理历史行。
 
 ### 踩坑经验
 
@@ -5307,3 +5308,52 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 1. 「统一处理」的验收要列出所有入口逐个点到：同一个 409 有审批、澄清、计划确认三类卡片，只改了前两类的处理却在日志里写成全部统一。
 2. 断言错误文案的测试管不住用户看到的结局；对「用户会看到什么」的承诺，要断言卡片的最终状态。
+
+## BUG-AGENT-2026-10-16-017: 看板卡片被手动移出阻塞列后仍保留阻塞原因、类型与到点时间：别的列里的卡片显示红色原因与倒计时，再次手动阻塞时还会把旧原因当新原因通知
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（复核 `BUG-AGENT-2026-10-16-014`：追问「阻塞通知读 `blocked_reason`，它是否总属于当前这次阻塞」，用真实的 `move_task` 复现） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（没有数据丢失，调度不受影响：调度器的查询都带 `status == BLOCKED`，`sqlalchemy_store.py:831,844`；错的是卡片上的显示与再次阻塞时的通知文字） |
+| 影响范围 | server：`app/services/kanban/move_orchestrator.py`、`event_publisher.py`（只改 `_terminal_result` 的说明）、`app/database/migrations.py`（末尾新增一条）、`app/services/kanban/_ARCH.md`、新增 `tests/services/kanban/test_move_task_block_fields.py`、`tests/api/kanban/test_move_block_details_api.py`、`tests/database/test_kanban_block_fields_migration.py`；frontend、harness、提示词、表结构都没有改 |
+| 出现次数 | 1（读码并用真实 `move_task` 复现；没有生产数据，本机库里没有看板，不知道线上频率） |
+| 关联 | 更正 `BUG-AGENT-2026-10-16-014` 里「每种结果只读自己的字段就够」的前提（见其局限 11）；本地提交，未 push |
+
+### 现象
+
+1. 被阻塞的卡片（人工、定时或外部）被手动移到积压、已完成、失败或归档时，`blocked_reason`、`block_kind`、`scheduled_until` 仍留在它身上：`move_task` 只在目标是就绪时清它们。卡片 `KanbanTaskCard.tsx:292` 不看状态就渲染 `blocked_reason`，`:300` 不看状态就渲染定时倒计时，所以别的列里的卡片显示一条红色原因，定时的还带倒计时。
+2. 这样的卡片之后再被手动移入阻塞列且没写原因时，旧原因被当作这次的原因：`moved` 事件的 `detail` 取到旧原因，toast、系统通知、IM 与 `/btw` 把它报给用户。
+
+### 根因
+
+1. 「阻塞的原因、类型与到点时间只属于一次阻塞」没有在每个出口保证：转入阻塞时写入，其它出口都会一并清（`dispatcher_zombie.py:117`、`_orchestrator_tools.py:289-291,319`、`dependency_ops.py:92`），只有 `move_task` 的手动移动漏了就绪以外的所有目标。
+2. `-014` 只核对了「阻塞通知读的是 `blocked_reason` 自己」，没有核对这个字段的生命周期：字段属于阻塞，不等于它就是当前这次阻塞的。
+
+### 修复
+
+1. `move_task`：原状态是阻塞、目标不是阻塞时，一并清掉三个字段；就绪分支原先无条件的清除并入这条规则，只保留「阻塞移回就绪时重置连续失败数与 `error`」。写这三个字段的地方都同时把状态设成阻塞（harness `dispatcher.py:617`、`_worker_tools.py:183`、`dispatcher_failure.py`、`dispatcher_zombie.py`，server `runner.py:409,426`、`move_orchestrator.py`），所以非阻塞的任务不会再带着它们。阻塞到阻塞的改期不动：保留原因，除非给了新原因。
+2. `migrations.py` 末尾新增一条 `UPDATE kanban_tasks SET blocked_reason = NULL, block_kind = NULL, scheduled_until = NULL WHERE status != 'blocked' AND (任一字段非空)`，清掉已经带着残留的历史行；它由 `_schema_migrations` 记录，每个库只跑一次。
+3. 文档：`kanban/_ARCH.md` 的 `move_orchestrator.py` 行、该文件的模块说明、`_terminal_result` 的说明同步成「阻塞的原因只在阻塞期间存在」。
+
+### 验证
+
+1. 先红后绿：先写测试，在未修复的代码上 `test_move_task_block_fields.py` 18 例中 13 例失败（积压、已完成、失败、归档四个目标 × 三种阻塞类型共 12 例，加上「再次阻塞不报旧原因」1 例），5 例通过（就绪 3 例，带新原因再阻塞，改期保留原因）；修复后 18 例全部通过。
+2. 变异（进程内禁用修复，不改文件）：该文件 16 例失败 2 例通过；`test_move_block_details_api.py` 7 例中 6 例失败 1 例通过（该变异连同就绪分支里的清除一起去掉，所以就绪也变红）。迁移 SQL 的两种变异（把 `!=` 改成 `=`、只清原因不清类型与时间）都被 `test_kanban_block_fields_migration.py` 杀掉。
+3. API 层 7 例走真实 HTTP 路由与真实 SQLite，对移动响应、单个任务读取、看板任务列表三处都断言三个字段为空，并覆盖再次阻塞与改期。
+4. 迁移 2 例按真实升级流程：先让库记录好此前的所有迁移，播种六张任务（移出阻塞后残留的、只留类型与时间的、只留原因的、干净的、仍在阻塞的人工与定时的），再跑这条迁移：非阻塞的清空，仍在阻塞的原样；重复执行不变。
+5. 回归：`tests/services/kanban` 与 `tests/database` 444 例中 443 通过；API、频道命令、`/btw`、集成与 `tests/core/kanban` 一组 693 通过（含新增的 API 层 7 例）、1 跳过、1 失败（失败项见局限 4）；`ruff check`、`ruff format --check` 对触碰的文件通过，`mypy` 对触碰的文件没有报错。
+
+### 局限
+
+1. 没有在真实浏览器里看卡片，也没有启动真实的服务进程做一遍：本次没有改前端，卡片显示由它读到的字段决定，字段已由 API 层测试确认为空，但渲染本身没有再验证；主机负载 30 以上，上一条里同样的尝试就停在页面加载。
+2. 不知道这个缺陷在线上多常发生，没有数据。
+3. 迁移只在升级时跑一次：之后若别处又写出带阻塞字段的非阻塞行，它不会再清；防线是写入处的规则与上面的测试。
+4. 回归里的失败与本条无关：`test_extract_enabled_empty_pdf_falls_back_to_reference`（PDF 提取，`-014` 局限 5 记过）；`test_move_with_result_and_metadata`（他人在途的交接功能：工作区里未提交的 `move_orchestrator.py` 另一处改动往交接元数据里加了 `summary` 与 `timestamp`，该用例的断言还没跟上，我的提交只取了自己的部分）。`tests/architecture` 另有 8 例失败：我展开看了文本入口闸门与 harness 深层导入两组，列表里没有看板文件，其余几例（接口前缀、路由调用方、三个域目录）没有逐个展开。
+5. 评估后放弃的方案：进入阻塞时一律先清空再写（会破坏阻塞到阻塞的改期，原因会丢）；给每个出口各写一份清除（已经有的出口不动，只补漏的这一处）。
+
+### 踩坑经验
+
+1. 「每种结果读自己的字段」之后要追问这个字段的生命周期：谁写、谁清、在哪些状态下仍然有效。`-014` 查了出处没查生命周期，才漏了这一条。
+2. 同一组字段有多个写入与清除出口时，逐个核对出口是否一并处理；一个字段清了、另一个没清，比整组都漏更难发现。
+3. 在后台起的长回归会随工具会话被结束（输出文件始终为空）：长回归改成前台、按目录分块、加并行 worker。

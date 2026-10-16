@@ -12,7 +12,7 @@
 - move_task, reclaim_task, cancel_task_execution, cleanup_task_worktree, merge_task_worktree (approve/reject live in review_ops)
 
 [POS]
-Task state transition orchestration: move, reclaim, cancel with dependency and event handling. COMPLETED triggers worktree merge back to the task branch; ARCHIVED triggers worktree cleanup. Both run in the background (git cost grows with repository size, so the request must not wait for it) — the same way the dispatcher merges tasks it completes. Dependents of a merged task are released only after the merge, because they branch off the repository when they start. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops).
+Task state transition orchestration: move, reclaim, cancel with dependency and event handling. COMPLETED triggers worktree merge back to the task branch; ARCHIVED triggers worktree cleanup. Both run in the background (git cost grows with repository size, so the request must not wait for it) — the same way the dispatcher merges tasks it completes. Dependents of a merged task are released only after the merge, because they branch off the repository when they start. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops). A block's reason, kind and wake-up time exist only while the task is blocked: a move into the blocked column sets them, a move out of it (to any column) clears all three, and a move from blocked to blocked keeps the reason unless a new one is given.
 """
 
 from __future__ import annotations
@@ -157,10 +157,12 @@ async def move_task(
         task.scheduled_until = scheduled_until
         if blocked_reason:
             task.blocked_reason = blocked_reason
-    if target_status == TaskStatus.READY:
+    elif old_status == TaskStatus.BLOCKED:
+        # The reason, kind and wake-up time describe one block; once the card leaves the column none of them holds.
         task.blocked_reason = None
         task.block_kind = None
         task.scheduled_until = None
+    if target_status == TaskStatus.READY:
         if old_status == TaskStatus.BLOCKED:
             task.consecutive_failures = 0
             task.error = ""

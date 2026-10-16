@@ -669,6 +669,10 @@ MIGRATION_STATEMENTS: list[str] = [
     WHERE security_overrides LIKE '%"code_interpreter_tool"%'""",
     """UPDATE security_profiles SET config_json = REPLACE(config_json, '"code_interpreter_tool"', '"code_interpreter"')
     WHERE config_json LIKE '%"code_interpreter_tool"%'""",
+    # The reason, kind and wake-up time of a block exist only while the task is blocked: clear them from a task that
+    # sits in another column, where they would show a reason and a countdown for a block it no longer has.
+    """UPDATE kanban_tasks SET blocked_reason = NULL, block_kind = NULL, scheduled_until = NULL
+    WHERE status != 'blocked' AND (blocked_reason IS NOT NULL OR block_kind IS NOT NULL OR scheduled_until IS NOT NULL)""",
 ]
 
 # 创建索引的SQL语句列表
