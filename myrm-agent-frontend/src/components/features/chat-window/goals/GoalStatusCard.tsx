@@ -121,10 +121,11 @@ export function GoalStatusCard() {
     }
   };
 
+  /** Resolves whether the server took the action; a held note or a failure leaves the goal as it was. */
   const handleAction = async (
     action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait',
     note?: string,
-  ) => {
+  ): Promise<boolean> => {
     try {
       const payload: { action: string; note?: string } = { action };
       if (note?.trim()) {
@@ -136,8 +137,10 @@ export function GoalStatusCard() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
-        return;
+        if (!(await riskHeldErrorFromResponse(res))) {
+          toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
+        }
+        return false;
       }
       toast.success(t(`goalActionSuccess_${action}` as 'goalActionSuccess_pause'));
 
@@ -149,10 +152,14 @@ export function GoalStatusCard() {
         cancel: 'cancelled',
         approve: 'complete',
       };
-      useGoalStore.getState().updateGoalStatus(statusMap[action] ?? goal.status, note?.trim() || undefined);
+      // Only a pause note is a status reason; the note of a rejected review is the agent's next message.
+      const reason = action === 'pause' ? note?.trim() || undefined : undefined;
+      useGoalStore.getState().updateGoalStatus(statusMap[action] ?? goal.status, reason);
+      return true;
     } catch (e) {
       console.error(`Network error: failed to ${action} goal`, e);
       toast.error(t(`goalActionFailed_${action}` as 'goalActionFailed_pause'));
+      return false;
     }
   };
 

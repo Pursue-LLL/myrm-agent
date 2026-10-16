@@ -35,7 +35,10 @@ interface GoalStatusExpandedProps {
   editedObjective: string;
   onEditedObjectiveChange: (value: string) => void;
   isSavingObjective: boolean;
-  onAction: (action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait', note?: string) => void;
+  onAction: (
+    action: 'pause' | 'resume' | 'cancel' | 'approve' | 'reject' | 'unwait',
+    note?: string,
+  ) => Promise<boolean>;
   onAddSubgoal: (text: string) => Promise<boolean>;
   onRemoveSubgoal: (index: number) => void;
   t: ReturnType<typeof useTranslations>;

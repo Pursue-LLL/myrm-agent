@@ -10,11 +10,12 @@ import useChatStore from '@/store/useChatStore';
 import { AlertIcon, CheckCircleIcon } from './goal-icons';
 
 interface GoalHumanReviewActionProps {
-  onAction: (action: 'approve' | 'reject', note?: string) => void;
+  /** Resolves whether the server took the action. */
+  onAction: (action: 'approve' | 'reject', note?: string) => Promise<boolean>;
   t: ReturnType<typeof useTranslations>;
 }
 
-/** The store explains a refused send itself; only a rejected send (the agent is still busy, or it failed) is reported here. */
+/** The store explains a send it refused itself; only a rejected send (the agent is still busy, or it failed) is reported here. */
 function notifyFeedbackNotSent(error: unknown): void {
   if (error instanceof Error && error.name === 'AgentBusyError') {
     showI18nToast('chat.sendBlocked.title', undefined, {
@@ -32,13 +33,39 @@ function notifyFeedbackNotSent(error: unknown): void {
   });
 }
 
+/** The review panel is gone once the goal is back at work, so a feedback the agent did not take goes to the composer. */
+function returnToComposer(feedback: string): void {
+  const chat = useChatStore.getState();
+  if (!chat.inputMessage.trim()) {
+    chat.setInputMessage(feedback);
+  }
+}
+
+/** Fire and forget: the call settles when the whole turn has ended, long after the panel is gone. */
+function sendFeedback(feedback: string): void {
+  void useChatStore
+    .getState()
+    .sendMessage(feedback)
+    .then(
+      (sent) => {
+        if (!sent) {
+          returnToComposer(feedback);
+        }
+      },
+      (error: unknown) => {
+        notifyFeedbackNotSent(error);
+        returnToComposer(feedback);
+      },
+    );
+}
+
 export function GoalHumanReviewAction({ onAction, t }: GoalHumanReviewActionProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const sending = useRef(false);
 
-  // The goal leaves review, and the feedback leaves the box, only once the agent took the message: a send that was
-  // held (risk rule), refused or failed keeps the goal waiting for a decision and the text there to be edited.
-  // One send at a time: a second submit while the request is out would send the same feedback twice.
+  // The goal goes back to work before the feedback is sent, since the agent reads only a goal that is active. The
+  // server holds the feedback when a risk rule holds it, and the goal then stays in review with the text in the box
+  // to be edited. One reject at a time: a second submit while the request is out would send the feedback twice.
   const rejectWithFeedback = async () => {
     const input = inputRef.current;
     if (!input || sending.current) {
@@ -46,17 +73,16 @@ export function GoalHumanReviewAction({ onAction, t }: GoalHumanReviewActionProp
     }
     sending.current = true;
     const typed = input.value;
+    const feedback = typed.trim() ? typed : t('resetRetriesMessage');
     try {
-      const dispatched = await useChatStore.getState().sendMessage(typed.trim() ? typed : t('resetRetriesMessage'));
-      if (dispatched) {
-        onAction('reject');
-        // Text typed while the request was out is not the one that was taken, so it stays.
-        if (input.value === typed) {
-          input.value = '';
-        }
+      if (!(await onAction('reject', feedback))) {
+        return;
       }
-    } catch (error) {
-      notifyFeedbackNotSent(error);
+      // Text typed while the request was out is not the one that was taken, so it stays.
+      if (input.value === typed) {
+        input.value = '';
+      }
+      sendFeedback(feedback);
     } finally {
       sending.current = false;
     }
@@ -99,7 +125,7 @@ export function GoalHumanReviewAction({ onAction, t }: GoalHumanReviewActionProp
           className="w-full bg-green-500 hover:bg-green-600 text-white"
           onClick={(e) => {
             e.stopPropagation();
-            onAction('approve');
+            void onAction('approve');
           }}
         >
           <CheckCircleIcon className="h-4 w-4 mr-1" />

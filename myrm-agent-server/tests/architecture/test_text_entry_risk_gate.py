@@ -54,6 +54,7 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("api/goals/constraints.py", "update_goal_constraints", "reject_if_risky"),
     ("api/goals/constraints.py", "update_goal_objective", "reject_if_risky"),
     ("api/goals/router.py", "add_goal_subgoal", "reject_if_risky"),
+    ("api/goals/router.py", "update_goal_status", "reject_if_risky"),
     ("api/goals/router.py", "draft_goal", "reject_if_risky"),
     ("api/agents/agent.py", "_reject_risky_profile_text", "reject_if_risky"),
     ("api/agents/agent.py", "create_agent", "_reject_risky_profile_text"),

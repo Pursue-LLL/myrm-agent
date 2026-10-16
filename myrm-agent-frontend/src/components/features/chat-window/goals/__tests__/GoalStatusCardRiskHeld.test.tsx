@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import en from '../../../../../../locales/en.json';
 
-const { fetchMock, sonnerToast, riskToast, stableT } = vi.hoisted(() => ({
+const { fetchMock, sendMessage, sonnerToast, riskToast, stableT } = vi.hoisted(() => ({
   stableT: (key: string) => key,
   fetchMock: vi.fn(),
+  sendMessage: vi.fn<(input: string) => Promise<boolean>>(),
   sonnerToast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
   riskToast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
 }));
@@ -19,13 +20,16 @@ vi.mock('@/services/notification', () => ({
   notificationService: { permission: 'default', requestPermission: vi.fn() },
 }));
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (state: { chatId: string }) => unknown) => selector({ chatId: 'chat-1' }),
+  default: Object.assign((selector: (state: { chatId: string }) => unknown) => selector({ chatId: 'chat-1' }), {
+    getState: () => ({ inputMessage: '', sendMessage, setInputMessage: vi.fn() }),
+  }),
 }));
 
 import { setGlobalTranslator } from '@/services/i18nToastService';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { normalizeGoalState } from '@/store/chat/messageStream/streamHelpers';
 import { GoalStatusCard } from '../GoalStatusCard';
+import type { GoalStatus } from '../goalStatusTypes';
 
 type Messages = Record<string, unknown>;
 
@@ -58,12 +62,12 @@ function answer(method: string, urlEnd: string, reply: () => Response): void {
   );
 }
 
-async function openCard(): Promise<void> {
+async function openCard(status: GoalStatus = 'active'): Promise<void> {
   useGoalStore.setState({
     activeGoal: normalizeGoalState({
       goal_id: 'g1',
       objective: 'Ship it',
-      status: 'active',
+      status,
       tokens_used: 0,
       time_used_seconds: 0,
     }),
@@ -84,6 +88,7 @@ function saveObjective(value: string): HTMLElement {
 describe('GoalStatusCard when the server holds the text', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sendMessage.mockResolvedValue(true);
     setGlobalTranslator(translatorFor(en as Messages));
   });
 
@@ -148,6 +153,38 @@ describe('GoalStatusCard when the server holds the text', () => {
       ([url, init]) => String(url).endsWith('/goals/chat-1/subgoals') && (init as RequestInit)?.method === 'POST',
     );
     expect(added).toHaveLength(1);
+  });
+
+  it('keeps a held review feedback in the box with the goal in review and sends nothing to the agent', async () => {
+    answer('POST', '/goals/chat-1/status', () => jsonResponse(400, refusal));
+    await openCard('needs_human_review');
+
+    const input = screen.getByPlaceholderText('feedbackPlaceholder');
+    fireEvent.change(input, { target: { value: 'use key sk-AAAAAABBBBBBCCCCCCDDDD-0' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(riskToast.error).toHaveBeenCalledTimes(1));
+    expect(sonnerToast.error).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(input).toHaveValue('use key sk-AAAAAABBBBBBCCCCCCDDDD-0');
+    expect(useGoalStore.getState().activeGoal?.status).toBe('needs_human_review');
+  });
+
+  it('sends the goal back to work first and then the review feedback to the agent', async () => {
+    answer('POST', '/goals/chat-1/status', () => jsonResponse(200, {}));
+    await openCard('needs_human_review');
+
+    const input = screen.getByPlaceholderText('feedbackPlaceholder');
+    fireEvent.change(input, { target: { value: 'use the staging data' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledWith('use the staging data'));
+    expect(useGoalStore.getState().activeGoal?.status).toBe('active');
+    expect(useGoalStore.getState().activeGoal?.reason).toBeUndefined();
+    const posted = fetchMock.mock.calls
+      .filter(([url, init]) => String(url).endsWith('/goals/chat-1/status') && (init as RequestInit)?.method === 'POST')
+      .map(([, init]) => JSON.parse(String((init as RequestInit).body)));
+    expect(posted).toEqual([{ action: 'reject', note: 'use the staging data' }]);
   });
 
   it('still reports any other sub-goal failure with its own toast', async () => {

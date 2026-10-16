@@ -117,7 +117,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/chrome_skill_hooks_observe.py` | 辅助 | 技能钩子回合留下的证据：等用户消息/助手回复落库、`completed_assistant_replies` 列出服务端标记为 complete 的助手回复、读取钩子写出的文件与后端日志，`assert_no_hook_raised` / `assert_audit_turn_governed` |
 | `api/agent/test_sse_heartbeat_filter.py` | 模块 | agent 测试客户端（同步 `TestClient` 与异步 `httpx.AsyncClient`）对行解析器隐藏 SSE keep-alive 帧（帧由真实 `ResilientStreamBuffer` 产出，格式变更在此报红，避免 `data: null` 解析洞在流测试里重开） |
 | `api/agent/test_steer_risk_gate.py` | 模块 | steer / redirect 接口的风险闸门：命中规则的指令返回 `success:false` 且不送达回合，干净指令照常送达，对 Agent 提问的回复同样过闸 |
-| `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案、子目标 `text`、草拟 `objective` 与约束的风险闸门（自带 `client` 与规则夹具）：命中规则的更新、写入与草拟返回 400（`risk_held`，带规则列表）且不落库，干净文案照常保存 |
+| `api/goals/test_constraints_risk_gate.py` | 模块 | 目标文案、子目标 `text`、草拟 `objective`、约束与复核驳回备注的风险闸门（自带 `client` 与规则夹具）：命中规则的更新、写入与草拟返回 400（`risk_held`，带规则列表）且不落库，被拦的复核驳回让目标留在待复核，干净文案照常保存、干净的驳回把目标送回运行 |
 | `api/test_authoring_risk_gate.py` | 模块 | 智能体档案（创建与更新的 `system_prompt`、`description`、建议提示词、命令绑定指令；更新不带文字时不过闸）、提示词生成与 AI 创建的意图、批量目录的提示词、技能派生的指令的风险闸门（真实处理函数，只注入规则）：拒绝为 400 `risk_held` 且响应里没有原文、库里什么都没存、命中的文字不送达模型或引擎，干净文本照常通过 |
 | `api/agent/test_ai_build.py` | 模块 | AI 创建智能体接口：空意图与未配置模型的拒绝、SSE 流式产出；可用资源目录用真实 `Skill` 对象，只列 `available` 的技能 |
 | `core/cron/adapters/test_inbound_event_dispatch.py` | 模块 | IM 入站消息到事件触发的派发：空白消息跳过、委派给调度器、调度器报错被吞掉且围栏不外泄、非所有者的作业继承围栏；被风控规则拦下的消息不拉起作业且不写命中记录、日志只有规则名而没有原文，干净消息照常派发，筛查失败时不派发 |

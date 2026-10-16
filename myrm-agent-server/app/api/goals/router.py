@@ -230,6 +230,10 @@ async def get_goal_status(session_id: str) -> dict[str, object]:
 @router.post("/{session_id}/status")
 async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) -> dict[str, str]:
     """Update the status of an active goal for a session."""
+    if request.action == "reject":
+        # The note is the feedback the client sends to the agent as soon as the goal is back at work: a note a risk rule
+        # holds keeps the goal in review, so the feedback is not lost to a goal that carries on without it.
+        await reject_if_risky(request.note, session_id=session_id)
     provider = GoalRegistry.get_provider(session_id)
     if not provider:
         from myrm_agent_harness.agent.goals.manager import GoalManager

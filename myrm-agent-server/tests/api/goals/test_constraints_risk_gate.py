@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.api.dependencies import get_optional_llm_for_user
@@ -98,6 +99,35 @@ async def test_clean_subgoal_is_added(client: TestClient, session_id: str) -> No
     assert response.status_code == 200
     goal = await GoalRegistry.get_provider(session_id).get_latest_goal(session_id)
     assert len(goal.subgoals) == 1
+
+
+@pytest.fixture
+async def reviewed_session(session_id: str) -> str:
+    """A session whose goal failed its review and waits for the user to reject or approve it."""
+    provider = GoalRegistry.get_provider(session_id)
+    goal = await provider.get_latest_goal(session_id)
+    await provider.update_status(goal.goal_id, GoalStatus.NEEDS_HUMAN_REVIEW)
+    return session_id
+
+
+async def test_review_feedback_with_a_secret_keeps_the_goal_in_review(client: TestClient, reviewed_session: str) -> None:
+    response = client.post(f"/api/v1/goals/{reviewed_session}/status", json={"action": "reject", "note": f"retry with {SECRET}"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == RISK_HELD_CODE
+    goal = await GoalRegistry.get_provider(reviewed_session).get_latest_goal(reviewed_session)
+    assert goal.status is GoalStatus.NEEDS_HUMAN_REVIEW
+
+
+@pytest.mark.parametrize("body", [{"action": "reject", "note": "use the staging data"}, {"action": "reject"}])
+async def test_review_feedback_without_a_secret_sends_the_goal_back_to_work(
+    client: TestClient, reviewed_session: str, body: dict[str, str]
+) -> None:
+    response = client.post(f"/api/v1/goals/{reviewed_session}/status", json=body)
+
+    assert response.status_code == 200
+    goal = await GoalRegistry.get_provider(reviewed_session).get_latest_goal(reviewed_session)
+    assert goal.status is GoalStatus.ACTIVE
 
 
 def test_draft_request_with_a_secret_never_reaches_the_model(client: TestClient) -> None:
