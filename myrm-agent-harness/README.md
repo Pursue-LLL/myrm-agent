@@ -1,5 +1,9 @@
 # Myrm Agent Harness
 
+> **本仓库已归档，开发已迁入 [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) 的 `myrm-agent-harness/` 目录。**  
+> **This repository is archived. Development continues in [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) under `myrm-agent-harness/`.**  
+> 完整提交历史已原样导入新仓库（`git log` / `git blame` 按文件连续）；PyPI 包名 `myrm-agent-harness` 不变，发版从新仓库的 `harness-v*` tag 触发。
+
 **生产级 Agent 框架** - 基于 LangChain 构建，提供高级技能系统、MCP 集成和生产就绪的沙箱执行。
 
 > **许可**: MIT 开源（见 [LICENSE](LICENSE) 与 `pyproject.toml`）。框架层不与业务逻辑耦合，类似 LangChain 定位，供 `myrm-agent-server` 等业务项目引用。  
@@ -306,7 +310,7 @@ myrm-agent-harness/          # 本仓库根（示意）
 │       ├── core/                    # 框架无关基础层（security, events, hooks, config）
 │       ├── agent/                   # Agent 核心（BaseAgent, SkillAgent, 技能, 中间件, 元工具）
 │       ├── runtime/                 # 单实例守护（checkpoint、context 生命周期、quota、doctor）
-│       ├── infra/                   # 基础设施（文件锁、消息投递、链路追踪）
+│       ├── infra/                   # 基础设施（消息投递持久化、链路追踪）
 │       ├── observability/           # 全局监控与诊断（Prometheus, Diagnostic Protocol）
 │       ├── backends/                # 后端抽象（skills, storage, profiles, secrets）
 │       ├── toolkits/                # 通用工具包（不与 agent/ 耦合，可独立使用）
