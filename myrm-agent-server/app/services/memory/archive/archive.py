@@ -164,7 +164,7 @@ class MemoryArchiveService:
 
     async def _export_conversation(self) -> list[dict[str, object]]:
         # Incognito web chats are the user's private scratch space and stay out of the file. Imported agent transcripts
-        # carry the same flag only to stay out of the sidebar, so they are matched by source and keep exporting.
+        # carry the same flag only to stay out of the sidebar, so they are told apart by source and are exported.
         stmt = (
             select(Chat)
             .options(selectinload(Chat.messages))

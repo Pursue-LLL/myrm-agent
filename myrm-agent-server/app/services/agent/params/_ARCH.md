@@ -81,7 +81,8 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 ## 隐身会话（incognito）
 
-- `converter.py` 在 `incognito_mode` 下把 `enable_wiki` 置为 False，与会话检索、记忆自动提取的隐身归一在同一处完成。Wiki 工具、长回复自动归档、压缩后归档、深度研究入库都以 `params.enable_wiki` 为开关，转换器是隐身「不留痕」的唯一收口点。
+- `converter.py` 在 `incognito_mode` 下把 `enable_wiki` 置为 False，与会话检索、记忆自动提取的隐身归一在同一处完成。Wiki 工具、长回复自动归档、压缩后归档、深度研究入库都以 `params.enable_wiki` 为开关，转换器是这几个开关在隐身下归一的唯一收口点。
+- 隐身会话的消息与普通会话一样落本地库：标题与消息预览不存（`chat_repo.py`），侧栏、搜索、召回、追赶收件箱与记忆导出都排除它，闲置满 1 小时由 `services/chat/chat_retention.py` 永久删除。
 
 ## Smart Routing（converter.py）
 

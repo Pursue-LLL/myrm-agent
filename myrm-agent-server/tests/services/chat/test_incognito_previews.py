@@ -1,6 +1,6 @@
 """An incognito chat keeps no title or message preview on any write path; a regular chat keeps its own.
 
-Every surface that lists chats (session map, journals, statistics, inbox) reads these columns, so the guarantee has to
+Every surface that lists chats (session map, statistics, inbox) reads these columns, so the guarantee has to
 hold where they are written. The three public write paths run against a real schema and the raw columns are read back.
 """
 

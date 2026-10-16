@@ -501,7 +501,7 @@ async def _db_maintenance_job() -> None:
 
 
 async def _incognito_cleanup_job() -> None:
-    """Incognito chat auto-purge: permanently delete incognito chats idle past the session window"""
+    """Incognito chat auto-purge: permanently delete idle web incognito chats that have no turn in flight"""
     try:
         from app.services.chat.chat_retention import purge_idle_incognito_chats
 

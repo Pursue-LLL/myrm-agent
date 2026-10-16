@@ -94,24 +94,3 @@ export interface AuditLogStats {
 }
 
 export type SecurityTabType = 'dependencies' | 'rate-limit' | 'audit-logs' | 'audit-stats';
-
-export interface ZDRComplianceAttestationDTO {
-  chat_id: string;
-  attestation_id: string;
-  issued_at: string;
-  message_count: number;
-  total_characters_processed: number;
-  zero_disk_storage_verified: boolean;
-  vendor_zdr_headers_injected: boolean;
-  digest: string;
-  signature: string;
-}
-
-export interface ZDRSessionState {
-  chatId: string;
-  isActive: boolean;
-  messageCount: number;
-  totalChars: number;
-  reconnectGraceSeconds: number;
-  isWiped?: boolean;
-}

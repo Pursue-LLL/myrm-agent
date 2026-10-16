@@ -66,7 +66,7 @@ class SiblingDetail(TypedDict):
 
 _DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
 
-# Columns that preview a conversation on every surface listing chats (session map, journals, statistics, inbox).
+# Columns that preview a conversation on every surface listing chats (session map, statistics, inbox).
 # An incognito chat never stores them, so no current or future listing can show what the user chose to keep private.
 _INCOGNITO_BLANKED_FIELDS: frozenset[str] = frozenset({"title", "first_message", "last_message"})
 

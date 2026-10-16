@@ -4842,7 +4842,6 @@ except Exception:
 5. 在 zsh 里不要用 `path` 做循环变量：它与 `PATH` 绑定，赋值会让后续所有命令都找不到。
 6. 共享主机上别人进行中的改动会让开发服务起不来，且不是你的文件：先看日志里的导入错误是谁的，不要为了跑浏览器去修别人的文件。
 7. 提交说明里写了「聊天提示对失败早已先报原因」，不准确：提交前的 `_terminal_result` 对失败是 `result or error`，失败这一支是本次才改的（本条「现象」第 2 点与「修复」第 1 点以此为准；提交未 push，没有改写历史）。
-8. 更正（见 `BUG-AGENT-2026-10-16-014`）：本条留下的跨字段兜底（失败先报 `error`、没有就退回 `result`；完成先报 `result`）本身就是错的，局限 7 的残留只是它的一个后果：任务被驳回重跑后仍带着旧 `result`，重试或手动移动后仍带着旧 `error`，任何兜底都会在某个状态组合下报出旧文本。`-014` 改为每种结果只读自己的字段、失败不带文字；本条把兜底写成断言的测试（如 `test_failed_task_without_an_error_falls_back_to_its_result`）已随之改写，局限 7 不再成立。
 
 ## BUG-AGENT-2026-10-16-008: 模型切换后 IM、定时任务、看板、评测、自动续跑、审批超时恢复把半截回答与重发的整段拼在一起；切换发生在工具步骤之后时 WebUI 落库还会丢掉工具步骤之前的文字；文字已流出后才失败的 IM 回复把半截回答当成完整回答；德、日、韩诊断文案里有两处无人填充的占位符
 
@@ -5056,7 +5055,7 @@ except Exception:
 | 发现日期 | 2026-10-16（在 `-009` 之后对无痕合同再做一次终极叩问：逐个读取方用真实组件复现，并对照 Claude / Gemini / Grok / Perplexity / ChatGPT / Cursor / OpenClaw 的无痕语义） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P1（界面承诺「不留痕迹」；自动清除误删用户的外部转录且无法恢复；无痕对话原文进入导出文件） |
-| 影响范围 | server：`app/services/chat/chat_retention.py`、`app/database/repositories/chat_repo.py`、`app/api/chats/chat/catchup.py`、`app/services/memory/archive/archive.py`、`app/services/chat/chat_message.py`，删除 `app/services/chat/ephemeral_session_store.py`，各目录 `_ARCH.md`；前端：`src/store/chat/chatTitleAutoSave.ts`、六个语言包的 `memory.incognitoModeDesc` 与韩语补丁、`_ARCH.md`；harness：`toolkits/memory/MEMORY_SYSTEM.md`（仅文档） |
+| 影响范围 | server：`app/services/chat/chat_retention.py`、`app/database/repositories/chat_repo.py`、`app/api/chats/chat/catchup.py`、`app/services/memory/archive/archive.py`、`app/services/chat/chat_message.py`，删除 `app/services/chat/ephemeral_session_store.py`，各目录 `_ARCH.md`；前端：`src/store/chat/chatTitleAutoSave.ts`、六个语言包的 `memory.incognitoModeDesc` 与韩语补丁、`_ARCH.md`；`src/components/security/types.ts`（删 2 个无人引用的类型）；harness：`toolkits/memory/MEMORY_SYSTEM.md`（仅文档）；公开文档仓 `myrm-agent-brand`：`security-architecture.mdx`、`memory-system.mdx` 的 en / zh / ko 共 6 个文件，以及 `wiki-knowledge-base.mdx` 的 en / zh 各 1 行 |
 | 出现次数 | 1（真实仓储与服务复现，没有用户数据） |
 | 关联 | `BUG-AGENT-2026-10-16-009` 的后续（其第 4 条提到的 `ephemeral_session_store.py` 本次已删除）；提交本地，未 push；harness 只改文档，与 server 没有发布先后依赖 |
 
@@ -5079,9 +5078,9 @@ except Exception:
 
 1. 清除只取 `source == "web"` 的无痕会话，并在网关报告有回合在跑时顺延到下一轮（`chat_retention.py`）。
 2. 仓储两个写入口（`add_chat`、`update_chat_fields`）对无痕会话统一不落 `title` / `first_message` / `last_message`：单条 UPDATE 内用 `CASE WHEN is_incognito THEN 原值 ELSE 新值`，不多一次往返；网页端对无痕会话整体跳过标题生成。
-3. Catchup 候选查询加 `Chat.is_incognito.is_(False)`；归档导出排除无痕的网页会话，外部转录按 `source` 区分、照常导出。
-4. 删除 `EphemeralSessionStore`、5 处分支、`append_message` 的 `is_incognito` 形参与对应测试；顺手清掉 `archive.py` 的 3 条 pyright 错误。
-5. 六个语言包与韩语补丁改成如实描述：不读写记忆、不进历史与搜索、闲置超过 1 小时自动删除、模型服务商仍会处理发送的内容；`MEMORY_SYSTEM.md` 删掉「阅后即焚、零数据泄漏」，改为只说 harness 自己保证的部分。
+3. Catchup 候选查询加 `Chat.is_incognito.is_(False)`；归档导出排除无痕的网页会话，外部转录按 `source` 区分、会导出。
+4. 删除 `EphemeralSessionStore`、5 处分支、`append_message` 的 `is_incognito` 形参与对应测试；顺手清掉 `archive.py` 的 3 条 pyright 错误；删掉 `security/types.ts` 里无人引用的 `ZDRComplianceAttestationDTO` 与 `ZDRSessionState`（已删除的 ZDR 存储功能的残留，全前端零引用）。
+5. 六个语言包与韩语补丁改成如实描述：不读写记忆、不进历史与搜索、闲置超过 1 小时自动删除、模型服务商仍会处理发送的内容；`MEMORY_SYSTEM.md` 整个删掉「无痕模式」小节（无痕是 server 概念，由 `params/_ARCH.md` 描述）；公开文档的安全架构与记忆系统页（en / zh / ko 共 6 个文件）去掉「阅后即焚」「零持久化」「数据不出本机」与一个代码里并不存在的 `IncognitoPolicy` 类，改写成实际行为；`wiki-knowledge-base.mdx` 的「100% 保护隐私不落盘」改成能被代码证明的说法：无痕会话不产生知识库绑定记录（`useChatStore.ts:247-253`、`KnowledgePickerPopover.tsx:168`）。
 
 ### 验证
 
@@ -5089,7 +5088,8 @@ except Exception:
 2. 预览 3 项 × 无痕 / 普通共 6 例：无痕会话三列恒为空且消息照常保存，普通会话行为不变；前端 vitest 3 例通过。
 3. Catchup 与导出的新测试在修复前失败（无痕会话出现在收件箱 / 导出里），修复后通过；导出测试同时断言外部转录仍在。
 4. `ruff check` / `ruff format --check` 与 pyright 对全部触碰文件清零；6 个相关测试文件共 52 例通过，在 `git archive HEAD` 导出的纯提交树上同样 52 例通过；`tests/services/chat` + `tests/database` 501 例通过（删除了 3 例死测试）；前端 prettier、i18n 与 ICU 门禁通过。
-5. `tests/api/chats` + `tests/architecture` 共 2372 例通过，12 例失败不在本次改动里（路由消费方、服务词表、harness 深层导入基线、文本入口风控闸门、`BUGFIX_LOG.md:4730` 引用 temp-docs 路径）；`tests/services/memory` 之后接着跑 `tests/core/channel_bridge/test_config_loader.py` 有 5 例失败，去掉我的新测试仍复现、单独跑则通过，是已有的跨文件污染。前端 `tsc` 的 10 条错误与 `lint` 的 a11y / 硬编码文案两个门禁，都不指向本次触碰的文件。
+5. `tests/api/chats` + `tests/architecture` 共 2372 例通过，12 例失败不在本次改动里（路由消费方、服务词表、harness 深层导入基线、文本入口风控闸门、`BUGFIX_LOG.md:4730` 引用 temp-docs 路径）；`tests/services/memory` 之后接着跑 `tests/core/channel_bridge/test_config_loader.py` 有 5 例失败，去掉我的新测试仍复现、单独跑则通过，是已有的跨文件污染。前端 `lint` 的 a11y / 硬编码文案两个门禁失败，输出里没有本次触碰的文件；`tsc --noEmit` 复查时 exit 0。
+6. 复查时用一次性探针（已删除）走真实接口：标题为空的无痕会话，`GET /chats/{id}` 返回 200，`GET /chats/` 与召回搜索都不含它，消息读取正常；`chat_retention` 与 `schedulers` 在全新解释器里导入无循环。
 
 ### 局限
 
@@ -5098,6 +5098,7 @@ except Exception:
 3. 会话地图、统计页等诊断类读取方仍会列出无痕会话的 id、时间与用量（标题与预览现在是空的），没有逐个加过滤。
 4. 清除前的「回合是否在跑」检查与删除之间有毫秒级窗口，没有加锁。
 5. `app/services/instance_archive/`（另一会话的未提交工作）的 `scrub_sensitive_surface` 不删 `is_incognito=1` 的会话及其消息，需要该改动的负责人补一条规则；本次没有改它。
+6. `/zdr` 命令条目（`app/services/chat/command_matrix/registry.py:141-153`，该目录是另一会话的未提交工作）仍写着「纯内存无痕会话、退出时 0x00 物理覆写抹零」，服务端 `app/` 里没有任何处理它的代码；需要该目录的负责人改掉，本次没有改。
 
 ### 教训
 
@@ -5144,62 +5145,3 @@ except Exception:
 
 1. 同一个判断在同一函数里出现两次、用了两个签名不同的函数，就是下一次类型漂移的入口；入参类型是联合类型时，只收其中一种的函数不能直接接。
 2. 联合类型的入参只被文本用例测试覆盖，等于没有测试另一半；参数化测试要把每个分支都走一遍。
-
-## BUG-AGENT-2026-10-16-014: 看板任务失败时 toast、系统通知、IM 频道与聊天提示把运行的异常原文发给用户，任务字段残留时完成、阻塞、失败仍会报出旧文本；toast 与系统通知没有任何入口通向任务所在的看板
-
-| 属性 | 值 |
-|------|------|
-| 发现日期 | 2026-10-16（复核 `BUG-AGENT-2026-10-16-007` 的局限 7：手动移入失败时通知报旧原因，沿「失败到底该给用户看什么」追到） |
-| 修复日期 | 2026-10-16 |
-| 严重程度 | P3（没有数据丢失，不影响执行；通知文字错误，并把供应商类名、工具名、SQL 这类内部词推给终端用户） |
-| 影响范围 | server：`app/services/kanban/event_publisher.py`、`app/core/notifications/adaptive_cards.py`、`tests/services/kanban/test_event_publisher.py`、`test_task_event_notifications.py`、`tests/core/channel_bridge/test_btw_notifier.py`、`tests/core/notifications/`（`test_adaptive_cards.py` 改，`test_dispatcher.py` 拆成 4 个文件）、三份 `_ARCH.md`；frontend：`src/hooks/globalEvents/kanbanTaskToast.ts` 与测试、`useGlobalEvents.ts`（一行）、`src/lib/kanban/kanbanChatBoard.ts` 与测试、六语种 `locales/*.json`、三份 `_ARCH.md`；harness、提示词、工具描述、存储都没有改 |
-| 出现次数 | 1（读码，用真实函数对照新旧取值，没有生产数据，不知道线上频率） |
-| 关联 | 更正 `BUG-AGENT-2026-10-16-007` 的取值规则与局限 7；提交 `34983f4c30`（拆测试）、`5dc2b12bc1`（服务端）、`337a4b021a`（前端）；本地提交，未 push |
-
-### 现象
-
-1. 失败任务的 `error` 是运行异常的原文（`类型: 异常信息`，`-007` 局限 2 列过出处），会带供应商类名、工具名、SQL。它被当作 `detail` 原样送到面向用户的几处消费者：前端 toast 与系统通知、IM 频道的看板文本、`/btw` 的回复、网页语音工作的聊天消息。普通用户看到的是内部词，也无法据此行动。
-2. `-007` 只是把取值顺序改成「失败先报 `error`、完成先报 `result`」，仍保留跨字段兜底，而两个字段在状态变化后都不会清空：任务被驳回重跑后保留上一次的 `result`，被重试或手动移动后保留旧的 `error`。于是仍有三种组合报出旧文本：失败但 `error` 缺失时报旧结果；完成但 `result` 为空时报旧错误；阻塞但没有 `blocked_reason` 时报旧错误。`-007` 自己的测试 `test_failed_task_without_an_error_falls_back_to_its_result` 把第一种固化成了「正确行为」。
-3. toast 只有关闭按钮，系统通知点击后没有任何去处：用户看到「任务失败：xx」，要自己切到设置里的看板页，再找到那块板和那一列。`notifyIfLeader` 早已支持点击回调（`useGlobalEvents.ts` 的 `notificationService.notify(... onClick)`），看板提示没有传；设置页的看板深链也早已认 `board_id` 与 `status`（`KanbanSection.tsx`、`KanbanBoardView.tsx:66-71`）。
-
-### 根因
-
-1. 「这次通知该说什么」仍是跨字段兜底，而字段的新旧与任务当前状态无关；`-007` 调的是兜底的顺序，没有去掉兜底。
-2. 失败的 `error` 是给看板运行记录看的诊断原文，不是给用户的文案。渠道层的友好错误转换 `channels/routing/friendly_errors.py` 早有同一取向（不含内部错误细节），看板通知没有对齐。
-3. 广播卡 `_format_background_task_done` 读的 `summary` / `detail` 没有任何发布方：`BACKGROUND_TASK_DONE` 只有 `event_publisher.py:134` 一处发布，载荷只有 `result`，所以这张卡上的正文从来是空的。
-4. 前端看板提示的依赖里没有路由，无从跳转。
-
-### 修复
-
-1. `_terminal_result`（`event_publisher.py:223-233`）每种结果只读自己的字段：完成读 `result`，阻塞读 `blocked_reason`，失败不带文字；没有任何跨字段回退。`emit_task_rejected`（`:191-198`）只读 `error`（驳回原因本来就写在这里）。上述消费者共用这一条规则，没有各写各的。所有阻塞的转入路径都写了 `blocked_reason`（harness `dispatcher_failure.py`、`dispatcher.py`、`_worker_tools.py`、`dispatcher_zombie.py`，server `runner.py`、`landing_gate.py`、`move_orchestrator.py`），所以阻塞通知不会因此变空。
-2. `_format_background_task_done` 不再读没有发布方的 `summary` / `detail`，正文只剩标题行与「查看看板」按钮。
-3. `buildKanbanBoardDeepLink` 的 `sourceChatId` 改为可选并新增 `status`（`kanbanChatBoard.ts`），仍是看板深链的唯一出处。
-4. `kanbanTaskToast.ts` 依赖里加入 `router`：toast 带「查看看板」操作（`openBoard`，`:70-76`），系统通知的点击走同一个函数（`:83`），都打开 `/settings/kanban?board_id=…&status=…`，直达该状态列；事件没有 `board_id` 时不给操作。成功与警告 toast 的停留时间分别为 8 秒与 10 秒，让人有时间点。`useGlobalEvents.ts:372` 只多传一个 `router`。
-5. 六语种新增 `notifications.viewKanbanBoard`（英文 `View board`，中文 `查看看板`）。
-6. 顺手把已超过 500 行的 `test_dispatcher.py` 拆成 `test_dispatcher.py`（400 行）、`test_format_message.py`、`test_format_message_kanban.py`、`test_dispatcher_targets.py` 四个文件，拆前拆后都是 59 例。
-
-### 验证
-
-1. 真实函数对照：用同一批任务分别跑修复前后的 `_terminal_result`（一次性探针，未保留）。失败且带旧结果 `Report saved: 5 sections, 12 sources.`：旧版返回这句旧结果，新版为空；完成但带旧的供应商错误：旧版返回错误原文，新版为空；阻塞但没有原因：旧版返回旧错误，新版为空；失败且 `error` 是 SQL 错误：旧版返回 SQL 原文，新版为空。
-2. 测试按用户能观察到的行为重写：`test_event_publisher.py` 现 27 例（含对一批异常原文做参数化，断言它们都不会出现在载荷里；旧结果、旧错误各一例；手动移入失败的 `moved`）；`test_task_event_notifications.py` 经真实派发器与 `_format_message` 看频道文本，标题行为 `[Myrm AI] Kanban task "Task failed01" failed`；`/btw` 的失败回复不带异常、完成不退回旧错误；前端 `kanbanTaskToast.test.ts` 共 19 例，含操作与点击的目标地址、无 `board_id` 时没有操作、定时阻塞安静、200 字截断。
-3. 变异：服务端 5 种全部被杀（失败回退到 `error`、失败回退到 `result`、完成回退到 `error`、阻塞回退到 `error`、驳回回退到 `result`）；前端 4 种全部被杀（toast 不带操作、系统通知不带点击、深链不带 `status`、没有 `board_id` 也给操作）；每次变异后都恢复了文件。
-4. 门禁：服务端 `tests/services/kanban`、`tests/core/notifications`、`tests/core/channel_bridge`、`tests/channels` 共 7917 通过、55 跳过、12 失败（失败项见局限 5）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban` 46 个文件 575 例通过；`tsc --noEmit` 无输出；oxlint、prettier 对触碰的前端文件通过；`ruff check`、`ruff format --check` 对触碰的服务端文件通过，`mypy` 对两个改动源文件没有报错（pyright 只报 harness 导入在本环境解析不到的 2 处，位于两个文件的导入行）；`verify:i18n`（六语种 parity 与 3571 个文件的代码引用）、`verify:theme-colors` 通过。
-
-### 局限
-
-1. 没有在真实浏览器里看到 toast 的操作按钮，也没有点击过：专用 E2E Chrome 里打开 `localhost:3000/settings/kanban` 时页面长时间停在 `readyState: loading`，正文为空，没有领导者标记（主机负载 30 至 40，开发服务器在这种负载下没能让页面完成加载；`-007` 局限 1 记过同一现象）。运行中的开发 API 进程启动在本次修改之前，所以也没有在上面核对 SSE 载荷。操作按钮与点击的目标地址由单测覆盖，深链落地由读码（`KanbanSection.tsx`、`KanbanBoardView.tsx:66-71`）确认；窄屏、明暗主题下的呈现没有看过，桌面端（Tauri）系统通知的点击没有验证。
-2. 失败通知不再带任何原因：用户要看原因得打开看板的运行记录。原本偶尔恰好读得懂的整句（例如「所选模型不被组织策略允许」）也一并不再展示。这是有意的取舍：不能从一段异常文本里可靠地分出哪些能给用户看，所以失败一律不带文字；要恢复需要 harness 给出稳定的原因码，这次没有做。
-3. `/btw` 的 `background_failed` 模板里的 `{ $result }` 现在对失败恒为空，模板本身没有改。
-4. 深链落在带状态过滤的看板上，不会定位到具体那张任务卡。
-5. 本次回归里的 12 个失败与本条无关：`test_task_runner.py` 的 `test_extract_enabled_empty_pdf_falls_back_to_reference`；`test_background_command.py` 两例（`/btw` 别名已被他人移除：`assert 'btw' in ('bg',)`）；`test_group_routing.py` 六例与 `test_prefix_trigger.py` 一例（WhatsApp 身份解析得到 `guest_whatsapp…` 而不是 `local-user`，伴随 `no such savepoint` 的数据库警告）；`test_locale_key_parity.py` 的孤儿键与 `test_onebot_enhancements.py` 一例。它们的断言内容都不经过看板结果路径，我没有在干净的 HEAD 上逐个重跑来证明「改动前就失败」，只是按断言内容与他人在途改动判断。
-6. `useGlobalEvents.ts` 仍超过 500 行（他人正在抽 `backupAlertToast.ts`），这次只改了一行，没有顺手拆。
-7. 没有用真实模型与真实 IM 渠道跑；`next build` 没跑。
-8. 评估后放弃的方案：失败时回退到 `result`（会报旧结果）；用字符串规则从异常文本里「净化」出能给用户看的部分（无法可靠区分）；toast 直接定位到任务卡（要新增看板抽屉的路由状态，改动面大，收益有限）。
-
-### 踩坑经验
-
-1. 一个测试把兜底行为写成断言，等于把缺陷固定下来：`-007` 的失败兜底有测试、有文档、有「教训」，仍然是错的。修缺陷之前先问「这个兜底在什么状态组合下会说错话」，而不是调它的顺序。
-2. 面向用户的文案只给用户能据此行动的事实；运行时的异常原文属于运行记录，不属于通知。
-3. 动手前先看有没有现成的唯一出处与现成的能力：深链构造函数、`notifyIfLeader` 的点击回调、设置页对 `status` 的处理早就在，缺的只是把它们接起来。
-4. 共享工作区里编号会被他人抢先：写日志条目前再核对一次最后一个编号。
-5. 在 patchright 里用 `time.sleep` 会让事件循环停转，等待要用 `page.wait_for_timeout`；开发服务器在高负载下的页面可能永远停在 `loading`，先探页面状态，再决定是否值得继续等。
