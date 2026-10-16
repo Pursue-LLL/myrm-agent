@@ -183,7 +183,7 @@ def _live_client(_chrome_e2e_item_runtime: object | None) -> Iterator[httpx.Clie
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 def test_subagent_interrupt_live_approve(
     _live_client: httpx.Client,
 ) -> None:
@@ -209,7 +209,7 @@ def test_subagent_interrupt_live_approve(
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 def test_subagent_interrupt_live_allow_always(
     _live_client: httpx.Client,
 ) -> None:
@@ -241,7 +241,7 @@ def test_subagent_interrupt_live_allow_always(
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 def test_subagent_interrupt_live_edit(
     _live_client: httpx.Client,
 ) -> None:
@@ -278,7 +278,7 @@ def test_subagent_interrupt_live_edit(
     workload="LIVE",
     private_reason="live_shpoib",
 )
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(600)
 def test_subagent_interrupt_live_reject(
     _live_client: httpx.Client,
 ) -> None:
