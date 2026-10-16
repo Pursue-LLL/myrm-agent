@@ -5809,6 +5809,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 前端：`CuratorSections`、`CuratorSettingsPanel` 两个测试文件共 22 例通过；`verify:i18n`、`verify:theme-colors`、触及文件 prettier 与 oxlint 通过；限定到触及文件的 `tsc` 无错误；
 4. 残留检索（提交后的 HEAD）：harness 的 `src`、`tests` 里 `max_skills` 只剩提示词上限、市场仓库上限两处同名但无关的标识；`protect_system_skills`、`max_skills` 只在「旧键被忽略」的用例里出现；服务端同类用例同理；前端 `lru_eviction` 只在历史原因的类型、标签与对应用例里，其余命中都是与本机制无关的缓存与渠道去重的 LRU。
 5. 真机 E2E（`./myrm test -m chrome_e2e myrm-agent/myrm-agent-server/tests/e2e/test_curator_panel_sections_chrome_e2e.py`，附着在他人的共享开发环境，主机负载均值约 26–28）共跑 3 次，没有一次整条通过：第 1 次在桌面深色主题的文案检查失败，页面上的文案键显示为原始键路径（`settings.skills.curator.triggerManual` 等；同一页面里的相对时间正常，说明按需加载的设置文案当时没有到位；之后直接请求开发服务器的按需文案接口返回 200 且含这些键，重跑没有再出现）；第 2 次通过了桌面端深浅两套主题的全部检查（输出 `E2E_CURATOR_DESKTOP_PROBLEMS: []`，含 zh 文案逐字、转移项「已归档(超出技能数量上限)」、每个发现两个按钮、无开发标识符、对比度与视口检测），随后在 375px 手机框里等不到页签而失败（`readyState` 仍是 `interactive`，页面是应用壳与「定时任务已停止运行」提示条）；第 3 次在用例主体开始前失败（桥接未就绪，前端分块脚本各自加载 71–77 秒，同时另有一个 chrome_e2e 在跑）。
+6. 去掉上限后的扫描成本：临时目录里造 200、1000、3000 个技能，各跑 5 次 `scan_local_skills`（`app/core/skills/curator/local_skills.py:43`），中位数 261.7、1068.7、2509.6 ms（每个技能约 0.8 至 1.3 ms，随数量线性增长，没有出现超线性）；测量时主机负载均值 28 至 42，绝对值偏高，没有在空载主机上测，也没有测过 3000 个以上；旧的上限 50 只告警、不限制扫描，所以这不是删除带来的新增成本。
 
 ### 局限
 
@@ -5821,6 +5822,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 7. `BUG-AGENT-2026-10-16-020` 局限 6 列出的他人未提交改动造成的红灯门禁，本次没有重新逐项核对；
 8. harness 的 `tests/backends/skills/test_forgetting_strategy.py` 工作区仍带着他人的格式化改动，本条只提交了去掉 LRU 用例的部分；
 9. 归档目录里更早的路线图分析仍写着旧的库膨胀说法，按历史记录保留，没有改。
+10. 「技能过多会降低检索准确率」这一说法没有测量支撑：本条删除告警的依据是「超限状态没有下游读取方」和提示词曝光另有上限，不是检索质量数据；如果以后有检索质量指标，应该拿该指标告警，而不是技能数量。
 
 ### 踩坑经验
 
