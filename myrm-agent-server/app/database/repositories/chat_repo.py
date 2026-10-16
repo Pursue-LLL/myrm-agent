@@ -7,7 +7,7 @@ app.database.repositories.chat_message_search_repo::ChatMessageSearchRepository 
 
 [OUTPUT]
 ChatRepository: Chat/Message CRUD, FTS5 message search, compaction CAS, sibling branch persistence and routing tier
-history reads (momentum window, tier of the latest user turn).
+history reads (momentum window, tier of the latest user turn). An incognito chat never stores a title or preview.
 SiblingDetail: Sibling branch query DTO.
 
 [POS]
@@ -28,6 +28,7 @@ from sqlalchemy import (
 )
 from sqlalchemy import (
     and_,
+    case,
     delete,
     exists,
     func,
@@ -64,6 +65,10 @@ class SiblingDetail(TypedDict):
 
 
 _DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
+
+# Columns that preview a conversation on every surface listing chats (session map, journals, statistics, inbox).
+# An incognito chat never stores them, so no current or future listing can show what the user chose to keep private.
+_INCOGNITO_BLANKED_FIELDS: frozenset[str] = frozenset({"title", "first_message", "last_message"})
 
 
 def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]:
@@ -181,13 +186,26 @@ class ChatRepository:
             db_chat = Chat(**chat.model_dump(exclude={"messages"}))
         else:
             db_chat = chat
+        if db_chat.is_incognito:
+            for column in _INCOGNITO_BLANKED_FIELDS:
+                setattr(db_chat, column, None)
         db.add(db_chat)
 
     @staticmethod
     async def update_chat_fields(db: AsyncSession, chat_id: str, updates: dict[str, object]) -> None:
+        """Apply column updates; the preview columns of an incognito chat keep their (empty) value.
+
+        The check runs inside the UPDATE statement against the stored row, so it costs no extra round trip.
+        """
         if not updates:
             return
-        await db.execute(update(Chat).where(Chat.id == chat_id).values(**updates))
+        values = {
+            column: case((Chat.is_incognito.is_(True), Chat.__table__.c[column]), else_=value)
+            if column in _INCOGNITO_BLANKED_FIELDS
+            else value
+            for column, value in updates.items()
+        }
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(**values))
 
     @staticmethod
     async def update_message_extra_data(db: AsyncSession, message_id: str, extra_data: dict[str, object]) -> None:
