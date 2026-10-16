@@ -12,5 +12,6 @@
 | `messageDeadLetteredToast.ts` | 消息死信告警                                                                                                                                                                        |
 | `reauthToasts.ts`             | `mcp_auth_required` / `oauth_reauth_required` 重新授权 toast：MCP → `/settings/mcp`，OAuth 账号 → `/settings/credentials`，文案用 `formatOAuthIssuerLabel` 的账号展示名称呼账号且不展示后端 reason                  |
 | `backupAlertToast.ts`         | 自动备份连续失败的 `health_alert`（`component=instance_backup`）：仅本地化文案（不展示服务端措辞与组件名），操作直达备份设置卡片 `/settings/workbench#auto-backup` |
+| `kanbanTaskToast.ts`          | 看板任务完成/阻塞/失败的 toast 与系统通知；服务端按原文发来的阻塞原因，认识的按界面语言显示（`lib/kanban/kanbanBlockedReason`），不认识的原样显示 |
 
 Hook 层允许的 JSX 例外（toast 渲染）。消费者：`global-events-initializer.tsx`、workspace-browser。

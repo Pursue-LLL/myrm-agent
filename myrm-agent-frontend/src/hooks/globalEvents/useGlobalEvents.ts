@@ -13,6 +13,7 @@ import { mutate as mutateSwr } from 'swr';
 
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
+import { showKanbanTaskToast } from '@/hooks/globalEvents/kanbanTaskToast';
 import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
 import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
 import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
@@ -55,6 +56,7 @@ export function useGlobalEvents(): void {
   const router = useRouter();
   const t = useTranslations('notifications');
   const tIdle = useTranslations('backgroundTasks.idleStatus');
+  const tKanban = useTranslations('kanban');
   const enabled = useConfigStore((s) => s.enableWebNotifications);
   const sourceRef = useRef<EventSource | null>(null);
   const isLeaderRef = useRef(false);
@@ -364,34 +366,7 @@ export function useGlobalEvents(): void {
 
         window.dispatchEvent(new CustomEvent('budget_alert', { detail: payload.data }));
       } else if (payload.type === 'kanban_task_updated') {
-        const kd = payload.data;
-        const kAction = String(kd.action ?? '');
-        const kStatus = String(kd.status ?? '');
-        const kTitle = String(kd.title ?? kd.task_id ?? '');
-        const kDetail = String(kd.detail ?? '');
-        const isTerminal =
-          kAction === 'task_completed' ||
-          kAction === 'task_blocked' ||
-          kAction === 'task_failed' ||
-          (kAction === 'moved' && ['completed', 'blocked', 'failed'].includes(kStatus));
-
-        if (isTerminal && kTitle) {
-          const resolved = kStatus || kAction.replace('task_', '');
-          const statusLabel =
-            resolved === 'completed'
-              ? t('kanbanTaskCompleted')
-              : resolved === 'blocked'
-                ? t('kanbanTaskBlocked')
-                : t('kanbanTaskFailed');
-          const desc = kDetail ? kDetail.slice(0, 200) : undefined;
-          if (resolved === 'completed') {
-            pushToast.success(`${statusLabel}: ${kTitle}`, { description: desc, duration: 8_000, dismissible: true });
-          } else {
-            pushToast.warning(`${statusLabel}: ${kTitle}`, { description: desc, duration: 10_000, dismissible: true });
-          }
-          notifyIfLeader(`${statusLabel}: ${kTitle}`, desc);
-        }
-
+        showKanbanTaskToast(payload.data, { t, tKanban, pushToast, notifyIfLeader });
         window.dispatchEvent(new CustomEvent('kanban-task-updated', { detail: payload.data }));
       } else if (payload.type === 'goal_terminal') {
         const status = String(payload.data.status ?? '');
@@ -645,5 +620,5 @@ export function useGlobalEvents(): void {
       Object.values(debouncedRefetches.current).forEach(clearTimeout);
       debouncedRefetches.current = {};
     };
-  }, [router, t, tIdle, enabled]);
+  }, [router, t, tIdle, tKanban, enabled]);
 }
