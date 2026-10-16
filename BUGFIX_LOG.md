@@ -4459,7 +4459,7 @@ except Exception:
 
 1. `chat-window/memory-inspector/` 没有入口：全仓对 `VisualMemoryHealthCard`、`useMemoryInspectorStore`、`memoryInspectorEngine` 的引用只在该目录内部（含它自己的测试）；`check-orphan-modules` 把 5 个源文件全部列为孤儿。
 2. 看板的数据不是真的：store 的初始值写死 provider `openai`、模型 `text-embedding-3-small`、1536 维、4280 个 chunk、3950 条 FTS 与固定的 `lastSyncAt`（`useMemoryInspectorStore.ts:46-53`）；「深度自检」是等 50ms 再调本地的 `computeSimulatedDiagnostic`（`useMemoryInspectorStore.ts:86-88`、`memoryInspectorEngine.ts:70`），不请求后端；广播的 `myrm:memory-inspector-diagnostic` 没有监听方（`memoryInspectorEngine.ts:98-103`，全仓只有它自己的测试在 `addEventListener`）。文案是写死的中文，没有 `useTranslations`，六个语言包里没有对应的键。
-3. 对外宣称与代码相反：路线图 topic_09 #201 记为「已完成 (100%)」并写着「vitest 30/30 passed」；`MEMORY_ADVANTAGE.md` 第 43、82 行把它写成「WebUI 白盒看板、毫秒级端到端细分延迟探针、重索引实时进度条与 Token 预估、全链路事件总线」；brand 仓英文文档页有一整节（含「3 阶延迟评级」「可取消的重索引进度条」）。真实可用的只有两样：共享上下文面板里的嵌入依赖健康横幅（`SharedContextMemoryHealthBanner`，`GET /memory/shared-contexts/health/memory?probe=`），与设置页的孤儿记忆估算和一键重索引（`GET /memory/reindex/estimate`、`POST /memory/reindex`，`DefaultModelSection.tsx`）。
+3. 对外宣称与代码相反：路线图 topic_09 #201 记为「已完成 (100%)」并写着「vitest 30/30 passed」；`MEMORY_ADVANTAGE.md` 第 43、82 行把它写成「WebUI 白盒看板、毫秒级端到端细分延迟探针、重索引实时进度条与 Token 预估、全链路事件总线」；brand 仓英文文档页有一整节（含「3 阶延迟评级」「可取消的重索引进度条」）。真实能力早已存在，只是不是这个目录：记忆指挥中心的 Memory Doctor（`MemoryCommandCenterDoctorPanel.tsx`，17 项检查、15 个带耗时的可执行探针、写入再读取的召回基准与 P50/P95/P99 延迟、历史趋势与修复动作；`MemorySection.tsx:655` 与服务端 `router.py:75` 都由 Memory Labs 开关控制，默认关闭）、共享上下文面板里的嵌入依赖健康横幅（`GET /memory/shared-contexts/health/memory?probe=`），以及更换嵌入模型后的孤儿记忆估算与一键重索引（`GET /memory/reindex/estimate`、`POST /memory/reindex`，`DefaultModelSection.tsx`，存在孤儿记忆时才显示）。
 4. `src/locales/namespaces/{en,zh}/memoryInspector.json` 是两个游离文件：真正的拆分产物在被忽略的 `locales/namespaces/`（`i18n:split` 从 `locales/{lang}.json` 生成，运行时只读这里），`src/i18n/_ARCH.md:39` 还明确禁止另建 `src/locales/` 这类并行目录；它们的内容（标题「Memory Inspector & Epistemic Veracity Governance」）属于更早被删除的 `features/memory-inspector/`（`BUG-AGENT-2026-10-15-007`）。`locales/{lang}.json` 里没有 `memoryInspector` 键，全仓没有代码读取这两个文件。
 
 ### 根因
@@ -4470,7 +4470,7 @@ except Exception:
 ### 修复
 
 1. 删除 `memory-inspector/` 整目录与两个游离的语言文件，没有新增代码；真实能力（嵌入依赖健康横幅、重索引估算与一键重索引）原样保留。
-2. 路线图 #201 回退为「待分析」，补上「复核更新」与「Myrm 现状」，写明缺口需要新的后端接口（嵌入 / 写入 / 检索的分段探针、可轮询或流式的重索引进度），不复活已删除的前端；`MEMORY_ADVANTAGE.md` 两行与文档站一节只保留真实能力（根仓、brand 仓各一个提交）。
+2. 路线图 #201 回退为「待分析」，补上「复核更新」与「Myrm 现状」，写明真实能力是 Memory Doctor，缺口只剩 Doctor 默认关闭、向量库类型与 chunk / FTS 计数、「嵌入 / 向量写入 / 检索」三段耗时、重索引进度条与 Token 预估（需要新的后端字段或接口），不复活已删除的前端；`MEMORY_ADVANTAGE.md` 两行与文档站一节只保留真实能力（根仓、brand 仓各一个提交）。
 
 ### 验证
 
@@ -4483,10 +4483,11 @@ except Exception:
 
 1. 孤儿门禁整体仍是红的：其余 1056 个孤儿不在本条范围内，没有处理；也没有为「新增孤儿」加提交时的拦截。
 2. 没有在浏览器里目测：目录没有入口，删除不改变任何页面渲染的 DOM，等价性靠扫描与 1672 例回归。
-3. 引擎级健康看板、分段延迟探针、重索引进度条与 Token 预估仍然没有；它们需要新的后端接口，已作为 #201 的缺口写回路线图，没有在本条实现。
+3. 向量库类型名称与 chunk / FTS 计数、三段耗时拆分、重索引进度条与 Token 预估仍然没有，Memory Doctor 也仍随 Memory Labs 默认关闭；它们需要新的后端字段或接口，已作为 #201 的缺口写回路线图，没有在本条实现。
 
 ### 踩坑经验
 
 1. 「交付物清单加测试全绿」不等于已交付：关闭路线图条目前先沿入口找调用方，再看数据是不是从后端来的。
 2. 判断一个事件有没有人监听时要排除测试文件：测试里的 `addEventListener` 只证明测试在听。
 3. 对外材料（素材库、文档站）里的能力描述要能指到一个渲染它的入口和一个提供数据的接口，否则会把没接上的界面当成产品能力宣传出去。
+4. 写「没有某能力」之前要先全仓按能力而不是按名字找一遍：本条第一版把缺口写成「没有引擎级看板」，是复核时才发现记忆指挥中心已有 Memory Doctor，随后在根仓改正。
