@@ -5189,7 +5189,7 @@ except Exception:
 1. 真实函数对照：用同一批任务分别跑修复前后的 `_terminal_result`（一次性探针，未保留）。失败且带旧结果 `Report saved: 5 sections, 12 sources.`：旧版返回这句旧结果，新版为空；完成但带旧的供应商错误：旧版返回错误原文，新版为空；阻塞但没有原因：旧版返回旧错误，新版为空；失败且 `error` 是 SQL 错误：旧版返回 SQL 原文，新版为空。
 2. 测试按用户能观察到的行为重写：`test_event_publisher.py` 现 27 例（含对一批异常原文做参数化，断言它们都不会出现在载荷里；旧结果、旧错误各一例；手动移入失败的 `moved`）；`test_task_event_notifications.py` 经真实派发器与 `_format_message` 看频道文本，标题行为 `[Myrm AI] Kanban task "Task failed01" failed`；`/btw` 的失败回复不带异常、完成不退回旧错误；前端 `kanbanTaskToast.test.ts` 共 19 例，含操作与点击的目标地址、无 `board_id` 时没有操作、定时阻塞安静、200 字截断。
 3. 变异：服务端 5 种全部被杀（失败回退到 `error`、失败回退到 `result`、完成回退到 `error`、阻塞回退到 `error`、驳回回退到 `result`）；前端 4 种全部被杀（toast 不带操作、系统通知不带点击、深链不带 `status`、没有 `board_id` 也给操作）；每次变异后都恢复了文件。
-4. 门禁：服务端 `tests/services/kanban`、`tests/core/notifications`、`tests/core/channel_bridge`、`tests/channels` 共 7917 通过、55 跳过、12 失败（失败项见局限 5）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban` 46 个文件 575 例通过；`tsc --noEmit` 无输出；oxlint、prettier 对触碰的前端文件通过；`ruff check`、`ruff format --check` 对触碰的服务端文件通过，`mypy` 对两个改动源文件没有报错（pyright 只报 harness 导入在本环境解析不到的 2 处，位于两个文件的导入行）；`verify:i18n`（六语种 parity 与 3571 个文件的代码引用）、`verify:theme-colors` 通过。另跑 `tests/integration/test_btw_notifier_e2e.py`、`tests/api/events`、`tests/api/kanban`、`tests/remote_access/test_web_handoff_integration.py`、`tests/architecture`：2551 通过、2 跳过、13 失败。13 个失败里：`test_move_with_result_and_metadata` 是 `-007` 局限 6 记过的同一例；`test_no_temp_docs_links` 指向 `BUGFIX_LOG.md:4730`（`-006` 的引用）；其余 11 例是 `tests/architecture` 的路由调用方、域目录、记忆路由挂载、harness 私有与深层导入、文本入口闸门等用例，我展开看过路由调用方与 harness 导入两组，列出的都不是本条改动的文件，其余几例没有逐个展开。
+4. 门禁：服务端 `tests/services/kanban`、`tests/core/notifications`、`tests/core/channel_bridge`、`tests/channels` 共 7917 通过、55 跳过、12 失败（失败项见局限 5）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban` 46 个文件 575 例通过；`tsc --noEmit` 无输出；oxlint、prettier 对触碰的前端文件通过；`ruff check`、`ruff format --check` 对触碰的服务端文件通过，`mypy` 对两个改动源文件没有报错（pyright 只报 harness 导入在本环境解析不到的 2 处，位于两个文件的导入行）；`verify:i18n`（六语种 parity 与 3571 个文件的代码引用）、`verify:theme-colors` 通过。另跑 `tests/integration/test_btw_notifier_e2e.py`、`tests/api/events`、`tests/api/kanban`、`tests/remote_access/test_web_handoff_integration.py`、`tests/architecture`：2551 通过、2 跳过、13 失败。13 个失败里：`test_move_with_result_and_metadata` 是 `-007` 局限 6 记过的同一例；`test_no_temp_docs_links` 指向 `BUGFIX_LOG.md` 里 `-006` 条目引用的私有开发路径，已顺手把那处改成素材库文件名，该用例现通过；其余 11 例是 `tests/architecture` 的路由调用方、域目录、记忆路由挂载、harness 私有与深层导入、文本入口闸门等用例，我展开看过路由调用方与 harness 导入两组，列出的都不是本条改动的文件，其余几例没有逐个展开。
 
 ### 局限
 
@@ -5201,7 +5201,8 @@ except Exception:
 6. `useGlobalEvents.ts` 仍超过 500 行（他人正在抽 `backupAlertToast.ts`），这次只改了一行，没有顺手拆。
 7. 没有用真实模型与真实 IM 渠道跑；`next build` 没跑。
 8. 自动阻塞的原因仍以英文原句外发，这是同一类泄漏，本条没有处理：`Auto-blocked after N consecutive failures (last: crashed)` 或 `(last: timed_out)`（`dispatcher_failure.py:196-198`，`last` 只会是这两个固定词，不含异常文本）与 `Auto-blocked after zombie reclaim (N failures)`（`dispatcher_zombie.py:172`）带数字，不在 `kanban_blocked_reasons.json` 的整句表里，所以 toast、系统通知、IM 与 `/btw` 都原样显示，含 `crashed`、`timed_out`、`zombie reclaim` 这类内部词。要处理得让这两句可带参数地翻译，或由 harness 给稳定的原因码。
-9. 评估后放弃的方案：失败时回退到 `result`（会报旧结果）；用字符串规则从异常文本里「净化」出能给用户看的部分（无法可靠区分）；toast 直接定位到任务卡（要新增看板抽屉的路由状态，改动面大，收益有限）。
+9. 外发的生命周期 webhook 订阅了 `kanban_task_updated` 的接收方，对失败任务不再收到 `detail`：`lifecycle_webhook_service.py:126-131` 把 `event.data` 原样转发，载荷字段没有文档，也没有契约测试。取舍：异常原文含内部主机名与 SQL，发给第三方地址的风险与发给终端用户相当；需要原因的接收方应以看板运行记录为准。
+10. 评估后放弃的方案：失败时回退到 `result`（会报旧结果）；用字符串规则从异常文本里「净化」出能给用户看的部分（无法可靠区分）；toast 直接定位到任务卡（要新增看板抽屉的路由状态，改动面大，收益有限）。
 
 ### 踩坑经验
 
