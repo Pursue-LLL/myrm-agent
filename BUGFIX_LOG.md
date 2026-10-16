@@ -4815,12 +4815,12 @@ except Exception:
 2. 新增 `test_task_event_notifications.py`：模块内起真实派发器，三个任务都带旧结果——人为阻塞、重试用完的失败、遇到 429 被安排重试；经真实的 `_format_message` 看频道文本；另有两例走 `move_task` 移入人为阻塞与定时阻塞。`test_event_publisher.py` 新增 9 例（旧结果下的阻塞与失败、失败时 `error` 缺失退回 `result`、完成、定时阻塞载荷、`moved` 参数化、`block_kind` 门控、非结果事件没有 `detail`）；`test_dispatcher.py` 的参数化例覆盖 `task_blocked` 与 `moved` 两种事件下定时阻塞不发送、人为与外部阻塞照发；前端 `kanbanTaskToast.test.ts` 共 13 例，含省略号、刚好 200 字、人为与外部阻塞仍弹窗、定时阻塞与 `moved` 的定时阻塞安静。
 3. 变异：服务端 9 种全部被杀（失败改回先报 `result`、阻塞改回先报 `result`、`block_kind` 从不发布、对已不是阻塞的任务也发布 `block_kind`、`moved` 不当作结果事件、`moved` 不带状态、频道仍发送定时阻塞、派发器接线改回手写 detail、`move_task` 的发布改回手写 detail）；前端 5 种全部被杀（不跳过定时阻塞、只跳过 `task_blocked` 而不跳过 `moved`、把所有非人为阻塞都跳过、截断不带省略号、刚好 200 字也被截断）；每次变异后恢复，文件与备份逐字节一致。
 4. 运行中的开发 API（在本次源码修改之后启动）：人为阻塞且带旧结果的任务，SSE 事件的 `detail` 是阻塞原因、`block_kind` 为 `human`；定时阻塞的事件 `block_kind` 为 `scheduled` 且没有 `detail`。
-5. 门禁：`pytest` 宽范围 922 通过、2 失败、1 跳过（这 2 个与本条无关，见局限 6）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban`：46 个文件 567 例通过（改动前相关的服务端测试 80 例通过，作为基线）；ruff、ruff format、pyright（4 个改动源文件 0 错误）、prettier、oxlint 干净；`tsc --noEmit` 49 条错误，输出里没有本条改动的文件。
+5. 门禁：`pytest` 宽范围 922 通过、2 失败、1 跳过（这 2 个与本条无关，见局限 6）；前端 `vitest run src/hooks/globalEvents src/components/features/kanban src/lib/kanban`：46 个文件 567 例通过；提交后在当前工作区重跑：三个服务端测试文件（`test_event_publisher.py`、`test_task_event_notifications.py`、`test_dispatcher.py`）共 80 例通过，`kanbanTaskToast.test.ts` 13 例通过；ruff、ruff format、pyright（4 个改动源文件 0 错误）、prettier、oxlint 干净；`tsc --noEmit` 49 条错误，输出里没有本条改动的文件。
 6. 提交内容为「HEAD 加自己的改动」：`move_orchestrator.py` 与两份看板 `_ARCH.md` 在工作区里带有他人未提交的改动，提交只含本条的块（逐行差异核对：`move_orchestrator.py` 只有导入一行与发布调用一处）。
 
 ### 局限
 
-1. toast 与系统通知的实际呈现没有在浏览器里看到：一次尝试里移动端截图没有出现 toast，原因没有查清（那次打开的是 `127.0.0.1` 而不是 `localhost`，SSE 来源是否因此不同没有核实）；之后后端因他人进行中的改动起不来（先是 harness 的 `DEFAULT_SCENES` 导入，后是 `ALL_MEMORY_TYPES` 导入），没有再试。IM 投递与操作系统通知只验证到代码路径。
+1. toast 与系统通知的实际呈现没有在浏览器里看到：几次尝试都没有出现 toast，原因不在本改动：最后两次的诊断里，页面（`localhost:3000`，专用 E2E Chrome）停在 `readyState: interactive` 180 秒，发出 103 个请求但只完成 3 至 6 个，客户端代码没有执行（没有领导者标记、没有通知流请求、没有 Sonner 容器），是开发服务器在主机高负载（负载 17 至 47）下没能让页面完成水合；通知流本身用 `curl` 核对过能正常推送。其间后端还因他人进行中的改动起不来（先是 harness 的 `DEFAULT_SCENES` 导入，后是 `ALL_MEMORY_TYPES` 导入）。IM 投递与操作系统通知只验证到代码路径。
 2. 僵尸回收后直接失败（`dispatcher_zombie.py:178-181`）不写 `task.error`，通知仍退回到旧的 `result`，与改前一样；要修得在 harness 里写 `error`，本条没有动 harness。
 3. 定时阻塞整体安静是有意取舍：一个在 `max_retries` 内反复被限流的任务全程没有提醒，只有卡片倒计时与抽屉；用尽重试后才提醒。没有生产数据，不知道这类任务的实际占比。
 4. 没有用真实模型与真实 IM 渠道跑；`next build` 没跑。
