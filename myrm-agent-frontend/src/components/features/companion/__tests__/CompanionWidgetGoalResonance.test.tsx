@@ -3,14 +3,16 @@
  * Real scenario: the user finished a goal in chat A, then opens chat B whose goal was completed yesterday. The companion
  * celebrates the goal that just finished in front of the user, not a goal that merely got loaded into view.
  */
-import { act, render } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/store/useAuthStore', () => ({
   default: (selector: (state: { user: { id: string } }) => unknown) => selector({ user: { id: 'user-1' } }),
 }));
 vi.mock('../CompanionBubble', () => ({ default: () => null }));
-vi.mock('../CompanionSprite', () => ({ default: () => null }));
+vi.mock('../CompanionSprite', () => ({
+  default: ({ animState }: { animState: string }) => <span data-testid="sprite" data-anim={animState} />,
+}));
 vi.mock('../CompanionSettings', () => ({ default: () => null }));
 
 import useCompanionStore from '@/store/useCompanionStore';
@@ -28,11 +30,16 @@ const goal = (goalId: string, status: GoalStatus): GoalState => ({
 });
 
 const reaction = () => useCompanionStore.getState().currentReaction;
+const spriteAnim = () => screen.getByTestId('sprite').dataset.anim;
 
 describe('CompanionWidget goal resonance', () => {
   beforeEach(() => {
     useCompanionStore.setState({ enabled: true, hatchedAt: Date.now(), currentReaction: null });
     useGoalStore.setState({ chatId: null, activeGoal: null, gitBranch: null, queuedGoals: [] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('celebrates the goal of the open chat that has just completed', () => {
@@ -68,6 +75,23 @@ describe('CompanionWidget goal resonance', () => {
     });
 
     expect(reaction()).toBeNull();
+  });
+
+  it('stops bouncing after the celebration even when another chat is opened meanwhile', () => {
+    vi.useFakeTimers();
+    useGoalStore.getState().bindChat('chat-a');
+    useGoalStore.getState().setActiveGoal('chat-a', goal('goal-a', 'active'));
+    render(<CompanionWidget />);
+
+    act(() => useGoalStore.getState().updateGoalStatus('chat-a', 'complete'));
+    expect(spriteAnim()).toBe('bounce');
+
+    act(() => useGoalStore.getState().bindChat('chat-b'));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(spriteAnim()).toBe('idle');
   });
 
   it('does not celebrate a completed goal that finishes loading after the widget is shown', () => {

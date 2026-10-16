@@ -28,6 +28,11 @@ export function useGoalResonance(setAnimState: (state: 'idle' | 'bounce') => voi
   const goalId = useGoalStore((s) => s.activeGoal?.goalId);
   const goalStatus = useGoalStore((s) => s.activeGoal?.status);
   const prevGoalRef = useRef<GoalSnapshot | null>(goalId && goalStatus ? { goalId, status: goalStatus } : null);
+  const bounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // The bounce ends on its own timer, not when the goal changes again: opening another chat right after a completion
+  // empties the goal, and that must not leave the sprite bouncing.
+  useEffect(() => () => clearTimeout(bounceTimerRef.current), []);
 
   useEffect(() => {
     const next: GoalSnapshot | null = goalId && goalStatus ? { goalId, status: goalStatus } : null;
@@ -38,11 +43,10 @@ export function useGoalResonance(setAnimState: (state: 'idle' | 'bounce') => voi
     }
 
     useCompanionStore.getState().setReaction(tGoal(MESSAGE_KEYS[resonance]));
-    if (resonance !== 'complete') {
-      return;
+    if (resonance === 'complete') {
+      setAnimState('bounce');
+      clearTimeout(bounceTimerRef.current);
+      bounceTimerRef.current = setTimeout(() => setAnimState('idle'), CELEBRATION_MS);
     }
-    setAnimState('bounce');
-    const timer = setTimeout(() => setAnimState('idle'), CELEBRATION_MS);
-    return () => clearTimeout(timer);
   }, [goalId, goalStatus, tGoal, setAnimState]);
 }
