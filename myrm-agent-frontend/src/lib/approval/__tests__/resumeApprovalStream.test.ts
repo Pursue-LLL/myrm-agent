@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentBusyError, ApprovalExpiredError, RiskBlockedError } from '@/store/chat/streamErrors';
+import { AgentBusyError, ApprovalAlreadyResolvedError, RiskBlockedError } from '@/store/chat/streamErrors';
 import type { ToolApprovalRequest } from '@/store/chat/types/toolApproval';
 
 const mockCreateAISearchStream = vi.hoisted(() => vi.fn());
@@ -56,7 +56,7 @@ function buildRequest(): ToolApprovalRequest {
 }
 
 function conflictResponse(): Response {
-  return new Response(JSON.stringify({ detail: 'This approval has already been resolved by timeout.' }), {
+  return new Response(JSON.stringify({ detail: 'This approval has already been resolved.' }), {
     status: 409,
     headers: { 'Content-Type': 'application/json' },
   });
@@ -109,13 +109,13 @@ describe('resumeApprovalStream', () => {
     ).rejects.toBeInstanceOf(RiskBlockedError);
   });
 
-  it('throws ApprovalExpiredError when the timeout already answered the approval (HTTP 409)', async () => {
+  it('throws ApprovalAlreadyResolvedError when the timeout or another client already resolved the approval (HTTP 409)', async () => {
     mockCreateAISearchStream.mockResolvedValue(conflictResponse());
 
     const { resumeApprovalStream } = await import('../resumeApprovalStream');
 
     await expect(resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed')).rejects.toBeInstanceOf(
-      ApprovalExpiredError,
+      ApprovalAlreadyResolvedError,
     );
 
     expect(mockHandleMessageStream).not.toHaveBeenCalled();
@@ -128,6 +128,6 @@ describe('resumeApprovalStream', () => {
 
     const failure = resumeApprovalStream(buildRequest(), { decision: 'approve' }, 'resume failed');
     await expect(failure).rejects.toThrow('Approval resume failed: HTTP 500');
-    await expect(failure).rejects.not.toBeInstanceOf(ApprovalExpiredError);
+    await expect(failure).rejects.not.toBeInstanceOf(ApprovalAlreadyResolvedError);
   });
 });

@@ -2899,8 +2899,8 @@ def resume_clarify_skip_via_api(
     }
 
 
-def is_hitl_already_resolved_by_timeout(result: dict[str, object]) -> bool:
-    """True when resume/skip hit terminal HITL timeout resolution (409, non-retryable)."""
+def is_hitl_already_resolved(result: dict[str, object]) -> bool:
+    """True when resume/skip hit an interrupt the timeout or another client already resolved (409, non-retryable)."""
     error = result.get("error")
     if not isinstance(error, dict):
         return False
@@ -2911,18 +2911,14 @@ def is_hitl_already_resolved_by_timeout(result: dict[str, object]) -> bool:
         raw = error.get(key)
         if raw is not None:
             fragments.append(str(raw))
-    combined = " ".join(fragments).lower()
-    return (
-        "already been resolved by timeout" in combined
-        or "resolved by timeout" in combined
-    )
+    return "already been resolved" in " ".join(fragments).lower()
 
 
 def clarify_skip_resume_should_retry(result: dict[str, object]) -> bool:
     """True when SSE ended early (e.g. UI stream still holds agent) and retry may succeed."""
     if result.get("ok") is True:
         return False
-    if is_hitl_already_resolved_by_timeout(result):
+    if is_hitl_already_resolved(result):
         return False
     error = result.get("error")
     if isinstance(error, dict) and error.get("error_type") in {
@@ -3117,7 +3113,10 @@ def dump_backend_log_on_failure(
             with path.open("rb") as handle:
                 handle.seek(max(start, path.stat().st_size - tail_bytes))
                 text = handle.read().decode("utf-8", errors="replace")
-            print(f"\nBACKEND_LOG_ON_FAILURE ({path}):\n{text}\nBACKEND_LOG_ON_FAILURE_END", flush=True)
+            print(
+                f"\nBACKEND_LOG_ON_FAILURE ({path}):\n{text}\nBACKEND_LOG_ON_FAILURE_END",
+                flush=True,
+            )
         raise
 
 
