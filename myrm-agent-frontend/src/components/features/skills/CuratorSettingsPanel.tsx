@@ -7,6 +7,8 @@ import { WorkflowRecorderModal } from './WorkflowRecorderModal';
 import CuratorNumberField from './CuratorNumberField';
 import CuratorDiagnosticsSection from './CuratorDiagnosticsSection';
 import CuratorHistorySection from './CuratorHistorySection';
+import { useCuratorDiagnostics } from './useCuratorDiagnostics';
+import { useCuratorHistory } from './useCuratorHistory';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
 import { Button } from '@/components/primitives/button';
@@ -17,17 +19,11 @@ import {
   getCuratorConfig,
   updateCuratorConfig,
   runCuratorSweep,
-  getCuratorHistory,
   getConsolidationPreview,
   executeConsolidation,
-  getSkillDiagnostics,
-  remediateSkillFinding,
   type CuratorConfigResponse,
-  type CuratorHistoryEntry,
   type ConsolidationPreviewResponse,
   type ConsolidationExecuteResponse,
-  type SkillDoctorDiagnosticsResponse,
-  type SkillRemediationAction,
 } from '@/services/skill';
 
 const CuratorSettingsPanel = memo(
@@ -42,28 +38,12 @@ const CuratorSettingsPanel = memo(
     const [isLoading, setIsLoading] = useState(true);
     const [isRunning, setIsRunning] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
-    const [history, setHistory] = useState<CuratorHistoryEntry[]>([]);
-    const [historyOpen, setHistoryOpen] = useState(false);
-    const [historyLoading, setHistoryLoading] = useState(false);
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
     const [preview, setPreview] = useState<ConsolidationPreviewResponse | null>(null);
-    const [diagnostics, setDiagnostics] = useState<SkillDoctorDiagnosticsResponse | null>(null);
-    const [diagLoading, setDiagLoading] = useState(false);
-    const [remediatingSkill, setRemediatingSkill] = useState<string | null>(null);
     const [recorderOpen, setRecorderOpen] = useState(false);
-
-    const loadDiagnostics = useCallback(async () => {
-      setDiagLoading(true);
-      try {
-        const diag = await getSkillDiagnostics();
-        setDiagnostics(diag);
-      } catch {
-        setDiagnostics(null);
-      } finally {
-        setDiagLoading(false);
-      }
-    }, []);
+    const { diagnostics, remediatingSkill, loadDiagnostics, remediate } = useCuratorDiagnostics(onSweepComplete);
+    const { sectionProps: historyProps, reloadIfOpen: reloadHistoryIfOpen } = useCuratorHistory();
 
     useEffect(() => {
       getCuratorConfig()
@@ -75,38 +55,6 @@ const CuratorSettingsPanel = memo(
 
       loadDiagnostics();
     }, [loadDiagnostics]);
-
-    const handleRemediate = useCallback(
-      async (skillName: string, action: SkillRemediationAction) => {
-        setRemediatingSkill(skillName);
-        try {
-          const res = await remediateSkillFinding(skillName, action);
-          if (res.success) {
-            toast({
-              title: t('doctor.remediateSuccessTitle'),
-              description: t('doctor.remediateSuccessDesc', { name: skillName }),
-            });
-            await loadDiagnostics();
-            onSweepComplete?.();
-          } else {
-            toast({
-              title: t('doctor.remediateFailedTitle'),
-              description: res.error || t('doctor.remediateFailedDesc'),
-              variant: 'destructive',
-            });
-          }
-        } catch (err: unknown) {
-          toast({
-            title: t('doctor.remediateFailedTitle'),
-            description: err instanceof Error ? err.message : t('doctor.remediateFailedDesc'),
-            variant: 'destructive',
-          });
-        } finally {
-          setRemediatingSkill(null);
-        }
-      },
-      [t, loadDiagnostics, onSweepComplete],
-    );
 
     const handleSave = useCallback(async () => {
       if (!config) {
@@ -121,18 +69,6 @@ const CuratorSettingsPanel = memo(
         toast({ title: t('configSaveFailed'), variant: 'destructive' });
       }
     }, [config, t]);
-
-    const loadHistory = useCallback(async () => {
-      setHistoryLoading(true);
-      try {
-        const entries = await getCuratorHistory(10);
-        setHistory(entries);
-      } catch {
-        setHistory([]);
-      } finally {
-        setHistoryLoading(false);
-      }
-    }, []);
 
     const handleRunNow = useCallback(async () => {
       setIsRunning(true);
@@ -151,23 +87,13 @@ const CuratorSettingsPanel = memo(
         } else {
           toast({ title: t('noChanges') });
         }
-        if (historyOpen) {
-          loadHistory();
-        }
+        reloadHistoryIfOpen();
       } catch {
         toast({ title: t('configSaveFailed'), variant: 'destructive' });
       } finally {
         setIsRunning(false);
       }
-    }, [t, onSweepComplete, historyOpen, loadHistory]);
-
-    const toggleHistory = useCallback(() => {
-      const next = !historyOpen;
-      setHistoryOpen(next);
-      if (next && history.length === 0) {
-        loadHistory();
-      }
-    }, [historyOpen, history.length, loadHistory]);
+    }, [t, onSweepComplete, reloadHistoryIfOpen]);
 
     const updateField = useCallback(
       <K extends keyof CuratorConfigResponse>(key: K, value: CuratorConfigResponse[K]) => {
@@ -228,7 +154,7 @@ const CuratorSettingsPanel = memo(
             <CuratorDiagnosticsSection
               diagnostics={diagnostics}
               remediatingSkill={remediatingSkill}
-              onRemediate={handleRemediate}
+              onRemediate={remediate}
             />
           )}
 
@@ -325,12 +251,7 @@ const CuratorSettingsPanel = memo(
             </div>
           )}
 
-          <CuratorHistorySection
-            open={historyOpen}
-            loading={historyLoading}
-            entries={history}
-            onToggle={toggleHistory}
-          />
+          <CuratorHistorySection {...historyProps} />
 
           {/* Consolidation (Umbrella Merge) Section */}
           <div className="pt-3 border-t">
