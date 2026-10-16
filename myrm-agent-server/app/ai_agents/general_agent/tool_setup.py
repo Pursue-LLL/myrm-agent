@@ -213,6 +213,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
             inner=write_backend,
             llm_auditor=llm_auditor_instance,
         )
+        from app.core.skills.creation.managed_skill_reader import ManagedSkillSnapshotReader
+        from app.core.skills.creation.service import skill_creation_service
         from app.services.skills.mutation_batch_hook import ServerSkillManageBatchHook
 
         tools.append(
@@ -221,6 +223,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 skill_backend,
                 similarity_checker,
                 batch_committed_hook=ServerSkillManageBatchHook(),
+                snapshot_reader=ManagedSkillSnapshotReader(skill_creation_service),
             )
         )
         logger.info("Loaded skill_manage_tool [Turn1]")

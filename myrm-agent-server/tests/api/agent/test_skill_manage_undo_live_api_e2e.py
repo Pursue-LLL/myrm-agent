@@ -3,7 +3,8 @@
 Task flow (no browser): a custom agent with only skill_manage mounted gets a plain request to save a skill; the
 model calls ``skill_manage_tool``; the skill lands in the catalog with the SKILL.md the model sent; the server
 announces the committed batch on the stream after the call's arguments and persists it on that step; rolling the
-batch back (what the Undo dialog calls) removes the skill the batch created.
+batch back (what the Undo dialog calls) removes the skill the batch created. A second flow rewrites that skill in a
+later turn and expects the undo to bring back what the rewrite replaced instead of removing the skill.
 
 Run::
 
@@ -47,6 +48,15 @@ def _user_request(name: str, marker: str) -> str:
     return (
         f"Save a new skill with {_SAVE_TOOL}: one operation, action=save, name={name}, "
         f"description={_SKILL_DESCRIPTION}. The SKILL.md content is YAML frontmatter with that name and "
+        f"description, then a heading, then one body line that is exactly: {marker} . "
+        f"After it is saved, reply with exactly: {_DONE_TOKEN}"
+    )
+
+
+def _rewrite_request(name: str, marker: str) -> str:
+    return (
+        f"Save the skill {name} again with {_SAVE_TOOL}: one operation, action=save, the same name and "
+        f"description={_SKILL_DESCRIPTION}. The new SKILL.md content is YAML frontmatter with that name and "
         f"description, then a heading, then one body line that is exactly: {marker} . "
         f"After it is saved, reply with exactly: {_DONE_TOKEN}"
     )
@@ -133,6 +143,16 @@ def _batch_id_of(event: dict[str, object]) -> str | None:
     if raw is None and isinstance(nested, dict):
         raw = nested.get("skill_mutation_batch_id")
     return raw if isinstance(raw, str) and raw else None
+
+
+def _announced_batch(events: list[dict[str, object]]) -> str | None:
+    return next((batch_id for event in events if (batch_id := _batch_id_of(event))), None)
+
+
+def _skill_md(client: httpx.Client, backend_url: str, skill_id: str) -> str:
+    response = client.get(f"{backend_url}/api/v1/skills/{quote(skill_id, safe='')}/files/SKILL.md", timeout=30.0)
+    response.raise_for_status()
+    return response.text
 
 
 def _persisted_skill_steps(client: httpx.Client, backend_url: str, chat_id: str) -> list[dict[str, object]]:
@@ -246,3 +266,41 @@ def test_live_agent_saves_a_skill_and_the_batch_reaches_its_step_and_rolls_back(
             timeout_sec=60.0,
             what="the skill to disappear after the rollback",
         )
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(600)
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"),
+    reason="Requires BASIC_API_KEY and LITE_API_KEY",
+)
+def test_live_agent_rewrites_a_skill_and_the_undo_brings_back_what_it_replaced() -> None:
+    backend_url = os.environ.get("BACKEND_URL", "").rstrip("/") or resolve_verify_api_base()
+    if _backend_runtime_data_dir(backend_url) is None:
+        pytest.skip(f"{backend_url} is not an isolated runtime; refusing to write skills into a shared backend")
+
+    suffix = uuid.uuid4().hex[:8]
+    skill_name = f"api-rewrite-{suffix}"
+    first_marker, second_marker = f"API_FIRST_{suffix}", f"API_SECOND_{suffix}"
+    chat_id = f"apirewrite{suffix}"
+
+    with httpx.Client() as client:
+        agent_id = _create_agent(client, backend_url, suffix)
+        _create_chat(client, backend_url, chat_id, agent_id)
+        first = _announced_batch(_stream_turn(client, backend_url, agent_id, chat_id, _user_request(skill_name, first_marker)))
+        assert first, "the first save never announced a committed batch"
+        skill_id = _catalog_skill_id(client, backend_url, skill_name)
+        assert skill_id, f"skill {skill_name!r} is not in the catalog after the first save"
+
+        second = _announced_batch(
+            _stream_turn(client, backend_url, agent_id, chat_id, _rewrite_request(skill_name, second_marker))
+        )
+        assert second and second != first, f"the rewrite must commit its own batch: first={first} second={second}"
+        rewritten = _skill_md(client, backend_url, skill_id)
+        assert second_marker in rewritten and first_marker not in rewritten, f"the rewrite did not land:\n{rewritten[:600]}"
+
+        rollback_url = f"{backend_url}/api/v1/skill-optimization/mutations/{second}/rollback"
+        assert _data(client.post(rollback_url, timeout=60.0)).get("status")
+        assert _catalog_skill_id(client, backend_url, skill_name) == skill_id, "the undo of a rewrite removed the skill"
+        restored = _skill_md(client, backend_url, skill_id)
+        assert first_marker in restored and second_marker not in restored, f"the undo kept the rewrite:\n{restored[:600]}"
