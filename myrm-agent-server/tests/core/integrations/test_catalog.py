@@ -241,6 +241,25 @@ class TestCatalogRegistry:
         for query in ("待办", "微软待办", "微软"):
             assert any(e.id == "microsoft-todo" for e in registry.search(query)), f"search '{query}' must return microsoft-todo"
 
+    def test_postiz_entry(self, registry: CatalogRegistry) -> None:
+        """Postiz must ship as a remote hosted MCP entry with API-key header auth and bilingual guides."""
+        entry = registry.get_by_id("postiz")
+        assert entry is not None
+        assert entry.category == "social"
+        assert entry.connector_type == ConnectorType.MCP
+        assert entry.auth.type == AuthType.BEARER
+        assert entry.auth.credential_fields is not None
+        assert entry.auth.credential_fields[0].key == "Authorization"
+        assert entry.mcp_config is not None
+        assert entry.mcp_config.type == "streamable_http"
+        assert entry.mcp_config.url == "https://mcp.postiz.com/mcp"
+        assert entry.mcp_config.deployment_scope == DeploymentScope.ALL_MODES
+        assert entry.mcp_config.post_connect_guide
+        assert entry.mcp_config.post_connect_guide_zh
+        for query in ("postiz", "排期", "社交媒体"):
+            assert any(e.id == "postiz" for e in registry.search(query)), f"search '{query}' must return postiz"
+        assert any(e.id == "postiz" for e in registry.list_by_category("social"))
+
     def test_google_catalog_entries_removed(self, registry: CatalogRegistry) -> None:
         """Google abilities are covered by the google-workspace skill; catalog entries are gone."""
         loaded_ids = {e.id for e in registry.list_all()}
@@ -295,7 +314,8 @@ class TestCatalogRegistry:
         assert "web_search" in cats
         assert "docs" in cats
         assert "design" in cats
-        assert len(cats) == 9
+        assert "social" in cats
+        assert len(cats) == 10
 
     def test_mcp_configs_present(self, registry: CatalogRegistry) -> None:
         """All MCP-type entries must have mcp_config populated."""

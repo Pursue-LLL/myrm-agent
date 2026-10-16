@@ -6,7 +6,7 @@
  * - ProbeStatus / ProbeRecommendedMode / ProbeReasonCode: 连通性探测的受控状态与枚举
  * - normalizeProbeRecommendedMode / normalizeProbeReasonCode: 后端自由字符串收敛为受控枚举
  * - probeErrorI18nKey: reasonCode 到失败文案 i18n key 的映射
- * - resolveProbeUrl: 目录条目的探测地址（probeUrl 优先，回退 url）
+ * - isLoopbackProbeUrl / resolveProbeUrl: 探测资格与地址解析（仅本机回环目标可探测，远端由安全门握手校验）
  *
  * [POS]
  * 连接对话框连通性探测的类型与归一化规则，供 useConnectivityProbe 与探测提示 UI 共用。
@@ -74,14 +74,30 @@ export function probeErrorI18nKey(
   return null;
 }
 
+// Mirrors the backend /probe allowlist (SSRF guard): only these hosts may be probed.
+const LOOPBACK_PROBE_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '0.0.0.0']);
+
+/**
+ * The backend probe endpoint only accepts loopback targets; remote entries are
+ * verified by the security gate's real MCP handshake instead of a probe.
+ */
+export function isLoopbackProbeUrl(candidate: string): boolean {
+  try {
+    const hostname = new URL(candidate).hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    return LOOPBACK_PROBE_HOSTS.has(hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function resolveProbeUrl(mcpConfig: Record<string, unknown> | null): string | undefined {
   const probeUrlCandidate = mcpConfig?.probeUrl;
   if (typeof probeUrlCandidate === 'string' && probeUrlCandidate.trim()) {
-    return probeUrlCandidate;
+    return isLoopbackProbeUrl(probeUrlCandidate) ? probeUrlCandidate : undefined;
   }
   const urlCandidate = mcpConfig?.url;
   if (typeof urlCandidate === 'string' && urlCandidate.trim()) {
-    return urlCandidate;
+    return isLoopbackProbeUrl(urlCandidate) ? urlCandidate : undefined;
   }
   return undefined;
 }

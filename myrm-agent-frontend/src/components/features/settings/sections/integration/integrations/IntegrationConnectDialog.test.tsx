@@ -163,6 +163,30 @@ describe('IntegrationConnectDialog', () => {
     expect(mockSetMCPConfigs).not.toHaveBeenCalled();
   });
 
+  it('skips the loopback probe for remote hosted entries and connects through the security gate', async () => {
+    const entry = makeCatalogEntry({
+      id: 'postiz',
+      name: 'Postiz',
+      deploymentScope: 'all_modes',
+      mcpConfig: {
+        name: 'postiz',
+        type: 'streamable_http',
+        url: 'https://mcp.postiz.com/mcp',
+      },
+    });
+    mockIsSandbox.mockReturnValue(false);
+
+    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={vi.fn()} onConnected={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+
+    await waitFor(() => {
+      expect(mockSetMCPConfigs).toHaveBeenCalledTimes(1);
+    });
+    expect(mockApiRequest).not.toHaveBeenCalled();
+    expect(mockGateMcpEnable).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to mcp url when probeUrl is missing', async () => {
     const entry = makeCatalogEntry({
       deploymentScope: 'all_modes',
