@@ -69,6 +69,21 @@ _run_import_resolvability() {
     --scan app
 }
 
+# Diff mode: only server units this change leaves without a production consumer fail, so work in
+# flight elsewhere cannot block an unrelated change. An unresolvable base revision is an error.
+_run_module_reachability() {
+  local harness_root py
+  if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
+    echo "CI module-reachability: harness source unavailable (PyPI mode); skipping module reachability check"
+    return 0
+  fi
+  py="${SERVER_ROOT}/.venv/bin/python"
+  [[ -x "${py}" ]] || py="python3"
+  "${py}" "${harness_root}/scripts/check_module_reachability.py" \
+    --server --server-root "${SERVER_ROOT}/app" \
+    --base "${MYRM_REACHABILITY_BASE:-origin/main}"
+}
+
 _run_ruff() {
   if [[ -x "${SERVER_ROOT}/.venv/bin/ruff" ]]; then
     "${SERVER_ROOT}/.venv/bin/ruff" check .
@@ -106,6 +121,7 @@ myrm_ci_install_server_deps --reuse-venv
 _run_fractal_docs
 _run_md_refs
 _run_import_resolvability
+_run_module_reachability
 _run_profile_capability_gate
 _run_dependency_vuln_gate
 _run_ruff
