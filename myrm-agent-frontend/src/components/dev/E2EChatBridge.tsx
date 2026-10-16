@@ -1285,7 +1285,12 @@ export default function E2EChatBridge() {
           return { ok: false, err: 'no-goal' };
         }
         const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
-        useGoalStore.getState().setActiveGoal(chatId, normalizeGoalState(data.goal as unknown as GoalStatusPayload));
+        const goalState = normalizeGoalState(data.goal as unknown as GoalStatusPayload);
+        useGoalStore.getState().setActiveGoal(chatId, goalState);
+        // The store takes only the goal of the chat it is bound to; report a write it dropped instead of success.
+        if (useGoalStore.getState().activeGoal?.goalId !== goalState.goalId) {
+          return { ok: false, err: 'goal-store-not-bound-to-chat' };
+        }
         return {
           ok: true,
           status: String(data.goal.status ?? ''),
