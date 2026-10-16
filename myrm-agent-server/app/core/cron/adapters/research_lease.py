@@ -8,7 +8,7 @@
 [OUTPUT]
 - is_read_only_job: whether every capability a job declares is one the lease permits
 - grant_run_lease: put one run under a private read-only lease and return the key to release it with
-- release_run_lease: revoke a run's lease and drop its overlay
+- release_run_lease: revoke a run's lease
 
 [POS]
 Decides which cron runs execute under the harness read-only research lease: jobs that declare nothing or only
@@ -71,10 +71,8 @@ def grant_run_lease(agent: _ApprovalKeyed, job: CronJob, *, timeout_seconds: int
 
 
 def release_run_lease(session_key: str) -> None:
-    """Revoke a run's lease and drop its overlay; best effort, so cleanup never fails the run."""
+    """Revoke a run's lease; best effort, so cleanup never fails the run."""
     try:
-        facade = get_readonly_research_sandbox_facade()
-        facade.revoke_lease(session_key)
-        facade.purge_ephemeral_overlay(session_key)
+        get_readonly_research_sandbox_facade().revoke_lease(session_key)
     except Exception as exc:
         logger.debug("Read-only research lease cleanup ignored: %s", exc)

@@ -142,16 +142,15 @@ def test_overlapping_runs_of_one_job_do_not_revoke_each_others_lease(granted_key
     assert facade.evaluate_tool(stranger_key, "file_write_tool")[0] is False
 
 
-def test_release_forgets_the_lease_and_purges_the_overlay() -> None:
+def test_release_forgets_the_lease() -> None:
     facade = get_readonly_research_sandbox_facade()
     key = grant_run_lease(_FakeAgent(), _job(), timeout_seconds=300, untrusted=False)
     assert key is not None
-    facade.write_ephemeral_output(key, "scratch.txt", "draft")
 
     release_run_lease(key)
 
     assert facade.get_lease(key) is None
-    assert facade.list_ephemeral_outputs(key) == []
+    assert facade.evaluate_tool(key, "file_write_tool")[0] is True
 
 
 def test_release_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
