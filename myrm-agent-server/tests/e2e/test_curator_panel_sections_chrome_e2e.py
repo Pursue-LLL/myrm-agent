@@ -292,15 +292,6 @@ def _fixture() -> dict[str, object]:
                     "pinned": True,
                     "details": {"days_inactive": 45},
                 },
-                {
-                    "skill_name": "[Library Bloat]",
-                    "finding_type": "hoarding_bloat",
-                    "severity": "warning",
-                    "call_count": 0,
-                    "success_rate": 1.0,
-                    "pinned": False,
-                    "details": {"active_count": 52, "max_skills": 50, "excess": 2},
-                },
             ],
         },
     }
@@ -320,11 +311,10 @@ _ZH_HISTORY_OLDER = (
 _ZH_DIAGNOSTIC_ROWS = (
     (f"{_SKILL_PREFIX}ocr", "高频低效", "已运行 30 次，成功率仅 10%"),
     (f"{_SKILL_PREFIX}notes", "闲置置顶", "已固定，但已有 45 天未使用"),
-    ("技能囤积", "活跃技能 52 个，比上限 50 个多出 2 个"),
 )
 _LEAKED = re.compile(
     r"PINNED|Score|\bstale\b|\barchived\b|inactive|low_quality|lru_eviction|wrong_but_frequent|stale_pinned"
-    r"|hoarding_bloat|Library Bloat|\bago\b|\d\s?ms\b|settings\.skills|historyReason|doctor\."
+    r"|\bago\b|\d\s?ms\b|settings\.skills|historyReason|doctor\."
 )
 
 
@@ -372,7 +362,7 @@ def _bring_up_sections(client: ChromeMcpClient, page: McpPage, target: str) -> N
           {e2e}.showTab({target}, 'installed');
           {e2e}.openHistory({target});
           const s = {e2e}.snapshot({target});
-          return {{ ready: s.rows.length === 3 && s.entries.length === 2, rows: s.rows.length, entries: s.entries.length }};
+          return {{ ready: s.rows.length === 2 && s.entries.length === 2, rows: s.rows.length, entries: s.entries.length }};
         }})()""",
     )
 
@@ -389,12 +379,11 @@ def _check_copy(snapshot: dict[str, object]) -> None:
         assert expected in entries[1], (expected, entries[1])
 
     header = str(snapshot["header"])
-    assert "技能健康体检：发现 3 个异常" in header and "70/100" in header, header
+    assert "技能健康体检：发现 2 个异常" in header and "70/100" in header, header
     for row, fragments in zip(rows, _ZH_DIAGNOSTIC_ROWS, strict=True):
         for fragment in fragments:
             assert fragment in row, (fragment, row)
-    assert "[Library Bloat]" not in rows[2], "the library-wide finding names no skill"
-    assert snapshot["rowButtons"] == [2, 2, 0], "skill findings offer actions, the library-wide one offers none"
+    assert snapshot["rowButtons"] == [2, 2], "every finding names a skill and offers its two actions"
 
     assert not _LEAKED.search(str(snapshot["sectionsText"])), snapshot["sectionsText"]
 

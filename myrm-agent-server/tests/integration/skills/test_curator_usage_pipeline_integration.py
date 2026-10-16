@@ -131,61 +131,6 @@ async def test_never_used_young_skill_not_stale(curator_workspace: Path) -> None
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("protect_system", "expected_status"),
-    [(True, SkillLifecycleStatus.ACTIVE), (False, SkillLifecycleStatus.STALE)],
-)
-async def test_prebuilt_skill_exempt_from_sweep_only_while_protection_is_on(
-    curator_workspace: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    protect_system: bool,
-    expected_status: SkillLifecycleStatus,
-) -> None:
-    """A skill under a ``/prebuilt/`` root is spared by ``protect_system_skills`` and by nothing else."""
-    import app.core.skills.models as models_mod
-
-    prebuilt_root = curator_workspace.parent / "assets" / "prebuilt"
-    sys_skill = prebuilt_root / "sys-skill"
-    sys_skill.mkdir(parents=True)
-    (sys_skill / "SKILL.md").write_text(
-        "---\nname: sys-skill\ndescription: Prebuilt system skill\n---\nPrebuilt.\n",
-        encoding="utf-8",
-    )
-    old = (datetime.now(UTC) - timedelta(days=200)).isoformat()
-    (sys_skill / ".stats.json").write_text(
-        json.dumps(
-            {
-                "call_count": 0,
-                "success_count": 0,
-                "failure_count": 0,
-                "created_at": old,
-                "lifecycle_status": "active",
-            }
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(curator_workspace), str(prebuilt_root)])
-
-    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
-
-    update_curator_config(
-        {
-            "stale_after_days": 7,
-            "grace_period_days": 0,
-            "protect_system_skills": protect_system,
-            # Another root counts as installed; switch that protection off so only the prebuilt rule is under test.
-            "protect_installed_skills": False,
-            "enabled": True,
-        }
-    )
-    await run_curator_sweep(force=True, trigger="manual")
-
-    persisted = json.loads((sys_skill / ".stats.json").read_text())
-    assert persisted["lifecycle_status"] == expected_status
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
     ("protect_installed", "authored_status", "installed_status"),
     [
         (True, SkillLifecycleStatus.STALE, SkillLifecycleStatus.ACTIVE),

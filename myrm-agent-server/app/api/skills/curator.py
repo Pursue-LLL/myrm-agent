@@ -52,7 +52,6 @@ class CuratorConfigResponse(BaseModel):
     archive_after_days: int
     grace_period_days: int
     min_success_rate: float
-    max_skills: int
     protect_installed_skills: bool
     consolidation_enabled: bool
     consolidation_min_cluster_size: int
@@ -68,7 +67,6 @@ class CuratorConfigUpdateRequest(BaseModel):
     archive_after_days: int | None = None
     grace_period_days: int | None = None
     min_success_rate: float | None = None
-    max_skills: int | None = None
     protect_installed_skills: bool | None = None
     consolidation_enabled: bool | None = None
     consolidation_min_cluster_size: int | None = None
@@ -169,7 +167,6 @@ async def get_curator_config() -> CuratorConfigResponse:
         archive_after_days=config.archive_after_days,
         grace_period_days=config.grace_period_days,
         min_success_rate=config.min_success_rate,
-        max_skills=config.max_skills,
         protect_installed_skills=config.protect_installed_skills,
         consolidation_enabled=config.consolidation_enabled,
         consolidation_min_cluster_size=config.consolidation_min_cluster_size,
@@ -195,7 +192,6 @@ async def update_curator_config(
         archive_after_days=config.archive_after_days,
         grace_period_days=config.grace_period_days,
         min_success_rate=config.min_success_rate,
-        max_skills=config.max_skills,
         protect_installed_skills=config.protect_installed_skills,
         consolidation_enabled=config.consolidation_enabled,
         consolidation_min_cluster_size=config.consolidation_min_cluster_size,

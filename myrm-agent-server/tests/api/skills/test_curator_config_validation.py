@@ -27,8 +27,7 @@ def isolated_config(tmp_path: Path) -> Iterator[Path]:
 @pytest.mark.parametrize(
     "payload",
     [
-        {"max_skills": 0},
-        {"max_skills": -3},
+        {"stale_after_days": -3},
         {"stale_after_days": 0},
         {"archive_after_days": 0},
         {"interval_hours": 0},
@@ -44,17 +43,17 @@ def test_out_of_range_value_is_rejected_and_nothing_is_stored(
     assert response.status_code == 422
     assert "CuratorConfig" in response.json()["detail"]
     assert not (isolated_config / _CONFIG_FILENAME).exists()
-    assert client.get(_CONFIG_URL).json()["max_skills"] == 50
+    assert client.get(_CONFIG_URL).json()["stale_after_days"] == 30
 
 
 def test_rejected_update_keeps_the_previously_stored_config(client: TestClient, isolated_config: Path) -> None:
-    assert client.patch(_CONFIG_URL, json={"max_skills": 80}).status_code == 200
+    assert client.patch(_CONFIG_URL, json={"stale_after_days": 80}).status_code == 200
     stored = (isolated_config / _CONFIG_FILENAME).read_text()
 
-    assert client.patch(_CONFIG_URL, json={"max_skills": 0}).status_code == 422
+    assert client.patch(_CONFIG_URL, json={"stale_after_days": 0}).status_code == 422
 
     assert (isolated_config / _CONFIG_FILENAME).read_text() == stored
-    assert client.get(_CONFIG_URL).json()["max_skills"] == 80
+    assert client.get(_CONFIG_URL).json()["stale_after_days"] == 80
 
 
 def test_boundary_values_are_accepted(client: TestClient, isolated_config: Path) -> None:
@@ -68,21 +67,21 @@ def test_boundary_values_are_accepted(client: TestClient, isolated_config: Path)
 
 
 def test_persisted_invalid_config_falls_back_to_defaults(client: TestClient, isolated_config: Path) -> None:
-    (isolated_config / _CONFIG_FILENAME).write_text(json.dumps({"max_skills": 0, "stale_after_days": 0}))
+    (isolated_config / _CONFIG_FILENAME).write_text(json.dumps({"interval_hours": 0, "stale_after_days": 0}))
 
     body = client.get(_CONFIG_URL).json()
 
-    assert body["max_skills"] == 50
+    assert body["interval_hours"] == 168
     assert body["stale_after_days"] == 30
 
 
 def test_persisted_invalid_threshold_keeps_the_disabled_master_switch(client: TestClient, isolated_config: Path) -> None:
-    (isolated_config / _CONFIG_FILENAME).write_text(json.dumps({"enabled": False, "max_skills": 0, "stale_after_days": 45}))
+    (isolated_config / _CONFIG_FILENAME).write_text(json.dumps({"enabled": False, "interval_hours": 0, "stale_after_days": 45}))
 
     body = client.get(_CONFIG_URL).json()
 
     assert body["enabled"] is False
-    assert body["max_skills"] == 50
+    assert body["interval_hours"] == 168
     assert body["stale_after_days"] == 30
 
 
@@ -101,4 +100,17 @@ def test_unreadable_persisted_config_falls_back_to_defaults(client: TestClient, 
     body = client.get(_CONFIG_URL).json()
 
     assert body["enabled"] is True
-    assert body["max_skills"] == 50
+    assert body["stale_after_days"] == 30
+
+
+def test_config_written_before_the_size_limit_was_removed_still_loads(client: TestClient, isolated_config: Path) -> None:
+    """A stored file that still carries the retired keys keeps loading; the API no longer reports them."""
+    (isolated_config / _CONFIG_FILENAME).write_text(
+        json.dumps({"max_skills": 80, "protect_system_skills": False, "stale_after_days": 45})
+    )
+
+    body = client.get(_CONFIG_URL).json()
+
+    assert body["stale_after_days"] == 45
+    assert "max_skills" not in body
+    assert "protect_system_skills" not in body
