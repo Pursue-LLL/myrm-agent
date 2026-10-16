@@ -103,8 +103,8 @@ def test_unreadable_persisted_config_falls_back_to_defaults(client: TestClient, 
     assert body["stale_after_days"] == 30
 
 
-def test_config_written_before_the_size_limit_was_removed_still_loads(client: TestClient, isolated_config: Path) -> None:
-    """A stored file that still carries the retired keys keeps loading; the API no longer reports them."""
+def test_config_file_with_unknown_keys_still_loads(client: TestClient, isolated_config: Path) -> None:
+    """A stored file carrying keys the config does not define still loads, and the API does not echo them."""
     (isolated_config / _CONFIG_FILENAME).write_text(
         json.dumps({"max_skills": 80, "protect_system_skills": False, "stale_after_days": 45})
     )
