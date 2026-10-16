@@ -417,7 +417,6 @@ class RuntimeMeterService:
             "browser_summary": browser_summary,
             "is_burn_rate_alert": is_burn_rate_alert,
             "burn_rate_message": message,
-            "circuit_breakers": self.get_circuit_breaker_statuses(),
             "token_burn_rate": {
                 "is_alert": smoke_verdict.is_alert,
                 "tokens_per_minute": smoke_verdict.tokens_per_minute,
@@ -425,30 +424,6 @@ class RuntimeMeterService:
                 "active_alerts": active_token_alerts,
             },
         }
-
-    def get_circuit_breaker_statuses(self) -> list[dict[str, object]]:
-        """Retrieve telemetry snapshots of all active model/provider circuit breakers."""
-        from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import (
-            get_circuit_breaker_registry,
-        )
-
-        reg = get_circuit_breaker_registry()
-        raw_stats = reg.get_all_stats()
-        result: list[dict[str, object]] = []
-
-        for key, stats in raw_stats.items():
-            result.append(
-                {
-                    "key": key,
-                    "state": str(stats.get("state", "closed")),
-                    "failure_count": int(stats.get("failure_count", 0)),
-                    "failure_threshold": int(stats.get("failure_threshold", 5)),
-                    "timeout_ms": int(stats.get("timeout_ms", 30_000)),
-                    "retry_after_ms": int(stats.get("retry_after_ms", 0)),
-                    "is_open": stats.get("state") == "open",
-                }
-            )
-        return result
 
 
 runtime_meter_service = RuntimeMeterService()

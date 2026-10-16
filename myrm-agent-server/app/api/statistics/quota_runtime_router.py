@@ -27,9 +27,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
-from app.services.observability.provider_circuit_service import (
-    provider_circuit_service,
-)
 from app.services.observability.runtime_meter_service import runtime_meter_service
 
 router = APIRouter(prefix="", tags=["runtime-meter"])
@@ -49,10 +46,6 @@ class SearchQuotaResetRequest(BaseModel):
 class SearchQuotaLimitUpdateRequest(BaseModel):
     provider: str = Field(..., min_length=1, max_length=32)
     quota_limit: int = Field(..., ge=1, le=10_000_000)
-
-
-class LLMProviderCircuitResetRequest(BaseModel):
-    provider_or_key: str | None = Field(default=None, max_length=128)
 
 
 class BrowserRuntimeRecordRequest(BaseModel):
@@ -238,32 +231,4 @@ async def update_search_quota_limit(
         logger.error("Failed to update search quota limit: %s", exc, exc_info=True)
         raise internal_error(
             "Failed to update search quota limit", exception=exc
-        ) from exc
-
-
-@router.get("/llm-provider-health")
-async def get_llm_provider_health() -> JSONResponse:
-    """Get real-time health, circuit breaker, and key pool status of LLM providers."""
-    try:
-        breakers = provider_circuit_service.get_all_circuit_statuses()
-        return success_response({"circuit_breakers": breakers})
-    except Exception as exc:
-        logger.error("Failed to get LLM provider health status: %s", exc, exc_info=True)
-        raise internal_error(
-            "Failed to get LLM provider health status", exception=exc
-        ) from exc
-
-
-@router.post("/llm-provider-health/reset")
-async def reset_llm_provider_circuit(
-    req: LLMProviderCircuitResetRequest,
-) -> JSONResponse:
-    """Reset one or all circuit breakers for LLM providers."""
-    try:
-        res = provider_circuit_service.reset_circuit(req.provider_or_key)
-        return success_response(res)
-    except Exception as exc:
-        logger.error("Failed to reset LLM provider circuit breaker: %s", exc, exc_info=True)
-        raise internal_error(
-            "Failed to reset LLM provider circuit breaker", exception=exc
         ) from exc

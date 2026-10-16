@@ -391,7 +391,6 @@ myrm_agent_harness.toolkits.llms.errors
 myrm_agent_harness.toolkits.llms.errors.classifier
 myrm_agent_harness.toolkits.llms.errors.resilient
 myrm_agent_harness.toolkits.llms.fallback
-myrm_agent_harness.toolkits.llms.fallback.circuit_breaker
 myrm_agent_harness.toolkits.llms.fallback.health_check
 myrm_agent_harness.toolkits.llms.image
 myrm_agent_harness.toolkits.llms.image.async_image_engine
