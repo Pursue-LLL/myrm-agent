@@ -38,7 +38,7 @@ _TOGGLE_READY = f"""(() => {{
   {_FIND_TOGGLE}
   // A click before React attached its handlers is lost, and the notice is rendered by the same component as the
   // empty-chat heading, so both have to be hydrated before the toggle counts.
-  const heading = document.querySelector('h2.text-3xl');
+  const heading = document.querySelector('[data-testid="empty-chat-title"]');
   const isHydrated = (el) => !!el && Object.keys(el).some((key) => key.startsWith('__reactProps'));
   const hydrated = isHydrated(toggle) && isHydrated(heading);
   return {{
@@ -158,7 +158,7 @@ _PHONE_FRAME_STATE = """(() => {
   const win = frame.contentWindow;
   const doc = win.document;
   const store = win.__myrmChatStore;
-  const heading = doc.querySelector('h2.text-3xl');
+  const heading = doc.querySelector('[data-testid="empty-chat-title"]');
   const hydrated = !!heading && Object.keys(heading).some((key) => key.startsWith('__reactProps'));
   if (!store || !hydrated) {
     return { ready: false, stage: 'hydrating' };
