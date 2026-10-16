@@ -29,7 +29,7 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `snapshot.py` | 核心 | 可移植记忆快照：`MemorySnapshot` 格式（版本 3，gzip JSON）、`capture_snapshot` 完整性校验捕获、`apply_snapshot` 覆盖/合并回放与回放核对、`encode_snapshot`/`decode_snapshot` | ✅ |
+| `snapshot.py` | 核心 | 可移植记忆快照：`MemorySnapshot` 格式（版本 3，gzip JSON）、`capture_snapshot` 完整性校验捕获、`apply_snapshot` 覆盖/合并回放与回放核对（覆盖只清当前嵌入模型的集合：快照里没有旧模型遗留的记忆，覆盖不能把它们一并销毁）、`encode_snapshot`/`decode_snapshot` | ✅ |
 | `volume_store.py` | 核心 | 沙箱持久卷备份库（默认 `~/.myrm/backups/{backup_id}/`）：`save`/`list_backups`/`load`/`delete`；`metadata.json` 最后原子写入，缺它即非完整备份；备份 id 严格校验 | ✅ |
 | `service.py` | 核心 | 本地备份编排 `MemoryBackupService`：`create`、`restore`（覆盖式恢复先留底，失败不丢副本） | ✅ |
 | `backup_remote.py` | 核心 | 远程备份策略模块。WebDAV/S3 云端备份的 upload/download/list/delete 抽象和实现 | ✅ |

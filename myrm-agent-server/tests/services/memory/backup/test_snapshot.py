@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
+from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
 
 from app.services.memory.backup.snapshot import (
     MemorySnapshot,
@@ -94,6 +95,27 @@ async def test_replace_restore_removes_memories_that_are_not_in_the_snapshot(
         await apply_snapshot(target, snapshot, replace=True)
 
         assert await _content(target) == await _content(source)
+
+
+async def test_replace_restore_leaves_memories_of_a_previous_embedding_model_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A snapshot cannot hold what the current model never sees, so replacing must not destroy it."""
+    async with offline_memory_manager(tmp_path / "source", monkeypatch) as source:
+        await _seed(source)
+        snapshot = await capture_snapshot(source)
+        expected = await _content(source)
+    async with offline_memory_manager(tmp_path / "target", monkeypatch, embedding_model="previous/model") as previous:
+        await previous.add_knowledge("Written before the embedding model was switched.")
+    await clear_embedded_stores()
+
+    async with offline_memory_manager(tmp_path / "target", monkeypatch) as target:
+        assert (await target.estimate_reindex()).total_memories == 1
+
+        await apply_snapshot(target, snapshot, replace=True)
+
+        assert (await target.estimate_reindex()).total_memories == 1
+        assert await _content(target) == expected
 
 
 async def test_merge_restore_keeps_existing_memories_and_never_duplicates(

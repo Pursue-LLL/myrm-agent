@@ -102,8 +102,9 @@ async def execute_reindex(
 ) -> ReindexStatusResponse:
     """Start re-embedding orphan memories with the current model in the background, or join the run in flight.
 
-    Old collections are preserved as a safety net. A run into another embedding model that has not finished
-    yet answers 409, because joining it would not move anything into the model now in use.
+    A memory leaves its old collection only after the current one is read back to hold it, and an emptied
+    old collection is dropped. A run into another embedding model that has not finished yet answers 409,
+    because joining it would not move anything into the model now in use.
     """
     try:
         return _status_response(schedule_memory_reindex(manager))

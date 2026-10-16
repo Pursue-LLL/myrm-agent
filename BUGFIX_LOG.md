@@ -5373,7 +5373,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-16（`BUG-AGENT-2026-10-16-006` 之后追问「用户换完模型、重开页面、或根本没进模型设置页，会怎样」；本机开发库的估算接口仍返回 1591 条遗留在旧模型的记忆：对话 1515、情景 14、语义 62，在浏览器里确实看到了新提示） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P2（旧模型遗留的记忆静默不参与回复，用户没有任何线索；删除类操作清不到它们见 `BUG-HARNESS-2026-10-16-006`） |
-| 影响范围 | frontend：`src/components/features/memory/settings/MemoryMigrationNotice.tsx`（自 `settings/sections/ai-core/` 迁入记忆域，两处共用）、`settings/sections/knowledge/MemoryCenterSection.tsx`、`settings/sections/ai-core/DefaultModelSection.tsx`、`src/store/useRetrievalStore.ts`、六个语言包 `settings.defaultModel.retrieval.orphanWarning`；server：`app/core/memory/adapters/cascade.py`、新增 `tests/core/memory/adapters/test_cascade.py` |
+| 影响范围 | frontend：`src/components/features/memory/settings/MemoryMigrationNotice.tsx`（自 `settings/sections/ai-core/` 迁入记忆域，两处共用）、`settings/sections/knowledge/MemoryCenterSection.tsx`、`settings/sections/ai-core/DefaultModelSection.tsx`、`src/store/useRetrievalStore.ts`、六个语言包 `settings.defaultModel.retrieval.orphanWarning`；server：`app/core/memory/adapters/cascade.py`、`app/api/memory/operations/reindex.py`（`POST /memory/reindex` 的接口说明）、`app/services/memory/backup/snapshot.py`（覆盖恢复只清当前模型的集合）、新增 `tests/core/memory/adapters/test_cascade.py`、`tests/services/memory/backup/test_snapshot.py` 新增 1 例与 `tests/support/offline_memory.py` 的 `embedding_model` 参数；frontend 另有 `settings/sections/knowledge/MemorySection.tsx`（清空全部记忆成功后重读迁移估算） |
 | 出现次数 | 1（浏览器里看到真实遗留记忆的提示；没有点迁移） |
 | 关联 | `BUG-HARNESS-2026-10-16-006`（集合族删除与搬家式迁移）、`BUG-AGENT-2026-10-16-006`（迁移提示首版）；本地提交，未 push |
 
@@ -5383,6 +5383,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 提示只挂在 设置 > 模型 > 嵌入 一处；用户在记忆页只会觉得「记忆变少了」，没有任何线索。
 3. 文案是「N 条记忆来自旧模型，需要迁移」，没说后果：这些记忆在迁移前不会用于回答。
 4. server 的级联删除管理器（对话销毁、项目清空用）从集合列表里推断一个嵌入模型，只会清到推断出的那个模型的集合。
+5. `POST /memory/reindex` 的接口说明写着「旧集合保留作退路」，与搬家式迁移（新集合读回确认后才从旧集合删除，清空的旧集合被删除）相反，改为描述搬家语义。
+6. 备份「覆盖恢复」（`apply_snapshot(replace=True)`）经 `delete_by_type` 清空每个类型；删除改为集合族口径后，它会连旧模型集合里不在任何备份里的记忆一起销毁，而恢复前的安全备份同样只含当前模型的记忆，等于无法找回。覆盖恢复改为只清当前模型的集合（`include_previous_models=False`），旧模型遗留的记忆由用户迁移或清空。
+7. 记忆页的「清空所有记忆」成功后，同页顶部的迁移提示仍显示旧的条数（这些记忆已被一并清掉），清空成功后重读一次估算。
 
 ### 根因
 

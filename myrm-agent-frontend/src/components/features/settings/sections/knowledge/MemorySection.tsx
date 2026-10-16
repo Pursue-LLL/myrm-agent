@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import useConfigStore from '@/store/useConfigStore';
 import useAuthStore from '@/store/useAuthStore';
+import useRetrievalStore from '@/store/useRetrievalStore';
 import { useMemoryStore, type MemoryType, type Memory } from '@/store/memory';
 import { restoreMemory as apiRestoreMemory } from '@/services/memory';
 import MemoryClearAllDialog from '@/components/features/memory/dialogs/MemoryClearAllDialog';
@@ -131,6 +132,7 @@ const MemorySection = memo(() => {
     restoreMemory,
     purgeMemory,
   } = useMemoryStore();
+  const checkOrphanCollections = useRetrievalStore((state) => state.checkOrphanCollections);
 
   const [activeMemoryTab, setActiveMemoryTab] = useState<MemoryTab>('pending');
   const [searchInput, setSearchInput] = useState('');
@@ -473,6 +475,8 @@ const MemorySection = memo(() => {
     setIsClearing(true);
     try {
       await deleteAllMemories();
+      // Clearing also removes the memories an embedding switch left behind, so the migration reminder above is stale.
+      void checkOrphanCollections();
       toast({ title: t('clearAllSuccess'), description: t('clearAllSuccessDesc') });
       setShowClearConfirm(false);
     } catch (error) {
@@ -484,7 +488,7 @@ const MemorySection = memo(() => {
     } finally {
       setIsClearing(false);
     }
-  }, [deleteAllMemories, t]);
+  }, [deleteAllMemories, checkOrphanCollections, t]);
 
   return (
     <div className="space-y-6">
