@@ -299,8 +299,9 @@ export const deleteAllMemories = async (memoryType?: MemoryType): Promise<{ dele
   return apiRequest(`/memory/all${qs}`, { method: 'DELETE' });
 };
 
-export const getMemoryStats = async (): Promise<MemoryStatsResponse> => {
-  return apiRequest<MemoryStatsResponse>('/memory/stats');
+/** `silent` keeps a failed request from raising the global error toast, for callers that only decorate. */
+export const getMemoryStats = async ({ silent }: { silent?: boolean } = {}): Promise<MemoryStatsResponse> => {
+  return apiRequest<MemoryStatsResponse>('/memory/stats', { silent });
 };
 
 export const getMemoryTags = async (limit = 20): Promise<TagStatsResponse> => {

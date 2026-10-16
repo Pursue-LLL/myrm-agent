@@ -42,6 +42,7 @@ describe('GrowingLoopDiscoveryChip', () => {
 
     expect(screen.getByText('growsWithYou')).toBeTruthy();
     expect(await screen.findByText(/memoriesCount\|\{"count":40\}/)).toBeTruthy();
+    expect(memoryService.getMemoryStats).toHaveBeenCalledWith({ silent: true });
 
     fireEvent.click(screen.getByRole('button'));
     expect(router.push).toHaveBeenCalledWith('/journey');

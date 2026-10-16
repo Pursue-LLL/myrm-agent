@@ -33,14 +33,14 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
 
   useEffect(() => {
     let active = true;
-    getMemoryStats()
+    getMemoryStats({ silent: true })
       .then((res) => {
         if (active) {
           setMemoriesCount(res.total_memories);
         }
       })
       .catch(() => {
-        // The count is decoration; the entry point stays usable without it.
+        // The count is decoration: no error toast, and the entry point stays usable without it.
       });
     return () => {
       active = false;
