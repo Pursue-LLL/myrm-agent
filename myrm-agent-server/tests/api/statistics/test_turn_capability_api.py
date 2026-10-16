@@ -70,6 +70,12 @@ def test_turn_capability_summary_accumulates_metrics(client: TestClient) -> None
             "failure_reason": "network_error",
         },
         {
+            "event_type": "send_failed",
+            "source": "direct",
+            "context_key": "chat:test",
+            "failure_reason": "risk_held",
+        },
+        {
             "event_type": "override_noop",
             "source": "direct",
             "context_key": "chat:test",
@@ -118,6 +124,7 @@ def test_turn_capability_summary_accumulates_metrics(client: TestClient) -> None
     failure_reason_breakdown = after["failure_reason_breakdown"]
     assert isinstance(failure_reason_breakdown, dict)
     assert int(failure_reason_breakdown.get("network_error", 0)) >= 1
+    assert int(failure_reason_breakdown.get("risk_held", 0)) >= 1
 
 
 def test_turn_capability_rejects_failure_reason_for_non_failed_event(client: TestClient) -> None:

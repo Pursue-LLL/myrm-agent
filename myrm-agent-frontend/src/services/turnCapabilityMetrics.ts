@@ -22,7 +22,7 @@ export type TurnCapabilityMetricEventType =
   | 'busy_requeued'
   | 'dropped_report';
 export type TurnCapabilityFailureReason =
-  'network_error' | 'archive_restore_invalid' | 'abort' | 'server_error' | 'unknown_error';
+  'network_error' | 'archive_restore_invalid' | 'abort' | 'server_error' | 'risk_held' | 'unknown_error';
 
 interface TurnCapabilityMetricEventPayload {
   event_type: TurnCapabilityMetricEventType;

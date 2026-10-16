@@ -152,7 +152,7 @@ async def run_agent_stream(
     for typed in typed_texts:
         risk_block = await check_stream_risk(typed, request.chat_id)
         if risk_block is not None:
-            await _record_terminal_failure_if_needed("server_error")
+            await _record_terminal_failure_if_needed("risk_held")
             return risk_block
 
     # Context Guard Ingress defense: transparently spill oversized prompts to sandbox workspace

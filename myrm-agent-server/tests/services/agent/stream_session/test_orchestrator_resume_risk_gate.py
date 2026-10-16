@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.responses import StreamingResponse
 
+from app.services.agent.params.models import TurnCapabilityTelemetryRequest
 from app.services.agent.stream_session import run_agent_stream
 from app.services.agent.stream_session.risk_gate import resume_typed_texts
 from app.services.risk.detection import RiskDetectionService
@@ -34,6 +35,19 @@ def _service_holding_api_keys() -> tuple[RiskDetectionService, AsyncMock]:
     record_hits = AsyncMock()
     service.record_hits = record_hits  # type: ignore[method-assign]
     return service, record_hits
+
+
+def _hold_api_keys(monkeypatch: pytest.MonkeyPatch) -> tuple[AsyncMock, AsyncMock]:
+    """Wire the gate to a rule set that holds API keys; returns the context guard and the hit recorder to watch."""
+    from app.services.agent.context_guard_service import ContextGuardService
+
+    guard = AsyncMock()
+    monkeypatch.setattr(ContextGuardService, "guard_inbound_prompt", guard)
+    monkeypatch.setattr(f"{_ORCHESTRATOR}.try_stream_reconnect", AsyncMock(return_value=None))
+    service, record_hits = _service_holding_api_keys()
+    monkeypatch.setattr("app.services.risk.detection.get_detection_service", lambda: service)
+    monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: _FakeSession)
+    return guard, record_hits
 
 
 async def _body_text(response: StreamingResponse) -> str:
@@ -72,14 +86,7 @@ def _resume_request(resume_value: dict[str, object]) -> MagicMock:
 async def test_a_secret_typed_into_an_approval_answer_is_held_before_the_run_resumes(
     resume_value: dict[str, object], http_request: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from app.services.agent.context_guard_service import ContextGuardService
-
-    guard = AsyncMock()
-    monkeypatch.setattr(ContextGuardService, "guard_inbound_prompt", guard)
-    monkeypatch.setattr(f"{_ORCHESTRATOR}.try_stream_reconnect", AsyncMock(return_value=None))
-    service, record_hits = _service_holding_api_keys()
-    monkeypatch.setattr("app.services.risk.detection.get_detection_service", lambda: service)
-    monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: _FakeSession)
+    guard, record_hits = _hold_api_keys(monkeypatch)
 
     response = await run_agent_stream(_resume_request(resume_value), http_request)
 
@@ -89,6 +96,22 @@ async def test_a_secret_typed_into_an_approval_answer_is_held_before_the_run_res
     assert SECRET not in body
     guard.assert_not_awaited()
     record_hits.assert_awaited_once()
+
+
+async def test_a_held_answer_ends_the_send_as_held_not_as_a_server_error(
+    http_request: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _hold_api_keys(monkeypatch)
+    failed = AsyncMock()
+    monkeypatch.setattr(f"{_ORCHESTRATOR}.record_turn_capability_send_failed", failed)
+    request = _resume_request({"decisions": [{"type": "reject", "feedback": f"use {SECRET}"}]})
+    request.turn_capability_telemetry = TurnCapabilityTelemetryRequest(
+        source="direct", effective_skill_count=1, effective_mcp_count=0
+    )
+
+    await run_agent_stream(request, http_request)
+
+    failed.assert_awaited_once_with(request, "risk_held")
 
 
 async def test_every_typed_text_of_a_batch_is_screened_and_nothing_else(
