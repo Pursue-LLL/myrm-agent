@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import NamedTuple
+from typing import NamedTuple, TypedDict
 
 from myrm_agent_harness.toolkits.kanban.protocols import (
     PlanRevisionOutcome,
@@ -57,6 +57,19 @@ class TaskCardStats(NamedTuple):
     children_total: int
     children_done: int
     comment_count: int
+
+
+class BoardEventRow(TypedDict):
+    """A board-level event with the title and assignee of its task."""
+
+    event_id: int
+    task_id: str
+    task_title: str
+    task_assignee: str
+    kind: str
+    payload: dict[str, object] | None
+    run_id: str | None
+    created_at: str
 
 
 def _exec_rowcount(result: object) -> int:
@@ -955,7 +968,7 @@ class SqlAlchemyKanbanStore:
         since_id: int | None = None,
         since_time: datetime | None = None,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[BoardEventRow]:
         """Return board-level events with task metadata (title, assignee).
 
         JOIN kanban_task_events + kanban_tasks for board-scoped aggregation.

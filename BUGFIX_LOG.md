@@ -5316,7 +5316,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-16（复核 `BUG-AGENT-2026-10-16-014`：追问「阻塞通知读 `blocked_reason`，它是否总属于当前这次阻塞」，用真实的 `move_task` 复现；对抗式复查时又用真实的取消工具与真实的计划修订接口找到另外两条离开阻塞列的路径） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P3（没有数据丢失，调度不受影响：调度器的查询都带 `status == BLOCKED`，`sqlalchemy_store.py:832-833`；错的是卡片上的显示与再次阻塞时的通知文字） |
-| 影响范围 | server：`app/core/kanban/adapters/sqlalchemy_mapping.py`（新增 `stored_block_details`，建行与更新行共用）、`sqlalchemy_store.py`（计划移除任务时直接改行，补一行清除）、`event_publisher.py`（只改 `_terminal_result` 的说明）、`app/database/migrations.py`（末尾新增一条）、`app/core/kanban/adapters/_ARCH.md`、新增 `tests/core/kanban/test_task_mapping_block_details.py`、`tests/integration/test_kanban_cancel_block_details.py`、`tests/api/kanban/test_move_block_details_api.py`、`tests/database/test_kanban_block_fields_migration.py`；frontend、harness、提示词、表结构都没有改 |
+| 影响范围 | server：`app/core/kanban/adapters/sqlalchemy_mapping.py`（新增 `stored_block_details`，建行与更新行共用）、`sqlalchemy_store.py`（计划移除任务时直接改行，补一行清除；另把 `list_board_events` 的返回类型改成 `BoardEventRow`，`query_ops.py`、`query_dispatcher_mixin.py` 的签名同步）、`event_publisher.py`（只改 `_terminal_result` 的说明）、`app/database/migrations.py`（末尾新增一条）、`app/core/kanban/adapters/_ARCH.md`、新增 `tests/core/kanban/test_task_mapping_block_details.py`、`tests/integration/test_kanban_cancel_block_details.py`、`tests/api/kanban/test_move_block_details_api.py`、`tests/database/test_kanban_block_fields_migration.py`；frontend、harness、提示词、表结构都没有改 |
 | 出现次数 | 1（读码并用真实 `move_task`、真实取消工具、真实计划修订接口复现；没有生产数据，本机库里没有看板，不知道线上频率） |
 | 关联 | 更正 `BUG-AGENT-2026-10-16-014` 里「每种结果只读自己的字段就够」的前提（见其局限 11）；本地提交，未 push |
 
@@ -5355,7 +5355,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 5. harness 自带的内存存储（`stores.py` 的 `InMemoryKanbanStore`）没有这道规则；server 的 `app/` 里没有任何地方使用它（检索无结果），所以只影响直接使用 harness 内存存储的调用方与测试。
 6. 复查中见过一次 API 层「再次阻塞」例的失败，没有保存失败信息，之后连续多次与 6 进程并发都没有再现，原因没有查明；该例现在只看这个任务自己发布的事件，排除了别的任务事件混入的一种可能，但这只是推测，没有证实。
 7. 回归与变异检查在 `sqlalchemy_store.py` 里只涉及我的那一行；同一文件里他人在途的 `earliest_scheduled_until` 没有动。`migrations.py` 本身 1200 多行，超过文件体量的上限，是既有状态，没有拆：它是按下标排序的迁移列表，别人也在同时追加。
-8. 评估后放弃的方案：只在 `move_task` 里清（取消工具与计划移除仍漏）；进入阻塞时一律先清空再写（会破坏阻塞到阻塞的改期，原因会丢）；给每个出口各写一份清除（出口会继续增加，落库处一个入口更稳）；顺带把 `sqlalchemy_store.py:973` 既有的 `-> list[dict]` 补上类型参数（要连带改 `query_ops.py`、`query_dispatcher_mixin.py`、`BoardEventResponse(**e)`，与本条无关）。
+8. 评估后放弃的方案：只在 `move_task` 里清（取消工具与计划移除仍漏）；进入阻塞时一律先清空再写（会破坏阻塞到阻塞的改期，原因会丢）；给每个出口各写一份清除（出口会继续增加，落库处一个入口更稳）。
+9. 顺带清掉触碰文件里既有的类型错误：`sqlalchemy_store.py` 的 `list_board_events` 返回 `list[dict]`（`mypy` 报缺少类型参数），改为 `TypedDict` `BoardEventRow`，`query_ops.py` 与 `query_dispatcher_mixin.py` 的同名签名跟着改；字段与 `BoardEventResponse` 一一对应，`routes/boards.py` 的 `BoardEventResponse(**e)` 不用动，`mypy` 对这四个文件无报错、板级事件的测试通过。
 
 ### 踩坑经验
 
