@@ -93,5 +93,5 @@ class SubagentManagementExtension(AgentExtension):
     def get_tools(self) -> list[BaseTool] | None:
         return None
 
-    def get_middlewares(self) -> list[AgentMiddleware[object, object]] | None:
+    def get_middlewares(self) -> list[AgentMiddleware] | None:
         return None

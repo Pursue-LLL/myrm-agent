@@ -5,7 +5,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage
-from myrm_agent_harness.agent.context_management.infra.schemas import (
+from myrm_agent_harness.agent.context_management.infra.schemas_pre_compact import (
     ContextPreCompactCallback,
     PreCompactDecision,
     PreCompactInjection,
@@ -102,7 +102,7 @@ class PreCompactMemoryExtension(AgentExtension):
     def get_tools(self) -> list[object] | None:
         return None
 
-    def get_middlewares(self) -> list[AgentMiddleware[object, object]] | None:
+    def get_middlewares(self) -> list[AgentMiddleware] | None:
         return None
 
 
