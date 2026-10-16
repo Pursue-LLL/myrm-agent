@@ -1,7 +1,7 @@
 """Read-only research lease for unattended cron runs.
 
 [INPUT]
-- myrm_agent_harness.core.security.readonly_research_sandbox::DEFAULT_READ_ONLY_TOOLS, ResearchModeEnum, get_readonly_research_sandbox_facade (POS: read-only lease registry the approval middleware enforces at tool-call time)
+- myrm_agent_harness.core.security.readonly_research_sandbox::DEFAULT_READ_ONLY_TOOLS, ResearchModeEnum, get_readonly_research_sandbox_facade (POS: process-wide entry to read-only research leases, where hosts grant and release them and the approval middleware checks tools against them)
 - myrm_agent_harness.core.security.tool_registry::resolve_permission_type (POS: tool name to capability permission token)
 - myrm_agent_harness.toolkits.cron.types::CronJob (POS: cron job model)
 
@@ -75,4 +75,4 @@ def release_run_lease(session_key: str) -> None:
     try:
         get_readonly_research_sandbox_facade().revoke_lease(session_key)
     except Exception as exc:
-        logger.debug("Read-only research lease cleanup ignored: %s", exc)
+        logger.warning("Read-only research lease %s could not be revoked: %s", session_key, exc)

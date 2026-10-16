@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -153,7 +154,9 @@ def test_release_forgets_the_lease() -> None:
     assert facade.evaluate_tool(key, "file_write_tool")[0] is True
 
 
-def test_release_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_failed_release_never_raises_and_is_logged_as_a_warning(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     facade = get_readonly_research_sandbox_facade()
 
     def _boom(_session_id: str) -> None:
@@ -161,4 +164,11 @@ def test_release_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(facade, "revoke_lease", _boom)
 
-    release_run_lease("cron:job-1:never-granted")
+    with caplog.at_level(logging.WARNING, logger="app.core.cron.adapters.research_lease"):
+        release_run_lease("cron:job-1:never-granted")
+
+    assert [
+        (record.levelno, record.getMessage())
+        for record in caplog.records
+        if record.name == "app.core.cron.adapters.research_lease"
+    ] == [(logging.WARNING, "Read-only research lease cron:job-1:never-granted could not be revoked: registry down")]
