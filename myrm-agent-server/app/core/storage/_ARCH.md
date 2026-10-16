@@ -41,8 +41,6 @@ config/
 
 ---
 
----
-
 ## 依赖关系
 
 - `app/platform_utils/`：`get_storage_provider()` 延迟获取框架存储单例
