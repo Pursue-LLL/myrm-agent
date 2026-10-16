@@ -369,7 +369,9 @@ export function TaskDetailsSection({
             {task.block_kind === 'scheduled' && <Clock className="w-3.5 h-3.5 shrink-0" />}
             {task.block_kind === 'external' && <ExternalLink className="w-3.5 h-3.5 shrink-0" />}
             {task.block_kind === 'human' && <User className="w-3.5 h-3.5 shrink-0" />}
-            <span className="font-medium capitalize">{task.block_kind ?? 'blocked'}</span>
+            <span className="font-medium">
+              {task.block_kind ? t(`blockKind.${task.block_kind}`) : t('status.blocked')}
+            </span>
             <span className="text-muted-foreground">—</span>
             {blockedReasonText(task.blocked_reason, t)}
           </p>

@@ -123,7 +123,7 @@
 
 ## Blocked reason
 
-- `KanbanTaskCard` / `KanbanTaskDrawerDetails`：阻塞原因经 `@/lib/kanban/kanbanBlockedReason::blockedReasonText` 显示——服务端写入的是英文句子（频道命令、诊断、活动流原样展示），已知的整句译成界面语言（目前是「依赖任务合并失败」`kanban.blockedReason.parentMergeFailed`，六语言），未知原因原样显示
+- `KanbanTaskCard` / `KanbanTaskDrawerDetails`：阻塞原因经 `@/lib/kanban/kanbanBlockedReason::blockedReasonText` 显示——服务端写入的是英文句子或标记（频道命令、诊断、活动流原样展示），服务端自己拥有的几种（依赖任务合并失败、模型用量上限、批次暂停，见 `shared/config/kanban_blocked_reasons.json`）译成界面语言（`kanban.blockedReason.<key>`，六语言），其余原因（目标模式暂停原因、预算耗尽、智能体写的原因）集合是开放的，原样显示；抽屉里的阻塞类型标签用 `kanban.blockKind.*`，定时任务到点后的提示用 `kanban.autoUnblocking`；任务完成/阻塞/失败的 toast 与系统通知走同一入口（`hooks/globalEvents/kanbanTaskToast.ts`）
 
 ## Completion intent UI
 

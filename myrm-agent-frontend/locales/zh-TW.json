@@ -8202,8 +8202,16 @@
       "actionDone": "任務已成功執行完畢"
     },
     "blockedReason": {
-      "parentMergeFailed": "前置任務的變更合併失敗，請先處理，再繼續"
+      "parentMergeFailed": "前置任務的變更合併失敗，請先處理，再繼續",
+      "usageLimit": "正在等待模型用量額度重置，重置後自動繼續",
+      "batchPause": "已隨批次一起暫停，批次恢復後繼續"
     },
+    "blockKind": {
+      "human": "需要你處理",
+      "scheduled": "定時恢復",
+      "external": "等待外部"
+    },
+    "autoUnblocking": "自動解除阻塞中…",
     "cardActions": "任務操作",
     "deleteConfirmTitle": "刪除此任務？",
     "deleteConfirmDesc": "「{title}」\n任務及其執行記錄將被永久刪除。正在等待它的任務，若沒有其他依賴未完成，會變為就緒狀態並可能自動開始執行。"

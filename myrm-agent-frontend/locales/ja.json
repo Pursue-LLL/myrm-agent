@@ -8202,8 +8202,16 @@
       "actionDone": "タスクは正常に完了しました"
     },
     "blockedReason": {
-      "parentMergeFailed": "前置タスクの変更のマージに失敗しました。解決してから続行してください"
+      "parentMergeFailed": "前置タスクの変更のマージに失敗しました。解決してから続行してください",
+      "usageLimit": "モデルの利用上限がリセットされるのを待っています。リセット後に自動で再開します",
+      "batchPause": "バッチと一緒に一時停止中です。バッチを再開すると続行します"
     },
+    "blockKind": {
+      "human": "対応が必要です",
+      "scheduled": "予約済み",
+      "external": "外部待ち"
+    },
+    "autoUnblocking": "自動で解除しています…",
     "cardActions": "タスクの操作",
     "deleteConfirmTitle": "このタスクを削除しますか？",
     "deleteConfirmDesc": "「{title}」\nタスクと実行履歴は完全に削除されます。このタスクを待っていたタスクは、他に待機要因がなければ準備完了になり、自動的に実行が始まることがあります。"

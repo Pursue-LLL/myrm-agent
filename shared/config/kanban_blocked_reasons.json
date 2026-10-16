@@ -1,3 +1,5 @@
 {
-  "parentMergeFailed": "Merging a dependency's changes failed; resolve it, then continue"
+  "parentMergeFailed": "Merging a dependency's changes failed; resolve it, then continue",
+  "usageLimit": "Waiting for the model usage limit to reset; resumes automatically",
+  "batchPause": "batch_pause"
 }

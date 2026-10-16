@@ -8270,8 +8270,16 @@
       "actionDone": "任务已成功执行完毕"
     },
     "blockedReason": {
-      "parentMergeFailed": "前置任务的改动合并失败，请先处理，再继续"
+      "parentMergeFailed": "前置任务的改动合并失败，请先处理，再继续",
+      "usageLimit": "正在等待模型用量额度重置，重置后自动继续",
+      "batchPause": "已随批量一起暂停，批量恢复后继续"
     },
+    "blockKind": {
+      "human": "需要你处理",
+      "scheduled": "定时恢复",
+      "external": "等待外部"
+    },
+    "autoUnblocking": "自动解除阻塞中…",
     "cardActions": "任务操作",
     "deleteConfirmTitle": "删除此任务？",
     "deleteConfirmDesc": "「{title}」\n任务及其运行记录将被永久删除。正在等待它的任务，若没有其他依赖未完成，会变为就绪状态并可能自动开始执行。"

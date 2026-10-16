@@ -8202,8 +8202,16 @@
       "actionDone": "작업이 성공적으로 완료되었습니다"
     },
     "blockedReason": {
-      "parentMergeFailed": "의존 작업의 변경 사항 병합에 실패했습니다. 해결한 뒤 계속하세요"
+      "parentMergeFailed": "의존 작업의 변경 사항 병합에 실패했습니다. 해결한 뒤 계속하세요",
+      "usageLimit": "모델 사용 한도가 초기화되기를 기다리는 중입니다. 초기화되면 자동으로 재개됩니다",
+      "batchPause": "배치와 함께 일시 중지되었습니다. 배치를 재개하면 이어서 실행됩니다"
     },
+    "blockKind": {
+      "human": "확인이 필요합니다",
+      "scheduled": "예약됨",
+      "external": "외부 대기"
+    },
+    "autoUnblocking": "자동으로 해제하는 중…",
     "cardActions": "작업 메뉴",
     "deleteConfirmTitle": "이 작업을 삭제할까요?",
     "deleteConfirmDesc": "\"{title}\"\n작업과 실행 기록이 영구적으로 삭제됩니다. 이 작업을 기다리던 작업은 다른 대기 요인이 없으면 준비됨 상태가 되어 자동으로 실행될 수 있습니다."

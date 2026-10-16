@@ -8202,8 +8202,16 @@
       "actionDone": "Aufgabe erfolgreich abgeschlossen"
     },
     "blockedReason": {
-      "parentMergeFailed": "Das Zusammenführen einer Abhängigkeit ist fehlgeschlagen. Beheben Sie das und fahren Sie dann fort."
+      "parentMergeFailed": "Das Zusammenführen einer Abhängigkeit ist fehlgeschlagen. Beheben Sie das und fahren Sie dann fort.",
+      "usageLimit": "Wartet auf das Zurücksetzen des Nutzungslimits des Modells. Wird automatisch fortgesetzt.",
+      "batchPause": "Mit dem Batch pausiert. Wird fortgesetzt, sobald der Batch fortgesetzt wird."
     },
+    "blockKind": {
+      "human": "Braucht Sie",
+      "scheduled": "Geplant",
+      "external": "Wartet auf Extern"
+    },
+    "autoUnblocking": "Wird automatisch freigegeben…",
     "cardActions": "Aufgabenaktionen",
     "deleteConfirmTitle": "Aufgabe löschen?",
     "deleteConfirmDesc": "„{title}“\nDie Aufgabe und ihr Ausführungsverlauf werden endgültig gelöscht. Aufgaben, die auf sie warten, werden Bereit, sofern sie nichts anderes blockiert, und können automatisch starten."

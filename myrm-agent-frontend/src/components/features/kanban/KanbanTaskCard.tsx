@@ -45,12 +45,13 @@ import { useKanbanTaskCardDetails } from './useKanbanTaskCardDetails';
 import { useAgentName } from '@/hooks/agent/useAgentName';
 
 function ScheduledCountdown({ until }: { until: string }) {
+  const t = useTranslations('kanban');
   const [remaining, setRemaining] = useState('');
   useEffect(() => {
     const update = () => {
       const diff = new Date(until).getTime() - Date.now();
       if (diff <= 0) {
-        setRemaining('auto-unblocking...');
+        setRemaining(t('autoUnblocking'));
         return;
       }
       const h = Math.floor(diff / 3600000);
@@ -61,7 +62,7 @@ function ScheduledCountdown({ until }: { until: string }) {
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [until]);
+  }, [until, t]);
   return (
     <span className="inline-flex items-center gap-0.5 text-[10px] text-chart-4 font-mono">
       <Clock className="w-3 h-3" /> {remaining}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ComponentProps } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import blockedReasons from '@shared/config/kanban_blocked_reasons.json';
@@ -143,9 +143,30 @@ describe('TaskDetailsSection blocked reason', () => {
     expect(screen.queryByText(/Merging a dependency/)).toBeNull();
   });
 
+  it('shows a usage-limit wait and a batch pause in the interface language, not the server marker', () => {
+    renderSection(blockedTask(blockedReasons.usageLimit));
+    expect(screen.getByText('blockedReason.usageLimit')).toBeTruthy();
+    cleanup();
+
+    renderSection(blockedTask(blockedReasons.batchPause));
+    expect(screen.getByText('blockedReason.batchPause')).toBeTruthy();
+    expect(screen.queryByText(blockedReasons.batchPause)).toBeNull();
+  });
+
   it('shows any other reason as written', () => {
     renderSection(blockedTask('Waiting for the reviewer'));
     expect(screen.getByText('Waiting for the reviewer')).toBeTruthy();
+  });
+
+  it('names the kind of block in the interface language instead of the raw kind', () => {
+    renderSection(makeTask({ status: 'blocked', block_kind: 'scheduled', blocked_reason: 'Waiting for the reviewer' }));
+    expect(screen.getByText('blockKind.scheduled')).toBeTruthy();
+    expect(screen.queryByText('scheduled')).toBeNull();
+  });
+
+  it('falls back to the blocked status label when the block has no kind', () => {
+    renderSection(makeTask({ status: 'blocked', block_kind: null, blocked_reason: 'Waiting for the reviewer' }));
+    expect(screen.getByText('Waiting for the reviewer').closest('p')?.textContent).toContain('status.blocked');
   });
 });
 

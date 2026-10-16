@@ -8270,8 +8270,16 @@
       "actionDone": "Task completed successfully"
     },
     "blockedReason": {
-      "parentMergeFailed": "A dependency's merge failed. Resolve it, then continue."
+      "parentMergeFailed": "A dependency's merge failed. Resolve it, then continue.",
+      "usageLimit": "Waiting for the model usage limit to reset. Resumes automatically.",
+      "batchPause": "Paused with its batch. Resumes when the batch resumes."
     },
+    "blockKind": {
+      "human": "Needs you",
+      "scheduled": "Scheduled",
+      "external": "Waiting on external"
+    },
+    "autoUnblocking": "Auto-unblocking…",
     "cardActions": "Task actions",
     "deleteConfirmTitle": "Delete this task?",
     "deleteConfirmDesc": "\"{title}\"\nThe task and its run history are deleted permanently. Tasks waiting on it become Ready if nothing else blocks them, and may start running automatically."

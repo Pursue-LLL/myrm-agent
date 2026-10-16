@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { KanbanTask, TaskStatus } from '@/services/kanban';
 import blockedReasons from '@shared/config/kanban_blocked_reasons.json';
 import KanbanTaskCard from '../KanbanTaskCard';
@@ -144,9 +144,38 @@ describe('KanbanTaskCard blocked reason', () => {
     expect(screen.queryByText(/Merging a dependency/)).toBeNull();
   });
 
+  it('shows a usage-limit wait and a batch pause in the interface language, not the server marker', () => {
+    renderBlocked(blockedReasons.usageLimit);
+    expect(screen.getByText('blockedReason.usageLimit')).toBeTruthy();
+    cleanup();
+
+    renderBlocked(blockedReasons.batchPause);
+    expect(screen.getByText('blockedReason.batchPause')).toBeTruthy();
+    expect(screen.queryByText(blockedReasons.batchPause)).toBeNull();
+  });
+
   it('shows any other reason as written', () => {
     renderBlocked('Waiting for the reviewer');
     expect(screen.getByText('Waiting for the reviewer')).toBeTruthy();
+  });
+
+  it('says in the interface language that a scheduled task is about to resume once its time has passed', () => {
+    render(
+      <KanbanTaskCard
+        task={makeTask({
+          status: 'blocked',
+          block_kind: 'scheduled',
+          blocked_reason: blockedReasons.usageLimit,
+          scheduled_until: new Date(Date.now() - 1000).toISOString(),
+        })}
+        allTasks={[]}
+        onMove={noop}
+        onDelete={noop}
+        onRefresh={noop}
+      />,
+    );
+    expect(screen.getByText('autoUnblocking')).toBeTruthy();
+    expect(screen.queryByText(/auto-unblocking/)).toBeNull();
   });
 });
 
