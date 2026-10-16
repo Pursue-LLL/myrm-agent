@@ -74,18 +74,6 @@ class DeployMode(str, Enum):
     SANDBOX = "sandbox"  # 控制平面管理的沙箱实例
 
 
-class DatabaseMode(str, Enum):
-    """数据库模式 - 所有部署模式统一使用 SQLite"""
-
-    SQLITE = "sqlite"
-
-
-class QdrantMode(str, Enum):
-    """Qdrant 向量数据库模式 - 所有部署模式统一使用嵌入式"""
-
-    EMBEDDED = "embedded"
-
-
 class ModelSource(str, Enum):
     """模型来源 - 统一使用自定义提供商"""
 
@@ -104,31 +92,11 @@ def get_deploy_mode() -> DeployMode:
         return DeployMode.LOCAL
 
 
-def get_database_mode() -> DatabaseMode:
-    """获取数据库模式 - 所有部署模式统一使用 SQLite"""
-    return DatabaseMode.SQLITE
-
-
-def get_qdrant_mode() -> QdrantMode:
-    """获取 Qdrant 模式 - 所有部署模式统一使用嵌入式"""
-    return QdrantMode.EMBEDDED
-
-
 def get_embedding_mode() -> ModelSource:
     """获取 Embedding 模型来源
 
     统一使用 CUSTOM 模式（自定义提供商）
     支持 OpenAI 兼容接口，包括本地 Ollama 等
-    """
-    # 总是返回 CUSTOM，环境变量仅用于配置具体的服务地址
-    return ModelSource.CUSTOM
-
-
-def get_reranker_mode() -> ModelSource:
-    """获取 Reranker 模型来源
-
-    统一使用 CUSTOM 模式（自定义提供商）
-    支持 OpenAI 兼容接口，包括本地部署的重排模型服务
     """
     # 总是返回 CUSTOM，环境变量仅用于配置具体的服务地址
     return ModelSource.CUSTOM
@@ -163,14 +131,9 @@ def is_webui_remote_mode() -> bool:
 
 __all__ = [
     "DeployMode",
-    "DatabaseMode",
-    "QdrantMode",
     "ModelSource",
     "get_deploy_mode",
-    "get_database_mode",
-    "get_qdrant_mode",
     "get_embedding_mode",
-    "get_reranker_mode",
     "is_local_mode",
     "is_sandbox",
     "is_webui_mode",

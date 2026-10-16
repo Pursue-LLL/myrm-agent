@@ -21,10 +21,6 @@ def test_system_info_returns_capabilities_booleans(client: TestClient) -> None:
 
     body = response.json()
     assert "deploy_mode" in body
-    assert "database" in body
-    assert "qdrant" in body
-    assert "embedding" in body
-    assert "reranker" in body
     assert "server_version" in body
     assert isinstance(body["server_version"], str)
     assert "harness_version" in body
@@ -40,12 +36,9 @@ def test_system_info_returns_capabilities_booleans(client: TestClient) -> None:
     assert body.get("data_region") == "local"
 
 
-def test_system_info_returns_custom_data_region(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_system_info_returns_custom_data_region(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MYRM_DATA_REGION", "nrt")
     response = client.get("/api/v1/health/info")
     assert response.status_code == 200
     body = response.json()
     assert body.get("data_region") == "nrt"
-

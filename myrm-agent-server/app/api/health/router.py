@@ -9,7 +9,7 @@
 - GET /api/v1/health - 基础健康检查
 - GET /api/v1/health/liveness - Agent 全局存活状态 SSOT（聚合 Agent/渠道/内存）
 - GET /api/v1/health/ready - 就绪检查（readiness），检查所有依赖服务
-- GET /api/v1/health/info - 系统配置信息（部署模式、数据库类型等）
+- GET /api/v1/health/info - 系统配置信息（部署模式、数据驻留、可选语音组件就绪状态、引擎版本）
 - GET /api/v1/health/doctor - 聚合 Harness + Server 诊断（fail-only SSE 告警策略）
 - GET /api/v1/health/browser - 浏览器运行时健康状态
 - GET /api/v1/health/browser/doctor - 完整浏览器诊断
@@ -194,32 +194,19 @@ async def system_info() -> dict[str, object]:
 
     Returns:
         dict: 系统配置信息
-            - deploy_mode: 部署模式（local/sandbox）
-            - database: 数据库类型（sqlite）
-            - qdrant: 向量数据库模式（embedded）
-            - embedding: 嵌入模型服务（builtin/custom/cloud）
-            - reranker: 重排序模型服务（builtin/custom/cloud）
+            - deploy_mode: 部署模式（local/tauri/sandbox）
+            - data_region: 数据驻留区域
             - local_stt_available: 本地语音识别组件是否就绪（local-stt extra）
             - edge_tts_available: Edge TTS 可选组件是否就绪（voice-tts extra）
     """
     from myrm_agent_harness import __version__ as harness_version
 
-    from app.config.deploy_mode import (
-        get_database_mode,
-        get_deploy_mode,
-        get_embedding_mode,
-        get_qdrant_mode,
-        get_reranker_mode,
-    )
+    from app.config.deploy_mode import get_deploy_mode
 
     return {
         "server_version": "0.1.0",
         "harness_version": harness_version,
         "deploy_mode": get_deploy_mode().value,
-        "database": get_database_mode().value,
-        "qdrant": get_qdrant_mode().value,
-        "embedding": get_embedding_mode().value,
-        "reranker": get_reranker_mode().value,
         "local_stt_available": _check_local_stt_installed(),
         "edge_tts_available": _check_edge_tts_installed(),
         "local_tts_available": _check_local_tts_installed(),
