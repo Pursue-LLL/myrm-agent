@@ -17383,7 +17383,7 @@
           "typeStalePinned": "休眠ピン留め",
           "findingWrongButFrequent": "{count}回実行、成功率はわずか{rate}",
           "findingStalePinned": "固定済みですが、{days}日間使用されていません",
-          "boundNote": "エージェントまたはスケジュールタスクがこのスキルをまだ使用しているため、ここではアーカイブできません。先に使用側から外すか、統計をリセットしてください。",
+          "boundNote": "エージェントまたはスケジュールタスクがこのスキルにバインドされているため、ここではアーカイブできません。先にバインドを解除するか、統計をリセットしてください。",
           "actionUnpinArchive": "ピン解除してアーカイブ",
           "actionArchive": "アーカイブ",
           "actionReset": "統計リセット",

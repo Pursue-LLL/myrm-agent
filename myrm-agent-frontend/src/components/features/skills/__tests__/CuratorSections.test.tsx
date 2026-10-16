@@ -98,7 +98,7 @@ describe('CuratorDiagnosticsSection', () => {
 
     expect(text).toContain('已运行 8 次，成功率仅 12.5%');
     expect(text).toContain('已固定，但已有 1 天未使用');
-    expect(text).toContain('有智能体或定时任务仍在使用该技能，无法在此归档。请先在对应位置移除，或重置计数。');
+    expect(text).toContain('有智能体或定时任务仍绑定着该技能，无法在此归档。请先在对应位置解除绑定，或重置计数。');
     expect(text).toContain('70/100');
     expect(text).not.toMatch(LEAKED_IDENTIFIERS);
   });
@@ -142,6 +142,19 @@ describe('CuratorDiagnosticsSection', () => {
 
     expect(onRemediate).toHaveBeenCalledTimes(1);
     expect(onRemediate).toHaveBeenCalledWith('daily-report', 'reset_stats');
+  });
+
+  it('locks the actions of every row while one remediation runs', () => {
+    const { container } = renderIn(
+      'en',
+      <CuratorDiagnosticsSection diagnostics={diagnostics} remediatingSkill="invoice-ocr" onRemediate={noop} />,
+    );
+
+    const buttons = Array.from(container.querySelectorAll('button'));
+    expect(buttons).toHaveLength(5);
+    expect(buttons.every((button) => button.disabled)).toBe(true);
+    // Only the remedy of the skill being remediated spins; the other rows are merely locked.
+    expect(container.querySelectorAll('.animate-spin')).toHaveLength(1);
   });
 
   it.each(LOCALES)('renders no developer identifiers or missing keys in %s', (locale) => {

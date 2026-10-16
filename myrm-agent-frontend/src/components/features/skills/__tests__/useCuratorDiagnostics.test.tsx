@@ -85,6 +85,27 @@ describe('useCuratorDiagnostics', () => {
     expect(onRemediated).not.toHaveBeenCalled();
   });
 
+  it('ignores a second remediation while one is still running', async () => {
+    let finish: (value: SkillRemediationResponse) => void = () => undefined;
+    remediateSkillFindingMock.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const { result } = renderHook(() => useCuratorDiagnostics());
+
+    let first: Promise<void> = Promise.resolve();
+    act(() => {
+      first = result.current.remediate('daily-report', 'archive');
+    });
+    await act(() => result.current.remediate('invoice-ocr', 'archive'));
+
+    expect(remediateSkillFindingMock).toHaveBeenCalledTimes(1);
+    expect(result.current.remediatingSkill).toBe('daily-report');
+
+    await act(async () => {
+      finish(done);
+      await first;
+    });
+    expect(result.current.remediatingSkill).toBeNull();
+  });
+
   it('reports a request failure and marks only the skill being remediated as busy meanwhile', async () => {
     let fail: (reason: Error) => void = () => undefined;
     remediateSkillFindingMock.mockReturnValue(new Promise((_resolve, reject) => (fail = reject)));

@@ -15,7 +15,7 @@
 | `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
 | `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
-| `curator.py` | 模块 | Curator API：技能生命周期动作、清理策略配置、手动清理、运行历史、合并预览与执行、技能医生诊断与修复；响应只带设置面板渲染的字段，磁盘上的历史记录保留更多 | ✅ |
+| `curator.py` | 模块 | Curator API：技能生命周期动作、清理策略配置、手动清理、运行历史、合并预览与执行、技能医生诊断（每条发现标明是否被 Agent 或定时任务绑定）与修复；响应只带设置面板渲染的字段，磁盘上的历史记录保留更多 | ✅ |
 | `desktop_recorder/`（子包） | 模块 | 桌面工作流录制域：`router.py`（`/desktop-recorder/*` 会话生命周期、事件收集、意图规划、技能编译与发布）、`schemas.py`（请求/响应模型 + `RecordingSessionState`）；会话语义委托给 `services/skills/desktop_recording/`。清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md) | ✅ |
 | `discovery/`（子包） | 模块 | 技能发现域：`discovery.py`（search/install/preview/update/sources 路由）+ `discovery_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`discovery/_ARCH.md`](discovery/_ARCH.md) | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖）；approve skill_draft 落盘后，同名已归档的技能一并恢复（由 `draft_materialize.py` 完成）；reject 只写账本负向事件并发布刷新事件，不写记忆（没有读取方）；批准后的落地写入在 `draft_materialize.py`，草稿记录视图在 `draft_record.py` | ✅ |

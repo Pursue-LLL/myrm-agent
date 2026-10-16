@@ -17383,7 +17383,7 @@
           "typeStalePinned": "Inaktiv fixiert",
           "findingWrongButFrequent": "{count} Mal ausgeführt, nur {rate} Erfolgsquote",
           "findingStalePinned": "Angeheftet, aber {days, plural, one {seit # Tag} other {seit # Tagen}} ungenutzt",
-          "boundNote": "Ein Agent oder eine geplante Aufgabe nutzt diese Fähigkeit noch, daher kann sie hier nicht archiviert werden. Entfernen Sie sie zuerst dort oder setzen Sie die Zähler zurück.",
+          "boundNote": "Ein Agent oder eine geplante Aufgabe ist noch an diese Fähigkeit gebunden, daher kann sie hier nicht archiviert werden. Lösen Sie die Bindung zuerst dort oder setzen Sie die Zähler zurück.",
           "actionUnpinArchive": "Lösen und archivieren",
           "actionArchive": "Archivieren",
           "actionReset": "Zähler zurücksetzen",

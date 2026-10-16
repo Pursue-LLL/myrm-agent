@@ -82,6 +82,7 @@ const CuratorDiagnosticsSection = memo(
           <div className="space-y-2 mt-2.5">
             {diagnostics.findings.map((f, idx) => {
               const busy = remediatingSkill === f.skill_name;
+              const locked = remediatingSkill !== null;
               return (
                 <div
                   key={`${f.skill_name}-${idx}`}
@@ -120,7 +121,7 @@ const CuratorDiagnosticsSection = memo(
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={busy}
+                        disabled={locked}
                         onClick={() => onRemediate(f.skill_name, 'unpin_and_archive')}
                         className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
                       >
@@ -136,7 +137,7 @@ const CuratorDiagnosticsSection = memo(
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={busy}
+                        disabled={locked}
                         onClick={() => onRemediate(f.skill_name, 'archive')}
                         className="h-6 px-2 text-[11px] gap-1 border-amber-500/30 hover:bg-amber-500/10"
                       >
@@ -151,7 +152,7 @@ const CuratorDiagnosticsSection = memo(
                     <Button
                       size="sm"
                       variant="ghost"
-                      disabled={busy}
+                      disabled={locked}
                       onClick={() => onRemediate(f.skill_name, 'reset_stats')}
                       className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
                       title={t('doctor.actionResetTooltip')}
