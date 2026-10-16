@@ -583,4 +583,3 @@ class TestQuotaRuntimeRouterEndpoints:
         reset_all_req = LLMProviderCircuitResetRequest(provider_or_key=None)
         reset_all_resp = await reset_llm_provider_circuit(req=reset_all_req)
         assert reset_all_resp.status_code == 200
-
