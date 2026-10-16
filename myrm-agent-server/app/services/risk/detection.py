@@ -38,8 +38,7 @@ LOAD_RETRY_COOLDOWN_SECONDS = 30.0
 # backtracking blow-up has no end, so the budget bounds how long one message can occupy the matcher. A rule that runs
 # out of it counts as having matched (the text is not let through unchecked). ``MATCH_TIMEOUT_SECONDS`` is the budget
 # of any text; a text of millions of characters (a pasted log) is allowed ``MATCH_SECONDS_PER_MEGACHAR`` for each
-# million, which is about four times what the slowest built-in rule needs (0.13 s per million characters of log text,
-# measured), so a slower host does not turn a harmless paste into a hit.
+# million, so that a fixed budget does not turn a harmless paste into a hit.
 MATCH_TIMEOUT_SECONDS = 0.25
 MATCH_SECONDS_PER_MEGACHAR = 0.5
 
