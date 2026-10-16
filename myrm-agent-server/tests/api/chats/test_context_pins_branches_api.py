@@ -7,6 +7,7 @@ import uuid
 import httpx
 import pytest
 from httpx import ASGITransport
+from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT_ENV
 
 from tests.support.minimal_app import build_minimal_app
 
@@ -47,9 +48,7 @@ async def test_context_pins_roundtrip(
     tmp_path: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from myrm_agent_harness.runtime.paths import execution_paths
-
-    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(tmp_path / ".context"))
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(tmp_path))
 
     chat_id = f"test-pins-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)
@@ -73,9 +72,7 @@ async def test_context_branches_append_and_list(
     tmp_path: pytest.TempPathFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from myrm_agent_harness.runtime.paths import execution_paths
-
-    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(tmp_path / ".context"))
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(tmp_path))
 
     chat_id = f"test-branches-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)

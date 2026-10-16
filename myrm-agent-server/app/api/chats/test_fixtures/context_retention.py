@@ -21,12 +21,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-import myrm_agent_harness.runtime.paths.execution_paths as execution_paths
 from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.runtime.context.context_branches import append_context_branch
 from myrm_agent_harness.runtime.context.session.session_context_pins import (
     write_pinned_files,
 )
+from myrm_agent_harness.runtime.paths.execution_paths import get_context_root, get_persistent_root
 
 from app.config.deploy_mode import is_local_mode
 from app.database.dto import ChatCreate
@@ -42,7 +42,7 @@ _BRANCH_LABEL = "Before compaction E2E"
 
 def _write_seed_snapshot(chat_id: str) -> str:
     rel_path = f".context/{chat_id}/snapshots/e2e-pre-compact.jsonl"
-    abs_path = Path(execution_paths.PERSISTENT_ROOT) / ".context" / chat_id / "snapshots" / "e2e-pre-compact.jsonl"
+    abs_path = Path(get_context_root()) / chat_id / "snapshots" / "e2e-pre-compact.jsonl"
     abs_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         json.dumps({"_meta": True, "message_count": 2, "chat_id": chat_id}, ensure_ascii=False),
@@ -95,7 +95,7 @@ async def seed_context_retention_fixture() -> dict[str, str | list[str]]:
     agent_id = agent.id
 
     chat_id = f"e2econtextret{uuid4().hex[:8]}"
-    seed_workspace = str(Path(execution_paths.PERSISTENT_ROOT) / "e2e-context-retention")
+    seed_workspace = str(Path(get_persistent_root()) / "e2e-context-retention")
     await ChatService.create_or_update_chat(
         ChatCreate(
             chat_id=chat_id,

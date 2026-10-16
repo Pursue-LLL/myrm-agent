@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT_ENV
 
-from app.platform_utils.persistent_root import configure_persistent_root_for_local_dev
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
@@ -18,8 +19,10 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def test_seed_context_retention_fixture(client: TestClient, tmp_path: pytest.TempPathFactory) -> None:
-    configure_persistent_root_for_local_dev(str(tmp_path))
+def test_seed_context_retention_fixture(client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    persistent_root = tmp_path / "harness"
+    persistent_root.mkdir()
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(persistent_root))
 
     fake_agent = MagicMock()
     fake_agent.id = "agent-e2e-context-retention"

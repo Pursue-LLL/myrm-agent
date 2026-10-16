@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT_ENV
 
 from app.api.context.router import router as context_bundle_router
 
@@ -41,9 +42,7 @@ async def test_get_context_bundle_health(context_app: FastAPI, tmp_path: Path) -
 async def test_context_bundle_health_reports_offload_at_the_runtime_context_root(
     context_app: FastAPI, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from myrm_agent_harness.runtime.paths import execution_paths
-
-    monkeypatch.setattr(execution_paths, "CONTEXT_ROOT", str(tmp_path / ".context"))
+    monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(tmp_path))
     transport = ASGITransport(app=context_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/context-bundle")
