@@ -22,6 +22,7 @@ import { PlayIcon, PauseIcon, XCircleIcon, CheckCircleIcon, AlertIcon, GoalIcon 
 import { GoalStatusExpanded } from './GoalStatusExpanded';
 import type { GoalStatus } from './goalStatusTypes';
 import { translateGoalReason, computeEtaSeconds, formatEta } from './goalStatusUtils';
+import { useGoalSync } from './useGoalSync';
 import { TaskAirbagCapsule } from '@/components/features/checkpoint/TaskAirbagCapsule';
 import { activateOnKey } from '@/lib/utils/a11y';
 
@@ -40,27 +41,17 @@ export function GoalStatusCard() {
   const queueCount = useGoalStore((state) => state.queuedGoals.length);
   const chatId = useChatStore((state) => state.chatId);
 
+  useGoalSync(chatId);
+
   useEffect(() => {
     setNotificationPermission(notificationService.permission);
-    if (chatId) {
-      useGoalStore.getState().fetchQueue(chatId);
-      fetchWithTimeout(`/goals/${chatId}/status`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then(async (data) => {
-          if (data?.goal) {
-            const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
-            useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal));
-          }
-        })
-        .catch(() => {});
-    }
   }, [chatId]);
 
   useEffect(() => {
     const handleBranchSwitched = (e: CustomEvent) => {
       const data = e.detail;
-      if (data.chat_id === chatId) {
-        useGoalStore.getState().setGitBranch(data.branch);
+      if (chatId && data.chat_id === chatId) {
+        useGoalStore.getState().setGitBranch(chatId, data.branch);
         if (data.branch) {
           toast(
             data.restored
@@ -154,10 +145,8 @@ export function GoalStatusCard() {
       };
       // Only a pause note is a status reason; the note of a rejected review is the agent's next message.
       const reason = action === 'pause' ? note?.trim() || undefined : undefined;
-      // The store holds only the open chat's goal: a chat opened while the request was out must not take this status.
-      if (useChatStore.getState().chatId === chatId) {
-        useGoalStore.getState().updateGoalStatus(statusMap[action] ?? goal.status, reason);
-      }
+      // A chat opened while the request was out is not this chat: the store drops a status that is no longer its own.
+      useGoalStore.getState().updateGoalStatus(chatId, statusMap[action] ?? goal.status, reason);
       return true;
     } catch (e) {
       console.error(`Network error: failed to ${action} goal`, e);

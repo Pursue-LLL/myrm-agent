@@ -14,7 +14,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
   if (data.type === H.AgentEventType.GOAL_STATUS) {
     const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
     const goalState = H.normalizeGoalState(data.data);
-    useGoalStore.getState().setActiveGoal(goalState);
+    useGoalStore.getState().setActiveGoal(H.resolveStreamChatId(state), goalState);
     // A budget-limited goal ends the stream with no MESSAGE_END / ERROR /
     // AGENT_CANCELLED terminal event, so release any engaged inspector here.
     if (goalState.status === 'budget_limited') {
@@ -59,7 +59,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
   if (data.type === H.AgentEventType.MESSAGE_END) {
     if (data.goal_status) {
       const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
-      useGoalStore.getState().setActiveGoal(H.normalizeGoalState(data.goal_status));
+      useGoalStore.getState().setActiveGoal(H.resolveStreamChatId(state), H.normalizeGoalState(data.goal_status));
     }
 
     // Release inspector "controlling" state (desktop + browser) engaged by this

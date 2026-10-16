@@ -82,6 +82,7 @@ function answer(method: string, urlEnd: string, reply: () => Response): void {
 
 async function openCard(status: GoalStatus = 'active'): Promise<void> {
   useGoalStore.setState({
+    chatId: chatState.chatId,
     activeGoal: normalizeGoalState({
       goal_id: 'g1',
       objective: 'Ship it',
@@ -212,7 +213,19 @@ describe('GoalStatusCard when the server holds the text', () => {
 
   it('neither moves the goal of another chat nor sends the feedback into it when that chat was opened meanwhile', async () => {
     answer('POST', '/goals/chat-1/status', () => {
+      // What the goal sync does when the user opens chat-2 while the reject request is out.
       chatState.chatId = 'chat-2';
+      useGoalStore.getState().bindChat('chat-2');
+      useGoalStore.getState().setActiveGoal(
+        'chat-2',
+        normalizeGoalState({
+          goal_id: 'g2',
+          objective: 'Goal of chat 2',
+          status: 'needs_human_review',
+          tokens_used: 0,
+          time_used_seconds: 0,
+        }),
+      );
       return jsonResponse(200, {});
     });
     await openCard('needs_human_review');
@@ -223,7 +236,10 @@ describe('GoalStatusCard when the server holds the text', () => {
 
     await waitFor(() => expect(addInputHistory).toHaveBeenCalledWith('use the staging data', 'agent-1'));
     expect(sendMessage).not.toHaveBeenCalled();
-    expect(useGoalStore.getState().activeGoal?.status).toBe('needs_human_review');
+    expect(useGoalStore.getState().activeGoal).toMatchObject({
+      objective: 'Goal of chat 2',
+      status: 'needs_human_review',
+    });
   });
 
   it('still reports any other sub-goal failure with its own toast', async () => {

@@ -1285,7 +1285,7 @@ export default function E2EChatBridge() {
           return { ok: false, err: 'no-goal' };
         }
         const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
-        useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal as unknown as GoalStatusPayload));
+        useGoalStore.getState().setActiveGoal(chatId, normalizeGoalState(data.goal as unknown as GoalStatusPayload));
         return {
           ok: true,
           status: String(data.goal.status ?? ''),

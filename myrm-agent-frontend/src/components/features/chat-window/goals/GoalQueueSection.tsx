@@ -178,11 +178,9 @@ export function GoalQueueSection() {
         return;
       }
 
-      const reordered = arrayMove(queuedGoals, oldIndex, newIndex);
-      useGoalStore.setState({ queuedGoals: reordered });
       reorderQueue(
         chatId,
-        reordered.map((g) => g.goal_id),
+        arrayMove(queuedGoals, oldIndex, newIndex).map((g) => g.goal_id),
       );
     },
     [chatId, queuedGoals, reorderQueue],
