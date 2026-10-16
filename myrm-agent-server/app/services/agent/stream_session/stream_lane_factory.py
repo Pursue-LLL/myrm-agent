@@ -131,6 +131,7 @@ async def create_dynamic_workflow_stream(
 
     catalog = DatabaseSubagentCatalog(
         bound_agent_ids=list(params.subagent_ids or []),
+        incognito_mode=params.incognito_mode,
     )
 
     raw_q = params.query

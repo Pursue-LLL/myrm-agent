@@ -4,7 +4,8 @@ Resolves subagent configurations from YAML presets or database.
 When loading custom agents from DB as subagents:
   - Injects CustomAgentFactory to build a full SkillAgent (with skills, memory, MCP)
   - Enforces LEAF control scope (no recursive delegation)
-  - Enforces READ_ONLY_GLOBAL memory isolation (prevent concurrent state pollution)
+  - Enforces READ_ONLY_GLOBAL memory isolation (prevent concurrent state pollution),
+    or EPHEMERAL_SESSION when the owning chat is incognito so no memory is read or written
 
 For YAML presets, injects a ModelResolver so config.model can be resolved
 to an actual LLM instance instead of silently falling back to parent LLM.
@@ -63,15 +64,23 @@ class DatabaseSubagentCatalog:
 
     Scope restriction: When bound_agent_ids is provided, only those IDs
     (plus YAML presets) are available. This prevents arbitrary cross-calling.
+
+    Incognito: a delegated sub-agent cannot see the chat's incognito flag (its parent is the runtime
+    SkillAgent), so the owner of the chat tells the catalog and DB agents are configured without memory.
     """
 
     def __init__(
         self,
         bound_agent_ids: list[str] | None = None,
         jit_configs: dict[str, SubagentConfig] | None = None,
+        *,
+        incognito_mode: bool = False,
     ):
         self._bound_agent_ids = set(bound_agent_ids) if bound_agent_ids is not None else None
         self._jit_configs = jit_configs or {}
+        self._db_agent_memory_isolation = (
+            MemoryIsolationPolicy.EPHEMERAL_SESSION if incognito_mode else MemoryIsolationPolicy.READ_ONLY_GLOBAL
+        )
         self._model_resolver = _LLMModelResolver()
 
         from pathlib import Path
@@ -130,7 +139,7 @@ class DatabaseSubagentCatalog:
                     model=agent_profile.model,
                     max_turns=max_turns,
                     control_scope=ControlScope.LEAF,
-                    memory_isolation=MemoryIsolationPolicy.READ_ONLY_GLOBAL,
+                    memory_isolation=self._db_agent_memory_isolation,
                     max_spawn_depth=0,
                     workspace_policy=workspace_policy,
                     agent_factory=factory,
