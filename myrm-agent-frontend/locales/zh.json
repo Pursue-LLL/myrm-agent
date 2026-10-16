@@ -10911,7 +10911,7 @@
         "name": "渐构画像",
         "stage": "跨会话召回",
         "desc": "历史对话都可被检索，Agent 对你的了解会累积成跨会话共享的画像。",
-        "metricsConversations": "会话数: {count}",
+        "metricsConversations": "累计对话: {count}",
         "metricsProfile": "画像条目: {count}"
       },
       "discoveryChip": {

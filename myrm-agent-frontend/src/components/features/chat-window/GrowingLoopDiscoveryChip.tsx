@@ -32,7 +32,7 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
 
   useEffect(() => {
     let active = true;
-    getLearningLoopStatus(30)
+    getLearningLoopStatus()
       .then((res) => {
         if (active) {
           setData(res);

@@ -5,6 +5,7 @@
  * - @/services/statistics::getLearningLoopStatus, type LearningLoopFiveRingStatusResponse (POS: 闭环学习五环状态服务与契约)
  * - @/components/primitives/card::Card, CardContent, CardHeader, CardTitle (POS: 基础卡片原语)
  * - @/components/primitives/button::Button (POS: 基础按钮原语)
+ * - next/navigation::useRouter (POS: 路由跳转，待审核入口跳到设置页)
  *
  * [OUTPUT]
  * - LearningLoopFiveRingHub: 五环闭环状态中心组件，呈现战后自省、技能提炼、施用自进、周期自警、渐构画像 5 环的真实计数；来源不可读的环显示「暂不可用」。
@@ -15,6 +16,7 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { Brain, Zap, ShieldCheck, RotateCcw, Search, Activity, ArrowRight, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
@@ -24,6 +26,9 @@ import { showApiError } from '@/lib/api';
 
 /** Lookback window for the session counter of ring 1; the label shows the same value. */
 const LEARNING_LOOP_WINDOW_DAYS = 30;
+
+/** Skill-growth cases waiting for review are handled in settings, not on a journey tab. */
+const PENDING_REVIEW_HREF = '/settings/evolutionPending';
 
 interface LearningLoopFiveRingHubProps {
   onNavigateTab?: (tab: string) => void;
@@ -35,6 +40,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
   className,
 }: LearningLoopFiveRingHubProps) {
   const t = useTranslations('growthDashboard.learningLoop');
+  const router = useRouter();
   const [data, setData] = useState<LearningLoopFiveRingStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -105,7 +111,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
             }),
           ]
         : null,
-      targetTab: 'evolution',
+      open: () => onNavigateTab?.('evolution'),
     },
     {
       id: 'ring2',
@@ -123,7 +129,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
             t('ring2.metricsAutoApplied', { count: distillation.cases_auto_applied }),
           ]
         : null,
-      targetTab: 'trends',
+      open: () => onNavigateTab?.('trends'),
     },
     {
       id: 'ring3',
@@ -141,7 +147,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
             t('ring3.metricsBlocked', { count: advancement.cases_blocked }),
           ]
         : null,
-      targetTab: 'trends',
+      open: () => router.push(PENDING_REVIEW_HREF),
     },
     {
       id: 'ring4',
@@ -154,7 +160,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
       bgColor: 'bg-indigo-500/10',
       borderColor: 'border-indigo-500/30',
       metrics: consolidation ? [t('ring4.metricsMemories', { count: consolidation.total_memories })] : null,
-      targetTab: 'timeline',
+      open: () => onNavigateTab?.('timeline'),
     },
     {
       id: 'ring5',
@@ -172,7 +178,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
             t('ring5.metricsProfile', { count: profiling.profile_entries }),
           ]
         : null,
-      targetTab: 'graph',
+      open: () => onNavigateTab?.('graph'),
     },
   ];
 
@@ -217,7 +223,7 @@ export const LearningLoopFiveRingHub = memo(function LearningLoopFiveRingHub({
               <button
                 key={ring.id}
                 type="button"
-                onClick={() => onNavigateTab?.(ring.targetTab)}
+                onClick={ring.open}
                 className={cn(
                   'group relative flex flex-col justify-between p-3.5 rounded-xl border text-start transition-all duration-200 cursor-pointer',
                   'bg-background/60 hover:bg-accent/40 hover:shadow-md hover:border-primary/40',

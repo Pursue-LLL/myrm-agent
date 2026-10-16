@@ -10905,13 +10905,13 @@
         "name": "Consolidation",
         "stage": "Background memory upkeep",
         "desc": "In the background, related memories are merged and outdated ones set aside so recall stays sharp.",
-        "metricsMemories": "Total Memories: {count}"
+        "metricsMemories": "Total memories: {count}"
       },
       "ring5": {
         "name": "Profiling",
         "stage": "Recall across conversations",
         "desc": "Past conversations stay searchable, and what the agent learns about you builds into a profile that carries across chats.",
-        "metricsConversations": "Conversations: {count}",
+        "metricsConversations": "All conversations: {count}",
         "metricsProfile": "Profile entries: {count}"
       },
       "discoveryChip": {

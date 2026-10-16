@@ -11,6 +11,10 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
+
 const statistics = vi.hoisted(() => ({ getLearningLoopStatus: vi.fn() }));
 
 vi.mock('@/services/statistics', () => statistics);
@@ -29,6 +33,7 @@ const ringButton = (ring: string) => screen.findByRole('button', { name: new Reg
 
 describe('LearningLoopFiveRingHub', () => {
   beforeEach(() => {
+    router.push.mockReset();
     statistics.getLearningLoopStatus.mockReset();
     statistics.getLearningLoopStatus.mockResolvedValue(status);
   });
@@ -43,6 +48,16 @@ describe('LearningLoopFiveRingHub', () => {
 
     expect(first.tagName).toBe('BUTTON');
     expect(onNavigateTab.mock.calls).toEqual([['evolution'], ['graph']]);
+  });
+
+  it('sends the ring with cases waiting for review to the settings page where they are handled', async () => {
+    const onNavigateTab = vi.fn();
+    render(<LearningLoopFiveRingHub onNavigateTab={onNavigateTab} />);
+
+    fireEvent.click(await ringButton('ring3'));
+
+    expect(router.push).toHaveBeenCalledWith('/settings/evolutionPending');
+    expect(onNavigateTab).not.toHaveBeenCalled();
   });
 
   it('labels the refresh button from the translations and reloads the status when it is pressed', async () => {

@@ -10843,7 +10843,7 @@
         "name": "プロファイル構築",
         "stage": "会話をまたいだ想起",
         "desc": "過去の会話は検索でき、あなたについての理解はチャットをまたぐプロファイルとして蓄積されます。",
-        "metricsConversations": "会話数: {count}",
+        "metricsConversations": "これまでの会話: {count}",
         "metricsProfile": "プロファイル項目: {count}"
       },
       "discoveryChip": {

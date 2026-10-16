@@ -10843,7 +10843,7 @@
         "name": "프로파일 구축",
         "stage": "대화 간 회상",
         "desc": "지난 대화를 검색할 수 있고, 에이전트가 파악한 사용자 정보는 대화를 넘나드는 프로필로 쌓입니다.",
-        "metricsConversations": "대화 수: {count}",
+        "metricsConversations": "누적 대화: {count}",
         "metricsProfile": "프로필 항목: {count}"
       },
       "discoveryChip": {

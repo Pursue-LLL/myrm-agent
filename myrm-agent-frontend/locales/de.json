@@ -10843,7 +10843,7 @@
         "name": "Profilierung",
         "stage": "Abruf über Gespräche hinweg",
         "desc": "Frühere Gespräche bleiben durchsuchbar, und was der Agent über Sie lernt, wächst zu einem Profil, das über Chats hinweg gilt.",
-        "metricsConversations": "Unterhaltungen: {count}",
+        "metricsConversations": "Unterhaltungen insgesamt: {count}",
         "metricsProfile": "Profileinträge: {count}"
       },
       "discoveryChip": {

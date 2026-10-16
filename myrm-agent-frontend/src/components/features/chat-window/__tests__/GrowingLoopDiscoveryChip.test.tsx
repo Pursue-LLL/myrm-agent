@@ -56,7 +56,7 @@ describe('GrowingLoopDiscoveryChip', () => {
     statistics.getLearningLoopStatus.mockRejectedValue(new Error('offline'));
     const { container } = render(<GrowingLoopDiscoveryChip />);
 
-    await waitFor(() => expect(statistics.getLearningLoopStatus).toHaveBeenCalledWith(30));
+    await waitFor(() => expect(statistics.getLearningLoopStatus).toHaveBeenCalledWith());
     await act(async () => {
       await Promise.resolve();
     });

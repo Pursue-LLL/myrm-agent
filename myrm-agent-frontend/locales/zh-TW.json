@@ -10843,7 +10843,7 @@
         "name": "漸構畫像",
         "stage": "跨會話召回",
         "desc": "歷史對話都可被檢索，Agent 對你的了解會累積成跨會話共享的畫像。",
-        "metricsConversations": "會話數: {count}",
+        "metricsConversations": "累計對話: {count}",
         "metricsProfile": "畫像條目: {count}"
       },
       "discoveryChip": {
