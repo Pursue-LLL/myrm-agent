@@ -17,6 +17,18 @@ describe('extractSkillManageBatchId', () => {
     expect(extractSkillManageBatchId(baseStep())).toBe(BATCH_ID);
   });
 
+  it('accepts the step a finished turn persists: no status, list items, the tool_call_id key', () => {
+    // Shape printed by the live API e2e (E2E_PERSISTED_STEP); the Chrome E2E seeds mirror it.
+    const persisted = baseStep({
+      step_key: 'skill_manage_tool_tool',
+      tool_call_id: 'call_8f52e37bc3b04a388c41c0c1',
+      status: undefined,
+      items: [{ text: "operations: [{'action': 'save', 'name': 'demo'}]" }],
+    });
+
+    expect(extractSkillManageBatchId(persisted)).toBe(BATCH_ID);
+  });
+
   it('ignores failed steps', () => {
     expect(extractSkillManageBatchId(baseStep({ status: 'error' }))).toBeNull();
   });
