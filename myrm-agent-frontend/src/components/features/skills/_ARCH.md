@@ -11,17 +11,17 @@
 | `CuratorNumberInput.tsx`                                        | 组件 | Curator 阈值数字输入：键入时只提交范围内的值，失焦时取整并夹紧到范围内，清空则回退到上次提交的值                                                                                                                                                              | ✅    |
 | `CuratorNumberField.tsx`                                        | 组件 | Curator 阈值字段：把标签、数字输入与说明文字绑成一组，点标签或读屏都能落到输入框，说明随输入框一起被朗读；新增阈值只能走这个组件，不会再出现没有名字的输入框 | ✅    |
 | `CuratorSettingsPanel.tsx`                                      | 组件 | Skill Curator 策略设置：生命周期阈值、有改动时出现的统一保存栏、手动运行与合并，每个开关与输入框都有可访问名称；运行历史与技能医生的状态分别交给 `useCuratorHistory` / `useCuratorDiagnostics`，展示交给下面两个区块组件                                                                                                                                                        | ✅    |
-| `CuratorDiagnosticsSection.tsx` | 组件 | 技能医生诊断卡：按发现类型码与参数在当前语言拼出说明；被 Agent 档案或定时任务绑定的技能（发现的 `bound`）不提供归档，只留重置计数并说明原因 | ✅ |
+| `CuratorDiagnosticsSection.tsx` | 组件 | 技能医生诊断卡：按发现类型码与参数在当前语言拼出说明；被 Agent 档案或定时任务绑定的技能（发现的 `bound`）不提供归档，只留重置计数并说明原因；某个技能处理中时所有行的动作都被锁定 | ✅ |
 | `CuratorHistorySection.tsx` | 组件 | Curator 运行历史：相对时间跟随界面语言，状态词复用技能卡片文案，五种原因码合并为三条用户可读原因 | ✅ |
-| `useCuratorDiagnostics.ts` | 辅助 | 技能医生 hook：持有诊断报告，逐个技能执行治理并以提示反馈结果，成功后重新拉取报告并通知面板 | ✅ |
+| `useCuratorDiagnostics.ts` | 辅助 | 技能医生 hook：持有诊断报告，一次只执行一个治理动作（处理中再来的调用被忽略）并以提示反馈结果，成功后重新拉取报告并通知面板 | ✅ |
 | `useCuratorHistory.ts` | 辅助 | 运行历史 hook：首次展开才拉取最近 10 次，新一轮运行后仅在展开时刷新；返回可直接铺给历史区块的属性 | ✅ |
 | `EvolutionStrategyConfig.tsx`                                   | 组件 | 技能进化策略选择（balanced / innovate / harden / repair-only）                                                                                                                                                                                                | ✅    |
 | `LocalPathsConfig.tsx`                                          | 组件 | 本地技能扫描路径配置                                                                                                                                                                                                                                          | ✅    |
 | `LocalSkillPathScanPreviewBeforeAdoptDialog.tsx`                | 组件 | 本地技能路径预检与采纳对话框（安全门禁阻断、受控免责放行二次确认、全选联动与路径采纳）                                                                                                                                                                        | ✅    |
 | `LocalSkillPreviewCard.tsx`                                     | 辅助 | 本地技能预览卡片（三级安全评分徽章、门禁阻断提示、受控免责解锁状态、违规审计明细折叠展开；违规类别与严重度经 `useScanRiskText` 本地化）                                                                                                                       | ✅    |
-| `__tests__/CuratorSections.test.tsx` | 测试 | 诊断与历史区块在六个语言下按真实文案渲染的回归：无开发标识符、无缺失键、英文复数、被绑定技能只留重置并显示原因 | ✅ |
+| `__tests__/CuratorSections.test.tsx` | 测试 | 诊断与历史区块在六个语言下按真实文案渲染的回归：无开发标识符、无缺失键、英文复数、被绑定技能只留重置并显示原因、处理中锁定所有行的动作 | ✅ |
 | `__tests__/CuratorSettingsPanel.test.tsx` | 测试 | 面板的诊断发现展示、统一保存栏（有改动才出现、关闭时仍能保存、越界值夹紧后才发送、合并设置展开时仍只有一个保存按钮），以及每个开关与数字输入都能按名称找到、阈值说明随输入框一起被朗读 | ✅ |
-| `__tests__/useCuratorDiagnostics.test.tsx` | 测试 | 技能医生 hook：按需加载与失败置空、治理成功后重拉并通知、被拒时显示服务端原因且不重拉、请求失败时提示且忙碌标记只落在执行中的技能 | ✅ |
+| `__tests__/useCuratorDiagnostics.test.tsx` | 测试 | 技能医生 hook：按需加载与失败置空、治理成功后重拉并通知、被拒时显示服务端原因且不重拉、处理中忽略第二次调用、请求失败时提示且忙碌标记只落在执行中的技能 | ✅ |
 | `__tests__/useCuratorHistory.test.tsx` | 测试 | 历史 hook：展开前不请求、首次展开取最近 10 次并在再次展开时复用、仅展开时刷新、请求失败显示空历史 | ✅ |
 | `__tests__/CuratorNumberInput.test.tsx` | 测试 | 阈值输入的提交规则：范围内即时提交，低于下限失焦夹紧，高于上限失焦夹紧，整数字段四舍五入，清空回退到上次提交的值，小数步长保留小数，外部值变化时跟随 | ✅ |
 | `__tests__/LocalSkillPathScanPreviewBeforeAdoptDialog.test.tsx` | 测试 | 本地技能预检采纳弹窗与安全门禁回归测试（空状态、评分徽章、门禁阻断禁用、受控免责放行、全选排除、风险展开）                                                                                                                                                    | ✅    |
