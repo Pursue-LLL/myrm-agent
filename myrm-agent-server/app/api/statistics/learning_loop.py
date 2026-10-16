@@ -121,15 +121,14 @@ class LearningLoopFiveRingStatusResponse(BaseModel):
 
 async def _fetch_ring1_reflection(days: int) -> Ring1ReflectionStatus:
     try:
-        data_dir = getattr(settings, "DATA_DIR", None) or Path.home() / ".myrm"
-        events_dir = Path(data_dir) / "events"
+        events_dir = Path(settings.database.event_log_dir)
         if not events_dir.exists():
             return Ring1ReflectionStatus(is_active=True, status="ready")
 
-        backend = FileEventLogBackend(str(events_dir))
+        backend = FileEventLogBackend(log_dir=events_dir, session_id="default")
         analytics = EventLogAnalytics(backend)
         patterns = await analytics.get_global_activity_patterns(time_range_days=days)
-        total_sessions = patterns.total_sessions
+        total_sessions = sum(day.session_count for day in patterns.daily_activities)
 
         return Ring1ReflectionStatus(
             total_traces_analyzed=total_sessions,
@@ -145,7 +144,7 @@ async def _fetch_ring1_reflection(days: int) -> Ring1ReflectionStatus:
 
 async def _fetch_ring2_distillation(days: int) -> Ring2DistillationStatus:
     try:
-        all_skills = await skills_service.list_skills(limit=1000)
+        all_skills = await skills_service.list_skills()
         active_skills_count = len(all_skills)
 
         timeline_items = await list_skill_growth_timeline(
@@ -204,10 +203,9 @@ async def _fetch_ring4_consolidation(
         total_count = 0
         for mtype in ALL_MEMORY_TYPES:
             try:
-                items = await manager.list(memory_type=mtype, limit=500)
-                total_count += len(items)
-            except Exception:
-                continue
+                total_count += await manager.count_memories(mtype)
+            except Exception as e:
+                logger.warning("Failed to count %s memories for ring 4: %s", mtype.value, e)
 
         return Ring4ConsolidationStatus(
             consolidation_cycles=max(1, total_count // 5),

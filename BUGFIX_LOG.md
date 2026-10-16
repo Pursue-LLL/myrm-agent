@@ -4947,3 +4947,47 @@ except Exception:
 1. 先查生产里被传入对象的真实类型再写守卫：工厂里读父对象标志的写法在单测里通过、在生产里永不触发，是看起来有效的死代码。
 2. 「合同的消费者」要枚举到磁盘上的每一种产物：消息、检查点、记忆、技能草稿、事件日志，各有各的写入点，逐个核对而不是只修最显眼的一个。
 3. 用 `-U0` 的局部 hunk 提交在前面有被排除的改动时会放错位置：提交后要在纯 HEAD 检出（`git archive`）上重跑测试，而不是在带他人改动的工作区里看绿。
+
+## BUG-AGENT-2026-10-16-010: 闭环学习五环状态接口的第 1、2、4 环调用了不存在或签名不符的接口，异常被外层吞掉，三环永远是「ready」与 0
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（成长页的五环面板读不到真实数据，且不报错） |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py` |
+| 出现次数 | 1 |
+
+### 现象
+
+`GET /api/v1/statistics/learning-loop/status` 总是 200，但第 1 环追踪数恒为 0、第 2 环在用技能数恒为 0、第 4 环记忆总数恒为 0，状态恒为 `ready`；只有第 3、5 环与时间线计数有真实数据。
+
+### 根因
+
+三处调用与被调方的真实签名不符，外层 `except Exception` 把 `TypeError` / `AttributeError` 吞成「回落默认值」（以下均用运行时自省核对过）：
+
+1. 第 1 环：`settings.DATA_DIR` 不存在，回落到 `~/.myrm/events`，而不是事件日志目录 `settings.database.event_log_dir`；`FileEventLogBackend(str)` 缺必填的 `session_id`；`patterns.total_sessions` 不是 `GlobalActivityPatterns` 的字段。
+2. 第 2 环：`skills_service.list_skills(limit=1000)`，该方法没有 `limit` 形参。
+3. 第 4 环：`MemoryManager.list(...)` 不存在；内层 `except Exception: continue` 连日志都没有。
+4. 原集成测试用 `AsyncMock()` 做管理器与技能服务，不校验签名，三处漂移全部放过；`ring2 total_active_skills == 1` 的断言只证明了桩的返回值。
+
+### 修复
+
+1. 第 1 环读 `settings.database.event_log_dir`，用 `FileEventLogBackend(log_dir=…, session_id="default")`（与 `growth_dashboard.py` 一致），总会话数取 `sum(day.session_count for day in patterns.daily_activities)`；第 2 环 `list_skills()`；第 4 环按类型 `count_memories(mtype)`，单个类型失败记警告并继续（原先是静默 `continue`，上限也由 500 条变为真实总数）。
+2. 测试改为 `create_autospec(MemoryManager)` 与 `patch(..., autospec=True)`，签名漂移会直接失败；断言第 1 环追踪数（5）、第 4 环总数（每类 2 条 × 类型数）、缺失日志目录时的 `ready`、单个类型失败时其余类型仍被计入。
+3. 顺手（pyright，触碰文件内）：`ChatBase` / `ChatCreate` / `CreateMemoryRequest` 的位置参数默认值改为 `default=`（pyright 不把位置参数的 `Field(None, …)` 当默认值，调用处报「缺少参数」）；`memory_to_item` 的参数类型补上实际会传入的 `ClaimMemory`，`MemoryItem(**base)` 改为 `model_validate`，`exact_identifiers` 对不可迭代值返回空列表；`domain_mesh.py` 的枚举取值收进 `_enum_text`、`event_type` 缺省传空串、并按 `ruff format` 收敛。
+
+### 验证
+
+1. 变异检查：把 `learning_loop.py` 换回修改前的版本，新增测试 4 例中 2 例失败（第 1 环的 `get_global_activity_patterns` 没被调用；第 4 环总数为 0，期望 12），换回后 4 例全部通过。
+2. `ruff check` / `ruff format --check` 与 pyright 对所有触碰文件清零；触碰模块的测试 71 例、更宽的 `tests/api/memory`、`tests/api/mem0_compat`、`tests/schemas`、`tests/database`、`tests/services/memory` 等共 1065 例通过。
+
+### 局限
+
+1. 第 1、3、4、5 环里有一批数字不是测量值，而是由别的计数推算的：`anti_patterns_detected = total_sessions // 4`、`consolidation_cycles = max(1, total // 5)`、`memories_merged = total // 8`、`noise_pruned = total // 10`、`memory_health_score = 98`、`avg_score_boost_pct = 15.5`（只要有一条已批准）、`profile_dimensions = 6`。前端 `LearningLoopFiveRingHub.tsx` 把其中的反模式数、拦截与提升、循环与合并数、画像维度当真实指标展示。本条没有改：删除或换成真实计数会改变接口契约、前端展示与五语文案，需要先定方案。
+2. 第 1 环的追踪数是「时间窗内每日会话数之和」，不是反思分析过的追踪条数，字段名 `total_traces_analyzed` 仍然偏大；同样没有改名。
+
+### 教训
+
+1. `except Exception` 回落默认值加上不校验签名的桩，等于把接口漂移变成「永远显示就绪」，既不报错也不红测试；聚合类接口的测试必须用 autospec 并断言来自真实来源的数。
+2. 展示给用户的指标要么是测量值，要么不展示；用别的计数除以常数得到的数字，一旦被当成真实指标，就无法再区分「真的为零」与「没测到」。

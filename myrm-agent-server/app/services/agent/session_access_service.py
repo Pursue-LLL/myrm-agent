@@ -173,9 +173,9 @@ async def revoke_chat_session_access_root(
 
 
 def _is_cloud_volume_deployment() -> bool:
-    from myrm_agent_harness.runtime.paths.execution_paths import get_persistent_root
+    from myrm_agent_harness.runtime.paths.execution_paths import DEFAULT_PERSISTENT_ROOT, get_persistent_root
 
-    return get_persistent_root() == "/persistent" and os.path.isdir("/persistent")
+    return get_persistent_root() == DEFAULT_PERSISTENT_ROOT and os.path.isdir(DEFAULT_PERSISTENT_ROOT)
 
 
 def _is_subpath(child: str, parent: str) -> bool:
