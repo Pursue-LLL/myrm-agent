@@ -335,19 +335,8 @@ def stop_curator_background_task() -> None:
 
 async def get_skill_diagnostics() -> dict[str, object]:
     """Evaluate full skill library health and return structured Doctor Findings."""
-    from myrm_agent_harness.backends.skills.local import LocalSkillBackend
-
-    config = get_curator_config()
-    all_skills = []
-    for p in DEFAULT_LOCAL_SKILL_PATHS:
-        expanded = Path(p).expanduser()
-        if not expanded.exists():
-            continue
-        backend = LocalSkillBackend(expanded, use_snapshot=False)
-        all_skills.extend(await backend.list_skills())
-
-    diagnosis = evaluate_skill_health_findings(all_skills, config)
-    return diagnosis.to_dict()
+    scan = await scan_local_skills()
+    return evaluate_skill_health_findings(scan.skills, get_curator_config()).to_dict()
 
 
 class SkillNotFoundError(LookupError):
