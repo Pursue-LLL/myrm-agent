@@ -4922,7 +4922,7 @@ except Exception:
 2. harness `FileEventLogBackend.remove_session_log(session_id)`：写锁内删除，解析到日志目录之外的标识抛 `ValueError`，删除的是自己会话时重置去重水位；server `chat_disposal.remove_chat_event_log`：放在 `clear_runtime_caches` 之后（先停生产者），fail-open；四个入口走同一条链，不用各自处理。
 3. `DatabaseSubagentCatalog(incognito_mode=…)`：数据库自定义子 Agent 在无痕对话里配成 `EPHEMERAL_SESSION`；`SubagentManagementExtension` 与动态工作流入口各自传入会话的标志。工厂本身没有改。
 4. 文档：`ephemeral_session_store.py` 里「零明文痕迹」的表述改成实际范围（消息不入库），其余状态由 `chat_disposal` 清理；harness 与 server 的 `_ARCH.md`、`EVENT_LOG_SYSTEM.md` 同步。
-5. 顺手（pyright）：`subagent_extension.py` 的 `_tool_registry_getter` 返回类型改为 `list[BaseTool]`；四个扩展（`subagent_extension`、`security_policy_extension`、`archive_checkpoint_memory`、`pre_compact_memory`）的 `get_middlewares` 返回 `list[AgentMiddleware]`（原写法 `AgentMiddleware[object, object]` 违反中间件状态类型的上界）；`security_policy_extension` 给 `build_channel_security_config` 传元组而不是列表；`pre_compact_memory` 从定义模块 `schemas_pre_compact` 导入预压缩类型。这四个文件的 pyright 报错清零。
+5. 顺手（pyright）：`subagent_extension.py` 的 `_tool_registry_getter` 返回类型改为 `list[BaseTool]`；四个扩展（`subagent_extension`、`security_policy_extension`、`archive_checkpoint_memory`、`pre_compact_memory`）的 `get_middlewares` 返回 `list[AgentMiddleware]`（原写法 `AgentMiddleware[object, object]` 违反中间件状态类型的上界）；`security_policy_extension` 给 `build_channel_security_config` 传元组而不是列表。`subagent_extension`、`security_policy_extension`、`archive_checkpoint_memory` 的 pyright 报错清零。
 6. 测试文件拆分：`test_chat_disposal.py` 加上事件日志用例后超过 400 行，按主题拆成入口（`test_chat_disposal.py`）、单个步骤（`test_chat_disposal_steps.py`）与共用构件（`disposal_support.py`），用例总数不变（18 个用例函数，21 次参数化执行）。
 
 ### 验证
@@ -4937,7 +4937,7 @@ except Exception:
 1. 会话进行中的 LangGraph checkpoint 仍在，会话被清除时才删；超过 16000 字的粘贴会落到 `~/.myrm/spillover/`，保留 24 小时；模型供应商侧的保留不在我们控制内。这三项与改动前一致，没有扩大。
 2. 删除日志与仍在写日志的日志器之间没有锁协调（两个后端实例各有一把锁）；永久删除只作用于回收站内的会话且先停运行时，无痕会话现在根本不写，所以实际不会交错，但没有用真实并发验证。
 3. 子 Agent 里「`memory_manager=None` 则跳过会话结束抽取」是静态读码结论，没有用真实模型跑过一次委派。
-4. `extensions/zero_cost_memory.py` 的 `get_middlewares` 仍是 `AgentMiddleware[object, object]`（该文件有他人未提交的改动，没有碰），同样有 pyright 报错；harness 协议里该返回类型写成 `Any`，是这类报错的来源。
+4. `extensions/zero_cost_memory.py` 的 `get_middlewares` 仍是 `AgentMiddleware[object, object]`（该文件有他人未提交的改动，没有碰），同样有 pyright 报错；harness 协议里该返回类型写成 `Any`，是这类报错的来源。`extensions/pre_compact_memory.py` 仍有 3 条 pyright 报错：预压缩类型由 harness 的 `infra/schemas.py` 无别名转出（该包带类型标记，pyright 视作未导出），改从定义模块 `infra/schemas_pre_compact` 导入会让 `tests/architecture/test_server_harness_imports.py` 多出一条深层导入，所以没有改；修在 harness 一侧。
 5. `custom_agent_factory.py` 仍有 593 行（超过 500 行上限）：本条最终没有改它，所以没有拆；其中另有他人未提交的 `_subagent_write_backend` 改动。
 6. harness 仓库里一次按 hunk 局部提交把新方法放在了 `cleanup_old_logs` 文档字符串中间（`d05451ee0`），该提交里的 `file_backend.py` 无法解析，下一次修复提交 `6098b4da1` 才恢复；这两个提交之间的 harness 状态不能单独检出使用（没有改写历史，因为同一工作区还有他人未提交的改动）。
 

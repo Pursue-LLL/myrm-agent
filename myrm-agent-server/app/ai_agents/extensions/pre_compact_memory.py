@@ -5,7 +5,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage
-from myrm_agent_harness.agent.context_management.infra.schemas_pre_compact import (
+from myrm_agent_harness.agent.context_management.infra.schemas import (
     ContextPreCompactCallback,
     PreCompactDecision,
     PreCompactInjection,
