@@ -381,14 +381,8 @@ async def build_general_agent(
         GuardrailMiddleware,
         SkillBoundaryProvider,
     )
-    from myrm_agent_harness.api.hooks import (
-        set_permission_invalidation_callback,
-    )
 
-    from app.services.skills.permission_service import (
-        clear_permission_cache,
-        create_async_permission_checker,
-    )
+    from app.services.skills.permission_service import create_async_permission_checker
 
     permission_checker = await create_async_permission_checker()
 
@@ -409,9 +403,7 @@ async def build_general_agent(
         session_id=effective_chat_id,
     )
 
-    set_permission_invalidation_callback(clear_permission_cache)
-
-    logger.info(f"Skill permission checker enabled for user: {'sandbox'}, real-time revocation registered")
+    logger.info("Skill permission checker enabled for user: sandbox")
 
     time_decay_half_life_days = 90.0
     if agent_wrapper.memory_decay_profile == "permanent":
@@ -1080,7 +1072,7 @@ def _build_skill_review_callback(agent_wrapper: "GeneralAgent") -> "Callable[[di
 
     from .callbacks import make_skill_review_callback
 
-    return make_skill_review_callback()
+    return make_skill_review_callback(memory_enabled=agent_wrapper.enable_memory)
 
 
 def _build_session_cleanup_callback(

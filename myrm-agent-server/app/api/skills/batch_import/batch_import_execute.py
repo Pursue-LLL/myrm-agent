@@ -35,6 +35,8 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
 from myrm_agent_harness.agent.skills.packaging import is_evals_file, parse_evals_json
 
 from .batch_import_helpers import _build_batch_import_error_detail
+from app.core.skills.utils import render_skill_md
+
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -93,7 +95,7 @@ async def execute_batch_import_confirm(
                 detail=_build_batch_import_error_detail("非法的 virtual_id"),
             ) from e
 
-        val_result = validator.validate_skill(f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}")
+        val_result = validator.validate_skill(render_skill_md(item.name, item.description, skill.content))
         if not val_result.passed:
             logger.warning(f"Skill {item.name} failed security scan during confirm: {val_result.issues}")
             # 立即清理暂存区并阻断

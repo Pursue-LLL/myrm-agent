@@ -31,6 +31,7 @@ from myrm_agent_harness.backends.skills.scanning.archive_security import (
 
 from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.evolution.helpers import _get_skill_store
+from app.core.skills.utils import render_skill_md
 
 from .batch_import_execute import execute_batch_import_confirm
 from .batch_import_helpers import (
@@ -107,11 +108,7 @@ async def preview_batch_import(
 
     validator = _new_security_validator()
 
-    if hasattr(store, "list_skills"):
-        existing_skills = store.list_skills()
-    else:
-        existing_skills = store.get_active_skills()
-    existing_map = {s.name: s.skill_id for s in existing_skills}
+    existing_map = {s.name: s.skill_id for s in store.get_active_skills()}
 
     preview_items = []
     total_conflicts = 0
@@ -124,7 +121,7 @@ async def preview_batch_import(
         security_issues = None
 
         # 前置安全扫描
-        val_result = validator.validate_skill(f"---\nname: {skill.name}\ndescription: {skill.description}\n---\n{skill.content}")
+        val_result = validator.validate_skill(render_skill_md(skill.name, skill.description, skill.content))
         if not val_result.passed:
             security_issues = "; ".join(val_result.issues)
 

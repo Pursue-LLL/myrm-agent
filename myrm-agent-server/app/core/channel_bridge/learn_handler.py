@@ -162,8 +162,11 @@ def parse_learn_slash_args(query: object) -> str | None:
     return body[space_idx + 1 :].strip() if space_idx > 0 else ""
 
 
-def rewrite_learn_query_if_needed(query: object) -> object:
-    """Rewrite raw WebUI/Chat ``/learn`` messages to the channel learn prompt SSOT."""
+def rewrite_learn_query_if_needed[Query](query: Query) -> Query | str:
+    """Rewrite raw WebUI/Chat ``/learn`` messages to the channel learn prompt SSOT.
+
+    Returns *query* unchanged unless it is a raw ``/learn`` message, which becomes a plain prompt string.
+    """
     if learn_authoring_prompt_text(query) is not None:
         return query
     args = parse_learn_slash_args(query)

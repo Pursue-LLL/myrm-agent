@@ -1,8 +1,11 @@
-"""Frontmatter rendering for skills materialized from model-generated drafts."""
+"""Frontmatter rendering for skill text built from model-generated or imported name and description fields."""
 
 import pytest
+from myrm_agent_harness.agent.plugins.models import PluginSkill
 from myrm_agent_harness.api.skills import parse_skill_frontmatter
 
+from app.core.skills.utils import render_skill_md
+from app.services.plugins._gates import scan_skill_security
 from app.services.skills.auto_extractor import render_skill_draft_markdown
 
 # Descriptions a model can plausibly emit; unquoted YAML breaks or silently retypes most of these.
@@ -60,3 +63,22 @@ def test_missing_description_and_trigger_fall_back_to_the_name_not_a_placeholder
 
     assert description == "deploy-nginx"
     assert "Auto-extracted" not in markdown
+
+
+@pytest.mark.parametrize("description", _MODEL_DESCRIPTIONS)
+def test_render_skill_md_round_trips_fields_and_keeps_the_body_verbatim(description: str) -> None:
+    body = "# Steps\n\n1. Install: nginx # not a comment\n"
+
+    markdown = render_skill_md("deploy: nginx", description, body)
+
+    frontmatter = parse_skill_frontmatter(markdown, "fallback")
+    assert frontmatter.name == "deploy: nginx"
+    assert frontmatter.description == description
+    assert markdown.endswith(f"---\n{body}")
+
+
+@pytest.mark.parametrize("description", _MODEL_DESCRIPTIONS)
+def test_plugin_security_scan_does_not_flag_valid_descriptions_as_invalid_yaml(description: str) -> None:
+    skill = PluginSkill(name="demo", description=description, content="Just normal work.\n")
+
+    assert scan_skill_security(skill) == []

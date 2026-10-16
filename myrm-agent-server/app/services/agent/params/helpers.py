@@ -57,6 +57,16 @@ def _extract_code_execution_network(
     return None
 
 
+def _declared_capabilities(*security_configs: dict[str, object] | None) -> set[str]:
+    """Capability names declared by any of the given security config dicts."""
+    declared: set[str] = set()
+    for security in security_configs:
+        raw = security.get("capabilities") if security else None
+        if isinstance(raw, list):
+            declared.update(c for c in raw if isinstance(c, str))
+    return declared
+
+
 def _extract_text_from_query(query: MultimodalQuery) -> str:
     """Extract plain text from a multimodal query for DB storage and hygiene checks."""
     if isinstance(query, str):
