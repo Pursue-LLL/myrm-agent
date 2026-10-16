@@ -135,22 +135,32 @@ def _batch_id_of(event: dict[str, object]) -> str | None:
     return raw if isinstance(raw, str) and raw else None
 
 
-def _stored_batch_ids(client: httpx.Client, backend_url: str, chat_id: str) -> list[str]:
-    """Batch ids on the skill_manage steps the server persisted for the chat (a finished step has no status)."""
+def _persisted_skill_steps(client: httpx.Client, backend_url: str, chat_id: str) -> list[dict[str, object]]:
+    """The skill_manage steps the server persisted for the chat, as the chat view loads them."""
     messages = _data(client.get(f"{backend_url}/api/v1/chats/{chat_id}/messages", timeout=30.0)).get("messages")
-    batch_ids: list[str] = []
+    persisted: list[dict[str, object]] = []
     for message in messages if isinstance(messages, list) else []:
         if not isinstance(message, dict):
             continue
         metadata = message.get("metadata")
         steps = message.get("progressSteps") or (metadata.get("progressSteps") if isinstance(metadata, dict) else None)
-        for step in steps if isinstance(steps, list) else []:
-            if not (isinstance(step, dict) and str(step.get("tool_name") or "").endswith(_SAVE_TOOL)):
-                continue
-            batch_id = step.get("skill_mutation_batch_id")
-            if step.get("status") not in _FAILED_STATUSES and isinstance(batch_id, str) and batch_id:
-                batch_ids.append(batch_id)
-    return batch_ids
+        persisted.extend(
+            step
+            for step in (steps if isinstance(steps, list) else [])
+            if isinstance(step, dict) and str(step.get("tool_name") or "").endswith(_SAVE_TOOL)
+        )
+    return persisted
+
+
+def _stored_batch_ids(client: httpx.Client, backend_url: str, chat_id: str) -> list[str]:
+    """Batch ids on the persisted skill_manage steps (a finished step has no status)."""
+    return [
+        batch_id
+        for step in _persisted_skill_steps(client, backend_url, chat_id)
+        if step.get("status") not in _FAILED_STATUSES
+        and isinstance(batch_id := step.get("skill_mutation_batch_id"), str)
+        and batch_id
+    ]
 
 
 def _catalog_skill_id(client: httpx.Client, backend_url: str, name: str) -> str | None:
@@ -215,6 +225,12 @@ def test_live_agent_saves_a_skill_and_the_batch_reaches_its_step_and_rolls_back(
             lambda: _stored_batch_ids(client, backend_url, chat_id), timeout_sec=60.0, what="the persisted step batch id"
         )
         assert announced_batch in stored, f"persisted batch ids {stored} do not include the announced {announced_batch}"
+        persisted_steps = _persisted_skill_steps(client, backend_url, chat_id)
+        print(f"E2E_PERSISTED_STEP: {json.dumps(persisted_steps, sort_keys=True, default=str)}", flush=True)
+        committed = next(step for step in persisted_steps if step.get("skill_mutation_batch_id") == announced_batch)
+        # The Chrome E2E seeds mirror this shape (_persisted_skill_manage_step); change both together.
+        assert "status" not in committed and committed.get("step_key") == "skill_manage_tool_tool", committed
+        assert committed.get("tool_call_id") and isinstance(committed.get("items"), list), committed
 
         skill_id = _catalog_skill_id(client, backend_url, skill_name)
         assert skill_id, f"skill {skill_name!r} is not in the catalog after the live turn"

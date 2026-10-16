@@ -210,22 +210,27 @@ def _seed_mutation_batch(api_url: str) -> dict[str, str]:
 
 def _finished_steps(prefix: str, count: int) -> list[dict[str, object]]:
     """Steps of a long turn around the skill save; the step tree keys on tool_call_id, so each needs its own."""
-    return [{"step_key": "analyzing_query", "tool_call_id": f"{prefix}-{index}", "status": "success"} for index in range(count)]
+    return [{"step_key": "analyzing_query", "tool_call_id": f"{prefix}-{index}"} for index in range(count)]
+
+
+def _persisted_skill_manage_step(batch_id: str) -> dict[str, object]:
+    """The step the server persists after a live skill_manage turn (pinned by test_skill_manage_undo_live_api_e2e)."""
+    return {
+        "step_key": "skill_manage_tool_tool",
+        "tool_call_id": f"call_{uuid.uuid4().hex[:24]}",
+        "tool_name": "skill_manage_tool",
+        "skill_mutation_batch_id": batch_id,
+        "reason": "",
+        "items": [{"text": "operations: [{'action': 'save', 'content': '---\\nname: systematic-debugging ..."}],
+    }
 
 
 def _seed_chat_with_batch(api_base: str, batch_id: str, *, steps_before: int = 0, steps_after: int = 0) -> str:
     chat_id = f"e2eundorb_{uuid.uuid4().hex[:8]}"
     now = datetime.now(UTC).replace(microsecond=0)
-    footer = json.dumps({"batch_id": batch_id}, separators=(",", ":"))
     progress_steps = [
         *_finished_steps("before", steps_before),
-        {
-            "step_key": "tool_skill_manage_tool",
-            "tool_name": "skill_manage_tool",
-            "status": "success",
-            "skill_mutation_batch_id": batch_id,
-            "items": f"Batch applied successfully (batch_id={batch_id}).\nmyrm_skill_batch:{footer}",
-        },
+        _persisted_skill_manage_step(batch_id),
         *_finished_steps("after", steps_after),
     ]
     messages = [
