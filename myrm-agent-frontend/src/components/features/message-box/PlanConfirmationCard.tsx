@@ -235,15 +235,16 @@ const PlanConfirmationCard = ({
     const handledElsewhere = status === 'handled';
     const StatusIcon = handledElsewhere ? InfoCircleIcon : CheckCircleIcon;
     return (
+      // The icon stays on the first line: a label that wraps on a narrow screen must not float it to the middle.
       <div
         className={cn(
-          'mt-3 flex items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3',
+          'mt-3 flex items-start gap-2.5 rounded-2xl border px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3',
           handledElsewhere ? 'border-border/60 bg-muted/40' : 'border-emerald-500/30 bg-emerald-500/5',
         )}
       >
         <StatusIcon
           className={cn(
-            'h-4 w-4 shrink-0',
+            'mt-0.5 h-4 w-4 shrink-0',
             handledElsewhere ? 'text-muted-foreground' : 'text-emerald-500 dark:text-emerald-400',
           )}
         />
