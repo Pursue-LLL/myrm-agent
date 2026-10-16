@@ -347,7 +347,23 @@ def _state_of(client: ChromeMcpClient, page: McpPage, expression: str, *, timeou
 def _bring_up_sections(client: ChromeMcpClient, page: McpPage, target: str) -> None:
     """Install the stub while the panel is not mounted, then mount it and open the history."""
     e2e = "window.__curatorE2E"
-    _state_of(client, page, f"(() => ({{ ready: {e2e}.showTab({target}, 'discover') }}))()")
+    # The rest of the state is only for the failure message: it says whether the tabs never mounted or never activated.
+    _state_of(
+        client,
+        page,
+        f"""(() => {{
+          const win = {target};
+          return {{
+            ready: {e2e}.showTab(win, 'discover'),
+            tabs: Array.from(win.document.querySelectorAll('[role="tab"]')).map(
+              (t) => t.id.split('trigger-')[1] + ':' + t.getAttribute('data-state'),
+            ),
+            path: win.location.pathname,
+            readyState: win.document.readyState,
+            bodyStart: (win.document.body.innerText || '').slice(0, 120),
+          }};
+        }})()""",
+    )
     assert _evaluate(client, page, f"(() => {{ {e2e}.install({target}); return true; }})()") is True
     _state_of(
         client,

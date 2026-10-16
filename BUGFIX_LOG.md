@@ -3551,9 +3551,9 @@ except Exception:
 | 发现日期 | 2026-10-15 |
 | 修复日期 | 2026-10-15 |
 | 严重程度 | P3（只影响文案与可读性，不改变清理行为；但用户读不懂「这次清理动了什么、为什么」，就不敢放心恢复被归档的技能） |
-| 影响范围 | 前端 `CuratorSettingsPanel.tsx`（拆出 `CuratorHistorySection.tsx`、`CuratorDiagnosticsSection.tsx`）、`services/skill/core.ts`、六个 locale 文件；服务端 `app/api/skills/curator.py` 的诊断响应模型 |
+| 影响范围 | 前端 `CuratorSettingsPanel.tsx`（拆出 `CuratorHistorySection.tsx`、`CuratorDiagnosticsSection.tsx`）、`services/skill/core.ts`、六个 locale 文件、`CuratorNumberField.tsx`（新）；服务端 `app/api/skills/curator.py` 的运行、历史、诊断三个响应模型；harness `backends/skills/forgetting_strategy.py` 的诊断发现参数 |
 | 出现次数 | 1 |
-| 关联 | `BUG-AGENT-2026-10-15-003`（该条局限 6「面板 674 行没有拆分」在本条完成）；本地提交，未 push，不涉及 harness |
+| 关联 | `BUG-AGENT-2026-10-15-003`（该条局限 6「面板 674 行没有拆分」在本条完成）；本地提交，未 push；harness 只改一处（修复 11），在 harness 仓库单独提交 |
 
 ### 现象
 
@@ -3578,7 +3578,10 @@ except Exception:
 5. 面板 674 行降到 471 行，状态（`history`、`historyOpen`、`loadHistory`、`toggleHistory`）仍留在面板里，两个区块只收 props；
 6. 面板、历史区、诊断区的根节点与历史条目、诊断行加了 `data-testid`，单测与真机 E2E 用它按行断言；
 7. 文字对比度（真机 E2E 量出，见局限 1）：诊断行的类型徽章在严重时用 `text-destructive`，而深色主题下 `--destructive` 是 `#801d1d` 的背景色令牌，文字对比度只有 1.85:1，改为 `text-red-700 dark:text-red-400`；浅色底上的 `text-emerald-600` / `text-amber-600` / `text-yellow-600` / `text-green-600` 加深到 700 / 800 档；历史条目里原因文字的 `opacity-60` 改 `opacity-70`。
-8. 历史条目右侧的 `{entry.duration_ms}ms`（耗时）是给开发者看的数字：用户无法据此做任何判断，也不随语言变化，已删除显示；`CuratorHistoryEntry.duration_ms` 仍是接口字段，保留在类型里。单测的泄漏正则与 E2E 的 `_LEAKED` 加入 `\d\s?ms\b`，单测先红（1 例失败）再绿。
+8. 历史条目右侧的 `{entry.duration_ms}ms`（耗时）是给开发者看的数字：用户无法据此做任何判断，也不随语言变化，已删除显示；该字段随后也从接口与类型里删除（修复 10）。单测的泄漏正则与 E2E 的 `_LEAKED` 加入 `\d\s?ms\b`，单测先红（1 例失败）再绿。
+9. 可访问名称：面板里 10 个控件没有名字（5 个阈值输入、2 个合并输入、3 个开关；`<Label>` 没有 `htmlFor`，开关旁只有 `<h4>`），点标签没有反应，读屏只念「数字输入」。新增 `CuratorNumberField.tsx`，把标签、输入框、说明文字绑成一组（`useId` 生成关联，说明用 `aria-describedby`），`CuratorNumberInput` 透传 `id` 与 `aria-describedby`；七个数字字段全部走它，不会再出现忘了写名字的输入框；主开关与合并开关用 `aria-labelledby` 指向各自标题，「保护已安装技能」开关用 `<Label htmlFor>`。没有新增文案键。
+10. 接口瘦身：运行响应删 `skipped_pinned`，历史响应删 `duration_ms`、`skipped_pinned`、`errors`，诊断响应删 `recommended_action` 与五个库级计数（`total_skills`、`active_skills`、`stale_skills`、`archived_skills`、`pinned_skills`），服务端模型、前端类型与全部夹具同步；全仓只有 `services/skill/core.ts` 调这三个接口。磁盘上的历史文件（`curator_history.jsonl`）与 harness 的 `SkillDoctorFinding` 不动，历史仍记录耗时与错误，只是不再发给界面。
+11. 诊断发现里 `details.trust` 的取值是错的（单测钉 `details` 键时发现）：harness 写成 `skill.trust.value if skill.trust else "local"`，而 `SkillTrust` 是整数枚举且 `INSTALLED = 0`，于是安装来源的技能被报成 `"local"`、用户放置的技能被报成整数 `1`，与前端类型 `trust: string` 和服务端技能接口的拼写（`meta.trust.name.lower()`）都不一致。改为 `skill.trust.name.lower()`，得到 `"installed"` / `"trusted"`。界面当前不读这个参数，所以没有用户可见变化；harness 测试补上三类发现的 `details` 键（`stale_pinned` 此前没有任何测试）和 INSTALLED 的回归。
 
 ### 验证
 
@@ -3589,15 +3592,19 @@ except Exception:
 5. 服务端：`tests/api/skills/test_curator.py` 与 `test_curator_config_validation.py` 26 通过、4 失败；失败的 4 例（`test_archive_pinned_skill_returns_409`、`test_archive_unpinned_skill_succeeds`、`test_consolidation_execute_empty`、`test_consolidation_execute_with_results`）都属于他人在同一文件里未提交的「归档守卫 / 合并计划令牌」改动，`test_get_skill_diagnostics` 通过。
 6. 真机 E2E：`./myrm test -m chrome_e2e -rs -s myrm-agent/myrm-agent-server/tests/e2e/test_curator_panel_sections_chrome_e2e.py` 第 12 次真实通过（`1 passed in 340.91s`，种子后端 :18081，`E2E_CURATOR_DESKTOP_PROBLEMS: []`）：zh 下历史与诊断两个区块的文案逐字、`rowButtons == [2, 2, 0]`、无开发标识符；桌面与 375px 同源 iframe 各量深浅两套主题，文字对比度全部不低于 4.5:1，无元素越出视口，面板无横向滚动。
 7. 删除耗时显示之后：`CuratorSections.test.tsx` + `CuratorSettingsPanel.test.tsx` 2 文件 21 例通过，prettier、oxlint 0 告警；该改动之后真机 E2E 没有再跑出结论，见局限 1。
+8. 可访问名称（修复 9）：`CuratorSettingsPanel.test.tsx` 新增 `names every control so assistive tech and label taps reach it`，先红（1 例失败、5 例通过）再绿，断言 7 个数字输入与 3 个开关的可访问名称，以及阈值说明经 `aria-describedby` 被读出。
+9. 接口瘦身（修复 10）：服务端 `test_curator.py` + `test_curator_history.py` 34 例通过，其中三例新写或改写，分别钉住运行、历史、诊断响应的完整键集合（诊断含发现条目的键）；前端 `CuratorSections`、`CuratorSettingsPanel`、`CuratorNumberInput` 三个测试文件 29 例通过；全工程 `tsc --noEmit` exit 0；prettier、oxlint、`verify:theme-colors`、ruff check 与 format 通过。键集合断言没有在旧模型上跑过红（旧模型含这些字段，键集合必不相等，这是推导，不是实测）。
+10. `trust` 取值（修复 11）：harness 单测钉 `details` 后先红（`{'trust': 1} != {'trust': 'local'}`），把 `INSTALLED` 与 `TRUSTED` 代入旧表达式实测为 `'local'` 与 `1`，新表达式为 `'installed'` 与 `'trusted'`；`tests/backends/skills` 627 例通过。
 
 ### 局限
 
 1. **真机 E2E 的可信范围**：共跑 12 次，只有第 12 次是真通过。前 11 次：第 1、4、8、10 次启动器种子失败（`E2E_EPOCH_PIN_FAILED`）；第 2、7、11 次 `E2E_EPOCH_PIN_DEFER_SKIP`（exit=0 但是跳过，第 11 次原因是 `private backend cap reached (4/4)`，不算通过）；第 3 次 pytest 以 247（SIGKILL）退出；第 5 次后台任务随 shell 结束被杀，无结果；第 6 次真实失败：`desktop/dark: 高频低效 1.85:1 at 10px`（即修复 7 的缺陷）；第 9 次真实失败于手机 iframe 的就绪探测（`{'ready': False, 'width': 375}`），根因没有查实，第 10 次起探测只看 `settings-layout` 与路径并带出更多状态，随后通过，无法区分当时是主机负载（load 100+）还是探测条件所致。深色主题的检测只在缺陷版本上被抓到过一次；浅色主题与手机宽度的检测没有用故意破坏的版本验证过会不会变红；`rounded-lg` 没有目视；第 12 次通过发生在删除耗时显示、E2E 加 `\d\s?ms\b` 之前。之后为证明浅色与手机宽度的检测会变红，写了一次性变异用例（在 375px 框内插入 700px 宽元素并把一行说明改成浅灰），尝试 5 次：1 次因用例自身的导入写法失败、1 次 SIGKILL（247）、1 次预检 360 秒超时、2 次种子失败（`E2E_EPOCH_PIN_FAILED`），都没有跑出结论，用例已删除；所以这两项检测的灵敏度，以及删除耗时显示之后的真机页面，都没有再验证过；
 2. 日、韩、德、繁中文案没有母语者审校，词汇沿用各语言文件里 `card.stale` / `card.archived` / `card.pinned` 的既有译法；
-3. 两套囤积判断仍各自一套阈值（诊断面板的 `hoarding_bloat` 与 `SkillHoardingHealthDiagnostic` 的 80% 预警），诊断响应里 5 个前端没用到的计数字段也没删；
+3. 两套囤积判断仍各自一套阈值（诊断面板的 `hoarding_bloat` 与 `SkillHoardingHealthDiagnostic` 的 80% 预警）；
 4. harness 的 `SkillDoctorFinding.message` 仍在产生并序列化，本产品不再读它；它是框架公开接口，删除需要先发布 harness 再 `sync-lock`，本条不涉及；
-5. 数字输入的 `<label>` 与控件的 `htmlFor` 关联（可访问性）本条没做；
+5. 可访问名称只由单测（`getByRole(..., { name })`）保证，真机 E2E 没有断言它；
 6. 英文对次数与天数用 ICU 复数，德文只对天数用复数（`{days, plural, one {seit # Tag} other {seit # Tagen}}`），中日韩繁体不分单复数。
+7. **修复 9、10 之后的真机 E2E 没有通过**：在最终树上跑了 3 次，都在 `_bring_up_sections` 里失败，等 `showTab('discover')` 135 秒未就绪。第 1、2 次桌面段已完整跑完（`E2E_CURATOR_DESKTOP_PROBLEMS: []`，即中文文案、深浅两套主题的对比度、无越界都通过），失败在手机宽度的 iframe；第 3 次失败在桌面主窗口，连桌面段都没跑到。给该步骤补了诊断后，第 2、3 次的失败状态是 `tabs: []`、`path: /settings/skills`、`readyState: interactive` 或 `complete`：页签根本没渲染，与 `SkillsSection` 停在 `!isInitialized` 骨架屏的状态一致（`SkillsSection.tsx:598`，`isInitialized` 来自 `useAuthStore`；没有直接读到这个标志）。页签没渲染就意味着面板代码一行都没执行，所以这一步的失败与本条改动无关。第 3 次之后实测前端 `GET /settings/skills` 耗时 12.4 秒，主机负载 29（最高耗 CPU 的是 Cursor 渲染进程 411%），与第 9 次的手机探测失败同类；「负载高导致页面初始化慢」是这些实测支持的推断，没有抓到浏览器侧的网络时序。结论：桌面段在最终树上验证过两次（第 1、2 次）；手机宽度（375px）在最终树上没有验证过，其中包括修复 9 新增的标签与输入结构有没有撑出横向滚动；修复 9 的可访问名称只有单测，没有真机验证；「故意破坏后检测会变红」的变异验证因为没有稳定的通过基线，没有再做。
 
 ### 踩坑经验
 
