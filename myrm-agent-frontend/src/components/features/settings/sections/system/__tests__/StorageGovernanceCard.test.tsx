@@ -9,8 +9,8 @@ const stableT = (key: string, params?: Record<string, unknown>) => {
   if (params?.freed) {
     return `Freed ${params.freed}`;
   }
-  if (params?.count) {
-    return `${params.count} items`;
+  if (params?.count !== undefined) {
+    return `${key}:${params.count}`;
   }
   return key;
 };
@@ -43,10 +43,18 @@ describe('StorageGovernanceCard', () => {
       {
         category: 'sqlite_database',
         display_name: 'SQLite Core Databases',
-        bytes: 31457280,
-        item_count: 120,
-        percentage: 60.0,
+        bytes: 20971520,
+        item_count: 2,
+        percentage: 40.0,
         details: { chats: 50, messages: 70 },
+      },
+      {
+        category: 'checkpoints',
+        display_name: 'Conversation Checkpoints',
+        bytes: 10485760,
+        item_count: 2,
+        percentage: 20.0,
+        details: {},
       },
       {
         category: 'vector_store',
@@ -99,6 +107,13 @@ describe('StorageGovernanceCard', () => {
     });
   });
 
+  it('shows a file count for directory categories but not for the databases', async () => {
+    render(<StorageGovernanceCard />);
+
+    expect(await screen.findByText('filesCount:85')).toBeInTheDocument();
+    expect(screen.queryByText('filesCount:2')).not.toBeInTheDocument();
+  });
+
   it('triggers storage compaction and refetches report', async () => {
     (systemService.executeStorageCompaction as unknown as Mock).mockResolvedValue({
       success: true,
@@ -149,6 +164,25 @@ describe('StorageGovernanceCard', () => {
       );
     });
     expect(systemService.getStorageGovernanceReport).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the technical error of a failed compaction request out of the toast', async () => {
+    (systemService.executeStorageCompaction as unknown as Mock).mockRejectedValue(
+      new Error('sqlite3.OperationalError: database is locked'),
+    );
+
+    render(<StorageGovernanceCard />);
+    fireEvent.click(await screen.findByText('compactDatabase'));
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'compactionFailedTitle',
+          description: 'compactionFailedDesc',
+          variant: 'destructive',
+        }),
+      );
+    });
   });
 
   it('creates and restores state snapshot', async () => {

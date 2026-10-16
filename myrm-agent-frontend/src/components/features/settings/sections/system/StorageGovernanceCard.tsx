@@ -47,6 +47,9 @@ const LOCALIZED_CATEGORIES: ReadonlySet<string> = new Set([
   'other',
 ]);
 
+// A database category is a database file plus its log, so only directory categories have a file count worth showing.
+const DATABASE_CATEGORIES: ReadonlySet<string> = new Set(['sqlite_database', 'checkpoints']);
+
 function formatBytes(bytes: number): string {
   if (bytes <= 0) {
     return '0 B';
@@ -98,10 +101,10 @@ export const StorageGovernanceCard = memo(() => {
           variant: 'destructive',
         });
       }
-    } catch (err) {
+    } catch {
       toast({
         title: t('compactionFailedTitle'),
-        description: err instanceof Error ? err.message : String(err),
+        description: t('compactionFailedDesc'),
         variant: 'destructive',
       });
     } finally {
@@ -274,7 +277,7 @@ export const StorageGovernanceCard = memo(() => {
                   />
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{t('itemsCount', { count: cat.item_count })}</span>
+                  <span>{DATABASE_CATEGORIES.has(cat.category) ? '' : t('filesCount', { count: cat.item_count })}</span>
                   <span>{cat.percentage.toFixed(1)}%</span>
                 </div>
               </div>
