@@ -8,18 +8,18 @@ Agent 执行进度步骤 UI：折叠/展开 Task Steps 树、多态 step 渲染�
 
 | 文件                           | 地位 | 职责                                                                                     | I/O/P                          |
 | ------------------------------ | ---- | ---------------------------------------------------------------------------------------- | ------------------------------ |
-| `ProgressSteps.tsx`            | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位） | ✅                             |
+| `ProgressSteps.tsx`            | 核心 | 进度步骤树与折叠面板（`data-testid=progress-steps-toggle/panel` 供 Chrome E2E 稳定定位）；撤销提示卡发出的展开事件在撤销入口落在被折叠的中段时一并展开中段 | ✅                             |
 | `utils.ts`                     | 辅助 | 步骤标题（`@/lib/humanize` SSOT）                                                        | ✅                             |
-| `treeUtils.ts`                 | 辅助 | progressSteps 树构建                                                                     | ✅                             |
+| `treeUtils.ts`                 | 辅助 | progressSteps 树构建；`foldRoots` 是折叠规则 SSOT（顶层步骤超过 8 个时保留前 2 个与后 3 个，中段折叠；渲染与展开事件共用） | ✅                             |
 | `toolIcons.tsx`                | 辅助 | 步骤图标与 agent 主题色                                                                  | ✅                             |
 | `ArchiveRestoreStepAction.tsx` | 组件 | 归档恢复步骤操作                                                                         | ✅                             |
 | `ArchiveRestoreResultChip.tsx` | 组件 | 归档恢复结果 chip                                                                        | ✅                             |
 | `SkillManageBatchRollbackAction.tsx` | 组件 | skill_manage 成功批次撤销（调用 `/skill-optimization/mutations/{id}/rollback`） | ✅                             |
-| `skillManageBatch.ts`          | 辅助 | 读取 step `skill_mutation_batch_id`（server SSE enrich）                                 | ✅                             |
+| `skillManageBatch.ts`          | 辅助 | 读取 step `skill_mutation_batch_id`（server SSE enrich）；`nodeHasSkillManageUndo` 判断步骤或其子步骤是否带撤销入口 | ✅                             |
 | `useScrollbarStyles.ts`        | 辅助 | 展开面板滚动条样式                                                                       | ✅                             |
 | `StepDetailModal.tsx`          | 组件 | 步骤详情下钻弹窗（查看出入参、诊断建议、stdout 终端流与 Raw JSON）                       | ✅                             |
 | `renderers/`                   | 目录 | 步骤叶子渲染（终端、代码、evicted drawer 等）                                            | [_ARCH.md](renderers/_ARCH.md) |
-| `__tests__/`                   | 测试 | ProgressSteps guardrail_blocked Badge、utils linkify、ArchiveRestore 单测                | —                              |
+| `__tests__/`                   | 测试 | ProgressSteps guardrail_blocked Badge、utils linkify、ArchiveRestore、SkillManageBatchRollbackAction（成功刷新与计数提示、按 `detail.code` 选择的 3 类错误提示 × 中英、重复确认只发一次请求、取消不请求）、ProgressSteps.undoReveal（撤销提示展开事件：折叠中段与嵌套子步骤的撤销入口被展开，已在末尾可见的长回合不展开，短回合与其他消息不受影响）单测 | —                              |
 
 ## 依赖
 
