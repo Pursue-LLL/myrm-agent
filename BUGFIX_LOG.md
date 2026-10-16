@@ -5977,7 +5977,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 严重程度 | P3（只影响「成功率低且被绑定」的技能；归档不删文件、可恢复，但绑定它的定时任务与 Agent 会静默丢失该技能） |
 | 影响范围 | 服务端 `app/core/skills/curator/service.py`（`get_skill_diagnostics`）、`app/api/skills/curator.py`（`SkillDoctorFindingItem`）、`app/core/infra/health/skill_diagnostics.py`；前端 `CuratorDiagnosticsSection.tsx`、`CuratorSettingsPanel.tsx`、新增 `useCuratorDiagnostics.ts`、`useCuratorHistory.ts`、`services/skill/core.ts`、六份 locale |
 | 出现次数 | 1 |
-| 关联 | `BUG-AGENT-2026-10-16-025`（本条同批更正了它里面关于 `is_stale` 的错误表述）；服务端提交 `60697675a3`，前端提交 `62fd80392d`、`9c10285f60`；本地提交，未 push |
+| 关联 | `BUG-AGENT-2026-10-16-025`（本条同批更正了它里面关于 `is_stale` 的错误表述）；服务端提交 `60697675a3`，前端提交 `62fd80392d`、`9c10285f60`、`591a37ded4`；本地提交，未 push |
 
 ### 现象
 
@@ -5994,16 +5994,17 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 ### 修复
 
 1. 服务端 `get_skill_diagnostics` 给每条发现加 `bound`，用与清理同一个 `bound_skill_names`；只对有发现的技能查库，没有发现时不查库；`SkillDoctorFindingItem` 与前端类型同步加字段。harness 不动（没有把业务概念塞进框架，`recommended_action` 仍写 archive，由界面用 `bound` 覆盖）；
-2. 前端：`bound` 的发现隐藏「归档」与「解 Pin 归档」，只留「重置计数」，并在说明下多一行原因（六种语言，`doctor.boundNote`）；
+2. 前端：`bound` 的发现隐藏「归档」与「解 Pin 归档」，只留「重置计数」，并在说明下多一行原因（六种语言，`doctor.boundNote`，用「绑定」一词，与 Agent 页一致；停用的档案或暂停的任务同样算绑定，不能写成「在使用」）；
 3. 健康探针的告警建议改成「到技能页的清理里检查失败的技能，修复或归档」；
 4. `CuratorSettingsPanel.tsx` 从 453 行降到 374 行：技能医生与运行历史的状态拆到 `useCuratorDiagnostics`、`useCuratorHistory`，各有测试；顺手删掉只写不读的 `diagLoading` 状态；行为不变；
+   拆出来的 `useCuratorDiagnostics` 一次只处理一个动作：处理期间再来的调用被忽略，界面锁定所有行的动作，只有被处理的那一行显示转圈（此前只锁当前行，点另一行会并发发起第二次归档，先结束的那次把忙碌标志提前清掉）；
 5. 测试里读真实数据库的 `session` fixture 抽到 `tests/core/skills/curator/conftest.py`，`test_bound_skills.py` 复用，并修了该文件里原有的一条 mypy 报错；
 6. 同批更正文档：`BUG-AGENT-2026-10-16-025` 与路线图 topic_08 #43 ⑥ 写过「`is_stale` 没有调用方」，实际 `registry.py` 有一处读取（给目录条目加 `stale="true"`），已改成准确说法，没有动这个属性（改它会让所有对话的提示词字节变化）；素材文档里 Hermes 的「自我修剪」单元格改成它确有后台 curator（`agent/curator.py`：按闲置过期与归档，默认 14 与 30 天，置顶豁免，只归档不删除，LLM 合并默认关闭）。
 
 ### 验证
 
-1. 服务端：新增 `tests/core/skills/curator/test_skill_diagnostics_bound.py`（绑定到定时任务与 Agent 的故障技能标 `bound`、未绑定的不标、置顶且绑定、健康的绑定技能没有发现、没有发现时不查库）；`tests/core/skills/curator`、`tests/api/skills/test_curator.py`、`tests/core/infra/health/test_skill_quality_diagnostic.py` 共 60 通过；触及文件 ruff 无告警，mypy 在触及文件上 0 错误（服务端 mypy 跟随导入共报 1153 条，均不在这些文件里）；
-2. 前端：`CuratorSections`（新增被绑定技能只剩重置与原因行、六个语言无缺失键）、`CuratorSettingsPanel`、两个新 hook 的测试、`CuratorNumberInput` 共 5 个文件 38 例通过；触及文件 prettier、oxlint 通过；`verify:i18n`、`verify:theme-colors` 通过；
+1. 服务端：新增 `tests/core/skills/curator/test_skill_diagnostics_bound.py`（绑定到定时任务与 Agent 的故障技能标 `bound`、未绑定的不标、置顶且绑定、健康的绑定技能没有发现、没有发现时不查库）；`tests/core/skills/curator`、`tests/api/skills/test_curator.py`、`tests/core/infra/health/test_skill_quality_diagnostic.py` 共 60 通过（工作区含他人未提交改动）；另把 HEAD 用 `git archive` 导出到临时目录、核对 `app.__file__` 指向导出目录后，`tests/core/skills/curator` 与 `tests/api/skills/test_curator.py` 47 通过；触及文件 ruff 无告警，mypy 在触及文件上 0 错误（服务端 mypy 跟随导入共报 1153 条，均不在这些文件里）；
+2. 前端：`CuratorSections`（新增被绑定技能只剩重置与原因行、六个语言无缺失键）、`CuratorSettingsPanel`、两个新 hook 的测试、`CuratorNumberInput` 共 5 个文件 40 例通过（含处理中锁定全部行与忽略重入两例）；触及文件 prettier、oxlint 通过；`verify:i18n`、`verify:theme-colors` 通过；
 3. 限定到触及文件的 `tsc`：触及的源文件与新测试没有类型错误，只剩 `CuratorSettingsPanel.test.tsx` 里 jest-dom 匹配器（`toBeInTheDocument` 等）找不到类型，那是限定范围的配置没有带上全局测试初始化造成的，不是本次改动；全量 `tsc` 没有跑（主机负载均值约 23）。
 
 ### 局限
