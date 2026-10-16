@@ -69,3 +69,12 @@ def test_factory_backup_dir_convention(tmp_path: Path) -> None:
     assert record.quick_check == "ok"
     expected_backup_dir = db.parent / "sqlite_backups" / "snapshots"
     assert expected_backup_dir.exists()
+
+
+def test_backup_dir_for_is_the_convention_the_factory_uses(tmp_path: Path) -> None:
+    """The directory is named once: the factory and the storage ledger both read it from backup_dir_for()."""
+    from app.database.operations.backup import backup_dir_for
+
+    db = tmp_path / "data" / "app.db"
+
+    assert backup_dir_for(db) == tmp_path / "data" / "sqlite_backups"

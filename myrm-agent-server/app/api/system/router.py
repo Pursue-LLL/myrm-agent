@@ -3,6 +3,7 @@
 [INPUT]
 - app.api.system.schemas::IngressRequirementResponse, StorageInfoResponse, TelemetryPostureResponse (POS: System API Schemas)
 - app.services.system.storage_service (POS: Storage Diagnostics Service)
+- app.services.system.storage_layout::build_storage_layout (POS: where each storage category lives)
 - myrm_agent_harness.infra.tracing::get_telemetry_posture (POS: OpenTelemetry Posture Probe)
 
 [OUTPUT]
@@ -49,6 +50,7 @@ from app.platform_utils.sandbox.entitlements.entitlement_guard import (
     EntitlementGuardError,
     require_public_ingress_entitlement,
 )
+from app.services.system.storage_layout import build_storage_layout
 from app.services.system.storage_service import (
     check_storage_preflight,
     execute_storage_optimization,
@@ -400,7 +402,7 @@ def get_storage_governance_report() -> StorageGovernanceReportResponse:
     data_dir = Path(settings.database.state_dir)
     snapshot_mgr = StateSnapshotManager(data_dir)
     snapshots = snapshot_mgr.list_snapshots()
-    inspector = StorageGovernanceInspector(data_dir, checkpoints_db=Path(settings.database.sqlite_db_path))
+    inspector = StorageGovernanceInspector(data_dir, layout=build_storage_layout(settings.database))
     report = inspector.inspect(snapshots=snapshots)
 
     return StorageGovernanceReportResponse(

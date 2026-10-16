@@ -15,6 +15,7 @@ export type StorageCategoryKey =
   | 'vector_store'
   | 'memory_archive'
   | 'event_logs'
+  | 'sqlite_backups'
   | 'snapshots'
   | 'other';
 

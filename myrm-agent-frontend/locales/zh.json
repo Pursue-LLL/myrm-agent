@@ -21759,6 +21759,7 @@
         "vector_store": "检索索引",
         "memory_archive": "长期记忆",
         "event_logs": "活动日志",
+        "sqlite_backups": "数据库备份",
         "snapshots": "状态快照",
         "other": "其他"
       },

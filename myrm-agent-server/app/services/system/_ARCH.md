@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 包入口 | 模块导出与初始化 | ✅ |
 | `storage_service.py` | 核心 | 优化前的磁盘余量预检、SQLite 数据三元组拆解、安全热备份及异步全量优化执行 | ✅ |
+| `storage_layout.py` | 核心 | 存储占用台账的数据布局声明：按 settings 把各类别（对话库、检查点库、工作区、检索索引、长期记忆、活动日志、数据库备份、状态快照）映射到路径，记忆与日志可被部署迁到状态目录之外（按实际所在位置计量），备份目录取自 `database/operations/backup.backup_dir_for`；状态目录里没被任何类别认领的部分由 harness 归入「其他」。归属规则（最深声明路径优先、数据库日志文件随主库、符号链接不跟随）属 harness，这里只声明路径 | ✅ |
 | `checkpoint_history_service.py` | 核心 | 检查点历史回收的定时入口：对进程级 checkpointer 执行一次 keep-latest 剪枝（LangGraph 每步写一份全量检查点、恢复只读各会话最新一份，历史只增不减）；checkpointer 不支持剪枝（内存模式）时静默跳过，失败只记 WARNING、下个周期续做，从不向调度器抛错 | ✅ |
 | `support_bundle_service.py` | 核心 | 结构化系统诊断信息聚合与内存 ZIP 归档生成（带双重脱敏、超时保护与体积熔断） | ✅ |
 | `takeout_service.py` | 核心 | 用户个人全量数据资产（SQLite 数据库事务快照、Markdown Wiki、自定义技能、工件产物）标准化便携 Takeout 打包服务 | ✅ |

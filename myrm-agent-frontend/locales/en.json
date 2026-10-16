@@ -21759,6 +21759,7 @@
         "vector_store": "Search index",
         "memory_archive": "Long-term memory",
         "event_logs": "Activity logs",
+        "sqlite_backups": "Database backups",
         "snapshots": "State snapshots",
         "other": "Other"
       },

@@ -21060,6 +21060,7 @@
         "vector_store": "검색 인덱스",
         "memory_archive": "장기 기억",
         "event_logs": "활동 로그",
+        "sqlite_backups": "데이터베이스 백업",
         "snapshots": "상태 스냅샷",
         "other": "기타"
       },

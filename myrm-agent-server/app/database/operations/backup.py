@@ -10,6 +10,7 @@ Provides a single entry-point to obtain a configured
 [OUTPUT]
 - get_sqlite_backup_manager: Returns a configured SQLiteBackupManager, or None
   when the database is in-memory or the file does not exist.
+- backup_dir_for: The directory the backups of a database live in.
 
 [POS]
 业务层 SQLite 备份工厂。将 db_path 解析、:memory: 安全检查、backup_dir 路径约定
@@ -27,6 +28,11 @@ from app.config.settings import settings
 _BACKUP_SUBDIR = "sqlite_backups"
 
 
+def backup_dir_for(db_path: Path) -> Path:
+    """Directory holding the backups of ``db_path``; the storage ledger reads the same convention."""
+    return db_path.parent / _BACKUP_SUBDIR
+
+
 def get_sqlite_backup_manager() -> SQLiteBackupManager | None:
     """Return a configured ``SQLiteBackupManager`` for the app database.
 
@@ -41,5 +47,4 @@ def get_sqlite_backup_manager() -> SQLiteBackupManager | None:
     if not db_path.exists():
         return None
 
-    backup_dir = db_path.parent / _BACKUP_SUBDIR
-    return SQLiteBackupManager(db_path=db_path, backup_dir=backup_dir)
+    return SQLiteBackupManager(db_path=db_path, backup_dir=backup_dir_for(db_path))

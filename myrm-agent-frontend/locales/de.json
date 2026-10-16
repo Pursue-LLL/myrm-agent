@@ -21060,6 +21060,7 @@
         "vector_store": "Suchindex",
         "memory_archive": "Langzeitgedächtnis",
         "event_logs": "Aktivitätsprotokolle",
+        "sqlite_backups": "Datenbank-Backups",
         "snapshots": "Zustandssnapshots",
         "other": "Sonstiges"
       },

@@ -21060,6 +21060,7 @@
         "vector_store": "檢索索引",
         "memory_archive": "長期記憶",
         "event_logs": "活動日誌",
+        "sqlite_backups": "資料庫備份",
         "snapshots": "狀態快照",
         "other": "其他"
       },

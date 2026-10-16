@@ -21060,6 +21060,7 @@
         "vector_store": "検索インデックス",
         "memory_archive": "長期記憶",
         "event_logs": "アクティビティログ",
+        "sqlite_backups": "データベースのバックアップ",
         "snapshots": "状態スナップショット",
         "other": "その他"
       },
