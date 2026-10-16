@@ -16,6 +16,7 @@ import json
 import sys
 import time
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
@@ -31,16 +32,15 @@ from cdp_chat.support import (  # noqa: E402
     wait_e2e_provider_ready,
 )
 
-from tests.e2e.test_skill_manage_undo_hint_chrome_e2e import (  # noqa: E402
-    _CLICK_OPEN_STEPS_JS,
-    _HINT_READY_JS,
-    _ROLLBACK_VISIBLE_JS,
-    _STEPS_EXPANDED_JS,
-)
+from tests.e2e.test_skill_manage_undo_hint_chrome_e2e import _HINT_READY_JS  # noqa: E402
 from tests.e2e.test_skill_manage_undo_rollback_chrome_e2e import (  # noqa: E402
-    _CONFIRM_ROLLBACK_JS,
     _TOAST_SUCCESS_JS,
     _fetch_skill_md,
+    confirm_rollback,
+    describe_chat_page,
+    show_rollback_button,
+    wait_for_ui,
+    wait_until_api_is_quiet,
 )
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     ChromeMcpClient,
@@ -49,6 +49,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_ui_url,
     http_json,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
 )
 from tests.support.chrome_skill_hooks_composer import describe_page, drive_chat_turn  # noqa: E402
@@ -57,13 +58,20 @@ from tests.support.chrome_skill_hooks_observe import (  # noqa: E402
     stored_messages,
     wait_completed_assistant_reply_containing,
 )
+from tests.support.chrome_skill_undo_probes import (  # noqa: E402
+    INSTALL_UNDO_TRACE_JS,
+    UNDO_STATE_JS,
+    recently_edited_frontend_files,
+)
 from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger  # noqa: E402
 
 _SAVE_TOOL = "skill_manage_tool"
 _FAILED_STATUSES = frozenset({"error", "cancelled"})
 _DONE_TOKEN = "SKILL-MANAGE-E2E-DONE"
-_SKILL_DESCRIPTION = "E2E live skill manage check"
+# The harness completion guard reads freshness words (live, latest, current, ...) in the request as a demand for web
+# evidence, which a skill-only agent can never produce; the wording stays free of them so the turn ends on its own.
+_SKILL_DESCRIPTION = "Skill saved by the E2E suite"
 
 _AGENT_SYSTEM_PROMPT = (
     f"You manage the user's skills with {_SAVE_TOOL}. When the user asks you to save a skill, call "
@@ -84,38 +92,6 @@ _AGENT_TOOLS_APPLIED_JS = """((agentId, tool) => {
     tools,
   };
 })"""
-
-_OPEN_ROLLBACK_DIALOG_JS = """(() => {
-  const btn = document.querySelector('[data-testid="skill-manage-rollback-button"]');
-  if (!btn) return { ok: false, err: 'missing-rollback-button' };
-  btn.click();
-  return { ok: true };
-})()"""
-
-# What the live page holds for the turn that just ended: the store's Task Steps (the undo hint reads the batch id
-# from them) and the chat's loading flag (the hint stays hidden while the last message is still loading).
-_UNDO_STATE_JS = """(() => {
-  const state = window.__myrmChatStore?.getState?.();
-  const assistants = (state?.messages ?? []).filter((message) => message.role === 'assistant');
-  const last = assistants[assistants.length - 1];
-  const steps = last?.progressSteps?.length ? last.progressSteps : (last?.metadata?.progressSteps ?? []);
-  const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
-  return {
-    loading: state?.loading ?? null,
-    assistantCount: assistants.length,
-    lastAssistantId: last?.messageId ?? null,
-    storeSteps: steps.map((step) => ({
-      tool: step.tool_name ?? null,
-      status: step.status ?? null,
-      batch: step.skill_mutation_batch_id ?? null,
-      error: step.error ?? null,
-    })),
-    hasToggle: Boolean(toggle),
-    toggleExpanded: toggle?.getAttribute('data-expanded') ?? null,
-    hintInDom: Boolean(document.querySelector('[data-testid="skill-manage-undo-hint"]')),
-    assistantBubbles: document.querySelectorAll('[data-test-id="assistant-message"]').length,
-  };
-})()"""
 
 
 def _user_request(name: str, marker: str) -> str:
@@ -208,34 +184,72 @@ def _describe_tool_steps(messages: list[dict[str, object]]) -> str:
 
 
 def _describe_undo_state(client: ChromeMcpClient, page: McpPage) -> str:
-    state = client.evaluate(page, _UNDO_STATE_JS, timeout_sec=15.0)
-    return f"undo state in the page: {json.dumps(state, ensure_ascii=False)}\n{describe_page(client, page)}"
+    return f"{describe_chat_page(client, page)}\n{describe_page(client, page)}"
 
 
 def _wait_for_ui(client: ChromeMcpClient, page: McpPage, js: str, *, timeout_sec: float, chat_url: str, what: str) -> None:
     """Wait for a UI state; a miss reports what the store and the DOM held, since the page is gone at teardown."""
+    wait_for_ui(
+        client,
+        page,
+        js,
+        timeout_sec=timeout_sec,
+        chat_url=chat_url,
+        what=what,
+        describe=lambda: _describe_undo_state(client, page),
+    )
+
+
+@dataclass(frozen=True)
+class _LiveTurn:
+    """What a missed undo hint has to be explained with: the chat, the API behind it, and when the test began."""
+
+    chat_id: str
+    chat_url: str
+    api_url: str
+    started_at: float
+
+
+def _wait_for_undo_hint(client: ChromeMcpClient, page: McpPage, turn: _LiveTurn) -> None:
+    """The hint reads the skill step from the page's store.
+
+    A store the dev server's hot reload swapped mid-turn never saw that step, and the user then reloads the chat to
+    get it back from what the server persisted. That is the only miss tolerated, and only when the page proves the
+    swap; every other miss is a defect and fails with what the page, the server and the dev server held.
+    """
     try:
-        state = wait_for_state(client, page, js, timeout_sec=timeout_sec, page_url=chat_url)
+        wait_for_state(client, page, _HINT_READY_JS, timeout_sec=60.0, page_url=turn.chat_url)
+        return
     except AssertionError as failure:
-        pytest.fail(f"{what}: {failure}\n{_describe_undo_state(client, page)}")
-    assert state.get("ready") is True, f"{what}: {state}\n{_describe_undo_state(client, page)}"
+        missed = str(failure)
+    state = client.evaluate(page, UNDO_STATE_JS, timeout_sec=15.0)
+    evidence = (
+        f"undo hint did not appear: {missed}\n"
+        f"undo state in the page: {json.dumps(state, ensure_ascii=False)}\n"
+        f"steps the server persisted:\n{_describe_tool_steps(stored_messages(turn.chat_id, turn.api_url))}\n"
+        f"frontend files saved since the test began: {recently_edited_frontend_files(turn.started_at)}"
+    )
+    if not (isinstance(state, dict) and state.get("storeReplaced") is True):
+        pytest.fail(evidence)
+    print(f"E2E_UNDO_RELOAD: {evidence}", flush=True)
+    reload_mcp_page(client, page, target_url=turn.chat_url)
+    _wait_for_ui(
+        client,
+        page,
+        _HINT_READY_JS,
+        timeout_sec=90.0,
+        chat_url=turn.chat_url,
+        what="undo hint did not appear after reloading the chat",
+    )
 
 
-def _open_task_steps_and_rollback(client: ChromeMcpClient, page: McpPage, chat_url: str) -> None:
+def _open_task_steps_and_rollback(client: ChromeMcpClient, page: McpPage, turn: _LiveTurn) -> None:
     """What the user does in the chat: open the undo hint, expand Task Steps, confirm the rollback."""
-    _wait_for_ui(client, page, _HINT_READY_JS, timeout_sec=120.0, chat_url=chat_url, what="undo hint did not appear")
-    expanded = client.evaluate(page, _STEPS_EXPANDED_JS, timeout_sec=10.0)
-    if not (isinstance(expanded, dict) and expanded.get("ready") is True):
-        clicked = client.evaluate(page, _CLICK_OPEN_STEPS_JS, timeout_sec=10.0)
-        assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
-        _wait_for_ui(client, page, _STEPS_EXPANDED_JS, timeout_sec=15.0, chat_url=chat_url, what="Task Steps did not expand")
-    _wait_for_ui(client, page, _ROLLBACK_VISIBLE_JS, timeout_sec=30.0, chat_url=chat_url, what="rollback button not visible")
-
-    opened = client.evaluate(page, _OPEN_ROLLBACK_DIALOG_JS, timeout_sec=10.0)
-    assert isinstance(opened, dict) and opened.get("ok") is True, opened
-    confirmed = client.evaluate(page, _CONFIRM_ROLLBACK_JS, timeout_sec=15.0)
-    assert isinstance(confirmed, dict) and confirmed.get("ok") is True, confirmed
-    _wait_for_ui(client, page, _TOAST_SUCCESS_JS, timeout_sec=45.0, chat_url=chat_url, what="no rollback toast")
+    _wait_for_undo_hint(client, page, turn)
+    wait_until_api_is_quiet(client, page, turn.api_url, stage="before-undo")
+    show_rollback_button(client, page, turn.chat_url, describe=lambda: _describe_undo_state(client, page))
+    confirm_rollback(client, page)
+    _wait_for_ui(client, page, _TOAST_SUCCESS_JS, timeout_sec=45.0, chat_url=turn.chat_url, what="no rollback toast")
 
 
 @pytest.mark.chrome_e2e(
@@ -250,6 +264,7 @@ def _open_task_steps_and_rollback(client: ChromeMcpClient, page: McpPage, chat_u
 def test_live_agent_saves_a_skill_and_the_user_undoes_it_from_task_steps(
     tmp_path: Path, e2e_resource_ledger: E2EResourceLedger
 ) -> None:
+    started_at = time.time()
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
@@ -273,11 +288,15 @@ def test_live_agent_saves_a_skill_and_the_user_undoes_it_from_task_steps(
         log_offset=snapshot_backend_log_offset(api_url),
     )
     chat_url = f"{ui_url.rstrip('/')}{probe.ui_path}"
+    turn = _LiveTurn(chat_id=chat_id, chat_url=chat_url, api_url=api_url, started_at=started_at)
 
     def agent_tools_applied(client: ChromeMcpClient, page: McpPage) -> None:
         probe_js = f"({_AGENT_TOOLS_APPLIED_JS})({json.dumps(agent_id)}, {json.dumps('skill_manage')})"
         applied = wait_for_state(client, page, probe_js, timeout_sec=90.0, page_url=chat_url)
         assert applied.get("ready") is True, applied
+        wait_until_api_is_quiet(client, page, api_url, stage="before-send")
+        traced = client.evaluate(page, INSTALL_UNDO_TRACE_JS, timeout_sec=15.0)
+        assert isinstance(traced, dict) and traced.get("ok") is True, traced
 
     def after_send(client: ChromeMcpClient, page: McpPage) -> None:
         try:
@@ -296,8 +315,10 @@ def test_live_agent_saves_a_skill_and_the_user_undoes_it_from_task_steps(
         saved_md = _fetch_skill_md(api_url, quote(skill_id, safe=""))
         assert marker in saved_md, f"the saved SKILL.md lost the marker the user asked for:\n{saved_md[:600]}"
         print(f"E2E_SKILL_SAVED: id={skill_id} batches={json.dumps(batch_ids)}", flush=True)
+        held = client.evaluate(page, UNDO_STATE_JS, timeout_sec=15.0)
+        print(f"E2E_STORE_AFTER_TURN: {json.dumps(held, ensure_ascii=False)}", flush=True)
 
-        _open_task_steps_and_rollback(client, page, chat_url)
+        _open_task_steps_and_rollback(client, page, turn)
 
         deadline = time.monotonic() + 90.0
         while _saved_skill_id(api_url, skill_name) is not None:
