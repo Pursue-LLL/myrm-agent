@@ -43,6 +43,7 @@ import {
   getMediaThumbnailUrl,
 } from '@/services/media';
 import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
 
 const TYPE_OPTIONS = ['image', 'video', 'audio'] as const;
 
@@ -442,7 +443,7 @@ export default function MediaGallery() {
                 )}
                 <div>
                   <span className="text-muted-foreground">{t('createdAt')}: </span>
-                  <span className="font-medium">{new Date(lightboxItem.created_at).toLocaleString()}</span>
+                  <span className="font-medium">{parseServerTimestamp(lightboxItem.created_at).toLocaleString()}</span>
                 </div>
               </div>
 

@@ -20,6 +20,10 @@ describe('timeUtils', () => {
   });
 
   describe('formatDuration', () => {
+    it('reads an offset-less start against an offset-bearing end on one clock', () => {
+      expect(formatDuration('2026-08-12T00:00:00', '2026-08-12T00:00:42Z')).toBe('42s');
+    });
+
     it('formats seconds only', () => {
       const start = '2026-08-12T00:00:00.000Z';
       expect(formatDuration(start, '2026-08-12T00:00:42.000Z')).toBe('42s');

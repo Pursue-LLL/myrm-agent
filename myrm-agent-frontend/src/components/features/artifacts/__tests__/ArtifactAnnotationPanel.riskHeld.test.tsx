@@ -59,7 +59,10 @@ async function returnToTask(): Promise<void> {
       versionCount={1}
     />,
   );
-  fireEvent.click(await screen.findByRole('button', { name: /annotation\.sendToTask/ }));
+  const send = await screen.findByRole('button', { name: /annotation\.sendToTask/ });
+  // The button is rendered before the stored annotations hydrate; a click on it while disabled is a no-op.
+  await waitFor(() => expect(send).toBeEnabled());
+  fireEvent.click(send);
 }
 
 describe('returning artifact feedback to its task when the server holds the text', () => {

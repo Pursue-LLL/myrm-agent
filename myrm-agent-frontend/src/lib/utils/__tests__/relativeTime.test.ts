@@ -8,6 +8,12 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(new Date().toISOString(), 'zh')).not.toBe('');
   });
 
+  it('reads an offset-less server timestamp as UTC, not local time', () => {
+    const naiveUtcThirtySecondsAgo = new Date(Date.now() - 30_000).toISOString().replace('Z', '');
+    expect(formatRelativeTime(naiveUtcThirtySecondsAgo, 'en')).toMatch(/second|minut/i);
+    expect(formatRelativeTime(naiveUtcThirtySecondsAgo, 'en')).not.toMatch(/hour/i);
+  });
+
   it('returns an empty string for an invalid timestamp', () => {
     expect(formatRelativeTime('not-a-date', 'en')).toBe('');
     expect(formatRelativeTime('', 'en')).toBe('');

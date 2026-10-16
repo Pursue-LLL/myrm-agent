@@ -26,6 +26,7 @@ import { Badge } from '@/components/primitives/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { ArtifactVersion } from '@/store/chat/types';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
 
 interface VersionHistoryProps {
   /** 版本列表 */
@@ -42,7 +43,7 @@ interface VersionHistoryProps {
 
 /** 格式化相对时间 */
 function formatRelativeTime(dateString: string, t: ReturnType<typeof useTranslations>): string {
-  const date = new Date(dateString);
+  const date = parseServerTimestamp(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);

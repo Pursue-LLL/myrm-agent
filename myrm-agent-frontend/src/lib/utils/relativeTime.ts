@@ -2,10 +2,13 @@
  * [POS]
  * Locale-aware relative time formatting via Intl.RelativeTimeFormat
  * (auto "just now"/"x minutes ago" phrasing; all six app locales supported natively).
+ * Offset-less server timestamps are read as UTC.
  *
  * [OUTPUT]
  * - formatRelativeTime
  */
+
+import { parseServerTimestamp } from './timeUtils';
 
 const rtfCache = new Map<string, Intl.RelativeTimeFormat>();
 
@@ -21,7 +24,7 @@ function getFormatter(locale: string): Intl.RelativeTimeFormat {
 }
 
 export function formatRelativeTime(isoTimestamp: string, locale: string): string {
-  const then = new Date(isoTimestamp).getTime();
+  const then = parseServerTimestamp(isoTimestamp).getTime();
   if (Number.isNaN(then)) {
     return '';
   }
@@ -39,10 +42,12 @@ export function formatRelativeTime(isoTimestamp: string, locale: string): string
   }
   // Beyond ~30 days a raw day count ("170 days ago") forces mental math;
   // month/year buckets keep long-lived histories scannable.
-  if (absSeconds < 2592000) { // 30d
+  if (absSeconds < 2592000) {
+    // 30d
     return formatter.format(Math.round(diffSeconds / 86400), 'day');
   }
-  if (absSeconds < 31536000) { // 365d
+  if (absSeconds < 31536000) {
+    // 365d
     return formatter.format(Math.round(diffSeconds / 2592000), 'month');
   }
   return formatter.format(Math.round(diffSeconds / 31536000), 'year');

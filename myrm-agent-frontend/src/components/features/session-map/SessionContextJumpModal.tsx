@@ -16,13 +16,8 @@
 
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconX,
-  IconSparkles,
-  IconFolder,
-  IconActivity,
-  IconCheck,
-} from '@/components/features/icons/PremiumIcons';
+import { IconX, IconSparkles, IconFolder, IconActivity, IconCheck } from '@/components/features/icons/PremiumIcons';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
 import type { SessionNode, ProjectCluster } from '@/services/sessionMap';
 
 export interface SessionContextJumpModalProps {
@@ -33,13 +28,7 @@ export interface SessionContextJumpModalProps {
   onJumpIn: (sessionId: string) => void;
 }
 
-export function SessionContextJumpModal({
-  isOpen,
-  onClose,
-  session,
-  project,
-  onJumpIn,
-}: SessionContextJumpModalProps) {
+export function SessionContextJumpModal({ isOpen, onClose, session, project, onJumpIn }: SessionContextJumpModalProps) {
   const t = useTranslations('sessionMap');
   const titleId = useId();
   const descId = useId();
@@ -100,14 +89,21 @@ export function SessionContextJumpModal({
           </div>
 
           {(session.workspace_dir || project?.workspace_path) && (
-            <div className="truncate text-muted-foreground text-[11px]" title={session.workspace_dir || project?.workspace_path}>
+            <div
+              className="truncate text-muted-foreground text-[11px]"
+              title={session.workspace_dir || project?.workspace_path}
+            >
               Path: {session.workspace_dir || project?.workspace_path}
             </div>
           )}
 
           <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/30">
-            <span>Agent: <strong className="text-foreground">{session.agent_name}</strong></span>
-            <span>Tokens: <strong className="text-foreground">{session.tokens_used.toLocaleString()}</strong></span>
+            <span>
+              Agent: <strong className="text-foreground">{session.agent_name}</strong>
+            </span>
+            <span>
+              Tokens: <strong className="text-foreground">{session.tokens_used.toLocaleString()}</strong>
+            </span>
           </div>
         </div>
 
@@ -137,7 +133,7 @@ export function SessionContextJumpModal({
 
         {/* Last Active Timestamp */}
         <div className="text-[11px] text-muted-foreground">
-          {t('lastActiveLabel')}: {new Date(session.last_active_at).toLocaleString()}
+          {t('lastActiveLabel')}: {parseServerTimestamp(session.last_active_at).toLocaleString()}
         </div>
 
         {/* Footer Actions */}

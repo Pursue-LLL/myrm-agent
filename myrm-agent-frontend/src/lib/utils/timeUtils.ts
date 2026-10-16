@@ -70,8 +70,8 @@ export function formatDuration(startIso: string | null | undefined, endIso: stri
   if (!startIso || !endIso) {
     return '—';
   }
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
+  const start = parseServerTimestamp(startIso).getTime();
+  const end = parseServerTimestamp(endIso).getTime();
   if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
     return '—';
   }
