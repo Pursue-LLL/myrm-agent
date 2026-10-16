@@ -258,6 +258,26 @@ async def test_undo_of_a_full_rewrite_restores_the_previous_content(
     assert (skills_root / SKILL_NAME / "SKILL.md").read_text(encoding="utf-8") == stored
 
 
+async def test_a_patch_edits_a_skill_the_turn_backend_cannot_see_and_undo_puts_the_text_back(
+    skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """The turn's backend (``object()`` here) lists nothing; the patch reads the writer's storage like the snapshot does."""
+    await _save_skill(skill_manage_tool)
+    skill_md = skills_root / SKILL_NAME / "SKILL.md"
+    stored = skill_md.read_text(encoding="utf-8")
+    patch: list[dict[str, object]] = [
+        {"action": "patch", "name": SKILL_NAME, "old_content": "Do the thing.", "new_content": "Do it differently."}
+    ]
+
+    output, step = await _run_turn(skill_manage_tool, patch, SECOND_CALL_ID)
+
+    assert "patched successfully" in output, output
+    assert "Do it differently." in skill_md.read_text(encoding="utf-8")
+    async with session_factory() as session:
+        await rollback_skill_mutation_batch(session, _batch_id_of(step))
+    assert skill_md.read_text(encoding="utf-8") == stored
+
+
 async def test_undo_of_a_rewrite_is_refused_once_the_skill_was_deleted(
     skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:

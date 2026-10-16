@@ -1,16 +1,16 @@
-"""Pre-batch snapshot reads from the storage skill_manage writes into.
+"""Skill reads from the storage skill_manage writes into: pre-batch snapshots and the text a patch edits.
 
 [INPUT]
 - app.core.skills.creation.service::SkillCreationService (POS: 本地技能写入根 base_path)
 - myrm_agent_harness.core.security.path::safe_join_path (POS: 路径越界防护)
 
 [OUTPUT]
-- ManagedSkillSnapshotReader: skill_manage 批次改动前读取写入根里技能当前文件的快照读取器
+- ManagedSkillSnapshotReader: skill_manage 批次改动前读取写入根里技能当前文件的快照读取器，也是 patch 先找技能正文的地方
 
 [POS]
 一轮对话的技能后端只列出该轮挂载的技能，读不到本轮新建的技能，也读不到不在智能体白名单内的技能；
-据此拍的快照会把已有技能记成「批次前不存在」，撤销时整个技能被删。本读取器直接读写入器所在的目录，
-快照因此就是回滚要还原的现场。
+据此拍的快照会把已有技能记成「批次前不存在」，撤销时整个技能被删，patch 则报「技能不存在」。本读取器直接读
+写入器所在的目录，快照因此就是回滚要还原的现场，patch 改的也是写入器将要覆盖的正文。
 """
 
 from __future__ import annotations

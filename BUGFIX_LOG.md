@@ -5800,7 +5800,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 服务端：配置接口去掉 `max_skills`（`app/api/skills/curator.py`）；健康探针更名为 `SkillQualityHealthDiagnostic`（`app/core/infra/health/skill_diagnostics.py:30`），只判两件事：存在失败的高频技能时 `WARN_SKILL_FAULTY`（`:140`），受豁免的故障技能达到 3 个时 `ERR_SKILL_PROTECTED_FAULTY`（`:114-118`），不再有容量判定；注册处同步改名（`app/core/infra/health/server_diagnostics.py:225`）；
 3. 前端：删除设置里的数量上限行、诊断里的库膨胀行与六种语言的相关文案；诊断「全部正常」的文案改为不再提技能数量；`lru_eviction` 保留为历史项的可读标签（旧账本行仍带这个原因）；
 4. 磁盘上的 `curator_config.json` 带着旧键 `max_skills`、`protect_system_skills` 时读取会忽略它们（`CuratorConfig.from_dict` 只读已知键），下次保存时被丢掉；
-5. 路线图 topic_08 #43 ⑥ 记为「以删除机制的方式解决」，并更正同一条目里引用了已删除代码的行号；`BUG-AGENT-2026-10-16-020` 局限 3、9 加指向本条。对外的竞品对比文档（`myrm-agent-brand/myrm-docs/docs/getting-started/competitor-comparison.mdx` 与 `docs/zh/` 下同名文件）里「活跃技能超过 50 个时把最久未使用的标记为过期」「技能库保持有界」的说法改为只讲按闲置清理；素材文档 `temp-docs/materials/SKILL_EVOLUTION_ADVANTAGE.md` 里的 LRU 淘汰、`max_skills` 限制、`protect_system_skills` 开关说法删除；`myrm-agent-harness/tests/_ARCH.md` 的测试说明改为生命周期与豁免规则。
+5. 路线图 topic_08 #43 ⑥ 记为「以删除机制的方式解决」，并更正同一条目里引用了已删除代码的行号；`BUG-AGENT-2026-10-16-020` 局限 3、9 加指向本条。对外的竞品对比文档（`myrm-agent-brand/myrm-docs/docs/getting-started/competitor-comparison.mdx` 与 `docs/zh/` 下同名文件）里「活跃技能超过 50 个时把最久未使用的标记为过期」「技能库保持有界」的说法改为只讲按闲置清理；素材文档 `SKILL_EVOLUTION_ADVANTAGE.md` 里的 LRU 淘汰、`max_skills` 限制、`protect_system_skills` 开关说法删除；`myrm-agent-harness/tests/_ARCH.md` 的测试说明改为生命周期与豁免规则。
 
 ### 验证
 
@@ -5898,16 +5898,16 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 ---
 
-## BUG-AGENT-2026-10-17-002: skill_manage 里删除技能总是返回「批次中止」，回滚只把 SKILL.md 写回、包内其余文件丢失；撤销一次改写（或任何第二批改动）会把整个技能删掉；技能删除后再撤销它的改写会谎报已恢复
+## BUG-AGENT-2026-10-17-002: skill_manage 里删除技能总是返回「批次中止」，回滚只把 SKILL.md 写回、包内其余文件丢失；撤销一次改写（或任何第二批改动）会把整个技能删掉；技能删除后再撤销它的改写会谎报已恢复；patch 读不到本轮没挂载的已存技能
 
 | 字段 | 内容 |
 |------|------|
 | 发现日期 | 2026-10-17 |
 | 修复日期 | 2026-10-17 |
 | 严重程度 | P1（用户点「撤销」会永久删除整个技能，没有回收站；删除技能的调用必然报失败并留下只剩 SKILL.md 的残缺包） |
-| 影响范围 | harness `agent/meta_tools/skills/manage/batch_runner.py`、`skill_manage_tool.py`；服务端 `app/core/skills/creation/managed_skill_reader.py`（新增）、`app/ai_agents/general_agent/tool_setup.py`；对应测试与六处 `_ARCH.md` |
+| 影响范围 | harness `agent/meta_tools/skills/manage/batch_runner.py`、`_manage_handlers.py`、`skill_manage_tool.py`；服务端 `app/core/skills/creation/managed_skill_reader.py`（新增）、`app/ai_agents/general_agent/tool_setup.py`；对应测试与六处 `_ARCH.md` |
 | 出现次数 | 1 |
-| 关联 | skill_manage 批次撤销（任务步骤里的「撤销」入口与 `batch_snapshots` 表，`BUG-AGENT-2026-10-14-004` 保留了该表）；harness 提交 `e65010dfc`；服务端仓提交 `84c74539f3`、`5a3516e282`、`2d1dcb19f6`、`ca9e97b2fa`、`a5dc815aad`、`de719d6d20`；本地提交，未 push，未发布 harness 版本 |
+| 关联 | skill_manage 批次撤销（任务步骤里的「撤销」入口与 `batch_snapshots` 表，`BUG-AGENT-2026-10-14-004` 保留了该表）；harness 提交 `e65010dfc`、`5a42b3e2d`（patch 读写入根）；服务端仓提交 `84c74539f3`、`5a3516e282`、`2d1dcb19f6`、`ca9e97b2fa`、`a5dc815aad`、`de719d6d20`；本地提交，未 push，未发布 harness 版本 |
 
 ### 现象
 
@@ -5915,6 +5915,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 那次「回滚」只把 SKILL.md 与本批点名的资源文件写回（`_restore_snapshot`；`_collect_touch_sets` 只为 `write_file`、`remove_file` 收集路径，删除批次不点名任何文件），技能包里的其余文件没有回来（按代码判断，没有单独造一个带资源文件的包去复现）；
 3. 真实模型加隔离后端：先让 agent 保存一个技能，再让它整体改写，对第二个批次调用撤销接口后，技能从目录里消失（`AssertionError: the undo of a rewrite removed the skill`，`assert None == 'local::fb63078e35bf9c93'`，单个用例 124.83 秒红灯）。凡是本轮后端看不到的已有技能（本例是上一轮创建、没有挂载进这个 agent 的技能），撤销都走同一条路径。
 4. 技能被删除之后，再点它此前某次改写的「撤销」：撤销接口答成功（`restored=1`），目录里什么都没有回来，按名字解析仍是 None。一次性探针实测（真实工具、钩子、撤销服务，内存库加临时技能根；探针文件已删除，没有提交）：保存、改写，撤销较早的保存把技能删掉，再撤销那次改写，得到 `OK restored=1`，目录仍不存在；
+5. 真实模型加隔离后端：先建一个技能，下一轮让 agent 用 `patch` 改其中一句，这个技能不在 agent 的挂载清单里。一次性探针（探针文件已删除，没有提交）：流里出现 not found，182.71 秒。`patch` 读技能正文同样走本轮技能后端，这条路径看不到的技能被当作不存在，整批回滚，模型只能退回整体 save。
 
 ### 根因
 
@@ -5922,6 +5923,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 落库钩子要求按名字解析技能 id，删除后名字不存在，所以含删除的批次必然在钩子里失败，随后的回滚又是上面那种有损还原；
 3. 既有测试只覆盖「save 一次」，快照用的假后端能看到所有技能，两条路径都没红过；`tests/agent/meta_tools/skill_manage/test_skill_manage_lock.py` 还在用批次化之前的单操作入参（3 例失败），并把两个用例嵌套在另一个用例里而从未运行。
 4. 撤销服务对已有技能的改写批次直接把 SKILL.md 写回（`app/services/skills/mutation_batch_service.py` 的 `_apply_row_snapshot`）；技能已被删除时，写回只落一条版本行，没有目录可写，也不报错，被计成一个已恢复的技能。批次内新建的技能被删后再撤销，本来就走「回收失败」分支报错，只有改写批次漏了这个判断。
+5. `patch` 读正文走的也是按轮构造的技能后端：`_handle_patch` 先 `get_skill_content(name)`，`FileNotFoundError` 时返回 `Error: Skill '…' not found. Use 'save' action to create it first.`（`_manage_handlers.py:163`）。与快照是同一个根因，读的是按轮构造的视图，不是写入器改动的那份存储。
 
 ### 修复
 
@@ -5930,7 +5932,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 删除是终局：含 `delete` 的批次写入成功后直接返回结果加一句「已删除的技能无法撤销」，不调钩子、不产出批次 id、页脚与撤销提示（`batch_runner.py:310-313`，`_final_batch_note :242-247`），工具描述同步写明（`skill_manage_tool.py:61`、`:76`）。没有做「可撤销的删除」：删掉的包无法由 SKILL.md 文本快照重建，要做需要回收站式存储，是单独的设计决定；
 4. `test_skill_manage_lock.py` 改用 `operations[]`，5 例全部运行；
 5. 撤销服务在应用任何快照之前，用已经捕获的现场判断：改写类批次（`existed_before_batch`）的技能已不存在就拒绝（`MutationBatchRollbackError`，路由回 409 `rollback_failed`，数据不变，`mutation_batch_service.py:300-303`）。已删除的技能不会被撤销复活，也不会谎报已恢复；
-6. 文档：harness `manage/_ARCH.md`、`tests/_ARCH.md`；服务端 `core/skills/creation/_ARCH.md`、`general_agent/_ARCH.md`、`services/skills/_ARCH.md`、`tests/_ARCH.md`。
+6. `patch` 先在写入根（`snapshot_reader`）里找它要改的 SKILL.md，那里没有（`FileNotFoundError`）再退回本轮技能后端：新增 `SkillContentSource` 协议（`_manage_handlers.py:64`）、`_FirstSourceWithSkill` 与 `_patch_source`（`batch_runner.py:130-148`），在 `run_skill_manage_batch` 里构造（`batch_runner.py:315`）。patch 改的是写入器将要覆盖的正文；只挂载在本轮、写入根里没有的技能仍从轮次后端读取，再经写入器保存，行为不变；
+7. 文档：harness `manage/_ARCH.md`、`tests/_ARCH.md`；服务端 `core/skills/creation/_ARCH.md`、`general_agent/_ARCH.md`、`services/skills/_ARCH.md`、`tests/_ARCH.md`。
 
 ### 验证
 
@@ -5945,6 +5948,10 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 9. 撤销已被删除技能的改写批次：`test_undo_of_a_rewrite_is_refused_once_the_skill_was_deleted` 修复前红灯（`Failed: DID NOT RAISE MutationBatchRollbackError`，`1 failed, 7 passed in 4.29s`）。第一版把存在性查询放在逐行应用里，6 个把现场当桩的既有用例失败；改用开头已捕获的现场后，生命周期集成与另外三个撤销服务测试文件共 28 通过（9.46 秒）；
 10. 修复后在真实栈上复跑：API e2e `3 passed in 204.62s`（真实模型；「改写再撤销」走到新判断且没有被误拒）；Chrome E2E 回滚节点（种下 `existed_before_batch` 批次，真实页面点撤销）`1 passed in 137.91s`，会话 30026 为 `SUCCEEDED/PASSED`，`sealed`、`physical_released`、`ledger_cleaned` 皆真；
 11. 服务端更宽一圈（`tests/core/skills`、`tests/services/skills`、`tests/integration/skills`、`tests/ai_agents/general_agent`、`tests/api/skill_optimization`）`863 passed, 1 failed in 348.86s`。唯一失败是 `tests/ai_agents/general_agent/test_correction_propagation.py::TestImplicitFeedbackIntegration::test_detects_implicit_contradiction`：真实 LLM 用例，模型这次返回 `proposals=[]`；同一用例单独连跑两次都通过（9.50 秒、9.89 秒）。它走 harness 记忆工具包的 `detect_implicit_feedback`，不经过技能撤销；用例本身依赖模型输出，没有改它；
+12. patch 读写入根：harness `test_batch_runner_snapshots.py` 新增三例（本轮后端看不到的技能经写入根被 patch；patch 改写入根的正文而不是过期的轮次视图；写入根没有的技能退回轮次后端），修复前 `2 failed, 7 passed in 5.54s`（前两例红，第三例是保持原行为的用例，修复前就绿）；修复后 `tests/agent/meta_tools/skill_manage`、`tests/agent/meta_tools/skills`、`tests/backends/test_skill_system_core.py` 共 `176 passed in 4.45s`；harness 的 ruff、format、mypy --strict 无告警；
+13. 服务端集成 `test_a_patch_edits_a_skill_the_turn_backend_cannot_see_and_undo_puts_the_text_back`（真实工具、钩子、撤销服务；轮次后端用一个什么也读不到的对象）。变异：让 patch 只读轮次后端 → `1 failed, 8 passed in 8.12s`（`'object' object has no attribute 'get_skill_content'`，批次回滚）；还原后该文件加 `test_skill_tool_mount.py`、`test_managed_skill_reader.py` 共 `30 passed in 7.74s`；
+14. 真实模型 API e2e 现在 4 例：`4 passed in 154.04s`（第四例：先建技能，下一轮 patch 其中一句，撤销该 patch 批次后回到第一版标记）。日志每轮打印 `E2E_MODEL_USED: MiniMax-M3.1-Flash-Preview`。第一版断言要求流里出现 "patched successfully"，红灯（`1 failed, 3 passed in 315.83s`）：一次性探针（探针文件已删除，没有提交）显示 SSE 流不带工具结果文本（含 patch 字样的事件都被打印出来，没有一条是结果句子），只在 `tool_end` 事件上带 `skill_mutation_batch_id`；模型确实调了 `patch`（落库步骤里 `'action': 'patch'`），批次已提交，错在测试自己的断言。改为以落库的 patch 步骤带批次 id 为准（读不到技能的 patch 整批回滚，没有批次 id）。这条判据本身没有在修复前的代码上亲眼红过：隔离后端按工作区指纹从工作树起，还原共享的 harness 源码会扰动其他会话正在跑的 E2E，所以没有做；修复前的症状由早先的一次性探针（流里 not found）、上一条的集成变异和 harness 单测红灯佐证；
+15. 服务端更宽一圈（同第 11 条的范围）`865 passed in 227.34s`，没有失败（第 11 条里依赖模型输出的那条真实 LLM 用例这次也通过）；
 
 ### 局限
 
@@ -5953,10 +5960,11 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 撤销与并发写入之间没有逐技能的锁；较早批次的撤销没有「是否已过期」的校验。一次性探针实测（探针文件已删除，没有提交）：保存 v1、改写 v2、改写 v3 后撤销 v2 那一批，内容回到 v1，v3 的改动被静默丢掉；再撤销 v3 那一批，内容变成 v2。保存后改写，再撤销较早的「保存」，技能整体被删除，改写的内容一起消失。同名重建后撤销较早批次会删掉新技能这一条仍是按代码判断、没有测试。要不要拒绝过期的撤销是产品决定，没有实现；
 4. 删除后再点早先那次保存的「撤销」：服务端 409 `rollback_failed`，前端显示通用失败文案，数据不变（API e2e 已断言；删除后再点改写批次的撤销同理，集成测试已断言）。没有改成幂等成功：成功文案「已将 N 个技能恢复为修改前的内容」与事实不符，要改它得动撤销事务；
 5. 手机视口与浅色主题没有真机覆盖；
-6. harness 与服务端的提交相互依赖：服务端传 `snapshot_reader=`，而本条之前 `create_skill_manage_tool` 没有这个形参（按提交前的源码核对）；服务端依赖固定 `myrm-agent-harness==0.1.0rc5`（`pyproject.toml:25`），按提交前源码推断，发布前按锁文件安装的环境挂载 skill_manage 会因多余的关键字参数报 TypeError（没有在已发布版本上实测）。要先发布 harness 再 `./myrm harness sync-lock`；
+6. harness 与服务端的提交相互依赖：服务端传 `snapshot_reader=`，而本条之前 `create_skill_manage_tool` 没有这个形参（按提交前的源码核对）；服务端依赖固定 `myrm-agent-harness==0.1.0rc5`（`pyproject.toml:25`），按提交前源码推断，发布前按锁文件安装的环境挂载 skill_manage 会因多余的关键字参数报 TypeError（没有在已发布版本上实测）。要先发布 harness 再 `./myrm harness sync-lock`；`patch` 读写入根的修复（`5a42b3e2d`）同理，发布前按锁文件安装的环境里 patch 仍读不到本轮没挂载的已存技能（按提交前源码推断，没有在已发布版本上实测）；
 7. Chrome E2E 的墙钟 138 至 556 秒受主机负载均值 12 至 40 影响，真实 agent 用例的 555.75 秒贴近 10 分钟上限；
 8. 他人未提交的改动没有碰也没有提交（`factory.py`、`version_persisting_backend.py`、`stream_collector.py`，以及 `tests/_ARCH.md`、`general_agent/_ARCH.md` 里的他人段落）。
 9. 撤销被拒绝时前端只有通用失败文案，不会说「技能已不存在」，要说清需要新增错误码与中英文案，没有做；一个批次涉及多个技能而其中一个已被删除时，整批撤销被拒绝，其余技能也不恢复（按代码判断：拒绝发生在应用任何快照之前，没有测试）。
+10. 仅含 lock/unlock 的批次也被当成可撤销批次（`undoable = all(op["action"] != "delete" …)`，`batch_runner.py:340`），落库钩子照常调用，结果带撤销提示；但 lock/unlock 只改全局进化库里的锁（`_manage_handlers.py:260`），快照里没有它（`_collect_touch_sets` 只为 `write_file`、`remove_file` 收集资源路径，`batch_runner.py:190-203`）。按代码判断：点「撤销」写回的是同一份 SKILL.md、答「已恢复」，技能仍是锁着的；批次里 lock 之后别的操作失败时，回滚同样不还原锁，而返回文案写的是 `No partial changes were kept`。没有测试；是把这类批次当终局处理还是还原锁，是产品决定，没有做。
 
 ### 踩坑经验
 
@@ -5965,6 +5973,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 假后端能看到所有技能，是这两个缺陷一直没红的原因；真实模型 API e2e 的「改写再撤销」一次就红；
 4. 把多个节点塞进一个 detach 会话，会被协调器的 BODY 600 秒、进程 810 秒上限回收，受害会话的日志里没有任何原因，只有 `coordinator.log` 里有 `E2E_HUNG_PYTEST_REAP`：真机 E2E 一个节点一个会话，失败先查 `coordinator.log`。
 5. 给撤销加判断时，用请求开头已经捕获的现场，不要在逐行应用里再查一遍：再查一遍让 6 个把现场当桩的既有用例失败，查询与写入之间也多出一段间隙；「按代码判断」的局限条目用一次性探针量出来之后，才发现其中一条（改写批次的假成功）是可以直接修的缺陷。
+6. `patch` 与快照是同一个根因的第二处：harness 里凡是读技能内容的地方，都要问读的是写入器改动的那份存储，还是按轮构造的视图；集成用例把轮次后端换成一个什么也读不到的对象，这一类缺陷一跑就红。
+7. SSE 流不带工具结果文本：真实模型 e2e 里判断一次工具调用有没有成功，看落库步骤上的批次 id（提交之后才有），不要在流里找结果句子；第一版断言因此红了一次，探针列出了流里实际有的事件类型才定位到。
 
 ---
 

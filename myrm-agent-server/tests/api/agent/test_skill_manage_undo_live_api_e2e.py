@@ -6,7 +6,8 @@ announces the committed batch on the stream after the call's arguments and persi
 batch back (what the Undo dialog calls) removes the skill the batch created. A second flow rewrites that skill in a
 later turn and expects the undo to bring back what the rewrite replaced instead of removing the skill. A third flow has
 the model delete a skill: the skill is gone, the step is not a failure, and no batch is announced because a delete has
-nothing to undo.
+nothing to undo. A fourth flow patches a skill saved in an earlier turn, which the agent's own backend cannot see, and
+expects the patch to land and its undo to put the text back.
 
 Run::
 
@@ -16,268 +17,89 @@ Run::
 from __future__ import annotations
 
 import json
-import os
-import time
 import uuid
-from collections.abc import Callable
-from urllib.parse import quote
 
 import httpx
 import pytest
 
-from tests.support.bash_compressor_e2e import _backend_runtime_data_dir, resolve_working_base_selection
-from tests.support.verify_api_base import resolve_verify_api_base
-
-_SAVE_TOOL = "skill_manage_tool"
-_FAILED_STATUSES = frozenset({"error", "cancelled"})
-_DONE_TOKEN = "SKILL-MANAGE-API-E2E-DONE"
-# The harness completion guard reads freshness words (live, latest, current, ...) in the request as a demand for web
-# evidence, which a skill-only agent can never produce; the wording stays free of them so the turn ends on its own.
-_SKILL_DESCRIPTION = "Skill saved by the API suite"
-# Event types that carry a tool call's arguments (the step the batch id must later attach to).
-_STEP_EVENT_TYPES = frozenset({"tasks_steps", "tool_start"})
-
-_AGENT_SYSTEM_PROMPT = (
-    f"You manage the user's skills with {_SAVE_TOOL}. When the user asks you to save a skill, call "
-    f"{_SAVE_TOOL} exactly once with one operation: action=save, the given name and description, and a valid "
-    "SKILL.md as content (YAML frontmatter with name and description, then the body the user asks for). "
-    f"When the user asks you to delete a skill, call {_SAVE_TOOL} exactly once with one operation: "
-    "action=delete and the given name. "
-    "Never claim a skill was saved or deleted without calling the tool. "
-    "After the call finishes, reply with exactly the words the user asks for."
+from tests.api.agent.skill_manage_api_helpers import (
+    FAILED_STATUSES,
+    SAVE_TOOL,
+    STEP_EVENT_TYPES,
+    announced_batch,
+    announced_batches,
+    batch_id_of,
+    catalog_skill_id,
+    create_agent,
+    create_chat,
+    data,
+    delete_request,
+    isolated_backend_url,
+    patch_request,
+    persisted_skill_steps,
+    requires_live_model,
+    rewrite_request,
+    skill_md,
+    stored_batch_ids,
+    stream_turn,
+    user_request,
+    wait_for,
 )
-
-
-def _user_request(name: str, marker: str) -> str:
-    return (
-        f"Save a new skill with {_SAVE_TOOL}: one operation, action=save, name={name}, "
-        f"description={_SKILL_DESCRIPTION}. The SKILL.md content is YAML frontmatter with that name and "
-        f"description, then a heading, then one body line that is exactly: {marker} . "
-        f"After it is saved, reply with exactly: {_DONE_TOKEN}"
-    )
-
-
-def _rewrite_request(name: str, marker: str) -> str:
-    return (
-        f"Save the skill {name} again with {_SAVE_TOOL}: one operation, action=save, the same name and "
-        f"description={_SKILL_DESCRIPTION}. The new SKILL.md content is YAML frontmatter with that name and "
-        f"description, then a heading, then one body line that is exactly: {marker} . "
-        f"After it is saved, reply with exactly: {_DONE_TOKEN}"
-    )
-
-
-def _delete_request(name: str) -> str:
-    return (
-        f"Delete the skill {name} with {_SAVE_TOOL}: one operation, action=delete, name={name}. "
-        f"After it is deleted, reply with exactly: {_DONE_TOKEN}"
-    )
-
-
-def _data(response: httpx.Response) -> dict[str, object]:
-    """The ``data`` object of a standard API envelope, or the body itself when the route is not wrapped."""
-    response.raise_for_status()
-    body = response.json()
-    assert isinstance(body, dict), body
-    data = body.get("data")
-    return data if isinstance(data, dict) else body
-
-
-def _create_agent(client: httpx.Client, backend_url: str, suffix: str) -> str:
-    """Custom agent with only skill_manage mounted; YOLO keeps approval cards out of the turn."""
-    created = _data(
-        client.post(
-            f"{backend_url}/api/v1/user-agents",
-            json={
-                "name": f"Skill Manage API E2E {suffix}",
-                "description": "Live API E2E agent that saves skills through skill_manage_tool",
-                "system_prompt": _AGENT_SYSTEM_PROMPT,
-                "skill_ids": [],
-                "mcp_ids": [],
-                "enabled_builtin_tools": ["skill_manage"],
-                "security_overrides": {"yoloModeEnabled": True, "yolo_mode_enabled_at": time.time()},
-            },
-            timeout=60.0,
-        )
-    )
-    agent_id = created.get("id")
-    assert isinstance(agent_id, str) and agent_id, created
-    return agent_id
-
-
-def _create_chat(client: httpx.Client, backend_url: str, chat_id: str, agent_id: str) -> None:
-    response = client.post(
-        f"{backend_url}/api/v1/chats/",
-        json={
-            "chat_id": chat_id,
-            "title": "Skill manage API E2E",
-            "agent_id": agent_id,
-            "action_mode": "agent",
-            "messages": [],
-        },
-        timeout=60.0,
-    )
-    response.raise_for_status()
-    assert response.json().get("success") is True, response.text
-
-
-def _stream_turn(client: httpx.Client, backend_url: str, agent_id: str, chat_id: str, query: str) -> list[dict[str, object]]:
-    """Every event the stream delivered, in arrival order, until the server closes it."""
-    request_data: dict[str, object] = {
-        "messageId": f"live-skill-{uuid.uuid4().hex[:10]}",
-        "chatId": chat_id,
-        "query": query,
-        "modelSelection": resolve_working_base_selection(backend_url=backend_url),
-        "actionMode": "agent",
-        "agentId": agent_id,
-        "agentConfig": {"enabledBuiltinTools": ["skill_manage"], "skillIds": []},
-        "memoryRequireConfirmation": False,
-        "enableMemoryAutoExtraction": False,
-    }
-    events: list[dict[str, object]] = []
-    with client.stream("POST", f"{backend_url}/api/v1/agents/agent-stream", json=request_data, timeout=600.0) as response:
-        response.raise_for_status()
-        for line in response.iter_lines():
-            if not line.startswith("data: ") or line == "data: [DONE]":
-                continue
-            try:
-                event = json.loads(line[6:])
-            except json.JSONDecodeError:
-                continue
-            if isinstance(event, dict):
-                events.append(event)
-    return events
-
-
-def _batch_id_of(event: dict[str, object]) -> str | None:
-    raw = event.get("skill_mutation_batch_id")
-    nested = event.get("data")
-    if raw is None and isinstance(nested, dict):
-        raw = nested.get("skill_mutation_batch_id")
-    return raw if isinstance(raw, str) and raw else None
-
-
-def _announced_batch(events: list[dict[str, object]]) -> str | None:
-    return next((batch_id for event in events if (batch_id := _batch_id_of(event))), None)
-
-
-def _announced_batches(events: list[dict[str, object]]) -> set[str]:
-    return {batch_id for event in events if (batch_id := _batch_id_of(event))}
-
-
-def _skill_md(client: httpx.Client, backend_url: str, skill_id: str) -> str:
-    response = client.get(f"{backend_url}/api/v1/skills/{quote(skill_id, safe='')}/files/SKILL.md", timeout=30.0)
-    response.raise_for_status()
-    return response.text
-
-
-def _persisted_skill_steps(client: httpx.Client, backend_url: str, chat_id: str) -> list[dict[str, object]]:
-    """The skill_manage steps the server persisted for the chat, as the chat view loads them."""
-    messages = _data(client.get(f"{backend_url}/api/v1/chats/{chat_id}/messages", timeout=30.0)).get("messages")
-    persisted: list[dict[str, object]] = []
-    for message in messages if isinstance(messages, list) else []:
-        if not isinstance(message, dict):
-            continue
-        metadata = message.get("metadata")
-        steps = message.get("progressSteps") or (metadata.get("progressSteps") if isinstance(metadata, dict) else None)
-        persisted.extend(
-            step
-            for step in (steps if isinstance(steps, list) else [])
-            if isinstance(step, dict) and str(step.get("tool_name") or "").endswith(_SAVE_TOOL)
-        )
-    return persisted
-
-
-def _stored_batch_ids(client: httpx.Client, backend_url: str, chat_id: str) -> list[str]:
-    """Batch ids on the persisted skill_manage steps (a finished step has no status)."""
-    return [
-        batch_id
-        for step in _persisted_skill_steps(client, backend_url, chat_id)
-        if step.get("status") not in _FAILED_STATUSES
-        and isinstance(batch_id := step.get("skill_mutation_batch_id"), str)
-        and batch_id
-    ]
-
-
-def _catalog_skill_id(client: httpx.Client, backend_url: str, name: str) -> str | None:
-    listing = client.get(f"{backend_url}/api/v1/skills/", timeout=30.0)
-    listing.raise_for_status()
-    for skill in listing.json().get("skills") or []:
-        if isinstance(skill, dict) and skill.get("name") == name:
-            return str(skill["id"])
-    return None
-
-
-def _wait_for[T](check: Callable[[], T], *, timeout_sec: float, what: str) -> T:
-    deadline = time.monotonic() + timeout_sec
-    while time.monotonic() < deadline:
-        value = check()
-        if value:
-            return value
-        time.sleep(2.0)
-    pytest.fail(f"timed out after {timeout_sec:.0f}s waiting for {what}")
 
 
 @pytest.mark.e2e
 @pytest.mark.timeout(600)
-@pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"),
-    reason="Requires BASIC_API_KEY and LITE_API_KEY",
-)
+@requires_live_model
 def test_live_agent_saves_a_skill_and_the_batch_reaches_its_step_and_rolls_back() -> None:
-    backend_url = os.environ.get("BACKEND_URL", "").rstrip("/") or resolve_verify_api_base()
-    if _backend_runtime_data_dir(backend_url) is None:
-        pytest.skip(f"{backend_url} is not an isolated runtime; refusing to write skills into a shared backend")
-
+    backend_url = isolated_backend_url()
     suffix = uuid.uuid4().hex[:8]
     skill_name = f"api-manage-{suffix}"
     marker = f"API_MARKER_{suffix}"
     chat_id = f"apimanage{suffix}"
 
     with httpx.Client() as client:
-        agent_id = _create_agent(client, backend_url, suffix)
-        _create_chat(client, backend_url, chat_id, agent_id)
-        events = _stream_turn(client, backend_url, agent_id, chat_id, _user_request(skill_name, marker))
+        agent_id = create_agent(client, backend_url, suffix)
+        create_chat(client, backend_url, chat_id, agent_id)
+        events = stream_turn(client, backend_url, agent_id, chat_id, user_request(skill_name, marker))
 
-        batch_events = [(index, _batch_id_of(event)) for index, event in enumerate(events) if _batch_id_of(event)]
+        batch_events = [(index, batch_id_of(event)) for index, event in enumerate(events) if batch_id_of(event)]
         assert batch_events, f"the stream never announced a committed batch; types: {[e.get('type') for e in events][:40]}"
-        announced_at, announced_batch = batch_events[0]
+        announced_at, announced = batch_events[0]
         step_seen_at = next(
             (
                 index
                 for index, event in enumerate(events)
-                if event.get("type") in _STEP_EVENT_TYPES
-                and _SAVE_TOOL in json.dumps(event, default=str)
-                and not _batch_id_of(event)
+                if event.get("type") in STEP_EVENT_TYPES
+                and SAVE_TOOL in json.dumps(event, default=str)
+                and not batch_id_of(event)
             ),
             None,
         )
-        print(f"E2E_BATCH_ANNOUNCED: batch={announced_batch} step_event={step_seen_at} batch_event={announced_at}", flush=True)
+        print(f"E2E_BATCH_ANNOUNCED: batch={announced} step_event={step_seen_at} batch_event={announced_at}", flush=True)
         assert step_seen_at is not None and step_seen_at < announced_at, (
             f"the skill_manage step must reach the stream before its batch id: step={step_seen_at} batch={announced_at}"
         )
 
-        stored = _wait_for(
-            lambda: _stored_batch_ids(client, backend_url, chat_id), timeout_sec=60.0, what="the persisted step batch id"
+        stored = wait_for(
+            lambda: stored_batch_ids(client, backend_url, chat_id), timeout_sec=60.0, what="the persisted step batch id"
         )
-        assert announced_batch in stored, f"persisted batch ids {stored} do not include the announced {announced_batch}"
-        persisted_steps = _persisted_skill_steps(client, backend_url, chat_id)
+        assert announced in stored, f"persisted batch ids {stored} do not include the announced {announced}"
+        persisted_steps = persisted_skill_steps(client, backend_url, chat_id)
         print(f"E2E_PERSISTED_STEP: {json.dumps(persisted_steps, sort_keys=True, default=str)}", flush=True)
-        committed = next(step for step in persisted_steps if step.get("skill_mutation_batch_id") == announced_batch)
+        committed = next(step for step in persisted_steps if step.get("skill_mutation_batch_id") == announced)
         # The Chrome E2E seeds mirror this shape (_persisted_skill_manage_step); change both together.
         assert "status" not in committed and committed.get("step_key") == "skill_manage_tool_tool", committed
         assert committed.get("tool_call_id") and isinstance(committed.get("items"), list), committed
 
-        skill_id = _catalog_skill_id(client, backend_url, skill_name)
+        skill_id = catalog_skill_id(client, backend_url, skill_name)
         assert skill_id, f"skill {skill_name!r} is not in the catalog after the live turn"
-        saved = client.get(f"{backend_url}/api/v1/skills/{quote(skill_id, safe='')}/files/SKILL.md", timeout=30.0)
-        saved.raise_for_status()
-        assert marker in saved.text, f"the saved SKILL.md lost the marker the user asked for:\n{saved.text[:600]}"
+        saved = skill_md(client, backend_url, skill_id)
+        assert marker in saved, f"the saved SKILL.md lost the marker the user asked for:\n{saved[:600]}"
 
-        rollback_url = f"{backend_url}/api/v1/skill-optimization/mutations/{announced_batch}/rollback"
-        rolled_back = _data(client.post(rollback_url, timeout=60.0))
-        assert rolled_back.get("status"), rolled_back
-        _wait_for(
-            lambda: _catalog_skill_id(client, backend_url, skill_name) is None,
+        rollback_url = f"{backend_url}/api/v1/skill-optimization/mutations/{announced}/rollback"
+        assert data(client.post(rollback_url, timeout=60.0)).get("status")
+        wait_for(
+            lambda: catalog_skill_id(client, backend_url, skill_name) is None,
             timeout_sec=60.0,
             what="the skill to disappear after the rollback",
         )
@@ -285,79 +107,104 @@ def test_live_agent_saves_a_skill_and_the_batch_reaches_its_step_and_rolls_back(
 
 @pytest.mark.e2e
 @pytest.mark.timeout(600)
-@pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"),
-    reason="Requires BASIC_API_KEY and LITE_API_KEY",
-)
+@requires_live_model
 def test_live_agent_rewrites_a_skill_and_the_undo_brings_back_what_it_replaced() -> None:
-    backend_url = os.environ.get("BACKEND_URL", "").rstrip("/") or resolve_verify_api_base()
-    if _backend_runtime_data_dir(backend_url) is None:
-        pytest.skip(f"{backend_url} is not an isolated runtime; refusing to write skills into a shared backend")
-
+    backend_url = isolated_backend_url()
     suffix = uuid.uuid4().hex[:8]
     skill_name = f"api-rewrite-{suffix}"
     first_marker, second_marker = f"API_FIRST_{suffix}", f"API_SECOND_{suffix}"
     chat_id = f"apirewrite{suffix}"
 
     with httpx.Client() as client:
-        agent_id = _create_agent(client, backend_url, suffix)
-        _create_chat(client, backend_url, chat_id, agent_id)
-        first = _announced_batch(_stream_turn(client, backend_url, agent_id, chat_id, _user_request(skill_name, first_marker)))
+        agent_id = create_agent(client, backend_url, suffix)
+        create_chat(client, backend_url, chat_id, agent_id)
+        first = announced_batch(stream_turn(client, backend_url, agent_id, chat_id, user_request(skill_name, first_marker)))
         assert first, "the first save never announced a committed batch"
-        skill_id = _catalog_skill_id(client, backend_url, skill_name)
+        skill_id = catalog_skill_id(client, backend_url, skill_name)
         assert skill_id, f"skill {skill_name!r} is not in the catalog after the first save"
 
-        second = _announced_batch(
-            _stream_turn(client, backend_url, agent_id, chat_id, _rewrite_request(skill_name, second_marker))
-        )
+        second = announced_batch(stream_turn(client, backend_url, agent_id, chat_id, rewrite_request(skill_name, second_marker)))
         assert second and second != first, f"the rewrite must commit its own batch: first={first} second={second}"
-        rewritten = _skill_md(client, backend_url, skill_id)
+        rewritten = skill_md(client, backend_url, skill_id)
         assert second_marker in rewritten and first_marker not in rewritten, f"the rewrite did not land:\n{rewritten[:600]}"
 
         rollback_url = f"{backend_url}/api/v1/skill-optimization/mutations/{second}/rollback"
-        assert _data(client.post(rollback_url, timeout=60.0)).get("status")
-        assert _catalog_skill_id(client, backend_url, skill_name) == skill_id, "the undo of a rewrite removed the skill"
-        restored = _skill_md(client, backend_url, skill_id)
+        assert data(client.post(rollback_url, timeout=60.0)).get("status")
+        assert catalog_skill_id(client, backend_url, skill_name) == skill_id, "the undo of a rewrite removed the skill"
+        restored = skill_md(client, backend_url, skill_id)
         assert first_marker in restored and second_marker not in restored, f"the undo kept the rewrite:\n{restored[:600]}"
 
 
 @pytest.mark.e2e
 @pytest.mark.timeout(600)
-@pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY") or not os.environ.get("LITE_API_KEY"),
-    reason="Requires BASIC_API_KEY and LITE_API_KEY",
-)
+@requires_live_model
 def test_live_agent_deletes_a_skill_for_good_and_offers_no_undo_for_it() -> None:
-    backend_url = os.environ.get("BACKEND_URL", "").rstrip("/") or resolve_verify_api_base()
-    if _backend_runtime_data_dir(backend_url) is None:
-        pytest.skip(f"{backend_url} is not an isolated runtime; refusing to write skills into a shared backend")
-
+    backend_url = isolated_backend_url()
     suffix = uuid.uuid4().hex[:8]
     skill_name = f"api-delete-{suffix}"
     chat_id = f"apidelete{suffix}"
 
     with httpx.Client() as client:
-        agent_id = _create_agent(client, backend_url, suffix)
-        _create_chat(client, backend_url, chat_id, agent_id)
-        saved = _announced_batch(_stream_turn(client, backend_url, agent_id, chat_id, _user_request(skill_name, suffix)))
+        agent_id = create_agent(client, backend_url, suffix)
+        create_chat(client, backend_url, chat_id, agent_id)
+        saved = announced_batch(stream_turn(client, backend_url, agent_id, chat_id, user_request(skill_name, suffix)))
         assert saved, "the save never announced a committed batch"
-        assert _catalog_skill_id(client, backend_url, skill_name), f"skill {skill_name!r} is not in the catalog after the save"
+        assert catalog_skill_id(client, backend_url, skill_name), f"skill {skill_name!r} is not in the catalog after the save"
 
-        deleted_turn = _stream_turn(client, backend_url, agent_id, chat_id, _delete_request(skill_name))
-        assert _catalog_skill_id(client, backend_url, skill_name) is None, "the model's delete did not remove the skill"
-        assert not _announced_batches(deleted_turn) - {saved}, "a delete has nothing to undo, yet the stream announced a batch"
+        deleted_turn = stream_turn(client, backend_url, agent_id, chat_id, delete_request(skill_name))
+        assert catalog_skill_id(client, backend_url, skill_name) is None, "the model's delete did not remove the skill"
+        assert not announced_batches(deleted_turn) - {saved}, "a delete has nothing to undo, yet the stream announced a batch"
 
         delete_steps = [
             step
-            for step in _persisted_skill_steps(client, backend_url, chat_id)
+            for step in persisted_skill_steps(client, backend_url, chat_id)
             if "'delete'" in json.dumps(step.get("items"), default=str)
         ]
         assert delete_steps, "the persisted steps hold no delete call"
         assert all(
-            step.get("status") not in _FAILED_STATUSES and not step.get("skill_mutation_batch_id") for step in delete_steps
+            step.get("status") not in FAILED_STATUSES and not step.get("skill_mutation_batch_id") for step in delete_steps
         ), f"a finished delete must be neither a failure nor an undo target: {delete_steps}"
 
         # The save's Undo is still on screen after the delete: pressing it is refused cleanly and nothing comes back.
         stale_undo = client.post(f"{backend_url}/api/v1/skill-optimization/mutations/{saved}/rollback", timeout=60.0)
         assert stale_undo.status_code == 409, f"undoing a save whose skill is gone must be a 409: {stale_undo.text[:300]}"
-        assert _catalog_skill_id(client, backend_url, skill_name) is None, "the stale undo brought the deleted skill back"
+        assert catalog_skill_id(client, backend_url, skill_name) is None, "the stale undo brought the deleted skill back"
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(600)
+@requires_live_model
+def test_live_agent_patches_a_skill_it_saved_in_an_earlier_turn_and_the_undo_reverts_the_patch() -> None:
+    backend_url = isolated_backend_url()
+    suffix = uuid.uuid4().hex[:8]
+    skill_name = f"api-patch-{suffix}"
+    first_marker, second_marker = f"API_FIRST_{suffix}", f"API_SECOND_{suffix}"
+    chat_id = f"apipatch{suffix}"
+
+    with httpx.Client() as client:
+        agent_id = create_agent(client, backend_url, suffix)
+        create_chat(client, backend_url, chat_id, agent_id)
+        assert announced_batch(stream_turn(client, backend_url, agent_id, chat_id, user_request(skill_name, first_marker)))
+        skill_id = catalog_skill_id(client, backend_url, skill_name)
+        assert skill_id, f"skill {skill_name!r} is not in the catalog after the save"
+
+        patch_turn = stream_turn(client, backend_url, agent_id, chat_id, patch_request(skill_name, first_marker, second_marker))
+        # The agent's own backend lists no skill outside its allowlist. A patch that reads only through it reports the
+        # skill as missing: that batch is rolled back and carries no batch id, and the model can only fall back to a
+        # full save. So the persisted step of the patch call holding a batch id is what proves the patch itself landed.
+        patch_steps = [
+            step
+            for step in persisted_skill_steps(client, backend_url, chat_id)
+            if "'patch'" in json.dumps(step.get("items"), default=str)
+        ]
+        assert patch_steps, "the model never called patch"
+        patch_batch = patch_steps[-1].get("skill_mutation_batch_id")
+        assert isinstance(patch_batch, str) and patch_batch, f"the patch call was not committed: {patch_steps}"
+        assert patch_batch in announced_batches(patch_turn), "the stream never announced the patch's batch"
+        patched = skill_md(client, backend_url, skill_id)
+        assert second_marker in patched and first_marker not in patched, f"the patch did not land:\n{patched[:600]}"
+
+        rollback_url = f"{backend_url}/api/v1/skill-optimization/mutations/{patch_batch}/rollback"
+        assert data(client.post(rollback_url, timeout=60.0)).get("status")
+        restored = skill_md(client, backend_url, skill_id)
+        assert first_marker in restored and second_marker not in restored, f"the undo kept the patch:\n{restored[:600]}"
