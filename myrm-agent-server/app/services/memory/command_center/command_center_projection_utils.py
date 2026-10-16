@@ -2,17 +2,25 @@
 
 [INPUT]
 app.schemas.memory.command_center::MemoryCommandEvalMetric (POS: 记忆指挥中心 API Schema 层)
+sqlalchemy::Select, false (POS: 查询构造)
 
 [OUTPUT]
 ReplayPhase, WaterfallPhase, WATERFALL_PHASES and projection helper functions for command-center views.
+MemoryTelemetry / read_memory_telemetry: typed per-turn memory phase metrics parsed from message extra_data.
+restrict_to_context_ids: project-scope filter shared by the spaces, governance and timeline queries.
 
 [POS]
-个人大脑指挥中心投影辅助层。集中维护阶段映射、状态计算、预览与轻量数值解析。
+个人大脑指挥中心投影辅助层。集中维护阶段映射、状态计算、预览、轻量数值解析与按项目收窄 SharedContext 查询。
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Literal
+
+from sqlalchemy import Select, false
+from sqlalchemy.orm import QueryableAttribute
 
 from app.schemas.memory.command_center import MemoryCommandEvalMetric
 
@@ -39,6 +47,51 @@ def preview_content(content: str, *, limit: int = 160) -> str:
     if len(normalized) <= limit:
         return normalized
     return f"{normalized[: limit - 1]}..."
+
+
+def restrict_to_context_ids[*Row](
+    statement: Select[*Row],
+    column: QueryableAttribute[str],
+    context_ids: set[str] | None,
+) -> Select[*Row]:
+    """Scope a query to the project's SharedContext ids; ``None`` keeps the global view, an empty set matches nothing."""
+    if context_ids is None:
+        return statement
+    return statement.where(column.in_(context_ids)) if context_ids else statement.where(false())
+
+
+_DEFAULT_RETRIEVAL_MS = 12.0
+_DEFAULT_INJECTION_MS = 1.5
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryTelemetry:
+    """Per-turn memory phase metrics recorded in ``extra_data['memory_telemetry']``."""
+
+    injected_tokens: int = 0
+    retrieval_ms: float = _DEFAULT_RETRIEVAL_MS
+    construction_ms: float = 0.0
+    injection_ms: float = _DEFAULT_INJECTION_MS
+    cache_aligned: bool = True
+
+
+def _number(value: object, default: float) -> float:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else default
+
+
+def read_memory_telemetry(extra_data: Mapping[str, object]) -> MemoryTelemetry:
+    """Parse memory phase latency and injection metadata; missing or malformed fields fall back to defaults."""
+    meta = extra_data.get("memory_telemetry")
+    if not isinstance(meta, dict):
+        return MemoryTelemetry()
+    cache_aligned = meta.get("cache_aligned")
+    return MemoryTelemetry(
+        injected_tokens=int(_number(meta.get("injected_memory_tokens"), 0)),
+        retrieval_ms=_number(meta.get("retrieval_ms"), _DEFAULT_RETRIEVAL_MS),
+        construction_ms=_number(meta.get("construction_ms"), 0.0),
+        injection_ms=_number(meta.get("injection_overhead_ms"), 0.0) or _DEFAULT_INJECTION_MS,
+        cache_aligned=cache_aligned if isinstance(cache_aligned, bool) else True,
+    )
 
 
 def optional_str(value: object) -> str | None:

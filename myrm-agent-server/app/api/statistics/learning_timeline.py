@@ -37,7 +37,7 @@ from app.core.skills.curator.service import (
 from app.core.utils.errors import conflict_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.schemas.memory.crud import UpdateMemoryRequest
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud.item_mutations import delete_memory_item, update_memory_item
 from app.services.memory.operations.presentation import parse_memory_type

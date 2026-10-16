@@ -31,7 +31,7 @@ from app.schemas.memory.domain_mesh import (
     HermesMigrationResponse,
     ProgressiveHighlight,
 )
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 
 logger = logging.getLogger(__name__)
 

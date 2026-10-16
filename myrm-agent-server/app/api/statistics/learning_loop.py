@@ -37,7 +37,7 @@ from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models import Chat
-from app.services.memory.command_center.command_center import ALL_MEMORY_TYPES
+from app.services.memory.command_center.command_center_memory_scan import ALL_MEMORY_TYPES
 from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.skills.growth.audit_queries import list_skill_growth_timeline
 

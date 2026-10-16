@@ -2,7 +2,13 @@
 
 [INPUT]
 myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit)
-app.services.memory.command_center.command_center_pending::{count_pending_review, build_candidate_records, build_pending_governance, build_pending_timeline} (POS: 审批队列在指挥中心的读取视图)
+app.services.memory.command_center.command_center_memory_scan::{count_memories_by_type, list_archived_memory_ids, list_pinned_memory_ids, list_active_memory_previews} (POS: 指挥中心对 MemoryManager 的只读扫描层)
+app.services.memory.command_center.command_center_health::build_health (POS: 健康快照缓存与刷新)
+app.services.memory.command_center.command_center_timeline::build_timeline (POS: 时间线投影)
+app.services.memory.command_center.command_center_trace::build_trace_runs (POS: 召回追踪运行投影)
+app.services.memory.command_center.command_center_replay::{build_replay, build_replay_events, build_waterfall} (POS: 回放与瀑布投影)
+app.services.memory.command_center.command_center_recall_boundary::build_recall_boundary (POS: 召回边界与四分区预算快照)
+app.services.memory.command_center.command_center_pending::{count_pending_review, build_pending_governance} (POS: 审批队列在指挥中心的读取视图)
 app.database.models.memory::SharedContextModel (POS: 记忆域模型)
 app.services.memory.shared_context.shared_context::SharedContextService (POS: 共享上下文业务服务)
 
@@ -10,85 +16,61 @@ app.services.memory.shared_context.shared_context::SharedContextService (POS: �
 MemoryCommandCenterService: builds the single-user memory command center snapshot with optional project-scoped filtering.
 
 [POS]
-个人大脑指挥中心聚合服务。基于 MemoryManager、记忆治理 ORM 和部署设置生成设置页可观测快照，支持按项目过滤 SharedContext 记忆空间。
+个人大脑指挥中心聚合服务。只负责编排：基于 MemoryManager、记忆治理 ORM 和部署设置组装设置页可观测快照，支持按项目过滤 SharedContext 记忆空间；
+各区块的具体投影位于同目录的独立模块。
 """
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from typing import Literal
 
-from myrm_agent_harness.toolkits.memory import (
-    MemoryManager,
-    MemoryOperationKind,
-    MemoryOperationStatus,
-    MemorySpaceKind,
-    MemoryStatus,
-    MemoryType,
-)
-from sqlalchemy import Select, desc, func, select
+from myrm_agent_harness.toolkits.memory import MemoryManager, MemorySpaceKind
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.deploy_mode import get_deploy_mode, get_embedding_mode
 from app.config.settings import settings
 from app.database.models.memory import (
-    MemoryOperationEventModel,
     SharedContextBindingModel,
     SharedContextModel,
     SharedContextWriteProposalModel,
 )
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 from app.schemas.memory.command_center import (
-    MemoryApprovedRecord,
     MemoryCommandCenterResponse,
     MemoryCommandGovernanceItem,
     MemoryCommandHealth,
     MemoryCommandOverview,
     MemoryCommandRuntimeStatus,
     MemoryCommandSpace,
-    MemoryCommandTimelineEvent,
-    MemoryCommandTraceRun,
-    MemoryCommandTraceStep,
-    MemoryFourPartitionSummary,
     MemoryRecallBoundaryData,
-    MemoryRecallScopeBoundary,
 )
-from app.services.memory.archive.restore.archive_restore import (
-    MemoryArchiveRestoreService,
+from app.services.memory.archive.restore.archive_restore import MemoryArchiveRestoreService
+from app.services.memory.command_center.command_center_economics import MemoryEconomicsService
+from app.services.memory.command_center.command_center_health import build_health
+from app.services.memory.command_center.command_center_insights import MemoryCommandCenterInsights
+from app.services.memory.command_center.command_center_memory_scan import (
+    count_memories_by_type,
+    list_active_memory_previews,
+    list_archived_memory_ids,
+    list_pinned_memory_ids,
 )
-from app.services.memory.command_center.command_center_economics import (
-    MemoryEconomicsService,
-)
-from app.services.memory.command_center.command_center_insights import (
-    MemoryCommandCenterInsights,
-)
-from app.services.memory.command_center.command_center_pending import (
-    build_candidate_records,
-    build_pending_governance,
-    build_pending_timeline,
-    count_pending_review,
-)
+from app.services.memory.command_center.command_center_pending import build_pending_governance, count_pending_review
+from app.services.memory.command_center.command_center_projection_utils import preview_content, restrict_to_context_ids
+from app.services.memory.command_center.command_center_recall_boundary import build_recall_boundary
+from app.services.memory.command_center.command_center_replay import build_replay, build_replay_events, build_waterfall
+from app.services.memory.command_center.command_center_timeline import build_timeline
+from app.services.memory.command_center.command_center_trace import build_trace_runs
 from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.imports.import_ledger import MemoryImportLedgerService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
-logger = logging.getLogger(__name__)
-HEALTH_TTL_SECONDS = 300
-TRACE_RUN_LIMIT = 6
-TRACE_STEP_LIMIT = 16
-TRACE_SOURCE = "memory_retrieval_trace"
-TRACE_STATUSES = {"success", "warning", "error", "skipped"}
-
-ALL_MEMORY_TYPES: tuple[MemoryType, ...] = (
-    MemoryType.PROFILE,
-    MemoryType.SEMANTIC,
-    MemoryType.EPISODIC,
-    MemoryType.PROCEDURAL,
-    MemoryType.CONVERSATION,
-    MemoryType.CLAIM,
-    MemoryType.TASK_DIGEST,
-)
+_SPACE_LIMIT = 20
+_PROPOSAL_GOVERNANCE_LIMIT = 5
+_GOVERNANCE_LIMIT = 8
+_LIVE_STREAM_LIMIT = 12
+_ECONOMICS_TURN_LIMIT = 50
 
 
 class MemoryCommandCenterService:
@@ -126,71 +108,17 @@ class MemoryCommandCenterService:
         return self._project_context_ids
 
     async def get_archived_memory_ids(self) -> set[str]:
-        """Fetch all archived (soft-deleted / forgotten) memory IDs to prevent ghost recommendations."""
-        if not self._memory_manager:
-            return set()
-        from myrm_agent_harness.toolkits.memory.types import MemoryStatus
-
-        archived_ids: set[str] = set()
-        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
-            try:
-                memories = await self._memory_manager.list_memories(
-                    mem_type, limit=5000, include_archived=True
-                )
-                for m in memories:
-                    if getattr(m, "status", None) == MemoryStatus.ARCHIVED:
-                        m_id = str(getattr(m, "id", "") or "")
-                        if m_id:
-                            archived_ids.add(m_id)
-            except Exception as e:
-                logger.debug("Failed listing archived %s memories: %s", mem_type, e)
-        return archived_ids
+        return await list_archived_memory_ids(self._memory_manager)
 
     async def get_pinned_memory_ids(self) -> set[str]:
-        """Retrieve all memory IDs that are pinned by user or system for exemption."""
-        if not self._memory_manager:
-            return set()
-        pinned_ids: set[str] = set()
-        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL):
-            try:
-                memories = await self._memory_manager.list_memories(
-                    mem_type, limit=5000, include_archived=False
-                )
-                for m in memories:
-                    if getattr(m, "pinned", False) or getattr(m, "is_pinned", False):
-                        m_id = str(getattr(m, "id", "") or "")
-                        if m_id:
-                            pinned_ids.add(m_id)
-            except Exception as e:
-                logger.debug("Failed listing pinned %s memories: %s", mem_type, e)
-        return pinned_ids
+        return await list_pinned_memory_ids(self._memory_manager)
 
     async def get_active_memory_previews(self) -> dict[str, tuple[str, str]]:
-        """Retrieve preview snippets and memory types for active memories."""
-        if not self._memory_manager:
-            return {}
-        previews: dict[str, tuple[str, str]] = {}
-        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL):
-            try:
-                memories = await self._memory_manager.list_memories(
-                    mem_type, limit=500, include_archived=False
-                )
-                for m in memories:
-                    if getattr(m, "status", None) != MemoryStatus.ARCHIVED:
-                        m_id = str(getattr(m, "id", "") or "")
-                        content = getattr(m, "content", "") or ""
-                        if not content and hasattr(m, "trigger") and hasattr(m, "action"):
-                            content = f"{m.trigger} -> {m.action}"
-                        if m_id and content:
-                            type_val = mem_type.value if hasattr(mem_type, "value") else str(mem_type)
-                            previews[m_id] = (self._preview(str(content), limit=100), type_val)
-            except Exception as e:
-                logger.debug("Failed listing active %s memories for previews: %s", mem_type, e)
-        return previews
+        return await list_active_memory_previews(self._memory_manager)
 
     async def build_snapshot(self) -> MemoryCommandCenterResponse:
         generated_at = datetime.now(UTC)
-        by_type = await self._count_memories_by_type()
+        by_type = await count_memories_by_type(self._memory_manager)
         pending_memories = await count_pending_review(self._db, self._memory_manager)
         pending_shared_proposals = await self._count_rows(
             select(func.count())
@@ -202,17 +130,19 @@ class MemoryCommandCenterService:
         )
         health = await self._build_health()
         deploy_mode = get_deploy_mode().value
-        timeline = await self._build_timeline()
+        timeline = await build_timeline(
+            db=self._db,
+            ledger=self._ledger,
+            memory_manager=self._memory_manager,
+            project_context_ids=await self._resolve_project_context_ids(),
+        )
         influence = await self._insights.build_influence()
-        archived_ids = await self.get_archived_memory_ids()
-        pinned_ids = await self.get_pinned_memory_ids()
-        active_previews = await self.get_active_memory_previews()
         economics = await MemoryEconomicsService(self._db).build_economics_dashboard(
             influence=influence,
-            archived_memory_ids=archived_ids,
-            pinned_memory_ids=pinned_ids,
-            memory_previews=active_previews,
-            limit_turns=50,
+            archived_memory_ids=await self.get_archived_memory_ids(),
+            pinned_memory_ids=await self.get_pinned_memory_ids(),
+            memory_previews=await self.get_active_memory_previews(),
+            limit_turns=_ECONOMICS_TURN_LIMIT,
         )
         cost = economics.cost_profile
         governance = await self._build_governance()
@@ -240,16 +170,15 @@ class MemoryCommandCenterService:
             governance=governance,
             health=health,
             timeline=timeline,
-            live_stream=timeline[:12],
+            live_stream=timeline[:_LIVE_STREAM_LIMIT],
             influence=influence,
             cost=cost,
             economics=economics,
             conflicts=conflicts,
-
-            replay=await self._insights.build_replay(timeline, influence),
-            replay_events=self._insights.build_replay_events(timeline),
-            waterfall=self._insights.build_waterfall(timeline, influence, cost),
-            trace_runs=self._build_trace_runs(timeline),
+            replay=build_replay(timeline, influence),
+            replay_events=build_replay_events(timeline),
+            waterfall=build_waterfall(timeline, influence, cost),
+            trace_runs=build_trace_runs(timeline),
             eval_metrics=self._insights.build_eval_metrics(
                 timeline=timeline,
                 influence=influence,
@@ -280,210 +209,18 @@ class MemoryCommandCenterService:
         task_id: str | None = None,
     ) -> MemoryRecallBoundaryData:
         """Build review-first memory recall boundary and candidate/approved partition snapshot."""
-        policy = self._memory_manager.memory_policy
-        read_scopes_list: list[MemoryRecallScopeBoundary] = []
+        return await build_recall_boundary(self._db, self._memory_manager, agent_id=agent_id, task_id=task_id)
 
-        all_scope_levels = [
-            (
-                "global",
-                "Global Shared Knowledge",
-                "global",
-                "System-wide persistent facts and rules",
-            ),
-            (
-                "agent",
-                f"Agent Dedicated ({agent_id or 'default'})",
-                f"agent:{agent_id or 'default'}",
-                "Private memory assigned to this agent identity",
-            ),
-            (
-                "channel",
-                "Channel/Integration Boundary",
-                "channel:*",
-                "Platform or channel-specific context",
-            ),
-            (
-                "conversation",
-                "Session Conversation State",
-                "conversation:*",
-                "Current multi-turn dialog flow",
-            ),
-            (
-                "task",
-                f"Task Boundary ({task_id or 'active'})",
-                f"task:{task_id or 'active'}",
-                "Ephemeral execution working memory",
-            ),
-            (
-                "shared",
-                "Team Shared Context",
-                "shared:*",
-                "Explicitly shared team vaults and resources",
-            ),
-        ]
+    async def refresh_health(self) -> MemoryCommandHealth:
+        return await self._build_health(force_refresh=True)
 
-        active_levels = (
-            {s.value for s in policy.read_scopes}
-            if (policy and policy.read_scopes)
-            else {"global", "agent", "channel", "conversation", "task", "shared"}
+    async def _build_health(self, *, force_refresh: bool = False) -> MemoryCommandHealth:
+        return await build_health(
+            db=self._db,
+            ledger=self._ledger,
+            memory_manager=self._memory_manager,
+            force_refresh=force_refresh,
         )
-
-        for level_key, label, pattern, scope_desc in all_scope_levels:
-            read_scopes_list.append(
-                MemoryRecallScopeBoundary(
-                    level=level_key,
-                    label=label,
-                    is_active=level_key in active_levels,
-                    namespace_pattern=pattern,
-                    description=scope_desc,
-                )
-            )
-
-        candidates = await build_candidate_records(self._db, self._memory_manager)
-
-        # Calculate partition summary and approved records sample
-        total_chars = 0
-        identity_chars, identity_count = 0, 0
-        working_chars, working_count = 0, 0
-        operating_chars, operating_count = 0, 0
-        evidence_chars, evidence_count = 0, 0
-        approved_records: list[MemoryApprovedRecord] = []
-
-        for mtype in ALL_MEMORY_TYPES:
-            try:
-                memories = await self._memory_manager.list_memories(mtype, limit=10)
-                for mem in memories:
-                    content_str = str(getattr(mem, "content", "") or "")
-                    char_len = len(content_str)
-                    total_chars += char_len
-
-                    # Partition classification
-                    if mtype == MemoryType.PROFILE:
-                        partition = "identity"
-                        identity_count += 1
-                        identity_chars += char_len
-                    elif mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
-                        partition = "working_memory"
-                        working_count += 1
-                        working_chars += char_len
-                    elif mtype == MemoryType.PROCEDURAL:
-                        partition = "operating_instructions"
-                        operating_count += 1
-                        operating_chars += char_len
-                    else:
-                        partition = "retrievable_evidence"
-                        evidence_count += 1
-                        evidence_chars += char_len
-
-                    if len(approved_records) < 15:
-                        approved_records.append(
-                            MemoryApprovedRecord(
-                                id=str(getattr(mem, "id", "") or f"mem-{len(approved_records)}"),
-                                memory_type=mtype.value,
-                                content_preview=self._preview(content_str, limit=100),
-                                namespace=str(getattr(mem, "primary_namespace", "") or "global"),
-                                partition=partition,
-                                importance=float(getattr(mem, "importance", 0.7) or 0.7),
-                                access_count=int(getattr(mem, "access_count", 1) or 1),
-                                char_count=char_len,
-                                is_pinned=bool(getattr(mem, "pinned", False)),
-                            )
-                        )
-            except Exception as exc:
-                logger.warning(
-                    "Failed to list memories for %s partition summary: %s",
-                    mtype.value,
-                    exc,
-                )
-
-        risk: Literal["safe", "approaching_limit", "overflow"] = "safe"
-        if total_chars > 6000:
-            risk = "overflow"
-        elif total_chars > 4500:
-            risk = "approaching_limit"
-
-        return MemoryRecallBoundaryData(
-            agent_id=agent_id or (policy.agent_id if policy else None),
-            task_id=task_id or (policy.task_id if policy else None),
-            read_scopes=read_scopes_list,
-            write_policy=(policy.write_policy.value if (policy and hasattr(policy.write_policy, "value")) else "inherit"),
-            partitions=MemoryFourPartitionSummary(
-                identity_count=identity_count,
-                working_memory_count=working_count,
-                operating_instructions_count=operating_count,
-                retrievable_evidence_count=evidence_count,
-                identity_chars=identity_chars,
-                working_memory_chars=working_chars,
-                operating_instructions_chars=operating_chars,
-                retrievable_evidence_chars=evidence_chars,
-            ),
-            candidate_records=candidates,
-            approved_records=approved_records,
-            budget_chars_used=total_chars,
-            budget_chars_total=6000,
-            budget_overflow_risk=risk,
-            total_candidates=len(candidates),
-            total_approved=identity_count + working_count + operating_count + evidence_count,
-        )
-
-    def _build_trace_runs(self, timeline: list[MemoryCommandTimelineEvent]) -> list[MemoryCommandTraceRun]:
-        grouped: dict[str, list[MemoryCommandTimelineEvent]] = {}
-        for event in timeline:
-            if event.source != TRACE_SOURCE:
-                continue
-            trace_id = _metadata_str(event.metadata, "trace_id") or event.id
-            grouped.setdefault(trace_id, []).append(event)
-
-        ordered_groups = sorted(
-            grouped.items(),
-            key=lambda item: max(event.occurred_at for event in item[1]),
-            reverse=True,
-        )
-        return [self._timeline_events_to_trace_run(trace_id, events) for trace_id, events in ordered_groups[:TRACE_RUN_LIMIT]]
-
-    @staticmethod
-    def _timeline_events_to_trace_run(
-        trace_id: str,
-        events: list[MemoryCommandTimelineEvent],
-    ) -> MemoryCommandTraceRun:
-        ordered_events = sorted(events, key=_trace_step_sort_key)
-        steps = [
-            MemoryCommandTraceStep(
-                id=event.id,
-                phase=_metadata_str(event.metadata, "step_phase") or event.kind,
-                status=_trace_status(event.status),
-                title=_metadata_str(event.metadata, "step_title") or event.title,
-                description=event.description,
-                occurred_at=event.occurred_at,
-                duration_ms=_metadata_float(event.metadata, "duration_ms"),
-                output_count=_metadata_int(event.metadata, "output_count") or 0,
-                result_count=_metadata_int(event.metadata, "result_count") or 0,
-                step_index=_metadata_int(event.metadata, "step_index") or index,
-            )
-            for index, event in enumerate(ordered_events[:TRACE_STEP_LIMIT])
-        ]
-        return MemoryCommandTraceRun(
-            id=f"trace-run:{trace_id}",
-            trace_id=trace_id,
-            message_id=_first_metadata_str(ordered_events, "message_id"),
-            chat_id=_first_metadata_str(ordered_events, "chat_id"),
-            query_preview=_first_metadata_str(ordered_events, "query_preview") or "",
-            status=_trace_run_status(ordered_events),
-            occurred_at=max(event.occurred_at for event in ordered_events),
-            duration_ms=_trace_run_duration_ms(ordered_events),
-            result_count=max((_metadata_int(event.metadata, "result_count") or 0) for event in ordered_events),
-            steps=steps,
-        )
-
-    async def _count_memories_by_type(self) -> dict[str, int]:
-        counts: dict[str, int] = {}
-        for memory_type in ALL_MEMORY_TYPES:
-            try:
-                counts[memory_type.value] = await self._memory_manager.count_memories(memory_type)
-            except Exception as exc:
-                logger.warning("Memory count failed for %s: %s", memory_type.value, exc)
-                counts[memory_type.value] = 0
-        return counts
 
     async def _build_spaces(self) -> list[MemoryCommandSpace]:
         project_ctx_ids = await self._resolve_project_context_ids()
@@ -503,16 +240,12 @@ class MemoryCommandCenterService:
         )
 
         binding_counts = await self._shared_context_binding_counts()
-
-        stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(20)
-        if project_ctx_ids is not None:
-            if project_ctx_ids:
-                stmt = stmt.where(SharedContextModel.id.in_(project_ctx_ids))
-            else:
-                stmt = stmt.where(False)
-
-        result = await self._db.execute(stmt)
-        for context in result.scalars().all():
+        statement = restrict_to_context_ids(
+            select(SharedContextModel).order_by(SharedContextModel.updated_at.desc()).limit(_SPACE_LIMIT),
+            SharedContextModel.id,
+            project_ctx_ids,
+        )
+        for context in (await self._db.execute(statement)).scalars().all():
             spaces.append(
                 MemoryCommandSpace(
                     namespace=context.namespace,
@@ -532,27 +265,22 @@ class MemoryCommandCenterService:
         if project_ctx_ids is None:
             items.extend(await build_pending_governance(self._memory_manager))
 
-        proposal_stmt = (
+        statement = restrict_to_context_ids(
             select(SharedContextWriteProposalModel)
             .where(SharedContextWriteProposalModel.status == "pending")
-            .order_by(desc(SharedContextWriteProposalModel.created_at))
-            .limit(5)
+            .order_by(SharedContextWriteProposalModel.created_at.desc())
+            .limit(_PROPOSAL_GOVERNANCE_LIMIT),
+            SharedContextWriteProposalModel.context_id,
+            project_ctx_ids,
         )
-        if project_ctx_ids is not None:
-            if project_ctx_ids:
-                proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids))
-            else:
-                proposal_stmt = proposal_stmt.where(False)
-
-        proposal_result = await self._db.execute(proposal_stmt)
-        for proposal in proposal_result.scalars().all():
+        for proposal in (await self._db.execute(statement)).scalars().all():
             items.append(
                 MemoryCommandGovernanceItem(
                     id=proposal.id,
                     kind="shared_context_proposal",
                     target_kind="shared_context_proposal",
                     title=proposal.memory_type,
-                    description=self._preview(proposal.content),
+                    description=preview_content(proposal.content),
                     severity="warning",
                     status=proposal.status,
                     created_at=proposal.created_at,
@@ -561,176 +289,7 @@ class MemoryCommandCenterService:
             )
 
         items.sort(key=lambda item: item.created_at, reverse=True)
-        return items[:8]
-
-    async def refresh_health(self) -> MemoryCommandHealth:
-        return await self._build_health(force_refresh=True)
-
-    async def _build_health(self, *, force_refresh: bool = False) -> MemoryCommandHealth:
-        cached = await self._ledger.get_fresh_health_snapshot(ttl_seconds=HEALTH_TTL_SECONDS)
-        if cached is not None and not force_refresh:
-            return MemoryCommandHealth(
-                status=self._health_status(cached.total),
-                total=cached.total,
-                dimensions=cached.dimensions_json,
-                suggestions=cached.suggestions_json,
-                has_graph=cached.has_graph,
-                sample_size=cached.sample_size,
-                guardian_running=cached.guardian_running,
-                seconds_until_next=cached.seconds_until_next,
-                checked_at=cached.checked_at,
-                cache_status="fresh",
-            )
-
-        total: int | None = None
-        dimensions: dict[str, float] = {}
-        suggestions: list[str] = []
-        has_graph = self._memory_manager.has_graph
-        sample_size = 0
-
-        try:
-            health = await self._memory_manager.compute_health_score()
-            health_dict = health.to_dict()
-            total = int(health_dict.get("total", 0))
-            raw_dimensions = health_dict.get("dimensions", {})
-            if isinstance(raw_dimensions, dict):
-                dimensions = {str(key): float(value) for key, value in raw_dimensions.items() if isinstance(value, (int, float))}
-            raw_suggestions = health_dict.get("suggestions", [])
-            if isinstance(raw_suggestions, list):
-                suggestions = [str(item) for item in raw_suggestions]
-            has_graph = bool(health_dict.get("has_graph", has_graph))
-            sample_size = int(health_dict.get("sample_size", 0))
-        except Exception as exc:
-            logger.warning("Memory health snapshot failed: %s", exc)
-            total = None
-
-        guardian_running = False
-        seconds_until_next: int | None = None
-        try:
-            from app.lifecycle.memory_guardian import get_memory_guardian_status
-
-            guardian = get_memory_guardian_status()
-            guardian_running = bool(guardian.get("running", False))
-            raw_next = guardian.get("seconds_until_next")
-            if isinstance(raw_next, int):
-                seconds_until_next = raw_next
-        except Exception as exc:
-            logger.warning("Memory guardian status unavailable: %s", exc)
-            guardian_running = False
-
-        status = self._health_status(total)
-        health = MemoryCommandHealth(
-            status=self._health_status(total),
-            total=total,
-            dimensions=dimensions,
-            suggestions=suggestions,
-            has_graph=has_graph,
-            sample_size=sample_size,
-            guardian_running=guardian_running,
-            seconds_until_next=seconds_until_next,
-            checked_at=datetime.now(UTC),
-            cache_status="refreshed",
-        )
-        await self._ledger.save_health_snapshot(
-            status=status,
-            total=total,
-            dimensions=dimensions,
-            suggestions=suggestions,
-            has_graph=has_graph,
-            sample_size=sample_size,
-            guardian_running=guardian_running,
-            seconds_until_next=seconds_until_next,
-            ttl_seconds=HEALTH_TTL_SECONDS,
-        )
-        await self._ledger.record_event(
-            kind=MemoryOperationKind.HEALTH_CHECK,
-            status=(MemoryOperationStatus.SUCCESS if total is not None else MemoryOperationStatus.WARNING),
-            summary="Memory health snapshot refreshed.",
-            source="memory_command_center",
-            target_kind="health",
-            metadata={"health_score": total, "cache_ttl_seconds": HEALTH_TTL_SECONDS},
-        )
-        await self._db.commit()
-        return health
-
-    async def _build_timeline(self) -> list[MemoryCommandTimelineEvent]:
-        project_ctx_ids = await self._resolve_project_context_ids()
-
-        ledger_events = await self._ledger.list_events(limit=96)
-        if ledger_events:
-            timeline = [self._ledger_event_to_timeline(row) for row in ledger_events]
-            if project_ctx_ids is not None:
-                project_namespaces = {f"shared:{cid}" for cid in project_ctx_ids}
-                timeline = [e for e in timeline if e.namespace in project_namespaces]
-            return timeline
-
-        events: list[MemoryCommandTimelineEvent] = []
-
-        if project_ctx_ids is None:
-            events.extend(await build_pending_timeline(self._memory_manager))
-
-        proposal_stmt = (
-            select(SharedContextWriteProposalModel).order_by(desc(SharedContextWriteProposalModel.created_at)).limit(6)
-        )
-        if project_ctx_ids is not None:
-            if project_ctx_ids:
-                proposal_stmt = proposal_stmt.where(SharedContextWriteProposalModel.context_id.in_(project_ctx_ids))
-            else:
-                proposal_stmt = proposal_stmt.where(False)
-
-        proposal_result = await self._db.execute(proposal_stmt)
-        for proposal in proposal_result.scalars().all():
-            events.append(
-                MemoryCommandTimelineEvent(
-                    id=f"shared-proposal:{proposal.id}",
-                    kind="shared_context_proposal",
-                    status=proposal.status,
-                    occurred_at=proposal.created_at,
-                    title=proposal.memory_type,
-                    description=self._preview(proposal.content),
-                    source="shared_context_write_proposal",
-                    memory_type=proposal.memory_type,
-                    namespace=f"shared:{proposal.context_id}",
-                )
-            )
-
-        context_stmt = select(SharedContextModel).order_by(desc(SharedContextModel.updated_at)).limit(6)
-        if project_ctx_ids is not None:
-            if project_ctx_ids:
-                context_stmt = context_stmt.where(SharedContextModel.id.in_(project_ctx_ids))
-            else:
-                context_stmt = context_stmt.where(False)
-
-        context_result = await self._db.execute(context_stmt)
-        for context in context_result.scalars().all():
-            events.append(
-                MemoryCommandTimelineEvent(
-                    id=f"shared-context:{context.id}",
-                    kind=MemoryOperationKind.WRITE.value,
-                    status=context.status,
-                    occurred_at=context.updated_at,
-                    title=context.name,
-                    description=self._preview(context.description or context.namespace),
-                    source="shared_context",
-                    namespace=context.namespace,
-                )
-            )
-
-        if project_ctx_ids is None:
-            events.append(
-                MemoryCommandTimelineEvent(
-                    id=f"health:{datetime.now(UTC).isoformat()}",
-                    kind=MemoryOperationKind.HEALTH_CHECK.value,
-                    status=MemoryOperationStatus.SUCCESS.value,
-                    occurred_at=datetime.now(UTC),
-                    title="memory_health",
-                    description="Current health score was computed for the visible memory spaces.",
-                    source="memory_manager",
-                )
-            )
-
-        events.sort(key=lambda item: item.occurred_at, reverse=True)
-        return events[:10]
+        return items[:_GOVERNANCE_LIMIT]
 
     def _build_vector_persistence(
         self,
@@ -767,51 +326,18 @@ class MemoryCommandCenterService:
                 func.count(SharedContextBindingModel.id),
             ).group_by(SharedContextBindingModel.context_id)
         )
-        counts: dict[str, int] = {}
-        for context_id, count in result.all():
-            counts[str(context_id)] = int(count or 0)
-        return counts
+        return {str(context_id): int(count or 0) for context_id, count in result.all()}
 
-    async def _count_rows(self, statement: Select[tuple[int]]) -> int:
+    async def _count_rows(self, statement: Select[int]) -> int:
         result = await self._db.execute(statement)
         return int(result.scalar_one() or 0)
 
     @staticmethod
-    def _ledger_event_to_timeline(
-        row: MemoryOperationEventModel,
-    ) -> MemoryCommandTimelineEvent:
-        return MemoryCommandTimelineEvent(
-            id=row.id,
-            kind=row.kind,
-            status=row.status,
-            occurred_at=row.occurred_at,
-            title=row.memory_type or row.kind,
-            description=row.summary,
-            source=row.source or "memory_operation_ledger",
-            memory_type=row.memory_type,
-            namespace=row.namespace,
-            target_kind=row.target_kind,
-            target_id=row.target_id,
-            influence_count=len(row.influence_refs_json or []),
-            metadata=_coerce_timeline_metadata(row.metadata_json),
-        )
-
-    @staticmethod
     def _space_kind(namespace: str) -> MemorySpaceKind:
-        prefix = namespace.split(":", 1)[0]
-        if prefix == "global":
-            return MemorySpaceKind.GLOBAL
-        if prefix == "agent":
-            return MemorySpaceKind.AGENT
-        if prefix == "channel":
-            return MemorySpaceKind.CHANNEL
-        if prefix == "conversation":
-            return MemorySpaceKind.CONVERSATION
-        if prefix == "task":
-            return MemorySpaceKind.TASK
-        if prefix == "shared":
-            return MemorySpaceKind.SHARED
-        return MemorySpaceKind.UNKNOWN
+        try:
+            return MemorySpaceKind(namespace.split(":", 1)[0])
+        except ValueError:
+            return MemorySpaceKind.UNKNOWN
 
     @staticmethod
     def _space_label(namespace: str) -> str:
@@ -819,97 +345,3 @@ class MemoryCommandCenterService:
             return namespace
         kind, value = namespace.split(":", 1)
         return f"{kind} / {value}"
-
-    @staticmethod
-    def _health_status(score: int | None) -> str:
-        if score is None:
-            return "unknown"
-        if score >= 80:
-            return "healthy"
-        if score >= 55:
-            return "degraded"
-        return "critical"
-
-    @staticmethod
-    def _preview(content: str, *, limit: int = 160) -> str:
-        normalized = " ".join(content.split())
-        if len(normalized) <= limit:
-            return normalized
-        return f"{normalized[: limit - 1]}..."
-
-
-def _coerce_timeline_metadata(
-    value: dict[str, object] | None,
-) -> dict[str, str | int | float | bool | None]:
-    if not value:
-        return {}
-    result: dict[str, str | int | float | bool | None] = {}
-    for key, raw in value.items():
-        if isinstance(raw, (str, int, float, bool)) or raw is None:
-            result[str(key)] = raw
-    return result
-
-
-def _metadata_str(metadata: dict[str, str | int | float | bool | None], key: str) -> str | None:
-    value = metadata.get(key)
-    if isinstance(value, str) and value:
-        return value
-    return None
-
-
-def _metadata_int(metadata: dict[str, str | int | float | bool | None], key: str) -> int | None:
-    value = metadata.get(key)
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        return int(value)
-    return None
-
-
-def _metadata_float(metadata: dict[str, str | int | float | bool | None], key: str) -> float | None:
-    value = metadata.get(key)
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    return None
-
-
-def _first_metadata_str(events: list[MemoryCommandTimelineEvent], key: str) -> str | None:
-    for event in events:
-        value = _metadata_str(event.metadata, key)
-        if value:
-            return value
-    return None
-
-
-def _trace_step_sort_key(event: MemoryCommandTimelineEvent) -> tuple[int, datetime]:
-    step_index = _metadata_int(event.metadata, "step_index")
-    return (
-        step_index if step_index is not None else TRACE_STEP_LIMIT,
-        event.occurred_at,
-    )
-
-
-def _trace_status(status: str) -> str:
-    return status if status in TRACE_STATUSES else "warning"
-
-
-def _trace_run_status(events: list[MemoryCommandTimelineEvent]) -> str:
-    statuses = {_trace_status(event.status) for event in events}
-    if "error" in statuses:
-        return "error"
-    if "warning" in statuses:
-        return "warning"
-    if "success" in statuses:
-        return "success"
-    return "skipped"
-
-
-def _trace_run_duration_ms(events: list[MemoryCommandTimelineEvent]) -> float | None:
-    durations = [duration for event in events if (duration := _metadata_float(event.metadata, "duration_ms")) is not None]
-    if not durations:
-        return None
-    return max(durations)
