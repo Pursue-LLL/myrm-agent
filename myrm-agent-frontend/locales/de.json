@@ -14586,7 +14586,7 @@
         "scenes": {
           "memory": "Speicher",
           "workspace": "Arbeitsbereich",
-          "offload": "Auslagern"
+          "offload": "Kontext-Auslagerung"
         }
       },
       "telemetry": {

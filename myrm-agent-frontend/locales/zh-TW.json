@@ -14586,7 +14586,7 @@
         "scenes": {
           "memory": "記憶",
           "workspace": "工作區",
-          "offload": "解除安裝"
+          "offload": "上下文落盤"
         }
       },
       "telemetry": {

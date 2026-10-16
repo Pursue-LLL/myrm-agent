@@ -15261,7 +15261,7 @@
         "scenes": {
           "memory": "记忆",
           "workspace": "工作区",
-          "offload": "卸载"
+          "offload": "上下文落盘"
         }
       },
       "telemetry": {

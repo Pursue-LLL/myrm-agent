@@ -14586,7 +14586,7 @@
         "scenes": {
           "memory": "메모리",
           "workspace": "작업공간",
-          "offload": "오프로드"
+          "offload": "컨텍스트 오프로드"
         }
       },
       "telemetry": {

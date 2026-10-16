@@ -15261,7 +15261,7 @@
         "scenes": {
           "memory": "Memory",
           "workspace": "Workspace",
-          "offload": "Offload"
+          "offload": "Context offload"
         }
       },
       "telemetry": {

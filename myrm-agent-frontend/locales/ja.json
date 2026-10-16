@@ -14586,7 +14586,7 @@
         "scenes": {
           "memory": "メモリ",
           "workspace": "ワークスペース",
-          "offload": "アンインストール"
+          "offload": "コンテキスト退避"
         }
       },
       "telemetry": {
