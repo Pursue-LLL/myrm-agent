@@ -5800,7 +5800,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 服务端：配置接口去掉 `max_skills`（`app/api/skills/curator.py`）；健康探针更名为 `SkillQualityHealthDiagnostic`（`app/core/infra/health/skill_diagnostics.py:30`），只判两件事：存在失败的高频技能时 `WARN_SKILL_FAULTY`（`:140`），受豁免的故障技能达到 3 个时 `ERR_SKILL_PROTECTED_FAULTY`（`:114-118`），不再有容量判定；注册处同步改名（`app/core/infra/health/server_diagnostics.py:225`）；
 3. 前端：删除设置里的数量上限行、诊断里的库膨胀行与六种语言的相关文案；诊断「全部正常」的文案改为不再提技能数量；`lru_eviction` 保留为历史项的可读标签（旧账本行仍带这个原因）；
 4. 磁盘上的 `curator_config.json` 带着旧键 `max_skills`、`protect_system_skills` 时读取会忽略它们（`CuratorConfig.from_dict` 只读已知键），下次保存时被丢掉；
-5. 路线图 topic_08 #43 ⑥ 记为「以删除机制的方式解决」，并更正同一条目里引用了已删除代码的行号；`BUG-AGENT-2026-10-16-020` 局限 3、9 加指向本条。
+5. 路线图 topic_08 #43 ⑥ 记为「以删除机制的方式解决」，并更正同一条目里引用了已删除代码的行号；`BUG-AGENT-2026-10-16-020` 局限 3、9 加指向本条。对外的竞品对比文档（`myrm-agent-brand/myrm-docs/docs/getting-started/competitor-comparison.mdx` 与 `docs/zh/` 下同名文件）里「活跃技能超过 50 个时把最久未使用的标记为过期」「技能库保持有界」的说法改为只讲按闲置清理；素材文档 `temp-docs/materials/SKILL_EVOLUTION_ADVANTAGE.md` 里的 LRU 淘汰、`max_skills` 限制、`protect_system_skills` 开关说法删除；`myrm-agent-harness/tests/_ARCH.md` 的测试说明改为生命周期与豁免规则。
 
 ### 验证
 
