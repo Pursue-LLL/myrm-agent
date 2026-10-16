@@ -69,8 +69,10 @@ _run_import_resolvability() {
     --scan app
 }
 
-# Diff mode: only server units this change leaves without a production consumer fail, so work in
-# flight elsewhere cannot block an unrelated change. An unresolvable base revision is an error.
+# Diff mode: only server units that are dead in the working tree and were not dead at the merge-base
+# fail, so units already unwired on the base branch cannot block an unrelated change. Untracked files
+# count as part of the working tree; the verdict covers committed changes only on a clean checkout (CI).
+# An unresolvable base revision is an error.
 _run_module_reachability() {
   local harness_root py
   if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
