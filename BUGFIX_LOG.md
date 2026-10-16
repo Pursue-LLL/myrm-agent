@@ -5808,10 +5808,11 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 服务端：新增 `tests/core/infra/health/test_skill_quality_diagnostic.py`（取代旧的容量探针用例）与 `tests/api/skills/test_curator_config_validation.py::test_config_written_before_the_size_limit_was_removed_still_loads`（带旧键的配置文件仍能加载）；触及的两组测试 76 与 68 通过；更宽的 `tests/core/skills`、`tests/api/skills`、`tests/core/infra/health`、`tests/integration/skills` 共 714 通过、1 跳过、14 取消选择，耗时 1208.74 秒（本机负载均值约 30–40）；触及文件 ruff 无告警，`server_diagnostics.py` 里原有的 4 条 mypy 错误顺手以类型标注修掉，触及文件的 mypy 0 错误（服务端 mypy 跟随导入共报 1157 条，均不在这些文件里）；
 3. 前端：`CuratorSections`、`CuratorSettingsPanel` 两个测试文件共 22 例通过；`verify:i18n`、`verify:theme-colors`、触及文件 prettier 与 oxlint 通过；限定到触及文件的 `tsc` 无错误；
 4. 残留检索（提交后的 HEAD）：harness 的 `src`、`tests` 里 `max_skills` 只剩提示词上限、市场仓库上限两处同名但无关的标识；`protect_system_skills`、`max_skills` 只在「旧键被忽略」的用例里出现；服务端同类用例同理；前端 `lru_eviction` 只在历史原因的类型、标签与对应用例里，其余命中都是与本机制无关的缓存与渠道去重的 LRU。
+5. 真机 E2E（`./myrm test -m chrome_e2e myrm-agent/myrm-agent-server/tests/e2e/test_curator_panel_sections_chrome_e2e.py`，附着在他人的共享开发环境，主机负载均值约 26–28）共跑 3 次，没有一次整条通过：第 1 次在桌面深色主题的文案检查失败，页面上的文案键显示为原始键路径（`settings.skills.curator.triggerManual` 等；同一页面里的相对时间正常，说明按需加载的设置文案当时没有到位；之后直接请求开发服务器的按需文案接口返回 200 且含这些键，重跑没有再出现）；第 2 次通过了桌面端深浅两套主题的全部检查（输出 `E2E_CURATOR_DESKTOP_PROBLEMS: []`，含 zh 文案逐字、转移项「已归档(超出技能数量上限)」、每个发现两个按钮、无开发标识符、对比度与视口检测），随后在 375px 手机框里等不到页签而失败（`readyState` 仍是 `interactive`，页面是应用壳与「定时任务已停止运行」提示条）；第 3 次在用例主体开始前失败（桥接未就绪，前端分块脚本各自加载 71–77 秒，同时另有一个 chrome_e2e 在跑）。
 
 ### 局限
 
-1. 真机 E2E 没有运行：`tests/e2e/test_curator_panel_sections_chrome_e2e.py` 已去掉容量相关的断言，但没有执行；收尾时本机负载均值 28.84、33.71、34.89，界面由 vitest 覆盖，没有目视检查，也没有 375px 宽度的实机验收；
+1. 真机 E2E 没有取得完整通过（见验证 5）：桌面深浅两套主题只在第 2 次通过过，375px 手机框的检查在最终代码上没有跑通，三次的失败原因都落在共享环境里的页面加载（文案未到位、页签与桥接等不到），没有看到由本次改动造成的内容差异，但也没有整条通过的证据；不能据此认定手机端没问题。手机端只有此前版本的真机通过记录（`BUG-AGENT-2026-10-15-013` 验证 6，那次包含 375px 的对比度、越界与横向滚动检测）和 vitest 支撑，本条没有改手机端的布局；界面没有目视检查；
 2. 日、韩、德、繁体中文新增的 `doctor.allHealthyDesc` 文案没有母语复核；
 3. 服务端依赖声明仍固定 `myrm-agent-harness==0.1.0rc5`（`myrm-agent-server/pyproject.toml:25`）：本次只改了本地源码，没有发布 harness；按 README 要先发布再 `./myrm harness sync-lock`，发布前按锁文件安装的环境仍是旧行为（带容量机制）；服务端本地测试跑的是本地的 harness 源码；
 4. 本机上 4 个第三方技能的归档没有动：账本区分不出自动与手动归档，不能替用户决定恢复哪些；
