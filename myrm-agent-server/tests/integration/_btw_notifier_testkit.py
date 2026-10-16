@@ -12,8 +12,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
+from myrm_agent_harness.api import InMemoryKanbanStore
 from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
-from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import (
     BoardSettings,
     KanbanBoard,

@@ -20,7 +20,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
+from myrm_agent_harness.api import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask
 
 from app.services.kanban.task_runner.worktree import (
