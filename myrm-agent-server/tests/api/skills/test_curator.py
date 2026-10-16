@@ -352,6 +352,7 @@ def test_get_skill_diagnostics(client: TestClient):
                     "call_count": 25,
                     "success_rate": 0.08,
                     "pinned": True,
+                    "bound": True,
                     "recommended_action": "unpin_and_archive",
                     "details": {},
                 }
@@ -375,9 +376,11 @@ def test_get_skill_diagnostics(client: TestClient):
         "call_count",
         "success_rate",
         "pinned",
+        "bound",
         "details",
     }
     assert data["findings"][0]["skill_name"] == "buggy_scraper"
+    assert data["findings"][0]["bound"] is True
     assert data["health_score"] == 75.0
 
 

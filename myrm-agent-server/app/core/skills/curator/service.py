@@ -19,6 +19,7 @@
 - SkillNotFoundError / SkillPinnedError: Domain errors raised by set_skill_archived
 - run_curator_sweep: Execute a curator sweep over all local skills (skills bound by agents / cron jobs, and installed skills while protection is on, are exempt)
 - get_curator_history: Read past sweep run records
+- get_skill_diagnostics: Library health report; each finding says whether an agent profile or cron job binds the skill
 - start_curator_background_task / stop_curator_background_task: Background loop lifecycle
 
 [POS]
@@ -334,9 +335,21 @@ def stop_curator_background_task() -> None:
 
 
 async def get_skill_diagnostics() -> dict[str, object]:
-    """Evaluate full skill library health and return structured Doctor Findings."""
+    """Evaluate full skill library health and return structured Doctor Findings.
+
+    Each finding carries ``bound``: an agent profile or live cron job references the skill, so the
+    sweep exempts it and archiving it would break that automation. A clean library skips the lookup.
+    """
     scan = await scan_local_skills()
-    return evaluate_skill_health_findings(scan.skills, get_curator_config()).to_dict()
+    diagnosis = evaluate_skill_health_findings(scan.skills, get_curator_config())
+    flagged = {finding.skill_name for finding in diagnosis.findings}
+    bound: frozenset[str] = frozenset()
+    if flagged:
+        bound = await bound_skill_names([skill for skill in scan.skills if skill.name in flagged])
+    return {
+        **diagnosis.to_dict(),
+        "findings": [{**finding.to_dict(), "bound": finding.skill_name in bound} for finding in diagnosis.findings],
+    }
 
 
 class SkillNotFoundError(LookupError):

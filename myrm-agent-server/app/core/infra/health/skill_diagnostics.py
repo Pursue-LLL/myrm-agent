@@ -140,7 +140,7 @@ class SkillQualityHealthDiagnostic(DiagnosticProtocol):
                     code="WARN_SKILL_FAULTY",
                     message=f"Skill health alert: {wrong_count} wrong-but-frequent skill(s) (<{config.min_success_rate:.0%} success rate).",
                     detail=detail_msg,
-                    fix_suggestion="Review skill performance in Settings -> Skills -> Curator and trigger a curation sweep.",
+                    fix_suggestion="Review the failing skills in Settings -> Skills -> Curator and fix or archive them.",
                     meta_data=meta_data,
                     metrics=metrics,
                 )

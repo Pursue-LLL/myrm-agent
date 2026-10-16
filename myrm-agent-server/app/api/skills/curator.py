@@ -314,6 +314,7 @@ class SkillDoctorFindingItem(BaseModel):
     call_count: int
     success_rate: float
     pinned: bool
+    bound: bool
     details: dict[str, object] = {}
 
 
