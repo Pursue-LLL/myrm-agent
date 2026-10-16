@@ -21050,15 +21050,12 @@
     },
     "storageGovernance": {
       "title": "Agent-Speicher- & Statusverwaltung",
-      "description": "Speicherbelegung nach Datenart einsehen, die Datenbank komprimieren, um Platz freizugeben, und Zustandssnapshots verwalten, die sich mit einem Klick wiederherstellen lassen.",
+      "description": "Speicherbelegung nach Datenart einsehen und Zustandssnapshots verwalten, die sich mit einem Klick wiederherstellen lassen.",
       "totalAgentStateSize": "Gesamter Agent-Status-Speicher",
-      "healthyGrowth": "Speicherwachstum liegt im normalen Bereich",
-      "growthWarning": "Der Speicherverbrauch ist hoch. Die Aufschlüsselung unten zeigt, welche Daten am meisten Platz belegen.",
       "diskSpaceOverview": "Host-Festplattenübersicht",
       "freeDisk": "Verfügbar: {free}",
       "totalDisk": "Gesamt: {total}",
       "categoriesBreakdown": "Belegung nach Kategorie",
-      "compactDatabase": "Datenbank komprimieren",
       "filesCount": "{count, plural, one {# Datei} other {# Dateien}}",
       "categories": {
         "sqlite_database": "Chat- & Einstellungsdatenbank",
@@ -21070,10 +21067,6 @@
         "snapshots": "Zustandssnapshots",
         "other": "Sonstiges"
       },
-      "compactionSuccessTitle": "Komprimierung abgeschlossen",
-      "compactionSuccessDesc": "Datenbank komprimiert, {freed} zurückgewonnen.",
-      "compactionFailedTitle": "Komprimierung fehlgeschlagen",
-      "compactionFailedDesc": "Die Datenbank konnte nicht komprimiert werden. Bitte später erneut versuchen.",
       "snapshotsAndRollback": "Zustandssnapshots & Rollback",
       "snapshotsDesc": "Erstellen Sie vor Upgrades unveränderliche Zustandssnapshots für sofortige Wiederherstellung.",
       "snapshotLabelPlaceholder": "Snapshot-Bezeichnung (z. B. Backup vor Upgrade)",

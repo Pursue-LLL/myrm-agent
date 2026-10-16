@@ -21749,15 +21749,12 @@
     },
     "storageGovernance": {
       "title": "Agent 持久化存储与状态治理",
-      "description": "查看各类数据占用的存储空间，压缩数据库以回收空间，并管理可一键恢复的状态快照。",
+      "description": "查看各类数据占用的存储空间，并管理可一键恢复的状态快照。",
       "totalAgentStateSize": "Agent 状态库总占用",
-      "healthyGrowth": "存储增长处于健康区间",
-      "growthWarning": "存储占用偏高，可在下方查看各类数据分别占用了多少。",
       "diskSpaceOverview": "宿主磁盘空间概览",
       "freeDisk": "剩余可用：{free}",
       "totalDisk": "总容量：{total}",
       "categoriesBreakdown": "按类别查看占用",
-      "compactDatabase": "压缩数据库",
       "filesCount": "{count, plural, one {# 个文件} other {# 个文件}}",
       "categories": {
         "sqlite_database": "对话与设置数据库",
@@ -21769,10 +21766,6 @@
         "snapshots": "状态快照",
         "other": "其他"
       },
-      "compactionSuccessTitle": "存储压缩完成",
-      "compactionSuccessDesc": "数据库已压缩，回收 {freed}。",
-      "compactionFailedTitle": "存储压缩失败",
-      "compactionFailedDesc": "无法压缩数据库，请稍后重试。",
       "snapshotsAndRollback": "状态快照与一键回滚",
       "snapshotsDesc": "在重大升级或 Skill 行为变更前创建不可变状态快照，故障时可秒级恢复至上一检查点。",
       "snapshotLabelPlaceholder": "快照说明 (如：升级前备份)",

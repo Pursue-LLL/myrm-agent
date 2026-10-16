@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 包入口 | 模块导出与初始化 | ✅ |
-| `storage_service.py` | 核心 | 存储目录容量探针、SQLite 数据三元组拆解、安全热备份及异步全量优化执行 | ✅ |
+| `storage_service.py` | 核心 | 优化前的磁盘余量预检、SQLite 数据三元组拆解、安全热备份及异步全量优化执行 | ✅ |
 | `checkpoint_history_service.py` | 核心 | 检查点历史回收的定时入口：对进程级 checkpointer 执行一次 keep-latest 剪枝（LangGraph 每步写一份全量检查点、恢复只读各会话最新一份，历史只增不减）；checkpointer 不支持剪枝（内存模式）时静默跳过，失败只记 WARNING、下个周期续做，从不向调度器抛错 | ✅ |
 | `support_bundle_service.py` | 核心 | 结构化系统诊断信息聚合与内存 ZIP 归档生成（带双重脱敏、超时保护与体积熔断） | ✅ |
 | `takeout_service.py` | 核心 | 用户个人全量数据资产（SQLite 数据库事务快照、Markdown Wiki、自定义技能、工件产物）标准化便携 Takeout 打包服务 | ✅ |

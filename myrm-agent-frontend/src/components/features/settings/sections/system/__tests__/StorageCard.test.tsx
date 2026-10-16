@@ -60,7 +60,6 @@ function makeStorageResponse() {
       disk_total_bytes: 1024 * 1024 * 1024 * 10,
       disk_used_bytes: 1024 * 1024 * 1024 * 2,
       disk_free_bytes: 1024 * 1024 * 1024 * 8,
-      subdirs: [{ name: 'data.db', bytes: 1024 * 1024 * 50 }],
       db_breakdown: {
         main_db_bytes: 1024 * 1024 * 40,
         wal_bytes: 1024 * 1024 * 9,

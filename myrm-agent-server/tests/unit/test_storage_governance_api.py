@@ -10,11 +10,10 @@ import pytest
 from app.api.system.router import (
     create_state_snapshot,
     delete_state_snapshot,
-    execute_storage_compaction,
     get_storage_governance_report,
     restore_state_snapshot,
 )
-from app.api.system.schemas import CreateSnapshotRequest, StorageCompactionRequest
+from app.api.system.schemas import CreateSnapshotRequest
 
 
 def _create_database(path: Path) -> None:
@@ -48,15 +47,6 @@ def test_governance_report_attributes_the_checkpoint_database(state_dir: Path) -
     assert len(report.categories) == 7
     checkpoints = next(c for c in report.categories if c.category == "checkpoints")
     assert checkpoints.bytes == (state_dir / "checkpoints.db").stat().st_size > 0
-    assert isinstance(report.is_growth_healthy, bool)
-
-
-def test_compaction_reports_the_state_database_it_compacted(state_dir: Path) -> None:
-    comp_res = execute_storage_compaction(StorageCompactionRequest(incremental_pages=100))
-
-    assert comp_res.success is True
-    assert comp_res.wal_truncated is True
-    assert comp_res.initial_bytes == (state_dir / "data.db").stat().st_size
 
 
 def test_state_snapshot_handlers_round_trip(state_dir: Path) -> None:

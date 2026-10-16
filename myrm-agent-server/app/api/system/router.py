@@ -34,8 +34,6 @@ from app.api.system.schemas import (
     SnapshotActionResponse,
     StateSnapshotItem,
     StorageCategoryItem,
-    StorageCompactionRequest,
-    StorageCompactionResponse,
     StorageGovernanceReportResponse,
     StorageInfoResponse,
     StorageOptimizePreflightResponse,
@@ -53,7 +51,6 @@ from app.platform_utils.sandbox.entitlements.entitlement_guard import (
 )
 from app.services.system.storage_service import (
     check_storage_preflight,
-    dir_size_bytes,
     execute_storage_optimization,
     get_sqlite_breakdown,
 )
@@ -108,9 +105,6 @@ async def get_local_network(
 # Storage Info & Database Optimization
 # ---------------------------------------------------------------------------
 
-_dir_size_bytes = dir_size_bytes
-_get_sqlite_breakdown = get_sqlite_breakdown
-
 
 @router.get("/storage", response_model=StorageInfoResponse)
 def get_storage_info() -> StorageInfoResponse:
@@ -123,24 +117,12 @@ def get_storage_info() -> StorageInfoResponse:
     except OSError:
         usage = shutil.disk_usage(Path.home())
 
-    subdir_names = ["qdrant", "harness", "event_logs", "memory"]
-    subdirs = [
-        {"name": name, "bytes": dir_size_bytes(data_dir / name)}
-        for name in subdir_names
-        if (data_dir / name).exists()
-    ]
-
-    db_breakdown = get_sqlite_breakdown(data_dir)
-    if db_breakdown.total_bytes > 0:
-        subdirs.insert(0, {"name": "data.db", "bytes": db_breakdown.total_bytes})
-
     return StorageInfoResponse(
         data_dir=str(data_dir),
         disk_total_bytes=usage.total,
         disk_used_bytes=usage.used,
         disk_free_bytes=usage.free,
-        subdirs=subdirs,
-        db_breakdown=db_breakdown,
+        db_breakdown=get_sqlite_breakdown(data_dir),
     )
 
 
@@ -402,13 +384,13 @@ async def export_personal_data_takeout(
 
 
 # ---------------------------------------------------------------------------
-# Storage Governance & Compaction Suite
+# Storage Governance & Restore Points
 # ---------------------------------------------------------------------------
 
 
 @router.get("/storage/governance", response_model=StorageGovernanceReportResponse)
 def get_storage_governance_report() -> StorageGovernanceReportResponse:
-    """Return detailed multi-dimensional storage breakdown and governance insights."""
+    """Return the space ledger of the instance's persistent state, by category, with its restore points."""
     from myrm_agent_harness.observability.storage_governance import (
         StateSnapshotManager,
         StorageGovernanceInspector,
@@ -429,11 +411,9 @@ def get_storage_governance_report() -> StorageGovernanceReportResponse:
         categories=[
             StorageCategoryItem(
                 category=c.category.value,
-                display_name=c.display_name,
                 bytes=c.bytes,
                 item_count=c.item_count,
                 percentage=c.percentage,
-                details=c.details,
             )
             for c in report.categories
         ],
@@ -448,34 +428,7 @@ def get_storage_governance_report() -> StorageGovernanceReportResponse:
             )
             for s in report.snapshots
         ],
-        recommended_actions=report.recommended_actions,
-        is_growth_healthy=report.is_growth_healthy,
         generated_at=report.generated_at,
-    )
-
-
-@router.post("/storage/compaction", response_model=StorageCompactionResponse)
-def execute_storage_compaction(
-    req: StorageCompactionRequest,
-) -> StorageCompactionResponse:
-    """Compact the state database: truncate its WAL and reclaim free pages."""
-    from myrm_agent_harness.observability.storage_governance import (
-        StateStorageCompactor,
-    )
-
-    settings = get_settings()
-    data_dir = Path(settings.database.state_dir)
-    compactor = StateStorageCompactor(data_dir)
-    result = compactor.compact(incremental_pages=req.incremental_pages)
-
-    return StorageCompactionResponse(
-        success=result.success,
-        initial_bytes=result.initial_bytes,
-        final_bytes=result.final_bytes,
-        freed_bytes=result.freed_bytes,
-        wal_truncated=result.wal_truncated,
-        duration_ms=result.duration_ms,
-        message=result.message,
     )
 
 

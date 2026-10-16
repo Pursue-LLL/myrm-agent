@@ -45,7 +45,16 @@ vi.mock('@/services/system', () => ({
   },
 }));
 
-function makeStorageResponse() {
+const POPULATED_DB_BREAKDOWN = {
+  main_db_bytes: 1024 * 1024 * 350,
+  wal_bytes: 1024 * 1024 * 140,
+  shm_bytes: 1024 * 1024 * 10,
+  total_bytes: 1024 * 1024 * 500,
+};
+
+const EMPTY_DB_BREAKDOWN = { main_db_bytes: 0, wal_bytes: 0, shm_bytes: 0, total_bytes: 0 };
+
+function makeStorageResponse(dbBreakdown = POPULATED_DB_BREAKDOWN) {
   return {
     ok: true,
     json: async () => ({
@@ -53,16 +62,7 @@ function makeStorageResponse() {
       disk_total_bytes: 1024 * 1024 * 1024 * 20,
       disk_used_bytes: 1024 * 1024 * 1024 * 5,
       disk_free_bytes: 1024 * 1024 * 1024 * 15,
-      subdirs: [
-        { name: 'data.db', bytes: 1024 * 1024 * 500 }, // 500 MB
-        { name: 'qdrant', bytes: 1024 * 1024 * 100 },
-      ],
-      db_breakdown: {
-        main_db_bytes: 1024 * 1024 * 350,
-        wal_bytes: 1024 * 1024 * 140,
-        shm_bytes: 1024 * 1024 * 10,
-        total_bytes: 1024 * 1024 * 500,
-      },
+      db_breakdown: dbBreakdown,
     }),
   } as Response;
 }
@@ -73,11 +73,22 @@ describe('StorageCard - Database Optimization Flow', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStorageResponse()));
   });
 
-  it('renders database optimize button when data.db exists in storage subdirs', async () => {
+  it('renders database optimize button when the instance database holds data', async () => {
     render(<StorageCard onDataDirChange={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText('storageOptimizeTitle')).toBeInTheDocument();
     });
+  });
+
+  it('offers no database optimization before the instance database holds any data', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStorageResponse(EMPTY_DB_BREAKDOWN)));
+
+    render(<StorageCard onDataDirChange={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('/Users/test/.myrm')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('storageOptimizeTitle')).not.toBeInTheDocument();
   });
 
   it('triggers preflight check and displays breakdown when optimize button clicked', async () => {

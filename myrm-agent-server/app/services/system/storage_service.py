@@ -32,11 +32,6 @@ class DatabaseStorageBreakdown(BaseModel):
     total_bytes: int
 
 
-class SubdirUsage(BaseModel):
-    name: str
-    bytes: int
-
-
 class StorageOptimizePreflightData(BaseModel):
     data_dir: str
     db_breakdown: DatabaseStorageBreakdown
@@ -46,20 +41,6 @@ class StorageOptimizePreflightData(BaseModel):
     active_background_jobs: int
     is_safe_to_optimize: bool
     reason: str | None = None
-
-
-def dir_size_bytes(path: Path) -> int:
-    """Recursively sum file sizes under *path*. Returns 0 if path doesn't exist."""
-    if not path.is_dir():
-        return 0
-    total = 0
-    for entry in path.rglob("*"):
-        if entry.is_file():
-            try:
-                total += entry.stat().st_size
-            except OSError:
-                pass
-    return total
 
 
 def get_sqlite_breakdown(data_dir: Path) -> DatabaseStorageBreakdown:

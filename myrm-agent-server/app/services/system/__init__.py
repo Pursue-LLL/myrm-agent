@@ -1,7 +1,7 @@
 """System management, diagnostics, and technical support bundle services.
 
 [INPUT]
-- .storage_service::DatabaseStorageBreakdown, StorageOptimizePreflightData, SubdirUsage, check_storage_preflight, dir_size_bytes, execute_storage_optimization, get_sqlite_breakdown, perform_sqlite_backup
+- .storage_service::DatabaseStorageBreakdown, StorageOptimizePreflightData, check_storage_preflight, execute_storage_optimization, get_sqlite_breakdown, perform_sqlite_backup
 - .support_bundle_service::SupportBundleService
 - .takeout_service::UserTakeoutService
 
@@ -15,9 +15,7 @@ Subsystem facade exporting storage governance, support bundle generation, and us
 from app.services.system.storage_service import (
     DatabaseStorageBreakdown,
     StorageOptimizePreflightData,
-    SubdirUsage,
     check_storage_preflight,
-    dir_size_bytes,
     execute_storage_optimization,
     get_sqlite_breakdown,
     perform_sqlite_backup,
@@ -34,11 +32,9 @@ __all__ = [
     "SafeVaultPurgeResult",
     "SafeVaultPurgeService",
     "StorageOptimizePreflightData",
-    "SubdirUsage",
     "SupportBundleService",
     "UserTakeoutService",
     "check_storage_preflight",
-    "dir_size_bytes",
     "execute_storage_optimization",
     "get_sqlite_breakdown",
     "perform_sqlite_backup",

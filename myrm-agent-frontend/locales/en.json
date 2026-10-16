@@ -21749,15 +21749,12 @@
     },
     "storageGovernance": {
       "title": "Agent Storage & State Governance",
-      "description": "See what is using your storage, compact the database to reclaim space, and manage state snapshots you can restore with one click.",
+      "description": "See what is using your storage and manage state snapshots you can restore with one click.",
       "totalAgentStateSize": "Agent State Storage",
-      "healthyGrowth": "Storage growth is within healthy limits",
-      "growthWarning": "Storage use is high. See the breakdown below for what takes the most space.",
       "diskSpaceOverview": "Host Disk Overview",
       "freeDisk": "Available: {free}",
       "totalDisk": "Total: {total}",
       "categoriesBreakdown": "Storage by Category",
-      "compactDatabase": "Compact Database",
       "filesCount": "{count, plural, one {# file} other {# files}}",
       "categories": {
         "sqlite_database": "Chats & settings database",
@@ -21769,10 +21766,6 @@
         "snapshots": "State snapshots",
         "other": "Other"
       },
-      "compactionSuccessTitle": "Compaction Complete",
-      "compactionSuccessDesc": "Database compacted. {freed} reclaimed.",
-      "compactionFailedTitle": "Compaction Failed",
-      "compactionFailedDesc": "The database could not be compacted. Try again later.",
       "snapshotsAndRollback": "State Snapshots & Rollback",
       "snapshotsDesc": "Create immutable state snapshots prior to major upgrades or skill behavioral changes for instant rollback.",
       "snapshotLabelPlaceholder": "Snapshot label (e.g. Pre-upgrade backup)",

@@ -7,6 +7,17 @@ export type IngressRequirementSnapshot = {
   channels: Record<string, 'outbound' | 'inbound'>;
 };
 
+/** What the storage ledger attributes space to; the governance card carries one localized label per key. */
+export type StorageCategoryKey =
+  | 'sqlite_database'
+  | 'checkpoints'
+  | 'workspaces'
+  | 'vector_store'
+  | 'memory_archive'
+  | 'event_logs'
+  | 'snapshots'
+  | 'other';
+
 export const systemService = {
   /**
    * Get the computed public ingress base URL.
@@ -54,12 +65,10 @@ export const systemService = {
     disk_free_bytes: number;
     disk_used_percentage: number;
     categories: Array<{
-      category: string;
-      display_name: string;
+      category: StorageCategoryKey;
       bytes: number;
       item_count: number;
       percentage: number;
-      details: Record<string, number>;
     }>;
     snapshots: Array<{
       snapshot_id: string;
@@ -69,26 +78,9 @@ export const systemService = {
       checksum: string;
       file_count: number;
     }>;
-    recommended_actions: string[];
-    is_growth_healthy: boolean;
     generated_at: string;
   }> {
     return apiRequest(`/system/storage/governance?t=${Date.now()}`);
-  },
-
-  async executeStorageCompaction(options?: { incremental_pages?: number }): Promise<{
-    success: boolean;
-    initial_bytes: number;
-    final_bytes: number;
-    freed_bytes: number;
-    wal_truncated: boolean;
-    duration_ms: number;
-    message: string;
-  }> {
-    return apiRequest('/system/storage/compaction', {
-      method: 'POST',
-      body: JSON.stringify({ incremental_pages: options?.incremental_pages ?? 500 }),
-    });
   },
 
   async createStateSnapshot(label: string): Promise<{

@@ -67,7 +67,6 @@ describe('useWorkbenchRetentionSummary & WorkbenchRetentionSection', () => {
           disk_total_bytes: 100 * 1024 * 1024 * 1024,
           disk_used_bytes: 20 * 1024 * 1024 * 1024,
           disk_free_bytes: 80 * 1024 * 1024 * 1024,
-          subdirs: [],
         };
       }
       throw new Error(`Unexpected path: ${path}`);
@@ -171,7 +170,6 @@ describe('useWorkbenchRetentionSummary & WorkbenchRetentionSection', () => {
           disk_total_bytes: 1000,
           disk_used_bytes: 500,
           disk_free_bytes: 500,
-          subdirs: [],
         };
       }
       return {};

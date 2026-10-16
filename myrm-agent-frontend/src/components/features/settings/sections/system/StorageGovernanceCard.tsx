@@ -3,12 +3,12 @@
 /**
  * [INPUT]
  * - next-intl::useTranslations (POS: i18n support)
- * - @/services/system::systemService (POS: Storage governance & compaction APIs)
+ * - @/services/system::systemService (POS: Storage governance APIs)
  * - @/components/features/icons/PremiumIcons (POS: Standard premium UI icons)
  *
  * [OUTPUT]
- * - StorageGovernanceCard: Settings card for user-readable database/storage decomposition,
- *   compaction triggers, and point-in-time snapshot/rollback management.
+ * - StorageGovernanceCard: Settings card for the user-readable space ledger of the instance's data
+ *   and point-in-time snapshot/rollback management.
  *
  * [POS]
  * Settings -> Developer Center -> Import/Export -> Storage Governance Panel.
@@ -25,30 +25,16 @@ import {
   IconHardDrive,
   IconLoader,
   IconRotateCcw,
-  IconShieldCheck,
   IconTrash,
-  IconWrench,
   IconCheck,
 } from '@/components/features/icons/PremiumIcons';
 import { toast } from '@/hooks/shared/useToast';
-import { systemService } from '@/services/system';
+import { systemService, type StorageCategoryKey } from '@/services/system';
 
 type StorageReport = Awaited<ReturnType<typeof systemService.getStorageGovernanceReport>>;
 
-// Categories the backend reports; each has a localized label, anything newer falls back to its display_name.
-const LOCALIZED_CATEGORIES: ReadonlySet<string> = new Set([
-  'sqlite_database',
-  'checkpoints',
-  'workspaces',
-  'vector_store',
-  'memory_archive',
-  'event_logs',
-  'snapshots',
-  'other',
-]);
-
 // A database category is a database file plus its log, so only directory categories have a file count worth showing.
-const DATABASE_CATEGORIES: ReadonlySet<string> = new Set(['sqlite_database', 'checkpoints']);
+const DATABASE_CATEGORIES: ReadonlySet<StorageCategoryKey> = new Set(['sqlite_database', 'checkpoints']);
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) {
@@ -68,47 +54,21 @@ function toastFailure(title: string, description: string): void {
 export const StorageGovernanceCard = memo(() => {
   const t = useTranslations('settings.storageGovernance');
   const [report, setReport] = useState<StorageReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [compacting, setCompacting] = useState(false);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [snapshotLabel, setSnapshotLabel] = useState('');
   const [restoringSnapshotId, setRestoringSnapshotId] = useState<string | null>(null);
 
   const fetchReport = useCallback(async () => {
     try {
-      setLoading(true);
-      const data = await systemService.getStorageGovernanceReport();
-      setReport(data);
+      setReport(await systemService.getStorageGovernanceReport());
     } catch {
-      // Graceful fallback
-    } finally {
-      setLoading(false);
+      // A failed load keeps the report that is already shown.
     }
   }, []);
 
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
-
-  const handleCompact = useCallback(async () => {
-    setCompacting(true);
-    try {
-      const res = await systemService.executeStorageCompaction();
-      if (res.success) {
-        toast({
-          title: t('compactionSuccessTitle'),
-          description: t('compactionSuccessDesc', { freed: formatBytes(res.freed_bytes) }),
-        });
-        await fetchReport();
-      } else {
-        toastFailure(t('compactionFailedTitle'), t('compactionFailedDesc'));
-      }
-    } catch {
-      toastFailure(t('compactionFailedTitle'), t('compactionFailedDesc'));
-    } finally {
-      setCompacting(false);
-    }
-  }, [fetchReport, t]);
 
   const handleCreateSnapshot = useCallback(async () => {
     if (!snapshotLabel.trim()) {
@@ -182,24 +142,13 @@ export const StorageGovernanceCard = memo(() => {
       <div className="space-y-6">
         {/* Total Usage & Disk Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-border/40 bg-background/50 p-4 space-y-2">
+          <div className="rounded-xl border border-border/40 bg-background/50 p-4 space-y-2 flex flex-col justify-center">
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
               <IconDatabase className="w-4 h-4 text-primary" />
               {t('totalAgentStateSize')}
             </div>
             <div className="text-2xl font-bold tracking-tight">
               {report ? formatBytes(report.total_storage_bytes) : '...'}
-            </div>
-            <div className="min-h-4 text-xs text-muted-foreground">
-              {report &&
-                (report.is_growth_healthy ? (
-                  <span className="text-emerald-500 font-medium inline-flex items-center gap-1">
-                    <IconShieldCheck className="w-3.5 h-3.5" />
-                    {t('healthyGrowth')}
-                  </span>
-                ) : (
-                  <span className="text-warning font-medium">{t('growthWarning')}</span>
-                ))}
             </div>
           </div>
 
@@ -221,23 +170,7 @@ export const StorageGovernanceCard = memo(() => {
 
         {/* Breakdown by Category */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold">{t('categoriesBreakdown')}</h4>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCompact}
-              disabled={compacting || loading}
-              className="gap-1.5 text-xs h-8"
-            >
-              {compacting ? (
-                <IconLoader className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <IconWrench className="w-3.5 h-3.5" />
-              )}
-              {t('compactDatabase')}
-            </Button>
-          </div>
+          <h4 className="text-sm font-semibold">{t('categoriesBreakdown')}</h4>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {report?.categories.map((cat) => (
@@ -247,7 +180,7 @@ export const StorageGovernanceCard = memo(() => {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-foreground truncate">
-                    {LOCALIZED_CATEGORIES.has(cat.category) ? t(`categories.${cat.category}`) : cat.display_name}
+                    {t(`categories.${cat.category}`)}
                   </span>
                   <span className="text-xs font-semibold">{formatBytes(cat.bytes)}</span>
                 </div>

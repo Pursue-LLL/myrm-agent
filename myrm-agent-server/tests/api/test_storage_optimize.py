@@ -66,11 +66,6 @@ async def test_get_storage_info_with_sqlite_breakdown(tmp_path: Path, monkeypatc
         assert breakdown["shm_bytes"] == len(b"shm-bytes-padding")
         assert breakdown["total_bytes"] == (breakdown["main_db_bytes"] + breakdown["wal_bytes"] + breakdown["shm_bytes"])
 
-        # Check subdirs has data.db with total triplet bytes
-        data_db_sub = next((s for s in data["subdirs"] if s["name"] == "data.db"), None)
-        assert data_db_sub is not None
-        assert data_db_sub["bytes"] == breakdown["total_bytes"]
-
 
 @pytest.mark.asyncio
 async def test_optimize_storage_preflight_safe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

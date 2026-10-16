@@ -21050,15 +21050,12 @@
     },
     "storageGovernance": {
       "title": "Agent 스토리지 및 상태 거버넌스",
-      "description": "데이터 종류별 저장 공간 사용량을 확인하고, 데이터베이스를 압축해 공간을 회수하며, 한 번에 복원할 수 있는 상태 스냅샷을 관리합니다.",
+      "description": "데이터 종류별 저장 공간 사용량을 확인하고, 한 번에 복원할 수 있는 상태 스냅샷을 관리합니다.",
       "totalAgentStateSize": "Agent 상태 스토리지 총 크기",
-      "healthyGrowth": "스토리지 증가가 정상 범위 내에 있습니다",
-      "growthWarning": "저장 공간 사용량이 많습니다. 아래 분류별 사용량에서 공간을 가장 많이 차지하는 데이터를 확인하세요.",
       "diskSpaceOverview": "호스트 디스크 개요",
       "freeDisk": "여유 공간: {free}",
       "totalDisk": "총 용량: {total}",
       "categoriesBreakdown": "카테고리별 사용량",
-      "compactDatabase": "데이터베이스 압축",
       "filesCount": "{count, plural, one {파일 #개} other {파일 #개}}",
       "categories": {
         "sqlite_database": "대화 및 설정 데이터베이스",
@@ -21070,10 +21067,6 @@
         "snapshots": "상태 스냅샷",
         "other": "기타"
       },
-      "compactionSuccessTitle": "압축 완료",
-      "compactionSuccessDesc": "데이터베이스를 압축하여 {freed}을(를) 회수했습니다.",
-      "compactionFailedTitle": "압축 실패",
-      "compactionFailedDesc": "데이터베이스를 압축하지 못했습니다. 나중에 다시 시도해 주세요.",
       "snapshotsAndRollback": "상태 스냅샷 및 롤백",
       "snapshotsDesc": "주요 업그레이드 또는 스킬 동작 변경 전에 불변 상태 스냅샷을 생성하여 즉시 롤백할 수 있습니다.",
       "snapshotLabelPlaceholder": "스냅샷 라벨 (예: 업그레이드 전 백업)",

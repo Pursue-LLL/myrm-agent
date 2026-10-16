@@ -21050,15 +21050,12 @@
     },
     "storageGovernance": {
       "title": "Agentストレージと状態ガバナンス",
-      "description": "データの種類ごとのストレージ使用量を確認し、データベースを圧縮して空き容量を回収し、ワンクリックで復元できる状態スナップショットを管理します。",
+      "description": "データの種類ごとのストレージ使用量を確認し、ワンクリックで復元できる状態スナップショットを管理します。",
       "totalAgentStateSize": "Agent状態ストレージの総容量",
-      "healthyGrowth": "ストレージの増加は健全な範囲内です",
-      "growthWarning": "ストレージの使用量が多くなっています。下の内訳で、容量を多く使っているデータを確認できます。",
       "diskSpaceOverview": "ホストディスクの概要",
       "freeDisk": "空き容量：{free}",
       "totalDisk": "合計容量：{total}",
       "categoriesBreakdown": "カテゴリ別の使用量",
-      "compactDatabase": "データベースを圧縮",
       "filesCount": "{count, plural, one {# 件のファイル} other {# 件のファイル}}",
       "categories": {
         "sqlite_database": "チャットと設定のデータベース",
@@ -21070,10 +21067,6 @@
         "snapshots": "状態スナップショット",
         "other": "その他"
       },
-      "compactionSuccessTitle": "圧縮が完了しました",
-      "compactionSuccessDesc": "データベースを圧縮し、{freed} を回収しました。",
-      "compactionFailedTitle": "圧縮に失敗しました",
-      "compactionFailedDesc": "データベースを圧縮できませんでした。しばらくしてからもう一度お試しください。",
       "snapshotsAndRollback": "状態スナップショットと復元",
       "snapshotsDesc": "メジャーアップグレードやスキルの動作変更前に不変の状態スナップショットを作成し、即時ロールバックを可能にします。",
       "snapshotLabelPlaceholder": "スナップショットの説明（例：アップグレード前バックアップ）",

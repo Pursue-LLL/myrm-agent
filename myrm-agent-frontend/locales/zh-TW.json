@@ -21050,15 +21050,12 @@
     },
     "storageGovernance": {
       "title": "Agent 持久化儲存與狀態治理",
-      "description": "檢視各類資料占用的儲存空間，壓縮資料庫以回收空間，並管理可一鍵復原的狀態快照。",
+      "description": "檢視各類資料占用的儲存空間，並管理可一鍵復原的狀態快照。",
       "totalAgentStateSize": "Agent 狀態庫總占用",
-      "healthyGrowth": "儲存增長處於健康區間",
-      "growthWarning": "儲存占用偏高，可在下方檢視各類資料分別占用了多少。",
       "diskSpaceOverview": "主機磁碟空間概覽",
       "freeDisk": "剩餘可用：{free}",
       "totalDisk": "總容量：{total}",
       "categoriesBreakdown": "依類別檢視占用",
-      "compactDatabase": "壓縮資料庫",
       "filesCount": "{count, plural, one {# 個檔案} other {# 個檔案}}",
       "categories": {
         "sqlite_database": "對話與設定資料庫",
@@ -21070,10 +21067,6 @@
         "snapshots": "狀態快照",
         "other": "其他"
       },
-      "compactionSuccessTitle": "儲存壓縮完成",
-      "compactionSuccessDesc": "資料庫已壓縮，回收 {freed}。",
-      "compactionFailedTitle": "儲存壓縮失敗",
-      "compactionFailedDesc": "無法壓縮資料庫，請稍後再試。",
       "snapshotsAndRollback": "狀態快照與一鍵復原",
       "snapshotsDesc": "在重大升級或 Skill 行為變更前建立不可變狀態快照，故障時可秒級復原至上一檢查點。",
       "snapshotLabelPlaceholder": "快照說明 (如：升級前備份)",

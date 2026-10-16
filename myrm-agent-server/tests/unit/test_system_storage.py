@@ -4,40 +4,14 @@ import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from app.api.system.router import StorageInfoResponse, _dir_size_bytes, get_storage_info
+from app.api.system.router import StorageInfoResponse, get_storage_info
 
 
-class TestDirSizeBytes:
-    """Tests for _dir_size_bytes helper."""
-
-    def test_nonexistent_dir(self, tmp_path: Path) -> None:
-        assert _dir_size_bytes(tmp_path / "nonexistent") == 0
-
-    def test_empty_dir(self, tmp_path: Path) -> None:
-        target = tmp_path / "empty_dir"
-        target.mkdir()
-        assert _dir_size_bytes(target) == 0
-
-    def test_single_file(self, tmp_path: Path) -> None:
-        target = tmp_path / "single_file_dir"
-        target.mkdir()
-        f = target / "test.txt"
-        f.write_bytes(b"x" * 100)
-        assert _dir_size_bytes(target) == 100
-
-    def test_nested_files(self, tmp_path: Path) -> None:
-        target = tmp_path / "nested_dir"
-        target.mkdir()
-        sub = target / "sub"
-        sub.mkdir()
-        (target / "a.txt").write_bytes(b"x" * 50)
-        (sub / "b.txt").write_bytes(b"x" * 30)
-        assert _dir_size_bytes(target) == 80
-
-    def test_file_path_returns_zero(self, tmp_path: Path) -> None:
-        f = tmp_path / "file.txt"
-        f.write_bytes(b"data")
-        assert _dir_size_bytes(f) == 0
+def _storage_info(data_dir: Path) -> StorageInfoResponse:
+    mock_settings = MagicMock()
+    mock_settings.database.state_dir = str(data_dir)
+    with patch("app.api.system.router.get_settings", return_value=mock_settings):
+        return get_storage_info()
 
 
 class TestGetStorageInfo:
@@ -47,11 +21,8 @@ class TestGetStorageInfo:
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         (data_dir / "data.db").write_bytes(b"d" * 500)
-        mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(data_dir)
 
-        with patch("app.api.system.router.get_settings", return_value=mock_settings):
-            result = get_storage_info()
+        result = _storage_info(data_dir)
 
         assert isinstance(result, StorageInfoResponse)
         assert result.data_dir == str(data_dir)
@@ -59,59 +30,29 @@ class TestGetStorageInfo:
         assert result.disk_free_bytes > 0
         assert result.disk_used_bytes > 0
 
-    def test_includes_data_db(self, tmp_path: Path) -> None:
+    def test_reports_the_state_database_with_its_log_files(self, tmp_path: Path) -> None:
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         (data_dir / "data.db").write_bytes(b"d" * 500)
-        mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(data_dir)
+        (data_dir / "data.db-wal").write_bytes(b"w" * 20)
+        (data_dir / "data.db-shm").write_bytes(b"s" * 10)
 
-        with patch("app.api.system.router.get_settings", return_value=mock_settings):
-            result = get_storage_info()
+        breakdown = _storage_info(data_dir).db_breakdown
 
-        db_entries = [s for s in result.subdirs if s.name == "data.db"]
-        assert len(db_entries) == 1
-        assert db_entries[0].bytes == 500
+        assert (breakdown.main_db_bytes, breakdown.wal_bytes, breakdown.shm_bytes) == (500, 20, 10)
+        assert breakdown.total_bytes == 530
 
-    def test_includes_existing_subdirs(self, tmp_path: Path) -> None:
-        data_dir = tmp_path / "data"
-        (data_dir / "qdrant").mkdir(parents=True)
-        (data_dir / "qdrant" / "vectors.bin").write_bytes(b"v" * 200)
-        (data_dir / "harness").mkdir(parents=True)
-        (data_dir / "data.db").write_bytes(b"d" * 500)
-        mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(data_dir)
-
-        with patch("app.api.system.router.get_settings", return_value=mock_settings):
-            result = get_storage_info()
-
-        names = [s.name for s in result.subdirs]
-        assert "qdrant" in names
-        assert "harness" in names
-
-    def test_excludes_nonexistent_subdirs(self, tmp_path: Path) -> None:
+    def test_a_data_directory_without_a_database_reports_no_database_bytes(self, tmp_path: Path) -> None:
         data_dir = tmp_path / "data"
         data_dir.mkdir()
-        mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(data_dir)
 
-        with patch("app.api.system.router.get_settings", return_value=mock_settings):
-            result = get_storage_info()
-
-        names = [s.name for s in result.subdirs]
-        assert "event_logs" not in names
-        assert "memory" not in names
+        assert _storage_info(data_dir).db_breakdown.total_bytes == 0
 
     def test_nonexistent_data_dir_uses_parent(self, tmp_path: Path) -> None:
-        fake_dir = tmp_path / "nonexistent_child"
-        mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(fake_dir)
-
-        with patch("app.api.system.router.get_settings", return_value=mock_settings):
-            result = get_storage_info()
+        result = _storage_info(tmp_path / "nonexistent_child")
 
         assert result.disk_total_bytes > 0
-        assert result.subdirs == []
+        assert result.db_breakdown.total_bytes == 0
 
     def test_is_sync_function(self) -> None:
         """Verify get_storage_info is a regular (sync) function, not async."""
