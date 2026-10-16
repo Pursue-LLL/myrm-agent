@@ -38,8 +38,6 @@ RETAINED_ON_PURPOSE = {
     "cron_jobs": "a schedule is user configuration; the chat is only its delivery target",
     "assessment_import_ledger": "project-level import dedup ledger; deleting it would allow duplicate imports",
     "risk_hits": "security audit trail",
-    "browser_runtime_records": "numeric usage ledger without content",
-    "sandbox_workload_records": "numeric usage ledger without content",
 }
 
 

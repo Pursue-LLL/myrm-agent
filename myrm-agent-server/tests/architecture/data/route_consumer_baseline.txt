@@ -90,11 +90,6 @@ POST /skills/workspace/package
 GET /skills/{skill_id}/permissions/required
 POST /skills/{skill_id}/permissions/revoke
 POST /ssh-vault/execute
-POST /statistics/browser-runtime/record
-GET /statistics/browser-runtime/summary
-POST /statistics/sandbox-workload
-POST /statistics/sandbox-workload/record
-POST /statistics/search-quotas/record
 GET /statistics/usage/radar
 GET /stt/status
 GET /system/processes/{pid}/lineage

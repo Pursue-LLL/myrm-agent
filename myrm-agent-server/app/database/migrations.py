@@ -673,6 +673,11 @@ MIGRATION_STATEMENTS: list[str] = [
     # sits in another column, where they would show a reason and a countdown for a block it no longer has.
     """UPDATE kanban_tasks SET blocked_reason = NULL, block_kind = NULL, scheduled_until = NULL
     WHERE status != 'blocked' AND (blocked_reason IS NOT NULL OR block_kind IS NOT NULL OR scheduled_until IS NOT NULL)""",
+    # The runtime-meter ledgers (search quota, browser runtime, sandbox workload) have no model, route or page:
+    # no production path ever wrote them.
+    "DROP TABLE IF EXISTS search_quota_records",
+    "DROP TABLE IF EXISTS browser_runtime_records",
+    "DROP TABLE IF EXISTS sandbox_workload_records",
 ]
 
 # 创建索引的SQL语句列表

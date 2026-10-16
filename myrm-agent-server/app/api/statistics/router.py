@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.statistics.learning_loop import router as learning_loop_router
 from app.api.statistics.learning_timeline import router as learning_timeline_router
 from app.api.statistics.prompt_cache_radar import router as prompt_cache_radar_router
-from app.api.statistics.quota_runtime_router import router as quota_runtime_router
 from app.api.statistics.session_analytics import router as session_router
 from app.api.statistics.session_model_sessions import router as model_sessions_router
 from app.api.statistics.session_trace import router as session_trace_router
@@ -39,7 +38,6 @@ router.include_router(prompt_cache_radar_router)
 router.include_router(model_sessions_router)
 router.include_router(learning_timeline_router)
 router.include_router(learning_loop_router)
-router.include_router(quota_runtime_router)
 logger = logging.getLogger(__name__)
 
 

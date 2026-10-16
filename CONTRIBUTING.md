@@ -185,7 +185,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `code_graph/` | Code repository AST symbols & call-graph indexing (CLI / internal) |
 | `artifacts/` · `deploy/` | `api/files/`, artifact pages |
 | `mascot/` | SSE from `services/agent/` stream (companion XP) |
-| `observability/` | Runtime quota metrics and meter service (`api/statistics/quota_runtime_router.py`) |
+| `observability/` | Task runtime observability services |
 | `repair/` | `api/health/` repair-action endpoints |
 | `locked_use/` | Computer Use / Tauri IPC orchestration |
 | `bitable_copilot/` | Multidimensional table copilot and field extraction engine |

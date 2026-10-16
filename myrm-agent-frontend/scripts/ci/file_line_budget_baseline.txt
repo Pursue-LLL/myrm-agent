@@ -135,7 +135,6 @@ src/components/features/settings/sections/system/ExecutionTraceTimeline.tsx
 src/components/features/settings/sections/system/HeartbeatSection.tsx
 src/components/features/settings/sections/system/KanbanSection.tsx
 src/components/features/settings/sections/system/MediaGenerationSection.tsx
-src/components/features/settings/sections/system/RuntimeCostMeterCard.tsx
 src/components/features/settings/sections/system/SecurityPolicySection.tsx
 src/components/features/settings/sections/system/SessionAnalyticsDialog.tsx
 src/components/features/settings/sections/system/SessionContextHealthPanel.tsx

@@ -1128,13 +1128,6 @@ async def _consume_stream(
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
-            total_toks = acc.usage.get("total_tokens") or (
-                acc.usage.get("prompt_tokens", 0) + acc.usage.get("completion_tokens", 0)
-            )
-            if total_toks > 0:
-                from app.services.observability.burn_rate_smoke_alarm import smoke_alarm_detector
-
-                smoke_alarm_detector.record_usage(session_id=f"cron:{job.id}", tokens=total_toks)
         elif event_type == "error":
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
@@ -1187,13 +1180,6 @@ async def _consume_dynamic_workflow_stream(
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
-            total_toks = acc.usage.get("total_tokens") or (
-                acc.usage.get("prompt_tokens", 0) + acc.usage.get("completion_tokens", 0)
-            )
-            if total_toks > 0:
-                from app.services.observability.burn_rate_smoke_alarm import smoke_alarm_detector
-
-                smoke_alarm_detector.record_usage(session_id=f"cron:{job.id}", tokens=total_toks)
         elif event_type == "error":
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
