@@ -926,11 +926,10 @@ export interface Ring1ReflectionStatus {
   sessions_in_window: number;
 }
 
-/** All-time skill-growth cases (same counters as the skill growth page) and the skills currently available. */
+/** All-time skill-growth cases (same counters as the skill growth page) and those applied automatically. */
 export interface Ring2DistillationStatus {
   cases_total: number;
   cases_auto_applied: number;
-  total_skills: number;
 }
 
 /** All-time skill-growth cases waiting for the user or stopped by the safety gate. */

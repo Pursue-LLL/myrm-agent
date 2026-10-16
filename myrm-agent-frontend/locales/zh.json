@@ -10897,7 +10897,7 @@
         "stage": "审核与安全关卡",
         "desc": "每份技能草稿都会先做安全检查。需要你决定或被拦下的案例会计入这里。",
         "metricsPending": "待审核: {count}",
-        "metricsBlocked": "被拦截或失败: {count}"
+        "metricsBlocked": "已拦截: {count}"
       },
       "ring4": {
         "name": "周期自警",
@@ -10914,7 +10914,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "越用越懂 · 五环闭环运转中",
-        "stats": "已沉淀 {memories} 条记忆 · {skills} 项技能",
+        "memoriesCount": "已沉淀 {count, plural, one {# 条记忆} other {# 条记忆}}",
         "viewLoop": "查看闭环"
       }
     },
@@ -18298,7 +18298,7 @@
           "total": "全部案例",
           "pendingReview": "待审核",
           "autoApplied": "已自动落地",
-          "blocked": "被拦截或失败"
+          "blocked": "已拦截"
         },
         "listScopeHint": "展示最新 {shown} / 共 {total} 条",
         "filters": {

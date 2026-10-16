@@ -10829,7 +10829,7 @@
         "stage": "レビューと安全ゲート",
         "desc": "スキルの下書きはまず安全チェックを通ります。あなたの判断が必要なものや止められたものがここに集計されます。",
         "metricsPending": "レビュー待ち: {count}",
-        "metricsBlocked": "ブロックまたは失敗: {count}"
+        "metricsBlocked": "ブロック済み: {count}"
       },
       "ring4": {
         "name": "周期的自己監視",
@@ -10846,7 +10846,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "共に成長するエージェント · 5環閉ループ稼働中",
-        "stats": "{memories} 件の記憶 · {skills} 件のスキル",
+        "memoriesCount": "{count, plural, one {# 件の記憶} other {# 件の記憶}}",
         "viewLoop": "学習ループを表示"
       }
     },
@@ -17599,7 +17599,7 @@
           "total": "全ケース",
           "pendingReview": "レビュー待ち",
           "autoApplied": "自動適用済み",
-          "blocked": "ブロックまたは失敗"
+          "blocked": "ブロック済み"
         },
         "listScopeHint": "{total} 件中 最新 {shown} 件を表示",
         "filters": {

@@ -45,7 +45,6 @@ MEMORIES_BY_TYPE = {
     MemoryType.CLAIM: 17,
     MemoryType.TASK_DIGEST: 19,
 }
-SKILL_COUNT = 2
 CONVERSATION_COUNT = 9
 SECONDS_PER_DAY = 86400
 # Sessions that ended inside the default 30-day window, as days before now; "spanning" and "late" end twice.
@@ -59,7 +58,7 @@ SESSION_END_DAYS_AGO = {
 
 CONTRACT_PAYLOAD = {
     "ring1_reflection": {"sessions_in_window": 5},
-    "ring2_distillation": {"cases_total": 206, "cases_auto_applied": 11, "total_skills": SKILL_COUNT},
+    "ring2_distillation": {"cases_total": 206, "cases_auto_applied": 11},
     "ring3_advancement": {"cases_pending_review": 72, "cases_blocked": 4},
     "ring4_consolidation": {"total_memories": sum(MEMORIES_BY_TYPE.values())},
     "ring5_profiling": {"conversations": CONVERSATION_COUNT, "profile_entries": MEMORIES_BY_TYPE[MemoryType.PROFILE]},
@@ -139,16 +138,6 @@ def growth_stats() -> Iterator[object]:
         yield stats
 
 
-@pytest.fixture()
-def skill_catalog() -> Iterator[object]:
-    with patch(
-        f"{LOOP_MODULE}.skills_service.list_skills",
-        autospec=True,
-        return_value=[SimpleNamespace(id=f"skill-{index}") for index in range(SKILL_COUNT)],
-    ) as list_skills:
-        yield list_skills
-
-
 async def _fetch_payload(client: AsyncClient, days: int = 30) -> dict[str, dict[str, int] | None]:
     resp = await client.get(STATUS_URL, params={"days": days})
     assert resp.status_code == 200
@@ -160,14 +149,14 @@ async def _fetch_payload(client: AsyncClient, days: int = 30) -> dict[str, dict[
 @pytest.mark.asyncio
 class TestLearningLoopContract:
     async def test_each_ring_reports_the_counters_of_its_own_source(
-        self, client, event_log_dir, memory_manager, database, growth_stats, skill_catalog, event_log_sessions
+        self, client, event_log_dir, memory_manager, database, growth_stats, event_log_sessions
     ):
         payload = await _fetch_payload(client)
 
         assert payload == CONTRACT_PAYLOAD
 
     async def test_ring1_counts_a_session_once_and_only_inside_the_requested_window(
-        self, client, event_log_sessions, memory_manager, database, growth_stats, skill_catalog
+        self, client, event_log_sessions, memory_manager, database, growth_stats
     ):
         wide = await _fetch_payload(client, days=30)
         one_day = await _fetch_payload(client, days=1)
@@ -176,7 +165,7 @@ class TestLearningLoopContract:
         assert one_day["ring1_reflection"] == {"sessions_in_window": 2}
 
     async def test_missing_event_log_dir_means_zero_sessions_not_an_unavailable_ring(
-        self, client, tmp_path, monkeypatch, memory_manager, database, growth_stats, skill_catalog
+        self, client, tmp_path, monkeypatch, memory_manager, database, growth_stats
     ):
         monkeypatch.setattr(settings.database, "event_log_dir", str(tmp_path / "absent"))
 
@@ -189,7 +178,6 @@ class TestLearningLoopContract:
         [
             ("event_log", {"ring1_reflection"}),
             ("growth_stats", {"ring2_distillation", "ring3_advancement"}),
-            ("skill_catalog", {"ring2_distillation"}),
             ("memory_manager", {"ring4_consolidation", "ring5_profiling"}),
             ("database", {"ring5_profiling"}),
             ("memory_count", {"ring4_consolidation", "ring5_profiling"}),
@@ -204,7 +192,6 @@ class TestLearningLoopContract:
         memory_manager,
         database,
         growth_stats,
-        skill_catalog,
         broken_source: str,
         unavailable_rings: set[str],
     ):
@@ -219,7 +206,6 @@ class TestLearningLoopContract:
         breakers: dict[str, Callable[[], None]] = {
             "event_log": lambda: monkeypatch.setattr(FileEventLogBackend, "get_all_session_ids", unreadable_event_log),
             "growth_stats": lambda: setattr(growth_stats, "side_effect", RuntimeError("approvals unreadable")),
-            "skill_catalog": lambda: setattr(skill_catalog, "side_effect", RuntimeError("catalog unreadable")),
             "memory_manager": lambda: app.dependency_overrides.__setitem__(get_crud_memory_manager, lambda: None),
             "database": lambda: setattr(database.execute, "side_effect", RuntimeError("database unreadable")),
             "memory_count": lambda: setattr(memory_manager.count_memories, "side_effect", count_with_unreadable_claims),
@@ -250,7 +236,7 @@ async def real_database() -> AsyncIterator[None]:
 
 @pytest.mark.asyncio
 async def test_real_rows_move_ring2_ring3_with_the_skill_growth_page_and_ring5_with_chats(
-    client, event_log_dir, memory_manager, skill_catalog, real_database
+    client, event_log_dir, memory_manager, real_database
 ):
     before = await _fetch_payload(client)
 

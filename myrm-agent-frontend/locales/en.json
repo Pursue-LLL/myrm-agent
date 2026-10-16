@@ -10897,7 +10897,7 @@
         "stage": "Review and safety gate",
         "desc": "Every skill draft is safety-checked first. Drafts that need your decision, or were stopped, are counted here.",
         "metricsPending": "Pending review: {count}",
-        "metricsBlocked": "Blocked or failed: {count}"
+        "metricsBlocked": "Blocked: {count}"
       },
       "ring4": {
         "name": "Consolidation",
@@ -10914,7 +10914,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "The Agent that Grows with You · 5-Ring Closed Loop Active",
-        "stats": "{memories} memories · {skills} skills",
+        "memoriesCount": "{count, plural, one {# memory} other {# memories}}",
         "viewLoop": "View Learning Loop"
       }
     },
@@ -18298,7 +18298,7 @@
           "total": "Total Cases",
           "pendingReview": "Pending Review",
           "autoApplied": "Auto Applied",
-          "blocked": "Blocked or Failed"
+          "blocked": "Blocked"
         },
         "listScopeHint": "Showing the latest {shown} of {total} cases",
         "filters": {

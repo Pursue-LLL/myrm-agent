@@ -10829,7 +10829,7 @@
         "stage": "稽核與安全關卡",
         "desc": "每份技能草稿都會先做安全檢查。需要你決定或被攔下的案例會計入這裡。",
         "metricsPending": "待稽核: {count}",
-        "metricsBlocked": "被攔截或失敗: {count}"
+        "metricsBlocked": "已攔截: {count}"
       },
       "ring4": {
         "name": "週期自警",
@@ -10846,7 +10846,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "越用越懂 · 五環閉環運轉中",
-        "stats": "已沉澱 {memories} 條記憶 · {skills} 項技能",
+        "memoriesCount": "已沉澱 {count, plural, one {# 條記憶} other {# 條記憶}}",
         "viewLoop": "檢視閉環"
       }
     },
@@ -17599,7 +17599,7 @@
           "total": "全部案例",
           "pendingReview": "待稽核",
           "autoApplied": "已自動落地",
-          "blocked": "被攔截或失敗"
+          "blocked": "已攔截"
         },
         "listScopeHint": "展示最新 {shown} / 共 {total} 條",
         "filters": {

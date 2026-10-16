@@ -10829,7 +10829,7 @@
         "stage": "검토 및 안전 게이트",
         "desc": "모든 스킬 초안은 먼저 안전 검사를 거칩니다. 사용자의 판단이 필요하거나 차단된 초안이 여기에 집계됩니다.",
         "metricsPending": "검토 대기: {count}",
-        "metricsBlocked": "차단됨 또는 실패: {count}"
+        "metricsBlocked": "차단됨: {count}"
       },
       "ring4": {
         "name": "주기적 자가 감시",
@@ -10846,7 +10846,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "함께 성장하는 에이전트 · 5-링 닫힌 루프 활성화됨",
-        "stats": "{memories}개 기억 · {skills}개 스킬",
+        "memoriesCount": "{count, plural, one {#개 기억} other {#개 기억}}",
         "viewLoop": "학습 루프 보기"
       }
     },
@@ -17599,7 +17599,7 @@
           "total": "최근 사례",
           "pendingReview": "검토 대기",
           "autoApplied": "자동 적용",
-          "blocked": "차단됨 또는 실패"
+          "blocked": "차단됨"
         },
         "listScopeHint": "총 {total}건 중 최신 {shown}건을 표시 중",
         "filters": {

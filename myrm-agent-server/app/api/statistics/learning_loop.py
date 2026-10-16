@@ -3,7 +3,6 @@
 - app.services.memory.manager_deps::get_crud_memory_manager (POS: 记忆管理器依赖注入)
 - app.services.memory.command_center.command_center_memory_scan::ALL_MEMORY_TYPES (POS: 指挥中心与统计共用的记忆类型清单)
 - app.services.skills.growth.queries::SkillGrowthDashboardStatsRead, summarize_skill_growth_dashboard_stats (POS: 技能成长看板计数，与成长页同源)
-- app.core.skills.store.service::skills_service (POS: 技能存储管理服务)
 - myrm_agent_harness.agent.event_log::EventFilter, FileEventLogBackend (POS: 事件日志存储与查询过滤)
 
 [OUTPUT]
@@ -33,7 +32,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
-from app.core.skills.store.service import skills_service
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models import Chat
@@ -57,11 +55,10 @@ class Ring1ReflectionStatus(BaseModel):
 
 
 class Ring2DistillationStatus(BaseModel):
-    """Ring 2: all-time skill-growth cases and the skills currently available."""
+    """Ring 2: all-time skill-growth cases and how many of them were applied automatically."""
 
     cases_total: int
     cases_auto_applied: int
-    total_skills: int
 
 
 class Ring3AdvancementStatus(BaseModel):
@@ -119,10 +116,6 @@ async def _count_recent_sessions(days: int) -> int:
     return sum(1 for events in events_per_session if events)
 
 
-async def _count_skills() -> int:
-    return len(await skills_service.list_skills())
-
-
 async def _count_conversations(db: AsyncSession) -> int:
     return (await db.execute(select(func.count(Chat.id)))).scalar_one()
 
@@ -138,7 +131,6 @@ def _assemble_status(
     *,
     sessions: int | None,
     growth: SkillGrowthDashboardStatsRead | None,
-    skills: int | None,
     memory_counts: dict[str, int] | None,
     conversations: int | None,
 ) -> LearningLoopFiveRingStatusResponse:
@@ -146,12 +138,8 @@ def _assemble_status(
     return LearningLoopFiveRingStatusResponse(
         ring1_reflection=Ring1ReflectionStatus(sessions_in_window=sessions) if sessions is not None else None,
         ring2_distillation=(
-            Ring2DistillationStatus(
-                cases_total=growth.total,
-                cases_auto_applied=growth.auto_applied,
-                total_skills=skills,
-            )
-            if growth is not None and skills is not None
+            Ring2DistillationStatus(cases_total=growth.total, cases_auto_applied=growth.auto_applied)
+            if growth is not None
             else None
         ),
         ring3_advancement=(
@@ -193,17 +181,15 @@ async def get_learning_loop_status(
     Ring 4: memories across every memory type
     Ring 5: conversations and profile memories
     """
-    sessions, growth, skills, memory_counts, conversations = await asyncio.gather(
+    sessions, growth, memory_counts, conversations = await asyncio.gather(
         _read_source("event-log sessions", _count_recent_sessions(days)),
         _read_source("skill growth stats", summarize_skill_growth_dashboard_stats()),
-        _read_source("skills", _count_skills()),
         _read_source("memory counts", _count_memories(memory_manager)),
         _read_source("conversations", _count_conversations(db)),
     )
     status = _assemble_status(
         sessions=sessions,
         growth=growth,
-        skills=skills,
         memory_counts=memory_counts,
         conversations=conversations,
     )

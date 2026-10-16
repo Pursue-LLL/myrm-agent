@@ -23,7 +23,7 @@ vi.mock('@/lib/api', () => ({ showApiError: vi.fn() }));
 
 const status: LearningLoopFiveRingStatusResponse = {
   ring1_reflection: { sessions_in_window: 4 },
-  ring2_distillation: { cases_total: 206, cases_auto_applied: 11, total_skills: 5 },
+  ring2_distillation: { cases_total: 206, cases_auto_applied: 11 },
   ring3_advancement: { cases_pending_review: 72, cases_blocked: 4 },
   ring4_consolidation: { total_memories: 40 },
   ring5_profiling: { conversations: 9, profile_entries: 3 },

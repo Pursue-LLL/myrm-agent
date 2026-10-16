@@ -10829,7 +10829,7 @@
         "stage": "Prüfung und Sicherheitsschranke",
         "desc": "Jeder Skill-Entwurf durchläuft zuerst eine Sicherheitsprüfung. Entwürfe, die Ihre Entscheidung brauchen oder gestoppt wurden, werden hier gezählt.",
         "metricsPending": "Ausstehende Prüfung: {count}",
-        "metricsBlocked": "Blockiert oder fehlgeschlagen: {count}"
+        "metricsBlocked": "Blockiert: {count}"
       },
       "ring4": {
         "name": "Periodische Selbstüberwachung",
@@ -10846,7 +10846,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "Der Agent, der mit Ihnen wächst · 5-Ringe-Closed-Loop aktiv",
-        "stats": "{memories} Erinnerungen · {skills} Skills",
+        "memoriesCount": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}",
         "viewLoop": "Lernschleife anzeigen"
       }
     },
@@ -17599,7 +17599,7 @@
           "total": "Recent Cases",
           "pendingReview": "Ausstehende Prüfung",
           "autoApplied": "Automatisch angewendet",
-          "blocked": "Blockiert oder fehlgeschlagen"
+          "blocked": "Blockiert"
         },
         "listScopeHint": "Zeigt die neuesten {shown} von {total} Fällen",
         "filters": {

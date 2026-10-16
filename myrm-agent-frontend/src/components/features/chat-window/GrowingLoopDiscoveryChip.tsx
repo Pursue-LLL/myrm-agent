@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - @/services/statistics::getLearningLoopStatus (POS: 闭环学习五环状态服务)
+ * - @/services/memory/core::getMemoryStats (POS: 记忆总数服务)
  * - next/navigation::useRouter (POS: 路由跳转)
  *
  * [OUTPUT]
@@ -10,6 +10,7 @@
  *
  * [POS]
  * 空聊天界面心智发现组件。告知用户 Agent 正在跨会话自省、提炼与进化，提供直达 /journey 的入口。
+ * 入口固定渲染，不等任何请求；记忆数只是锦上添花，读到且大于 0 才显示。
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
@@ -17,7 +18,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getLearningLoopStatus, type LearningLoopFiveRingStatusResponse } from '@/services/statistics';
+import { getMemoryStats } from '@/services/memory/core';
 
 interface GrowingLoopDiscoveryChipProps {
   className?: string;
@@ -28,18 +29,18 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
 }: GrowingLoopDiscoveryChipProps) {
   const t = useTranslations('growthDashboard.learningLoop.discoveryChip');
   const router = useRouter();
-  const [data, setData] = useState<LearningLoopFiveRingStatusResponse | null>(null);
+  const [memoriesCount, setMemoriesCount] = useState(0);
 
   useEffect(() => {
     let active = true;
-    getLearningLoopStatus()
+    getMemoryStats()
       .then((res) => {
         if (active) {
-          setData(res);
+          setMemoriesCount(res.total_memories);
         }
       })
       .catch(() => {
-        // Soft fail for discovery chip
+        // The count is decoration; the entry point stays usable without it.
       });
     return () => {
       active = false;
@@ -49,14 +50,6 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
   const handleNavigate = useCallback(() => {
     router.push('/journey');
   }, [router]);
-
-  if (!data) {
-    return null;
-  }
-
-  const memoriesCount = data.ring4_consolidation?.total_memories;
-  const skillsCount = data.ring2_distillation?.total_skills;
-  const hasCounts = memoriesCount !== undefined && skillsCount !== undefined;
 
   return (
     <button
@@ -75,9 +68,9 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
         </span>
         <span className="flex items-center gap-2 truncate text-xs">
           <span className="font-semibold text-foreground truncate">{t('growsWithYou')}</span>
-          {hasCounts && (
+          {memoriesCount > 0 && (
             <span className="hidden sm:inline text-muted-foreground font-normal truncate">
-              · {t('stats', { memories: memoriesCount, skills: skillsCount })}
+              · {t('memoriesCount', { count: memoriesCount })}
             </span>
           )}
         </span>
