@@ -62,11 +62,7 @@ logger = get_agent_logger(__name__)
 
 
 class MemoryToWikiArchiver:
-    """
-    Automatic Memory→Wiki archiving service.
-
-    Converts SessionNotes (compressed memory) into wiki articles.
-    """
+    """Automatic Memory→Wiki archiving service: converts SessionNotes (compressed memory) into wiki articles."""
 
     def __init__(
         self,
