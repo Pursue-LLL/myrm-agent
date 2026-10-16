@@ -99,8 +99,12 @@ _CATALOG_SITES_WITHOUT_A_CHAT = {"app/core/cron/adapters/post_run_verification.p
 _CATALOG_CONSUMERS = {"DatabaseSubagentCatalog", "SubagentManagementExtension"}
 
 
-def _consumer_calls_missing_the_flag() -> list[str]:
-    app_dir = Path(__file__).resolve().parents[2] / "app"
+def _passes_the_chats_flag(call: ast.Call) -> bool:
+    """True when the call hands over a computed `incognito_mode`; a literal such as `False` would defeat the guard."""
+    return any(keyword.arg == "incognito_mode" and not isinstance(keyword.value, ast.Constant) for keyword in call.keywords)
+
+
+def _consumer_calls_missing_the_flag(app_dir: Path) -> list[str]:
     missing: list[str] = []
     for source in app_dir.rglob("*.py"):
         relative = source.relative_to(app_dir.parent).as_posix()
@@ -108,11 +112,36 @@ def _consumer_calls_missing_the_flag() -> list[str]:
             continue
         for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
             is_consumer = isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _CATALOG_CONSUMERS
-            if is_consumer and "incognito_mode" not in {keyword.arg for keyword in node.keywords}:
+            if is_consumer and not _passes_the_chats_flag(node):
                 missing.append(f"{relative}:{node.lineno}")
     return missing
 
 
 def test_every_chat_bound_catalog_site_passes_the_incognito_flag() -> None:
-    """A new place that builds a catalog for a chat must decide about incognito instead of silently defaulting."""
-    assert _consumer_calls_missing_the_flag() == []
+    """A new place that builds a catalog for a chat must pass the chat's flag instead of silently defaulting."""
+    assert _consumer_calls_missing_the_flag(Path(__file__).resolve().parents[2] / "app") == []
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        "DatabaseSubagentCatalog()",
+        "DatabaseSubagentCatalog(incognito_mode=False)",
+        "SubagentManagementExtension(incognito_mode=True)",
+        "SubagentManagementExtension(**options)",
+    ],
+)
+def test_the_guard_rejects_a_missing_or_literal_flag(tmp_path: Path, call: str) -> None:
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    (app_dir / "site.py").write_text(f"{call}\n", encoding="utf-8")
+
+    assert _consumer_calls_missing_the_flag(app_dir) == ["app/site.py:1"]
+
+
+def test_the_guard_accepts_a_computed_flag(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    (app_dir / "site.py").write_text("DatabaseSubagentCatalog(incognito_mode=params.incognito_mode)\n", encoding="utf-8")
+
+    assert _consumer_calls_missing_the_flag(app_dir) == []

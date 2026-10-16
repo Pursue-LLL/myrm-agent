@@ -28,7 +28,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | `agent_params.py` | ✅ 核心 | Agent 配置参数模型定义（BaseAgentParams、GeneralAgentParams、ImageGenerationParams、VideoGenerationParams、TTSParams 等） | ✅ |
 | `personality_templates.py` | ✅ 辅助 | Personality 风格模板定义（17 种预置风格：8 实用型 + 9 趣味型，含中英双语描述、emoji、system prompt suffix）。类型定义从 `dto.PersonalityStyleLiteral` 单一数据源导入。导出 `DEFAULT_PERSONALITY_STYLE` 常量供全局引用 | ✅ |
 | `team_protocol.py` | ✅ 核心 | 团队型 Agent Leader Operating Protocol — 当 `agent_type='team'` 时，`build_leader_protocol_prompt()` 解析 `subagent_ids` 为成员名册（名称+描述），`dynamic_discovery=True` 时通过 `_resolve_roster()` 异步扫描用户全部 Agent（排除 leader 自身、无描述者、allow_discovery=False者，上限15），渲染 Leader 调度协议模板，在 Web/Channel/Cron/Kanban/Goal stream 五入口自动注入 `user_instructions` |
-| `subagent_catalog.py` | ✅ 核心 | DatabaseSubagentCatalog — SubagentCatalog Protocol 实现，解析 YAML 预设（注入 `_LLMModelResolver` 作为 ModelResolver）+ DB 自定义智能体（注入 CustomAgentFactory + display_name）。DB 自定义智能体会继承业务层保存的 `workspace_policy`，并统一映射为运行时 `SubagentConfig.workspace_policy`；同时强制 `LEAF` 控制范围和 `READ_ONLY_GLOBAL` 记忆隔离；无痕对话（构造参数 `incognito_mode`，由 `build_general_agent` 经 `SubagentManagementExtension` 与动态工作流入口各自传入）改为 `EPHEMERAL_SESSION`，子 Agent 不创建记忆管理器——委派时它的父对象是运行时 SkillAgent，读不到会话的无痕标志，只能由会话的拥有者告知目录。`_LLMModelResolver` 通过 `resolve_model_config()` 从用户 provider 配置获取完整模型配置 |
+| `subagent_catalog.py` | ✅ 核心 | DatabaseSubagentCatalog — SubagentCatalog Protocol 实现，解析 YAML 预设（注入 `_LLMModelResolver` 作为 ModelResolver）+ DB 自定义智能体（注入 CustomAgentFactory + display_name）。DB 自定义智能体会继承业务层保存的 `workspace_policy`，并统一映射为运行时 `SubagentConfig.workspace_policy`；同时强制 `LEAF` 控制范围；记忆隔离默认 `READ_ONLY_GLOBAL`，无痕对话（构造参数 `incognito_mode`，由 `build_general_agent` 经 `SubagentManagementExtension` 与动态工作流入口各自传入）则用 `EPHEMERAL_SESSION`，子 Agent 不创建记忆管理器——委派时它的父对象是运行时 SkillAgent，读不到会话的无痕标志，只能由会话的拥有者告知目录。`_LLMModelResolver` 通过 `resolve_model_config()` 从用户 provider 配置获取完整模型配置 |
 | `custom_agent_factory.py` | ✅ 核心 | CustomAgentFactory + EphemeralAgentFactory — 子 Agent 把继承的 `memory_search_tool` 重绑为自己的记忆（不继承父级 Wiki 与历史会话语料）；MCP 经 `prepare_mcp_configs_for_runtime` 与主 Agent parity；`AgentRuntimeSpec` 透传 `engine_params` / `openapi_services` / `mcp_surface_mode` | ✅ |
 | `subagent_presets.py` | ✅ 核心 | 子 Agent 配置预置（adversarial-reviewer/analysis/browser/coding/deep-audit/search/structure-planner/layout-designer/format-verifier），启动时注册 |
 | `general_agent/` | ✅ 核心 | 通用对话 Agent（配置、中间件、工具） |
@@ -87,4 +87,4 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 - 使用 `CustomAgentFactory` 构造完整 SkillAgent，保留技能、记忆、MCP 能力。
 - `workspace_policy="ISOLATED_COPY"` 时，映射为运行时 `WorkspacePolicy.ISOLATED_COPY`；否则默认继承父工作区。
 - 统一强制 `ControlScope.LEAF`，禁止递归再委派。
-- 统一强制 `MemoryIsolationPolicy.READ_ONLY_GLOBAL`，避免父子 Agent 并发污染共享记忆。
+- 记忆隔离统一为 `MemoryIsolationPolicy.READ_ONLY_GLOBAL`，避免父子 Agent 并发污染共享记忆；无痕对话用 `EPHEMERAL_SESSION`，子 Agent 不创建记忆管理器，对话不会经子 Agent 读写长期记忆。
