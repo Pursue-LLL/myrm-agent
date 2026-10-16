@@ -80,7 +80,7 @@
 | `__tests__/ClarificationInput.resumeRefusal.test.tsx` | 测试 | 续跑流式进行中卡片已关闭、输入区释放；resume 未送达时放回卡片并提示失败；超时或他端已先行处理时卡片保持关闭并提示已被处理；续跑流在同一行新发的澄清保持待答；续跑流已收尾该卡后连接中断不重开；legacy clarify API 服务端接受后才关卡 | ✅ |
 | `__tests__/ClarificationInput.answerRecord.test.tsx` | 测试 | 关卡时写入用户回答 / 被拒不留记录 / 已先行处理改写为 already_handled 记录 / 续跑流已替换的卡不动 / legacy 路径记录；结案卡片展示所答选项标签、已跳过、已超时、已被处理（含签字确认表单）与回落；被拒放回后重挂载恢复已填文本与选项，结案或已被处理后从空白开始 | ✅ |
 | `__tests__/hitlCardTestKit.ts` | 测试 | 澄清卡的回答记录 / 拒绝 / 超时测试共用的 `deferred<T>()`：把 resume 请求悬在半空，模拟「续跑仍在流式进行」，由测试决定何时成功或失败 | ✅ |
-| `__tests__/PlanConfirmationCard.lateResolve.test.tsx` | 测试 | 续跑结束后标记计划已确认；续跑流在同一行新发的计划保持待确认；流已先把同一份计划标成已确认时仍显示用户选择的「跳过」；续流无法发出时保持待确认并提示失败 | ✅ |
+| `__tests__/PlanConfirmationCard.lateResolve.test.tsx` | 测试 | 续跑结束后标记计划已确认；续跑流在同一行新发的计划保持待确认；流已先把同一份计划标成已确认时仍显示用户选择的「跳过」；续流无法发出时保持待确认并提示失败；409 时确认 / 编辑 / 跳过都落成「已在别处处理」且不弹失败提示，续跑流在同一行新发的计划不被覆盖，已处理提示不借用成功样式 | ✅ |
 | `progress-steps/` | 目录 | Agent 进度步骤渲染与子 renderers | [_ARCH.md](progress-steps/_ARCH.md) |
 
 ## 依赖

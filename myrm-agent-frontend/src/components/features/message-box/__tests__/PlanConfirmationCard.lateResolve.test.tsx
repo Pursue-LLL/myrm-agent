@@ -42,7 +42,7 @@ const waitingPlan: Message = {
 
 const planStatus = () => useChatStore.getState().messages[0]?.planConfirmation?.status;
 
-function answerPlan(button: 'confirm' | 'skip'): void {
+function answerPlan(button: 'confirm' | 'skip' | 'edit'): void {
   render(
     <PlanConfirmationCard
       messageId={MESSAGE_ID}
@@ -127,6 +127,18 @@ describe('PlanConfirmationCard resume', () => {
       expect(toast.error).not.toHaveBeenCalled();
     },
   );
+
+  it('settles an edited plan as handled elsewhere, without a failure notice, when it was already answered', async () => {
+    vi.mocked(resumePlanConfirmStream).mockRejectedValue(new ApprovalAlreadyResolvedError());
+
+    answerPlan('edit');
+    fireEvent.change(screen.getByPlaceholderText('editPlaceholder'), { target: { value: '1. Collect the budget' } });
+    fireEvent.click(screen.getByRole('button', { name: 'edit' }));
+
+    await waitFor(() => expect(planStatus()).toBe('handled'));
+    expect(resumePlanConfirmStream).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalled();
+  });
 
   it('leaves a newer plan on the row waiting when the answered plan was already handled elsewhere', async () => {
     vi.mocked(resumePlanConfirmStream).mockImplementation(async () => {
