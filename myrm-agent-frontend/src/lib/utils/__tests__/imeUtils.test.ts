@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isImeComposing, IME_CONFIRM_ENTER_WINDOW_MS } from '../imeUtils';
+import { isImeComposing, IME_CONFIRM_KEY_WINDOW_MS } from '../imeUtils';
 
 type ImeEventLike = {
   key?: string;
@@ -49,15 +49,22 @@ describe('imeUtils - isImeComposing', () => {
     expect(isImeComposing(safariConfirmEnter as unknown as React.KeyboardEvent)).toBe(true);
   });
 
+  it('swallows the Safari Escape that cancels a composition right after compositionend', () => {
+    document.dispatchEvent(new Event('compositionend'));
+
+    const safariCancelEscape: ImeEventLike = { key: 'Escape', keyCode: 27, isComposing: false };
+    expect(isImeComposing(safariCancelEscape as unknown as React.KeyboardEvent)).toBe(true);
+  });
+
   it('releases the guard once the confirm window has elapsed', () => {
     document.dispatchEvent(new Event('compositionend'));
 
     const laterEnter: ImeEventLike = { key: 'Enter', keyCode: 13, isComposing: false };
-    const afterWindow = Date.now() + IME_CONFIRM_ENTER_WINDOW_MS + 1;
+    const afterWindow = Date.now() + IME_CONFIRM_KEY_WINDOW_MS + 1;
     expect(isImeComposing(laterEnter as unknown as React.KeyboardEvent, afterWindow)).toBe(false);
   });
 
-  it('never swallows non-Enter keys inside the confirm window', () => {
+  it('never swallows keys other than Enter and Escape inside the confirm window', () => {
     document.dispatchEvent(new Event('compositionend'));
 
     const arrow: ImeEventLike = { key: 'ArrowUp', keyCode: 38, isComposing: false };

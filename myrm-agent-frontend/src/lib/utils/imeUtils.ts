@@ -8,8 +8,9 @@
  * 该 keydown 的 `isComposing` 已是 false、`keyCode` 已是 13，三个常规信号全部落空，
  * 导致「按 Enter 上屏」被误判为「按 Enter 提交」。故额外维护 compositionend 时间戳窗口。
  *
- * 按 Enter 提交的处理器遍布全站（输入框 onKeyDown、window 级监听），逐点加守卫必然在新增输入面上再漏；
- * `installImeEnterGuard` 因此在 document 捕获阶段统一拦下输入法确认候选词的 Enter，各处理器天然收不到。
+ * 输入法组合期间归输入法所有的两个键是 Enter（确认候选词）与 Escape（取消组合）。按 Enter 提交、按 Escape 关闭
+ * 的处理器遍布全站（输入框 onKeyDown、各类弹窗的 window 级监听、Radix 的 document 捕获监听、运行中任务的中止快捷键），
+ * 逐点加守卫必然在新增输入面上再漏；`installImeKeyGuard` 因此在 window 捕获阶段统一拦下这两个键，各处理器天然收不到。
  */
 
 /**
@@ -28,12 +29,15 @@ export interface KeyboardEventLike {
 }
 
 /**
- * Safari 在 compositionend 之后派发确认 keydown 的时间窗（毫秒）。
+ * Safari 在 compositionend 之后派发确认 / 取消 keydown 的时间窗（毫秒）。
  *
- * 取值参考 opencode 真机验证结论（Safari 26 + macOS 拼音/日文）：该窗口内到达的 Enter
- * 属于 IME 候选上屏，必须吞掉；超出窗口则视为用户的真实提交意图。
+ * 取值参考 opencode 真机验证结论（Safari 26 + macOS 拼音/日文）：该窗口内到达的 Enter / Escape
+ * 属于 IME 的候选上屏或取消组合，必须吞掉；超出窗口则视为用户的真实意图。
  */
-export const IME_CONFIRM_ENTER_WINDOW_MS = 100;
+export const IME_CONFIRM_KEY_WINDOW_MS = 100;
+
+/** 组合期间归输入法所有、不得再被页面当作提交或关闭的按键。 */
+const IME_OWNED_KEYS: ReadonlySet<string> = new Set(['Enter', 'Escape']);
 
 let lastCompositionEndAt = 0;
 let compositionObserverInstalled = false;
@@ -93,10 +97,10 @@ export function isImeComposing(event: KeyboardEventLike, now: number = Date.now(
     return true;
   }
 
-  // 4. Safari / WebKit 顺序倒置：compositionend 之后补发的确认 Enter 三个信号全部落空
-  if (event.key === 'Enter' && lastCompositionEndAt > 0) {
+  // 4. Safari / WebKit 顺序倒置：compositionend 之后补发的确认 Enter / 取消 Escape 三个信号全部落空
+  if (event.key !== undefined && IME_OWNED_KEYS.has(event.key) && lastCompositionEndAt > 0) {
     const elapsed = now - lastCompositionEndAt;
-    if (elapsed >= 0 && elapsed < IME_CONFIRM_ENTER_WINDOW_MS) {
+    if (elapsed >= 0 && elapsed < IME_CONFIRM_KEY_WINDOW_MS) {
       return true;
     }
   }
@@ -107,33 +111,38 @@ export function isImeComposing(event: KeyboardEventLike, now: number = Date.now(
 /** 自己处理输入法组合的编辑器：它们的按键事件必须原样送达，守卫不介入。 */
 const SELF_MANAGED_EDITOR_SELECTOR = '.monaco-editor, .cm-editor';
 
-let enterGuardInstalled = false;
+let keyGuardInstalled = false;
 
-function swallowImeConfirmEnter(event: KeyboardEvent): void {
-  if (event.key !== 'Enter' || !isImeComposing(event)) {
+function swallowImeOwnedKey(event: KeyboardEvent): void {
+  if (!IME_OWNED_KEYS.has(event.key) || !isImeComposing(event)) {
     return;
   }
   if (event.target instanceof Element && event.target.closest(SELF_MANAGED_EDITOR_SELECTOR)) {
     return;
   }
-  // 只阻断传播、不 preventDefault：浏览器对候选词上屏的默认行为不变，只是没有任何处理器把它当成「提交」。
-  event.stopPropagation();
+  // 只阻断传播、不 preventDefault：浏览器对候选词上屏 / 取消组合的默认行为不变，只是没有任何处理器把它当成「提交」或「关闭」。
+  // 必须 stopImmediatePropagation：Radix 的 Escape 监听与本守卫同在捕获链上，stopPropagation 拦不住同节点上后注册的监听。
+  event.stopImmediatePropagation();
 }
 
 /**
- * 安装 document 级捕获守卫：输入法确认候选词的 Enter 不会传给页面里的任何处理器（含 React 的 onKeyDown 与 window
- * 级监听）。判定与逐点守卫共用 `isImeComposing`，二者不会出现分歧。
+ * 安装 window 级捕获守卫：输入法确认候选词的 Enter、取消组合的 Escape 不会传给页面里的任何处理器（含 React 的
+ * onKeyDown、各类 window / document 监听，以及运行中任务的 Escape 中止快捷键）。判定与逐点守卫共用 `isImeComposing`，
+ * 二者不会出现分歧。
  *
- * 只允许一个持有者（应用根的 `ImeEnterGuardInitializer`）；已安装时再次调用是空操作。返回卸载函数。
+ * 挂在 window 而不是 document：window 上的捕获监听先于 document 上的，只有挂在最前面才拦得住 window 捕获阶段的快捷键，
+ * 所以安装方必须先于功能 hook 的 effect 注册。
+ *
+ * 只允许一个持有者（应用根的 `ImeKeyGuardInitializer`）；已安装时再次调用是空操作。返回卸载函数。
  */
-export function installImeEnterGuard(): () => void {
-  if (typeof document === 'undefined' || enterGuardInstalled) {
+export function installImeKeyGuard(): () => void {
+  if (typeof window === 'undefined' || keyGuardInstalled) {
     return () => undefined;
   }
-  enterGuardInstalled = true;
-  document.addEventListener('keydown', swallowImeConfirmEnter, true);
+  keyGuardInstalled = true;
+  window.addEventListener('keydown', swallowImeOwnedKey, true);
   return () => {
-    document.removeEventListener('keydown', swallowImeConfirmEnter, true);
-    enterGuardInstalled = false;
+    window.removeEventListener('keydown', swallowImeOwnedKey, true);
+    keyGuardInstalled = false;
   };
 }

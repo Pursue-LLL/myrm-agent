@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { IME_CONFIRM_ENTER_WINDOW_MS } from '@/lib/utils/imeUtils';
+import { IME_CONFIRM_KEY_WINDOW_MS } from '@/lib/utils/imeUtils';
 import RegenerateMenu from '../RegenerateMenu';
 
 const stableT = (key: string) => {
@@ -130,7 +130,7 @@ describe('RegenerateMenu', () => {
       fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 });
       expect(onRegenerateMock).not.toHaveBeenCalled();
 
-      await new Promise((resolve) => setTimeout(resolve, IME_CONFIRM_ENTER_WINDOW_MS + 20));
+      await new Promise((resolve) => setTimeout(resolve, IME_CONFIRM_KEY_WINDOW_MS + 20));
       fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 });
       expect(onRegenerateMock).toHaveBeenCalledWith('bonjour');
     });
