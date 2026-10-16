@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from fastapi import Request
@@ -35,7 +36,7 @@ from app.services.agent.params import (
 from app.services.agent.runtime_context import prefer_direct_agent_stream
 from app.services.agent.stream_session.chat_history_bootstrap import stream_text_content
 from app.services.agent.stream_session.reconnect import try_stream_reconnect
-from app.services.agent.stream_session.risk_gate import check_stream_risk
+from app.services.agent.stream_session.risk_gate import check_stream_risk, resume_typed_texts
 from app.services.agent.stream_session.session_reservation import ChatSessionReservation
 from app.services.agent.stream_session.stream_busy import agent_busy_streaming_response
 from app.services.agent.stream_session.stream_lane_factory import (
@@ -141,13 +142,18 @@ async def run_agent_stream(
 
     # The risk gate reads what the user typed: the spill below replaces a long paste with a stub that hides its contents.
     # The regeneration guidance is typed too and becomes a system-level instruction, so it is screened on its own; it
-    # stays out of text_content, which the spill and the size check below read and may write back into the query.
-    if request.resume_value is None:
-        for typed in (text_content, request.regenerate_instruction):
-            risk_block = await check_stream_risk(typed, request.chat_id)
-            if risk_block is not None:
-                await _record_terminal_failure_if_needed("server_error")
-                return risk_block
+    # stays out of text_content, which the spill and the size check below read and may write back into the query. A
+    # resumed run has no query: what the user typed is the reason or guidance of an approval answer.
+    typed_texts: Sequence[str | None] = (
+        (text_content, request.regenerate_instruction)
+        if request.resume_value is None
+        else resume_typed_texts(request.resume_value)
+    )
+    for typed in typed_texts:
+        risk_block = await check_stream_risk(typed, request.chat_id)
+        if risk_block is not None:
+            await _record_terminal_failure_if_needed("server_error")
+            return risk_block
 
     # Context Guard Ingress defense: transparently spill oversized prompts to sandbox workspace
     try:

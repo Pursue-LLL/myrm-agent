@@ -13,6 +13,10 @@ The scan reads the field names in ``_INSTRUCTION_FIELDS``; a text under another 
 is not found and is registered by hand. Outside the gate by design are the OpenAI-compatible ``/v1`` endpoints, whose
 callers are API-key programs with no one to read a refusal or switch a rule off, and the voice paths, which feed
 speech-to-text rather than typed text; both call ``ai_agent_service_stream`` directly.
+
+The answer to a human-in-the-loop prompt is screened where the typed text can be told from the rest: the reason and
+guidance of an approval (a resumed run in ``run_agent_stream``, and the IM ``/deny`` reason). A clarification answer, a
+human-gate answer and an edited plan mix text the agent wrote with what the user typed, so they are exemptions below.
 """
 
 from __future__ import annotations
@@ -66,6 +70,7 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("channels/routing/router.py", "_consume_loop", "hold_risky_inbound"),
     ("channels/routing/router.py", "_dispatch_resolved", "hold_risky_inbound"),
     ("channels/routing/router.py", "_handle_merged", "hold_risky_inbound"),
+    ("channels/routing/commands/router_commands_approval.py", "_handle_approval_command", "hold_risky_inbound"),
 )
 
 # Each gate is a thin wrapper that must end in the one screening entry.
@@ -78,10 +83,16 @@ _WRAPPERS: tuple[tuple[str, str], ...] = (
 _SCREEN = "screen_user_text"
 
 _FAQ_REASON = "a canned Q&A pair answered from cache by the zero-LLM FAQ interceptor before any agent runs"
+_MIXED_ANSWER_REASON = (
+    "the answer mixes the option the user picked, written by the agent or the workflow, with what the user typed, and the "
+    "server cannot tell them apart; screening it would hold a click on text the user never wrote"
+)
 
 # Request fields whose text a model goes on to follow. A write endpoint that carries one is an entry above or is listed
 # here with the reason its text is not for an agent to follow (file under app/, function) -> reason.
-_INSTRUCTION_FIELDS = frozenset({"prompt", "instruction", "intent", "objective", "goal", "message", "question"})
+_INSTRUCTION_FIELDS = frozenset(
+    {"prompt", "instruction", "intent", "objective", "goal", "message", "question", "answer", "comment", "modified_plan"}
+)
 _EXEMPT: dict[tuple[str, str], str] = {
     (
         "api/channels/bitable_copilot_router.py",
@@ -98,6 +109,19 @@ _EXEMPT: dict[tuple[str, str], str] = {
         "api/cron/routes/prerequisite.py",
         "check_prerequisite",
     ): "uses the prompt only as a lookup key to count earlier successful runs; nothing stores or sends it",
+    ("api/agents/general_agent/phase_response.py", "clarify_response"): _MIXED_ANSWER_REASON,
+    ("api/agents/general_agent/phase_response.py", "human_gate_response"): _MIXED_ANSWER_REASON,
+    (
+        "api/agents/general_agent/phase_response.py",
+        "plan_confirm_response",
+    ): "the modified plan is the plan the agent wrote with the user's edits, and the edits cannot be told from the rest",
+    (
+        "api/approvals/router.py",
+        "resolve_approval",
+    ): (
+        "the comment rides only the approval-resolved event to the UI and the owner's webhooks and no agent reads it; the "
+        "agent gets the same text from the resumed stream, which run_agent_stream screens"
+    ),
     ("api/faq/router.py", "create_entry"): _FAQ_REASON,
     ("api/faq/router.py", "update_entry"): _FAQ_REASON,
     ("api/faq/router.py", "bulk_import"): _FAQ_REASON,
