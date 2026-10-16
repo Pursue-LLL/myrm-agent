@@ -13,7 +13,6 @@ from app.ai_agents.custom_agent_factory import (
     _parent_chat_id,
     _parent_memory_search_flags,
     _rebind_subagent_memory_search_tool,
-    _without_legacy_conversation_search_tool,
 )
 
 
@@ -296,14 +295,6 @@ def test_parent_chat_id_falls_back_to_session_id() -> None:
     parent = SimpleNamespace(_last_context={"session_id": "session-456"})
 
     assert _parent_chat_id(parent) == "session-456"
-
-
-def test_without_legacy_conversation_search_tool_removes_parent_tool() -> None:
-    tools = [SimpleNamespace(name="conversation_search_tool"), SimpleNamespace(name="bash")]
-
-    filtered = _without_legacy_conversation_search_tool(tools)
-
-    assert [tool.name for tool in filtered] == ["bash"]
 
 
 def test_parent_memory_search_flags_respects_opt_in_and_incognito() -> None:

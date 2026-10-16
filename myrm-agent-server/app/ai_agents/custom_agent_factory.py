@@ -95,12 +95,6 @@ def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[s
     return filtered
 
 
-def _without_legacy_conversation_search_tool(tools: list[object]) -> list[object]:
-    """Drop standalone conversation_search_tool inherited from older parent binds."""
-
-    return [tool for tool in tools if getattr(tool, "name", "") != "conversation_search_tool"]
-
-
 def _parent_chat_id(parent_agent: object) -> str | None:
     last_context = getattr(parent_agent, "_last_context", None)
     if not isinstance(last_context, dict):
@@ -544,8 +538,7 @@ class CustomAgentFactory:
         )
 
         enabled_builtin = getattr(profile, "enabled_builtin_tools", ())
-        filtered_parent_tools = _filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
-        all_tools = _without_legacy_conversation_search_tool(filtered_parent_tools)
+        all_tools = _filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
         _apply_subagent_memory_search_rebind(
             all_tools,
             parent_agent=parent_agent,
@@ -660,8 +653,7 @@ class EphemeralAgentFactory:
 
             raw_builtin = DEFAULT_ENABLED_BUILTIN_TOOLS
         enabled_builtin = tuple(str(x) for x in raw_builtin)
-        filtered_tools = _filter_tools_by_profile(list(tools), enabled_builtin)
-        all_tools = _without_legacy_conversation_search_tool(filtered_tools)
+        all_tools = _filter_tools_by_profile(list(tools), enabled_builtin)
         _apply_subagent_memory_search_rebind(
             all_tools,
             parent_agent=parent_agent,
