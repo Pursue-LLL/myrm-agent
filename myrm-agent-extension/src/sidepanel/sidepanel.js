@@ -330,7 +330,8 @@ async function respondApproval(approved) {
   if (!pending || state.streaming || (approved && !pending.view.canApprove)) return;
   hideApproval();
   if (pending.view.kind !== "tool") return;
-  const answerLost = await streamTurn(pending.turn, { resumeValue: buildResumeValue(approved) });
+  const resumeValue = buildResumeValue(approved, pending.view.interruptId);
+  const answerLost = await streamTurn(pending.turn, { resumeValue });
   if (answerLost && !state.pendingApproval) renderApproval(pending);
 }
 

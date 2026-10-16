@@ -83,6 +83,17 @@ describe('describeApproval', () => {
     expect(view.canApprove).toBe(true);
   });
 
+  it.each([
+    ['carries the interrupt id the event names', 'int-1', 'int-1'],
+    ['has none when the event names none', undefined, undefined],
+    ['ignores an empty id', '', undefined],
+    ['ignores an id that is not a string', 7, undefined],
+  ])('%s', (_label, interruptId, expected) => {
+    const view = describeApproval({ ...toolEvent([{ action: 'a' }]), interruptId });
+
+    expect(view.interruptId).toBe(expected);
+  });
+
   it('ignores switched-off flags', () => {
     const view = describeApproval(
       toolEvent([{ action: 'a' }], { reviewConfigs: [{ isSpend: false, blastRadius: null }] }),
@@ -163,6 +174,15 @@ describe('resume request', () => {
 
   it('rejects with the same denial reason the web app sends', () => {
     expect(buildResumeValue(false)).toEqual({ decision: 'reject', feedback: 'User rejected this action.' });
+  });
+
+  it('names the interrupt it settles, so it cannot land on another pending approval', () => {
+    expect(buildResumeValue(true, 'int-1')).toEqual({ decision: 'approve', interruptId: 'int-1' });
+    expect(buildResumeValue(false, 'int-2')).toEqual({
+      decision: 'reject',
+      feedback: 'User rejected this action.',
+      interruptId: 'int-2',
+    });
   });
 
   it('sends a new message without resume_value', () => {

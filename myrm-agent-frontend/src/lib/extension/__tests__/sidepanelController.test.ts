@@ -20,12 +20,13 @@ function sse(events: object[], status = 200): Response {
   return new Response(`${lines}data: [DONE]\n`, { status, headers: { 'Content-Type': 'text/event-stream' } });
 }
 
-const approvalEvent = (extra: { reviewConfigs?: object[] } = {}) => ({
+const approvalEvent = ({ interruptId, ...extra }: { reviewConfigs?: object[]; interruptId?: string } = {}) => ({
   type: 'tool_approval_request',
   data: {
     actionRequests: [{ action: 'file_write_tool', args: { path: '/a' }, description: 'Write /a' }],
     ...extra,
   },
+  ...(interruptId && { interruptId }),
 });
 
 /** A request the server never answers; it settles only when the panel aborts it. */
@@ -122,6 +123,20 @@ describe('side panel approval', () => {
     });
     expect(assistantBubbles()).toHaveLength(1);
     expect(overlayVisible()).toBe(false);
+  });
+
+  it('answers the interrupt its event named, and names none when the event named none', async () => {
+    const addressed = await bootPanel([sse([approvalEvent({ interruptId: 'int-7' })]), sse([{ type: 'message_end' }])]);
+    await sendAndAwaitApproval();
+    element('btn-approve').click();
+    await vi.waitFor(() => expect(addressed).toHaveLength(2));
+    expect(addressed[1].resume_value).toEqual({ decision: 'approve', interruptId: 'int-7' });
+
+    const unaddressed = await bootPanel([sse([approvalEvent()]), sse([{ type: 'message_end' }])]);
+    await sendAndAwaitApproval();
+    element('btn-approve').click();
+    await vi.waitFor(() => expect(unaddressed).toHaveLength(2));
+    expect(unaddressed[1].resume_value).toEqual({ decision: 'approve' });
   });
 
   it('sends a rejection with the denial reason', async () => {

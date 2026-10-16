@@ -27,8 +27,9 @@ const MAX_DETAIL_CHARS = 300;
 
 /**
  * @typedef {{ name: string, detail: string }} ApprovalAction
- * @typedef {{ kind: "tool" | "external", actions: ApprovalAction[], canApprove: boolean }} ApprovalView
- * `tool`: answerable here (one decision covers every listed action). `external`: only the Web UI can answer it.
+ * @typedef {{ kind: "tool" | "external", actions: ApprovalAction[], canApprove: boolean, interruptId?: string }} ApprovalView
+ * `tool`: answerable here (one decision covers every listed action), `interruptId` naming the interrupt it settles.
+ * `external`: only the Web UI can answer it.
  */
 
 /**
@@ -66,7 +67,7 @@ function isPlainReviewConfig(config) {
 }
 
 /**
- * @param {{ type?: string, data?: Record<string, unknown> }} event SSE event; its payload is untrusted and checked field by field
+ * @param {{ type?: string, data?: Record<string, unknown>, interruptId?: unknown }} event SSE event; its payload is untrusted and checked field by field
  * @returns {ApprovalView}
  */
 export function describeApproval(event) {
@@ -77,7 +78,8 @@ export function describeApproval(event) {
 
   const reviewConfigs = Array.isArray(payload.reviewConfigs) ? payload.reviewConfigs : [];
   const canApprove = payload.extensions?.displayMode !== "handover" && reviewConfigs.every(isPlainReviewConfig);
-  return { kind: "tool", actions: requests.map(describeAction), canApprove };
+  const interruptId = typeof event.interruptId === "string" && event.interruptId ? event.interruptId : undefined;
+  return { kind: "tool", actions: requests.map(describeAction), canApprove, interruptId };
 }
 
 /**
@@ -107,12 +109,15 @@ export function resolveApprovalCopy(view, translate) {
 }
 
 /**
- * One decision for every action of the interrupt (the harness applies it to each of them).
+ * One decision for every action of the interrupt (the harness applies it to each of them). With several interrupts
+ * pending, `interruptId` is what makes the answer settle this one and no other.
  * @param {boolean} approved
- * @returns {{ decision: "approve" } | { decision: "reject", feedback: string }}
+ * @param {string} [interruptId] the interrupt the approval event named
+ * @returns {{ decision: "approve" | "reject", feedback?: string, interruptId?: string }}
  */
-export function buildResumeValue(approved) {
-  return approved ? { decision: "approve" } : { decision: "reject", feedback: REJECT_FEEDBACK };
+export function buildResumeValue(approved, interruptId) {
+  const answer = approved ? { decision: "approve" } : { decision: "reject", feedback: REJECT_FEEDBACK };
+  return interruptId ? { ...answer, interruptId } : answer;
 }
 
 /**

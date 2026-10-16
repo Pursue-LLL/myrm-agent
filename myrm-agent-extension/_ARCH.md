@@ -50,7 +50,7 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 
 | 端点 | 方法 | 用途 |
 |------|------|------|
-| `/api/v1/agents/agent-stream` | POST | 发送消息并接收 SSE 流式响应；带 `resume_value`（`{decision: "approve"}` 或 `{decision: "reject", feedback}`）时答复该回合暂停中的工具审批并继续流式输出；审批已被超时或其他窗口处理时服务端返回 409 |
+| `/api/v1/agents/agent-stream` | POST | 发送消息并接收 SSE 流式响应；带 `resume_value`（`{decision: "approve"}` 或 `{decision: "reject", feedback}`，审批事件带 `interruptId` 时一并回传）时答复该回合暂停中的工具审批并继续流式输出；审批已被超时或其他窗口处理时服务端返回 409 |
 | `/api/v1/chats/{chatId}/messages` | GET | 获取历史消息 |
 | `/api/v1/agents/agent/{messageId}/cancel` | POST | 取消当前执行 |
 | `/api/v1/agents/chat/{chatId}/attach` | GET | 重新附加到活跃流 |
@@ -64,7 +64,7 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 
 | 请求 | Side Panel 行为 |
 |------|-----------------|
-| `tool_approval_request`（普通） | 弹窗逐项列出全部动作；一次批准/拒绝应用于该中断的全部动作 |
+| `tool_approval_request`（普通） | 弹窗逐项列出全部动作；一次批准/拒绝应用于该中断的全部动作；答复回传事件的 `interruptId`，同一对话有多个待决审批时只答这一个；弹窗一次只显示最后到达的一张，其余待决审批要等服务端在恢复后再次宣告才会出现 |
 | `tool_approval_request` 且任一动作的 `reviewConfigs` 项带有 `allowedDecisions` / `hideAllowAlways` / `domainApproval` 之外的开启字段（如 `isSpend`、`requiresDualInsurance`、`irreversibleDestructive`、`smartDenied`、`batchImpactSummary`），或 `allowedDecisions` 不含 `approve`，或 `displayMode` 为 `handover` | 只能拒绝；批准须回 Web 端（Web 端有额外确认与信息展示，Side Panel 不绕过；未知新字段同样视为需要 Web 端，默认拒绝批准） |
 | `approval_required` 等其他审批 | 仅提示去 Web 端处理，弹窗可忽略 |
 | 答复请求未送达（网络失败、服务端错误） | 提示「答复没有送达」并让弹窗重新出现，可再次答复；用户取消或开新会话时不重现 |
