@@ -28,7 +28,13 @@ const fanoutPreview: DecomposeOutcome = {
   ok: true,
   fanout: true,
   children: [
-    { title: 'Deploy with key sk-AAAAAABBBBBBCCCCCCDDDD-0', body: '', assignee: null, parent_indices: [], extra_skill_ids: [] },
+    {
+      title: 'Deploy with key sk-AAAAAABBBBBBCCCCCCDDDD-0',
+      body: '',
+      assignee: null,
+      parent_indices: [],
+      extra_skill_ids: [],
+    },
   ],
   rationale: '',
   reason: '',
