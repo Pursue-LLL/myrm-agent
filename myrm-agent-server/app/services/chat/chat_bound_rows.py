@@ -12,8 +12,9 @@
 Single list of the tables that outlive a deleted chat unless they are cleared by hand: chat rows reach their
 messages, forks and recall index through foreign keys or the recall service, but these tables only store the
 chat id. A leftover is not harmless: a pending commitment quotes the conversation it came from into later turns
-of other chats, an approval keeps the command or patch that was proposed. The per-chat permanent delete and the
-safe vault purge both read this list, so a new table is added in one place; the guard test in
+of other chats, an approval keeps the command or patch that was proposed. The per-chat permanent delete, the
+safe vault purge and the archive scrub of web incognito chats (``instance_archive/table_policy.py``) all read this
+list, so a new table is added in one place; the guard test in
 ``tests/services/chat/test_chat_bound_rows.py`` fails for any table with a chat column that is neither listed
 here nor a reviewed exception.
 """

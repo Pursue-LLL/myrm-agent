@@ -5546,14 +5546,14 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
    装饰性请求在代码注释里写「失败就算了」不够，得让请求本身 `silent`：`apiRequest` 的默认行为是失败即弹错误提示，注释管不住它。
 4. 改文件时先在内存里算出新内容，再打开文件写入：我用 `open(f, "w").write(fn(open(f).read()))` 改 `statistics.ts`，写入模式在读取之前就把文件截断为空，随后读到的是空串、编辑函数抛错，文件停在 0 字节。别人未提交的改动因此在约三分钟里不在文件里；我按 HEAD 加自己的编辑还原了文件，其后对方的改动重新出现在文件里（不是我还原的）。这种事靠写入前的预检查与「失败不落盘」避免，不靠事后补救。
 
-## BUG-AGENT-2026-10-16-022: 导出、定时备份与导入暂存带走网页无痕会话的全部消息；「ZDR 零留存 / 退出时抹零」只存在于文案与一个无人调用的拦截器里；无痕开启后页面上没有任何说明
+## BUG-AGENT-2026-10-16-022: 导出、定时备份与导入暂存带走网页无痕会话的全部消息、对话检查点与按会话 id 记录的行；「ZDR 零留存 / 退出时抹零」只存在于文案与一个无人调用的拦截器里；无痕开启后页面上没有任何说明
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-16（`-012` 之后对无痕合同的终审：把导出、备份、导入暂存、命令面板、公开文档与界面逐处用真实组件复现；对照 OpenClaw、Cherry Studio、Claude Code、Codex、ChatGPT、Claude、Gemini、Perplexity 的无痕/临时会话语义，只取与本产品形态相符的部分） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P1（界面承诺「闲置超过 1 小时自动删除」，导出文件与备份却会把同一批对话原文带走并长期保存） |
-| 影响范围 | server：`app/services/instance_archive/table_policy.py`、`_ARCH.md`、`tests/services/instance_archive/test_incognito_scrub.py`、`test_schema_reconciliation.py`、`tests/e2e/test_incognito_notice_chrome_e2e.py`、`tests/_ARCH.md`、`app/services/chat/command_matrix/registry.py`（删 `/zdr` 条目）；harness：`toolkits/llms/adapters/wire/` 删除 `zdr_interceptor.py` 及其测试、导出与 `_ARCH` 行，`native_compaction.py` 的类型收窄，`capability_matrix/models.py` 一行注释；前端：新增 `chat-window/IncognitoNotice.tsx`、`message-input-actions/IncognitoIcon.tsx`（从开关里抽出共用），`EmptyChat.tsx` 挂载一行，两处 `_ARCH.md`；公开文档仓：`security-architecture.mdx` 删除 §16 |
+| 影响范围 | server：`app/services/instance_archive/table_policy.py`、`checkpoint_scrub.py`（新）、`export_service.py`、`stage_db.py`、`_ARCH.md`、`app/services/chat/chat_bound_rows.py` 与 `chat/_ARCH.md`（只改说明）、`tests/services/instance_archive/test_incognito_scrub.py`、`test_schema_reconciliation.py`、`tests/e2e/test_incognito_notice_chrome_e2e.py`、`tests/_ARCH.md`、`app/services/chat/command_matrix/registry.py`（删 `/zdr` 条目）；harness：`toolkits/llms/adapters/wire/` 删除 `zdr_interceptor.py` 及其测试、导出与 `_ARCH` 行，`native_compaction.py` 的类型收窄，`capability_matrix/models.py` 一行注释；前端：新增 `chat-window/IncognitoNotice.tsx`、`message-input-actions/IncognitoIcon.tsx`（从开关里抽出共用），`EmptyChat.tsx` 挂载一行并给标题加 `data-testid`，两处 `_ARCH.md`；公开文档仓：`security-architecture.mdx` 删除 §16 |
 | 出现次数 | 1（真实库、真实快照与真实浏览器复现，没有用户数据） |
 | 关联 | `BUG-AGENT-2026-10-16-012` 局限 5、6 在此处理；harness 提交 `3ae0e7957a`、公开文档仓提交 `c605fe2223`；`instance_archive/`、`command_matrix/`、harness `capability_matrix/` 是别的会话尚未提交的目录，本次改动只在工作区，未提交、未 push |
 
@@ -5561,36 +5561,42 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 1. 导出、定时备份（与导出共用同一条流水线）、导入暂存都共用 `scrub_sensitive_surface`，它只清分享链接、白名单密钥与进行中的状态，不碰无痕会话。在真实结构的库（ORM 表 + 迁移 + 全文索引触发器 + WAL 源库 + 真实快照）上：导出副本里无痕会话与它的消息原样都在，原文还能在文件字节里搜到；导入暂存只把它们从「恢复预览」的计数里隐去，行本身仍写进恢复后的库。
 2. 命令面板的 `/zdr` 条目与公开安全架构页 §16 写着「纯内存无痕会话、退出时 0x00 物理覆写抹零」，服务端没有任何处理它的代码；harness 的 `zdr_interceptor.py` 只给出站请求加厂商头，两个函数除自己的测试外没有调用方，而零留存是与服务商签的组织级协议，不是请求头能开关的。
-3. 无痕开启后页面上没有任何说明：开关的解释只在悬停提示里（读 Radix 源码，触屏不触发悬停），手机上开关在底部抽屉里，标签 `hidden xl:inline`，桌面窄窗口里同样只剩图标。
+3. 同一份导出里，`checkpoints.db`（LangGraph 对话检查点，含每轮的消息与工具结果）和只按会话 id 记录、没有外键的表（`widget_kv`、`fission_task_records`、`commitments` 等）同样带着无痕会话的内容：运行时为无痕会话也写检查点（`app/ai_agents/general_agent/factory.py:490` 取检查点、`:820` 无条件传入；只有事件日志对无痕旁路，见 `app/ai_agents/agents.py:66-68`），在线清除会删这些线程和行（`chat_disposal.clear_conversation_state`、`chat_bound_rows.CHAT_BOUND_TABLES`），归档这一步原先只处理 `data.db` 的 `chats` 表；`checkpoints.db` 被分类为普通数据，按原样快照入包（`policy.classify_path` 对 `checkpoints.db` 返回 `data`，`export_service` 对它不做任何处理）。
+4. 无痕开启后页面上没有任何说明：开关的解释只在悬停提示里（读 Radix 源码，触屏不触发悬停），手机上开关在底部抽屉里，标签 `hidden xl:inline`，桌面窄窗口里同样只剩图标。
 
 ### 根因
 
 1. 无痕的「删除」只落在线上库的定时清除里，归档的 scrub 当初是按「哪些行不能换机器」设计的，没有把「这类会话到期即删」算进去。
 2. 先写了合规文案、没有实现，文案又同时出现在命令表、公开文档和一个拦截器里，互相印证，看起来像真有这个功能。
 3. 说明文字挂在悬停上，没有人考虑过触屏与抽屉布局。
+4. 第一版只对着 `chats` 一张表补了删除，没有拿在线清除的完整步骤清单（检查点、按会话 id 记录的表、工作区文件）逐项对照「归档带不带」；是终审时再读 `chat_disposal.py` 才发现的。
 
 ### 修复
 
-1. `scrub_sensitive_surface` 先删 `is_incognito = 1 AND source = 'web'` 的会话。消息、全文索引、回忆索引靠 `ON DELETE CASCADE` 与 FTS 触发器随之删除，而 SQLite 只在 `foreign_keys` 打开时才执行级联：所以删除窗口内临时打开它。该 pragma 在事务里会被忽略，因此先提交；打开后回读，没生效就抛错让整个导出/暂存失败（宁可失败也不留孤儿消息）；结束后恢复原值，之后的嫁接与清空行为不变。`source != 'web'` 的转写导入借用无痕标志只是为了不进侧栏，是真实数据，照常携带。恢复点是本机的原样回退保险，有意不做 scrub。没有无痕列的旧库原样跳过；两个列名被钉在 `test_schema_reconciliation.py` 里，改名会让测试变红而不是悄悄失效。
+1. `scrub_sensitive_surface` 先删 `is_incognito = 1 AND source = 'web'` 的会话。消息、全文索引、回忆索引靠 `ON DELETE CASCADE` 与 FTS 触发器随之删除，而 SQLite 只在 `foreign_keys` 打开时才执行级联：所以删除窗口内临时打开它。该 pragma 在事务里会被忽略，因此先提交；打开后回读，没生效就抛错让整个导出/暂存失败（宁可失败也不留孤儿消息）；结束后恢复原值，之后的嫁接与清空行为不变。删会话之前先清 `CHAT_BOUND_TABLES` 里按会话 id 记录的行（读同一份清单，不再另写一份）。`source != 'web'` 的转写导入借用无痕标志只是为了不进侧栏，是真实数据，照常携带。恢复点是本机的原样回退保险，有意不做 scrub。没有无痕列的旧库原样跳过；两个列名被钉在 `test_schema_reconciliation.py` 里，改名会让测试变红而不是悄悄失效。
+   新增 `checkpoint_scrub.py`：对每个带 `thread_id` 列的表删除这批会话的线程（每个会话两个别名，取自运行时的 `resolve_thread_ids`，开启 `secure_delete`）。导出对 `checkpoints.db` 的拷贝套用它，会话取自拷贝那一刻的在线 `data.db`（只读连接），因此在 `data.db` 快照之后才开始的会话也覆盖；清除失败时归档写入器把这个库留在包外并如实报告，不会未清除就带走。导入暂存里由 `prepare_staged_db` 在清 `data.db` 之前取得会话 id，再清紧邻的 `checkpoints.db`（旧版本导出的归档里它带着无痕线程）。
 2. 删除 `zdr_interceptor.py`、测试、导出与 `_ARCH` 行，`/zdr` 命令条目，`capability_matrix/models.py` 注释里的 `/zdr`，公开文档 §16。顺手把 `native_compaction.py` 里对 `object` 的遍历收窄成 isinstance 判断，pyright 清零。
 3. 空会话态在无痕开启时就地显示说明：复用已有的 `memory.incognitoModeDesc`（六种语言早已存在，没有新增文案），标题复用 `memory.incognitoMode`；`<output>`（隐含 `status` 语义），只用主题变量；图标从开关里抽成 `IncognitoIcon` 共用。
 
 ### 验证
 
-1. 红灯先行：新增 `test_incognito_scrub.py` 8 例（导出与导入暂存两条路径各 3 例 + 2 例单点），修复前 5 例失败（泄漏），3 例本就通过（保留项）；修复后全部通过；`tests/services/instance_archive` 全目录 280 例通过。
-2. 变异检查：把 `foreign_keys` 开关改成关并去掉回读，5 例失败；把谓词里的 `source = 'web'` 去掉，4 例失败（转写导入被误删）；各还原后重跑通过。测试含：原文不在文件字节里、副本没有 `-wal`、全文索引查不到、回忆索引行数为 0、`foreign_keys` 开不起来时抛错。
+1. 红灯先行：新增 `test_incognito_scrub.py`，现 12 例：导出与导入暂存两条路径各 3 例、2 例单点，另有 4 例针对检查点（整条导出流水线里任何文件都找不到无痕原文且检查点与待写入表只剩其余线程、旧归档暂存清理紧邻检查点、清除失败时该库不入包并如实报告、500 个会话分批全部清除且不带 `thread_id` 列的表原样）。数据库部分修复前 5 例失败（泄漏），3 例本就通过（保留项）；`tests/services/instance_archive` 全目录加 `chat_bound_rows` 守卫测试共 288 例通过。
+2. 变异检查：把 `foreign_keys` 开关改成关并去掉回读，5 例失败；把谓词里的 `source = 'web'` 去掉，4 例失败（转写导入被误删）；各还原后重跑通过。测试含：原文不在文件字节里、副本没有 `-wal`、全文索引查不到、回忆索引行数为 0、`foreign_keys` 开不起来时抛错且会话行原封不动。「开不起来」用 SQLite 授权回调把 `PRAGMA foreign_keys = ON` 变成静默空操作来模拟（实测：不加回调回读为 1，加了为 0）；只去掉回读判定时这一例失败、其余 7 例仍通过。检查点部分另做 4 种变异：导出对 `checkpoints.db` 不再套用清除（2 例失败）、导入暂存不清紧邻的检查点（1 例失败）、不再清 `CHAT_BOUND_TABLES` 的行（6 例失败）、只删线程的一个别名（3 例失败），各还原后重跑 12 例通过。
 3. 前端：`IncognitoNotice` 单测 2 例，把「关闭时不渲染」改成恒渲染后一例失败；prettier、`tsc --noEmit` 退出 0、`verify:theme-colors`、`verify:stable-mocks` 通过；`bun run lint` 里 a11y 与硬编码文案两个门禁本来就失败，输出里没有本次触碰的文件。
 4. 真实浏览器：走项目规定的 `./myrm test -m chrome_e2e …/test_incognito_notice_chrome_e2e.py`（共享 Chrome 的 MCP 对本地页面有意拒绝，没有绕开）。点真实开关后，说明在 14 ms 内出现，文字 63 个字符，不溢出视口、页面不横向撑宽；对比度按「祖先背景逐层合成」量：浅色标题 17.0:1、正文 14.6:1，深色标题 18.3:1、正文 16.9:1（门槛 4.5）；390px 同源 iframe 里手机布局同样不溢出；再点一次说明消失。`scripts/dev/tests` 里关于 e2e 等待与副作用的静态审计 53 例通过。
-5. 测试自身的踩坑（已修）：点击早于 React 水合会丢（DOM 与 `aria-pressed` 都在，但没有处理器），现在等标题与开关都带 `__reactProps` 再点；颜色过渡会让切换主题后立刻量到旧主题的值，量之前关掉过渡；冷启动时开发服务器按需编译，脚本加载最慢的几个分块用了约 57 秒，手机 iframe 的等待放宽到 240 秒。
+5. 测试自身的踩坑（已修）：点击早于 React 水合会丢（DOM 与 `aria-pressed` 都在，但没有处理器），现在等标题与开关都带 `__reactProps` 再点；颜色过渡会让切换主题后立刻量到旧主题的值，量之前关掉过渡；冷启动时开发服务器按需编译，脚本加载最慢的几个分块用了约 57 秒，手机 iframe 的等待放宽到 240 秒；等待页面挂载改认标题上的 `data-testid`，不再认 `h2.text-3xl` 这种样式类名。
+6. 代价（本机，各 3 次）：库里 4 万条正常消息、没有无痕行时，scrub 耗时 3–4 ms；再加 400 个无痕会话共 4 万条消息（8 万条的库）时 0.71–1.04 s。无痕会话闲置超过 1 小时就会被线上清除，实际要删的量远小于这个压力规模。
 
 ### 局限
 
 1. 恢复点不做 scrub：创建时尚存的无痕会话会留在点里，直到该点被保留策略清理或手动删除。
-2. 手机宽度用的是同源 390px 的 iframe（真实媒体查询），不是真机；触屏不出现悬停提示来自读 Radix 源码，没有在真机上点过。
+2. 手机宽度用的是同源 390px 的 iframe（真实媒体查询），不是真机；iframe 里是通过 store 开启无痕的，没有点底部抽屉里的真实开关；触屏不出现悬停提示来自读 Radix 源码，没有在真机上点过。
 3. E2E 只用了简体中文；其他五种语言的文案更长，容器按词换行，没有逐个在浏览器里看。
 4. 无痕会话被清除时，它的分享链接随之失效；在清除之前，分享链接仍可访问，没有额外限制（本次不做）。
-5. 暂存与导出都只剔除 `source = 'web'` 的无痕会话；若将来有第二种「到期即删」的来源，要同时改清除条件与这里的谓词（两处现在各写了一份）。
-6. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`_ARCH.md`、两个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
+5. 无痕会话在 `harness/workspaces/chat_<会话 id>/` 下生成的文件与产物保险库里按任务 id 记的对象（在线清除的 `sandbox_cleanup.py` 删的就是这两处）仍会随导出和备份走：状态目录下的 `harness/`（即 `database.harness_dir`）里的文件被 `policy.classify_path` 按普通数据入包（实测 `harness/workspaces/chat_x/report.md` 返回 `data`），这次没有处理。`artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）。子代理按任务 id 建的检查点线程不在会话的两个别名里，在线清除同样不处理（`session_continuity.resolve_thread_ids`），这里沿用同一口径。
+6. 暂存与导出都只剔除 `source = 'web'` 的无痕会话；若将来有第二种「到期即删」的来源，要同时改清除条件与这里的谓词（两处现在各写了一份）。
+7. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`checkpoint_scrub.py`、`export_service.py`、`stage_db.py`、`_ARCH.md`、两个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
+8. 说明只在空会话页显示，发出第一条消息后消失，之后只剩开关的选中态（桌面在工具栏，手机在底部抽屉里）；没有加会话内的常驻标识。
 
 ### 教训
 
@@ -5598,6 +5604,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 依赖 SQLite 级联的删除必须自己打开 `foreign_keys`（默认关，且事务里设置无效）并回读确认；只检查「删了几行」不能证明子表也删了。
 3. 看起来能互相印证的几处文案，要各自追到代码里的调用方；没有调用方就删，不要留着当「已实现」。
 4. 浏览器里的断言要等「可交互」而不是「元素在」；量颜色要先关过渡；这类基础设施行为写进测试的注释里，下一个人才不会重走一遍。
+5. 「出口要覆盖所有副本」不能只盯着一张表：要对照在线清除的完整步骤清单（`chat_disposal.dispose_permanently_deleted_chats` 与 `CHAT_BOUND_TABLES`）逐项问「归档带不带」，并用「在整条导出流水线的每个文件里找原文」这种不依赖具体表名的断言兜底。
 
 ## BUG-AGENT-2026-10-16-023: 浏览器扩展侧边栏的工具审批点了不起作用（答复发往不存在的记录、只显示第一个动作）；`i18n.js` 的语法错误让扩展后台脚本整个不执行、弹窗文案不翻译；前端一条无人发布的 `approval_processed` 事件链与一个无人调用的通知清理函数
 
