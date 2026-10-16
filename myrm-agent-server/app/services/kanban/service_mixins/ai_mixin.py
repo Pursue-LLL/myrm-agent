@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types, used to type the add_task stub.)
 - decompose (POS: Server-layer decompose domain owned by KanbanService.)
 - specify (POS: Server-layer specify domain owned by KanbanService.)
 - service_mixins.core (POS: KanbanService core state.)
@@ -14,6 +15,8 @@ AI-powered mixin: task specification, decomposition, and batch triage processing
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.kanban.protocols import (
     DecomposeChildSpec,
@@ -37,8 +40,36 @@ from app.services.kanban.specify import (
     run_specify_task,
 )
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskPriority, TaskStatus
+
 
 class KanbanAiWorkflowMixin(KanbanServiceCore):
+    if TYPE_CHECKING:
+        # Provided by KanbanBoardTaskMixin, which KanbanService composes with this mixin.
+        async def add_task(
+            self,
+            board_id: str,
+            title: str,
+            description: str = "",
+            priority: TaskPriority = ...,
+            parent_task_id: str | None = None,
+            agent_id: str | None = None,
+            model_override: str | None = None,
+            max_retries: int = 3,
+            depends_on: list[str] | None = None,
+            extra_skill_ids: list[str] | None = None,
+            completion_criteria: str | list[dict[str, str | int]] | None = None,
+            initial_status: TaskStatus | None = None,
+            max_runtime_seconds: int | None = None,
+            workspace_path: str | None = None,
+            branch: str | None = None,
+            goal_mode: bool = False,
+            goal_max_turns: int | None = None,
+            require_approval: bool = False,
+            metadata_patch: dict[str, object] | None = None,
+        ) -> KanbanTask: ...
+
     async def specify_task(
         self,
         task_id: str,
