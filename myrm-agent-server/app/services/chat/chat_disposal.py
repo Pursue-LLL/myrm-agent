@@ -1,8 +1,10 @@
 """Teardown of everything a flushed, deleted or purged chat leaves behind outside its database rows.
 
 [INPUT]
+- myrm_agent_harness.agent.event_log.backends.file_backend::FileEventLogBackend (POS: per-session jsonl event log that keeps the full prompts and tool results of every turn)
 - myrm_agent_harness.runtime.context.session.session_continuity::sync_checkpoint_messages (POS: framework-neutral SSOT aligning LangGraph checkpoint threads with persisted chat history)
 - myrm_agent_harness.agent.security.approval_flow::get_allowlist, reset_denial_counter (POS: session-scoped approval grants and the cross-turn denial circuit breaker)
+- app.config.settings::get_settings (POS: location of the event log directory)
 - app.services.agent.execution_cache::close_execution_cache_for_chat_all_agents (POS: per-chat agent execution scopes)
 - app.services.external_agents.runtime_pool_registry::close_external_agent_pool_for_chat (POS: per-chat external agent runtimes)
 - app.core.memory::get_cascade_memory_manager (POS: memory store used for deletion cascades)
@@ -12,6 +14,7 @@
 [OUTPUT]
 - clear_conversation_state: checkpoint threads, session grants and the denial counter of a chat
 - clear_runtime_caches: running pools, execution scopes and in-memory working state of a chat
+- remove_chat_event_log: the event log file of a chat
 - clear_extract_retry_queue: pending memory-extraction retries of a chat
 - forget_chat_memories: memories derived from a chat plus its retry queue
 - ChatFilesRemoval: how many sandbox worktrees were removed and how many were kept
@@ -31,10 +34,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
+from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.security.approval_flow import get_allowlist, reset_denial_counter
 from myrm_agent_harness.runtime.context.session.session_continuity import sync_checkpoint_messages
 
+from app.config.settings import get_settings
 from app.services.agent.execution_cache import close_execution_cache_for_chat_all_agents
 from app.services.external_agents.runtime_pool_registry import close_external_agent_pool_for_chat
 
@@ -75,6 +81,19 @@ async def clear_runtime_caches(chat_id: str) -> None:
     await close_external_agent_pool_for_chat(chat_id)
     await close_execution_cache_for_chat_all_agents(chat_id)
     _clear_working_memory(chat_id)
+
+
+async def remove_chat_event_log(chat_id: str) -> None:
+    """Delete the event log of a chat, which keeps the full prompts and tool results of every turn.
+
+    Fail-open: the log is also swept by age, so a leftover is logged instead of aborting the deletion.
+    """
+    try:
+        backend = FileEventLogBackend(log_dir=Path(get_settings().database.event_log_dir), session_id=chat_id)
+        if await backend.remove_session_log(chat_id):
+            logger.debug("Removed event log (chat=%s)", chat_id)
+    except Exception as exc:
+        logger.warning("Failed to remove event log (chat=%s): %s", chat_id, exc)
 
 
 async def clear_extract_retry_queue(chat_id: str) -> None:
@@ -159,6 +178,7 @@ async def dispose_permanently_deleted_chats(sandbox_dirs: Mapping[str, str | Non
     """
     for chat_id in sandbox_dirs:
         await clear_runtime_caches(chat_id)
+        await remove_chat_event_log(chat_id)
         await clear_conversation_state(chat_id)
         await forget_chat_memories(chat_id)
     await remove_chat_files(sandbox_dirs)

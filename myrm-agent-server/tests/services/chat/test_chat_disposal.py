@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import partial
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -71,6 +72,21 @@ def spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
         recorded.working_memory,
     )
     return recorded
+
+
+@pytest.fixture(autouse=True)
+def event_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point the event log at a scratch directory so no test reads or deletes the real one."""
+    log_dir = tmp_path / "event_logs"
+    log_dir.mkdir()
+    monkeypatch.setattr("app.config.settings.settings.database.event_log_dir", str(log_dir))
+    return log_dir
+
+
+def _write_event_log(log_dir: Path, session_id: str) -> Path:
+    path = log_dir / f"{session_id}.jsonl"
+    path.write_text('{"event_type": "llm_request", "data": {"prompt_preview": "[user] secret"}}\n', encoding="utf-8")
+    return path
 
 
 @pytest_asyncio.fixture
@@ -168,14 +184,19 @@ async def test_every_entry_point_tears_down_the_same_state(
     db_session: AsyncSession,
     checkpointer: BaseCheckpointSaver[str],
     spies: Spies,
+    event_logs: Path,
 ) -> None:
     await entry.stage(db_session)
     await _grant_and_checkpoint(checkpointer)
+    own_log = _write_event_log(event_logs, CHAT_ID)
+    other_log = _write_event_log(event_logs, "another-chat")
     assert await _is_stored(checkpointer, CHAT_ID)
     assert _is_granted()
 
     await entry.run()
 
+    assert not own_log.exists(), "the event log holds the full prompts of the deleted chat"
+    assert other_log.exists()
     assert await _count(db_session, Chat) == 0
     assert await _count(db_session, Message) == 0
     for bound in CHAT_BOUND_TABLES:
@@ -218,13 +239,16 @@ async def test_permanent_delete_of_a_chat_outside_the_trash_changes_nothing(
     db_session: AsyncSession,
     checkpointer: BaseCheckpointSaver[str],
     spies: Spies,
+    event_logs: Path,
 ) -> None:
     """A stale trash view must not wipe the history of a chat that was restored meanwhile."""
     await _seed_chat(db_session)
     await _grant_and_checkpoint(checkpointer)
+    own_log = _write_event_log(event_logs, CHAT_ID)
 
     assert await ChatService.permanently_delete_chat(CHAT_ID) is False
 
+    assert own_log.exists()
     assert await _count(db_session, Chat) == 1
     assert await _count(db_session, Message) == 1
     for bound in CHAT_BOUND_TABLES:
@@ -389,4 +413,47 @@ async def test_a_failing_step_does_not_stop_the_remaining_disposal_steps(
 
     assert not await _is_stored(checkpointer, CHAT_ID)
     assert not _is_granted()
+    spies.workspace.assert_awaited_once_with([CHAT_ID])
+
+
+@pytest.mark.asyncio
+async def test_remove_chat_event_log_deletes_only_that_chats_file(event_logs: Path) -> None:
+    own_log = _write_event_log(event_logs, CHAT_ID)
+    other_log = _write_event_log(event_logs, "another-chat")
+
+    await chat_disposal.remove_chat_event_log(CHAT_ID)
+    await chat_disposal.remove_chat_event_log(CHAT_ID)  # a chat that never logged is not an error
+
+    assert not own_log.exists()
+    assert other_log.exists()
+
+
+@pytest.mark.asyncio
+async def test_remove_chat_event_log_never_touches_files_outside_the_log_directory(event_logs: Path) -> None:
+    outside = _write_event_log(event_logs.parent, "outside")
+
+    await chat_disposal.remove_chat_event_log("../outside")
+
+    assert outside.exists()
+
+
+@pytest.mark.asyncio
+async def test_a_failing_event_log_removal_does_not_stop_the_remaining_disposal_steps(
+    checkpointer: BaseCheckpointSaver[str],
+    spies: Spies,
+    event_logs: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_event_log(event_logs, CHAT_ID)
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.event_log.backends.file_backend.FileEventLogBackend.remove_session_log",
+        AsyncMock(side_effect=PermissionError("log directory is read-only")),
+    )
+    await _grant_and_checkpoint(checkpointer)
+
+    await chat_disposal.dispose_permanently_deleted_chats({CHAT_ID: SANDBOX_DIR})
+
+    assert not await _is_stored(checkpointer, CHAT_ID)
+    assert not _is_granted()
+    spies.memory_purge.assert_awaited_once_with(CHAT_ID)
     spies.workspace.assert_awaited_once_with([CHAT_ID])
