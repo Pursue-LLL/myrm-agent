@@ -1,6 +1,6 @@
 """Skill system data models.
 
-SkillType enum is defined in the storage layer (myrm_agent_harness.toolkits.storage.types)
+SkillType enum is defined in the storage key layout (app.core.storage.types)
 because it determines skill storage path conventions.
 SkillRequires is re-exported from the framework layer to avoid duplicate type definitions.
 """
@@ -17,9 +17,9 @@ from myrm_agent_harness.backends.skills.types import (
     SkillMetadata,
     SkillRequires,
 )
-from myrm_agent_harness.toolkits.storage.types import SkillType as SkillType
 
 from app.config.settings import settings
+from app.core.storage.types import SkillType as SkillType
 
 
 @dataclass

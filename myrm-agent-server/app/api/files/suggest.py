@@ -24,10 +24,10 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.filesystem_suggest import WorkspaceSuggestionOptions, rank_basename, suggest_workspace_paths
-from myrm_agent_harness.toolkits.storage.types import FilePurpose
 from pydantic import BaseModel, Field
 
 from app.core.storage import files_service
+from app.core.storage.types import FilePurpose
 from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
 from app.services.chat.chat_service import ChatService

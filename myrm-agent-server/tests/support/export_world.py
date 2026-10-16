@@ -19,9 +19,9 @@ from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, patch
 
 from myrm_agent_harness.backends.profiles.types import AgentProfile
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 
 SKILL_MD = b"---\nname: report-writer\ndescription: Writes reports\nversion: 1.0.0\n---\n\n# Report writer\n"
 

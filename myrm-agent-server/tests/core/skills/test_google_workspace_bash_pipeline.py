@@ -11,10 +11,10 @@ from myrm_agent_harness.agent.skills.runtime.command_paths import (
     detect_skill_script_command,
 )
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills import prebuilt_sync
+from app.core.storage.paths import get_skill_file_path
+from app.core.storage.types import SkillType
 
 GOOGLE_CALENDAR_CMD = "python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today"
 

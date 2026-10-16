@@ -23,7 +23,8 @@ from myrm_agent_harness.agent.skills.market.helpers import ORIGIN_FILENAME
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.agent.skills.market.transaction import RECEIPT_FILENAME
 from myrm_agent_harness.agent.skills.packaging import EVALS_FILE
-from myrm_agent_harness.toolkits.storage.paths import SKILL_METADATA_FILE
+
+from app.core.storage.paths import SKILL_METADATA_FILE
 
 from ._helpers import _sync_skill_md_version
 

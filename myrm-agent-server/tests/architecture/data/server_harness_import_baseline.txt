@@ -470,9 +470,6 @@ myrm_agent_harness.toolkits.retriever.reranker.factory
 myrm_agent_harness.toolkits.retriever.sufficiency
 myrm_agent_harness.toolkits.storage.base
 myrm_agent_harness.toolkits.storage.factory
-myrm_agent_harness.toolkits.storage.local
-myrm_agent_harness.toolkits.storage.paths
-myrm_agent_harness.toolkits.storage.types
 myrm_agent_harness.toolkits.tasks
 myrm_agent_harness.toolkits.vector
 myrm_agent_harness.toolkits.vector.base

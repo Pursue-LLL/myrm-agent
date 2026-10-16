@@ -8,7 +8,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.gates.oauth_availability import (
     X_LIVE_SEARCH_SKILL_ID,
@@ -16,6 +15,7 @@ from app.core.skills.gates.oauth_availability import (
     apply_integration_oauth_availability,
 )
 from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 
 
 def _x_live_search_skill() -> Skill:

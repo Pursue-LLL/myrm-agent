@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.agent.tool_management.action_space import ActionSpaceProfiler
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 
 
 @pytest.fixture

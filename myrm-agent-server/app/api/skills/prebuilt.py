@@ -29,16 +29,16 @@ from myrm_agent_harness.api.skills import (
     compute_content_hash,
     parse_skill_frontmatter,
 )
-from myrm_agent_harness.toolkits.storage.paths import (
-    get_skill_file_path,
-    get_skill_metadata_path,
-)
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.api.skills.schemas import SkillResponse, skill_to_response
 from app.core.skills.models import Skill
 from app.core.skills.prebuilt_sync import SEEDS_DIR
 from app.core.skills.store.service import skills_service
+from app.core.storage.paths import (
+    get_skill_file_path,
+    get_skill_metadata_path,
+)
+from app.core.storage.types import SkillType
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 
 定义文件的数据模型。
 
-注意：FilePurpose 枚举定义在存储层 (myrm_agent_harness.toolkits.storage.types)
+注意：FilePurpose 枚举定义在存储层 (app.core.storage.types)
      因为它决定了文件的存储路径约定。
 """
 
@@ -11,8 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from myrm_agent_harness.toolkits.storage.types import FilePurpose as FilePurpose
 from myrm_agent_harness.utils.coercion import parse_int
+
+from app.core.storage.types import FilePurpose as FilePurpose
 
 
 @dataclass

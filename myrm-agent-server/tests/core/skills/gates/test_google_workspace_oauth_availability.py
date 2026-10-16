@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.gates.oauth_availability import (
     GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE,
@@ -18,6 +17,7 @@ from app.core.skills.gates.oauth_availability import (
     wrap_integration_oauth_backend,
 )
 from app.core.skills.models import Skill
+from app.core.storage.types import SkillType
 
 
 def _google_workspace_skill() -> Skill:

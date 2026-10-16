@@ -23,8 +23,8 @@ from pathlib import Path, PurePosixPath
 import jsonschema
 import pytest
 from myrm_agent_harness.agent.plugins.models import PluginParseResult
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
+from app.core.storage.types import SkillType
 from app.services.plugins._agent_persist import _build_create
 from app.services.plugins._agent_plan import plan_agents
 from app.services.plugins._mcp_persist import _server_to_config_dict

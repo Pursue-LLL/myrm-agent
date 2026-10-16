@@ -17,7 +17,8 @@ from functools import partial
 from typing import TypeVar
 
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
-from myrm_agent_harness.toolkits.storage.paths import (
+
+from app.core.storage.paths import (
     SKILL_METADATA_FILE,
     get_skills_type_prefix,
 )

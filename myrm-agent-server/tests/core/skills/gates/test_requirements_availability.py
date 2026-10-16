@@ -15,7 +15,6 @@ import pytest
 from myrm_agent_harness.backends.skills import StorageSkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillRequires, SkillTrust
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.core.skills.gates.oauth_availability import (
     apply_integration_oauth_availability,
@@ -27,6 +26,7 @@ from app.core.skills.gates.requirements_availability import (
 )
 from app.core.skills.models import Skill
 from app.core.skills.store.user_config import UserSkillConfigManager, lookup_skill_env
+from app.core.storage.types import SkillType
 
 PREBUILT_ASSETS = Path(__file__).resolve().parents[4] / "assets" / "prebuilt_skills"
 NOTION_KEY = "NOTION_API_KEY"

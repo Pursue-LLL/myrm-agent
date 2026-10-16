@@ -16,7 +16,8 @@ import logging
 from pathlib import PurePosixPath
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-from myrm_agent_harness.toolkits.storage.paths import SKILL_METADATA_FILE
+
+from app.core.storage.paths import SKILL_METADATA_FILE
 
 logger = logging.getLogger(__name__)
 
