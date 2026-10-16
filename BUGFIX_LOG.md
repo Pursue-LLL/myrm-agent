@@ -4349,7 +4349,7 @@ except Exception:
 ### 修复
 
 1. harness：`ai_calls.py` 的每轮 `AiCalls` 记录问过与未应答的次数，`unavailable` 表示问过且一次都没答出来；`LintResult.ai_unavailable` 交给 server；Cron 摘要与前端提示按它如实说明「模型没有回答，页面核对与链接发现被跳过」。server 里无法到达的「没配置模型」分支一并删除。
-2. 取消（协作式，不是强杀）：`AiCalls` 持有 `asyncio.Event`，`ask()` 在调用前与等待中响应停止并抛 `MaintainStoppedError`，在途调用被丢弃（结果由回调吞掉）；两个模型阶段结束该阶段、从正常路径返回 `LintResult.stopped=True`，所有写入都不被打断，没有半写文件；链接发现的游标从最后处理的页面之后续上。server：`CANCELLED` 状态、幂等的 `POST /wiki/maintain/cancel`、`MaintainRun.stop` 与 `cancel_requested`，取消的 Cron 摘要恒为 `[SILENT]`，状态接口带 `cancel_requested`，刷新页面后仍显示「正在停止」。frontend：与维护按钮并排的「停止」按钮，只对全量维护开放（结构性维护没有模型调用）；取消后的提示说明已做的保留。
+2. 取消（协作式，不是强杀）：`AiCalls` 持有 `asyncio.Event`，`ask()` 在调用前与等待中响应停止并抛 `MaintainStoppedError`，在途调用被取消（客户端不再等待，结果由回调吞掉；服务商侧的成本见局限 2）；两个模型阶段结束该阶段、从正常路径返回 `LintResult.stopped=True`，所有写入都不被打断，没有半写文件；链接发现的游标从最后处理的页面之后续上。server：`CANCELLED` 状态、幂等的 `POST /wiki/maintain/cancel`、`MaintainRun.stop` 与 `cancel_requested`，取消的 Cron 摘要恒为 `[SILENT]`，状态接口带 `cancel_requested`，刷新页面后仍显示「正在停止」。frontend：与维护按钮并排的「停止」按钮，只对全量维护开放（结构性维护没有模型调用）；取消后的提示说明已做的保留。
 3. 手动编译改为入队：harness 新增 `WikiCompiler.enqueue_changed_sources()`（增量只排新增或变更的原文，全量排全部），`compile_all` 复用同一方法，增量变更检查的 SHA256 放到工作线程（合成库 5000 个原文：事件循环最长停顿 1046 ms → 46 ms（每个约 9 KB）、2809 ms → 60 ms（每个约 195 KB），3 次取中位数，本机，页缓存已预热，不是线上数据）；`POST /wiki/compile` 改为 202，入队、唤醒 worker、排资产索引、发布 ingest 快照，返回 `pending` 与 `compile_run`。frontend 的 `compileWiki` 回到普通 POST，进度与完成走既有 ingest SSE，活动→空闲时只提示一次「编译完成」；`lib/constants/requestTimeouts.ts`、其测试与 `next.config.ts` 的 `experimental.proxyTimeout` 随长请求一并删除。
 4. `isWikiCompileBusy` 改为 `isCompiling || (ingestSnapshot?.stats.processing ?? 0) > 0`；编译按钮自身的禁用条件仍是 `isCompiling || paused`：若也跟队列状态走，重启后遗留的待处理条目会让按钮永久不可点。
 5. 同批清理：`MemoryToWikiArchiver.maintain_wiki()`（无生产调用方）及其测试删除；server `maintain/runner.py` 把 Cron 摘要与列表报告拆到 `reporting.py`；`memory_to_wiki.py` 的四处既有 mypy 错误（索引器属性、公共目录列表型、查询模式、`commit_vault_git` 返回值）与 `compiler.py` 的一处（`serialize_frontmatter_block` 入参）改为具体类型；六种语言新增 7 个键、删除 2 个无人引用的键（含 `scripts/translation-patches` 里的同名项）。
@@ -4357,19 +4357,22 @@ except Exception:
 
 ### 验证
 
-1. 新增测试：harness `test_maintain_ai_calls.py` 17 例、`test_compiler_enqueue.py` 8 例；server `test_wiki_compile_endpoint.py` 7 例，`test_maintain_endpoint.py`、`test_maintain_runner.py`、`test_maintain_single_flight.py` 补取消与全部未应答用例；frontend 补取消（hook、按钮、提示与六语言文案契约）与整条编译流程（可控的 ingest 订阅桩）的用例。
+1. 新增测试：harness `test_maintain_ai_calls.py` 17 例、`test_compiler_enqueue.py` 13 例（含从 `test_compiler_extended.py` 迁入的 5 个变更检查用例）；server `test_wiki_compile_endpoint.py` 7 例，`test_maintain_endpoint.py`、`test_maintain_runner.py`、`test_maintain_single_flight.py` 补取消与全部未应答用例；frontend 补取消（hook、按钮、提示与六语言文案契约）与整条编译流程（可控的 ingest 订阅桩）的用例。
 2. 变异检查（改一处、跑、写回）：harness 停止逻辑 4 个（3 个被抓住，1 个是行为冗余的守卫，已删除代码）、入队 5 个（含去掉「跳过正在编译的原文」的筛选、把读取提前到 await 之前）、线程化 1 个、server 取消 5 个、编译路由 5 个、frontend 取消 6 个、编译流程 6 个（含完成提示不带标签名），其余全部被测试抓住；「活动周期结束后重置标记」一处第一版测试没抓住，补了第二个活动周期后抓住。
 3. 回归：harness `tests/toolkits/wiki` 965 例通过（此前一次全量运行里依赖真实模型的 `test_sidecar_integration.py::test_sidecar_build_index_query_pipeline` 失败过一次，`sidecar_hits` 为空，该例不经过队列与编译器；单独运行 3 例通过、其后三次全量均通过，没有定位到原因，按偶发失败记录；真实 LLM 的 `test_wiki_compile_e2e.py` 3 例（含 `test_compile_all_full_pipeline_real_llm`）在入队重构后、线程化后与跳过处理中条目后各跑一次，均通过），ruff 干净，mypy 对触及文件无错误；server wiki 与 cron 459 例通过、3 例失败（`sk-…` 安全拦截既有失败，与 `BUG-AGENT-2026-10-15-021` 记录的同一批，不经过编译与维护）；`memory_to_wiki` 相关 26 例与 `tests/integration/wiki` 五个文件单独运行均通过；frontend `knowledge` 与 `services/wiki` 28 个文件 241 例通过，更宽的 `src/services`、`src/components/features/settings`、`src/lib` 为 3280 通过、3 例失败，均在 `timeUtils.test.ts`（`zh` 日期标题星期前的空格，ICU 版本差异，与本条无关）；oxlint 退出码 0，`tsc` 对 wiki 与 knowledge 无报错，`verify:theme-colors`、`verify:icu-syntax` 通过，`verify:i18n` 没有 wiki 与编译相关的条目。
 
 ### 局限
 
 1. **没有真实云端与真实浏览器验证**：停止按钮与编译流程只有 jsdom 与桩服务端的测试；控制平面超时与熔断是读码得出，没有复现；明暗主题与窄屏下的按钮并排没有截图；德语与日语较长文案的换行没有量过。
-2. 取消是协作式：只在两次模型调用之间与调用等待期间响应，已发出的调用在服务商侧不会被撤销（只丢弃结果）；结构性维护不提供停止按钮。
+2. 取消是协作式：只在两次模型调用之间与调用等待期间响应；维护用的模型是非流式（server `app/services/agent/llm_access.py:40-41` 的 `streaming=False`），客户端取消等待后服务商仍可能完成并计费那一次调用（没有对照服务商账单验证）；调用是串行的，所以一次停止最多多花一次调用（`app/services/wiki/maintain/run_registry.py:16`、`runner.py:61`）；结构性维护不提供停止按钮。
 3. 手动编译不再自动跳转到「待处理编辑」，提示里也不再带「已发布 / 待处理 / 被拦截」计数（总览里的「待综合」徽章仍在）。
-4. 入队到 worker 开始处理之间有亚秒级空档，server 维护只检查 `processing > 0`，这一小段里点维护不会被挡住。入队只避开入队那一刻已被认领的条目，这建立在认领与入队同在一个事件循环上；多个进程共用同一个队列文件的情形没有测试。手动编译还会把待处理条目的重试计数与退避时间清零（队列 upsert 的既有行为，未改）。
+4. 入队到 worker 开始处理之间有亚秒级空档，server 维护只检查 `processing > 0`，这一小段里点维护不会被挡住。入队只避开入队那一刻已被认领的条目，这建立在认领与入队同在一个事件循环上；两个进程共用同一个队列文件的情形没有测试（一个 vault 一个进程是假设，没有单实例锁）。进程被杀后遗留的「处理中」条目，现在由 harness 在新进程第一次打开队列时放回待处理（`BUG-HARNESS-2026-10-16-001`），此前界面会一直显示「编译中」。手动编译还会把待处理条目的重试计数与退避时间清零（队列 upsert 的既有行为，未改）。
 5. 点编译与点停止的真实频率没有数据。
 6. 入队时的变更检查对 2 万个原文（合计约 1 GB，合成库，3 次取中位数 13107 ms）仍要十几秒：在线程里执行、不停顿事件循环，但这次请求要等它，前端默认 30 秒超时。
-7. 与本条无关、未动：`compile_all` 与 `_worker_loop` 各有一份相近的流水线；`compiler.py`（909 行）、`router.py`（3472 行）、`WikiSection.tsx`（2074 行）超过文件行数建议；Cron 的 `build_list_only_report` 仅中文且带 emoji；运行登记仍在内存里（见 `BUG-AGENT-2026-10-15-021` 局限 4）。
+7. 与本条无关、未动：`compile_all` 与 `_worker_loop` 各有一份相近的流水线；`compiler.py`（861 行，入队与变更检查已拆到 `compiler_enqueue.py`，行数基线上限收紧到 861）、`router.py`（3466 行）、`WikiSection.tsx`（2078 行）超过文件行数建议；Cron 的 `build_list_only_report` 仅中文且带 emoji；运行登记仍在内存里（见 `BUG-AGENT-2026-10-15-021` 局限 4）。
+8. 已评估后放弃（评分 4/10）：harness 每批结束时记录的是全部原文的哈希（`pipeline/postprocess.py:92-119`、`core/claims_contract.py:544-553`），被取消或没轮到的原文下次增量编译会被当作未变更而跳过（实测 8 个原文、批大小 5、全部取消后再点编译：入队 0 个，3 个从未编译），可用「重试全部」恢复（`app/api/wiki/router.py:1729-1741`、`WikiQueuePanel.tsx:189`），所以不改；详见 `BUG-HARNESS-2026-10-16-001` 局限 ④。
+9. 已评估后放弃（评分 5/10）：云端托管的空闲回收器读 liveness 的 `activeCount` 与 `backgroundRunCount`（控制平面 `myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:44-45`），后者只数 `track_background_agent_run` 包住的 agent 运行与子 Agent（`app/core/agent/run_activity.py:34-45`，调用点是评测 `core/eval/executor.py:174`、Cron `core/cron/adapters/agent_runner.py:452`、渠道 `core/channel_bridge/agent_executor/executor.py:161` 与 `executor_helpers/approval.py:86`、看板 `services/kanban/task_runner/runner.py:128`），wiki 编译与维护不在其中（`app/api/health/liveness.py:63,78-79`）；回收器默认 1800 秒无请求就暂停容器（`myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/recycler.py:48`），活跃时间只在代理收到请求或建立连接时刷新（`myrm-control-plane/src/myrm_control_plane/gateway/reverse_proxy/resolver.py:46-65`，调用点 `gateway/reverse_proxy/router.py:48,170`）。所以一次超过 30 分钟、期间用户没有再发请求的编译，理论上会被暂停（暂停是冻结，不是杀死：`run_activity.py:13-14`）。没有在云端复现，也没有数据；把 wiki 的两条长任务接进同一个计数是跨 server 与控制平面契约的改动，收益没有证据，所以不做。
+10. 重启后不自动续跑编译：被杀进程遗留的条目放回待处理后，要用户点编译或有新的导入才会开始（编译要花模型费用，需要用户确认）。
 
 ### 踩坑经验
 

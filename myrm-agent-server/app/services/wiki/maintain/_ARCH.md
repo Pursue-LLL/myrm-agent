@@ -6,7 +6,7 @@ Wiki maintain 域子包 — 编排、schemas 与状态持久化。
 
 聚合 wiki maintain 管线：REST /maintain 与 Cron `__wiki_maintain__` 共用执行体（`runner`）、运行登记与单飞（`run_registry`）、DTO（`schemas`）、UserConfig 上次维护状态持久化（`state_store`）。模块名 `app.services.wiki.maintain`。
 
-全量维护最多 25 次串行模型调用（数分钟），超过云端代理等待响应的时间，所以 REST 只负责启动后台运行并返回状态，前端轮询 `GET /maintain/status`。用户可以随时取消（`POST /maintain/cancel`，幂等，返回当前状态）：登记里的 `stop` 事件交给 harness，运行在模型调用之间停下，已写入的修复与链接保留，状态为 `cancelled`，之后照常收尾（索引、健康快照、状态持久化）；只有模型阶段可以取消，结构性维护几乎瞬间完成。同一知识库范围同一时刻只允许一轮（REST 与 Cron 共用同一登记）；运行登记在内存里，因为它是本进程的瞬时进度，运行结果另由 `state_store` 与 vault 健康快照持久化。服务端以单进程运行（`run.py` 默认 uvicorn 单进程；多进程的 granian 只适用于没有嵌入式数据库的部署），所以登记不需要跨进程共享；重启后进行中的一轮随进程消失，状态回到 `idle`。
+全量维护最多 25 次串行模型调用（数分钟），超过云端代理等待响应的时间，所以 REST 只负责启动后台运行并返回状态，前端轮询 `GET /maintain/status`。用户可以随时取消（`POST /maintain/cancel`，幂等，返回当前状态）：登记里的 `stop` 事件交给 harness，运行在模型调用之间或等待某次调用时停下，已写入的修复与链接保留；维护用的模型是非流式（`app/services/agent/llm_access.py:40-41`），客户端取消等待后服务商仍可能完成并计费那一次调用，调用是串行的，所以一次停止最多多花一次调用，状态为 `cancelled`，之后照常收尾（索引、健康快照、状态持久化）；只有模型阶段可以取消，结构性维护几乎瞬间完成。同一知识库范围同一时刻只允许一轮（REST 与 Cron 共用同一登记）；运行登记在内存里，因为它是本进程的瞬时进度，运行结果另由 `state_store` 与 vault 健康快照持久化。服务端以单进程运行（`run.py` 默认 uvicorn 单进程；多进程的 granian 只适用于没有嵌入式数据库的部署），所以登记不需要跨进程共享；重启后进行中的一轮随进程消失，状态回到 `idle`。
 
 上级文档：[../_ARCH.md](../_ARCH.md)
 
