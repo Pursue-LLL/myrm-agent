@@ -154,6 +154,23 @@ describe('memory migration after an embedding model switch', () => {
     expect(useRetrievalStore.getState().reindexStatus).toBe('done');
   });
 
+  it('keeps the estimate of a model applied during the run instead of clearing the reminder', async () => {
+    useRetrievalStore.setState({ embeddingAppliedAt: 1000 });
+    startMock.mockResolvedValueOnce(status({ total: 12 }));
+    statusMock.mockImplementationOnce(async () => {
+      useRetrievalStore.setState({ embeddingAppliedAt: 2000, orphanCount: 30, orphanOldModels: ['older-model'] });
+      return finished(12, 0, 0);
+    });
+
+    await runToEnd();
+
+    const state = useRetrievalStore.getState();
+    expect(state.reindexStatus).toBe('idle');
+    expect(state.reindexResult).toBeNull();
+    expect(state.orphanCount).toBe(30);
+    expect(state.orphanOldModels).toEqual(['older-model']);
+  });
+
   it('dismissing clears the reminder and any shown outcome', () => {
     useRetrievalStore.setState({ reindexStatus: 'done', reindexResult: { migrated: 1, skipped: 0, failed: 1 } });
 

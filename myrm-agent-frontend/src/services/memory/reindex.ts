@@ -7,7 +7,8 @@
  * MemoryOrphanEstimate / MemoryReindexResult / MemoryReindexStatus: response DTOs.
  *
  * [POS]
- * Memory reindex client. `POST /memory/reindex` (202) starts the migration, or joins the one in flight, and answers at once;
+ * Memory reindex client. `POST /memory/reindex` (202) starts the migration, or joins the one in flight for the same embedding model
+ * (409 while a run into another model is in flight), and answers at once;
  * re-embedding goes through the user's embedding provider and takes minutes on a large store, so the caller polls
  * `GET /memory/reindex/status` until the run ends. Requests are silent: the Settings notice reports the outcome.
  */

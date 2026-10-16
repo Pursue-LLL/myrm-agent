@@ -5,7 +5,7 @@ app.api.memory.utils::get_crud_memory_manager (POS: Memory API utilities)
 app.services.memory.reindex_run (POS: background run + single flight + polled state)
 
 [OUTPUT]
-router: /reindex endpoints — GET /estimate, POST "" (202, starts or joins the run) and GET /status
+router: /reindex endpoints — GET /estimate, POST "" (202 starts or joins the run; 409 while a run into another model is in flight) and GET /status
 
 [POS]
 Memory reindex API layer for the frontend Settings UI. Re-embedding goes through the user's embedding
@@ -17,12 +17,17 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel
 
 from app.api.memory.utils import get_crud_memory_manager
-from app.services.memory.reindex_run import ReindexRun, get_memory_reindex_run, schedule_memory_reindex
+from app.services.memory.reindex_run import (
+    ReindexBusyError,
+    ReindexRun,
+    get_memory_reindex_run,
+    schedule_memory_reindex,
+)
 
 router = APIRouter(prefix="/reindex")
 
@@ -97,9 +102,13 @@ async def execute_reindex(
 ) -> ReindexStatusResponse:
     """Start re-embedding orphan memories with the current model in the background, or join the run in flight.
 
-    Old collections are preserved as a safety net.
+    Old collections are preserved as a safety net. A run into another embedding model that has not finished
+    yet answers 409, because joining it would not move anything into the model now in use.
     """
-    return _status_response(schedule_memory_reindex(manager))
+    try:
+        return _status_response(schedule_memory_reindex(manager))
+    except ReindexBusyError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
 
 
 @router.get("/status", response_model=ReindexStatusResponse)

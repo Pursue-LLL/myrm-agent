@@ -10,13 +10,12 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.memory._manager.reindex import (
     OrphanCollectionInfo,
     ReindexEstimate,
-    ReindexResult,
 )
 
 from app.api.dependencies import get_deploy_identity
 from app.api.memory.utils import get_crud_memory_manager
 from app.services.memory import reindex_run
-from app.services.memory.reindex_run import ReindexRun, ReindexRunState
+from app.services.memory.reindex_run import ReindexBusyError, ReindexOutcome, ReindexRun, ReindexRunState
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="memory")
@@ -71,7 +70,7 @@ def test_status_is_idle_before_any_run(client: TestClient) -> None:
 
 
 def test_start_is_accepted_and_reports_the_run_in_flight(client: TestClient) -> None:
-    run = ReindexRun(done=40, total=100)
+    run = ReindexRun(embedding_model="model-a", done=40, total=100)
 
     with patch(_SCHEDULE, new=MagicMock(return_value=run)) as schedule:
         response = client.post("/api/v1/memory/reindex")
@@ -81,12 +80,23 @@ def test_start_is_accepted_and_reports_the_run_in_flight(client: TestClient) -> 
     schedule.assert_called_once()
 
 
+def test_start_is_refused_while_a_run_into_another_model_is_in_flight(client: TestClient) -> None:
+    busy = MagicMock(side_effect=ReindexBusyError("A migration into model-a is still running"))
+
+    with patch(_SCHEDULE, new=busy):
+        response = client.post("/api/v1/memory/reindex")
+
+    assert response.status_code == 409
+    assert "model-a" in response.json()["detail"]
+
+
 def test_status_reports_the_outcome_of_a_finished_run_including_failures(client: TestClient) -> None:
     reindex_run._latest_run = ReindexRun(
+        embedding_model="model-a",
         state=ReindexRunState.SUCCEEDED,
         done=100,
         total=100,
-        result=ReindexResult(migrated=90, skipped=7, failed=3),
+        result=ReindexOutcome(migrated=90, skipped=7, failed=3),
     )
 
     body = client.get("/api/v1/memory/reindex/status").json()
@@ -96,7 +106,7 @@ def test_status_reports_the_outcome_of_a_finished_run_including_failures(client:
 
 
 def test_status_reports_a_failed_run_without_an_outcome(client: TestClient) -> None:
-    reindex_run._latest_run = ReindexRun(state=ReindexRunState.FAILED)
+    reindex_run._latest_run = ReindexRun(embedding_model="model-a", state=ReindexRunState.FAILED)
 
     body = client.get("/api/v1/memory/reindex/status").json()
 

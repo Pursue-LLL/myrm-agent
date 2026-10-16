@@ -16569,7 +16569,7 @@
         "embeddingModel": "Embedding Model",
         "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, web search, and other capabilities",
         "dismiss": "Dismiss",
-        "orphanWarning": "{count} memories from a previous model need migration",
+        "orphanWarning": "{count, plural, one {# memory from a previous model needs migration} other {# memories from a previous model need migration}}",
         "reindex": "Migrate",
         "reindexing": "Migrating...",
         "reindexProgress": "Migrating memories... {done} of {total}",

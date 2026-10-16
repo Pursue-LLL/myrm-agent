@@ -15894,7 +15894,7 @@
         "embeddingModel": "Embedding-Modell",
         "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche über Wissensdatenbank, Speicher, Websuche und andere Funktionen",
         "dismiss": "Verwerfen",
-        "orphanWarning": "{count} Speicher aus einem Vorgängermodell müssen migriert werden",
+        "orphanWarning": "{count, plural, one {# Speicher aus einem Vorgängermodell muss migriert werden} other {# Speicher aus einem Vorgängermodell müssen migriert werden}}",
         "reindex": "Migrieren",
         "reindexing": "Migration...",
         "reindexProgress": "Speicher werden migriert... {done} von {total}",

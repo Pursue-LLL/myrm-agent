@@ -4749,15 +4749,15 @@ except Exception:
 ### 修复
 
 1. harness：见 `BUG-HARNESS-2026-10-16-002`（按页迁移、原样保留身份与归属、只换向量、失败如实计数、`_with_retry` 不再对「集合不存在」退避）。
-2. server：新增 `services/memory/reindex_run.py`，进程内单飞（进行中再次触发直接加入同一轮）与实时 done / total；`POST /memory/reindex` 改为 202 启动或加入、`GET /memory/reindex/status` 返回 idle / running / succeeded / failed 与迁移 / 已存在 / 失败三个计数；意外异常记 `logger.exception` 并标 FAILED；与 harness 的结果类型解耦，服务层不导入 harness 私有模块（架构守卫 `test_no_server_harness_private_module_imports` 的违规列表里没有本条的文件）；Doctor 的 `reindex_memories` 改为 manual，预期效果指向 设置 > 模型 > 嵌入。
-3. frontend：`services/memory/reindex.ts` 封装估算 / 启动 / 状态三个调用（全部 `silent`）；`useRetrievalStore.executeReindex` 启动后轮询状态（2 秒一次，连续 5 次出错才放弃，服务端已忘记这一轮按失败处理），把进度与结果放进 store，因此离开设置页后迁移与轮询照常继续；提醒只在 `failed == 0` 时清除，否则保留并显示剩余数量；新增 `MemoryMigrationNotice`：迁移中显示进度条与「已处理 x / 共 y」，有孤儿记忆时显示迁移入口，部分失败显示「已迁移 n 条，m 条未能迁移，可再次尝试」，请求或轮询出错显示可重试提示，全部完成显示成功提示；文案六种语言，不出现集合 / 向量 / 嵌入维度等内部词，颜色全部取主题变量，窄屏纵向排列，进度区与成功提示用 `<output>`（实时区域），不含原生 emoji。
+2. server：新增 `services/memory/reindex_run.py`，进程内单飞（进行中再次触发直接加入同一轮，但只限同一个嵌入模型：这一轮写进启动时那个模型的集合，另一个模型的请求加入它，会把没迁到当前模型的记忆报成已迁移，所以返回 409）与实时 done / total；`POST /memory/reindex` 改为 202 启动或加入、`GET /memory/reindex/status` 返回 idle / running / succeeded / failed 与迁移 / 已存在 / 失败三个计数；意外异常记 `logger.exception` 并标 FAILED；与 harness 的结果类型解耦，服务层不导入 harness 私有模块（架构守卫 `test_no_server_harness_private_module_imports` 的违规列表里没有本条的文件）；Doctor 的 `reindex_memories` 改为 manual，预期效果指向 设置 > 模型 > 嵌入。
+3. frontend：`services/memory/reindex.ts` 封装估算 / 启动 / 状态三个调用（全部 `silent`）；`useRetrievalStore.executeReindex` 启动后轮询状态（2 秒一次，连续 5 次出错才放弃，服务端已忘记这一轮按失败处理），把进度与结果放进 store，因此离开设置页后迁移与轮询照常继续；提醒只在 `failed == 0` 时清除，否则保留并显示剩余数量；迁移期间又应用了新的嵌入模型（`embeddingAppliedAt` 变了）时，这一轮结束后只收起迁移提示，保留为新模型取得的估算，否则新模型的提醒会被旧一轮的结果清掉；新增 `MemoryMigrationNotice`：迁移中显示进度条与「已处理 x / 共 y」，有孤儿记忆时显示迁移入口，部分失败显示「已迁移 n 条，m 条未能迁移，可再次尝试」，请求或轮询出错显示可重试提示，全部完成显示成功提示；文案六种语言，不出现集合 / 向量 / 嵌入维度等内部词，颜色全部取主题变量，窄屏纵向排列，进度区与成功提示用 `<output>`（实时区域），不含原生 emoji。
 4. 对外材料更正到修复后的事实：素材库第 74、82 行改为后台迁移、进度与失败计数，去掉「重索引进度条」的缺口并保留「Token 预估未做」；OpenClaw 一栏改成它在索引身份不符时自动整库重建、影子库原子发布，但以 Markdown 文件为事实来源，与 Myrm 迁移向量库内记忆不是同一件事；Mem0 只写「开源代码里只见逐条记忆更新时的重嵌入，未见换模型后的整库迁移入口」；Letta 与其余产品写「没有逐一核实」；路线图 #201 同日二次复核；brand 仓的迁移一节改为后台迁移 / 进度 / 失败重试，所有 Memory Command Center、Memory Doctor 的提及补上「Memory Labs，默认关闭」，持久性可视化一段改为默认可见的是内存回退时的常驻警告提示，运行时面板与 Doctor 在 Memory Labs 里。
 
 ### 验证
 
 1. harness：`tests/toolkits/memory` + `tests/toolkits/vector` 3288 通过、5 跳过；迁移 16 例跑在真实嵌入式 Qdrant 上（红灯对旧实现得到 `(0, 0, 0)`）；store 的 3 例新测试在去掉修复后失败。另跑的 `tests/observability` 等有 2 例失败（`vector_probe` 的提示文案、jieba 语法错误降级），均在他人改动的文件里，与本条无关。
-2. server：新增 `test_reindex_run.py` 5 例、`test_reindex_api.py` 5 例，`test_diagnostic_static_checks.py` 加 1 例（Doctor 计划为 manual），三个文件共 32 例通过；`tests/services/memory` + `tests/api/memory` 855 通过、1 失败（`test_repo_evidence_api::test_get_repo_evidence_digest_endpoint`，单独跑通过，是机器平均负载上百时的超时），4 条按默认配置排除；`ruff check`、`ruff format --check` 通过，`mypy` 在触及文件上没有错误（全库 1420 条是既有的）。
-3. frontend：新增 `useRetrievalStore.reindex.test.ts` 9 例、`MemoryMigrationNotice.test.tsx` 10 例（真实 next-intl 与中英文案）全部通过；`verify:theme-colors`、`verify:stable-mocks`、`verify:icu-syntax` 通过；`oxlint` 在触及文件上无告警；`tsc --noEmit` 49 条，没有一条在触及文件里；`verify:orphans` 的 1059 条里没有本条的新文件（他人新增了 3 条）；`verify:i18n` 失败只有 `de.json` 的 `kanban.statusBacklog`（他人的键）；`verify:a11y`、`verify:hardcoded-copy` 的失败都在他人的文件里。
+2. server：新增 `test_reindex_run.py` 7 例、`test_reindex_api.py` 6 例（含另一模型进行中返回 409），`test_diagnostic_static_checks.py` 加 1 例（Doctor 计划为 manual），三个文件共 35 例通过；这三个测试文件的 mypy 报错（`test_diagnostic_static_checks.py` 既有的 11 条、新测试里的 6 条）已清零；`tests/services/memory` + `tests/api/memory` 855 通过、1 失败（`test_repo_evidence_api::test_get_repo_evidence_digest_endpoint`，单独跑通过，是机器平均负载上百时的超时），4 条按默认配置排除；`ruff check`、`ruff format --check` 通过，`mypy` 在触及文件上没有错误（全库 1420 条是既有的）。
+3. frontend：新增 `useRetrievalStore.reindex.test.ts` 10 例（含迁移期间应用新模型；去掉对应判断后该例失败）、`MemoryMigrationNotice.test.tsx` 10 例（真实 next-intl 与中英文案）全部通过；英文与德文的 `orphanWarning` 改为 ICU 复数（原来 1 条时写成「1 memories」）；`verify:theme-colors`、`verify:stable-mocks`、`verify:icu-syntax` 通过；`oxlint` 在触及文件上无告警；`tsc --noEmit` 49 条，没有一条在触及文件里；`verify:orphans` 的 1059 条里没有本条的新文件（他人新增了 3 条）；`verify:i18n` 失败只有 `de.json` 的 `kanban.statusBacklog`（他人的键）；`verify:a11y`、`verify:hardcoded-copy` 的失败都在他人的文件里。
 4. 对外材料：路线图完整性检查在 #201 上无违规（其余违规来自他人改动）。
 
 ### 局限
@@ -4767,7 +4767,9 @@ except Exception:
 3. 旧集合保留，迁移结束后提醒要等下一次应用嵌入配置才会重新检查，不会自行消失；换模型时不会自动迁移；
 4. 机器负载上百时测得的墙钟偏高且波动，确定的是退避次数与总时长（见 harness 条目）；没有真实远程嵌入服务与远程 Qdrant 的实测；
 5. brand 仓只改了英文与中文页，韩文页（由脚本翻译生成）与官网 `memoryDoctor` 区块没有同步，仍未写「Memory Labs，默认关闭」；
-6. 未改动任何提示词。
+6. 迁移前显示的数量是旧集合里的记忆总数，不是还没迁的数量：旧集合保留，迁移后再次应用嵌入配置会重新显示同样的数量，点开始得到「所有记忆已在新模型上」；连续换过两次模型时，两个旧集合里同一条记忆各算一次，数字最多偏大一倍。要变精确需要只取 id 的分页读取（`VectorStore.scroll` 目前总是带回载荷与向量）或迁移记账，未做；
+7. 另一个模型的一轮进行中点击迁移会得到 409，界面显示的是通用的「迁移被中断，再次点击」，没有单独文案；
+8. 未改动任何提示词。
 
 ### 踩坑经验
 
@@ -4777,6 +4779,8 @@ except Exception:
 4. 重试原语对确定性错误退避，只有统计重试日志才能看出来，机器负载高时墙钟会把它淹没；
 5. 后台起的 `tsc` 或测试在工具调用结束时会被一并结束，输出文件里只有第一行不代表还在跑，要前台运行或确认进程在；
 6. 前端的 lint 是 `oxlint`（`bun run lint:oxlint`），没有项目配置的 `bunx eslint` 只会先下载再报「找不到配置」。
+7. 单飞登记表要把「这一轮针对谁」记在这一轮上：只按「有没有进行中」判断，另一个配置的请求会加入一轮写错地方的任务，并且界面还会显示成功；前端同理，长任务结束时要核对期间配置有没有变过，再决定清不清提醒。
+8. 同一个工具调用批次里的「改文件」和「跑测试」可能并行，做红灯验证时要分两步，否则看到的是改之前的结果。
 
 ## BUG-AGENT-2026-10-16-007: 看板任务被阻塞或失败时，toast、系统通知与频道消息常报成它上一次完成的结果，真正的原因被盖住；到点会自己恢复的定时阻塞与需要人处理的阻塞发出同样的提醒
 

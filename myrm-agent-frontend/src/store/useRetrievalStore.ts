@@ -376,6 +376,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
     if (get().reindexStatus === 'running') {
       return;
     }
+    const appliedAtStart = get().embeddingAppliedAt;
     set({ reindexStatus: 'running', reindexProgress: { done: 0, total: 0 }, reindexResult: null });
     try {
       let status = await startMemoryReindex();
@@ -396,6 +397,12 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
       // 'idle' after following a run means the server forgot it (restarted): nothing finished.
       if (status.state !== 'succeeded' || !status.result) {
         throw new Error('Memory reindex did not finish');
+      }
+      if (get().embeddingAppliedAt !== appliedAtStart) {
+        // Another embedding model was applied during the run, which moved memories into the previous one:
+        // the estimate taken for the new model stays, because those memories are not in it yet.
+        set({ reindexStatus: 'idle', reindexResult: null });
+        return;
       }
       // Only memories that could not migrate keep the reminder; running again retries just those.
       set({

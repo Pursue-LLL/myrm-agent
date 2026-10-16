@@ -5,13 +5,16 @@
 
 [OUTPUT]
 - ReindexRunState / ReindexRun / ReindexOutcome: lifecycle states, live state of the run (done/total) and its outcome
-- schedule_memory_reindex: start the run in the background, or join the one in flight
+- ReindexBusyError: a run into another embedding model is still in flight
+- schedule_memory_reindex: start the run in the background, or join the one in flight for the same model
 - get_memory_reindex_run: the latest run
 
 [POS]
 Re-embedding the memories of a previous model goes through the user's embedding provider and takes minutes
 on a large store, longer than a request may wait; a second run at the same time would only pay for the same
-memories twice. The registry lives in memory: it is transient progress of this single-process server, and a
+memories twice. A run writes into the collections of the model it started with, so only a request for that
+same model may join it; joining from another model would report memories as migrated that never reached the
+model now in use. The registry lives in memory: it is transient progress of this single-process server, and a
 run cut short by a restart is simply started again, because migration skips what is already in place.
 The latest run stays after it ends, until the next run replaces it.
 """
@@ -43,8 +46,14 @@ class ReindexOutcome:
     failed: int
 
 
+class ReindexBusyError(RuntimeError):
+    """A run into another embedding model is still in flight."""
+
+
 @dataclass(slots=True)
 class ReindexRun:
+    # The embedding model whose collections this run writes into.
+    embedding_model: str
     state: ReindexRunState = ReindexRunState.RUNNING
     done: int = 0
     total: int = 0
@@ -62,14 +71,20 @@ _latest_run: ReindexRun | None = None
 
 
 def schedule_memory_reindex(manager: MemoryManager) -> ReindexRun:
-    """Start a background run, or hand back the one in flight.
+    """Start a background run, or hand back the one in flight for the same embedding model.
 
     Nothing is awaited between the check and the claim, so two callers cannot both start a run.
+
+    Raises:
+        ReindexBusyError: A run into a different embedding model has not finished yet.
     """
     global _latest_run
+    embedding_model = manager.config.embedding_model
     if _latest_run is not None and _latest_run.state is ReindexRunState.RUNNING:
+        if _latest_run.embedding_model != embedding_model:
+            raise ReindexBusyError(f"A migration into {_latest_run.embedding_model} is still running")
         return _latest_run
-    run = ReindexRun()
+    run = ReindexRun(embedding_model=embedding_model)
     _latest_run = run
     run.task = asyncio.create_task(_execute(run, manager))
     return run
