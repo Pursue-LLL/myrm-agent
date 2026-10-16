@@ -511,17 +511,5 @@ class RuntimeMeterService:
             )
         return result
 
-    def reset_circuit_breaker(self, key: str | None = None) -> int:
-        """Reset one or all registered circuit breakers to closed state."""
-        from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import (
-            get_circuit_breaker_registry,
-        )
-
-        reg = get_circuit_breaker_registry()
-        if key:
-            ok = reg.reset_one(key)
-            return 1 if ok else 0
-        return reg.reset_all()
-
 
 runtime_meter_service = RuntimeMeterService()
