@@ -170,7 +170,8 @@ export type Message = {
   };
   planConfirmation?: {
     plan: string;
-    status: 'waiting' | 'confirmed' | 'edited' | 'skipped';
+    /** `handled`: another client answered the plan first, so this client never learns which answer was given. */
+    status: 'waiting' | 'confirmed' | 'edited' | 'skipped' | 'handled';
     planItems?: Array<{ id: string; content: string; status?: string }>;
     totalItems?: number;
     goal?: string;

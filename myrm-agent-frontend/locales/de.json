@@ -3013,6 +3013,7 @@
     },
     "turnCapabilities": {
       "tooltip": "Fähigkeiten der nächsten Nachricht",
+      "handledElsewhere": "Dieser Plan wurde bereits an anderer Stelle bearbeitet",
       "popoverTitle": "Fähigkeiten für nächste Nachricht",
       "activeCount": "{skills} Fähigkeiten, {mcps} MCP Server",
       "activeSummary": "Benutzerdefinierte Fähigkeitenüberschreibung",
@@ -9486,7 +9487,6 @@
     "workspaceLabel": "Arbeitsbereich",
     "expiresIn": "Läuft in {seconds}s ab",
     "expired": "Abgelaufen",
-    "expiredToast": "Genehmigung abgelaufen – Aktion wurde automatisch abgelehnt",
     "timeoutAutoDenied": "Genehmigung abgelaufen – Aktion wurde automatisch abgelehnt",
     "timeoutAutoApproved": "Genehmigung abgelaufen – Aktion wurde automatisch genehmigt",
     "approve": "Genehmigen",

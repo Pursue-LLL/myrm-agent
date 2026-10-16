@@ -5,9 +5,11 @@
  * @/services/chat::submitPlanConfirmResponse (POS: Deep Research plan confirm REST API)
  * @/services/chat::resumePlanConfirmStream (POS: General Agent plan confirm SSE resume)
  * @/store/chat/types::Message.planConfirmation (POS: plan confirmation state)
+ * @/store/chat/streamErrors::ApprovalAlreadyResolvedError (POS: another client answered the plan first)
  *
  * [OUTPUT]
- * PlanConfirmationCard: Renders plan review card with confirm/edit/skip actions.
+ * PlanConfirmationCard: Renders plan review card with confirm/edit/skip actions; a plan another client already
+ * answered settles into a neutral handled state instead of a failure toast.
  *
  * [POS]
  * Plan-phase HITL gate. Supports both Deep Research (PhaseWaiter REST)
@@ -18,13 +20,14 @@ import React, { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { submitPlanConfirmResponse } from '@/services/chat';
+import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import useChatStore from '@/store/useChatStore';
 import { cn } from '@/lib/utils';
 
 interface PlanConfirmationCardProps {
   messageId: string;
   plan: string;
-  status: 'waiting' | 'confirmed' | 'edited' | 'skipped';
+  status: 'waiting' | 'confirmed' | 'edited' | 'skipped' | 'handled';
   planItems?: Array<{ id: string; content: string; status?: string }>;
   goal?: string;
   source?: 'deep_research' | 'general_agent' | 'dynamic_workflow';
@@ -79,10 +82,27 @@ const SkipIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const InfoCircleIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 16v-4" />
+    <path d="M12 8h.01" />
+  </svg>
+);
+
 const resolvedStatusMap: Record<string, string> = {
   confirmed: 'confirmed',
   edited: 'edited',
   skipped: 'skipped',
+  handled: 'handledElsewhere',
 };
 
 const PlanConfirmationCard = ({
@@ -105,7 +125,7 @@ const PlanConfirmationCard = ({
   // plan reads differently and must stay waiting instead of inheriting this answer; the same plan is stamped even when
   // the stream already marked it resolved, so the user's own choice (edited, skipped) is what the card shows.
   const markResolved = useCallback(
-    (resolvedStatus: 'confirmed' | 'edited' | 'skipped') => {
+    (resolvedStatus: 'confirmed' | 'edited' | 'skipped' | 'handled') => {
       useChatStore.setState((state) => {
         const row = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
         if (row?.planConfirmation?.plan === plan) {
@@ -114,6 +134,19 @@ const PlanConfirmationCard = ({
       });
     },
     [messageId, plan],
+  );
+
+  // A 409 means another client answered this plan first: the answer was not applied and the card has nothing left to ask.
+  const reportSubmitFailure = useCallback(
+    (err: unknown, failureLabel: string) => {
+      if (err instanceof ApprovalAlreadyResolvedError) {
+        markResolved('handled');
+        return;
+      }
+      console.error(failureLabel, err);
+      toast.error(t('submitFailed'));
+    },
+    [markResolved, t],
   );
 
   const submitAction = useCallback(
@@ -142,8 +175,7 @@ const PlanConfirmationCard = ({
       await submitAction('confirm');
       markResolved('confirmed');
     } catch (err) {
-      console.error('Failed to confirm plan:', err);
-      toast.error(t('submitFailed'));
+      reportSubmitFailure(err, 'Failed to confirm plan:');
     } finally {
       setSubmitting(false);
     }
@@ -177,8 +209,7 @@ const PlanConfirmationCard = ({
       }
       markResolved(isChanged ? 'edited' : 'confirmed');
     } catch (err) {
-      console.error('Failed to submit edited plan:', err);
-      toast.error(t('submitFailed'));
+      reportSubmitFailure(err, 'Failed to submit edited plan:');
     } finally {
       setSubmitting(false);
     }
@@ -193,8 +224,7 @@ const PlanConfirmationCard = ({
       await submitAction('skip');
       markResolved('skipped');
     } catch (err) {
-      console.error('Failed to skip plan confirmation:', err);
-      toast.error(t('submitFailed'));
+      reportSubmitFailure(err, 'Failed to skip plan confirmation:');
     } finally {
       setSubmitting(false);
     }
@@ -202,10 +232,29 @@ const PlanConfirmationCard = ({
 
   if (status !== 'waiting') {
     const label = resolvedStatusMap[status];
+    const handledElsewhere = status === 'handled';
+    const StatusIcon = handledElsewhere ? InfoCircleIcon : CheckCircleIcon;
     return (
-      <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3">
-        <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
-        <span className="font-medium text-emerald-700 dark:text-emerald-300">{label ? t(label) : t('confirmed')}</span>
+      <div
+        className={cn(
+          'mt-3 flex items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3',
+          handledElsewhere ? 'border-border/60 bg-muted/40' : 'border-emerald-500/30 bg-emerald-500/5',
+        )}
+      >
+        <StatusIcon
+          className={cn(
+            'h-4 w-4 shrink-0',
+            handledElsewhere ? 'text-muted-foreground' : 'text-emerald-500 dark:text-emerald-400',
+          )}
+        />
+        <span
+          className={cn(
+            'font-medium',
+            handledElsewhere ? 'text-muted-foreground' : 'text-emerald-700 dark:text-emerald-300',
+          )}
+        >
+          {label ? t(label) : t('confirmed')}
+        </span>
       </div>
     );
   }

@@ -5261,3 +5261,48 @@ except Exception:
 2. 同一个概念在两个页面各算一遍，迟早对不上：成长页与五环面板的「案例数」只该有一个出处。
 3. 把几个计数合成「健康分」「总学习数」之前，先问它有没有可验证的含义；没有就不展示，初值为 100 的分数比没有分数更糟。
 4. 多方并发写同一个多语种文件时，别人的整文件写回会盖掉自己的改动：本次 `en.json` 与 `de.json` 在写入约十秒后被还原；提交前逐个重新校验，并让提交内容由「HEAD 加同一份编辑脚本」生成，而不是依赖工作区当前状态。
+
+## BUG-AGENT-2026-10-16-016: 计划确认卡对 resume 的 409 报「提交失败」且卡片不收口：BUG-AGENT-2026-10-16-011 的统一处理漏了第三种卡片；一个无引用的文案键残留
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（提示失真；重复点击不会有副作用，因为服务端在启动任何一轮之前就拒绝） |
+| 影响范围 | `myrm-agent-frontend/src/services/chat.ts`、`src/components/features/message-box/PlanConfirmationCard.tsx`、`src/store/chat/types/messages.ts`、六语种 `locales/*.json`、`scripts/translation-patches/ko/batch-10.json` |
+| 出现次数 | 1 |
+| 关联条目 | BUG-AGENT-2026-10-16-011（其「修复」第 1 条声称计划确认的错误文案已统一，实际只改了错误类名，没有改这张卡的处理）；roadmap topic_08 #134 补遗 ⑧ |
+
+### 现象
+
+General Agent 的计划确认卡在另一端已经回答之后再点「批准计划」或「跳过」，服务端拒绝（HTTP 409），卡片弹「提交计划响应失败，请重试」，仍然可点。审批卡、澄清卡对同样的 409 已经说「已在别处处理」。
+
+### 根因
+
+1. `resumePlanConfirmStream` 对 409 抛的是普通 `Error`（原 `services/chat.ts:1232-1233`），不是 BUG-AGENT-2026-10-16-011 引入的 `ApprovalAlreadyResolvedError`；卡片的三个 catch 一律报 `submitFailed`，也没有「已处理」状态可落。
+2. 011 的既有测试只断言了「抛出 409 文案」，没有断言卡片的结局，所以这条漏网没有变红。
+3. `toolApproval.expiredToast` 在 `src/` 里没有任何引用，且与 `timeoutAutoDenied` 逐语种同文，是已被取代的残留。
+
+### 修复
+
+1. `resumePlanConfirmStream` 对 409 抛 `ApprovalAlreadyResolvedError`（`services/chat.ts:1230-1237`）。
+2. 计划卡的三个 catch 合并成 `reportSubmitFailure`：409 时把计划落成 `handled`（`PlanConfirmationCard.tsx`），其余错误维持原来的失败提示。`handled` 只在所在行上仍是被回答的那份计划时才写入，续跑流在同一行新发的计划不会被盖掉。`handled` 用中性样式与信息图标，不借用「已批准」的绿色（对方选了哪个答案，这一端无从知道）。
+3. 六语种新增 `chat.planConfirmation.handledElsewhere`；删除无引用的 `toolApproval.expiredToast`（六语种与 ko 补丁文件）。
+4. 文档同步：`message-box/_ARCH.md`、`services/_ARCH.md`、`store/chat/_ARCH.md`。
+
+### 验证
+
+1. 变异检查：把 409 分支改成恒假，`PlanConfirmationCard.lateResolve.test.tsx` 8 例中 3 例失败；把 `handled` 的样式判断改成恒假，1 例失败；还原后 8 例通过。
+2. 前端相关目录（`message-box`、`services`、`store/chat`、`hooks/approval`、`lib/approval`）255 个文件 1908 例通过；全量 `tsc --noEmit` 无报错；`verify:i18n`（六语种 parity 与代码引用）与 `verify:theme-colors` 通过。
+3. `bun run lint` 有 2 个门禁红灯（`verify:a11y`、`verify:hardcoded-copy`），报出的都是他人在途的文件，本条触碰的文件不在其列。
+
+### 局限
+
+1. 没有走通真实的两个标签页抢答流程，只用真实的卡片组件与真实的 store 做了行为测试。
+2. Deep Research 的计划确认走 REST（`/agents/plan-confirm-response`），迟到点击得到的是业务码 404 与请求层自带的提示，这条路径没有改；该路径的等待期间流保持连接，订阅它的端由 `statusStreamPhaseData.ts:85-86` 的 `resolved` 事件结算。
+3. `resumePlanConfirmStream` 复制了一份流消费逻辑而不走 `executeStreamWithRetry`，`services/chat.ts` 本身已达 1488 行；两者都是既有状态，本条不动。
+
+### 教训
+
+1. 「统一处理」的验收要列出所有入口逐个点到：同一个 409 有审批、澄清、计划确认三类卡片，只改了前两类的处理却在日志里写成全部统一。
+2. 断言错误文案的测试管不住用户看到的结局；对「用户会看到什么」的承诺，要断言卡片的最终状态。

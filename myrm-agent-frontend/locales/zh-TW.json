@@ -3013,6 +3013,7 @@
     },
     "turnCapabilities": {
       "tooltip": "下一條消息能力",
+      "handledElsewhere": "該計劃已在別處處理",
       "popoverTitle": "下一條消息能力範圍",
       "activeCount": "技能 {skills} 項，MCP 服務 {mcps} 項",
       "activeSummary": "自訂能力覆蓋",
@@ -9486,7 +9487,6 @@
     "workspaceLabel": "工作區",
     "expiresIn": "{seconds}秒後過期",
     "expired": "已過期",
-    "expiredToast": "審批已超時，操作已自動拒絕",
     "timeoutAutoDenied": "審批已超時，操作已自動拒絕",
     "timeoutAutoApproved": "審批已超時，操作已自動批准",
     "approve": "批准",

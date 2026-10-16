@@ -3013,6 +3013,7 @@
     },
     "turnCapabilities": {
       "tooltip": "次のメッセージの機能",
+      "handledElsewhere": "このプランは別の場所で処理済みです",
       "popoverTitle": "次のメッセージの機能",
       "activeCount": "{skills} スキル、{mcps} 個のMCPサーバー",
       "activeSummary": "カスタム機能オーバーライド",
@@ -9486,7 +9487,6 @@
     "workspaceLabel": "ワークスペース",
     "expiresIn": "{seconds} 秒後に期限切れ",
     "expired": "期限切れ",
-    "expiredToast": "承認がタイムアウトしました — 操作は自動的に拒否されました",
     "timeoutAutoDenied": "承認がタイムアウトしました — 操作は自動的に拒否されました",
     "timeoutAutoApproved": "承認がタイムアウトしました — 操作は自動的に承認されました",
     "approve": "承認",

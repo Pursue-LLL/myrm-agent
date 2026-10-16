@@ -3013,6 +3013,7 @@
     },
     "turnCapabilities": {
       "tooltip": "다음 메시지 기능",
+      "handledElsewhere": "이 계획은 이미 다른 곳에서 처리되었습니다",
       "popoverTitle": "다음 메시지 기능",
       "activeCount": "{skills}개 스킬, {mcps}개 MCP 서버",
       "activeSummary": "사용자 지정 기능 재정의",
@@ -9486,7 +9487,6 @@
     "workspaceLabel": "워크스페이스",
     "expiresIn": "{seconds}초 후 만료",
     "expired": "만료됨",
-    "expiredToast": "승인 시간 초과 — 작업이 자동으로 거부되었습니다",
     "timeoutAutoDenied": "승인 시간 초과 — 작업이 자동으로 거부되었습니다",
     "timeoutAutoApproved": "승인 시간 초과 — 작업이 자동으로 승인되었습니다",
     "approve": "승인",

@@ -1188,7 +1188,7 @@ export const submitHumanGateResponse = async (messageId: string, answer: string)
 /**
  * Resume a General Agent plan confirmation interrupt via the main SSE stream.
  * Uses the same resume_value mechanism as tool approval. Rejects when the request cannot be sent, so the card never
- * reads an unsent answer as confirmed.
+ * reads an unsent answer as confirmed; rejects with `ApprovalAlreadyResolvedError` when the plan was already answered.
  */
 export const resumePlanConfirmStream = async (
   messageId: string,
@@ -1227,10 +1227,13 @@ export const resumePlanConfirmStream = async (
     }),
   };
 
+  const { AgentBusyError, ApprovalAlreadyResolvedError, isAgentBusySseEvent } = await import(
+    '@/store/chat/streamErrors'
+  );
   const response = await createAISearchStream(requestBody, chatState.abortController || undefined);
   if (!response.ok) {
     if (response.status === 409) {
-      throw new Error('Plan confirmation has already been resolved');
+      throw new ApprovalAlreadyResolvedError();
     }
     throw new Error(`Plan confirm resume failed: HTTP ${response.status}`);
   }
