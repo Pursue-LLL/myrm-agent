@@ -7,6 +7,9 @@
  * 额外覆盖 Safari / WebKit 的事件顺序倒置：Safari 先派发 `compositionend` 再派发确认 keydown，
  * 该 keydown 的 `isComposing` 已是 false、`keyCode` 已是 13，三个常规信号全部落空，
  * 导致「按 Enter 上屏」被误判为「按 Enter 提交」。故额外维护 compositionend 时间戳窗口。
+ *
+ * 按 Enter 提交的处理器遍布全站（输入框 onKeyDown、window 级监听），逐点加守卫必然在新增输入面上再漏；
+ * `installImeEnterGuard` 因此在 document 捕获阶段统一拦下输入法确认候选词的 Enter，各处理器天然收不到。
  */
 
 /**
@@ -99,4 +102,38 @@ export function isImeComposing(event: KeyboardEventLike, now: number = Date.now(
   }
 
   return false;
+}
+
+/** 自己处理输入法组合的编辑器：它们的按键事件必须原样送达，守卫不介入。 */
+const SELF_MANAGED_EDITOR_SELECTOR = '.monaco-editor, .cm-editor';
+
+let enterGuardInstalled = false;
+
+function swallowImeConfirmEnter(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' || !isImeComposing(event)) {
+    return;
+  }
+  if (event.target instanceof Element && event.target.closest(SELF_MANAGED_EDITOR_SELECTOR)) {
+    return;
+  }
+  // 只阻断传播、不 preventDefault：浏览器对候选词上屏的默认行为不变，只是没有任何处理器把它当成「提交」。
+  event.stopPropagation();
+}
+
+/**
+ * 安装 document 级捕获守卫：输入法确认候选词的 Enter 不再传给页面里的任何处理器（含 React 的 onKeyDown 与 window
+ * 级监听）。判定与逐点守卫共用 `isImeComposing`，二者不会出现分歧。
+ *
+ * 只允许一个持有者（应用根的 `ImeEnterGuardInitializer`）；已安装时再次调用是空操作。返回卸载函数。
+ */
+export function installImeEnterGuard(): () => void {
+  if (typeof document === 'undefined' || enterGuardInstalled) {
+    return () => undefined;
+  }
+  enterGuardInstalled = true;
+  document.addEventListener('keydown', swallowImeConfirmEnter, true);
+  return () => {
+    document.removeEventListener('keydown', swallowImeConfirmEnter, true);
+    enterGuardInstalled = false;
+  };
 }
