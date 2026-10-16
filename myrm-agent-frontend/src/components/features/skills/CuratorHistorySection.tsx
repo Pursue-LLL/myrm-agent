@@ -57,14 +57,11 @@ const CuratorHistorySection = memo(({ open, loading, entries, onToggle }: Curato
                 data-testid="curator-history-entry"
                 className="rounded-lg border px-3 py-2 text-xs space-y-1"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{formatRelativeTime(entry.timestamp, locale)}</span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      {entry.trigger === 'manual' ? t('triggerManual') : t('triggerBackground')}
-                    </Badge>
-                  </div>
-                  <span className="text-muted-foreground">{entry.duration_ms}ms</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">{formatRelativeTime(entry.timestamp, locale)}</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    {entry.trigger === 'manual' ? t('triggerManual') : t('triggerBackground')}
+                  </Badge>
                 </div>
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <span>{t('historyScanned', { count: entry.skills_scanned })}</span>

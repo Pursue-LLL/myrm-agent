@@ -3574,6 +3574,7 @@ except Exception:
 5. 面板 674 行降到 471 行，状态（`history`、`historyOpen`、`loadHistory`、`toggleHistory`）仍留在面板里，两个区块只收 props；
 6. 面板、历史区、诊断区的根节点与历史条目、诊断行加了 `data-testid`，单测与真机 E2E 用它按行断言；
 7. 文字对比度（真机 E2E 量出，见局限 1）：诊断行的类型徽章在严重时用 `text-destructive`，而深色主题下 `--destructive` 是 `#801d1d` 的背景色令牌，文字对比度只有 1.85:1，改为 `text-red-700 dark:text-red-400`；浅色底上的 `text-emerald-600` / `text-amber-600` / `text-yellow-600` / `text-green-600` 加深到 700 / 800 档；历史条目里原因文字的 `opacity-60` 改 `opacity-70`。
+8. 历史条目右侧的 `{entry.duration_ms}ms`（耗时）是给开发者看的数字：用户无法据此做任何判断，也不随语言变化，已删除显示；`CuratorHistoryEntry.duration_ms` 仍是接口字段，保留在类型里。单测的泄漏正则与 E2E 的 `_LEAKED` 加入 `\d\s?ms\b`，单测先红（1 例失败）再绿。
 
 ### 验证
 
@@ -3583,10 +3584,11 @@ except Exception:
 4. prettier、oxlint 对三个组件与新测试 0 告警；`tsc --noEmit` 对触及文件 0 错误（全量输出里属于 `components/features/skills` 与 `services/skill` 的只有 `in-situ-picker/InSituWorkflowSkillPickerDrawer.tsx` 的 1 条，是他人文件）；
 5. 服务端：`tests/api/skills/test_curator.py` 与 `test_curator_config_validation.py` 26 通过、4 失败；失败的 4 例（`test_archive_pinned_skill_returns_409`、`test_archive_unpinned_skill_succeeds`、`test_consolidation_execute_empty`、`test_consolidation_execute_with_results`）都属于他人在同一文件里未提交的「归档守卫 / 合并计划令牌」改动，`test_get_skill_diagnostics` 通过。
 6. 真机 E2E：`./myrm test -m chrome_e2e -rs -s myrm-agent/myrm-agent-server/tests/e2e/test_curator_panel_sections_chrome_e2e.py` 第 12 次真实通过（`1 passed in 340.91s`，种子后端 :18081，`E2E_CURATOR_DESKTOP_PROBLEMS: []`）：zh 下历史与诊断两个区块的文案逐字、`rowButtons == [2, 2, 0]`、无开发标识符；桌面与 375px 同源 iframe 各量深浅两套主题，文字对比度全部不低于 4.5:1，无元素越出视口，面板无横向滚动。
+7. 删除耗时显示之后：`CuratorSections.test.tsx` + `CuratorSettingsPanel.test.tsx` 2 文件 21 例通过，prettier、oxlint 0 告警；该改动之后真机 E2E 没有再跑出结论，见局限 1。
 
 ### 局限
 
-1. **真机 E2E 的可信范围**：共跑 12 次，只有第 12 次是真通过。前 11 次：第 1、4、8、10 次启动器种子失败（`E2E_EPOCH_PIN_FAILED`）；第 2、7、11 次 `E2E_EPOCH_PIN_DEFER_SKIP`（exit=0 但是跳过，第 11 次原因是 `private backend cap reached (4/4)`，不算通过）；第 3 次 pytest 以 247（SIGKILL）退出；第 5 次后台任务随 shell 结束被杀，无结果；第 6 次真实失败：`desktop/dark: 高频低效 1.85:1 at 10px`（即修复 7 的缺陷）；第 9 次真实失败于手机 iframe 的就绪探测（`{'ready': False, 'width': 375}`），根因没有查实，第 10 次起探测只看 `settings-layout` 与路径并带出更多状态，随后通过，无法区分当时是主机负载（load 100+）还是探测条件所致。深色主题的检测只在缺陷版本上被抓到过一次；浅色主题与手机宽度的检测没有用故意破坏的版本验证过会不会变红；`rounded-lg` 没有目视；
+1. **真机 E2E 的可信范围**：共跑 12 次，只有第 12 次是真通过。前 11 次：第 1、4、8、10 次启动器种子失败（`E2E_EPOCH_PIN_FAILED`）；第 2、7、11 次 `E2E_EPOCH_PIN_DEFER_SKIP`（exit=0 但是跳过，第 11 次原因是 `private backend cap reached (4/4)`，不算通过）；第 3 次 pytest 以 247（SIGKILL）退出；第 5 次后台任务随 shell 结束被杀，无结果；第 6 次真实失败：`desktop/dark: 高频低效 1.85:1 at 10px`（即修复 7 的缺陷）；第 9 次真实失败于手机 iframe 的就绪探测（`{'ready': False, 'width': 375}`），根因没有查实，第 10 次起探测只看 `settings-layout` 与路径并带出更多状态，随后通过，无法区分当时是主机负载（load 100+）还是探测条件所致。深色主题的检测只在缺陷版本上被抓到过一次；浅色主题与手机宽度的检测没有用故意破坏的版本验证过会不会变红；`rounded-lg` 没有目视；第 12 次通过发生在删除耗时显示、E2E 加 `\d\s?ms\b` 之前。之后为证明浅色与手机宽度的检测会变红，写了一次性变异用例（在 375px 框内插入 700px 宽元素并把一行说明改成浅灰），尝试 5 次：1 次因用例自身的导入写法失败、1 次 SIGKILL（247）、1 次预检 360 秒超时、2 次种子失败（`E2E_EPOCH_PIN_FAILED`），都没有跑出结论，用例已删除；所以这两项检测的灵敏度，以及删除耗时显示之后的真机页面，都没有再验证过；
 2. 日、韩、德、繁中文案没有母语者审校，词汇沿用各语言文件里 `card.stale` / `card.archived` / `card.pinned` 的既有译法；
 3. 两套囤积判断仍各自一套阈值（诊断面板的 `hoarding_bloat` 与 `SkillHoardingHealthDiagnostic` 的 80% 预警），诊断响应里 5 个前端没用到的计数字段也没删；
 4. harness 的 `SkillDoctorFinding.message` 仍在产生并序列化，本产品不再读它；它是框架公开接口，删除需要先发布 harness 再 `sync-lock`，本条不涉及；
@@ -3601,6 +3603,7 @@ except Exception:
 4. 涉及本地化的断言要读真实的 locale 文件渲染，全局的恒等翻译桩只能证明「键存在」，证明不了「用户读到的是句子」；
 5. 受限于共享主机与「共享纪元已过期」的状态，正式 E2E 通道一次跑不通时，写清楚是哪一步没过，不要把「用例写好了」当成「验证过了」。
 6. `exit=0` 的 `E2E_EPOCH_PIN_DEFER_SKIP` 是跳过不是通过，要看到 `1 passed`；把深浅主题与多个宽度的问题累积到最后再断言，并在中途打印，失败时才能看到已经量到的结果。
+7. 清理「开发信息泄漏到界面」时只盯着字符串会漏掉「接口字段 + 单位」的插值（这里的 `{duration_ms}ms`）；复查要逐个看每一处 `{entry.*}` / `{f.*}` 插值，并把这类形态加进泄漏正则。
 
 ## BUG-AGENT-2026-10-15-014: IM 的事件触发在风控闸门之前派发，带密钥的消息仍会拉起定时作业并把原文带进作业上下文；智能体档案、AI 创建、提示词生成、批量目录、技能派生、子目标与目标草稿都不过闸门；AI 创建拿到的技能目录永远是空的；「哪些入口必须过闸门」只有一张手写登记表，新增入口不登记就漏过
 

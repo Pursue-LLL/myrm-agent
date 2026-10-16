@@ -9,7 +9,7 @@
 
 [POS]
 UI-lane check of the two sections the Curator panel renders from server data. The history and diagnostics
-responses are replaced in the page so every finding type and every transition reason is on screen whatever
+responses are replaced in the page so every finding type and every transition phrase is on screen whatever
 the machine's skills did this week; the server-side producers are covered by ``tests/api/skills``.
 The phone width is a same-origin frame, so the page's own media queries run at 375px.
 """
@@ -32,7 +32,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-_NAME_PREFIX = "e2e-curator-"
+_SKILL_PREFIX = "e2e-curator-skill-"
 _MIN_TEXT_CONTRAST = 4.5
 
 _DISMISS_MIGRATION_JS = """(() => {
@@ -229,11 +229,9 @@ _PHONE_FRAME_JS = """(() => {
 
 _PHONE_WINDOW = "document.getElementById('curator-phone-frame').contentWindow"
 
-# Findings the doctor can raise, one per type code; transitions cover all five reason codes.
-_SKILL_PREFIX = f"{_NAME_PREFIX}skill-"
-
 
 def _fixture() -> dict[str, object]:
+    """One finding per type code and transitions for each of the three reason phrases (stale and archive share one)."""
     now = datetime.now(UTC)
 
     def stamp(delta: timedelta) -> str:
@@ -340,12 +338,18 @@ _ZH_DIAGNOSTIC_ROWS = (
 )
 _LEAKED = re.compile(
     r"PINNED|Score|\bstale\b|\barchived\b|inactive|low_quality|lru_eviction|wrong_but_frequent|stale_pinned"
-    r"|hoarding_bloat|Library Bloat|\bago\b|settings\.skills|historyReason|doctor\."
+    r"|hoarding_bloat|Library Bloat|\bago\b|\d\s?ms\b|settings\.skills|historyReason|doctor\."
 )
 
 
 def _evaluate(client: ChromeMcpClient, page: McpPage, script: str) -> object:
     return client.evaluate(page, script, timeout_sec=30.0)
+
+
+def _evaluate_dict(client: ChromeMcpClient, page: McpPage, expression: str) -> dict[str, object]:
+    value = _evaluate(client, page, f"(() => {expression})()")
+    assert isinstance(value, dict), value
+    return value
 
 
 def _state_of(client: ChromeMcpClient, page: McpPage, expression: str, *, timeout_sec: float = 90.0) -> dict[str, object]:
@@ -426,12 +430,6 @@ def _check_both_themes(client: ChromeMcpClient, page: McpPage, target: str, *, l
     return problems
 
 
-def _evaluate_dict(client: ChromeMcpClient, page: McpPage, expression: str) -> dict[str, object]:
-    value = _evaluate(client, page, f"(() => {expression})()")
-    assert isinstance(value, dict), value
-    return value
-
-
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -451,6 +449,7 @@ def test_curator_sections_read_in_plain_language_in_both_themes_and_at_phone_wid
 
         _bring_up_sections(client, page, "window")
         problems = _check_both_themes(client, page, "window", label="desktop")
+        # Printed now so a failure in the phone stage still shows what the desktop measured.
         print(f"E2E_CURATOR_DESKTOP_PROBLEMS: {json.dumps(problems, ensure_ascii=False)}", flush=True)
 
         phone = _state_of(client, page, _PHONE_FRAME_JS, timeout_sec=180.0)

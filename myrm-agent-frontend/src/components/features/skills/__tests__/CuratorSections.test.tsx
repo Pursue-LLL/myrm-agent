@@ -92,7 +92,8 @@ const historyEntry: CuratorHistoryEntry = {
 };
 
 /** Anything an English-only or developer-facing rendering would leak into a localized UI. */
-const LEAKED_IDENTIFIERS = /PINNED|Score|stale|archived|inactive|low_quality|lru_eviction|\[Library Bloat\]|\bago\b/;
+const LEAKED_IDENTIFIERS =
+  /PINNED|Score|stale|archived|inactive|low_quality|lru_eviction|\[Library Bloat\]|\bago\b|\d\s?ms\b/;
 /** What a missing translation key degrades to. */
 const MISSING_KEY_FALLBACK = /settings\.skills|historyReason|doctor\./;
 
