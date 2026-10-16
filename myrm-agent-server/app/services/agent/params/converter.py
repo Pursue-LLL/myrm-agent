@@ -1144,7 +1144,7 @@ async def convert_to_general_agent_params(
         user_instructions = f"{user_instructions}{regen_suffix}" if user_instructions else regen_suffix.strip()
 
     # Every Wiki surface (tools, long-reply auto-archive, post-compaction archive, Deep Research vault) keys off this
-    # flag, so an incognito chat resolves it off once here instead of each writer re-gating on incognito.
+    # flag, so every Wiki writer inherits the incognito gate from this one place.
     if request.incognito_mode:
         tool_flags["enable_wiki"] = False
 
