@@ -6,6 +6,7 @@
  * natively; hourCycle h23 for the 24-hour clock).
  *
  * [OUTPUT]
+ * - parseServerTimestamp
  * - formatDuration
  * - getCurrentTimestamp
  * - formatMessageTimestamp
@@ -46,6 +47,16 @@ function getTsFormatter(variant: TimestampVariant, locale: string): Intl.DateTim
 
 function isSameCalendarDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+const NAIVE_ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+
+/**
+ * Parse a timestamp from the server. The server stores naive UTC and some endpoints serialize it without an offset,
+ * which `new Date` would read as local time (hours off for anyone east or west of Greenwich); such a value is UTC.
+ */
+export function parseServerTimestamp(value: string): Date {
+  return new Date(NAIVE_ISO_TIMESTAMP.test(value) ? `${value.replace(' ', 'T')}Z` : value);
 }
 
 /**

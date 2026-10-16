@@ -2,6 +2,7 @@ import { API_BASE_URL, apiRequest, fetchWithTimeout } from '@/lib/api';
 import type { ExportData } from '@/lib/utils/chat-export';
 import { Message, type ActionMode, type MentionReferenceType, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
 
 export interface TurnOutlineItem {
   turn_index: number;
@@ -168,8 +169,8 @@ export const getChatHistory = async (
     pinOrder: (chat.pinOrder as number) || 0,
     projectId: (chat.projectId as string | null) ?? null,
     tags: Array.isArray(chat.tags) ? (chat.tags as string[]) : [],
-    updatedAt: new Date((chat.updated_at || chat.created_at) as string),
-    createdAt: new Date((chat.created_at || chat.updated_at) as string),
+    updatedAt: parseServerTimestamp((chat.updated_at || chat.created_at) as string),
+    createdAt: parseServerTimestamp((chat.created_at || chat.updated_at) as string),
   }));
 
   return {
