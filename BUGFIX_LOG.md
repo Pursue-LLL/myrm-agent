@@ -5483,7 +5483,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 6. 仍失败、且不涉及本条文件的：服务端 `tests/architecture/test_server_harness_imports.py`（136 条新增深层导入，均来自他人未提交的改动，没有一条与 `skill_doctor` 或 `forgetting_strategy` 有关）、harness `check_module_reachability` 18 项、`tests/agent/skills/test_anti_sycophancy_curator_engine.py` 的 3 条 ruff 未使用导入、前端 `LearningLoopFiveRingHub.test.tsx` 的 1 条 `tsc` 类型错误；
 7. 服务端导入基线位于被 `.cursorignore`（`data/`）屏蔽的目录，编辑器工具读不到，用带锚点校验的脚本编辑（与 `BUG-AGENT-2026-10-15-003` 局限 8 相同）；
 8. 服务端依赖尚未发布的 harness：`service.py` 从新模块 `skill_doctor` 导入，`curator.run` 传入新参数 `installed_names`；服务端依赖声明固定为 `myrm-agent-harness==0.1.0rc5`（`myrm-agent-server/pyproject.toml:25`），要先发布 harness 版本再 `./myrm harness sync-lock`；本次只做了 sync-lock 的本地检查，没有发布；
-9. 体检与健康探针的容量告警仍按全部活跃技能计数，清理的 LRU 池却不含受保护技能：构造 60 个装来 + 5 个自写、上限 50，一次清理 0 次转换（`skipped_protected` 为 60），体检报 `active_count` 65、超出 15；探针超上限判 `fail` 并建议「运行清理」，对受保护技能无效；设置里「超出后将最久未使用的技能标记为闲置」对受保护技能也不成立。绑定技能自被豁免起就有同样的口径差，装来技能把它放大（本机 `~/.cursor/skills-cursor` 下就有 24 个其他工具的技能被扫进来；本机自写技能数没有量）。本条不处理，记在路线图 topic_08 #43 ⑥；
+9. 体检与健康探针的容量告警仍按全部活跃技能计数，清理的 LRU 池却不含受保护技能：构造 60 个装来 + 5 个自写、上限 50，一次清理 0 次转换（`skipped_protected` 为 60），体检报 `active_count` 65、超出 15；探针超上限判 `fail` 并建议「运行清理」，对受保护技能无效；设置里「超出后将最久未使用的技能标记为闲置」对受保护技能也不成立。绑定技能自被豁免起就有同样的口径差，装来技能把它放大（本机 `~/.cursor/skills-cursor` 下就有 24 个其他工具的技能被扫进来；本机自写技能数没有量）。清理结果里的 `skipped_protected`（`engine.py:292`）没有出现在任何接口或界面（server 的 `app` 与 frontend 的 `src` 全文检索 0 处引用），保护开关又默认开启（`curator_config.py:102`），用户看到「清理了 0 个」不知道有多少被保护跳过。本条不处理，记在路线图 topic_08 #43 ⑥；
 10. 「已安装」依据 `origin.json`：此仓最早的历史（2026-06-02 初始导入）就带 `write_origin`，更早安装的技能是否有这个标记查不到，没有验证，没有标记的主目录技能会被当作自写技能清理（归档可恢复）；用户备份的导出导入保留它（`app/api/skills/sync.py:122-126` 导出按 `.json` 等后缀打包、`:270` 导入整目录复制），发布打包有意剔除（`app/core/skills/packaging/collect.py:33`）。
 
 ### 踩坑经验
