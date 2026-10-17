@@ -155,7 +155,7 @@ async def suggest_references(
             results.extend(_suggest_workspace(workspace, query, kind, limit))
 
     if kind != "directory" and source in ("all", "uploaded", "generated"):
-        results.extend(await _suggest_stored_files(chat_id, query, source))
+        results.extend(await _suggest_stored_files(chat_id.strip(), query, source))
 
     if kind != "directory" and source == "all":
         agent_id = chat.agent_id if chat is not None else None

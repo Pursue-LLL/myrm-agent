@@ -161,3 +161,15 @@ def test_upload_rejects_a_chat_id_longer_than_any_chat_row_holds(client):
     )
 
     assert response.status_code == 422
+
+
+def test_upload_treats_a_whitespace_chat_id_as_unbound(client):
+    """Otherwise the upload would be bound to a chat id no caller ever uses and the sweep would never reclaim it."""
+    response = client.post(
+        "/api/v1/files/upload",
+        data={"chat_id": "   "},
+        files={"files": ("spaces.txt", b"x", "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert _stored_chat_binding(response.json()["data"]["files"][0]["file_id"]) is None

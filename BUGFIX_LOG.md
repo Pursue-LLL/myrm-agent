@@ -6535,10 +6535,11 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 ### 验证
 
 1. 每个新行为先写红灯再改代码。`tests/core/storage/test_chat_bound_uploads.py` 7 例（绑定随 sidecar 落盘、只选带绑定的 UPLOAD、页图只选自己的、删上传带页图不动别的、空输入不扫库、单个删除失败不影响其余、`pdf_extract` 接口的标记与清理一致）；`tests/services/chat/test_incognito_upload_retention.py` 4 例（真实 purge + 真实 `FilesService`：被删会话的附件与页图一起消失、没有会话行的附件过宽限期才清、未绑定与存在会话的附件永不动、存储故障不改变会话删除结果且下一轮补上）；`tests/services/instance_archive/test_incognito_uploads.py` 6 例（真实 `build_export`：无痕附件与页图不在包里且密文字节搜不到、关掉无痕的附件与普通附件连同 sidecar 照常入包、sidecar 读不到则文件不入包并如实报告、sidecar 损坏仍入包、名单读不到则导出失败且不留文件、文件库位置与真实运行时一致）；`tests/api/files` 新增 4 例（上传绑定落盘、空 `chat_id` 视作未绑定、超长 `chat_id` 返回 422、候选收窄到当前会话）；`test_prior_chat_mention.py` 拆出「拒绝网页无痕 / 允许转写导入」两例；`test_chat_bound_rows.py` 加一条守卫，钉住 `chat_bound.py` 与在线清除共用同一份判定。
-2. 变异检查：把 `chat_bound_uploads` 的 `purpose is UPLOAD` 去掉、把宽限期改成 0、把导出的判定从「会话状态」改回「有绑定就排除」、把 `chat_id` 直接原样传（空串不再归一），对应用例各自失败；还原后重跑通过。
+2. 变异检查：把 `chat_bound_uploads` 的 `purpose is UPLOAD` 去掉、把宽限期改成 0、把导出的判定从「会话状态」改回「有绑定就排除」、把 `chat_id` 直接原样传（空串与空白都不再归一），对应用例各自失败；还原后重跑通过。
 3. 全量回归：`tests/core/storage` + `tests/api/files` + `tests/services/instance_archive` + `tests/api/instance_archive` + 两条转写保留用例共 738 例通过（1 例跳过），唯一失败是他人未提交的 `chats.history_sync_token` 未分类（见局限 3）；`tests/services/chat` + `tests/services/agent/params` 561 例通过；`tests/architecture` 8 例失败全部集中在路由消费方、域划分、深层 harness 导入与文本入口风控门，与本条无关（失败清单里没有本次触碰的文件）。
 4. 代价（本机，同一进程内 5 次取最小）：附件 sidecar 扫描 201 个 52.6 ms、1001 个 258.8 ms、1001 个全部带绑定 252.1 ms，约 **0.26 ms/个 sidecar**；`list_files` 只读 sidecar 不读内容，所以与附件大小无关。每小时跑一次，与库里附件总量线性相关；被删会话的附件在下一轮必然被清，其余靠 24 小时宽限兜底。
-5. ruff check/format 与 pyright（`--pythonpath .venv/bin/python`）在本次触碰的 48 个 Python 文件上为零；前端 `tsc --noEmit` 退出 0，`bunx oxlint` 触碰文件只剩他人未提交的 a11y 警告（`ArtifactPortal.tsx:476-477`），`vitest` 触碰目录 178 例通过。
+5. ruff check/format 与 pyright（`--pythonpath .venv/bin/python`）在本次触碰的 48 个 Python 文件上为零（`mention.py` 与 `pdf_extract.py` 里残余的 pyright 报错在 HEAD 上同样存在，不在本次触碰的行里）；前端 `tsc --noEmit` 退出 0，`bunx oxlint` 触碰文件只剩他人未提交的 a11y 警告（`ArtifactPortal.tsx:476-477`），`vitest` 触碰目录 178 例通过。
+6. 交付前自查发现并修掉两处：上传的 `chat_id` 全为空白时会绑到一个不存在的会话 id（那种绑定永远不会被宽限清扫认领），现在归一化为未绑定并加了一条用例；`suggest` 的候选判定原先拿到的是未 `strip` 的 `chat_id`（请求里的 `chat_id` 在其它路径都先 `strip`），现在一致。
 
 ### 局限
 

@@ -174,7 +174,8 @@ async def upload_files(
                 filename=file.filename,
                 content=content,
                 content_type=_infer_content_type(file.filename, file.content_type),
-                source_chat_id=chat_id or None,
+                # A blank field means the caller did not mean to bind: a whitespace id would name a chat that cannot exist.
+                source_chat_id=(chat_id or "").strip() or None,
             )
 
             results.append(
