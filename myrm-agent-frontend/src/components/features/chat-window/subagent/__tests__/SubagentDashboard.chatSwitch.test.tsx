@@ -84,6 +84,26 @@ describe('SubagentDashboard when the open chat changes', () => {
     expect(nodeIds()).toEqual([]);
   });
 
+  it("brings a chat's subagents back from the server when the user returns to it", async () => {
+    // While the user was elsewhere the chat's stream wrote nothing into the tree, so the server is the source.
+    fetchMock.mockImplementation(async (url: string) =>
+      url === '/chats/chat-a/subagents'
+        ? jsonResponse({ data: [runningNode('task-of-a')] })
+        : jsonResponse({ data: [] }),
+    );
+    const view = render(<SubagentDashboard chatId="chat-a" />);
+    await waitFor(() => expect(nodeIds()).toEqual(['task-of-a']));
+
+    openChat('chat-b');
+    view.rerender(<SubagentDashboard chatId="chat-b" />);
+    expect(nodeIds()).toEqual([]);
+
+    openChat('chat-a');
+    view.rerender(<SubagentDashboard chatId="chat-a" />);
+    // Within the 2s poll interval: returning to the chat fetches at once, it does not wait for the next poll.
+    await waitFor(() => expect(nodeIds()).toEqual(['task-of-a']), { timeout: 500 });
+  });
+
   it('keeps what the stream put in the panel when an id arrives where there was none', () => {
     openChat(undefined);
     const view = render(<SubagentDashboard chatId={undefined} />);
