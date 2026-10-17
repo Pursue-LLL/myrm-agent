@@ -240,9 +240,6 @@ def test_catalog_mcp_bound_agent_answers_with_live_tool_call(tmp_path: Path, e2e
         pytest.fail("Provider not ready — run ./myrm ready --chrome")
 
     _connect_microsoft_learn_via_ui()
-    # The catalog gate persists the MCP config through the settings store;
-    # give the namespace backend a moment to observe it before binding.
-    time.sleep(3.0)
 
     suffix = uuid.uuid4().hex[:8]
     created = http_json(
