@@ -717,6 +717,11 @@ def _host_load_ratio() -> float:
         return 0.0
 
 
+def host_load_ratio() -> float:
+    """Public load per core (0.0 when unreadable), shared by every load-scaled E2E budget."""
+    return _host_load_ratio()
+
+
 def _stale_probe_scaled_sec(base: float, maximum: float) -> float:
     """Scale a stale-verdict threshold from ``base`` up to ``maximum`` with host load."""
     ratio = _host_load_ratio()

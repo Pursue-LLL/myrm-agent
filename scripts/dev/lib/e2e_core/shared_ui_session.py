@@ -33,12 +33,32 @@ _EMPTY_POLICY_STRONG_CLEAR_DONE: set[tuple[str, str]] = set()
 _PARALLEL_BRIDGE_READY_CAP_SEC = 180.0
 _SIGNOFF_PARALLEL_BRIDGE_READY_CAP_SEC = 240.0
 _SERIAL_BRIDGE_READY_CAP_SEC = 60.0
+# A saturated host compiles single Turbopack chunks in ~190s (measured 2026-10-17 at 6-way
+# parallel, load 64), so a fixed parallel cap killed pages that were still downloading scripts.
+_BRIDGE_READY_CAP_LOAD_MAX = 3.0
+
+
+def _bridge_ready_cap_scale() -> float:
+    """How far a parallel cap may stretch on a loaded host (1.0 when the host is quiet).
+
+    Reuses the same load-per-core notion as the stale-UI probe budget so one busy host raises
+    both thresholds instead of one of them silently aborting a healthy frontend.
+    """
+    from dev_gate.contract import HOST_LOAD_UPGRADE_RATIO, host_load_ratio
+
+    ratio = host_load_ratio()
+    if ratio <= HOST_LOAD_UPGRADE_RATIO:
+        return 1.0
+    span = (ratio - HOST_LOAD_UPGRADE_RATIO) / (
+        _BRIDGE_READY_CAP_LOAD_MAX - HOST_LOAD_UPGRADE_RATIO
+    )
+    return 1.0 + min(1.0, span)
 
 
 def _parallel_bridge_ready_cap_sec() -> float:
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         return _SIGNOFF_PARALLEL_BRIDGE_READY_CAP_SEC
-    return _PARALLEL_BRIDGE_READY_CAP_SEC
+    return _PARALLEL_BRIDGE_READY_CAP_SEC * _bridge_ready_cap_scale()
 
 
 def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
@@ -47,12 +67,14 @@ def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
 
     from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
-    if parallel_shared_ui_hydrate_queue_enabled():
-        parallel_cap = min(
-            _parallel_bridge_ready_cap_sec(), float(shared_ui_hydrate_wait_sec())
-        )
-        return min(parallel_cap, timeout_sec)
-    return min(_SERIAL_BRIDGE_READY_CAP_SEC, timeout_sec)
+    if not parallel_shared_ui_hydrate_queue_enabled():
+        return min(_SERIAL_BRIDGE_READY_CAP_SEC, timeout_sec)
+    # The bridge-level wait must never undercut the per-page cap it wraps: the 180s constant here
+    # used to clamp a loaded host straight back down. The admission wall stays the outer bound.
+    parallel_cap = min(
+        _parallel_bridge_ready_cap_sec(), float(shared_ui_hydrate_wait_sec())
+    )
+    return min(float(shared_ui_hydrate_wait_sec()), max(parallel_cap, timeout_sec))
 
 
 RESET_GLOBALS_JS = """(() => {

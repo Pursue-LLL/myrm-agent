@@ -2794,11 +2794,14 @@ def _orchestrator_shared_ui_contract_timeout_sec() -> float:
 
 
 def _react_bridge_wait_timeout_sec(requested: float) -> float:
+    """Ceiling for one page's bridge wait; must not undercut the cap the caller already chose."""
     try:
         from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
         if parallel_shared_ui_hydrate_queue_enabled():
-            return min(max(requested, 90.0), 180.0)
+            from e2e_core.shared_ui_session import _parallel_bridge_ready_cap_sec
+
+            return min(max(requested, 90.0), _parallel_bridge_ready_cap_sec())
     except ImportError:
         pass
     return min(max(requested, 60.0), 120.0)
