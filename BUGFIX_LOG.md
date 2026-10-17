@@ -6515,7 +6515,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 | 严重程度 | P2（附件是用户主动发进无痕会话的原文，会话在一小时后连同消息一起消失，附件却长期留在库里并可被别的会话列出、被导出与备份带走；外部转写会话无法被 `@` 引用是功能缺陷） |
 | 影响范围 | server：`app/core/storage/chat_bound.py`（新）、`service.py`、`models.py`、`_ARCH.md`、`app/api/files/upload.py`、`suggest.py`、`pdf_extract.py`、`_ARCH.md`、`app/services/chat/chat_retention.py`、`_ARCH.md`、`app/services/instance_archive/incognito_uploads.py`（新）、`export_service.py`、`table_policy.py`、`_ARCH.md`、`app/services/agent/params/mention.py`、`conversation_recall_index_service.py`、`_ARCH.md`、`scripts/ci/file_line_budget_baseline.txt`；前端：`src/services/incognitoUploadOptions.ts`（新）、`file.ts`、`file-service/{types,sandbox}.ts`、`IncognitoUploadOptions` 的调用点、两处 `_ARCH.md`、三个测试文件（本条的 A1 前端部分由另一会话先落盘，本次只复核未改动）；测试：`tests/core/storage/test_chat_bound_uploads.py`（新，7 例）、`tests/services/chat/test_incognito_upload_retention.py`（新，4 例）、`tests/services/instance_archive/test_incognito_uploads.py`（新，6 例）、`tests/api/files/test_suggest_api.py`（+1）、`test_upload_e2e.py`（+3）、`tests/services/chat/test_prior_chat_mention.py`（拆出转写用例）、`test_chat_bound_rows.py`（+守卫）、`_ARCH.md` |
 | 出现次数 | 1（presentation、真实库与真实导出流水线复现，没有用户数据） |
-| 关联 | `BUG-AGENT-2026-10-16-022` 局限 5(b) 在此处理、5(c) 与 5(d) 保持原样（边界见局限 2、4）；`source_chat_id` 的三种含义见 `app/core/storage/_ARCH.md`；存储、上传接口、文件候选、小时级清除、提及与相关测试已本地提交（未 push）；导出侧改在另一会话尚未提交的 `instance_archive/` 目录里，与其他改动一起留在工作区；前端绑定由另一会话落盘，本次只复核未改动 |
+| 关联 | `BUG-AGENT-2026-10-16-022` 局限 5(b) 在此处理、5(c) 与 5(d) 保持原样（边界见局限 2、4）；`source_chat_id` 的三种含义见 `app/core/storage/_ARCH.md`；存储、上传接口、文件候选、小时级清除、提及与相关测试已本地提交（未 push）；导出侧改在另一会话尚未提交的 `instance_archive/` 目录里，与其他改动一起留在工作区；前端调用侧已随本条一起提交（`9f50e60216`：`incognitoUploadOptions.ts` 新文件、上传客户端的 `UploadOptions`、四个调用点）——在此之前它只存在于工作区，服务端收到的 `chat_id` 因此恒为空、整条绑定不生效 |
 
 ### 现象
 
