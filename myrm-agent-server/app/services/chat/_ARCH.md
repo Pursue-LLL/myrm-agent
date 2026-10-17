@@ -47,8 +47,9 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，结合 CjkFtsQueryPlanner 两档平滑降级（strict / relaxed），在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底并透出 is_relaxed。 | ✅ |
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填（**startup `bootstrap_missing`**）、重建、增量追加、排除/恢复、删除、健康检查、管理列表、**GUI `@chat:` `search_citable_chats` SSOT**。 | ✅ |
 | `salient_tool_archive_service.py` | ✅ 核心 | 显著工具原话与报错归档服务；在长会话压缩前按显著度评分（非零退出码、错误标记、高危关键词）提炼工具原话与报错，以单行 `Tool[name] cmd=… exit=N` 头加输出片段存入 Conversation Recall 索引。 | ✅ |
-| `session_continuity_service.py` | ✅ 核心 | truncate/undo/retry/rewind 后 DB→LangGraph checkpoint fail-closed 对齐；rewind 成功后 pause active Goal | ✅ |
-| conversation_fork_manager.py | ✅ 核心 | 对话分支与独立验收管理（批量消息构造与插入 + commit 后 DB→checkpoint sync + Fork 关系追踪与多代 root/depth DAG 溯源 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint + `acceptance_verifier` 挑剔验收 Prompt 注入与独立审计分支 + 不可变 `fork_point` 事件日志记录） | ✅ |
+| `session_continuity_service.py` | ✅ 核心 | truncate/undo/retry/rewind 后 `invalidate_chat_checkpoint` 清空该会话 LangGraph checkpoint 线程（fail-closed，下一轮由存储的历史重建）；rewind 成功后 pause active Goal | ✅ |
+| `history_sync.py` | ✅ 核心 | 对话历史单一权威的业务半边：`decide_history_mode`（存储的 `history_sync_token` 等于「活跃分支 + 压缩摘要」的摘要才 `continue`，其余、读失败、从未记录一律 `replace`）、`commit_history_sync`（本回合的回答已落库且仍活跃才写入摘要，持写锁，不动 `updated_at`，失败只记警告）、`history_digest`（摘要含压缩摘要与活跃消息 id 的有序序列；消息正文不会原地修改，id 即身份） | ✅ |
+| conversation_fork_manager.py | ✅ 核心 | 对话分支与独立验收管理（批量消息构造与插入 + commit 后清空子会话 checkpoint 线程（子会话 `history_sync_token` 为空，首轮由存储历史重建） + Fork 关系追踪与多代 root/depth DAG 溯源 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint + `acceptance_verifier` 挑剔验收 Prompt 注入与独立审计分支 + 不可变 `fork_point` 事件日志记录） | ✅ |
 | `context_branch_fork.py` | ✅ 核心 | 从 volume snapshot bookmark 读取 jsonl 并 fork 新 chat（无 compaction 状态，对齐 GUI checkpoint branch） | ✅ |
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
 | `share_token.py` | ✅ 辅助 | 对话分享 HMAC+TTL 无状态签名 token 创建/验证/无密码确定性重建（同 payload+exp 同 token，GUI 状态查询据此恢复分享链接，零存储原始 token） | ✅ |
