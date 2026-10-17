@@ -4237,6 +4237,8 @@
     "skillManageRollbackFailed": "Skill-Änderungen konnten nicht rückgängig gemacht werden. Erneut versuchen oder in den Skill-Einstellungen eine Version zurücksetzen.",
     "skillManageRollbackCompensationFailed": "Rückgängig konnte nicht sicher abgeschlossen werden. Einstellungen → Skills → Verlauf prüfen und ggf. manuell zurücksetzen.",
     "skillManageRollbackAlreadyConsumed": "Dieser Batch wurde bereits rückgängig gemacht oder der Link ist abgelaufen. Nutzen Sie Skill-Einstellungen → Verlauf für ältere Versionen.",
+    "skillManageRollbackSuperseded": "Ein Skill in diesem Batch wurde danach erneut geändert. Machen Sie zuerst die neuere Änderung rückgängig oder stellen Sie unter Skill-Einstellungen → Verlauf eine Version wieder her.",
+    "skillManageRollbackSkillMissing": "Ein Skill in diesem Batch wurde inzwischen gelöscht, daher lässt sich der Batch nicht mehr rückgängig machen.",
     "skillManageUndoHintBody": "Der Assistent hat in dieser Antwort Skills aktualisiert. Öffnen Sie unten „Task“, um die Änderungen rückgängig zu machen.",
     "skillManageUndoHintAction": "Task öffnen"
   },

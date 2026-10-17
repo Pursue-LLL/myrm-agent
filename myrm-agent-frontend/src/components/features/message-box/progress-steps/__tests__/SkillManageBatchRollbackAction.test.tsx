@@ -95,6 +95,12 @@ describe('SkillManageBatchRollbackAction', () => {
         apiFailure(409, 'compensation_failed'),
         'skillManageRollbackCompensationFailed',
       ],
+      [
+        'a skill that was changed again by a newer batch',
+        apiFailure(409, 'batch_superseded'),
+        'skillManageRollbackSuperseded',
+      ],
+      ['a skill that was deleted afterwards', apiFailure(409, 'skill_missing'), 'skillManageRollbackSkillMissing'],
       ['a rollback the server refused', apiFailure(409, 'rollback_failed'), 'skillManageRollbackFailed'],
       ['a busy database', apiFailure(503), 'skillManageRollbackFailed'],
       ['a lost connection', new TypeError('Failed to fetch'), 'skillManageRollbackFailed'],

@@ -4237,6 +4237,8 @@
     "skillManageRollbackFailed": "スキル変更を元に戻せませんでした。再試行するか、スキル設定でバージョンをロールバックしてください。",
     "skillManageRollbackCompensationFailed": "安全に元に戻せませんでした。設定 → スキル → 履歴でバージョンを確認し、必要なら手動でロールバックしてください。",
     "skillManageRollbackAlreadyConsumed": "このバッチはすでに元に戻されたか、リンクの有効期限が切れています。古いバージョンが必要な場合はスキル設定 → 履歴をご利用ください。",
+    "skillManageRollbackSuperseded": "このバッチ内のスキルは、その後さらに変更されています。先に新しい変更を元に戻すか、スキル設定 → 履歴からバージョンを復元してください。",
+    "skillManageRollbackSkillMissing": "このバッチ内のスキルはその後削除されたため、このバッチを元に戻せません。",
     "skillManageUndoHintBody": "この返信でアシスタントがスキルを更新しました。下のタスクステップから編集を元に戻せます。",
     "skillManageUndoHintAction": "タスクステップを開く"
   },

@@ -4122,6 +4122,8 @@
     "skillManageRollbackFailed": "Could not undo those skill changes. Try again or roll back a version in Skill settings.",
     "skillManageRollbackCompensationFailed": "Undo could not finish safely. Open Settings → Skills → History and verify versions, then roll back manually if needed.",
     "skillManageRollbackAlreadyConsumed": "This batch was already undone or the rollback link expired. Use Skill settings → History if you still need an older version.",
+    "skillManageRollbackSuperseded": "A skill in this batch was changed again afterwards. Undo the newer change first, or restore a version in Skill settings → History.",
+    "skillManageRollbackSkillMissing": "A skill in this batch has since been deleted, so the batch can no longer be undone.",
     "skillManageUndoHintBody": "The assistant updated one or more skills in this reply. Open Task Steps below to undo those edits and restore the previous content.",
     "skillManageUndoHintAction": "Open Task Steps",
     "archiveRestoreResultSummary": "Restored {lines} line(s), {tokens} tokens.",

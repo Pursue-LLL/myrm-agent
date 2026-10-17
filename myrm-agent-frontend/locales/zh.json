@@ -4122,6 +4122,8 @@
     "skillManageRollbackFailed": "无法撤销此次技能修改，请重试或在技能设置中回滚版本。",
     "skillManageRollbackCompensationFailed": "撤销未能安全完成。请打开 设置 → 技能 → 历史 核对版本，必要时手动回滚。",
     "skillManageRollbackAlreadyConsumed": "该批次已撤销或链接已失效。若仍需更早版本，请前往「设置 → 技能 → 历史」。",
+    "skillManageRollbackSuperseded": "该批次中的技能之后又被修改过。请先撤销更新的那次修改，或前往「设置 → 技能 → 历史」恢复版本。",
+    "skillManageRollbackSkillMissing": "该批次中的技能之后已被删除，无法再撤销这个批次。",
     "skillManageUndoHintBody": "助手在本条回复中修改了技能。展开下方「任务步骤」可撤销这些修改并恢复之前的内容。",
     "skillManageUndoHintAction": "打开任务步骤",
     "archiveRestoreResultSummary": "已恢复 {lines} 行，{tokens} tokens。",
