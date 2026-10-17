@@ -347,9 +347,6 @@ function listenForBackgroundMessages() {
         dom.chatInput.value = message.prompt || "";
         dom.chatInput.focus();
         break;
-      case "connection_changed":
-        setConnectionState(message.connected ? "connected" : "disconnected");
-        break;
     }
   });
 }
