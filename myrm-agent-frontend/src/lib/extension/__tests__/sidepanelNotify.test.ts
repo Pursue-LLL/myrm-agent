@@ -20,7 +20,7 @@ async function loadNotify({ stored = {}, windowFocused = false, pageHidden = fal
     storage: { local: { get: vi.fn(async () => stored) } },
     windows: { getCurrent: vi.fn(async () => ({ id: 7, focused: windowFocused })), update: vi.fn(async () => ({})) },
     notifications: {
-      create: vi.fn(async () => 'approval-pending'),
+      create: vi.fn<(id: string, options: Record<string, unknown>) => Promise<string>>(async () => 'approval-pending'),
       clear: vi.fn(),
       onClicked: { addListener: vi.fn((listener) => clickListeners.push(listener)) },
     },
