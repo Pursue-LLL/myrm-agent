@@ -7,6 +7,7 @@ import Tooltip from '@/components/features/settings/Tooltip';
 import { toast } from '@/hooks/shared/useToast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { selectFiles, toStoreFile, getFileService } from '@/services/file-service';
+import { incognitoUploadOptions } from '@/services/incognitoUploadOptions';
 import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
 import { hasConfiguredVisionCapability, hasVisionFallbackForVideo } from '@/store/config/visionCapability';
@@ -184,6 +185,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
         filesToUpload,
         (progress) => setUploadPercent(progress.percent),
         getUploadSignal(),
+        incognitoUploadOptions(),
       );
 
       if (uploadedFiles.length > 0) {

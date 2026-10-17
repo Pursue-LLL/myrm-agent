@@ -40,6 +40,7 @@ import { getStorageUrl } from '@/lib/api';
 import useChatStore from '@/store/useChatStore';
 import { MOBILE_BREAKPOINT, SWIPE_MAX_OFFSET } from '@/lib/constants/artifact';
 import { uploadFiles } from '@/services/file';
+import { incognitoUploadOptions } from '@/services/incognitoUploadOptions';
 
 // 拆分的子组件
 import PortalHeader from './portal/PortalHeader';
@@ -338,7 +339,7 @@ const ArtifactPortal: React.FC = () => {
       const file = new File([blob], currentArtifact.filename, {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-      const result = await uploadFiles([file]);
+      const result = await uploadFiles([file], undefined, incognitoUploadOptions());
       if (result.files.length === 0) {
         throw new Error('Upload returned empty response');
       }

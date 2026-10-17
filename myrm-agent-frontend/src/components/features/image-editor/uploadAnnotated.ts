@@ -1,4 +1,5 @@
 import { uploadFiles } from '@/services/file';
+import { incognitoUploadOptions } from '@/services/incognitoUploadOptions';
 import useChatStore from '@/store/useChatStore';
 
 export async function blobToDataUrl(blob: Blob): Promise<string> {
@@ -16,7 +17,7 @@ export async function blobToDataUrl(blob: Blob): Promise<string> {
  */
 export async function uploadAnnotatedImage(blob: Blob): Promise<void> {
   const file = new File([blob], `annotated_${Date.now()}.png`, { type: 'image/png' });
-  const result = await uploadFiles([file]);
+  const result = await uploadFiles([file], undefined, incognitoUploadOptions());
   if (result.uploaded_count > 0 && result.files?.[0]) {
     const { files, setFiles } = useChatStore.getState();
     setFiles([

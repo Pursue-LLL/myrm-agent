@@ -27,6 +27,11 @@ vi.mock('@/services/file', () => ({
   uploadFilesWithProgress: mockUploadFilesWithProgress,
 }));
 
+const mockIncognitoUploadOptions = vi.hoisted(() => vi.fn((): { incognitoChatId?: string } => ({})));
+vi.mock('@/services/incognitoUploadOptions', () => ({
+  incognitoUploadOptions: mockIncognitoUploadOptions,
+}));
+
 vi.mock('@/services/uploadController', () => ({
   resetUploadController: vi.fn(),
   getUploadSignal: vi.fn(() => new AbortController().signal),
@@ -134,6 +139,26 @@ describe('useInputFileUpload', () => {
     mockUploadFilesWithProgress.mockResolvedValue({ uploaded_count: 0, files: [] });
   });
 
+  describe('handlePaste - incognito binding', () => {
+    it('binds the upload to the incognito chat that pasted it', async () => {
+      mockIncognitoUploadOptions.mockReturnValueOnce({ incognitoChatId: 'chat-incognito' });
+      mockUploadFilesWithProgress.mockResolvedValue({
+        uploaded_count: 1,
+        files: [{ fileName: 'doc.pdf', fileUrl: '/f/doc.pdf' }],
+      });
+      const { result } = renderHook(() => useInputFileUpload(defaultParams));
+      const pdf = new File(['pdf content'], 'doc.pdf', { type: 'application/pdf' });
+
+      await act(async () => {
+        await result.current.handlePaste(createClipboardEvent([pdf]));
+      });
+
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([pdf], expect.anything(), expect.anything(), {
+        incognitoChatId: 'chat-incognito',
+      });
+    });
+  });
+
   describe('handlePaste - core behavior', () => {
     it('should extract all file types from clipboard (not just images)', async () => {
       mockUploadFilesWithProgress.mockResolvedValue({
@@ -155,7 +180,7 @@ describe('useInputFileUpload', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([pdf, img], expect.anything(), expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([pdf, img], expect.anything(), expect.anything(), {});
     });
 
     it('should handle pasting a single non-image file (PDF)', async () => {
@@ -173,7 +198,7 @@ describe('useInputFileUpload', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([pdf], expect.anything(), expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([pdf], expect.anything(), expect.anything(), {});
     });
 
     it('maps uploaded fileId onto ChatFile.id for uploaded_file_ids', async () => {
@@ -373,7 +398,7 @@ describe('useInputFileUpload', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([imgFile], expect.anything(), expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([imgFile], expect.anything(), expect.anything(), {});
     });
 
     it('should upload pure image paste (no text at all)', async () => {
@@ -390,7 +415,7 @@ describe('useInputFileUpload', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([img], expect.anything(), expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([img], expect.anything(), expect.anything(), {});
     });
 
     it('should still upload non-image files even when text is present (PDF paste)', async () => {
@@ -437,7 +462,7 @@ describe('useInputFileUpload', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([pdf], expect.anything(), expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([pdf], expect.anything(), expect.anything(), {});
     });
 
     it('should NOT preventDefault when clipboard has only HTML and image (Google Sheets)', async () => {
@@ -534,7 +559,7 @@ describe('useInputFileUpload', () => {
         await result.current.handleDroppedFiles([smallPdf]);
       });
 
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([smallPdf], expect.anything(), expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([smallPdf], expect.anything(), expect.anything(), {});
     });
   });
 
@@ -563,7 +588,7 @@ describe('useInputFileUpload', () => {
         await result.current.handleDroppedFiles([dupeFile, newFile]);
       });
 
-      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([newFile], expect.anything(), expect.anything());
+      expect(mockUploadFilesWithProgress).toHaveBeenCalledWith([newFile], expect.anything(), expect.anything(), {});
     });
 
     it('should show info toast when all files are duplicates', async () => {
