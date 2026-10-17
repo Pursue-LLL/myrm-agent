@@ -135,8 +135,8 @@ describe('buildDrawerResumeValue', () => {
       severity: 'warning',
       chat_id: 'chat-1',
       payload: {
-        violations: ['.request.get()'],
-        script_preview: "await page.request.get('http://x.com')",
+        tool_name: 'browser_execute_script_tool',
+        reason: 'Script accesses privileged APIs that bypass network policy: .request.get()',
       },
     };
 
