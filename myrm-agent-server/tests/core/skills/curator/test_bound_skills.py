@@ -171,10 +171,11 @@ def test_every_kanban_task_status_is_classified() -> None:
 
 
 def test_every_skill_column_is_classified() -> None:
-    """A new column that refers to skills must be sorted into "automation binding" or "not a binding".
+    """A new column whose name contains ``skill`` must be sorted into "automation binding" or "not a binding".
 
     A binding column has to be read by ``bound_skills`` (and covered by a test above); a column left out of it
-    would let the Curator archive a skill that an unattended run still needs.
+    would let the Curator archive a skill that an unattended run still needs. Only the name is matched: a binding
+    column without the word (``agents.command_bindings``) is invisible here and has to be added to ``bound_skills`` by hand.
     """
     columns = {
         f"{table.name}.{column.name}"
