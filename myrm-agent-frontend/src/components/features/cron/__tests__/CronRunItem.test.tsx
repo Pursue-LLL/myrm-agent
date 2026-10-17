@@ -27,7 +27,7 @@ describe('CronRunItem', () => {
     expect(screen.getByText('runOk')).toBeInTheDocument();
   });
 
-  it('renders circuit_break status and banner correctly when expanded', () => {
+  it('explains a circuit break in plain language and never shows the internal error text', () => {
     const circuitBreakRun: CronRun = {
       ...baseRun,
       id: 'run-cb-1',
@@ -43,10 +43,11 @@ describe('CronRunItem', () => {
     fireEvent.click(expandButton);
 
     expect(screen.getByText('circuitBreakTitle')).toBeInTheDocument();
-    expect(screen.getAllByText(/RUNAWAY_CIRCUIT_BREAKER/).length).toBeGreaterThan(0);
+    expect(screen.getByText('circuitBreakDesc')).toBeInTheDocument();
+    expect(screen.queryByText(/RUNAWAY_CIRCUIT_BREAKER/)).toBeNull();
   });
 
-  it('renders default circuitBreakDesc when run.error is null', () => {
+  it('explains a circuit break when run.error is null', () => {
     const circuitBreakRunWithoutError: CronRun = {
       ...baseRun,
       id: 'run-cb-2',

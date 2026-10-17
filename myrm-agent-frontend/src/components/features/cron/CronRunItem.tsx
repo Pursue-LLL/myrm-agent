@@ -274,7 +274,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                   <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
                   <span>{t('circuitBreakTitle')}</span>
                 </div>
-                <p className="text-[11px] opacity-90 leading-relaxed">{run.error || t('circuitBreakDesc')}</p>
+                <p className="text-[11px] opacity-90 leading-relaxed">{t('circuitBreakDesc')}</p>
               </div>
             )}
             {run.usage_input_tokens != null && (
@@ -331,7 +331,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                 {run.output}
               </pre>
             )}
-            {run.error && (
+            {run.error && !isCircuitBreak && (
               <pre className="text-xs text-destructive bg-destructive/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
                 {run.error}
               </pre>
