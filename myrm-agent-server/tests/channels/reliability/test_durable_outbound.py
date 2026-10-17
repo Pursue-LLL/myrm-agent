@@ -197,16 +197,31 @@ async def test_recover_after_disabled_channel_sends_message(tmp_path: Path) -> N
 
 
 @pytest.mark.asyncio
-async def test_unregistered_channel_retains_disk_obligation(tmp_path: Path) -> None:
+async def test_unregistered_channel_retains_disk_obligation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The obligation is kept, and the channel being unregistered must not make the poll spin.
+
+    Recovery re-injects only records whose channel can take a delivery. A record for an
+    unregistered channel would otherwise be released by the dispatch loop and re-injected on every
+    idle poll, spinning once per second on the same record while logging a warning each time.
+    """
     bus = MessageBus(dlq_dir=tmp_path)
+    attempts = {"n": 0}
+    original_resolve = bus._resolve_route
+
+    def counting_resolve(msg: OutboundMessage):
+        attempts["n"] += 1
+        return original_resolve(msg)
+
+    monkeypatch.setattr(bus, "_resolve_route", counting_resolve)
     await bus.start()
 
     try:
         await bus.publish_outbound(_outbound("orphan", channel="missing"))
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(3.2)
 
         pending = await load_pending_deliveries(base_dir=tmp_path)
         assert len(pending) == 1
+        assert attempts["n"] == 1, f"recovery spun on an undeliverable record {attempts['n']} times"
     finally:
         await bus.stop()
 
@@ -357,6 +372,7 @@ async def test_track_enqueued_and_release_inflight(tmp_path: Path) -> None:
 
     gate.track_enqueued(msg)
     bus = MessageBus(dlq_dir=tmp_path)
+    bus.register_channel(_RecordingChannel())
     assert await gate.recover_into_bus(bus) == 0
 
     gate.release_inflight(msg)

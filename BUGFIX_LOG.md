@@ -7001,3 +7001,56 @@ Pydantic 的 `alias_generator` 只作用在**声明字段**上：`PDFExtractResp
 
 1. **在一次会话里「提交时带上索引里已有的暂存内容」会误伤别人**：`git commit` 默认提交整个索引。本次 `git add <我的两个文件>` 之后提交，结果把另一个会话早已 `git add` 但尚未提交的两个扩展文件与 `BUGFIX_LOG.md` 一并带走，把对方已提交的 70px 徽标间距改回了 60px。提交前先 `git diff --cached --name-only` 看清单、只提交点名路径；发现误伤后用还原内容的新提交补救（不回退历史）。
 
+---
+
+## BUG-AGENT-2026-10-18-001: 渠道未注册/禁用/停止时，出站持久化记录被空闲恢复每轮重注入，形成约 1Hz 空转并反复刷 WARNING
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18 |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P1（出站派发循环空转 + 日志刷屏，磁盘 obligation 永不结算，长时间运行持续占用） |
+| 影响范围 | `app/channels/reliability/durable_outbound.py`、`app/channels/core/outbound_dispatch.py` |
+| 出现次数 | 1（`BUG-AGENT-2026-10-17-016` 出站派发的姊妹缺陷：同一「释放义务 ≠ 了结」空转机理，位于 016 未覆盖的另一条分支） |
+| 关联 | `BUG-AGENT-2026-10-17-016`（016 修的是 `_dispatch_one` 抛出分支；本条是 `route.unavailable` 分支）；`BUG-AGENT-2026-10-17-015/016` 同源机理 |
+
+### 现象
+
+网关正常运行时，若某条出站消息的渠道未注册（例如历史遗留记录指向已下线渠道，或渠道被 `disable_channel` / `stop`），该条消息进入 `_dispatch_one` 的 `route.unavailable` 分支：
+
+```python
+if route.unavailable:
+    logger.log(logging.WARNING, "%s, retaining durable outbound obligation", route.unavailable)
+    self._release_unqueued(origin)
+    return
+```
+
+`_release_unqueued` 只释放内存 inflight 跟踪，**不 ack 磁盘条目**。于是磁盘记录留在 `pending`。当内存出站队列变空，`_dispatch_loop` 的 1 秒超时分支调用 `_maybe_recover_durable_outbound()` → `recover_into_bus()` 把该记录重新注入队列，循环再次走到 `route.unavailable`，再次释放、再次在 1 秒后重注入。实测 3.2 秒内重复 4 次（约 1Hz），每次刷一条 WARNING，磁盘 pending 恒为 1，永不结算。
+
+### 根因
+
+`recover_into_bus` 对所有 `pending` 记录无条件重注入，不判断目标渠道当前是否可投递。而 `_dispatch_one` 对「渠道不可用」这条分支选择「保留义务」，因此重注入的记录会被立刻释放——两者叠加成闭环空转。
+
+016 只修了 `_dispatch_one` **抛出**的分支（改「释放」为「结算」），未处理「正常 return 但渠道不可用」这条分支：这里**不能**结算为失败（渠道只是暂时不可用，用户稍后会启用；结算会把它推进 DLQ，丢掉本可在渠道恢复后送达的消息），正确做法是让恢复侧跳过它。
+
+### 修复
+
+在恢复侧加一个与路由解析同源的「当前是否可投递」判定，只重注入可投递的记录；不可投递的记录留在磁盘，等渠道注册/启用后由 `enable_channel` 或下一次调度恢复：
+
+1. `OutboundPublisher` 协议新增 `can_deliver(channel: str) -> bool`。
+2. `OutboundDispatchMixin.can_deliver()` 复刻 `_resolve_route` 的判定：CP egress 路由 → 可投递；渠道未注册 → 否；`DISABLED` / `STOPPED` → 否；其余（IDLE/RUNNING/DEGRADED/ERROR）→ 可投递。
+3. `recover_into_bus()` 在重注入前 `if not bus.can_deliver(delivery.channel): continue`，保留 obligation 不 ack。
+
+### 验证
+
+1. **复现实证（修复前）**：以 `MessageBus(dlq_dir=tmp)` 启动、向未注册渠道 `missing` 发布一条消息，3.2 秒内 `_resolve_route` 被调用 **4 次**、磁盘 `pending = 1`、WARNING 打印 4 次——确定为 1Hz 空转。
+2. **修复后实测**：同一场景 3.2 秒内 `_resolve_route` 被调用 **1 次**、磁盘 `pending` 仍为 1（obligation 正确保留）、WARNING 只打印 1 次，空转消除。
+3. **回归用例**：把既有 `tests/channels/reliability/test_durable_outbound.py::test_unregistered_channel_retains_disk_obligation` 从「只断言保留」加强为「同时断言 3.2 秒内只派发 1 次」（monkeypatch 计数 `_resolve_route`），该用例在修复前会因 4 次而红、修复后绿。
+4. 目标套件全量：`tests/channels/reliability/`（29 例）+ `tests/channels/test_bus.py`（57 例）共 86 例全绿；`ruff check` / `ruff format --check` 无新增问题，`mypy` 对两个改动文件零报错。
+
+### 踩坑经验
+
+1. **「保留义务」的分支同样会出现「释放 ≠ 了结」空转**：016 的教训是「确定性失败要结算」，但本条证明「临时不可用要保留」时，问题会从「结算侧」转移到「恢复侧」——恢复必须能判断「这条现在是否值得重注入」，否则保留+重注入就是一秒一转的死循环。
+2. **修复必须与语义对齐，而不是套用上一条的修法**：本条的直觉修法（照抄 016 走 `_record_outbound_failure`）是错的——它会把「用户稍后会启用的渠道」误判为永久失败、丢进 DLQ。判据来自既有测试契约：`test_unregistered_channel_retains_disk_obligation` 要求记录保留、`test_recover_after_disabled_channel_sends_message` 要求启用后能恢复。
+3. **同一机理要沿分支扫干净**：016 的修复只覆盖了「抛出」分支，「正常 return 但不可用」分支是它没走到的另一条路；同一函数里「同一条消息的不同终局」都要按各自的正确语义检查一遍，不能只修报错的那条。
+

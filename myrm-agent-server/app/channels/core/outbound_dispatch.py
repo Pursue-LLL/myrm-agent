@@ -113,19 +113,39 @@ class OutboundDispatchMixin(OutboundFailureMixin):
             logger.debug("send_tracked on '%s' did not deliver: %s", msg.channel, exc)
             return None
 
-    def _resolve_route(self, msg: OutboundMessage) -> _Route:
-        """Pick the delivery target; control-plane routing wins over any locally registered provider."""
+    def _route_target(self, channel_name: str, metadata: dict[str, object] | None) -> tuple[BaseChannel | None, str | None]:
+        """Resolve ``(channel, unavailable_reason)`` for one destination.
+
+        ``channel`` is ``None`` with no reason when control-plane egress takes over (cloud sandbox,
+        text only). Either way the reason, when set, means the destination cannot take the message now.
+        """
         from app.services.channels.cp_egress_client import should_route_via_control_plane
 
-        meta = msg.metadata if isinstance(msg.metadata, dict) else None
-        if should_route_via_control_plane(msg.channel, meta):
-            return _Route(channel=None)
-        channel = self._channels.get(msg.channel)
+        if should_route_via_control_plane(channel_name, metadata):
+            return None, None
+        channel = self._channels.get(channel_name)
         if channel is None:
-            return _Route(channel=None, unavailable=f"No channel registered for '{msg.channel}'")
+            return None, f"No channel registered for '{channel_name}'"
         if channel.status in (ChannelStatus.DISABLED, ChannelStatus.STOPPED):
-            return _Route(channel=channel, unavailable=f"Channel '{msg.channel}' is {channel.status.value}")
-        return _Route(channel=channel)
+            return channel, f"Channel '{channel_name}' is {channel.status.value}"
+        return channel, None
+
+    def _resolve_route(self, msg: OutboundMessage) -> _Route:
+        """Pick the delivery target; control-plane routing wins over any locally registered provider."""
+        meta = msg.metadata if isinstance(msg.metadata, dict) else None
+        channel, unavailable = self._route_target(msg.channel, meta)
+        return _Route(channel=channel, unavailable=unavailable)
+
+    def can_deliver(self, channel: str) -> bool:
+        """Whether a delivery to ``channel`` would find a target right now (shares ``_route_target``).
+
+        Durable recovery consults this before re-injecting a record: a message whose channel is
+        unregistered, disabled or stopped would only be released again by the dispatch loop, so the
+        idle-recovery poll would spin on the same record. The obligation is kept on disk instead, and
+        ``enable_channel`` recovers it once the channel can accept deliveries.
+        """
+        _, unavailable = self._route_target(channel, None)
+        return unavailable is None
 
     async def _pace(self, channel_name: str, rate_limit: float) -> None:
         """Honor the channel's minimum interval between sends."""
