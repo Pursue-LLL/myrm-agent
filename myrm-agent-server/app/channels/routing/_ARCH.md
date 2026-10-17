@@ -209,7 +209,7 @@ send the confirmation reply.
 ## Consume-Loop Resilience
 
 `_consume_loop` consumes the inbound queue and hands each message to
-`_dispatch_inbound_message`, which is the former loop body. Two invariants keep
+`_dispatch_inbound_message`, which routes one message. Two invariants keep
 inbound routing available:
 
 - **Per-message isolation** — the loop wraps each dispatch in `try/except Exception`
