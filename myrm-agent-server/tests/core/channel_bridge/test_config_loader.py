@@ -232,6 +232,21 @@ class TestExtractVoiceConfig:
         result = extract_voice_config(None)
         assert result is None
 
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [(1.5, 1.5), (2, 2.0), ("0.8", 0.8), ("fast", 1.0), (None, 1.0)],
+    )
+    def test_tts_speed_falls_back_to_default_when_not_a_number(self, raw: object, expected: float) -> None:
+        result = extract_voice_config({"ttsMode": "always", "ttsSpeed": raw})
+        assert result is not None
+        assert result.tts_speed == expected
+
+    @pytest.mark.parametrize(("raw", "expected"), [("zh", "zh"), (7, None), (None, None)])
+    def test_stt_language_only_accepts_text(self, raw: object, expected: str | None) -> None:
+        result = extract_voice_config({"sttEnabled": True, "sttLanguage": raw})
+        assert result is not None
+        assert result.stt_language == expected
+
 
 class TestExtractWebTtsConfig:
     """Web /tts uses extract_web_tts_config — ignores channel ttsMode gate."""

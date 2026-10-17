@@ -53,6 +53,17 @@ def _int_setting(val: object, default: int) -> int:
     return default
 
 
+def _float_setting(val: object, default: float) -> float:
+    if isinstance(val, int | float):
+        return float(val)
+    if isinstance(val, str):
+        try:
+            return float(val)
+        except ValueError:
+            return default
+    return default
+
+
 _PROVIDER_API_BASES: dict[str, str] = {
     "siliconflow": "https://api.siliconflow.cn/v1",
 }
@@ -170,13 +181,14 @@ def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig
     stt_enabled = bool(voice_dict.get("sttEnabled", False))
     tts_mode_raw = str(voice_dict.get("ttsMode", "off")).lower()
     tts_mode = TTSMode(tts_mode_raw) if tts_mode_raw in ("off", "always", "inbound") else TTSMode.OFF
+    stt_language = voice_dict.get("sttLanguage")
 
     return VoiceConfig(
         stt_enabled=stt_enabled,
         stt_provider=str(voice_dict.get("sttProvider", "openai")),
         stt_api_key=str(voice_dict.get("sttApiKey", "")),
         stt_model=str(voice_dict.get("sttModel", "whisper-1")),
-        stt_language=(voice_dict.get("sttLanguage") if isinstance(voice_dict.get("sttLanguage"), str) else None),
+        stt_language=stt_language if isinstance(stt_language, str) else None,
         stt_local_model=str(voice_dict.get("sttLocalModel", "base")),
         stt_local_device=str(voice_dict.get("sttLocalDevice", "auto")),
         stt_local_compute_type=str(voice_dict.get("sttLocalComputeType", "auto")),
@@ -186,8 +198,8 @@ def _build_voice_config_from_dict(voice_dict: dict[str, object]) -> "VoiceConfig
         tts_api_key=str(voice_dict.get("ttsApiKey", "")),
         tts_base_url=str(voice_dict.get("ttsBaseUrl", "")),
         tts_voice=str(voice_dict.get("ttsVoice", "")),
-        tts_speed=float(voice_dict.get("ttsSpeed", 1.0)),
-        tts_pitch=float(voice_dict.get("ttsPitch", 0.0)),
+        tts_speed=_float_setting(voice_dict.get("ttsSpeed", 1.0), 1.0),
+        tts_pitch=_float_setting(voice_dict.get("ttsPitch", 0.0), 0.0),
         tts_max_length=_int_setting(voice_dict.get("ttsMaxLength", 4000), 4000),
         tts_summary_enabled=bool(voice_dict.get("ttsSummaryEnabled", True)),
         tts_summary_threshold=_int_setting(voice_dict.get("ttsSummaryThreshold", 1500), 1500),
@@ -979,12 +991,13 @@ def extract_search_provider_chain(
         slug = str(row.get("search_service", ""))
         if not registry.is_selectable_slug(slug):
             continue
+        extra_params = row.get("extra_params")
         chain.append(
             SearchServiceConfig(
                 search_service=slug,
                 api_key=str(row["api_key"]) if row.get("api_key") else None,
                 api_base=str(row["api_base"]) if row.get("api_base") else None,
-                extra_params=(row.get("extra_params") if isinstance(row.get("extra_params"), dict) else None),
+                extra_params=extra_params if isinstance(extra_params, dict) else None,
             )
         )
     return chain
