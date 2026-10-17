@@ -68,7 +68,7 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("api/wiki/router.py", "query_wiki", "reject_if_risky"),
     ("api/kanban/routes/specify.py", "apply_decompose", "reject_if_risky"),
     ("core/cron/adapters/inbound_event_dispatch.py", "dispatch_cron_event_for_inbound_message", "screen_user_text"),
-    ("channels/routing/router.py", "_consume_loop", "hold_risky_inbound"),
+    ("channels/routing/router.py", "_dispatch_inbound_message", "hold_risky_inbound"),
     ("channels/routing/router.py", "_dispatch_resolved", "hold_risky_inbound"),
     ("channels/routing/router.py", "_handle_merged", "hold_risky_inbound"),
     ("channels/routing/commands/router_commands_approval.py", "_handle_approval_command", "hold_risky_inbound"),

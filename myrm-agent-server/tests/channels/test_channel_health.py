@@ -207,3 +207,103 @@ class TestGatewayHealthIntegration:
 
         assert ch.status == ChannelStatus.RUNNING
         assert ch.health.consecutive_failures == 0
+
+
+class TestRouterHealthRestart:
+    """The health loop is the supervisor of the router's consume loop."""
+
+    @pytest.mark.asyncio
+    async def test_no_router_is_noop(self) -> None:
+        gw = ChannelGateway()
+        gw._running = True
+        await gw._check_router_health()  # no router configured: must not raise
+
+    @pytest.mark.asyncio
+    async def test_shutdown_is_not_restarted(self) -> None:
+        class DeadRouter:
+            def __init__(self) -> None:
+                self.start_calls = 0
+
+            def is_consume_loop_alive(self) -> bool:
+                return False
+
+            async def start(self) -> None:
+                self.start_calls += 1
+
+        gw = ChannelGateway()
+        router = DeadRouter()
+        gw._router = router  # type: ignore[assignment]
+        gw._running = False  # stopping: a dying loop must not be brought back
+
+        await gw._check_router_health()
+        assert router.start_calls == 0
+
+    @pytest.mark.asyncio
+    async def test_dead_router_is_restarted(self) -> None:
+        class DeadThenAliveRouter:
+            def __init__(self) -> None:
+                self.start_calls = 0
+                self.alive = False
+
+            def is_consume_loop_alive(self) -> bool:
+                return self.alive
+
+            async def start(self) -> None:
+                self.start_calls += 1
+                self.alive = True
+
+        gw = ChannelGateway()
+        router = DeadThenAliveRouter()
+        gw._router = router  # type: ignore[assignment]
+        gw._running = True
+
+        await gw._check_router_health()
+        assert router.start_calls == 1
+        # A recovered loop resets the backoff counter and gate.
+        assert gw._router_restart_attempts == 0
+        assert gw._router_restart_not_before == 0.0
+
+    @pytest.mark.asyncio
+    async def test_backoff_gates_repeated_restarts(self) -> None:
+        class StillDeadRouter:
+            def __init__(self) -> None:
+                self.start_calls = 0
+
+            def is_consume_loop_alive(self) -> bool:
+                return False
+
+            async def start(self) -> None:
+                self.start_calls += 1
+
+        gw = ChannelGateway()
+        router = StillDeadRouter()
+        gw._router = router  # type: ignore[assignment]
+        gw._running = True
+
+        await gw._check_router_health()
+        assert router.start_calls == 1
+        assert gw._router_restart_not_before > time.monotonic() - 1
+
+        # Within the backoff window a second probe must not restart again.
+        await gw._check_router_health()
+        assert router.start_calls == 1
+
+    @pytest.mark.asyncio
+    async def test_alive_router_is_left_alone(self) -> None:
+        class AliveRouter:
+            def __init__(self) -> None:
+                self.start_calls = 0
+
+            def is_consume_loop_alive(self) -> bool:
+                return True
+
+            async def start(self) -> None:
+                self.start_calls += 1
+
+        gw = ChannelGateway()
+        router = AliveRouter()
+        gw._router = router  # type: ignore[assignment]
+        gw._running = True
+
+        await gw._check_router_health()
+        assert router.start_calls == 0

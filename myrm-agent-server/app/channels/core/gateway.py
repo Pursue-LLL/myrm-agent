@@ -136,6 +136,8 @@ class ChannelGateway:
         self._health_task: asyncio.Task[None] | None = None
         self._running = False
         self._router: AgentRouter | None = None
+        self._router_restart_attempts = 0
+        self._router_restart_not_before = 0.0
         self._status_change_callback: Callable[[str, ChannelStatus, ChannelStatus], None] | None = None
         self._groups_change_callback: Callable[[str, list[object]], None] | None = None
         self._connection_change_callback: Callable[[str, bool], None] | None = None
@@ -662,6 +664,8 @@ class ChannelGateway:
             except asyncio.CancelledError:
                 break
 
+            await self._check_router_health()
+
             for name, channel in self.bus.channels.items():
                 if channel.status in (ChannelStatus.STOPPED, ChannelStatus.DISABLED):
                     continue
@@ -703,6 +707,43 @@ class ChannelGateway:
                         self._compute_backoff(failures),
                     )
                     await self._restart_channel(name, channel)
+
+    async def _check_router_health(self) -> None:
+        """Restart the router's consume loop if its task has died.
+
+        The loop absorbs a per-message handler error, so a finished task means it ended
+        unrecoverably (inbound routing is down while the process still looks healthy). A
+        backoff gates restarts so a deterministic startup crash cannot spin this into a
+        tight loop; the failure itself is already logged by the task's observer.
+        """
+        if self._router is None or not self._running or self._router.is_consume_loop_alive():
+            return
+
+        now = time.monotonic()
+        if now < self._router_restart_not_before:
+            return
+
+        self._router_restart_attempts += 1
+        backoff = min(
+            _BASE_BACKOFF * (_BACKOFF_FACTOR ** (self._router_restart_attempts - 1)),
+            _MAX_BACKOFF,
+        )
+        self._router_restart_not_before = now + backoff
+
+        logger.error(
+            "AgentRouter consume loop is not running; restarting (attempt=%d, backoff=%.1fs)",
+            self._router_restart_attempts,
+            backoff,
+        )
+        try:
+            await self._router.start()
+        except Exception:
+            logger.exception("AgentRouter restart failed")
+            return
+
+        if self._router.is_consume_loop_alive():
+            self._router_restart_attempts = 0
+            self._router_restart_not_before = 0.0
 
     @staticmethod
     def _compute_backoff(failures: int) -> float:

@@ -206,6 +206,24 @@ before marking the peer for a fresh Chat:
 Only after cleanup does `handle_new_session` (commands/commands.py) flag the peer and
 send the confirmation reply.
 
+## Consume-Loop Resilience
+
+`_consume_loop` consumes the inbound queue and hands each message to
+`_dispatch_inbound_message`, which is the former loop body. Two invariants keep
+inbound routing available:
+
+- **Per-message isolation** — the loop wraps each dispatch in `try/except Exception`
+  and logs at ERROR (with the channel and message id) before continuing, so one
+  poisoned message (a handler or an awaited I/O failure) cannot end the loop and
+  silence every channel. `CancelledError` is re-raised: it is shutdown, not a
+  message failure.
+- **Crash visibility and self-heal** — the loop task is created through
+  `app.core.infra.background_task.spawn_observed_task(name="agent_router_consume")`,
+  so a task that does end (held by a strong reference, it would otherwise die
+  silently) leaves a stack-trace ERROR. `ChannelGateway._health_loop` then sees the
+  finished task (`AgentRouter.is_consume_loop_alive`) and restarts it with
+  exponential backoff, so a deterministic startup crash cannot spin.
+
 ## Stuck Task Watchdog
 
 `_janitor_loop` runs `_janitor_sweep` every `_JANITOR_INTERVAL` (60s). A sweep

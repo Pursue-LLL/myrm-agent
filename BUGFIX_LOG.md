@@ -6759,3 +6759,52 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 4. **「启动了」不等于「能观测到它崩了」**：只把任务 `create_task` 起起来，运行期异常仍无人读取；任务一旦被模块全局持有，连 asyncio 的未观测告警都不会触发，进程表面完全正常。长期存活的后台任务应统一经一个挂好 done callback 的入口起，并且不要让「创建成功」的日志冒充「启动成功」。
 
 ---
+
+## BUG-AGENT-2026-10-17-015: 渠道入站路由循环可被单条消息打断且崩溃后静默——所有 IM 渠道消息永久无人处理
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P1（可用性单点，静默失效） |
+| 影响范围 | `app/channels/routing/router.py`、`app/channels/core/gateway.py` |
+| 出现次数 | 1（长期存在，同 014 的「强引用任务静默死亡」机理） |
+
+### 现象
+
+`AgentRouter._consume_loop` 消费 `MessageBus` 入站队列。循环体只捕获 `TimeoutError` 与 `CancelledError`，其余一切异常都由同一防护层向上抛出，一旦发生即终止整个消费循环：
+
+1. 单条消息的任一处理步骤抛出（例如风控回执 `hold_risky_inbound → bus.publish_outbound → prepare_enqueue → save_delivery` 的磁盘写入失败，或某渠道 `extract_sender_locale` / 本地化解析异常），后续**所有**渠道（Telegram / QQ / 微信 / WhatsApp / 企业微信…）的入站消息不再被取走。
+2. 用户在任意渠道发消息毫无响应，也不报错；而进程 `health` 依然返回健康，运维无法感知。
+3. 循环任务被 `AgentRouter` 实例**强引用**（实例又被 `Gateway._router` 持有），因此崩溃时**连** asyncio 的 `Task exception was never retrieved` 都不会打印——完全静默。`Gateway._health_loop` 只遍历渠道（`self.bus.channels`），从不检查该任务，也不会重启。
+
+### 根因
+
+`_consume_loop` 既承担「取队列」又承担「逐条消息的完整分发」，两者共用一个没有异常隔离的循环体：
+
+- 单条消息的处理异常与循环级生命周期异常混在同一层，一条毒消息等价于整条路由通道下线。
+- 任务以裸 `asyncio.create_task` 创建、被强引用持有、无 done callback，崩溃不可观测；网关健康循环也只监管渠道，未把 router 任务纳入监督。
+
+### 修复
+
+1. **消息级隔离**：把原循环体抽为 `_dispatch_inbound_message(msg)`，循环对每次调用包 `try/except Exception` 并 `logger.exception`（带 `channel`、`message_id`）后继续；`CancelledError` 原样重抛（属关闭语义，不当作消息失败吞掉）。仅做结构性抽取（`continue` → `return`、整体左移一级缩进），行为不变。
+2. **崩溃可观测**：`start()` 改用 `app.core.infra.background_task.spawn_observed_task(..., name="agent_router_consume")`，任务真死亡时留下带堆栈的 ERROR。新增 `AgentRouter.is_consume_loop_alive()` 暴露存活判定。
+3. **自愈**：`ChannelGateway._health_loop` 每轮调用 `_check_router_health()`——任务已结束则按指数退避重启（复用本模块既有的 `_BASE_BACKOFF`/`_BACKOFF_FACTOR`/`_MAX_BACKOFF`），恢复后清零退避计数。退避避免确定性启动崩溃被无脑重启成紧循环（这也是竞品（claude code 后台 worker respawn）暴露过的 crash-loop / 无人值守烧 token 教训）。
+4. 同步更新 `app/channels/routing/_ARCH.md`（新增 Consume-Loop Resilience 小节）、`app/channels/core/_ARCH.md`（gateway 条目）。
+
+### 验证
+
+1. 崩溃静默性实测：一个崩溃任务被强引用持有时，无论是否 GC，asyncio 实例警告均为空（`captured warnings while alive: ''`）；同样任务经 `spawn_observed_task` 则稳定产出 1 行 `ERROR [agent_router_consume] ... `。
+2. `stop()` 污染实测：未观测的已崩溃任务在 `await self._task` 时会重抛原异常（`RuntimeError: loop already dead before stop()`），说明裸任务不仅静默，还会破坏关闭流程；经 `spawn_observed_task` 后异常已在回调中读取，不再污染关闭。
+3. 新增单测：`test_message_failure_does_not_kill_loop`（首条抛异常后第二条仍被派发，`await_count == 2`）、`test_dispatch_cancellation_propagates`（`CancelledError` 不被吞）、`test_consume_loop_alive_reflects_task_state`；网关 `TestRouterHealthRestart` 4 例（无 router 空操作、死循环被重启且退避计数清零、退避窗口内不重复重启、存活时不动作）。
+4. `tests/channels` 全量：66 例（本次相关文件）+ 全渠道套件 6853 通过；其余 11 个失败经「回退源码到 HEAD 复跑」确认全部为既有失败（i18n 孤立键、WhatsApp 脱敏、`/btw` 别名等），与本修复无关。ruff check 干净；mypy 对本两项文件 0 告警。
+
+### 踩坑经验
+
+1. **消费者循环必须隔断「单条消息」与「循环生命周期」**：消息级异常吞掉继续，生命周期异常（取消/致命）才终止，否则一条毒消息等于整条通道下线。
+2. **强引用任务崩溃是无声的**：不要指望 asyncio 的未观测告警兜底；凡是长期存活的任务都应经带 done callback 的入口创建。
+3. **监督范围要覆盖所有「必须活着」的组件**：网关健康循环只盯渠道就会漏掉 router 这类同样「必须活着」的循环。
+4. **自愈要带退避**：无退避的自动重启会把确定性启动崩溃放大成 crash-loop 并静默消耗资源。
+
+---
+
