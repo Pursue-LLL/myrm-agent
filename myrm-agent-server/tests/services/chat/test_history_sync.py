@@ -284,6 +284,23 @@ async def test_a_failed_commit_never_fails_the_turn_and_leaves_the_old_record(
 
 
 @pytest.mark.asyncio
+async def test_a_commit_that_cannot_read_the_branch_records_nothing(
+    chat: _Chat,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The answer is active but the branch is unreadable; recording nothing keeps the next turn cold."""
+    await chat.exchange("r1")
+
+    async def missing(*_args: object, **_kwargs: object) -> ConversationBranch | None:
+        return None
+
+    monkeypatch.setattr(ChatHistorySyncRepository, "load_branch", staticmethod(missing))
+
+    assert await commit_history_sync(chat.chat_id, "r1") is False
+    assert await chat.stored_token() is None
+
+
+@pytest.mark.asyncio
 async def test_recording_the_token_is_not_chat_activity(chat: _Chat) -> None:
     await chat.exchange("r1")
     before = (await chat.chat_row()).updated_at
