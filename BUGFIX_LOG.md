@@ -6344,8 +6344,8 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ### 验证
 
-1. 服务端 `tests/core/skills/test_curator_consolidation.py` 5 例通过：删掉 `TestRewriteAgentSkillRefs` 后新增 `TestConsolidationExecute`，断言执行返回的字典与六个键逐一相等，字段被加回即失败；
-2. 服务端 `tests/core/skills/curator`、`tests/core/skills/test_curator_consolidation.py`、`tests/api/skills`：301 通过、1 跳过（14 个被取消选择）；API 用例 `tests/api/skills/test_curator.py` 的断言与模拟响应已去掉该字段；
+1. 服务端 `tests/core/skills/test_curator_consolidation.py` 7 例通过：删掉 `TestRewriteAgentSkillRefs` 后新增 `TestConsolidationExecute`，断言执行返回的字典与六个键逐一相等，该用例对改动前的 `consolidation.py` 失败（`Left contains 1 more item: {'agent_refs_updated': 0}`）；另新增 `TestConsolidationThroughTheProductionWriteBackend` 2 例，用真实的 `SkillCreationService`（临时目录）加真实 executor：同名伞形被拒且原文件字节不变，空闲名正常创建并归档来源；在内存里摘掉 executor 的占用检查后同名用例失败（`(1, 0) == (0, 1)`），证明真实后端保存即替换；
+2. 服务端 `tests/core/skills/curator`、`tests/core/skills/test_curator_consolidation.py`、`tests/api/skills`：303 通过、1 跳过（14 个被取消选择）；API 用例 `tests/api/skills/test_curator.py` 的断言与模拟响应已去掉该字段；
 3. 前端 `CuratorSettingsPanel.test.tsx` 6 例通过；`bun run verify:i18n` 通过（6 个语言包占位符一致）；prettier、oxlint 通过；
 4. harness `tests/agent/skills/curator` 73 例通过（含新增 20 例目标名安全用例）。
 
@@ -6355,12 +6355,15 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 2. 合并走不带版本快照的 `skill_creation_service`（`consolidation.py:72`），被覆盖的技能无法按版本回退；harness 修复后覆盖不再发生；
 3. 真实模型给出同名目标的频率没有量过；harness 的修复只在发布新版并执行 `./myrm harness sync-lock` 后才进入按锁文件安装的环境；
 4. 提示文案只删去了句子的后半，没有请母语者复核六种语言；没有在浏览器里看 375px 与深色主题下的提示；
-5. 工作区里 `tests/api/skills/test_curator.py` 另有他人未提交的改动使 `ruff format --check` 不通过，本次未重排；`tsc --noEmit` 另有一处与本条无关的报错（`src/lib/extension/__tests__/sidepanelNotify.test.ts:81`）。
+5. 工作区里 `tests/api/skills/test_curator.py` 另有他人未提交的改动使 `ruff format --check` 不通过，本次未重排；`tsc --noEmit` 另有一处与本条无关的报错（`src/lib/extension/__tests__/sidepanelNotify.test.ts:81`）；
+6. 绑定集合与占用名都在扫描时取一次，`SkillWriteBackend.save_skill` 没有「仅新建」选项（`myrm-agent-harness/src/myrm_agent_harness/backends/skills/creation_protocols.py:71-86`）：扫描之后、写入之前另有人新建了同名技能或给某个来源技能新增了绑定，不受保护；被删的改写函数只认裸名，本来也补不上这一段；窗口约等于合并判定的 LLM 调用时长，没有量过；
+7. 真实后端保存伞形技能时，解析器对 executor 生成的 frontmatter 记一条「unknown frontmatter fields: keywords」警告（测试日志 `_utils.py:333`），每创建一个伞形技能都会有；这个字段是否被检索使用没有核对，本次未改。
 
 ### 踩坑经验
 
 1. 响应里一个永远为 0 的计数就是一条告警：它说明背后的分支从未执行，先去查调用链上谁把输入过滤掉了，而不是继续补这个分支（这里它还只认裸名，补了也不对）；
-2. 判断「该不该给功能补一条写路径」，先看这条路径的输入集合是否可能非空；被上游豁免的集合永远不会流到下游。
+2. 判断「该不该给功能补一条写路径」，先看这条路径的输入集合是否可能非空；被上游豁免的集合永远不会流到下游；
+3. 用假后端证明的守卫，至少用真实后端再证明一次：假后端照搬了「保存即替换」，却没有照搬内容校验，换成真实的写后端才看到伞形技能的 frontmatter 被解析器报了未知字段。
 
 ---
 
