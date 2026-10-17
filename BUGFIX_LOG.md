@@ -5952,6 +5952,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 13. 服务端集成 `test_a_patch_edits_a_skill_the_turn_backend_cannot_see_and_undo_puts_the_text_back`（真实工具、钩子、撤销服务；轮次后端用一个什么也读不到的对象）。变异：让 patch 只读轮次后端 → `1 failed, 8 passed in 8.12s`（`'object' object has no attribute 'get_skill_content'`，批次回滚）；还原后该文件加 `test_skill_tool_mount.py`、`test_managed_skill_reader.py` 共 `30 passed in 7.74s`；
 14. 真实模型 API e2e 现在 4 例：`4 passed in 154.04s`（第四例：先建技能，下一轮 patch 其中一句，撤销该 patch 批次后回到第一版标记）。日志每轮打印 `E2E_MODEL_USED: MiniMax-M3.1-Flash-Preview`。第一版断言要求流里出现 "patched successfully"，红灯（`1 failed, 3 passed in 315.83s`）：一次性探针（探针文件已删除，没有提交）显示 SSE 流不带工具结果文本（含 patch 字样的事件都被打印出来，没有一条是结果句子），只在 `tool_end` 事件上带 `skill_mutation_batch_id`；模型确实调了 `patch`（落库步骤里 `'action': 'patch'`），批次已提交，错在测试自己的断言。改为以落库的 patch 步骤带批次 id 为准（读不到技能的 patch 整批回滚，没有批次 id）。这条判据本身没有在修复前的代码上亲眼红过：隔离后端按工作区指纹从工作树起，还原共享的 harness 源码会扰动其他会话正在跑的 E2E，所以没有做；修复前的症状由早先的一次性探针（流里 not found）、上一条的集成变异和 harness 单测红灯佐证；
 15. 服务端更宽一圈（同第 11 条的范围）`865 passed in 227.34s`，没有失败（第 11 条里依赖模型输出的那条真实 LLM 用例这次也通过）；
+16. 两个边界用例（同一个集成文件，现为 11 例，`11 passed in 11.08s`）：`test_two_patches_in_one_batch_apply_in_order_and_one_undo_restores_the_original`（第二个 patch 匹配的是第一个刚写下的文字）、`test_a_failed_patch_rolls_back_the_whole_batch_and_leaves_no_undo_record`（先写文件、再让 patch 找不到片段：整批回滚，没有批次 id，快照表只剩保存那一条）。这两个是对现有行为的守卫，第一次运行就通过，不是修复前红灯的缺陷用例。变异确认它们会红：回滚不还原 → 后者红（`1 failed, 10 passed in 8.06s`，批次内先写的 `notes.md` 留了下来）；让 patch 在同一批次里读到过期正文 → 前者红（`1 failed, 10 passed in 5.12s`，第二个 patch 报 `Could not find the specified fragment`）；
+17. 最终树上的真机 Chrome E2E（隔离私有运行时，真实 WebUI 输入框与真实模型 minimax / `MiniMax-M3.1-Flash-Preview`）：真实 agent 保存后从任务步骤撤销 `1 passed in 207.91s`，日志 `myrm-test-48481`，会话 `e2e-parent-48502-48518-6b934a8a` 为 `SUCCEEDED/PASSED`，`sealed`、`physical_released`、`ledger_cleaned` 皆真。patch 流没有单独的 Chrome E2E：撤销提示与撤销键在页面上的路径和保存之后相同，服务端语义由 API e2e 与集成测试覆盖；
+18. 服务端 `tests/architecture` 门禁 `9 failed, 2070 passed, 1 skipped in 71.13s`。其中 `test_no_temp_docs_links[BUGFIX_LOG.md]` 红在本日志里一条他人早先提交的旧记录写着一条指向私有素材目录的路径，删去路径前缀后该门禁与占位门禁同跑 `966 passed in 8.03s`。其余 8 个失败涉及的是他人未提交或新增的内容（本轮提交没有新增路由、服务目录、前端文件或 server→harness 导入）：无前端调用方的路由（日志列出 675 条，如 `/skills/bundles`、`/system/active-skill-telemetry/*`）、`api/` 与 `services/` 域名词表里新增的目录（`git`、`machines`、`workflow` 等）、前端新增的 `/api/...` 调用、没有筛查指令文本的写入端点、server→harness 深层导入基线之外的新增导入（日志列出 136 项）；其中缺在基线里的 `meta_tools.skills.manage.batch_runner` 一项来自 10-13 的提交（`mutation_batch_hook.py:20`），早于本条。这些没有改。harness 的 `check_fractal_docs.py --strict-headers` 退出码 3（缺 `_ARCH.md` 的目录与缺头部标记的文件，共 175 行输出），没有一行涉及 `meta_tools/skills/manage`。
 
 ### 局限
 
@@ -5965,6 +5968,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 8. 他人未提交的改动没有碰也没有提交（`factory.py`、`version_persisting_backend.py`、`stream_collector.py`，以及 `tests/_ARCH.md`、`general_agent/_ARCH.md` 里的他人段落）。
 9. 撤销被拒绝时前端只有通用失败文案，不会说「技能已不存在」，要说清需要新增错误码与中英文案，没有做；一个批次涉及多个技能而其中一个已被删除时，整批撤销被拒绝，其余技能也不恢复（按代码判断：拒绝发生在应用任何快照之前，没有测试）。
 10. 仅含 lock/unlock 的批次也被当成可撤销批次（`undoable = all(op["action"] != "delete" …)`，`batch_runner.py:340`），落库钩子照常调用，结果带撤销提示；但 lock/unlock 只改全局进化库里的锁（`_manage_handlers.py:260`），快照里没有它（`_collect_touch_sets` 只为 `write_file`、`remove_file` 收集资源路径，`batch_runner.py:190-203`）。按代码判断：点「撤销」写回的是同一份 SKILL.md、答「已恢复」，技能仍是锁着的；批次里 lock 之后别的操作失败时，回滚同样不还原锁，而返回文案写的是 `No partial changes were kept`。没有测试；是把这类批次当终局处理还是还原锁，是产品决定，没有做。
+11. 测试请求点名了工具与动作（`action=patch`、`action=save`），测的是机制，不是模型在自然语言要求下选 patch 还是 save 的倾向；patch 用例也依赖真实模型照指令去调 patch：目前两次（一次探针、一次用例）都调了，模型若改调 save，用例会报 `the model never called patch`，那是模型行为，不是回归。
 
 ### 踩坑经验
 

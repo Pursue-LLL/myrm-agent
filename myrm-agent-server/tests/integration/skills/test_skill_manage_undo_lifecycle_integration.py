@@ -278,6 +278,49 @@ async def test_a_patch_edits_a_skill_the_turn_backend_cannot_see_and_undo_puts_t
     assert skill_md.read_text(encoding="utf-8") == stored
 
 
+async def test_two_patches_in_one_batch_apply_in_order_and_one_undo_restores_the_original(
+    skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """The second patch matches text only the first one wrote, so each patch must read what the previous write left."""
+    await _save_skill(skill_manage_tool)
+    skill_md = skills_root / SKILL_NAME / "SKILL.md"
+    stored = skill_md.read_text(encoding="utf-8")
+    patches: list[dict[str, object]] = [
+        {"action": "patch", "name": SKILL_NAME, "old_content": "Do the thing.", "new_content": "Do it differently."},
+        {"action": "patch", "name": SKILL_NAME, "old_content": "Do it differently.", "new_content": "Do it twice."},
+    ]
+
+    output, step = await _run_turn(skill_manage_tool, patches, SECOND_CALL_ID)
+
+    assert output.count("patched successfully") == 2, output
+    assert "Do it twice." in skill_md.read_text(encoding="utf-8")
+    async with session_factory() as session:
+        await rollback_skill_mutation_batch(session, _batch_id_of(step))
+    assert skill_md.read_text(encoding="utf-8") == stored
+
+
+async def test_a_failed_patch_rolls_back_the_whole_batch_and_leaves_no_undo_record(
+    skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    await _save_skill(skill_manage_tool)
+    skill_dir = skills_root / SKILL_NAME
+    stored = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    operations: list[dict[str, object]] = [
+        {"action": "write_file", "name": SKILL_NAME, "file_path": "references/notes.md", "content": "notes"},
+        {"action": "patch", "name": SKILL_NAME, "old_content": "text the skill never had", "new_content": "x"},
+    ]
+
+    output, step = await _run_turn(skill_manage_tool, operations, SECOND_CALL_ID)
+
+    assert output.startswith("Error: batch aborted"), output
+    assert "skill_mutation_batch_id" not in step, step
+    assert (skill_dir / "SKILL.md").read_text(encoding="utf-8") == stored
+    assert not (skill_dir / "references" / "notes.md").exists(), "the file written before the failing patch stayed"
+    async with session_factory() as session:
+        rows = (await session.execute(select(BatchSnapshot))).scalars().all()
+    assert len(rows) == 1, "only the save left a snapshot"
+
+
 async def test_undo_of_a_rewrite_is_refused_once_the_skill_was_deleted(
     skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:
