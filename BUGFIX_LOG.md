@@ -5553,7 +5553,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-16（`-012` 之后对无痕合同的终审：把导出、备份、导入暂存、命令面板、公开文档与界面逐处用真实组件复现；对照 OpenClaw、Cherry Studio、Claude Code、Codex、ChatGPT、Claude、Gemini、Perplexity 的无痕/临时会话语义，只取与本产品形态相符的部分） |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P1（界面承诺「闲置超过 1 小时自动删除」，导出文件与备份却会把同一批对话原文带走并长期保存） |
-| 影响范围 | server：`app/services/instance_archive/table_policy.py`、`checkpoint_scrub.py`（新）、`export_service.py`、`stage_db.py`、`_ARCH.md`、`app/services/chat/chat_bound_rows.py` 与 `chat/_ARCH.md`（只改说明）、`tests/services/instance_archive/test_incognito_scrub.py`、`test_schema_reconciliation.py`、`tests/e2e/test_incognito_notice_chrome_e2e.py`、`tests/_ARCH.md`、`app/services/chat/command_matrix/registry.py`（删 `/zdr` 条目）；harness：`toolkits/llms/adapters/wire/` 删除 `zdr_interceptor.py` 及其测试、导出与 `_ARCH` 行，`native_compaction.py` 的类型收窄，`capability_matrix/models.py` 一行注释；前端：新增 `chat-window/IncognitoNotice.tsx`、`message-input-actions/IncognitoIcon.tsx`（从开关里抽出共用），`EmptyChat.tsx` 挂载一行并给标题加 `data-testid`，两处 `_ARCH.md`；公开文档仓：`security-architecture.mdx` 删除 §16 |
+| 影响范围 | server：`app/services/instance_archive/table_policy.py`、`checkpoint_scrub.py`（新）、`incognito_workspaces.py`（新）、`policy.py`、`export_service.py`、`stage_db.py`、`_ARCH.md`、`app/services/chat/chat_bound_rows.py` 与 `chat/_ARCH.md`（只改说明）、`tests/services/instance_archive/test_incognito_scrub.py`、`test_incognito_files.py`（新）、`test_policy.py`、`test_schema_reconciliation.py`、`tests/e2e/test_incognito_notice_chrome_e2e.py`、`tests/_ARCH.md`、`app/services/chat/command_matrix/registry.py`（删 `/zdr` 条目）；harness：`toolkits/llms/adapters/wire/` 删除 `zdr_interceptor.py` 及其测试、导出与 `_ARCH` 行，`native_compaction.py` 的类型收窄，`capability_matrix/models.py` 一行注释；前端：新增 `chat-window/IncognitoNotice.tsx`、`message-input-actions/IncognitoIcon.tsx`（从开关里抽出共用），`EmptyChat.tsx` 挂载一行并给标题加 `data-testid`，两处 `_ARCH.md`；公开文档仓：`security-architecture.mdx` 删除 §16 |
 | 出现次数 | 1（真实库、真实快照与真实浏览器复现，没有用户数据） |
 | 关联 | `BUG-AGENT-2026-10-16-012` 局限 5、6 在此处理；harness 提交 `3ae0e7957a`、公开文档仓提交 `c605fe2223`；`instance_archive/`、`command_matrix/`、harness `capability_matrix/` 是别的会话尚未提交的目录，本次改动只在工作区，未提交、未 push |
 
@@ -5563,6 +5563,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 命令面板的 `/zdr` 条目与公开安全架构页 §16 写着「纯内存无痕会话、退出时 0x00 物理覆写抹零」，服务端没有任何处理它的代码；harness 的 `zdr_interceptor.py` 只给出站请求加厂商头，两个函数除自己的测试外没有调用方，而零留存是与服务商签的组织级协议，不是请求头能开关的。
 3. 同一份导出里，`checkpoints.db`（LangGraph 对话检查点，含每轮的消息与工具结果）和只按会话 id 记录、没有外键的表（`widget_kv`、`fission_task_records`、`commitments` 等）同样带着无痕会话的内容：运行时为无痕会话也写检查点（`app/ai_agents/general_agent/factory.py:490` 取检查点、`:820` 无条件传入；只有事件日志对无痕旁路，见 `app/ai_agents/agents.py:66-68`），在线清除会删这些线程和行（`chat_disposal.clear_conversation_state`、`chat_bound_rows.CHAT_BOUND_TABLES`），归档这一步原先只处理 `data.db` 的 `chats` 表；`checkpoints.db` 被分类为普通数据，按原样快照入包（`policy.classify_path` 对 `checkpoints.db` 返回 `data`，`export_service` 对它不做任何处理）。
 4. 无痕开启后页面上没有任何说明：开关的解释只在悬停提示里（读 Radix 源码，触屏不触发悬停），手机上开关在底部抽屉里，标签 `hidden xl:inline`，桌面窄窗口里同样只剩图标。
+5. 同一份导出里还有两样东西不在上面的清单里。无痕只关记忆工具组（`app/ai_agents/general_agent/active_tool_groups.py:76`），文件与 shell 工具组开不开只取决于智能体配置，所以工具写在 `harness/workspaces/chat_<会话 id>/` 下的文件，被 `policy.classify_path` 按普通数据入包；子代理的对话存在 `subagent_checkpoints.sqlite`（harness `agent/sub_agents/checkpointer.py` 的 `resolve_subagent_checkpoint_db_path`，默认 `~/.myrm/data/`），按任务 id 而不是会话 id 记录，同样入包。真实 `build_export` 复现：状态目录里放 5 个条目，这两个把无痕内容带出了包。
 
 ### 根因
 
@@ -5570,6 +5571,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 先写了合规文案、没有实现，文案又同时出现在命令表、公开文档和一个拦截器里，互相印证，看起来像真有这个功能。
 3. 说明文字挂在悬停上，没有人考虑过触屏与抽屉布局。
 4. 第一版只对着 `chats` 一张表补了删除，没有拿在线清除的完整步骤清单（检查点、按会话 id 记录的表、工作区文件）逐项对照「归档带不带」；是终审时再读 `chat_disposal.py` 才发现的。
+5. 对照清单只覆盖了数据库；文件按目录、按文件名分类，默认归为普通数据，没有人把「在线清除会删的文件」也列进来对照。
 
 ### 修复
 
@@ -5577,6 +5579,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
    新增 `checkpoint_scrub.py`：对每个带 `thread_id` 列的表删除这批会话的线程（每个会话两个别名，取自运行时的 `resolve_thread_ids`，开启 `secure_delete`）。导出对 `checkpoints.db` 的拷贝套用它，会话取自拷贝那一刻的在线 `data.db`（只读连接），因此在 `data.db` 快照之后才开始的会话也覆盖；清除失败时归档写入器把这个库留在包外并如实报告，不会未清除就带走。导入暂存里由 `prepare_staged_db` 在清 `data.db` 之前取得会话 id，再清紧邻的 `checkpoints.db`（旧版本导出的归档里它带着无痕线程）。
 2. 删除 `zdr_interceptor.py`、测试、导出与 `_ARCH` 行，`/zdr` 命令条目，`capability_matrix/models.py` 注释里的 `/zdr`，公开文档 §16。顺手把 `native_compaction.py` 里对 `object` 的遍历收窄成 isinstance 判断，pyright 清零。
 3. 空会话态在无痕开启时就地显示说明：复用已有的 `memory.incognitoModeDesc`（六种语言早已存在，没有新增文案），标题复用 `memory.incognitoMode`；`<output>`（隐含 `status` 语义），只用主题变量；图标从开关里抽成 `IncognitoIcon` 共用。
+4. 导出端新增 `incognito_workspaces.py`：扫描之后读在线库当下的网页无痕会话名单（`table_policy.live_web_incognito_chat_ids`，只读连接，与检查点清除共用一个读取函数），把 `harness/workspaces/chat_<id>/` 下的文件与读不到的路径从扫描结果里去掉（目录名取 `CHAT_SESSION_PREFIX` + 会话 id，按整段路径分量比对）；名单读不到则导出失败，不带着全部工作区继续。子代理 checkpoint 库在 `policy.classify_path` 里按文件名归为运行时：它的线程在进程重启后不可恢复（harness `sub_agents/checkpointer.py` 模块说明），随备份走既无用又可能带无痕上下文，所以整个库不入包，不论它在 `data/` 下还是状态目录顶层；导入白名单用同一个分类器，同样不再接收它。导入暂存不筛工作区：本版本导出的归档不含这些文件。
 
 ### 验证
 
@@ -5586,6 +5589,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. 真实浏览器：走项目规定的 `./myrm test -m chrome_e2e …/test_incognito_notice_chrome_e2e.py`（共享 Chrome 的 MCP 对本地页面有意拒绝，没有绕开）。点真实开关后，说明在 14 ms 内出现，文字 63 个字符，不溢出视口、页面不横向撑宽；对比度按「祖先背景逐层合成」量：浅色标题 17.0:1、正文 14.6:1，深色标题 18.3:1、正文 16.9:1（门槛 4.5）；390px 同源 iframe 里手机布局同样不溢出；再点一次说明消失。`scripts/dev/tests` 里关于 e2e 等待与副作用的静态审计 53 例通过。
 5. 测试自身的踩坑（已修）：点击早于 React 水合会丢（DOM 与 `aria-pressed` 都在，但没有处理器），现在等标题与开关都带 `__reactProps` 再点；颜色过渡会让切换主题后立刻量到旧主题的值，量之前关掉过渡；冷启动时开发服务器按需编译，脚本加载最慢的几个分块用了约 57 秒，手机 iframe 的等待放宽到 240 秒；等待页面挂载改认标题上的 `data-testid`，不再认 `h2.text-3xl` 这种样式类名。
 6. 代价（本机，各 3 次）：库里 4 万条正常消息、没有无痕行时，scrub 耗时 3–4 ms；再加 400 个无痕会话共 4 万条消息（8 万条的库）时 0.71–1.04 s。无痕会话闲置超过 1 小时就会被线上清除，实际要删的量远小于这个压力规模。
+7. 工作区文件与子代理库：新增 `test_incognito_files.py` 8 例（真实 `build_export`：无痕工作区不入包且原文不在任何文件里、其余会话与转写导入的工作区照常入包、`chat_incognito` 不藏掉 `chat_incognito-2`、子代理库在 `data/` 下与状态目录顶层都不入包、名单读不到时导出失败且不留文件、无痕工作区下读不到的路径不计入“备份不完整”、另有 2 例把工作区位置与目录名、子代理库文件名钉到真实运行时），`test_policy.py` 加 3 行。红灯先行（策略行 3 例失败，新模块不存在）。变异检查 4 种：筛选整个关掉（3 例失败）、目录名改成字符串前缀匹配（1 例失败）、去掉子代理库规则（2 例失败）、名单读不到时改成静默当作没有（1 例失败；第一版的测试用“删掉 data.db”来触发，没有杀掉这个变异——导出末尾对主库的检查同样会抛同一个错，改成让名单读取本身失败后才杀掉），各还原后重跑通过。`tests/services/instance_archive`、`tests/api/instance_archive`、`chat_bound_rows` 守卫与 `test_python_env_reset` 共 334 例通过，ruff 与 pyright（带 `--pythonpath .venv/bin/python`）为零。
 
 ### 局限
 
@@ -5593,9 +5597,10 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 手机宽度用的是同源 390px 的 iframe（真实媒体查询），不是真机；iframe 里是通过 store 开启无痕的，没有点底部抽屉里的真实开关；触屏不出现悬停提示来自读 Radix 源码，没有在真机上点过。
 3. E2E 只用了简体中文；其他五种语言的文案更长，容器按词换行，没有逐个在浏览器里看。
 4. 无痕会话被清除时，它的分享链接随之失效；在清除之前，分享链接仍可访问，没有额外限制（本次不做）。
-5. 无痕会话在 `harness/workspaces/chat_<会话 id>/` 下生成的文件与产物保险库里按任务 id 记的对象（在线清除的 `sandbox_cleanup.py` 删的就是这两处）仍会随导出和备份走：状态目录下的 `harness/`（即 `database.harness_dir`）里的文件被 `policy.classify_path` 按普通数据入包（实测 `harness/workspaces/chat_x/report.md` 返回 `data`），这次没有处理。`artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）。子代理按任务 id 建的检查点线程不在会话的两个别名里，在线清除同样不处理（`session_continuity.resolve_thread_ids`），这里沿用同一口径。
+5. 导出已不带无痕会话的工作区文件与子代理库，但还有三处没有处理：(a) `harness/` 根下共享的产物保险库里属于无痕会话的对象仍随导出走：在线清除对它按文件名、描述、id 做子串匹配（`vault.py` 的 `purge_by_task_ids`），归档侧照搬会误删或漏删，所以没有照搬；(b) 上传的附件进的是用户级文件库 `storage/files/uploads/`，不属于任何会话：前端 `services/file.ts` 的 `uploadFiles` 只发文件，接口 `app/api/files/upload.py` 与 `core/storage/service.py` 的 `upload_file` 没有会话参数，`api/files/suggest.py` 的 `_suggest_stored_files` 对所有会话列出全部上传文件。所以无痕会话里传的附件不会随会话清除，会出现在别的会话的 `@` 文件候选里，也随导出走；要归属到会话需要前端、上传接口、存储元数据、在线清除与导出一起改，这次没有做；(c) `artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）。
+   本机文件系统层面：库里删掉的行在被之后的写入覆盖之前仍留在空闲页里，`data.db` 与 `checkpoints.db` 的 `secure_delete` 没有开。合成数据实测（2.9KB 消息，真实 `ChatRepository.permanently_delete_chat`、`create_checkpointer` 与 `sync_checkpoint_messages`）：`data.db` 删除并 checkpoint 后 150 条里 140 条仍能在文件字节里读到，再写入 20 至 50 条约 3KB 的消息后降到 0 至 35 条，写 600 条后为 0；`checkpoints.db` 删除后 30/30，再写 15 个检查点 28/30，30 个后 0/30；子代理库顺序跑 60 次、每次结束即删，只剩最后一次可读。窗口由之后写了多少决定：忙碌用户几十条消息内就被覆盖，空闲用户会一直留着；`wal_checkpoint` 之前 WAL 文件里也还有删除前的页（周期 6 小时，关机时 TRUNCATE）。没有开 `secure_delete`：窗口窄、开启磁盘加密时丢失设备的场景已被覆盖、主库的写入要多 7% 到 10%（真实 schema 实测），且会话进行期间做的卷快照里无痕会话本来就是存活的行，开了也防不住。超过一页（约 4KB）的正文被溢出页指针切开，朴素的字节搜索找不到，但取证工具能还原，所以上面的数字是下界。全文索引段、`sqlite_backups/` 里最近 3 份热备份（6 小时一轮）、恢复点、日志与遥测里是否残留无痕内容，没有逐项审计。
 6. 暂存与导出都只剔除 `source = 'web'` 的无痕会话；若将来有第二种「到期即删」的来源，要同时改清除条件与这里的谓词（两处现在各写了一份）。
-7. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`checkpoint_scrub.py`、`export_service.py`、`stage_db.py`、`_ARCH.md`、两个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
+7. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`checkpoint_scrub.py`、`incognito_workspaces.py`、`policy.py`、`export_service.py`、`stage_db.py`、`_ARCH.md`、四个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
 8. 说明只在空会话页显示，发出第一条消息后消失，之后只剩开关的选中态（桌面在工具栏，手机在底部抽屉里）；没有加会话内的常驻标识。
 
 ### 教训
@@ -5605,6 +5610,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 看起来能互相印证的几处文案，要各自追到代码里的调用方；没有调用方就删，不要留着当「已实现」。
 4. 浏览器里的断言要等「可交互」而不是「元素在」；量颜色要先关过渡；这类基础设施行为写进测试的注释里，下一个人才不会重走一遍。
 5. 「出口要覆盖所有副本」不能只盯着一张表：要对照在线清除的完整步骤清单（`chat_disposal.dispose_permanently_deleted_chats` 与 `CHAT_BOUND_TABLES`）逐项问「归档带不带」，并用「在整条导出流水线的每个文件里找原文」这种不依赖具体表名的断言兜底。
+6. 量“删除后还能读到多少”必须同时量“之后写了多少”：我先只量了删除后立刻读，得到的高残留数字撑起了三项加固（给两个库开 `secure_delete`），补量之后发现残留会被之后的写入逐步覆盖（忙碌用户很快，空闲用户不会），收益只剩一个窄窗口，三项都撤回了。另外判据要先做对照：11KB 的正文被溢出页指针切断，删除前就搜不到，我差点把“搜不到”当成“已清除”。
+7. 断言要先证明自己能失败：用“删掉 data.db”去触发“名单读不到则失败”的测试，被后面另一处检查的同一个错误蒙混过关，变异检查才暴露出来。
 
 ## BUG-AGENT-2026-10-16-023: 浏览器扩展侧边栏的工具审批点了不起作用（答复发往不存在的记录、只显示第一个动作）；`i18n.js` 的语法错误让扩展后台脚本整个不执行、弹窗文案不翻译；前端一条无人发布的 `approval_processed` 事件链与一个无人调用的通知清理函数
 

@@ -52,6 +52,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/instance_archive/test_import_time_db_opens.py` | 模块 | 导入 app 模块时不得打开归档携带的数据库（启动前换入会替换它们，import 期打开会持有换入前文件） |
 | `services/instance_archive/test_export_completeness.py` | 模块 | 导出如实报告读不到的数据项：无法读取的文件、无法列出的目录计入 `unreadable`，导出途中消失的文件不计入，读得到时为空；该数量同时写入 manifest（`unreadable_count`） |
 | `services/instance_archive/test_incognito_scrub.py` | 模块 | 网页无痕会话不进任何归档副本：在真实 ORM schema + 迁移 + FTS 触发器 + WAL 源库 + 真实快照路径上，导出与导入暂存两条共用的 scrub 之后，无痕会话、其消息、全文索引与回忆索引全部消失且原文不在文件字节里、副本无 `-wal`；普通会话与转写导入（`source` 非 web 但带无痕标志）原样保留；`foreign_keys` 开不起来时整个 scrub 失败而不是留下孤儿消息；只按会话 id 记录的表（`widget_kv`）同样清除；真实 LangGraph 检查点：整条导出流水线的每个文件里都找不到无痕原文、旧归档暂存时清理紧邻的 `checkpoints.db`、检查点清除失败时该库不入包并如实报告、500 个会话分批清除；没有无痕列的旧库不动 |
+| `services/instance_archive/test_incognito_files.py` | 模块 | 网页无痕会话写在磁盘上的东西不进导出：真实 `build_export` 下 `harness/workspaces/chat_<id>/`（含嵌套目录）不入包、其余会话与转写导入的工作区照常入包，目录名按整段路径分量比对（`chat_incognito` 不藏掉 `chat_incognito-2`）；子代理 checkpoint 库不论在 `data/` 下还是状态目录顶层都不入包；无法判定哪些会话是无痕时导出失败且不留文件；无痕工作区下读不到的路径不记入“备份不完整”；并把工作区位置、目录名与子代理库文件名钉到真实运行时（`WorkspaceService.workspaces_root`、`default_chat_workspace_path`、`resolve_subagent_checkpoint_db_path`） |
 | `services/instance_archive/test_policy.py` | 模块 | 路径分类：默认包含、显式排除、敌意条目拦截；扫描把无法列出的目录与无法读取的文件记为读不到，与已消失的文件区分 |
 | `services/instance_archive/test_restore_points.py` | 模块 | 恢复点：一致性快照、staging 校验、下次启动换入、拒绝更新版 schema 与被篡改快照 |
 | `services/instance_archive/test_schema_reconciliation.py` | 模块 | 把归档策略钉到真实 ORM schema，表/列改名或新增密钥列不会悄悄使策略失效 |
