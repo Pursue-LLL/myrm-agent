@@ -6363,3 +6363,66 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 2. 判断「该不该给功能补一条写路径」，先看这条路径的输入集合是否可能非空；被上游豁免的集合永远不会流到下游。
 
 ---
+
+## BUG-AGENT-2026-10-17-009: 后台聊天流式时把子智能体树与裂变条写进当前打开的聊天；点「新对话」不清空子智能体面板；慢响应把已离开聊天的子智能体与计划写回；目标队列重排被服务端拒绝后界面仍显示新顺序；输入法确认键按处理器运行时刻计时，主线程忙时被当成「发送」；「全部停止」与委派暂停失败的提示回显服务端英文
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17（对「聊天 A 在后台跑、用户在聊天 B」这一状态逐条追问各个单槽 store 写入点，并在未改动的代码上逐条复现） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P2（界面把别的聊天的子智能体、计划、队列顺序显示成当前聊天的；停止按钮作用于当前聊天，不会误停别的聊天） |
+| 影响范围 | frontend：`src/store/chat/messageStream/handlers/{handlerDeps,subagentEvents,toolsProgressEvents,toolLifecycleEvents,fileDiffEvents}.ts`、`src/store/chat/{useSubagentStore,subagentNodeMerge}.ts`、`src/store/chat/goals/{useGoalStore,usePlanStore}.ts`、`src/components/features/chat-window/subagent/SubagentDashboard.tsx`、`src/lib/utils/imeUtils.ts` 与对应测试、`_ARCH.md` |
+| 出现次数 | 1 |
+| 关联 | 路线图 `topic_09_frontend_ux_roadmap.md` #399；目标槽位与输入法守卫的前一批改动已先行提交；本批提交 `1bc5a5a289`（输入法）、`90a8929c23`（目标与计划 store）、`7590d6969f`（子智能体 / 裂变门控与面板）；本地提交，未 push |
+
+### 现象
+
+1. 子智能体与裂变事件（`SUBAGENT_START / PROGRESS / LOG / STALE`、`FISSION_TOPOLOGY`、`TEAMMATE_MESSAGE`、`swarm_fission`）由流处理器直接写全局单槽的 `useSubagentStore`，不核对事件属于哪个聊天。多个聊天可同时流式（`messageRequest.ts:936` 的 `createSmartUpdater` 只把消息更新按聊天分流），后台聊天的事件因此写进当前打开聊天的面板；`SUBAGENT_PROGRESS` 带 token 用量时还会凭空建出占位节点。
+2. `fetchSubagents(chatId)` 的回包不核对用户是否已离开该聊天：先切走、响应后到，旧聊天的子智能体落进新聊天的树。
+3. 面板的清空条件是 `prev && chatId && prev !== chatId`，点「新对话」（`chatId` 变空）不清空。
+4. `usePlanStore.clearPlan()` 只置空计划，不让在途的 `fetchPlan` 失效：离开聊天或点「新对话」后才返回的响应把旧计划写回。
+5. `useGoalStore` 对空聊天 id 的写入「视为属于当前聊天」，一个说不出自己属于哪个聊天的写入会落进任何打开的聊天。
+6. `reorderQueue` 先乐观排序，之后不看 `res.ok`，也不在失败时回滚：服务端拒绝或网络失败时界面一直显示服务端没有采纳的顺序。
+7. 输入法在 Safari / WebKit 先派发 `compositionend`、再补发确认 Enter 的顺序倒置，由 100ms 时间窗兜底；时间窗用「处理器运行那一刻的 `Date.now()`」与 `compositionend` 时刻相减，主线程繁忙使处理器晚于浏览器创建事件 100ms 以上时，确认键被当成「发送」。
+8. 「全部停止」在聊天没有运行中子智能体时，服务端回 404 `No running subagents found for chat session …`（`app/api/agents/subagents.py:147`），前端把这句英文原样弹成 toast；委派暂停 / 恢复被拒同样回显服务端文案。
+
+### 根因
+
+1. 子智能体树、裂变条、计划、目标队列都是「只描述打开聊天」的单槽 store，但写入方各自决定要不要核对聊天：目标 store 在前一批已改为每次写入都带聊天 id 并在 `set` 内核对，子智能体与计划两处没有同样的边界。
+2. 工具面板接管（浏览器 / 桌面 inspector）已有「流属于打开的聊天」的手写比较，三处各抄一份，子智能体写入没有套用。
+3. 时间窗用处理器运行时刻的时钟，把「浏览器何时创建事件」与「页面何时处理事件」混为一谈。
+
+### 修复
+
+1. `handlerDeps.ts` 新增 `isStreamForOpenChat(state)`（流所属聊天可解析、且就是当前打开的聊天）与 `writeSubagentStore(state, write)`（子智能体 store 懒加载完成后再判定并写入，加载期间发生的切换也会丢弃写入）；`subagentEvents.ts` 六处与 `toolsProgressEvents.ts` 的 `swarm_fission` 全部经它写入，后台聊天只更新自己的消息；`TEAMMATE_MESSAGE` 以流的聊天 id 打标。原有三处手写比较（`toolLifecycleEvents.ts` 两处、`fileDiffEvents.ts` 一处）改用同一判定，语义不变。裂变部分失败的 toast 对所有聊天保留。
+2. `fetchSubagents` 在回包处理前核对当前打开的聊天仍是请求的聊天，否则丢弃；面板清空条件改为 `prev && prev !== chatId`（新聊天拿到 id 的 `无 → id` 不清空，它的流已写进去的节点保留）。
+3. `clearPlan` 递增请求序号并复位 `isLoading`，使在途 `fetchPlan` 失效。
+4. `useGoalStore` 的 `applyForChat` 删掉空 id 通配：说不出所属聊天的写入一律丢弃（流发起时没有聊天 id 会在 `messageRequest.ts:573-574` 直接抛错，生产路径上不会产生空 id）。
+5. `reorderQueue` 读 `res.ok`，服务端拒绝或网络失败时 `fetchQueue` 重新拉取，界面回到服务端的顺序；成功不多发请求。
+6. `imeUtils.ts` 的 `compositionend` 观察器改记事件 `timeStamp`，按键事件以自己的 `timeStamp` 与之相差（取绝对值）是否落在 100ms 内判定；不再有 `now` 参数；没有 `timeStamp` 的事件不参与此条判定；头注释里「`keyCode` 已是 13」改为「13 或 229，视 WebKit 版本」。
+7. 「全部停止」与委派暂停 / 恢复被拒时只弹本地化文案（`stopAllFailed`、`delegationPauseFailed`、`delegationResumeFailed`，六种语言均已有键）。
+8. `useSubagentStore.ts` 因本次改动超过 400 行，快照合并抽成纯函数 `subagentNodeMerge.ts`（行为不变，已有的终态防回退用例经 `setNodes` 继续覆盖），主文件 371 行。
+
+### 验证
+
+1. 先写失败用例并在未改动的代码上确认红：处理器门控 8 例 + 裂变 2 例、`fetchSubagents` 回包 2 例、面板「新对话」清空与两处提示文案 3 例、`clearPlan` 1 例、目标空 id 与重排回滚 3 例、输入法延迟 / 先后倒置 / 无时间戳 4 例；对照用例（打开聊天照常写入、回包仍在原聊天时照常应用、重排成功不重拉）在原代码上即为绿。
+2. 变异 8 个全部被杀：加载前判定而不是加载后、放过空流 id、`fetchSubagents` 去掉核对、`clearPlan` 不失效、目标空 id 通配复原、重排不回滚、重排成功也重拉、时间窗去掉绝对值。其中最后一个最初存活（先后倒置的用例只测了 5ms，去掉绝对值后仍为真），补一条「早于 `compositionend` 很久的按键不吞」后被杀；每次变异后文件由备份还原并核对内容相同。
+3. vitest：`src/store`、`src/components/features/chat-window`、`message-box`、`message-actions` 共 526 个文件 3255 例通过；`src/lib` 与 `src/hooks` 共 225 个文件 2193 例通过。工作区（含他人未提交的文件）`tsc --noEmit` 全量退出码 0、触及文件 `oxlint` 无输出、`prettier --check` 通过（`oxlint` 对一个故意写入 `debugger` 的探针文件确实会报，不是空跑）。
+4. 一次全量运行里 `src/lib/extension/__tests__/sidepanelController.test.ts` 曾报 `chrome.i18n.getUILanguage is not a function`，该文件与扩展侧边栏是他人未提交的改动；单独重跑 34 例通过，之后 `src/lib src/hooks` 全量也通过，与本条无关。
+5. 将要提交的树（导出时的父提交 `4f2cc2dd3e` + 本批三个提交的内容，另行导出到临时目录、`node_modules` 软链）：涉及的 52 个测试文件 330 例通过，触及文件 `oxlint` 无输出；`tsc --noEmit` 退出码 2、226 行含 `error TS` 的输出，触及文件零错误，其余全部是已提交的 `ChatWindowSatellites.tsx` 等文件引用了只存在于他人未提交工作区的模块（如 `./SubagentFailurePolicyCard`）所致的 `TS2307` 及其连带类型错误，与本条无关，导出之后父提交又前进到 `c97ec5ca81`，其间 4 个他人提交只涉及 BUGFIX_LOG、一个入口提示组件的头注释与一个 e2e 测试，没有再导出复验。
+
+### 局限
+
+1. 真实浏览器没有验证：`./myrm test -m chrome_e2e` 在本机排到名额后，共享 UI 预检 360 秒超时（`MYRM_NOT_READY`，`body_started=0`），用例主体没有启动，所以没有新增 chrome_e2e 用例；切换行为由 jsdom 中的真实 store 与真实组件用例覆盖。
+2. Safari / WebKit / WKWebView 的真机行为没有验证：`keyCode` 在不同版本上是 13 还是 229、确认键的 `timeStamp` 与 `compositionend` 的实际间隔都没有在真机上量过，100ms 的取值沿用前一批的参考结论；绝对值是为「事件创建时刻与派发顺序不一致」留的余量，这种情形是否真实出现没有观察到。
+3. 这些缺陷在线上出现的频率没有测量：需要「两个聊天同时流式」「慢回包」「主线程繁忙」等条件，本条只证明条件满足时会出错、修复后不再出错。
+4. 门控放在 `writeSubagentStore` 里意味着后台聊天的子智能体事件不再进入子智能体 store；用户切回该聊天时依赖面板挂载时的 `fetchSubagents` 与轮询从服务端取回，服务端快照是否包含后台期间的流式文字没有核实。
+5. `useGoalStore` 对空聊天 id 的丢弃依赖「流发起时必须有聊天 id」这一前提（`messageRequest.ts:573-574` 在没有聊天 id 时抛错），这个前提是读代码得出的，没有构造运行时用例去触发它。
+
+### 踩坑经验
+
+1. 单槽 store 的写入边界要放在写入点之前的「入口」，而不是每个调用处各写一遍：同一个「是否打开的聊天」比较在三处被抄了三份，第四处（子智能体）就没人抄。
+2. 先写能红的用例再改代码，变异检查不能省：绝对值那条变异最初存活，说明原来的用例没有真正约束它。
+3. 带 `await` 的懒加载会在判定与写入之间让出线程，判定必须放在加载完成之后。
+
+---
