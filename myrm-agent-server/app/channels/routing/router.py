@@ -405,11 +405,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         await self._stop_janitor()
 
         if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
+            if not self._task.done():
+                self._task.cancel()
+                try:
+                    await self._task
+                except asyncio.CancelledError:
+                    pass
             self._task = None
 
         self._seen_messages.clear()

@@ -293,6 +293,19 @@ class TestConsumeLoop:
         router._task = live_task
         assert router.is_consume_loop_alive() is True
 
+    @pytest.mark.asyncio
+    async def test_stop_after_loop_already_crashed_does_not_raise(self) -> None:
+        """A loop that died is already done; stop() must not await it and re-raise."""
+        router = _make_router()
+        await router.start()
+
+        crashed = asyncio.get_running_loop().create_future()
+        crashed.set_exception(RuntimeError("loop died"))
+        router._task = crashed  # type: ignore[assignment]
+
+        await router.stop()  # must not raise
+        assert router._task is None
+
 
 # ── Janitor ───────────────────────────────────────────────────────────
 
