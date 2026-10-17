@@ -6571,7 +6571,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 1. 面板的请求不带 `agent_config`，服务端用默认工具集（含 `structured_clarify`，`builtin_tool_ids.py:26-30`、`converter.py:501`），通道固定为 `web_chat`（`converter.py:715`），`ask_question_tool` 因此必挂（实测：默认工具集 → 挂载为真）。工具描述鼓励在缺少前置信息或高风险操作前调用它；一旦调用，SSE 在 `clarification_required` 中断处结束，而面板的事件分发里没有这个类型，用户看到的是一个没有任何提示的断点。澄清不是 `ApprovalRecord`，网关不会拦新消息（`registry.py:288-304`），服务端 900 秒后才超时。
 2. 审批超时后服务端在后台续跑被暂停的回合（`hitl_timeout.py:164-230`），面板此时空闲；用户这时发消息，服务端回 `error_type` 为 `AgentBusyError` 的 SSE 错误（`stream_busy.py:23-30`），面板一律显示「出了点问题，请检查连接后重试」，把用户引向网络。另外 SSE `error` 事件走 `appendText` 加 `\n\n` 前缀：没有前文时气泡以两个空行开头，也没有 `.error` 样式（`chat_view.js` 已有的 `showError` 就是为此写的）。
-3. 审批卡的列表上限是 `max-height: min(40vh, 240px)`。真实 Chromium（380 宽、800 高）里一条 1500 字符的 heredoc 命令占 700px，列表只露 240px（34%）；批量 4 项占 586px 同样只露 240px；卡片上方却有 380px 空闲。macOS 触控板的滚动条自动隐藏，用户看不出还有内容，削弱了「看到完整命令再批准」。
+3. 审批卡的列表上限是 `max-height: min(40vh, 240px)`。真实 Chromium（380 宽、800 高）里列表正好被卡在 240px：一条 `rm -rf ` 加 1500 字符的命令经 `overflow-wrap: anywhere` 折行后占 601px，只露 240px（39.9%）；批量 4 项（每项约 300 字符）占 784px，只露 240px（30.6%）；而卡片上方还空着约 412px。macOS 触控板的滚动条自动隐藏，用户看不出还有内容，削弱了「看到完整命令再批准」。
 
 ### 根因
 
@@ -6587,11 +6587,11 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ### 验证
 
-1. vitest（`src/lib/extension`）：10 个文件 165 例通过。改写/新增：请求体（含 `agent_config`）、「工具集里没有 `structured_clarify`」、审批答复与原请求的 `agent_config` 一致、AgentBusy 按 `error_type` 与按 `status_code` 两种形状都显示专属文案且带 `.error`、不回显服务端英文原文、输入框恢复、SSE 通用错误同样带 `.error`；语言包键对齐与孤立键检查自动覆盖新键。
+1. vitest（`src/lib/extension`）：10 个文件 166 例通过（本条目合入后，同目录另有一例由 AgentBusy 条目补入）。改写/新增：请求体（含 `agent_config`）、「工具集里没有 `structured_clarify`」、审批答复与原请求的 `agent_config` 一致、AgentBusy 按 `error_type` 与按 `status_code` 两种形状都显示专属文案且带 `.error`、不回显服务端英文原文、输入框恢复、SSE 通用错误同样带 `.error`；语言包键对齐与孤立键检查自动覆盖新键。
 2. 变异 7 个全部被杀，每次运行后文件还原并核对内容相同：去掉请求体里的 `agent_config`、把 `structured_clarify` 放回工具列表、AgentBusy 当通用错误、`AgentBusyError` 写错、`showError` 改回 `appendText`、只看 `error_type`（漏掉 `status_code`）、只看 `status_code`（漏掉 `error_type`）。
 3. 服务端真实代码：（a）`AgentConfigRequest` 校验 → `resolve_builtin_tool_flags` → `_should_mount_ask_question_tool`：默认工具集挂载为真，面板工具集为假；（b）用真实 `buildStreamBody` 生成的新消息与 resume 两种请求体，经真实 `AgentRequest.model_validate` 解析，`agent_config.enabled_builtin_tools == ["web_search", "memory"]`、`structured_clarify` 为假、resume 请求带 `resume_value`；（c）`agent_busy_streaming_response` 的真实线上输出为 `data: {"type":"error","data":"Agent is busy processing another request for this session.","messageId":"m-1","error_type":"AgentBusyError","status_code":409}`。
-4. 真实 Chromium（patchright，本地缓存的无头 Chromium 1243；视口宽 380，高度 360/560/800；页面直接加载真实 `sidepanel.html`，输入草稿按 `#chat-input` 上限 120px 撑满，审批卡与流式指示条都置为可见），修复前后在同一页面上各测一次，条目按真实渲染差异生成（1500 字符为单个 `pre` 条目、批量 4 项为 4 个条目）：列表可视高度与占内容百分比——1500 字符命令，修复前 144/224/240px（24.6%/38.3%/41.0%），修复后 202/402/584px（34.6%/68.8%/99.9%，800 高度不再滚动）；批量 4 项，修复前 144/224/240px（27.7%/43.1%/46.2%），修复后 202/402/520px（38.9%/77.4%/100.0%，800 高度不再滚动）。各高度下批准与拒绝按钮都在视口内（最矮的 360 高度也在，按钮底 287 < 360）；卡片底边恒在 `100vh - 70px`，与输入区顶边（`vh - 62`）保持 8px 间距。
-5. 同一页面上核对渐隐：内容不溢出的列表在滚动全程两个自定义属性都为 0px（唯一一项不会被渐隐）；可滚动的列表在滚动 0%/5%/25%/50%/95%/100% 处读数为 `0 与 24 / 12.2 与 24 / 24 与 24 / 24 与 24 / 24 与 12.2 / 24 与 0`（px，前者上缘、后者下缘），即离开顶端后上缘渐显、到底前下缘渐隐、到底后消失。
+4. 真实 Chromium（patchright，本地缓存的无头 Chromium 1243；视口宽 380，高度 360/560/800；`sidepanel.html` 经本地 HTTP 加载，页面直接 `import` 真实的 `approval.js` / `approval_overlay.js` 生成条目并渲染卡片，`import` 在 `file://` 下会被 CORS 拦掉，必须走 HTTP）。修复前后在同一页面上各测一次：把整段 `/* --- Approval Dialog --- */` 到 `.approval-action` 之前的样式换成修复前那版（`git show e0f4508b40^:myrm-agent-extension/src/sidepanel/sidepanel.css` 原样，`.approval-overlay` 只有 `bottom: 60px`、`.approval-list` 为 `max-height: min(40vh, 240px)`），`show()` 之后对同一 DOM 读几何。列表可视高度与占未滚动内容的百分比——单个 1507 字符命令，修复前 144/224/240px（24.0%/37.3%/39.9%，正是 `40vh` 与 `240px` 两个上限），修复后 202.5/402.5/601px（33.8%/67.1%/100%，800 高度已装下全部内容不再滚动）；批量 4 项（每项命令 307 字符），修复前 144/224/240px（18.4%/28.6%/30.6%），修复后 202.5/402.5/642.5px（25.9%/51.4%/82%）。批准与拒绝按钮在 240/360/560/800 各高度都在视口内、也都在最上层（`elementFromPoint` 在按钮中心取到的是按钮本身；360 高度上按钮底 287 < 360）。几何关系：卡片底边固定在 `100vh - 60px`（`--input-clearance`），高度上限是 `100vh - 70px`（再减 `--gap: 10px`），360 高度上实测卡片高 290px 正好触到上限。
+5. 同一页面上核对渐隐：内容不溢出的列表（800 高度、单个 1507 字符命令，未滚动内容 601px）在滚动全程两个自定义属性都为 0px（唯一一项不会被渐隐，因为列表没有可滚动距离、`scroll()` 时间线未激活）；可滚动的列表（360 高度，溢出 398px）在滚动 0%/5%/25%/50%/95%/100% 处读数为 `0 与 24 / 12.1 与 24 / 24 与 24 / 24 与 24 / 24 与 12.1 / 24 与 0`（px，前者上缘、后者下缘），即离开顶端后上缘渐显、到底前下缘渐隐、到底后消失。
 
 ### 局限
 
@@ -6601,8 +6601,8 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 4. 同一会话之后在网页端继续时，工具 schema 与面板不同，首轮提示词前缀缓存会失效一次；原先面板不带 `agent_config`、网页端带用户自己的工具列表，已经有同类差异；失效成本没有实测。
 5. AgentBusy 之后用户的文字已从输入框清掉（`sendMessage` 在发送前清空输入框），只留在用户气泡里，不恢复草稿：恢复会新增一条「失败后输入框状态」的分支，收益低。
 6. 渐隐依赖 CSS 滚动驱动动画（Chrome 115+，无前缀 `mask-image` 为 120+），更老的 Chrome 没有渐隐提示，布局不受影响；有鼠标或 Windows 的用户本来就看得到滚动条。
-7. 极矮的视口里列表会被压缩：实测 240px 高时列表 56px，180px 高时为 0（按钮仍在视口内）；Chrome 侧栏实际高度远大于此，没有处理。
-8. 卡片按 `100vh` 计算可用高度，而输入区会随草稿增高（`#chat-input` 上限 120px）挡住卡片底部：实测 360px 高、按钮处于卡片底边（`vh-70`）时，120px 高的草稿遮住拒绝按钮 27px；580px 以上不受影响。把上限改成随输入区实测高度变化需要引入 JS 或容器查询，未做。
+7. 极矮的视口里列表会被压缩：实测 240px 高时列表 82.5px，180px 高时为 22.5px，150px 高时为 0（按钮仍在视口内，`elementFromPoint` 在按钮中心取到按钮本身）；Chrome 侧栏实际高度远大于此，没有处理。
+8. 卡片底边固定为 `100vh - 60px`，而输入区顶边为 `100vh - 62.2px`，卡片因此压住输入区顶部约 2.2px（`z-index: 100` 让卡片在上）。草稿撑满 `#chat-input` 上限 120px 时输入区上移，卡片会盖住多行草稿与发送按钮区域，但批准与拒绝按钮始终在最上层、可点（各高度 `elementFromPoint` 都取到按钮），且发送会清空输入框、审批待决期间输入框本身是禁用态，所以撑满的草稿在实际流程里不可达。把上限改成随输入区实测高度变化需要引入 JS 或容器查询，未做。
 9. 审批超时后服务端继续运行，面板仍看不到进度（超时续跑的收集器不带 `chat_id`，`hitl_timeout.py:189`，`attach` 端点订阅不到），结果要在网页端看；本条只让提示说对原因。
 
 ### 评估后放弃的方案
@@ -6919,3 +6919,48 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 
 ---
 
+
+---
+
+## BUG-AGENT-2026-10-17-018: PDF 提取响应的嵌套字段以蛇形命名上线，前端按驼峰读取，图版优化提示与图片地址双双静默失效；同时图版被投递上限截断时前端只字不提
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P2（用户可见的提示与图片地址静默失效，无任何报错；同时新增的「图版被截断」事实需要如实告知） |
+| 影响范围 | `myrm-agent-server/app/api/files/pdf_extract.py`、`myrm-agent-frontend/src/services/file.ts`、`myrm-agent-frontend/src/store/chat/multimodalBuilder.ts`、`myrm-agent-frontend/locales/{de,en,ja,ko,zh-TW,zh}.json` |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-17-014`（harness 侧如实返回 `truncated` 与 `image_trace` 的驼峰语义）；本地提交，未 push |
+### 现象
+
+PDF 提取接口 `/files/extract-pdf` 返回后，前端两处依赖嵌套字段的逻辑静默失效，界面没有任何报错：
+
+1. **图版优化提示永远不弹**：`multimodalBuilder.ts` 读 `result.imageTrace.droppedCount`，而线上响应里这一层是 `dropped_count`，条件恒为 `undefined > 0 === false`，`chat.pdfImageOptimized` 从不出现。
+2. **落盘图片的地址读不到**：`PDFImageItem` 没有别名配置，序列化出的是 `mime_type` / `file_url`，前端读 `img.fileUrl`（`undefined`）后回退到内联 base64；`data:` 前缀里的 `img.mimeType` 同样是 `undefined`，拼出的 URL 是 `data:undefined;base64,...`，图片无法显示。
+
+### 根因
+
+Pydantic 的 `alias_generator` 只作用在**声明字段**上：`PDFExtractResponse` 有它，所以顶层 `pageCount`/`parsedPages` 正常；但 `image_trace: dict[str, object]` 是一层裸字典，字典的键不在别名系统里，原样透传成蛇形。`PDFImageItem` 更彻底——它是独立的模型且完全没有 `model_config`，于是内层字段全按 Python 名上线。前端类型定义（`file.ts` 的 `PDFImageItem`/`imageTrace`）写的是驼峰，两边从未在测试里对上过，所以谁也没红。
+
+### 修复
+
+1. **服务器（`pdf_extract.py`）**：`PDFImageItem`、`PDFTableItem`、`PDFExtractResponse`、`PDFExtractRequest` 统一改用 `model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)`（替换已弃用的 v1 风格 `class Config`，消除 `PydanticDeprecatedSince20` 告警）；`image_trace` 另加 `@field_serializer("image_trace")`，对字典的每个键跑 `to_camel`。序列化处本就走 `model_dump(by_alias=True)`，改动即生效。序列化器只转键、不裁剪键集合，未来 harness 新增的 trace 键原样透传（harness 独立发版，server 不应把 trace 收窄成自己认识的几个键）。
+2. **前端类型（`file.ts`）**：`PDFExtractResult.imageTrace` 补 `truncated?: boolean`，与 harness 新返回的字段对齐。
+3. **前端提示（`multimodalBuilder.ts`）**：`truncated` 为真时弹 `chat.pdfFiguresTruncated`（`{ kept }`，info、6s），且与「过滤摘要」互斥——`truncated` 优先，因为「还有图没发出去」比「过滤掉了几张」更该让用户知道；`keptCount` 缺失时回退到 `result.images.length`。
+4. **六语言**：`chat.pdfFiguresTruncated` 按 locale 纯净门禁写入 `de`/`en`/`ja`/`ko`/`zh-TW`/`zh`。
+
+### 验证
+
+1. **线上口径的实测（修复前）**：用旧模型（无别名配置）跑 `model_dump(by_alias=True)`，读数 `OLD image keys: ['data', 'mime_type', 'file_url']`、`OLD trace keys: ['dropped_count', 'kept_count']`；改成新模型后为 `NEW image keys: ['data', 'mimeType', 'fileUrl']`、`NEW trace keys: ['droppedCount', 'keptCount', 'truncated']`。前端 `multimodalBuilder.ts` 读的正是 `fileUrl`/`mimeType`/`droppedCount`，与旧读数逐字不符，与「提示不弹、图片地址拼成 `data:undefined`」的推理一致。
+2. **服务器回归**：`tests/api/files/test_pdf_extract_api.py` 新增 `test_nested_response_fields_are_camel_case`，用带内嵌图版的 PDF fixture（`_build_pdf_with_figure_bytes` + `pdf_with_figure`）断言 `images` 非空、`imageTrace` 非空、`totalProcessed`/`droppedCount` 存在且整层与整个 `images` 里不存在任何含 `_` 的键。文本型 fixture 下 `images`/`imageTrace` 为空，判别性不足，所以另造了带图 fixture。整目录 385 例通过。
+3. **前端回归**：`multimodalBuilder.test.ts` 新增两例——截断时弹 `chat.pdfFiguresTruncated`（`{ kept: 30 }`）、截断与过滤同时成立时只弹截断那条；`toastCopyKeys.test.ts` 校验新键的占位符格式。两文件 253 例通过。
+4. **i18n 门禁**：`node scripts/verify-i18n.mjs` 全绿（含 ko/de 无汉字、ja/zh-TW 无简体字形、key parity、占位符、双语对照等）。
+5. **静态检查**：`ruff check`、`ruff format --check` 对 server 两个文件通过；`_ARCH.md`（`app/api/files`、`src/store/chat`、`src/services`）同步说明驼峰契约与新提示。
+
+### 踩坑经验
+
+1. **`alias_generator` 管不到裸字典**：`dict[str, X]` 的键属于运行时数据、不属于模型 schema，必须用 `field_serializer` 或显式构造新字典来转。凡是「模型里嵌一层自由结构」的地方，都要单独验一遍线的两端。
+2. **内层模型必须自带 `model_config`**：外层有别名不等于内层有；`PDFImageItem` 就是漏网的典型。
+3. **契约要靠测试钉住，而非靠前端类型**：`file.ts` 一直写着驼峰、后端一直发蛇形而无人察觉，是因为没有任何用例同时看两端。补一个「整层不许出现蛇形键」的断言即可把这类偏差钉死。
+4. **判定用例必须真的走到那条分支**：用文本型 PDF 断言 `imageTrace` 会得到空字典，断言恒真；必须构造带图版的 fixture 才有判别力。
