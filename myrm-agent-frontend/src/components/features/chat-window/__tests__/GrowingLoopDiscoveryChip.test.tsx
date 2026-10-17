@@ -48,6 +48,25 @@ describe('GrowingLoopDiscoveryChip', () => {
     expect(router.push).toHaveBeenCalledWith('/journey');
   });
 
+  it('keeps only the headline and the arrow visible below the md breakpoint', async () => {
+    memoryService.getMemoryStats.mockResolvedValue(statsWith(40));
+    render(<GrowingLoopDiscoveryChip />);
+
+    const count = await screen.findByText(/memoriesCount\|/);
+    const tail = screen.getByText(/loopActive/);
+    const actionLabel = screen.getByText('viewLoop');
+
+    // Long headlines in en/de/ja/ko are cut off on phones unless everything else steps aside.
+    for (const secondary of [count, tail]) {
+      expect(secondary.classList.contains('hidden')).toBe(true);
+      expect(secondary.classList.contains('md:inline')).toBe(true);
+    }
+    expect(screen.getByText('growsWithYou').classList.contains('hidden')).toBe(false);
+    // The action label stays in the button's accessible name even while it is visually hidden.
+    expect(actionLabel.classList.contains('sr-only')).toBe(true);
+    expect(actionLabel.classList.contains('md:not-sr-only')).toBe(true);
+  });
+
   it('renders the entry point right away, before the count request settles', () => {
     memoryService.getMemoryStats.mockReturnValue(new Promise(() => undefined));
     render(<GrowingLoopDiscoveryChip />);

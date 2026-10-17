@@ -10850,7 +10850,8 @@
         "metricsProfile": "Profileinträge: {count}"
       },
       "discoveryChip": {
-        "growsWithYou": "Der Agent, der mit Ihnen wächst · 5-Ringe-Closed-Loop aktiv",
+        "growsWithYou": "Der Agent, der mit Ihnen wächst",
+        "loopActive": "5-Ringe-Closed-Loop aktiv",
         "memoriesCount": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}",
         "viewLoop": "Lernschleife anzeigen"
       }

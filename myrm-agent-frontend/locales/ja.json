@@ -10850,7 +10850,8 @@
         "metricsProfile": "プロファイル項目: {count}"
       },
       "discoveryChip": {
-        "growsWithYou": "共に成長するエージェント · 5環閉ループ稼働中",
+        "growsWithYou": "共に成長するエージェント",
+        "loopActive": "5環閉ループ稼働中",
         "memoriesCount": "{count, plural, one {# 件の記憶} other {# 件の記憶}}",
         "viewLoop": "学習ループを表示"
       }

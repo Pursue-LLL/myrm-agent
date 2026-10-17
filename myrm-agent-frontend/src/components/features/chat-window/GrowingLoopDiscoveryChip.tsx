@@ -11,6 +11,7 @@
  * [POS]
  * 空聊天界面心智发现组件。告知用户 Agent 正在跨会话自省、提炼与进化，提供直达 /journey 的入口。
  * 入口固定渲染，不等任何请求；记忆数只是锦上添花，读到且大于 0 才显示，请求静默、失败不弹错误提示。
+ * md 以下只留标题与箭头：尾注、记忆数、行动文字到 md 才显示（行动文字窄屏仍供读屏），免得多语言长标题被挤断。
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
@@ -67,9 +68,12 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
           <Sparkles className="h-3.5 w-3.5 animate-pulse text-primary" />
         </span>
         <span className="flex items-center gap-2 truncate text-xs">
-          <span className="font-semibold text-foreground truncate">{t('growsWithYou')}</span>
+          <span className="font-semibold text-foreground truncate">
+            {t('growsWithYou')}
+            <span className="hidden md:inline"> · {t('loopActive')}</span>
+          </span>
           {memoriesCount > 0 && (
-            <span className="hidden sm:inline text-muted-foreground font-normal truncate">
+            <span className="hidden md:inline text-muted-foreground font-normal truncate">
               · {t('memoriesCount', { count: memoriesCount })}
             </span>
           )}
@@ -77,7 +81,7 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
       </span>
 
       <span className="flex items-center gap-1 text-[11px] font-medium text-primary shrink-0 group-hover:translate-x-0.5 transition-transform">
-        <span>{t('viewLoop')}</span>
+        <span className="sr-only md:not-sr-only">{t('viewLoop')}</span>
         <ArrowRight className="h-3 w-3" />
       </span>
     </button>

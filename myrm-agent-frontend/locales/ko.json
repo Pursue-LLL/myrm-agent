@@ -10850,7 +10850,8 @@
         "metricsProfile": "프로필 항목: {count}"
       },
       "discoveryChip": {
-        "growsWithYou": "함께 성장하는 에이전트 · 5-링 닫힌 루프 활성화됨",
+        "growsWithYou": "함께 성장하는 에이전트",
+        "loopActive": "5-링 닫힌 루프 활성화됨",
         "memoriesCount": "{count, plural, one {#개 기억} other {#개 기억}}",
         "viewLoop": "학습 루프 보기"
       }
