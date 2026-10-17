@@ -131,6 +131,19 @@ describe('installImeKeyGuard', () => {
     expect(atTarget).toHaveBeenCalledTimes(1);
   });
 
+  it('holds back a Safari confirm Enter even when the page only gets to it long after the browser created it', () => {
+    const input = field();
+    input.addEventListener('keydown', atTarget);
+
+    document.dispatchEvent(new Event('compositionend'));
+    vi.setSystemTime(clock + 30);
+    const confirmEnter = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...plainEnter });
+    vi.setSystemTime(clock + 30 + 5 * IME_CONFIRM_KEY_WINDOW_MS);
+    input.dispatchEvent(confirmEnter);
+
+    expectNothingReceived();
+  });
+
   it.each(['monaco-editor', 'cm-editor'])('never intervenes inside a %s, which handles composition itself', (host) => {
     const editor = document.createElement('div');
     editor.className = host;
