@@ -662,7 +662,7 @@ def extract_video_fallback_model_config(
 
 def build_video_fallback_probe_engine_from_providers(
     providers_dict: dict[str, object] | None,
-) -> object | None:
+) -> "VisionFallbackEngine | None":
     """Build a VisionFallbackEngine for the video fallback chain connectivity probe."""
     from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
         create_vision_fallback_engine,

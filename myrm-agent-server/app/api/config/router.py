@@ -22,7 +22,7 @@ import logging
 import time
 from copy import deepcopy
 from pathlib import Path
-from typing import get_args
+from typing import TYPE_CHECKING, get_args
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from filelock import FileLock, Timeout
@@ -45,6 +45,9 @@ from app.schemas.config import (
 )
 from app.services.config.service import VersionConflictError, config_service
 from app.services.integrations.search_verify import invalidate_search_verify_cache
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.backends.profiles.types import AgentProfile
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +273,7 @@ def _is_channel_bindable_agent(agent_profile: object) -> bool:
     return not (isinstance(prompt_mode, str) and prompt_mode.lower() == "search")
 
 
-def _pick_first_channel_bindable_agent(candidates: list[object]) -> object | None:
+def _pick_first_channel_bindable_agent(candidates: list["AgentProfile"]) -> "AgentProfile | None":
     for candidate in candidates:
         if _is_channel_bindable_agent(candidate):
             return candidate
@@ -1006,8 +1009,8 @@ async def get_config(
                 key=config_key,
                 value={},
                 version="0",
-                updatedAt="",
-                deviceId="",
+                updated_at="",
+                device_id="",
             )
         return record
     except HTTPException:
