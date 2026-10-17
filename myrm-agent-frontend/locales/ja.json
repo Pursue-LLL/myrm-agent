@@ -10851,7 +10851,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "共に成長するエージェント",
-        "loopActive": "5環閉ループ稼働中",
+        "loopName": "5環閉ループ",
         "memoriesCount": "{count, plural, one {# 件の記憶} other {# 件の記憶}}",
         "viewLoop": "学習ループを表示"
       }

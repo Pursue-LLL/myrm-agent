@@ -10851,7 +10851,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "함께 성장하는 에이전트",
-        "loopActive": "5-링 닫힌 루프 활성화됨",
+        "loopName": "5개 링 닫힌 루프",
         "memoriesCount": "{count, plural, one {#개 기억} other {#개 기억}}",
         "viewLoop": "학습 루프 보기"
       }

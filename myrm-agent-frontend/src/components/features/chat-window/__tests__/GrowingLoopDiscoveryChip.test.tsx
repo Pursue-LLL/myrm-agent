@@ -53,7 +53,7 @@ describe('GrowingLoopDiscoveryChip', () => {
     render(<GrowingLoopDiscoveryChip />);
 
     const count = await screen.findByText(/memoriesCount\|/);
-    const tail = screen.getByText(/loopActive/);
+    const tail = screen.getByText(/loopName/);
     const actionLabel = screen.getByText('viewLoop');
 
     // Long headlines in en/de/ja/ko are cut off on phones unless everything else steps aside.
@@ -65,6 +65,17 @@ describe('GrowingLoopDiscoveryChip', () => {
     // The action label stays in the button's accessible name even while it is visually hidden.
     expect(actionLabel.classList.contains('sr-only')).toBe(true);
     expect(actionLabel.classList.contains('md:not-sr-only')).toBe(true);
+  });
+
+  it('pulses the icon twice and only when the system allows motion', () => {
+    memoryService.getMemoryStats.mockReturnValue(new Promise(() => undefined));
+    const { container } = render(<GrowingLoopDiscoveryChip />);
+
+    // The sparkles icon is the first svg; the arrow follows it.
+    const icon = container.querySelector('svg');
+    expect(icon?.classList.contains('motion-safe:animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_2]')).toBe(true);
+    // The stock utility loops forever, which never lets the page settle for people who are sensitive to motion.
+    expect(icon?.classList.contains('animate-pulse')).toBe(false);
   });
 
   it('renders the entry point right away, before the count request settles', () => {

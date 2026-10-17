@@ -10851,7 +10851,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "Der Agent, der mit Ihnen wächst",
-        "loopActive": "5-Ringe-Closed-Loop aktiv",
+        "loopName": "5-Ringe-Closed-Loop",
         "memoriesCount": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}",
         "viewLoop": "Lernschleife anzeigen"
       }

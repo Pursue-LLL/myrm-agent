@@ -10851,7 +10851,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "越用越懂",
-        "loopActive": "五環閉環運轉中",
+        "loopName": "五環閉環",
         "memoriesCount": "已沉澱 {count, plural, one {# 條記憶} other {# 條記憶}}",
         "viewLoop": "檢視閉環"
       }

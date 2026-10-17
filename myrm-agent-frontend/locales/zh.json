@@ -10919,7 +10919,7 @@
       },
       "discoveryChip": {
         "growsWithYou": "越用越懂",
-        "loopActive": "五环闭环运转中",
+        "loopName": "五环闭环",
         "memoriesCount": "已沉淀 {count, plural, one {# 条记忆} other {# 条记忆}}",
         "viewLoop": "查看闭环"
       }
