@@ -5429,6 +5429,113 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 新组件挂到一个页面里，要同时检查该页面已有的测试：它们按「每个会取数的子组件都被 mock」的惯例写，漏一个就在无关的套件里失败。
 3. 项目的浏览器 MCP 对本地页面有访问限制，这是有意的护栏；需要目测时另起一个无头浏览器，不去动被限制的那个。
 
+## BUG-AGENT-2026-10-16-019: 同一条消息里两个委派同时要审批时，网页只收到第一张卡，答复被拒；同一个中断再次被宣告会叠出重复的卡，「全部批准」把不同中断的卡合进同一次 resume；已被别处处理过的旧卡点击后答复落到下一个审批上；后台子代理完成的唤醒消息会把隔离合并元数据当结果文本
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（#436 复审：对「卡片答复靠什么指向它要答的那个中断」逐条追问；`BUG-HARNESS-2026-10-16-007` 的前端与服务端一半） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P2（需要模型在同一条消息里并行发起两个都要审批的委派才会碰到；碰到时用户答不成，或答复落在没看到的审批上） |
+| 影响范围 | frontend：`src/store/chat/types/{toolApproval,agentStream/part1}.ts`、`src/lib/approval/{buildToolApprovalRequest,approvalBulkGroups,resumeApprovalStream}.ts`、`src/store/useToolApprovalStore.ts`、`src/store/chat/messageStream/handlers/toolsProgressEvents.ts`；server：`app/services/agent/wakeup_handler.py` |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-16-007`（harness 侧：每个中断一个带 `interruptId` 的事件、按 id 寻址的 resume 咽喉）；本地提交，未 push |
+
+### 现象
+
+1. 一条消息里两个委派各自停在审批上时，harness 只发出第一个中断的事件，网页只有一张卡；答复它时两个中断仍同时待决，被 LangGraph 拒绝。
+2. 部分作答后图会在仍待决的中断上重新暂停并把它再发一遍；前端队列没有去重，同一个中断会叠出两张卡。
+3. 「全部批准 / 全部拒绝」按 `chatId:messageId` 把单卡合并成同一次 resume，不同中断的卡被塞进同一个 `decisions` 列表，只能答一个中断的 resume 因此答错或被拒。
+4. 卡片不带中断身份，resume 请求也无从指明答的是哪一个，已被超时计时器或另一台设备处理过的旧卡被点击后，答复落到「此刻待决的」下一个审批上。
+5. 后台子代理（`wait=False`）完成后的唤醒消息直接拼接 `result.result`；`SubAgentResult.result` 实际可能是隔离合并的元数据字典，字典会被原样写进发给模型的文字里。
+
+### 根因
+
+1. `ToolApprovalRequest` 没有承载中断 id 的字段，流事件类型也没有（`part1.ts`）；
+2. `useToolApprovalStore.addRequest` 无条件入队；
+3. `approvalBulkGroups` 的单卡分组键只有 `chatId:messageId`；
+4. `resumeApprovalStream` 的 `resume_value` 不带 id；
+5. 唤醒处理把联合类型当字符串用（读码结论）。
+
+### 修复
+
+1. 流事件与卡片都带 `interruptId`：`ApprovalRequiredStreamEvent` / `ToolApprovalRequestStreamEvent` / `ToolApprovalRequest` 新增可选字段，`buildToolApprovalRequest` 与 `toolsProgressEvents` 透传。
+2. `useToolApprovalStore.addRequest` 只在新卡与队列里某张卡有同一个已定义的 `interruptId`（且批内序号相同）时丢弃，没有 id 的卡（抽屉合成的、旧事件）照旧入队。
+3. `approvalBulkGroups` 的单卡分组键优先用 `interruptId`，一次 resume 只答一个中断；`batchId` 分组不变。
+4. `resumeApprovalStream` 在卡片带 `interruptId` 时把它放进 `resume_value`；harness 咽喉据此改写为按 id 的 resume，该中断已不待决则什么也不改变。没有 id 的卡走原路径。
+5. `wakeup_handler.py` 经 harness 的 `answer_text` 读取结果文本，字典结果取其 `text`。
+
+### 验证
+
+1. frontend vitest：`src/store/__tests__/useToolApprovalStore.test.ts` 4 例（不同中断的卡并排入队；同一中断在别的卡被答复后再次宣告只留一张；同一批内按序号区分的卡各自保留；无 id 的卡照旧入队）、`toolsProgressEvents.interruptId.test.ts` 3 例（用真实的流事件处理器与真实 store：并行两个中断各一张卡且各自带 id、`approval_required` 事件同样保留 id、同一中断再次宣告不叠第二张卡）、`resumeApprovalStream` / `buildToolApprovalRequest` / `approvalBulkGroups` 各新增 1 例；`src/lib/approval/__tests__` 全部加这两个新文件共 18 个测试文件 124 例通过；对这几处手工注入 6 个变异，每一个都至少被一个用例杀掉。
+2. 没有新增任何界面文案、样式或图标：不涉及语言包、主题变量与响应式（卡片的外观与交互原样）。
+
+### 局限
+
+1. 没有在浏览器里用真实模型同时看到两张卡并分别答复；并行委派在真实模型里出现的频率没有量过。
+2. 旧卡（其中断已被别处处理）被点击后，答复被忽略、运行回到真正待决的中断上暂停；界面上这张旧卡随后的去向，以及是否闪一下空的助手消息，没有验证。
+3. IM 里的 `/approve` 与超时计时器的「允许」在多个待决中断下仍被拒（失败关闭），IM 没有逐张卡的寻址。
+4. 服务端在进入 harness 之前就应用了目录授权，带授权的旧卡答复，授权会生效而答复本身被忽略（既有顺序，未改）。
+5. 唤醒消息读字典结果这一处没有单写服务端用例：当前工作区里该处理器的后半段在被他人改写（改走自适应唤醒服务），用例会绑在那段未提交的改动上；`tests/api/agent/test_wakeup_handler_e2e.py` 是现有的覆盖，没有字典结果的用例。
+6. 澄清卡与计划确认卡的答复不回传中断 id（`resumePlanConfirmStream` 与澄清答复都只发普通值）：它们与别的中断同时待决时答复仍被拒绝（失败关闭），先答完其余卡片、待决只剩一个时即可作答；流事件对这两类中断同样带了 id，只是前端没有使用。
+7. 卡片编号直接取自 LangGraph 的中断 id，它只标识任务、不标识任务的第几次挂起：同一委派连续审批共用一个编号，后几张卡被去重丢掉。编号现为 `<中断 id>.<轮次>`，见 `BUG-AGENT-2026-10-17-007`。
+
+### 踩坑经验
+
+1. 用「按 id 去重」之前先确认 id 的稳定性：LangGraph 的中断 id 只取决于挂起它的任务，重放时不变，所以同一个中断每次被再次宣告都是同一个 id；若用随机的卡片 id 去重则一张也去不掉。
+2. 去重条件必须要求 id 已定义：旧事件与抽屉合成的卡没有 id，两个 `undefined` 相等会把互不相干的卡互相吞掉。
+3. 前端状态库的测试要用真实 store 与真实事件处理器串起来，只测纯函数的话，「处理器忘了透传 id」这类缺口测不出来。
+
+---
+
+## BUG-AGENT-2026-10-16-024: 设置页「运行成本水表」读的三张表从没有任何写入方，搜索配额、浏览器算力与沙箱算力永远是空账，文档、网站与素材却把它写成已落地的卖点；定时任务里的「烧钱速率烟雾报警」只写进进程内窗口，判定只出现在一个前端无人调用的路由里
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-16（#366 实施前的复审：从「谁写入这三张表」反查，在删除前的提交 `2a3fddfbd^` 上用 `git grep` 核对调用方，不靠读码推断） |
+| 修复日期 | 2026-10-16 |
+| 严重程度 | P3（用户看到的是一张读不到任何用量的卡片，以及对外宣传的不存在的能力；没有数据损坏） |
+| 影响范围 | server：`app/api/statistics/{quota_runtime_router,router}.py`、`app/services/observability/{runtime_meter_service,burn_rate_smoke_alarm}.py`、`app/database/{models/runtime_quota_metric,migrations}.py`、`app/core/cron/adapters/agent_runner.py` 与对应测试；frontend：`RuntimeCostMeterCard.tsx`、`services/statistics.ts`、`UsageStatisticsSection.tsx`、6 个语言包；brand：文档与网站文案；root：路线图与素材 |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-16-010`（同一轮里搜索供应商耗尽状态不到期的修复，那是水表里唯一真实存在的部分）；本地提交，未 push |
+
+### 现象
+
+1. 卡片通过 `getSearchQuotas`、`getBrowserRuntimeSummary` 读 `search_quota_records`、`browser_runtime_records`、`sandbox_workload_records`。这三张表的写入口只有 `quota_runtime_router.py` 里的 POST 路由；在 `2a3fddfbd^` 上，server 里 `record_search_usage`、`record_browser_runtime`、`record_sandbox_workload` 的调用方只有这个路由自己，前端只有读取、重置、改限额四个客户端函数，没有任何地方调用记录接口，所以卡片读到的只可能是初始值。
+2. 定时任务的 `agent_runner.py` 两处 `smoke_alarm_detector.record_usage` 把 Token 用量写进进程内 60 秒窗口；判定只在 `get_runtime_burn_rate_gauge`（路由 `/statistics/runtime-cost-gauge`）里被读取，而前端的 `getRuntimeCostGauge` 没有任何调用方，报警从没有到达过用户，也不触发任何动作。
+3. 文档（`cost-management`、`why-myrm-agent`、`competitor-comparison`）、网站亮点轮播与对比表、素材和路线图都把这些写成已落地的卖点；其中「3 分钟浏览器看门狗」对应的 `BrowserObservability.check_action_watchdog` 在 harness 与 server 里没有调用方，只有定义。
+
+### 根因
+
+1. 功能按「路由、服务、卡片、表、测试齐全」交付，却没有把「谁在搜索、浏览器、沙箱的真实调用路径里写入」接起来；读取侧、展示侧与文档都在，缺的是写入侧，所以没有任何一处会因此报错。
+2. 烟雾报警同理：写入在定时任务里，读取在一个没人调用的路由里，中间没有触发动作的一环。
+
+### 修复
+
+1. 删除整条链：server 的 `quota_runtime_router.py`、`runtime_meter_service.py`、`burn_rate_smoke_alarm.py`、`runtime_quota_metric.py` 与对应测试，`agent_runner.py` 的两处烟雾报警钩子；frontend 的 `RuntimeCostMeterCard.tsx`、`statistics.ts` 里对应的 70 行、`UsageStatisticsSection.tsx` 的挂载与 6 个语言包的 `runtimeMeter` 块。
+2. `MIGRATION_STATEMENTS` 是按序号追加的版本列表，所以历史的 `CREATE TABLE` 保留，追加三条 `DROP TABLE IF EXISTS`；新增 `tests/database/test_runtime_meter_tables_retired.py`（升级的库丢掉三张表且保留 `user_configs`，全新库从不创建它们），`test_chat_bound_rows.py` 与路由消费基线、行数基线同步收紧。
+3. 文档、网站、素材与路线图同步更正：水表与烟雾报警的段落删除，唯一真实的部分（搜索供应商耗尽时自动切流、到期恢复）改写成只描述它。
+
+### 验证
+
+1. server：目标测试 10 例（数据库迁移与会话绑定行分类）通过；`tests/core/cron/adapters`、`tests/database` 与 `test_chat_bound_rows.py` 共 377 例通过、5 例失败，5 例都是定时任务的 `project_id` TypeError，来自工作区里他人未提交的改动。
+2. 架构门禁：删除服务端路由后，本条造成的 5 个 `/statistics/*` 前端客户端越界项没有出现在 `test_frontend_clients_target_existing_routes` 里（客户端与路由在同一次提交里一起删除）。
+3. frontend：`vitest run src/components/features/settings/sections/system src/services` 144 个文件 1075 例通过；`verify:icu-syntax`、`verify:theme-colors` 通过，6 个语言包可解析；`tsc --noEmit` 只剩 1 个错误，在 `sidepanelToolSteps.test.ts`，属于他人未提交的改动。
+
+### 局限
+
+1. 迁移里的 `DROP TABLE` 只在合成的 DDL 上测过，没有在真实用户库上跑；表里若有人通过 POST 手写过数据，会随之丢失（仓内没有调用方，仓外调用方排除不了）。
+2. 删除了 `/statistics/` 下的 11 个路由处理器（10 个路径：`search-quotas`、`search-quotas/record`、`search-quotas/reset`、`search-quotas/limit`、`browser-runtime`、`browser-runtime/summary`、`browser-runtime/record`、`sandbox-workload`、`sandbox-workload/record`、`runtime-cost-gauge`），仓外脚本若调用会得到 404。
+3. 没有做视觉验收：卡片只是被删除，设置页用量统计区删除后的版面没有截图复核。
+4. `BrowserObservability.check_action_watchdog` 没有调用方，本条只更正了对外文案，没有删除这段代码；这段代码与只写不读的浏览器运行遥测随 harness `BUG-HARNESS-2026-10-16-012` 一并删除。
+5. 删除烟雾报警钩子后，定时任务的失控防线是 `RunawayCircuitBreakException` 熔断，以及用户在设置里开启后才生效的预算守卫 `services/budget/enforcer.py`（默认关闭）；烟雾报警原本就没有触发任何动作，所以防线没有变弱，但也没有因此变强。
+6. 回读时发现 `SessionAnalyticsDialog.tsx` 的 Markdown 导出模板里有一个原生 emoji，违反前端规范，不在本条范围内，未改。
+
+### 踩坑经验
+
+1. 评估「功能是否真实存在」要从写入侧反查：读取、展示、文档、测试都齐全并不说明有人写入；先在删除前的提交上查调用方，再决定删。
+2. 版本化的迁移列表不能删历史语句，只能追加；删表要补一条测试，证明升级的库真的丢了表、而同一库里的其他表还在。
+3. 文案里的「已落地」常常比代码活得久：同一个能力会散落在文档、网站轮播、对比表、素材与路线图里，删代码时要把这些一起反查。
+
 ---
 
 ## BUG-AGENT-2026-10-16-020: Curator 的「保护已安装技能」开关没有任何效果（本地扫描把所有技能的信任级写死为 TRUSTED）；清理还把其他工具（Cursor、Claude Code、Codex）的技能目录一并纳入；技能页签的动作空间噪声计在界面上露出键路径
@@ -5506,7 +5613,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-16 |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P3（展示失真与不必要的开销，不影响数据） |
-| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json`、根仓库 `temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json` |
 | 出现次数 | 1 |
 | 关联条目 | BUG-AGENT-2026-10-16-015（其「局限」里的技能总数在本条删除） |
 
@@ -5699,112 +5806,6 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 「安全例外清单」用黑名单会在新增字段时默认放行；放行条件写成白名单，新增字段才会默认回到网页端。
 3. 无人发布的事件、无人调用的清理函数，都在读代码时被当成「已有保护」；先查发布方与调用方，再决定留还是删。
 4. 侧边栏要用真实面板宽度验收：1024 宽的截图里看起来正常，380 宽时批量审批的明细被截断；还有「提交答复」这类单次动作，要单独测网络失败与服务端报错后用户还能不能再答复。
-## BUG-AGENT-2026-10-16-019: 同一条消息里两个委派同时要审批时，网页只收到第一张卡，答复被拒；同一个中断再次被宣告会叠出重复的卡，「全部批准」把不同中断的卡合进同一次 resume；已被别处处理过的旧卡点击后答复落到下一个审批上；后台子代理完成的唤醒消息会把隔离合并元数据当结果文本
-
-| 属性 | 值 |
-|------|------|
-| 发现日期 | 2026-10-16（#436 复审：对「卡片答复靠什么指向它要答的那个中断」逐条追问；`BUG-HARNESS-2026-10-16-007` 的前端与服务端一半） |
-| 修复日期 | 2026-10-16 |
-| 严重程度 | P2（需要模型在同一条消息里并行发起两个都要审批的委派才会碰到；碰到时用户答不成，或答复落在没看到的审批上） |
-| 影响范围 | frontend：`src/store/chat/types/{toolApproval,agentStream/part1}.ts`、`src/lib/approval/{buildToolApprovalRequest,approvalBulkGroups,resumeApprovalStream}.ts`、`src/store/useToolApprovalStore.ts`、`src/store/chat/messageStream/handlers/toolsProgressEvents.ts`；server：`app/services/agent/wakeup_handler.py` |
-| 出现次数 | 1 |
-| 关联 | `BUG-HARNESS-2026-10-16-007`（harness 侧：每个中断一个带 `interruptId` 的事件、按 id 寻址的 resume 咽喉）；本地提交，未 push |
-
-### 现象
-
-1. 一条消息里两个委派各自停在审批上时，harness 只发出第一个中断的事件，网页只有一张卡；答复它时两个中断仍同时待决，被 LangGraph 拒绝。
-2. 部分作答后图会在仍待决的中断上重新暂停并把它再发一遍；前端队列没有去重，同一个中断会叠出两张卡。
-3. 「全部批准 / 全部拒绝」按 `chatId:messageId` 把单卡合并成同一次 resume，不同中断的卡被塞进同一个 `decisions` 列表，只能答一个中断的 resume 因此答错或被拒。
-4. 卡片不带中断身份，resume 请求也无从指明答的是哪一个，已被超时计时器或另一台设备处理过的旧卡被点击后，答复落到「此刻待决的」下一个审批上。
-5. 后台子代理（`wait=False`）完成后的唤醒消息直接拼接 `result.result`；`SubAgentResult.result` 实际可能是隔离合并的元数据字典，字典会被原样写进发给模型的文字里。
-
-### 根因
-
-1. `ToolApprovalRequest` 没有承载中断 id 的字段，流事件类型也没有（`part1.ts`）；
-2. `useToolApprovalStore.addRequest` 无条件入队；
-3. `approvalBulkGroups` 的单卡分组键只有 `chatId:messageId`；
-4. `resumeApprovalStream` 的 `resume_value` 不带 id；
-5. 唤醒处理把联合类型当字符串用（读码结论）。
-
-### 修复
-
-1. 流事件与卡片都带 `interruptId`：`ApprovalRequiredStreamEvent` / `ToolApprovalRequestStreamEvent` / `ToolApprovalRequest` 新增可选字段，`buildToolApprovalRequest` 与 `toolsProgressEvents` 透传。
-2. `useToolApprovalStore.addRequest` 只在新卡与队列里某张卡有同一个已定义的 `interruptId`（且批内序号相同）时丢弃，没有 id 的卡（抽屉合成的、旧事件）照旧入队。
-3. `approvalBulkGroups` 的单卡分组键优先用 `interruptId`，一次 resume 只答一个中断；`batchId` 分组不变。
-4. `resumeApprovalStream` 在卡片带 `interruptId` 时把它放进 `resume_value`；harness 咽喉据此改写为按 id 的 resume，该中断已不待决则什么也不改变。没有 id 的卡走原路径。
-5. `wakeup_handler.py` 经 harness 的 `answer_text` 读取结果文本，字典结果取其 `text`。
-
-### 验证
-
-1. frontend vitest：`src/store/__tests__/useToolApprovalStore.test.ts` 4 例（不同中断的卡并排入队；同一中断在别的卡被答复后再次宣告只留一张；同一批内按序号区分的卡各自保留；无 id 的卡照旧入队）、`toolsProgressEvents.interruptId.test.ts` 3 例（用真实的流事件处理器与真实 store：并行两个中断各一张卡且各自带 id、`approval_required` 事件同样保留 id、同一中断再次宣告不叠第二张卡）、`resumeApprovalStream` / `buildToolApprovalRequest` / `approvalBulkGroups` 各新增 1 例；`src/lib/approval/__tests__` 全部加这两个新文件共 18 个测试文件 124 例通过；对这几处手工注入 6 个变异，每一个都至少被一个用例杀掉。
-2. 没有新增任何界面文案、样式或图标：不涉及语言包、主题变量与响应式（卡片的外观与交互原样）。
-
-### 局限
-
-1. 没有在浏览器里用真实模型同时看到两张卡并分别答复；并行委派在真实模型里出现的频率没有量过。
-2. 旧卡（其中断已被别处处理）被点击后，答复被忽略、运行回到真正待决的中断上暂停；界面上这张旧卡随后的去向，以及是否闪一下空的助手消息，没有验证。
-3. IM 里的 `/approve` 与超时计时器的「允许」在多个待决中断下仍被拒（失败关闭），IM 没有逐张卡的寻址。
-4. 服务端在进入 harness 之前就应用了目录授权，带授权的旧卡答复，授权会生效而答复本身被忽略（既有顺序，未改）。
-5. 唤醒消息读字典结果这一处没有单写服务端用例：当前工作区里该处理器的后半段在被他人改写（改走自适应唤醒服务），用例会绑在那段未提交的改动上；`tests/api/agent/test_wakeup_handler_e2e.py` 是现有的覆盖，没有字典结果的用例。
-6. 澄清卡与计划确认卡的答复不回传中断 id（`resumePlanConfirmStream` 与澄清答复都只发普通值）：它们与别的中断同时待决时答复仍被拒绝（失败关闭），先答完其余卡片、待决只剩一个时即可作答；流事件对这两类中断同样带了 id，只是前端没有使用。
-7. 卡片编号直接取自 LangGraph 的中断 id，它只标识任务、不标识任务的第几次挂起：同一委派连续审批共用一个编号，后几张卡被去重丢掉。编号现为 `<中断 id>.<轮次>`，见 `BUG-AGENT-2026-10-17-007`。
-
-### 踩坑经验
-
-1. 用「按 id 去重」之前先确认 id 的稳定性：LangGraph 的中断 id 只取决于挂起它的任务，重放时不变，所以同一个中断每次被再次宣告都是同一个 id；若用随机的卡片 id 去重则一张也去不掉。
-2. 去重条件必须要求 id 已定义：旧事件与抽屉合成的卡没有 id，两个 `undefined` 相等会把互不相干的卡互相吞掉。
-3. 前端状态库的测试要用真实 store 与真实事件处理器串起来，只测纯函数的话，「处理器忘了透传 id」这类缺口测不出来。
-
----
-
-## BUG-AGENT-2026-10-16-024: 设置页「运行成本水表」读的三张表从没有任何写入方，搜索配额、浏览器算力与沙箱算力永远是空账，文档、网站与素材却把它写成已落地的卖点；定时任务里的「烧钱速率烟雾报警」只写进进程内窗口，判定只出现在一个前端无人调用的路由里
-
-| 属性 | 值 |
-|------|------|
-| 发现日期 | 2026-10-16（#366 实施前的复审：从「谁写入这三张表」反查，在删除前的提交 `2a3fddfbd^` 上用 `git grep` 核对调用方，不靠读码推断） |
-| 修复日期 | 2026-10-16 |
-| 严重程度 | P3（用户看到的是一张读不到任何用量的卡片，以及对外宣传的不存在的能力；没有数据损坏） |
-| 影响范围 | server：`app/api/statistics/{quota_runtime_router,router}.py`、`app/services/observability/{runtime_meter_service,burn_rate_smoke_alarm}.py`、`app/database/{models/runtime_quota_metric,migrations}.py`、`app/core/cron/adapters/agent_runner.py` 与对应测试；frontend：`RuntimeCostMeterCard.tsx`、`services/statistics.ts`、`UsageStatisticsSection.tsx`、6 个语言包；brand：文档与网站文案；root：路线图与素材 |
-| 出现次数 | 1 |
-| 关联 | `BUG-HARNESS-2026-10-16-010`（同一轮里搜索供应商耗尽状态不到期的修复，那是水表里唯一真实存在的部分）；本地提交，未 push |
-
-### 现象
-
-1. 卡片通过 `getSearchQuotas`、`getBrowserRuntimeSummary` 读 `search_quota_records`、`browser_runtime_records`、`sandbox_workload_records`。这三张表的写入口只有 `quota_runtime_router.py` 里的 POST 路由；在 `2a3fddfbd^` 上，server 里 `record_search_usage`、`record_browser_runtime`、`record_sandbox_workload` 的调用方只有这个路由自己，前端只有读取、重置、改限额四个客户端函数，没有任何地方调用记录接口，所以卡片读到的只可能是初始值。
-2. 定时任务的 `agent_runner.py` 两处 `smoke_alarm_detector.record_usage` 把 Token 用量写进进程内 60 秒窗口；判定只在 `get_runtime_burn_rate_gauge`（路由 `/statistics/runtime-cost-gauge`）里被读取，而前端的 `getRuntimeCostGauge` 没有任何调用方，报警从没有到达过用户，也不触发任何动作。
-3. 文档（`cost-management`、`why-myrm-agent`、`competitor-comparison`）、网站亮点轮播与对比表、素材和路线图都把这些写成已落地的卖点；其中「3 分钟浏览器看门狗」对应的 `BrowserObservability.check_action_watchdog` 在 harness 与 server 里没有调用方，只有定义。
-
-### 根因
-
-1. 功能按「路由、服务、卡片、表、测试齐全」交付，却没有把「谁在搜索、浏览器、沙箱的真实调用路径里写入」接起来；读取侧、展示侧与文档都在，缺的是写入侧，所以没有任何一处会因此报错。
-2. 烟雾报警同理：写入在定时任务里，读取在一个没人调用的路由里，中间没有触发动作的一环。
-
-### 修复
-
-1. 删除整条链：server 的 `quota_runtime_router.py`、`runtime_meter_service.py`、`burn_rate_smoke_alarm.py`、`runtime_quota_metric.py` 与对应测试，`agent_runner.py` 的两处烟雾报警钩子；frontend 的 `RuntimeCostMeterCard.tsx`、`statistics.ts` 里对应的 70 行、`UsageStatisticsSection.tsx` 的挂载与 6 个语言包的 `runtimeMeter` 块。
-2. `MIGRATION_STATEMENTS` 是按序号追加的版本列表，所以历史的 `CREATE TABLE` 保留，追加三条 `DROP TABLE IF EXISTS`；新增 `tests/database/test_runtime_meter_tables_retired.py`（升级的库丢掉三张表且保留 `user_configs`，全新库从不创建它们），`test_chat_bound_rows.py` 与路由消费基线、行数基线同步收紧。
-3. 文档、网站、素材与路线图同步更正：水表与烟雾报警的段落删除，唯一真实的部分（搜索供应商耗尽时自动切流、到期恢复）改写成只描述它。
-
-### 验证
-
-1. server：目标测试 10 例（数据库迁移与会话绑定行分类）通过；`tests/core/cron/adapters`、`tests/database` 与 `test_chat_bound_rows.py` 共 377 例通过、5 例失败，5 例都是定时任务的 `project_id` TypeError，来自工作区里他人未提交的改动。
-2. 架构门禁：删除服务端路由后，本条造成的 5 个 `/statistics/*` 前端客户端越界项没有出现在 `test_frontend_clients_target_existing_routes` 里（客户端与路由在同一次提交里一起删除）。
-3. frontend：`vitest run src/components/features/settings/sections/system src/services` 144 个文件 1075 例通过；`verify:icu-syntax`、`verify:theme-colors` 通过，6 个语言包可解析；`tsc --noEmit` 只剩 1 个错误，在 `sidepanelToolSteps.test.ts`，属于他人未提交的改动。
-
-### 局限
-
-1. 迁移里的 `DROP TABLE` 只在合成的 DDL 上测过，没有在真实用户库上跑；表里若有人通过 POST 手写过数据，会随之丢失（仓内没有调用方，仓外调用方排除不了）。
-2. 删除了 `/statistics/` 下的 11 个路由处理器（10 个路径：`search-quotas`、`search-quotas/record`、`search-quotas/reset`、`search-quotas/limit`、`browser-runtime`、`browser-runtime/summary`、`browser-runtime/record`、`sandbox-workload`、`sandbox-workload/record`、`runtime-cost-gauge`），仓外脚本若调用会得到 404。
-3. 没有做视觉验收：卡片只是被删除，设置页用量统计区删除后的版面没有截图复核。
-4. `BrowserObservability.check_action_watchdog` 没有调用方，本条只更正了对外文案，没有删除这段代码；这段代码与只写不读的浏览器运行遥测随 harness `BUG-HARNESS-2026-10-16-012` 一并删除。
-5. 删除烟雾报警钩子后，定时任务的失控防线是 `RunawayCircuitBreakException` 熔断，以及用户在设置里开启后才生效的预算守卫 `services/budget/enforcer.py`（默认关闭）；烟雾报警原本就没有触发任何动作，所以防线没有变弱，但也没有因此变强。
-6. 回读时发现 `SessionAnalyticsDialog.tsx` 的 Markdown 导出模板里有一个原生 emoji，违反前端规范，不在本条范围内，未改。
-
-### 踩坑经验
-
-1. 评估「功能是否真实存在」要从写入侧反查：读取、展示、文档、测试都齐全并不说明有人写入；先在删除前的提交上查调用方，再决定删。
-2. 版本化的迁移列表不能删历史语句，只能追加；删表要补一条测试，证明升级的库真的丢了表、而同一库里的其他表还在。
-3. 文案里的「已落地」常常比代码活得久：同一个能力会散落在文档、网站轮播、对比表、素材与路线图里，删代码时要把这些一起反查。
 
 ---
 
@@ -6565,6 +6566,51 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ---
 
+## BUG-AGENT-2026-10-17-012: 重新生成时被重发的那条用户消息在模型上下文里出现两次；每轮都把完整历史再喂进已持久化的检查点线程，线程里的历史被复制且前缀每轮被改写，提供商的前缀缓存无法命中
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17（roadmap #351 实施：按「同一回合历史只有一个权威」逐条追问调用方如何喂历史，并用真实检查点复现） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P2（不丢数据；重新生成多一条重复用户消息会让模型误判「用户问了两遍」，其余是缓存成本） |
+| 影响范围 | server：`app/services/agent/stream_session/{chat_history_bootstrap,orchestrator_turn_body,turn_history_sync,stream_finalize}.py`、`app/services/chat/history_sync.py`、`app/database/repositories/chat_history_sync_repo.py`、`chats.history_sync_token`（迁移）、`app/lifecycle/auto_continue.py`；harness：`agent/_internals/{turn_history,skill_catalog_turn,agent_runtime}.py`、`agent/skills/runtime/skill_catalog_delivery.py`、`runtime/context/session/session_continuity.py` |
+| 出现次数 | 1 |
+| 关联 | roadmap `topic_06_context_session_roadmap.md` #351；`myrm-agent-harness` 须先于或随 server 发布（server 固定 `myrm-agent-harness==0.1.0rc5`）；本地提交，未 push |
+
+### 现象
+
+1. 重新生成不写新的用户行，被重发的 query 就是对话里最后一条用户消息；历史加载没有排除它，模型看到同一条问题两次（红灯测试 `tests/integration/test_history_sync_contract.py::test_the_query_a_regenerate_re_sends_is_not_part_of_its_history` 在修复前失败）。
+2. `add_messages` 给喂入的消息分配新 id，调用方每轮又把完整 `chat_history` 喂进线程已持久化的检查点：线程里的历史翻倍，并且每轮都在改写线程已有的前缀（`append` 模式的特征化测试固定了这一行为）。
+3. 技能目录每轮被重写进首条用户消息，目录一变，第 0 条消息的字节随之改变。
+
+### 根因
+
+历史有两份权威（检查点线程与库里的消息），没有任何一处声明本回合以哪一份为准。
+
+### 修复
+
+1. harness：`context["history_mode"]` 三态 `append`（缺省，未接入的调用方行为不变）、`continue`（线程即历史，只发新消息）、`replace`（清线程后再喂历史；清不掉则回合失败，不带着可能过期的线程继续）；resume 从不解析历史。
+2. 技能目录：基线 `<bound_skills>` 只在重建的回合写入首条消息，`continue` 回合在目录变化时于新消息前置 `<bound_skills_update>`（完整当前清单）；目录加载的瞬时失败不发更新。
+3. server：`chats.history_sync_token` 为压缩摘要与活跃消息有序 id 的 sha256，回合开始比对（不含本回合自己的用户消息），完整结束后才写入；任何缺失、读失败、失配都重建。重新生成固定重建并去掉重发的那条用户消息；撤销/重试/截断/回退/分叉立即清两个线程别名。
+
+### 验证
+
+1. harness 与 server 的新增与受影响测试通过：server 侧 `test_history_sync.py`、`test_turn_history_sync.py`、`test_history_sync_contract.py`（真实 SQLite 加真实检查点）共 47 例；回合主体、收尾、自动续跑、撤销/截断/回退/分叉、会话连续性等受影响套件分两批共 411 例与 107 例通过（两批有少量文件重叠）。
+2. 摘要开销实测（SQLite 文件库，30 次取中位数）：100 条约 12.6ms、1000 条约 11.6ms、10000 条约 41.6ms。
+
+### 局限
+
+1. 没有实测缓存命中率或延迟提升，不声称提升。
+2. 撤销/编辑/重新生成/切换兄弟之后的第一轮是冷重建，线程里的工具轨迹丢失，与实施前撤销/重试/截断/回退的行为一致；升级前的旧聊天首轮必冷重建；IM、定时、唤醒、目标重触发尚未接入（仍为 `append`）。
+3. 「按 Human 消息 id 截断线程尾部」未做，需要 Human 消息 id 与库 id 一致。
+
+### 踩坑经验
+
+1. 排查「谁在写这个字段」时，截断的 grep 输出会让「只有一个调用方」看起来成立；`chat_disposal` 也在调用检查点清理，改名前要看完整结果而不是前几行。
+2. 同一批文件在我编辑期间被别人改过（类型标注、去重逻辑），每次编辑前重读文件，提交前复核差异。
+
+---
+
 ## BUG-AGENT-2026-10-17-013: 搜索就绪探测在链首没有可用凭据（或自托管的链首缺 base url）时直接判「不可用」且一次请求都不发：用户把新供应商按优先级排在第一位、密钥还没填好时，IM/语音/定时/看板/评测对每条消息都回「搜索服务已配置但当前无法连接」，而配好的下一家其实能答；判定缓存键只含链首，两条备用配置不同的链会共用同一次判定
 
 | 属性 | 值 |
@@ -6624,6 +6670,44 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 3. 复现要用配置解析器真实产出的对象，而不是手工拼一个「链首」配置：真实对象带 `provider_chain`，判定的输入其实是整条链。
 
 ---
+
+## BUG-AGENT-2026-10-17-015: 抽屉里点「批准」不续跑批量费用与特权脚本批准，Agent 停在挂起处一直等：两个挂起虽有卡片、也把状态改成 APPROVED，答复却没有任何路径回到正在等它的 LangGraph 中断；而 IM 上点「批准」在高风险动作与桌面动作闸门上被读成拒绝
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P1（用户当面给出的安全决策被读错 / 答复无处安放） |
+| 影响范围 | `myrm-agent-frontend/src/lib/approval/buildDrawerResumeValue.ts`、`src/lib/approval/_ARCH.md`；harness 侧五处解析收敛见 `myrm-agent-harness/BUGFIX_LOG.md` BUG-HARNESS-2026-10-17-010（本条是它的产品端口） |
+| 出现次数 | 1（两个动作类型自加入审批抽屉起就没有续跑路径，一次性彻底修复） |
+
+### 现象
+
+1. 批量费用闸门（`batch_cost_approval`，一次委派预估花费超过阈值时挂起）与特权脚本闸门（`script_privileged_api`，脚本访问绕过网络策略的 Playwright API 时挂起）的审批进入抽屉后，点「批准」或「驳回」只把审批记录改成 APPROVED / REJECTED，正在等答复的 Agent 一直停在挂起处：卡片消失、检索还在转、没有后续输出。两个动作类型的卡片本来就被抽屉渲染（`PolymorphicApprovalCard.tsx:858` 与默认分支），所以用户看到的是「点得动、也有反馈，但事情没发生」。
+2. 同一个批准在 IM 渠道上被读成拒绝：高风险 DOM / 桌面动作与特权脚本闸门的答复解析只认 `{"decision": "approve"}`，而 IM 与聊天审批卡发送的是 `{"decisions": [{"type": "approve"}]}`，用户点了「批准」仍拿到 `[BLOCKED]`。harness 侧五处解析的完整矩阵与实测见 BUG-HARNESS-2026-10-17-010。
+
+### 根因
+
+1. `DRAWER_RESUME_ACTION_TYPES`（`buildDrawerResumeValue.ts:20`）只登记了 `subagent_approval`、`deploy_approval`、`high_risk_dom_action`，`shouldResumeDrawerApproval()` 对另外两个动作类型返回 `false`，抽屉因此跳过 agent-stream 续跑，只做 HTTP resolve（`ApprovalDrawer.tsx:37`）。这两个挂起由 harness 的 `_delegate_cognitive._preflight_cost_check` 与 `execute_script._require_privileged_api_approval` 发出，它们的答复形状是「整次挂起一个决策」（`{"decision": ...}`），与 `high_risk_dom_action` 一致，但抽屉的构建器此前只把它当作一个动作类型的特例。
+2. 答复含义由各闸门各自解析，产品侧两种形状都真实存在（抽屉与 HITL 计时器发 `{"decision": ...}`，聊天审批卡、抽屉批量与 IM 按钮发 `{"decisions": [...]}`），没有单一出处，于是同一份答复在不同闸门被读成不同意思。
+
+### 修复
+
+1. `buildDrawerResumeValue.ts` 把 `script_privileged_api`、`batch_cost_approval` 加入可续跑白名单，并把「一次挂起一个决策」的三种动作类型收进 `SINGLE_DECISION_ACTION_TYPES`（构建出的值不变，仍与 `high_risk_dom_action` 完全相同），抽屉的批准/驳回因此真能落到挂起上。
+2. `lib/approval/_ARCH.md` 同步该模块的职责描述（可续跑白名单成员与两种答复形状）。
+3. 答复含义的收敛在 harness 完成（`core/security/hitl_decision.py`）：两种真实形状被明确接受、其余一律拒绝，五处解析改为只问这一个函数。此处不改前端答复形状、不改服务端（`resume_value` 字典原样透传，`session_access_service.py:262` 仍按 `{"decisions": [...]}` 提取目录授权）。
+
+### 验证
+
+1. `src/lib/approval/__tests__/buildDrawerResumeValue.test.ts` 9 例通过，其中新增两例分别断言 `shouldResumeDrawerApproval('batch_cost_approval')`、`shouldResumeDrawerApproval('script_privileged_api')` 为真，并断言构建结果是 `{ decision: 'approve' }` / `{ decision: 'reject', feedback: ... }`；修复前这两例在 `toBe(true)` 处失败。
+2. harness 侧相关套件 1511 例通过（含三处闸门新增的「IM 批量批准必须放行」「读不懂的形状必须拦住」），证明收敛后的读法对两种真实形状给出正确结论；前端 `bunx tsc` / `eslint` 对该文件干净。
+3. 没有做端到端（真实 SSE 续跑 + LangGraph 恢复）：抽屉的续跑路径此前已由 `subagent_approval` / `high_risk_dom_action` 在日常使用中走通，本条只是把两个同类动作类型接到同一条路径上。
+
+### 踩坑经验
+
+1. **「状态改了」不等于「执行续跑了」**：抽屉的 resolve 与 agent-stream resume 是两条独立路径（`ApprovalDrawer.tsx:37-67`），只登记了部分动作类型的白名单会让新闸门静默变成「点了没反应」，新增一个会 `interrupt` 的动作类型时必须同时确认它有没有续跑路径。
+2. **同一份答复在不同闸门读成不同意思，多半是形状没有单一出处**：产品的两种答案形态各有真实发送方，谁都不能当作不存在。修法不是在前端统一（会打断 IM 与聊天卡片），而是把「哪些形状算批准」收敛到一处并让所有闸门都问它。
+3. **读不懂的安全答复必须是拒绝**：任何「默认批准」的兜底都会把「用户没答上」变成「用户同意了」，代价闸门此前正是如此。
 
 ---
 
