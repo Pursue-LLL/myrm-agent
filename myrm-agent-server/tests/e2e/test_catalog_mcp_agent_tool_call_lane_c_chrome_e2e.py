@@ -105,6 +105,30 @@ def _is_retryable_open_mcp_error(exc: RuntimeError) -> bool:
     return False
 
 
+def _wait_backend_mcp_config(name: str, *, timeout_sec: float) -> None:
+    """Block until the backend's ``mcpServers`` record carries *name*.
+
+    The catalog card flips to Connected from the settings store's optimistic
+    write, while ``ConfigSyncManager`` persists ``mcpServers`` on a debounce
+    (``SYNC_DEBOUNCE_MS``); leaving the settings page context before that write
+    flushes disposes the realm and its pending timer, so the chat page would
+    hydrate an empty MCP list. Waiting on the server record separates "the UI
+    accepted the connection" from "a turn can actually see the server".
+    """
+    deadline = time.monotonic() + timeout_sec
+    seen: list[object] = []
+    while time.monotonic() < deadline:
+        record = http_json("GET", f"{get_e2e_api_url()}/api/v1/config/mcpServers")
+        value = record.get("value") if isinstance(record, dict) else None
+        configs = value.get("mcpConfigs") if isinstance(value, dict) else None
+        if isinstance(configs, list):
+            seen = [c.get("name") for c in configs if isinstance(c, dict)]
+            if name in seen:
+                return
+        time.sleep(0.5)
+    raise AssertionError(f"backend mcpServers never carried {name!r} within {timeout_sec}s; saw {seen!r}")
+
+
 def _connect_microsoft_learn_via_ui() -> None:
     """Connect the credential-free catalog entry; the card must end Connected."""
     warm_ui_route("/settings/integrationCatalog")
@@ -135,6 +159,9 @@ def _connect_microsoft_learn_via_ui() -> None:
 
                 settled = wait_for_state(client, page, _CONNECT_SETTLE_JS, timeout_sec=150.0)
                 assert settled.get("connected") is True, f"card never reached Connected: {settled}"
+                # Connected is the store's optimistic state; wait for the debounced
+                # ConfigSyncManager write to land before this context is disposed.
+                _wait_backend_mcp_config(_MCP_SERVER_NAME, timeout_sec=20.0)
             return
         except RuntimeError as exc:
             last_open_error = exc
