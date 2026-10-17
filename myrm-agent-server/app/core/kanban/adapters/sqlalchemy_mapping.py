@@ -9,10 +9,10 @@ app.database.models.kanban::KanbanBoardModel/KanbanTaskModel (POS: Kanban domain
 
 [OUTPUT]
 board_to_domain / board_to_model / apply_board_to_model / task_to_domain /
-task_to_model / apply_task_to_model / stored_block_details / get_attachment_ids / set_attachment_ids
+task_to_model / apply_task_to_model / stored_block_details / status_change_values / get_attachment_ids / set_attachment_ids
 
 [POS]
-Kanban ORM Model <-> Domain Entity 双向映射适配层。持久化与域模型的字段级转换枢纽。阻塞的原因、类型与到点时间只对阻塞态任务落库（``stored_block_details``），所有写任务行的路径共用这一条规则。
+Kanban ORM Model <-> Domain Entity 双向映射适配层。持久化与域模型的字段级转换枢纽。阻塞的原因、类型与到点时间只对阻塞态任务落库：写整个任务对象的路径用 ``stored_block_details``，只改状态的 UPDATE 用 ``status_change_values``，两者是同一条规则。
 """
 
 from __future__ import annotations
@@ -137,6 +137,16 @@ def stored_block_details(t: KanbanTask) -> tuple[str | None, str | None, datetim
     if t.status != TaskStatus.BLOCKED:
         return None, None, None
     return t.blocked_reason, t.block_kind.value if t.block_kind else None, t.scheduled_until
+
+
+def status_change_values(new_status: TaskStatus) -> dict[str, object]:
+    """Column values for a status-only UPDATE, which writes no task object and so cannot go through
+    ``stored_block_details``: it applies the same rule, clearing the block details unless the task stays blocked.
+    """
+    values: dict[str, object] = {"status": new_status.value}
+    if new_status != TaskStatus.BLOCKED:
+        values.update(blocked_reason=None, block_kind=None, scheduled_until=None)
+    return values
 
 
 def task_to_model(t: KanbanTask) -> KanbanTaskModel:

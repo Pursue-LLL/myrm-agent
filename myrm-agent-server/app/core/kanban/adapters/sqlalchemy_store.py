@@ -37,6 +37,7 @@ from app.core.kanban.adapters.sqlalchemy_mapping import (
     apply_task_to_model,
     board_to_domain,
     board_to_model,
+    status_change_values,
     task_to_domain,
     task_to_model,
 )
@@ -769,7 +770,7 @@ class SqlAlchemyKanbanStore:
                     KanbanTaskModel.id == task_id,
                     KanbanTaskModel.status == expected_status.value,
                 )
-                .values(status=new_status.value)
+                .values(**status_change_values(new_status))
             )
             result = await session.execute(stmt)
             if _exec_rowcount(result) == 0:
