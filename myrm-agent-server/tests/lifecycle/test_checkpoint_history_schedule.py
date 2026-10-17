@@ -20,6 +20,7 @@ _JOB_ID = "checkpoint_history_prune"
 class _RecordingScheduler:
     registered: dict[str, tuple[Callable[[], object], IntervalTrigger]] = {}
     ready = asyncio.Event()
+    started = False
 
     async def __aenter__(self) -> Self:
         return self
@@ -32,11 +33,15 @@ class _RecordingScheduler:
         if id == _JOB_ID:
             type(self).ready.set()
 
+    async def start_in_background(self) -> None:
+        type(self).started = True
+
 
 @pytest.fixture
 def recording(monkeypatch: pytest.MonkeyPatch) -> Iterator[type[_RecordingScheduler]]:
     _RecordingScheduler.registered = {}
     _RecordingScheduler.ready = asyncio.Event()
+    _RecordingScheduler.started = False
     monkeypatch.setattr("apscheduler.AsyncScheduler", _RecordingScheduler)
     yield _RecordingScheduler
     task = schedulers._db_maintenance_scheduler_task
@@ -57,6 +62,8 @@ async def test_the_prune_runs_every_six_hours_starting_after_the_boot_burst(reco
     assert trigger.hours == 6
     assert before + timedelta(minutes=9) < trigger.start_time < before + timedelta(minutes=11)
     assert {"db_maintenance", "incognito_cleanup"} <= recording.registered.keys()  # the neighbours are untouched
+    # APScheduler only runs schedules after an explicit start; registering alone leaves them dead.
+    assert recording.started
 
 
 async def test_the_job_delegates_to_the_service(monkeypatch: pytest.MonkeyPatch) -> None:

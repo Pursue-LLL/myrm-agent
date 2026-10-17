@@ -153,6 +153,8 @@ async def start_context_cleanup_scheduler() -> None:
                 # Keep scheduler reference for graceful shutdown
                 global _context_cleanup_scheduler
                 _context_cleanup_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Context cleanup scheduler started (daily at 03:00)")
                 # Run until cancelled
                 await asyncio.Event().wait()
@@ -269,6 +271,8 @@ async def start_approval_ttl_scheduler() -> None:
                     IntervalTrigger(minutes=5),
                     id="approval_ttl_cleanup",
                 )
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Approval TTL scheduler started (every 5 min)")
                 await asyncio.Event().wait()
 
@@ -329,6 +333,8 @@ async def start_cancellation_cleanup_scheduler() -> None:
                     IntervalTrigger(minutes=10),
                     id="cancellation_token_cleanup",
                 )
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("CancellationToken cleanup scheduler started (every 10 min)")
                 await asyncio.Event().wait()
 
@@ -552,6 +558,8 @@ async def start_db_maintenance_scheduler() -> None:
                 )
                 global _db_maintenance_scheduler
                 _db_maintenance_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("DB maintenance scheduler started (every 6 hours)")
                 await asyncio.Event().wait()
 
@@ -583,6 +591,8 @@ async def start_login_session_cleanup_scheduler() -> None:
                 )
                 global _login_session_cleanup_scheduler
                 _login_session_cleanup_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Login session cleanup scheduler started (every 5 min)")
                 await asyncio.Event().wait()
 
@@ -635,6 +645,8 @@ async def start_auth_log_cleanup_scheduler() -> None:
                 )
                 global _auth_log_cleanup_scheduler
                 _auth_log_cleanup_scheduler = scheduler
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Auth log cleanup scheduler started (daily at 04:00)")
                 await asyncio.Event().wait()
 
@@ -831,6 +843,8 @@ async def start_remote_backup_scheduler() -> None:
                     IntervalTrigger(minutes=60),
                     id="remote_backup_auto_sync",
                 )
+                # APScheduler runs schedules only after an explicit start.
+                await scheduler.start_in_background()
                 logger.info("Remote backup auto-sync scheduler started (every 60 min)")
                 await asyncio.Event().wait()
 

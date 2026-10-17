@@ -6624,3 +6624,45 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 3. 复现要用配置解析器真实产出的对象，而不是手工拼一个「链首」配置：真实对象带 `provider_chain`，判定的输入其实是整条链。
 
 ---
+
+## BUG-AGENT-2026-10-17-014: 服务端所有 APScheduler 定时任务从未启动，10 个周期维护任务形同虚设（磁盘回收、会话清理、审计归档、数据库备份全部停摆）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P0（功能性失效，静默无日志） |
+| 影响范围 | `app/lifecycle/schedulers.py`（7 处）、`app/services/memory/imports/integration_sync_daemon.py`（1 处） |
+| 出现次数 | 1（自 APScheduler 4.x 起长期存在，一次性彻底修复） |
+
+### 现象
+
+1. `~/.myrm/checkpoints.db` 增长到 3,366,731,776 字节（136,409 条检查点 / 1,866 个线程）后不再回落，`PRAGMA freelist_count` 恒为 0，文件 mtime 停在数日前。
+2. 修复前已有注册的服务端周期任务全部从未执行过：`db_maintenance`（每 6h：WAL checkpoint + 数据库备份 + 7 类 GC）、`incognito_cleanup`、`checkpoint_history_prune`、`approval_ttl_cleanup`、`cancellation_token_cleanup`、`login_session_cleanup`、`auth_log_cleanup`、`context_cleanup`、`remote_backup_auto_sync`、`integration_knowledge_sync`（10 个 schedule）。
+3. 运行时无任何报错，`backend.log` 亦无痕迹——因为相关 `logger.info` 在生产日志级别（root = WARNING）下不会输出。
+
+### 根因
+
+APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调度器，必须显式调用 `run_until_stopped()` 或 `start_in_background()`；其 4.x `AsyncScheduler` 也已没有 v3 的 `start()` 方法，而 `__aenter__` 只初始化 data store 与 event broker。7 处注册点全都只 `async with` + `await asyncio.Event().wait()`，于是调度器一直停在 `RunState.stopped`，注册的 schedule 的 `next_fire_time` 停在「注册时刻」，永不触发。
+
+### 修复
+
+1. 7 处在 `add_schedule` 之后、`Event().wait()` 之前补 `await scheduler.start_in_background()`（保留原有哨兵语义与全部 `stop_*` 的 `task.cancel()` 关闭契约）。
+2. 两个测试替身 `_RecordingScheduler` 补 `start_in_background`，并新增「已启动」断言——旧替身只实现 `__aenter__/__aexit__/add_schedule`，结构上就能原样吞下一个永不启动的调度器，这正是本 bug 能长期全绿的原因。
+3. 新增静态守卫 `tests/architecture/test_apscheduler_registration_started.py`：AST 扫描每个 `async with AsyncScheduler()` 块，断言其后必含 `start_in_background()` / `run_until_stopped()`，从根源防复现。
+
+### 验证
+
+1. 修复前（真实生产代码路径）：`start_db_maintenance_scheduler()` 后 `state=RunState.stopped`，挂 24.76s 观察到 **0 次**调用。
+2. 对照矩阵（同一 apscheduler 4.0.0a6，各 5s）：生产写法 `fired=0`、`run_until_stopped` `fired=5`、`start_in_background` `fired=5`。
+3. 修复后：`state=started`，7 个调度器全部按时触发（每分钟级任务在 1–2s 内首次执行；每日 3:00 / 4:00 的 Cron 任务正确落到次日），`db_maintenance` 的 3 个 schedule（含延迟 10 分钟的 prune）`next_fire_time` 正确。
+4. 静态守卫变异测试：移除任意一处 `start_in_background()` 即失败并点名 `schedulers.py:147`；恢复后通过。
+5. `tests/lifecycle` 144 例、新增守卫与受影响用例 11 例全绿；ruff check / format 干净；mypy 对本项改动无新增告警。
+
+### 踩坑经验
+
+1. **`async with` 不等于启动**：APScheduler 4.x 的调度器生命周期 API 变更没有报错也没有日志，只表现为「任务从不执行」，必须靠「已启动」断言而非「已注册」断言看守。
+2. **只测「注册了什么」的测试是假安全感**：替身必须覆盖调用方真正依赖的 API（这里是 `start_in_background`），否则替身会替被替换对象把 bug 一起吞掉。
+3. **静默任务的失效要能被看见**：这些任务的 `logger.info` 在生产级别下不输出，导致失效半个月无人发现；对「必须发生」的周期任务，应留下可观测的成功痕迹。
+
+---
