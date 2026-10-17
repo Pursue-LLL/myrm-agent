@@ -7,7 +7,8 @@
  * - shouldResumeDrawerApproval(), buildDrawerResumeValue(approve|reject|edit)
  *
  * [POS]
- * Resume payload builder for ApprovalDrawer subagent batch HITL (incl. shell edit).
+ * Resume payload builder for ApprovalDrawer HITL (subagent batch, high-risk action,
+ * privileged script, batch cost — incl. shell edit).
  */
 
 import type { ApprovalPayload } from '@/store/useApprovalStore';
@@ -17,7 +18,16 @@ import {
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/approvalDecision';
 
-const DRAWER_RESUME_ACTION_TYPES = new Set(['subagent_approval', 'deploy_approval', 'high_risk_dom_action']);
+const DRAWER_RESUME_ACTION_TYPES = new Set([
+  'subagent_approval',
+  'deploy_approval',
+  'high_risk_dom_action',
+  'script_privileged_api',
+  'batch_cost_approval',
+]);
+
+/** Gates that answer a pause with one decision for the whole request (not one per item). */
+const SINGLE_DECISION_ACTION_TYPES = new Set(['high_risk_dom_action', 'script_privileged_api', 'batch_cost_approval']);
 
 /**
  * [INPUT] Drawer approval record + user decision
@@ -39,7 +49,7 @@ export function buildDrawerResumeValue(
     feedback: extra?.feedback ?? (action === 'reject' ? 'User rejected this action.' : undefined),
   };
 
-  if (approval.action_type === 'high_risk_dom_action') {
+  if (SINGLE_DECISION_ACTION_TYPES.has(approval.action_type)) {
     return {
       decision: action === 'reject' ? 'reject' : 'approve',
       ...(resolveExtra.feedback ? { feedback: resolveExtra.feedback } : {}),

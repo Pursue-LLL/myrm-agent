@@ -101,8 +101,53 @@ describe('buildDrawerResumeValue', () => {
     expect(rejected).toEqual({ decision: 'reject', feedback: 'too risky' });
   });
 
-  it('builds edit decision with edited args for single-tool batch', () => {
-    const singleToolApproval: ApprovalPayload = {
+  it('resumes the batch cost gate so its decision reaches the delegation pause', () => {
+    expect(shouldResumeDrawerApproval('batch_cost_approval')).toBe(true);
+
+    const costApproval: ApprovalPayload = {
+      approval_id: 'cost-1',
+      user_id: 'user-1',
+      action_type: 'batch_cost_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      chat_id: 'chat-1',
+      payload: {
+        task_count: 3,
+        estimated_cost_usd: 4.43,
+      },
+    };
+
+    expect(buildDrawerResumeValue(costApproval, 'approve')).toEqual({ decision: 'approve' });
+    expect(buildDrawerResumeValue(costApproval, 'reject', { feedback: 'too expensive' })).toEqual({
+      decision: 'reject',
+      feedback: 'too expensive',
+    });
+  });
+
+  it('resumes the privileged script gate so its decision reaches the browser pause', () => {
+    expect(shouldResumeDrawerApproval('script_privileged_api')).toBe(true);
+
+    const scriptApproval: ApprovalPayload = {
+      approval_id: 'script-1',
+      user_id: 'user-1',
+      action_type: 'script_privileged_api',
+      status: 'PENDING',
+      severity: 'warning',
+      chat_id: 'chat-1',
+      payload: {
+        violations: ['.request.get()'],
+        script_preview: "await page.request.get('http://x.com')",
+      },
+    };
+
+    expect(buildDrawerResumeValue(scriptApproval, 'approve')).toEqual({ decision: 'approve' });
+    expect(buildDrawerResumeValue(scriptApproval, 'reject')).toEqual({
+      decision: 'reject',
+      feedback: 'User rejected this action.',
+    });
+  });
+
+  it('builds edit decision with edited args for single-tool batch', () => {    const singleToolApproval: ApprovalPayload = {
       ...baseApproval,
       payload: {
         tool_calls: [{ name: 'bash_code_execute_tool', args: { command: 'ls' } }],
