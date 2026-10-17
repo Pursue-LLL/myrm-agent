@@ -8,7 +8,7 @@
 - app.core.skills.models::DEFAULT_LOCAL_SKILL_PATHS (POS: Skill models and paths)
 - app.core.skills.curator.local_skills::scan_local_skills (POS: Scan of all skill roots with installed-skill marking)
 - app.core.skills.config_version::bump_skill_config_version (POS: Skill config version bumper; invalidates warm-chat agents)
-- app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles / cron jobs)
+- app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles, cron jobs and kanban tasks)
 
 [OUTPUT]
 - get_stats_collector: Shared SkillStatsCollector singleton

@@ -11,7 +11,7 @@
 | `CuratorNumberInput.tsx`                                        | 组件 | Curator 阈值数字输入：键入时只提交范围内的值，失焦时取整并夹紧到范围内，清空则回退到上次提交的值                                                                                                                                                              | ✅    |
 | `CuratorNumberField.tsx`                                        | 组件 | Curator 阈值字段：把标签、数字输入与说明文字绑成一组，点标签或读屏都能落到输入框，说明随输入框一起被朗读；新增阈值只能走这个组件，不会再出现没有名字的输入框 | ✅    |
 | `CuratorSettingsPanel.tsx`                                      | 组件 | Skill Curator 策略设置：生命周期阈值、有改动时出现的统一保存栏、手动运行与合并，每个开关与输入框都有可访问名称；运行历史与技能医生的状态分别交给 `useCuratorHistory` / `useCuratorDiagnostics`，展示交给下面两个区块组件                                                                                                                                                        | ✅    |
-| `CuratorDiagnosticsSection.tsx` | 组件 | 技能医生诊断卡：按发现类型码与参数在当前语言拼出说明；被 Agent 档案或定时任务绑定的技能（发现的 `bound`）不提供归档，只留重置计数并说明原因；某个技能处理中时所有行的动作都被锁定 | ✅ |
+| `CuratorDiagnosticsSection.tsx` | 组件 | 技能医生诊断卡：按发现类型码与参数在当前语言拼出说明；被 Agent 档案、定时任务或看板任务绑定的技能（发现的 `bound`）不提供归档，只留重置计数并说明原因；某个技能处理中时所有行的动作都被锁定 | ✅ |
 | `CuratorHistorySection.tsx` | 组件 | Curator 运行历史：相对时间跟随界面语言，状态词复用技能卡片文案，五种原因码合并为三条用户可读原因 | ✅ |
 | `useCuratorDiagnostics.ts` | 辅助 | 技能医生 hook：持有诊断报告，一次只执行一个治理动作（处理中再来的调用被忽略）并以提示反馈结果，成功后重新拉取报告并通知面板 | ✅ |
 | `useCuratorHistory.ts` | 辅助 | 运行历史 hook：首次展开才拉取最近 10 次，新一轮运行后仅在展开时刷新；返回可直接铺给历史区块的属性 | ✅ |

@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.skills.curator::SkillCurator (POS: Stateless curator engine)
 - myrm_agent_harness.agent.skills.curator.consolidation::ConsolidationPlan/ConsolidationReport (POS: Plan/report types)
 - app.core.skills.curator.service::_get_sweep_lock, get_curator_config, get_stats_collector (POS: Shared curator state)
-- app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles / cron jobs)
+- app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles, cron jobs and kanban tasks)
 - app.core.skills.curator.local_skills::scan_local_skills (POS: Scan of all skill roots with installed-skill marking)
 - app.core.skills.creation.service::skill_creation_service (POS: SkillWriteBackend)
 - app.database.connection::get_session (POS: Agent profile refs rewrite)

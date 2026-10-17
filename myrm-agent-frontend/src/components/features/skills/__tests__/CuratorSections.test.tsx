@@ -98,7 +98,9 @@ describe('CuratorDiagnosticsSection', () => {
 
     expect(text).toContain('已运行 8 次，成功率仅 12.5%');
     expect(text).toContain('已固定，但已有 1 天未使用');
-    expect(text).toContain('有智能体或定时任务仍绑定着该技能，无法在此归档。请先在对应位置解除绑定，或重置计数。');
+    expect(text).toContain(
+      '有智能体、定时任务或看板任务仍绑定着该技能，无法在此归档。请先在对应位置解除绑定，或修好该技能后再重置计数。',
+    );
     expect(text).toContain('70/100');
     expect(text).not.toMatch(LEAKED_IDENTIFIERS);
   });

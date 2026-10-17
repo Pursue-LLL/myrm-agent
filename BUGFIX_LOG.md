@@ -5989,7 +5989,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-17 |
 | 修复日期 | 2026-10-17 |
 | 严重程度 | P3（只影响「成功率低且被绑定」的技能；归档不删文件、可恢复，但绑定它的定时任务与 Agent 会静默丢失该技能） |
-| 影响范围 | 服务端 `app/core/skills/curator/service.py`（`get_skill_diagnostics`）、`app/api/skills/curator.py`（`SkillDoctorFindingItem`）、`app/core/infra/health/skill_diagnostics.py`；前端 `CuratorDiagnosticsSection.tsx`、`CuratorSettingsPanel.tsx`、新增 `useCuratorDiagnostics.ts`、`useCuratorHistory.ts`、`services/skill/core.ts`、六份 locale |
+| 影响范围 | 服务端 `app/core/skills/curator/service.py`（`get_skill_diagnostics`）、`app/core/skills/curator/bound_skills.py`（看板任务的技能绑定）、`app/api/skills/curator.py`（`SkillDoctorFindingItem`）、`app/core/infra/health/skill_diagnostics.py`；前端 `CuratorDiagnosticsSection.tsx`、`CuratorSettingsPanel.tsx`、新增 `useCuratorDiagnostics.ts`、`useCuratorHistory.ts`、`services/skill/core.ts`、六份 locale |
 | 出现次数 | 1 |
 | 关联 | `BUG-AGENT-2026-10-16-025`（本条同批更正了它里面关于 `is_stale` 的错误表述）；服务端提交 `60697675a3`，前端提交 `62fd80392d`、`9c10285f60`、`591a37ded4`；本地提交，未 push |
 
@@ -5998,12 +5998,14 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 1. 一个技能同时满足「观察次数不少于 5 且成功率低于 0.3」和「被 Agent 档案或未结束的定时任务绑定」时，诊断面板仍给它「归档」或「解 Pin 归档」按钮。同一个技能在自动清理里是被豁免的（`service.py` 的 `run_curator_sweep` 把 `bound_skill_names(scan.skills)` 交给引擎当 `protected_names`），三处对「被绑定」的口径各不相同：harness 的体检只认置顶，健康探针只认置顶、进化锁定与装来技能，界面按钮不看任何豁免；
 2. 在本条之前的 HEAD 上点击会成功：技能被标为已归档，运行时加载把已归档技能判为不可加载（`myrm-agent-server/app/core/skills/gates/runtime_load.py:60`），绑定它的定时任务与 Agent 此后静默拿不到该技能。用真实技能目录加真实 SQLite 在临时目录里复现过（去掉「拒绝归档被绑定技能」的守卫后归档成功），复现脚本放在仓库外，没有入库；
 3. 另一项尚未提交的改动给手动归档加了「被绑定就拒绝」的守卫；它落地后，这个按钮就变成「点了必然报错」。本条不含该守卫；
-4. 健康探针对故障技能的 `fix_suggestion` 写「触发一次清理」，而清理对近期用过的故障技能只标「陈旧」、不归档，这条建议不会起作用。
+4. 健康探针对故障技能的 `fix_suggestion` 写「触发一次清理」，而清理对近期用过的故障技能只标「陈旧」、不归档，这条建议不会起作用；
+5. 「被绑定」的口径漏了看板任务：任务可以带 `extra_skill_ids`（库表 `kanban_tasks.extra_skill_ids`），执行时与智能体档案的技能合并后装进这次运行（`myrm-agent-server/app/services/kanban/task_runner/runner.py:651`），但清理、合并与医生都不看它。只被未完成看板任务引用的技能照样会在闲置后被归档，任务启动时静默拿不到该技能。
 
 ### 根因
 
 1. 「被绑定」是服务端的业务概念（Agent 档案与定时任务都在服务端数据库里），harness 的体检不知道、也不该知道（引擎的 `protected_names` 本来就由宿主注入）；诊断接口只把体检结果原样往外送，界面于是没有可用来判断的信息；
-2. 前端按钮只按 `pinned` 与发现类型决定，没有「这个动作会不会成功」这一维。
+2. 前端按钮只按 `pinned` 与发现类型决定，没有「这个动作会不会成功」这一维；
+3. 绑定来源是在 `bound_skills.py` 里按表手写枚举的，新增一个引用技能的列时没有任何东西提醒这里要不要读它，看板任务的技能列就这样被漏掉。
 
 ### 修复
 
@@ -6013,13 +6015,15 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. `CuratorSettingsPanel.tsx` 从 453 行降到 374 行：技能医生与运行历史的状态拆到 `useCuratorDiagnostics`、`useCuratorHistory`，各有测试；顺手删掉只写不读的 `diagLoading` 状态；行为不变；
    拆出来的 `useCuratorDiagnostics` 一次只处理一个动作：处理期间再来的调用被忽略，界面锁定所有行的动作，只有被处理的那一行显示转圈（此前只锁当前行，点另一行会并发发起第二次归档，先结束的那次把忙碌标志提前清掉）；
 5. 测试里读真实数据库的 `session` fixture 抽到 `tests/core/skills/curator/conftest.py`，`test_bound_skills.py` 复用，并修了该文件里原有的一条 mypy 报错；
-6. 同批更正文档：`BUG-AGENT-2026-10-16-025` 与路线图 topic_08 #43 ⑥ 写过「`is_stale` 没有调用方」，实际 `registry.py` 有一处读取（给目录条目加 `stale="true"`），已改成准确说法，没有动这个属性（改它会让所有对话的提示词字节变化）；素材文档里 Hermes 的「自我修剪」单元格改成它确有后台 curator（`agent/curator.py`：按闲置过期与归档，默认 14 与 30 天，置顶豁免，只归档不删除，LLM 合并默认关闭）。
+6. 同批更正文档：`BUG-AGENT-2026-10-16-025` 与路线图 topic_08 #43 ⑥ 写过「`is_stale` 没有调用方」，实际 `registry.py` 有一处读取（给目录条目加 `stale="true"`），已改成准确说法，没有动这个属性（改它会让所有对话的提示词字节变化）；素材文档里 Hermes 的「自我修剪」单元格改成它确有后台 curator（`agent/curator.py`：按闲置过期与归档，默认 14 与 30 天，置顶豁免，只归档不删除，LLM 合并默认关闭）；
+7. `bound_skill_names` 加读 `kanban_tasks.extra_skill_ids`：任务状态不是「已完成」「已归档」就算绑定。待分诊、待办、就绪、执行中、阻塞、待评审的任务都还会被执行；失败的任务可经 `POST /kanban/tasks/{id}/retry`（`myrm-agent-server/app/api/kanban/routes/tasks.py:303`，harness `retry_failed_task` 只重开失败任务）重新排队，所以仍算；已完成与已归档的任务不算：已核对的重开路径都不会重开它们（`myrm-agent-server/app/services/kanban/move_orchestrator.py:140` 终态任务只能移到已归档；`retry_failed_task` 只认失败任务；解除阻塞只认阻塞任务；启动恢复只重置执行中的任务）。终态集合是 `bound_skills.py` 的模块级常量，新增状态默认算绑定（宁可多保护）。清理、合并与医生的 `bound` 标记因此自动覆盖看板任务；`doctor.boundNote`（六种语言）改为「智能体、定时任务或看板任务」，并把出路写成「解除绑定，或修好该技能后再重置计数」（重置会清掉调用与失败历史，只适合在修好之后做）。
 
 ### 验证
 
 1. 服务端：新增 `tests/core/skills/curator/test_skill_diagnostics_bound.py`（绑定到定时任务与 Agent 的故障技能标 `bound`、未绑定的不标、置顶且绑定、健康的绑定技能没有发现、没有发现时不查库）；`tests/core/skills/curator`、`tests/api/skills/test_curator.py`、`tests/core/infra/health/test_skill_quality_diagnostic.py` 共 60 通过（工作区含他人未提交改动）；另把 HEAD 用 `git archive` 导出到临时目录、核对 `app.__file__` 指向导出目录后，`tests/core/skills/curator` 与 `tests/api/skills/test_curator.py` 47 通过；触及文件 ruff 无告警，mypy 在触及文件上 0 错误（服务端 mypy 跟随导入共报 1153 条，均不在这些文件里）；
 2. 前端：`CuratorSections`（新增被绑定技能只剩重置与原因行、六个语言无缺失键）、`CuratorSettingsPanel`、两个新 hook 的测试、`CuratorNumberInput` 共 5 个文件 40 例通过（含处理中锁定全部行与忽略重入两例）；触及文件 prettier、oxlint 通过；`verify:i18n`、`verify:theme-colors` 通过；
-3. 限定到触及文件的 `tsc`：触及的源文件与新测试没有类型错误，只剩 `CuratorSettingsPanel.test.tsx` 里 jest-dom 匹配器（`toBeInTheDocument` 等）找不到类型，那是限定范围的配置没有带上全局测试初始化造成的，不是本次改动；全量 `tsc` 没有跑（主机负载均值约 23）。
+3. 限定到触及文件的 `tsc`：触及的源文件与新测试没有类型错误，只剩 `CuratorSettingsPanel.test.tsx` 里 jest-dom 匹配器（`toBeInTheDocument` 等）找不到类型，那是限定范围的配置没有带上全局测试初始化造成的，不是本次改动；全量 `tsc` 没有跑（主机负载均值约 23）；
+4. 看板绑定：`test_bound_skills.py` 加了各状态（待分诊、待办、就绪、执行中、阻塞、待评审、失败算绑定；已完成、已归档不算）、与定时任务并存、旧格式与空白 ID，以及两条防漏测试：`TaskStatus` 的每个取值都必须归入「还能运行」或「终态」；数据库里每个名字含 `skill` 的列都必须归入「自动化绑定」或「非绑定」，新列没分类就失败。变异检查：把终态集合改成全部状态后，看板相关 9 例失败。`tests/core/skills/curator` 加 `tests/api/skills/test_curator.py`，在「HEAD 加本次提交的两个服务端文件」的临时导出里 60 通过（此前 47）；工作区里这两个目录加健康探针与统计流水线集成共 80 通过。前端 `CuratorSections` 与 `useCuratorDiagnostics` 共 23 例通过，prettier、oxlint、`verify:i18n`、`verify:theme-colors` 通过。
 
 ### 局限
 
@@ -6029,7 +6033,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. 「被绑定」按技能名匹配（与清理一致）：不同目录里有同名技能时，只要其中一个被绑定，这个名字的发现都标 `bound`；
 5. 数据库读取失败时，诊断请求会失败（与清理一致：不知道绑定情况就不继续），前端把诊断卡整块隐藏；没有为此单独做降级；
 6. 诊断接口在有发现时多一次数据库读取，没有做基准测试，不声称性能影响；
-7. 「手动归档拒绝被绑定技能」的守卫不在本条，提交时仍是别人未提交的改动；它落地前，经其他入口（例如接口直接调用）仍可归档被绑定技能。
+7. 「手动归档拒绝被绑定技能」的守卫不在本条，提交时仍是别人未提交的改动；它落地前，经其他入口（例如接口直接调用）仍可归档被绑定技能；
+8. 看板绑定的真实出现频率没有量过：本机数据库里看板任务 0 行，查询开销也没有做基准测试。失败的任务一直算绑定：没人重试、也没人归档的失败任务会让它引用的技能一直不被治理，界面不告诉用户是哪个任务绑着；
+9. 他人未提交的守卫改动里有三处面向用户的 409 文案（`app/api/skills/curator.py`、`app/api/statistics/learning_timeline.py`、`app/core/skills/curator/service.py`）与一条断言（`tests/api/skills/test_curator.py`）只在工作区里同步改成了「智能体、定时任务或看板任务」，不在本次提交里，随那批改动一起提交；同一批改动下 `tests/api/statistics` 有 4 例失败（2 例归档技能的接口因守卫找不到测试里的技能目录返回 404，2 例是 `MemoryItem` 校验收到 AsyncMock），都不是文案改动造成的。
 
 ### 踩坑经验
 
