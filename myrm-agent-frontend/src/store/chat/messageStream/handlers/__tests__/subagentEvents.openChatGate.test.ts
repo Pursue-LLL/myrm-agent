@@ -80,7 +80,7 @@ describe('subagent stream events and the open chat', () => {
       expect(ctx.actions.setMessages).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps every stream out of the tree while no chat is open', async () => {
+    it('keeps every stream out of the tree while the store holds no chat id yet', async () => {
       useChatStore.setState({ chatId: undefined });
 
       await handle(start('task-1'), BACKGROUND_CHAT);

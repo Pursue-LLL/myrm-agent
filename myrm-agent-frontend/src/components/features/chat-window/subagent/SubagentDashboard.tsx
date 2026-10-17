@@ -301,8 +301,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const prevChatIdRef = useRef(chatId);
   useEffect(() => {
     const prev = prevChatIdRef.current;
-    // Leaving a chat empties the tree, whether for another chat or for a new one; a new chat receiving its id with
-    // its first message (no chat -> id) keeps what its stream already put there.
+    // Leaving a chat empties the tree; an id arriving where there was none leaves what the stream put there alone.
     if (prev && prev !== chatId) {
       useSubagentStore.getState().clear();
     }

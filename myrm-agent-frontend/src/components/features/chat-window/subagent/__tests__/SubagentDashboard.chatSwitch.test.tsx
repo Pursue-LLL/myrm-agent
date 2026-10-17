@@ -2,8 +2,9 @@
  * The subagent panel shows the subagents of the chat the user has open, and says so in the user's language when a
  * control fails.
  *
- * Real scenario: the user works with subagents in chat A, then opens another chat or presses "new chat". The panel must
- * empty at once, in either case, while a chat that merely receives its id on its first message keeps what it has.
+ * Real scenario: the user works with subagents in chat A, then opens another chat; "new chat" is another chat too, a
+ * fresh session with an id of its own. The panel must empty at once, while an id that merely arrives where there was
+ * none leaves what the stream put there alone.
  * When "stop all" is refused, the toast reads like the rest of the product instead of echoing the server's English.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -63,7 +64,17 @@ describe('SubagentDashboard when the open chat changes', () => {
     expect(nodeIds()).toEqual([]);
   });
 
-  it('empties the panel when "new chat" is pressed', () => {
+  it('empties the panel when "new chat" is pressed, which opens a session with its own id', () => {
+    const view = render(<SubagentDashboard chatId="chat-a" />);
+    useSubagentStore.getState().setNodes([runningNode('task-of-a')]);
+
+    openChat('chat-new-session');
+    view.rerender(<SubagentDashboard chatId={undefined} />);
+
+    expect(nodeIds()).toEqual([]);
+  });
+
+  it('empties the panel when the open chat id goes away', () => {
     const view = render(<SubagentDashboard chatId="chat-a" />);
     useSubagentStore.getState().setNodes([runningNode('task-of-a')]);
 
@@ -73,7 +84,7 @@ describe('SubagentDashboard when the open chat changes', () => {
     expect(nodeIds()).toEqual([]);
   });
 
-  it('keeps the subagents of a new chat when its id arrives with the first message', () => {
+  it('keeps what the stream put in the panel when an id arrives where there was none', () => {
     openChat(undefined);
     const view = render(<SubagentDashboard chatId={undefined} />);
     useSubagentStore.getState().setNodes([runningNode('task-of-new-chat')]);

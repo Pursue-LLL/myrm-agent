@@ -88,8 +88,8 @@ export function resolveStreamChatId(state: StreamHandlerState): string {
 
 /**
  * Whether the stream belongs to the chat the user has open. Several chats can stream at once, but the single-slot
- * stores (subagent tree, fission strip) describe only the open chat; a stream that cannot name its chat, or a user
- * with no chat open (just pressed "new chat"), is never "the open chat".
+ * stores (subagent tree, fission strip) describe only the open chat; a stream that cannot name its chat, or a store
+ * that holds no chat id yet, is never "the open chat".
  */
 export function isStreamForOpenChat(state: StreamHandlerState): boolean {
   const streamChatId = resolveStreamChatId(state);

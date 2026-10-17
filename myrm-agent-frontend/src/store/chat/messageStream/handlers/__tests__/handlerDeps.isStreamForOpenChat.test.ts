@@ -2,8 +2,8 @@
  * Tests for isStreamForOpenChat: the gate that keeps a chat running in the background from writing the single-slot
  * stores (subagent tree, inspector panels), which describe only the chat the user has open.
  *
- * Real scenario: chat A is still streaming while the user works in chat B, or has pressed "new chat" and has no chat
- * id yet. A's events must not be taken for the open chat's.
+ * Real scenario: chat A is still streaming while the user works in chat B, or in the fresh session "new chat" opens
+ * (it has an id of its own). A's events must not be taken for the open chat's.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -36,7 +36,7 @@ describe('isStreamForOpenChat', () => {
     expect(isStreamForOpenChat(streamOf('chat-background'))).toBe(false);
   });
 
-  it('refuses every stream while no chat is open, as after pressing "new chat"', () => {
+  it('refuses every stream while the store holds no chat id yet', () => {
     useChatStore.setState({ chatId: undefined });
     expect(isStreamForOpenChat(streamOf('chat-background'))).toBe(false);
 

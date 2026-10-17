@@ -117,7 +117,7 @@ describe('usePlanStore', () => {
       expect(usePlanStore.getState().plan).toEqual(freshPlan);
     });
 
-    it('discards a reply that arrives after the plan was cleared, as when "new chat" is pressed', async () => {
+    it('discards a reply that arrives after the plan was cleared', async () => {
       let resolveReply: ((v: unknown) => void) | undefined;
       fetchMock.mockReturnValueOnce(
         new Promise((r) => {

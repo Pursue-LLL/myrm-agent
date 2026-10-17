@@ -242,7 +242,8 @@ describe('fetchSubagents', () => {
   describe('a reply that arrives after the user left the chat', () => {
     it.each([
       ['opened another chat', 'chat-b'],
-      ['pressed "new chat"', undefined],
+      ['pressed "new chat", which opens a session with its own id', 'chat-new-session'],
+      ['has no open chat id any more', undefined],
     ])('is dropped when the user %s', async (_name, openedInstead) => {
       const slow = slowReply();
       mockFetchWithTimeout.mockReturnValueOnce(slow.reply);
