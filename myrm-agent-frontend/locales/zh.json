@@ -17366,7 +17366,13 @@
           "timeout": "超时",
           "io_missing": "文件缺失",
           "cancelled": "已取消",
-          "embed_window_violation": "嵌入窗口超限"
+          "embed_window_violation": "嵌入窗口超限",
+          "context_overflow": "内容过长",
+          "safety_block": "触发安全拦截",
+          "format_error": "请求被拒绝",
+          "response_format_error": "模型回复无法解析",
+          "model_not_found": "模型不可用",
+          "challenge_blocked": "被服务商拦截"
         },
         "refresh": "刷新",
         "refreshStale": "队列状态可能已过期，请检查网络后点击刷新。",

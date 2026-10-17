@@ -16690,7 +16690,13 @@
           "timeout": "逾時",
           "io_missing": "檔案缺失",
           "cancelled": "已取消",
-          "embed_window_violation": "嵌入視窗超限"
+          "embed_window_violation": "嵌入視窗超限",
+          "context_overflow": "內容過長",
+          "safety_block": "觸發安全攔截",
+          "format_error": "請求被拒絕",
+          "response_format_error": "模型回覆無法解析",
+          "model_not_found": "模型無法使用",
+          "challenge_blocked": "被服務商攔截"
         },
         "refresh": "重新整理",
         "refreshStale": "佇列狀態可能已過期，請檢查網路後點擊重新整理。",

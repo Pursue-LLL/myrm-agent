@@ -16690,7 +16690,13 @@
           "timeout": "タイムアウト",
           "io_missing": "ファイル欠落",
           "cancelled": "キャンセル",
-          "embed_window_violation": "埋め込みウィンドウ超過"
+          "embed_window_violation": "埋め込みウィンドウ超過",
+          "context_overflow": "内容が長すぎます",
+          "safety_block": "安全ポリシーによりブロック",
+          "format_error": "リクエストが拒否されました",
+          "response_format_error": "モデルの応答を解釈できません",
+          "model_not_found": "モデルを利用できません",
+          "challenge_blocked": "プロバイダーによりブロック"
         },
         "refresh": "更新",
         "refreshStale": "キューの状態が古い可能性があります。接続を確認して「更新」を押してください。",

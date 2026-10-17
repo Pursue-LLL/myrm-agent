@@ -17366,7 +17366,13 @@
           "timeout": "Timeout",
           "io_missing": "Missing file",
           "cancelled": "Cancelled",
-          "embed_window_violation": "Embedding window exceeded"
+          "embed_window_violation": "Embedding window exceeded",
+          "context_overflow": "Content too long",
+          "safety_block": "Blocked by safety policy",
+          "format_error": "Request rejected",
+          "response_format_error": "Unusable model reply",
+          "model_not_found": "Model unavailable",
+          "challenge_blocked": "Blocked by provider"
         },
         "refresh": "Refresh",
         "refreshStale": "Queue status may be outdated. Check your connection and tap Refresh.",

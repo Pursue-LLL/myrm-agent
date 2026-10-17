@@ -16690,7 +16690,13 @@
           "timeout": "Time-out",
           "io_missing": "Fehlende Datei",
           "cancelled": "Abgebrochen",
-          "embed_window_violation": "Embedding-Fenster überschritten"
+          "embed_window_violation": "Embedding-Fenster überschritten",
+          "context_overflow": "Inhalt zu lang",
+          "safety_block": "Durch Sicherheitsrichtlinie blockiert",
+          "format_error": "Anfrage abgelehnt",
+          "response_format_error": "Antwort des Modells nicht verwertbar",
+          "model_not_found": "Modell nicht verfügbar",
+          "challenge_blocked": "Vom Anbieter blockiert"
         },
         "refresh": "Aktualisieren",
         "refreshStale": "Der Warteschlangenstatus ist möglicherweise veraltet. Prüfen Sie Ihre Verbindung und tippen Sie auf „Aktualisieren\".",
