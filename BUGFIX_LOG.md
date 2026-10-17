@@ -6193,3 +6193,72 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 给单次调用里的 `lock/unlock` 调整执行顺序时，要同步核对面向 LLM 的 `TOOL_DESCRIPTION_EN/ZH`：原来的描述写着 `lock/unlock wraps a multi-step edit`，改完执行顺序若不改提示词，模型拿到的说明就和真实行为相悖。
 
 ---
+
+## BUG-AGENT-2026-10-17-006: 浏览器扩展侧边栏的审批卡只写「Approve tool: 工具名」和一句英文策略原因，看不到要运行的命令，用户在不知道内容的情况下批准；审批待决时仍可发新消息；浏览器不在前台时没有任何提醒；聊天界面其余文案写死英文、出错时直接显示服务端原文；弹窗里的批准/拒绝按钮对比度不足；网页端审批通知标题带原生警告符号
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17（终审：对「用户在侧边栏点批准时到底看到了什么」逐条追问，并对照 harness 真实产出的审批载荷） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P2（批准的是看不到内容的操作；不会越过 harness 的审批门禁，但批准这一步形同盲签） |
+| 影响范围 | extension：`src/sidepanel/{approval,approval_overlay,approval_notify,chat_view,page_context,server_client,sidepanel}.js`、`sidepanel.{html,css}`、`src/popup.{html,js}`、`_locales/{en,zh_CN}/messages.json`、`_ARCH.md`；frontend：`src/lib/approval/approvalAlertService.ts` 与 `src/lib/extension/__tests__`、`src/lib/approval/__tests__` 的测试 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-16-023`（侧边栏审批答复链路；其局限 3 的「审批待决时发新消息」、局限 5 的「聊天界面文案写死英文」与 `sidepanel.js` 480 行在本条处理）；本地提交，未 push |
+
+### 现象
+
+1. 审批卡的标题是 `Approve tool: $TOOL$`（提交版 `_locales/en/messages.json` 的 `approvalTitleSingle`），下面只有 harness 的英文策略原因。harness 随 shell 工具给出的白话说明（`plain_explanation`，如 `Install Python packages: openpyxl` / `安装 Python 包: openpyxl`）与要运行的完整命令（`args.command`）都没有展示。
+2. 提交版 `sidepanel.js:152` 在发送新消息时直接收起审批弹窗；被暂停的回合交给服务端超时处理，该路径的服务端表现没有验证过。
+3. 审批请求带 `extensions.timeout`（默认 120 秒到期自动拒绝），卡上没有任何截止提示；浏览器不在前台时，用户不会知道有审批在等。
+4. 输入框占位、「Thinking…」「Using …」、错误前缀、标题栏按钮提示、空状态与「未连接」提示写死英文；出错时把 `err.message` 与 SSE 的 `error` 原文拼进气泡。
+5. 弹窗的批准按钮 `#4CAF50` 配白字对比度 2.78:1，拒绝按钮 `#ef4444` 为 3.76:1，次要文字 `#666` 在深色背景上为 2.97:1，错误文字 `#ef4444` 在助手气泡上为 4.26:1，均低于 4.5:1。
+6. 弹窗没有 `role="alertdialog"`，默认焦点不在安全选项上。
+7. `popup.html:148` 的 `data-i18n="allowAllEligibleTabs"` 在两份语言包里都没有对应的键，中文界面显示英文原文。
+8. 网页端 `approvalAlertService.ts` 的系统通知标题与标签页闪烁标题带原生 `⚠️`。
+9. 扩展 `_ARCH.md` 与 `sidepanel.js` 头注释写着面板调用 `GET /chats/{id}/messages` 与 `GET /agents/chat/{id}/attach`，全部源码里没有这两个调用；`sidepanel.js` 为 480 行。
+
+### 根因
+
+1. 审批卡最初按「列出工具名与原因」写成，没有对照 harness 真实载荷里有哪些字段可用；测试用的是手写的简化载荷，没有一个带 `command_spans` / `plain_explanation`。
+2. 面板的 SSE 随面板存在，后台脚本无法替它提醒；提醒、截止与输入暂停这三件事一直没人负责。
+3. 文案与颜色没有门禁：语言包测试只查键对齐，不查源码里写死的字符串，也没有对比度检查。
+
+### 修复
+
+1. `approval.js` 的 `describeApproval` 对 shell 动作给出白话说明（按界面语言取 zh/en）、完整命令与原因；其他工具列出参数，值超过 300 字符时截断并标明；不再显示内部工具名。命令超过 2000 字符、或动作没有任何可展示内容时只能拒绝（被截去的尾部可能藏着危险片段，也不盲批）；原有的白名单失败关闭规则不变。
+2. 截止行按事件到达时刻加 `extensions.timeout.seconds` 在面板自己的时钟上算（服务端 `expiresAt` 的时钟浏览器不一定共用），`behavior` 决定「自动拒绝/自动允许」的措辞。
+3. `approval_overlay.js`（弹窗 DOM，文本一律走 `textContent`）与 `sidepanel.html`：`role="alertdialog"`、`aria-labelledby`/`aria-describedby`，默认焦点在「拒绝」，但只在面板此刻已有焦点时才取，不从用户正在输入的网页抢焦点。
+4. 审批待决期间输入框与发送暂停并提示先处理审批；发送不再收起弹窗。
+5. `approval_notify.js`：窗口不在前台或面板不可见时发一条系统通知（不含命令正文，答复只能回到面板），点击把窗口带回前台；popup 新增「审批提醒」开关（默认开）；答复、取消、新会话时撤回。
+6. 聊天界面其余文案全部进 `_locales`（en / zh_CN 各新增 20 个键）；错误只给通用本地化文案，细节写 `console.error`；补上缺失的 `allowAllEligibleTabs`。
+7. 颜色：批准 `#15803d`（5.02:1）、拒绝 `#b91c1c`（6.47:1），`--text-muted` 改为 `#8a8aa3`（在三种底色上 4.73–5.07:1），错误文字 `#f87171`（5.79:1，改用 `.error` 类而不是内联样式）；输入框禁用态用虚线边框而不是降透明度，以免压低占位文字的对比度。
+8. 网页端去掉通知标题与闪烁标题里的 `⚠️`。
+9. `sidepanel.js` 拆出 `chat_view.js`、`page_context.js`、`server_client.js`，由 480 行降到 355 行；删掉头注释与 `_ARCH.md` 里并不存在的两个端点；`_ARCH.md` 补全新模块、审批边界与 i18n 范围。
+
+### 验证
+
+1. vitest（`src/lib/extension` 与 `approvalAlertService.test.ts`）：11 个文件 178 例通过；新增/重写的用例用 harness 真实产出的载荷（`build_interrupt_payload`：pip、curl、`rm -rf`、批量、大文件写入、超长命令）做夹具，并覆盖中英文、超长拒绝、无内容拒绝、截止措辞、焦点、输入暂停、提醒、流错误通用文案、XSS 作文本、语言包键与占位符对齐、孤立键检查。
+2. 变异：前一批 11 个全部被杀（其中「发送忽略待决审批」最初存活，补用例后被杀）；最后一批 4 个也全部被杀：去掉无内容拒绝、把工具名放回摘要、去掉错误气泡的 `.error` 类、去掉「面板有焦点才取焦点」；这 4 次每次运行后文件还原并核对内容与运行前相同。
+3. 真实 Chromium（无头 `--headless=new`，加载本目录的扩展，连一个回放真实 harness 载荷的模拟服务端，视口 380×720）：六种载荷逐一核对卡片内容——批准发出 `{"decision":"approve","interruptId":"int-1"}`，拒绝发出带 `feedback` 的拒绝；`rm -rf` 与超长命令只剩「拒绝」；无横向滚动（`scrollWidth` 380 = `clientWidth` 380）；默认焦点在 `btn-reject`；输入框暂停且占位为「请先处理上方的批准请求」；窗口最小化（`windows.getCurrent().focused === false`）时 `chrome.notifications` 里出现 `approval-pending`，答复后清空，控制台无报错。中文用系统界面语言（zh-CN）跑，英文用只带 en 语言包的扩展副本跑，两种语言的标题、提示、截止行都已核对。
+4. 对比度按 WCAG 公式算：上表新颜色全部不低于 4.5:1。
+5. `tsc`（只含触及文件的临时 tsconfig，退出码 0；全量 `tsc --noEmit` 在本机并发负载下超过 10 分钟没有跑完，已终止，未取得结果）、`oxlint`、`prettier`（扩展 JS 用 `--no-config --print-width 120 --trailing-comma all`，测试用前端配置）、`verify:theme-colors` 通过；扩展所有脚本 `node --check` 通过；单文件最大 355 行。
+
+### 局限
+
+1. 真实 `chrome.sidePanel` 宿主与真实的「用户切到别的应用」没有验证：无头模式下新开窗口不会让 `focused` 变 false，只有最小化会；系统通知实际弹出的样子没有看到，只验证了 API 接受选项并能撤回。
+2. 「原因」一行是 harness 的英文策略文本，面板按原文展示；要本地化需要 harness 给出结构化原因码，属于跨层改动，没有做。
+3. harness 给的白话说明对复合命令可能只描述其中最危险的一段（如 `echo start …; rm -rf ~/important` 只说「删除: ~/important」）；完整命令同时展示，所以用户仍能看到全部内容。
+4. 面板里可直接批准的审批占全部审批的比例没有量过：脚本操作数保护、不可逆删除、金额等被白名单挡回网页端。
+5. 没有用真实服务端带着真实中断做端到端：服务端是回放真实载荷的模拟实现。
+6. 工具进度行仍显示原始工具名，`tool_steps.js` 用 ◎✓✗ 字形；扩展只有深色主题（原有设计）。
+7. 网页端 `approvalAlertService.ts` 的单条通知标题仍拼上 `req.toolName`（内部工具名），本条只去掉了符号；网页端 `system-monitor` 的若干组件还有别的原生符号，不在本条范围。
+
+### 踩坑经验
+
+1. 手写的简化载荷会让测试永远通过：先用 harness 的 `build_interrupt_payload` 取一份真实载荷，才发现 `command_spans`、`plain_explanation` 与英文策略原因这些字段的存在与形态。
+2. 真实浏览器探针抓到了单测漏掉的一处：非 shell 工具的摘要曾回退成内部工具名（截图里出现 `file_write_tool`），与「不暴露内部名」的目标相反，改为不显示摘要，并对「什么都没得显示」的动作改成只能拒绝。
+3. 探针里按子串匹配场景名，页面标题里的 `Myrm` 含有 `rm`，把 `long` 场景喂成了 `rm` 的载荷；场景要精确匹配，并核对每个场景收到的载荷确实是它自己的。
+4. macOS 上 Chrome 的界面语言跟随系统，`--lang` 无效；要在同一台机器上验另一种语言，用只带该语言包的扩展副本。patchright 的 `evaluate` 默认在隔离世界里读不到 `chrome.*`，要传 `isolated_context=False`；最小化的窗口无法截图。
+5. 降低透明度来表示禁用，会同时压低其中文字的对比度；用虚线边框表示禁用，文字保持原对比度。
+
+---
