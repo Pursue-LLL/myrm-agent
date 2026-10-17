@@ -5506,7 +5506,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-16 |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P3（展示失真与不必要的开销，不影响数据） |
-| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json` |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json`、根仓库 `temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` |
 | 出现次数 | 1 |
 | 关联条目 | BUG-AGENT-2026-10-16-015（其「局限」里的技能总数在本条删除） |
 
@@ -5517,8 +5517,6 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 成长页第 3 环写着「被拦截或失败: 0」，正下方统计卡写着「30 failed」，同屏对不上。
 4. 手机宽度（390）下英、德、日、韩四种语言的胶囊标题被截断：标题与尾注是同一个文案，再加上「View Learning Loop」这类行动文字，英文需要 348 px、只剩 133 px（德 360/121、日 258/150、韩 237/175），中文不截断；平板 640 宽度出现记忆数后英、德再次截断，768 不截断。同类的 `MemoryHygieneDiscoverChip` 与 `ModelOrchestrationPlaybookChip` 在 sm 以下都把行动文字收起，只有这个胶囊没有。
 5. 设置页统计卡「全部案例」在韩语写「최근 사례」、德语写没翻译的「Recent Cases」，数字却是不带时间过滤的累计值（`queries.py` 的 `total`），与成长页第 2 环的「전체 사례」「Fälle gesamt」同数不同名。
-6. 无痕会话里，空白页同时显示红色横幅「开启后，本会话不读写记忆」与胶囊尾注「五环闭环运转中」：`EmptyChat.tsx` 里 `IncognitoNotice` 排在胶囊之前，胶囊没有引用无痕。服务端在无痕或关闭记忆时关掉记忆工具组、检索、自动提取与会话结束后的整合（`active_tool_groups.py`、`factory.py`）。用户在设置里关闭记忆（`MemorySettingsToggles.tsx` 的 `enableMemory`）后同样。尾注在 md 及以上才显示。
-7. 胶囊图标用 `animate-pulse`，在 Tailwind 4.3.3 里是 2 秒的无限循环：空白页一加载就开始、永不停止，系统开启「减少动态效果」时也照常播放。
 
 ### 根因
 
@@ -5527,8 +5525,6 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 第 3 环与设置页统计卡的口径是 `BLOCKED_LOCKED` 加 `FAILED_SCAN`（`queries.py` 的 `blocked_statuses`），应用失败的 `APPLY_FAILED` 在待审核口径里；设置页筛选器 `matchesFilter('blocked')` 同口径，且叫「已拦截」。「或失败」是多出来的词，与同屏另一处的「失败」撞车。
 4. 标题与尾注合成一个文案、行动文字在所有宽度都显示、记忆数从 sm（640）起显示，窄屏上标题没有余量。
 5. 韩语、德语的 `settings.skills.growth.summary.total` 沿用了「最近」的措辞，没有跟着累计口径走。
-6. 尾注是写死的状态文案，而胶囊与会话无关，不知道当前会话是否无痕、记忆是否开启。
-7. 图标用了框架自带的无限循环类，没有 `motion-safe`，也没有次数上限。
 
 ### 修复
 
@@ -5536,11 +5532,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 前端：胶囊入口固定渲染、不等任何请求；记忆数改读 `GET /memory/stats`，读到且大于 0 才在宽屏显示，读不到只留入口；请求带 `silent`，读不到时不弹全局错误提示（`apiRequest` 默认会弹，原先胶囊取五环状态时同样会弹，是复查时才发现的遗漏）；`getMemoryStats` 为此加了可选的 `silent` 参数，记忆页的调用不变；删除 `Ring2DistillationStatus.total_skills` 与所有夹具；文案键 `discoveryChip.stats` 改为 `memoriesCount`（带复数）。
 3. 文案：六语种的 `ring3.metricsBlocked` 与 `settings.skills.growth.summary.blocked` 去掉「或失败」，与同页筛选器 `filters.blocked` 同词。
 4. 测试：后端删去技能目录夹具与对应的失败用例；胶囊测试改为：请求未返回前入口已可点并能跳转、有数时显示、数为 0 或请求失败时只省略数字，且固定请求带 `silent`；服务层测试固定 `getMemoryStats` 默认保留全局错误提示、传 `silent` 才压住；胶囊另加一例固定窄屏约定（记忆数与尾注 `hidden md:inline`、标题不隐藏、行动文字 `sr-only md:not-sr-only`）。
-5. 胶囊：文案键拆成 `growsWithYou`（标题）与 `loopName`（尾注），六语种同步；md（768）以下只留标题与箭头，尾注、记忆数、行动文字到 md 才显示，记忆数的断点从 sm 改到 md（640 宽度实测会把英、德标题挤断）；行动文字窄屏用 `sr-only` 而不是 `hidden`，读屏仍读得到「查看闭环」。
+5. 胶囊：文案键拆成 `growsWithYou`（标题）与新增的 `loopActive`（尾注），六语种同步；md（768）以下只留标题与箭头，尾注、记忆数、行动文字到 md 才显示，记忆数的断点从 sm 改到 md（640 宽度实测会把英、德标题挤断）；行动文字窄屏用 `sr-only` 而不是 `hidden`，读屏仍读得到「查看闭环」。
 6. 文案：韩语 `settings.skills.growth.summary.total` 改为「전체 사례」，德语改为「Fälle gesamt」，与第 2 环同词。
 7. 文档：`topic_09` 路线图两处写「`GrowingLoopDiscoveryChip.tsx:33,35-49` 的 `sessionStorage` 关闭键」，该文件没有关闭键（按 `sessionStorage` 搜该文件与它的 git 历史均为 0 处），删去这一处引用并写明该胶囊每次必渲染；同句里其他胶囊的引用没有动。
-8. 文案：`loopName` 的六语种只写名称、去掉原来的状态词（运转中、Active 等；中「五环闭环」、繁「五環閉環」、英「5-Ring Closed Loop」、日「5環閉ループ」、韩「5개 링 닫힌 루프」与查看页面标题同写法、德「5-Ringe-Closed-Loop」）。
-9. 胶囊：图标改为 `motion-safe:animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_2]`，只脉冲两次（约 4 秒）就静止，系统开启「减少动态效果」时不播放；去掉图标上与父元素重复的 `text-primary`。W3C 对自动开始、持续超过 5 秒且与内容并列的动效要求提供暂停机制，其合规示例是 5 秒后停止。
 
 ### 验证
 
@@ -5551,9 +5545,6 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 5. 窄屏版式（真实浏览器，无头 Chromium，开发服务）：六语种 × 九个宽度（360、375、390、640、700、767、768、1024、1440）× 记忆数 1234 与 0 两种状态共 108 组，全部满足：标题不截断、整行与记忆数不溢出、页面无横向滚动；768 以下尾注、记忆数、行动文字都不显示，768 起按预期显示（记忆数为 0 时不显示）。记忆数是拦截 `/memory/stats` 的响应强制出来的（1234 取最宽的现实位数），不是库里的真实值。把胶囊改回旧写法（尾注与行动文字全宽显示）后，同一脚本在英、德的 18 组里全部报失败：360 至 390 的 6 组标题被截断，640 至 767 的 6 组尾注仍显示；768 起的 6 组报「行动文字不可见」，是这个变异去掉了脚本用来定位行动文字的类名，不是版式问题。
 6. 窄屏约定的单测另做 5 种变异（记忆数断点改回 sm、尾注全宽显示、行动文字改成 `hidden`、去掉尾注、标题在窄屏隐藏），全部被拦住并核对还原；`verify:i18n`（含引用检查）、`verify:theme-colors`、`oxlint`、`prettier`（触碰的 ts/tsx）再次通过。
 7. 无障碍名称（真实 Chromium，静态页面，样式取自已安装 Tailwind 4.3.3 的 `sr-only`、`not-sr-only`、`hidden` 定义，不是运行中的应用）：390 宽度下按钮的名称是「The Agent that Grows with You View Learning Loop」，行动文字在名称里、尾注不在；把行动文字换成 `display:none` 则名称只剩标题；1440 宽度下两者都在。
-8. 单测共 6 例，新增「图标只在允许动效时脉冲两次、不再带无限循环类」一例；另做 4 种变异（图标改回 `animate-pulse text-primary`、尾注取回旧键、去掉 `motion-safe:` 前缀、次数改成 `infinite`），全部被拦住并核对还原。
-9. 动画实测（真实 Chromium，静态页面，用仓库的 Tailwind 4.3.3 编译胶囊源码里的真实类，不是运行中的应用）：允许动效时图标只有 1 个名为 pulse 的动画、2 次、每次 2 秒，约 4.6 秒后没有运行中的动画且不透明度为 1；`prefers-reduced-motion: reduce` 时 `animation-name` 为 none、没有任何动画。
-10. 宽度（静态页面，系统字体，不是应用的字体）：六语种 × 八个宽度（360、390、640、767、768、800、1024、1440）× 记忆数 123456、1234、0 × 新旧尾注共 288 组，新旧各 144 组都没有标题、整行、记忆数的裁切，也没有按钮与页面的横向溢出；不做对照的话这个结论没有意义，所以另跑了对照：把尾注与行动文字改回全宽显示，英、日、韩、德在 360、390 宽度下标题被截断（旧尾注 8/12 组，新尾注 7/12 组，韩语 390 因尾注变短不再截断），说明脚本量得出截断。`verify:i18n`（含引用检查）、`verify:theme-colors`、`oxlint`、`prettier`（触碰的 ts/tsx）通过。
 
 ### 局限
 
@@ -6376,13 +6367,13 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ---
 
-## BUG-AGENT-2026-10-17-009: 后台聊天流式时把子智能体树与裂变条写进当前打开的聊天；点「新对话」不清空子智能体面板；慢响应把已离开聊天的子智能体与计划写回；目标队列重排被服务端拒绝后界面仍显示新顺序；输入法确认键按处理器运行时刻计时，主线程忙时被当成「发送」；「全部停止」与委派暂停失败的提示回显服务端英文
+## BUG-AGENT-2026-10-17-009: 后台聊天流式时把子智能体树与裂变条写进当前打开的聊天；慢响应把已离开聊天的子智能体写回；目标队列重排被服务端拒绝后界面仍显示新顺序；输入法确认键按处理器运行时刻计时，主线程忙时被当成「发送」；「全部停止」与委派暂停失败的提示回显服务端英文；另加固三处生产里不可达的状态（面板清空条件、`clearPlan`、目标空 id）
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-17（对「聊天 A 在后台跑、用户在聊天 B」这一状态逐条追问各个单槽 store 写入点，并在未改动的代码上逐条复现） |
 | 修复日期 | 2026-10-17 |
-| 严重程度 | P2（界面把别的聊天的子智能体、计划、队列顺序显示成当前聊天的；停止按钮作用于当前聊天，不会误停别的聊天） |
+| 严重程度 | P2（界面把别的聊天的子智能体与裂变条显示成当前聊天的、队列顺序与服务端不一致；停止按钮作用于当前聊天，不会误停别的聊天） |
 | 影响范围 | frontend：`src/store/chat/messageStream/handlers/{handlerDeps,subagentEvents,toolsProgressEvents,toolLifecycleEvents,fileDiffEvents}.ts`、`src/store/chat/{useSubagentStore,subagentNodeMerge}.ts`、`src/store/chat/goals/{useGoalStore,usePlanStore}.ts`、`src/components/features/chat-window/subagent/SubagentDashboard.tsx`、`src/lib/utils/imeUtils.ts` 与对应测试、`_ARCH.md` |
 | 出现次数 | 1 |
 | 关联 | 路线图 `topic_09_frontend_ux_roadmap.md` #399；目标槽位与输入法守卫的前一批改动已先行提交；本批提交 `1bc5a5a289`（输入法）、`90a8929c23`（目标与计划 store）、`7590d6969f`（子智能体 / 裂变门控与面板）；本地提交，未 push |
@@ -6391,9 +6382,9 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 1. 子智能体与裂变事件（`SUBAGENT_START / PROGRESS / LOG / STALE`、`FISSION_TOPOLOGY`、`TEAMMATE_MESSAGE`、`swarm_fission`）由流处理器直接写全局单槽的 `useSubagentStore`，不核对事件属于哪个聊天。多个聊天可同时流式（`messageRequest.ts:936` 的 `createSmartUpdater` 只把消息更新按聊天分流），后台聊天的事件因此写进当前打开聊天的面板；`SUBAGENT_PROGRESS` 带 token 用量时还会凭空建出占位节点。
 2. `fetchSubagents(chatId)` 的回包不核对用户是否已离开该聊天：先切走、响应后到，旧聊天的子智能体落进新聊天的树。
-3. 面板的清空条件是 `prev && chatId && prev !== chatId`，点「新对话」（`chatId` 变空）不清空。
-4. `usePlanStore.clearPlan()` 只置空计划，不让在途的 `fetchPlan` 失效：离开聊天或点「新对话」后才返回的响应把旧计划写回。
-5. `useGoalStore` 对空聊天 id 的写入「视为属于当前聊天」，一个说不出自己属于哪个聊天的写入会落进任何打开的聊天。
+3. 面板的清空条件是 `prev && chatId && prev !== chatId`：聊天 id 经过空值（`A → 空 → B`）时，A 的节点在空 id 期间与进入 B 之后都不被清（空 id 那一步不清，进入 B 时记录的上一个 id 已是空）。**生产里不可达**：「新对话」经 `initializeChat(undefined)`（`ContentSidebar.tsx:69`）立刻给新会话分配自己的 id（`chatSessionInit.ts:56-82`），store 的聊天 id 只有初始状态才是空（`useChatStore.ts:116`），在 `src` 里没有找到把已有聊天 id 置空的路径；对照改前的清空条件运行面板用例，「A → 新会话 id」本来就会清空。
+4. `usePlanStore.clearPlan()` 只置空计划，不让在途的 `fetchPlan` 失效。**生产里不可达**：`clearPlan` 只有 `useGoalPlanSync.ts:17,21` 两处调用，`:21` 之后紧跟 `fetchPlan`，而 `fetchPlan` 自己递增请求序号（`usePlanStore.ts:104`），旧聊天的回包本来就会被丢弃；`:17` 只在聊天 id 为空时走，同样只出现在初始状态。
+5. `useGoalStore` 对空聊天 id 的写入「视为属于当前聊天」，一个说不出自己属于哪个聊天的写入会落进任何打开的聊天。**生产里不可达**：流发起时没有聊天 id 会在 `messageRequest.ts:573-574` 抛错，没有调用方依赖这条通配语义。
 6. `reorderQueue` 先乐观排序，之后不看 `res.ok`，也不在失败时回滚：服务端拒绝或网络失败时界面一直显示服务端没有采纳的顺序。
 7. 输入法在 Safari / WebKit 先派发 `compositionend`、再补发确认 Enter 的顺序倒置，由 100ms 时间窗兜底；时间窗用「处理器运行那一刻的 `Date.now()`」与 `compositionend` 时刻相减，主线程繁忙使处理器晚于浏览器创建事件 100ms 以上时，确认键被当成「发送」。
 8. 「全部停止」在聊天没有运行中子智能体时，服务端回 404 `No running subagents found for chat session …`（`app/api/agents/subagents.py:147`），前端把这句英文原样弹成 toast；委派暂停 / 恢复被拒同样回显服务端文案。
@@ -6407,8 +6398,8 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 ### 修复
 
 1. `handlerDeps.ts` 新增 `isStreamForOpenChat(state)`（流所属聊天可解析、且就是当前打开的聊天）与 `writeSubagentStore(state, write)`（子智能体 store 懒加载完成后再判定并写入，加载期间发生的切换也会丢弃写入）；`subagentEvents.ts` 六处与 `toolsProgressEvents.ts` 的 `swarm_fission` 全部经它写入，后台聊天只更新自己的消息；`TEAMMATE_MESSAGE` 以流的聊天 id 打标。原有三处手写比较（`toolLifecycleEvents.ts` 两处、`fileDiffEvents.ts` 一处）改用同一判定，语义不变。裂变部分失败的 toast 对所有聊天保留。
-2. `fetchSubagents` 在回包处理前核对当前打开的聊天仍是请求的聊天，否则丢弃；面板清空条件改为 `prev && prev !== chatId`（新聊天拿到 id 的 `无 → id` 不清空，它的流已写进去的节点保留）。
-3. `clearPlan` 递增请求序号并复位 `isLoading`，使在途 `fetchPlan` 失效。
+2. `fetchSubagents` 在回包处理前核对当前打开的聊天仍是请求的聊天，否则丢弃；面板清空条件改为 `prev && prev !== chatId`（`无 → id` 不清空，已写进去的节点保留；生产里行为与改前一致，只是不再依赖聊天 id 经过空值）。
+3. `clearPlan` 递增请求序号并复位 `isLoading`，使在途 `fetchPlan` 失效（store 自身不变量的加固，不再依赖调用方随后发起新请求）。
 4. `useGoalStore` 的 `applyForChat` 删掉空 id 通配：说不出所属聊天的写入一律丢弃（流发起时没有聊天 id 会在 `messageRequest.ts:573-574` 直接抛错，生产路径上不会产生空 id）。
 5. `reorderQueue` 读 `res.ok`，服务端拒绝或网络失败时 `fetchQueue` 重新拉取，界面回到服务端的顺序；成功不多发请求。
 6. `imeUtils.ts` 的 `compositionend` 观察器改记事件 `timeStamp`，按键事件以自己的 `timeStamp` 与之相差（取绝对值）是否落在 100ms 内判定；不再有 `now` 参数；没有 `timeStamp` 的事件不参与此条判定；头注释里「`keyCode` 已是 13」改为「13 或 229，视 WebKit 版本」。
@@ -6417,7 +6408,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ### 验证
 
-1. 先写失败用例并在未改动的代码上确认红：处理器门控 8 例 + 裂变 2 例、`fetchSubagents` 回包 2 例、面板「新对话」清空与两处提示文案 3 例、`clearPlan` 1 例、目标空 id 与重排回滚 3 例、输入法延迟 / 先后倒置 / 无时间戳 4 例；对照用例（打开聊天照常写入、回包仍在原聊天时照常应用、重排成功不重拉）在原代码上即为绿。
+1. 先写失败用例并在未改动的代码上确认红：处理器门控 8 例 + 裂变 2 例、`fetchSubagents` 回包 2 例、面板用例共 6 例，其中红 3（聊天 id 消失时清空、两处提示文案）、改前即绿 3（切到别的聊天、「新对话」的新会话、`无 → id` 不清空）、`clearPlan` 1 例、目标空 id 与重排回滚 3 例、输入法延迟 / 先后倒置 / 无时间戳 4 例；对照用例（打开聊天照常写入、回包仍在原聊天时照常应用、重排成功不重拉）在原代码上即为绿。
 2. 变异 8 个全部被杀：加载前判定而不是加载后、放过空流 id、`fetchSubagents` 去掉核对、`clearPlan` 不失效、目标空 id 通配复原、重排不回滚、重排成功也重拉、时间窗去掉绝对值。其中最后一个最初存活（先后倒置的用例只测了 5ms，去掉绝对值后仍为真），补一条「早于 `compositionend` 很久的按键不吞」后被杀；每次变异后文件由备份还原并核对内容相同。
 3. vitest：`src/store`、`src/components/features/chat-window`、`message-box`、`message-actions` 共 526 个文件 3255 例通过；`src/lib` 与 `src/hooks` 共 225 个文件 2193 例通过。工作区（含他人未提交的文件）`tsc --noEmit` 全量退出码 0、触及文件 `oxlint` 无输出、`prettier --check` 通过（`oxlint` 对一个故意写入 `debugger` 的探针文件确实会报，不是空跑）。
 4. 一次全量运行里 `src/lib/extension/__tests__/sidepanelController.test.ts` 曾报 `chrome.i18n.getUILanguage is not a function`，该文件与扩展侧边栏是他人未提交的改动；单独重跑 34 例通过，之后 `src/lib src/hooks` 全量也通过，与本条无关。
@@ -6430,6 +6421,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 3. 这些缺陷在线上出现的频率没有测量：需要「两个聊天同时流式」「慢回包」「主线程繁忙」等条件，本条只证明条件满足时会出错、修复后不再出错。
 4. 门控放在 `writeSubagentStore` 里意味着后台聊天的子智能体事件不再进入子智能体 store；用户切回该聊天时依赖面板挂载时的 `fetchSubagents` 与轮询从服务端取回，服务端快照是否包含后台期间的流式文字没有核实。
 5. `useGoalStore` 对空聊天 id 的丢弃依赖「流发起时必须有聊天 id」这一前提（`messageRequest.ts:573-574` 在没有聊天 id 时抛错），这个前提是读代码得出的，没有构造运行时用例去触发它。
+6. 现象 3、4、5 在生产里不可达，对应的改动（面板清空条件、`clearPlan`、目标空 id 通配的删除）是对不变量的加固与对无人依赖的语义的删除，没有可观察的线上收益；线上会出现的是现象 1、2（后台聊天与当前聊天同时流式时才触发，前提来自 `createSmartUpdater` 按聊天分流消息的设计）、6、8，7 取决于 Safari 真机。
 
 ### 踩坑经验
 
