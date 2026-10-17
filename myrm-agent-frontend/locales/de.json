@@ -17598,7 +17598,7 @@
         "rejectSuccess": "„{name}“ erfolgreich abgelehnt",
         "rejectFailed": "„{name}“ konnte nicht abgelehnt werden.",
         "summary": {
-          "total": "Recent Cases",
+          "total": "Fälle gesamt",
           "pendingReview": "Ausstehende Prüfung",
           "autoApplied": "Automatisch angewendet",
           "blocked": "Blockiert"

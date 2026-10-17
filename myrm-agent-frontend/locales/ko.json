@@ -17598,7 +17598,7 @@
         "rejectSuccess": "\"{name}\"이(가) 거부되었습니다",
         "rejectFailed": "\"{name}\" 거부 실패",
         "summary": {
-          "total": "최근 사례",
+          "total": "전체 사례",
           "pendingReview": "검토 대기",
           "autoApplied": "자동 적용",
           "blocked": "차단됨"
