@@ -36,7 +36,11 @@ from app.database.models.skill_optimization.batch_snapshot import BatchSnapshot
 from app.services.agent.execution_cache import ExecutionMode
 from app.services.agent.runtime_context import build_agent_runtime_context
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
-from app.services.skills.mutation_batch_service import MutationBatchRollbackError, rollback_skill_mutation_batch
+from app.services.skills.mutation_batch_service import (
+    MutationBatchSkillMissingError,
+    MutationBatchSupersededError,
+    rollback_skill_mutation_batch,
+)
 from app.services.skills.write_orchestrator import resolve_skill_id_by_name
 
 if TYPE_CHECKING:
@@ -151,6 +155,18 @@ async def _save_skill(tool: BaseTool) -> str:
     output, step = await _run_turn(tool, [{"action": "save", "name": SKILL_NAME, "content": SKILL_MD}], CALL_ID)
     assert "created successfully" in output, output
     return _batch_id_of(step)
+
+
+async def _undo(session_factory: async_sessionmaker[AsyncSession], batch_id: str) -> None:
+    """Undo a batch the way the route does: the consumed snapshot rows are only gone once the request commits."""
+    async with session_factory() as session:
+        await rollback_skill_mutation_batch(session, batch_id)
+        await session.commit()
+
+
+async def _held_batches(session_factory: async_sessionmaker[AsyncSession]) -> set[str]:
+    async with session_factory() as session:
+        return set((await session.execute(select(BatchSnapshot.batch_id))).scalars().all())
 
 
 def test_catalog_primary_root_is_the_writers_storage_root() -> None:
@@ -331,8 +347,49 @@ async def test_undo_of_a_rewrite_is_refused_once_the_skill_was_deleted(
     await _run_turn(skill_manage_tool, [{"action": "delete", "name": SKILL_NAME}], DELETE_CALL_ID)
 
     async with session_factory() as session:
-        with pytest.raises(MutationBatchRollbackError):
+        with pytest.raises(MutationBatchSkillMissingError):
             await rollback_skill_mutation_batch(session, _batch_id_of(step))
 
     assert not (skills_root / SKILL_NAME).exists(), "the undo brought the deleted skill back"
     assert await resolve_skill_id_by_name(SKILL_NAME) is None
+
+
+async def test_undo_of_a_save_is_refused_as_missing_once_the_skill_was_deleted(
+    skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """The save's Undo would remove a skill that is already gone: the user gets the same "deleted" answer as for a rewrite."""
+    created_batch = await _save_skill(skill_manage_tool)
+    await _run_turn(skill_manage_tool, [{"action": "delete", "name": SKILL_NAME}], DELETE_CALL_ID)
+
+    async with session_factory() as session:
+        with pytest.raises(MutationBatchSkillMissingError):
+            await rollback_skill_mutation_batch(session, created_batch)
+
+    assert not (skills_root / SKILL_NAME).exists()
+    assert await _held_batches(session_factory) == {created_batch}, "the refusal consumed the snapshot"
+
+
+async def test_undo_of_an_older_batch_is_refused_until_the_newer_batch_is_undone(
+    skill_manage_tool: BaseTool, skills_root: Path, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """Undoing the save after a patch would write the saved text over the patch and lose it without a trace."""
+    created_batch = await _save_skill(skill_manage_tool)
+    skill_md = skills_root / SKILL_NAME / "SKILL.md"
+    created = skill_md.read_text(encoding="utf-8")
+    patch: list[dict[str, object]] = [
+        {"action": "patch", "name": SKILL_NAME, "old_content": "Do the thing.", "new_content": "Do it differently."}
+    ]
+    _, step = await _run_turn(skill_manage_tool, patch, SECOND_CALL_ID)
+    patch_batch = _batch_id_of(step)
+    patched = skill_md.read_text(encoding="utf-8")
+
+    async with session_factory() as session:
+        with pytest.raises(MutationBatchSupersededError):
+            await rollback_skill_mutation_batch(session, created_batch)
+
+    assert skill_md.read_text(encoding="utf-8") == patched, "the refused undo still rewrote the skill"
+    assert await _held_batches(session_factory) == {created_batch, patch_batch}, "the refusal consumed a snapshot"
+    await _undo(session_factory, patch_batch)
+    assert skill_md.read_text(encoding="utf-8") == created
+    await _undo(session_factory, created_batch)
+    assert not (skills_root / SKILL_NAME).exists()

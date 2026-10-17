@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -12,10 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.database.models import Base, BatchSnapshot
+from app.services.skill_optimization import rollback_service
 from app.services.skill_optimization.bootstrap import get_skill_optimization_storage
 from app.services.skill_optimization.rollback_service import RollbackService
 
 _METADATA: dict[str, object] = {"batch_kind": "skill_mutation", "resource_files": {}, "existed_before_batch": True}
+_TICK = datetime(2030, 5, 17, 8, 10, 0, 123456, tzinfo=UTC)
 
 
 @pytest_asyncio.fixture
@@ -72,6 +75,36 @@ async def test_insert_without_commit_is_discarded_on_session_rollback(
         rows = list((await session.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == "batch-atomic"))).scalars())
 
     assert rows == []
+
+
+class _StoppedClock:
+    """A clock that never advances, like a coarse system clock read twice within one tick."""
+
+    @staticmethod
+    def now(tz: timezone | None = None) -> datetime:
+        return _TICK.astimezone(tz)
+
+
+@pytest.mark.asyncio
+async def test_snapshots_written_within_one_clock_tick_still_get_distinct_increasing_creation_times(
+    session_factory: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Which of two batches of a skill is newer is read off ``created_at``, so no two snapshots may share it."""
+    monkeypatch.setattr(rollback_service, "datetime", _StoppedClock)
+    monkeypatch.setattr(rollback_service, "_last_created_at", datetime.min.replace(tzinfo=UTC))
+    batch_ids = ["batch-first", "batch-second", "batch-third"]
+    for batch_id in batch_ids:
+        async with session_factory() as session:
+            await RollbackService(session).insert_mutation_batch_snapshot(
+                batch_id=batch_id, skill_id="skill-a", skill_content="# before", metadata=_METADATA
+            )
+
+    async with session_factory() as session:
+        created_at = dict((await session.execute(select(BatchSnapshot.batch_id, BatchSnapshot.created_at))).tuples().all())
+
+    stamps = [created_at[batch_id] for batch_id in batch_ids]
+    assert stamps == sorted(set(stamps)), f"creation times repeat or run backwards: {stamps}"
+    assert stamps[0].replace(tzinfo=UTC) == _TICK, "the stored time lost the sub-second part"
 
 
 @pytest.mark.asyncio

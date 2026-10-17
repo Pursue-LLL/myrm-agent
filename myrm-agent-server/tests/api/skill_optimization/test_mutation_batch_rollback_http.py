@@ -15,7 +15,12 @@ from app.api.skill_optimization.routes import versions as versions_routes
 from app.database.connection import get_db
 from app.database.models import Base
 from app.services.skill_optimization.rollback_service import RollbackService
-from app.services.skills.mutation_batch_service import MutationBatchCompensationError, MutationBatchRollbackError
+from app.services.skills.mutation_batch_service import (
+    MutationBatchCompensationError,
+    MutationBatchRollbackError,
+    MutationBatchSkillMissingError,
+    MutationBatchSupersededError,
+)
 
 
 @pytest.fixture
@@ -106,10 +111,29 @@ def test_mutation_batch_rollback_route_already_consumed(
     assert detail["code"] == "batch_already_consumed"
 
 
+def test_mutation_batch_rollback_route_refuses_an_older_batch_while_a_newer_one_holds_the_skill(
+    rollback_http_client: tuple[TestClient, async_sessionmaker[AsyncSession]],
+) -> None:
+    """The real service decides, the route reports it: 409 ``batch_superseded`` and neither batch is consumed."""
+    client, session_factory = rollback_http_client
+    asyncio.run(_seed_snapshot(session_factory, "batch-older"))
+    asyncio.run(_seed_snapshot(session_factory, "batch-newer"))
+
+    refused = client.post("/api/v1/skill-optimization/mutations/batch-older/rollback")
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["code"] == "batch_superseded"
+    assert "batch-newer" in refused.json()["detail"]["message"]
+    still_there = client.post("/api/v1/skill-optimization/mutations/batch-older/rollback")
+    assert still_there.json()["detail"]["code"] == "batch_superseded", "the refusal consumed the older batch"
+
+
 @pytest.mark.parametrize(
     ("failure", "expected_code"),
     [
         (MutationBatchCompensationError("restoring the live state failed"), "compensation_failed"),
+        (MutationBatchSupersededError("skill-1 was changed again by batch newer"), "batch_superseded"),
+        (MutationBatchSkillMissingError("skill-1 no longer exists"), "skill_missing"),
         (MutationBatchRollbackError("snapshot is not rollback-eligible"), "rollback_failed"),
     ],
 )

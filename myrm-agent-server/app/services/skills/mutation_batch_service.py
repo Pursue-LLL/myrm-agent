@@ -7,11 +7,14 @@
 [OUTPUT]
 - rollback_skill_mutation_batch (按 batch_id 恢复 skill_mutation / market_replace 批次，成功后消费快照)
 - batch_rollback_lock (同一批次的撤销请求串行：后到者读到已消费的快照，答 already_consumed，而不是回写过期现场)
-- MutationBatchRollbackError / MutationBatchCompensationError / MutationBatchAlreadyConsumedError (fail-closed 错误族)
+- MutationBatchRollbackError 及其子类 MutationBatchCompensationError / MutationBatchAlreadyConsumedError /
+  MutationBatchSupersededError / MutationBatchSkillMissingError (fail-closed 错误族，路由各自映射为不同的 409 错误码)
 [POS]
 批次回滚服务：先捕获现场、逐 skill 应用快照，失败则反向补偿恢复，成功后清理快照与替换指针。
+任何写入之前先拒绝两类撤销：目标 skill 已被删除；以及同一 skill 之后还有未撤销的较新批次（撤销较旧批次会把
+旧内容盖在新内容上，较新批次自己的撤销随后也就无真可恢复），故同一 skill 的批次只能由新到旧撤销。
 读完快照行即结束请求会话的读事务：恢复经其它 session 提交版本行，仍持旧读快照的会话在末尾 DELETE 时会以
-SQLITE_BUSY_SNAPSHOT 失败（busy_timeout 不覆盖），消费快照的 DELETE 因此必须开新事务。
+SQLITE_BUSY_SNAPSHOT 失败（busy_timeout 不覆盖），消费快照的 DELETE 因此必须开新事务；较新批次的查询因而在同一次读事务内完成。
 """
 
 from __future__ import annotations
@@ -42,6 +45,14 @@ class MutationBatchCompensationError(MutationBatchRollbackError):
 
 class MutationBatchAlreadyConsumedError(MutationBatchRollbackError):
     """Batch snapshots are missing (unknown batch_id or rollback already applied)."""
+
+
+class MutationBatchSupersededError(MutationBatchRollbackError):
+    """A newer batch still holds a snapshot of one of the batch's skills: undo that batch first."""
+
+
+class MutationBatchSkillMissingError(MutationBatchRollbackError):
+    """A skill the batch rewrote or created has since been deleted, so there is nothing left to undo."""
 
 
 _ROLLBACK_BATCH_KINDS = frozenset({"skill_mutation", "market_replace"})
@@ -77,6 +88,8 @@ class _SnapshotRow:
     skill_id: str
     skill_content_before: str
     skill_metadata: dict[str, object]
+    # The newest other batch that snapshotted this skill after this row was taken and has not been undone.
+    superseded_by: str | None = None
 
 
 async def _read_skill_md(skill_id: str) -> str | None:
@@ -242,22 +255,38 @@ async def _apply_row_snapshot(row: _SnapshotRow) -> None:
         )
 
 
+async def _newer_batch_id(session: AsyncSession, batch_id: str, row: BatchSnapshot) -> str | None:
+    """The newest other batch whose snapshot of the row's skill was taken after the row's, if any is still held."""
+    return await session.scalar(
+        select(BatchSnapshot.batch_id)
+        .where(
+            BatchSnapshot.skill_id == row.skill_id,
+            BatchSnapshot.batch_id != batch_id,
+            BatchSnapshot.created_at > row.created_at,
+        )
+        .order_by(BatchSnapshot.created_at.desc())
+        .limit(1)
+    )
+
+
 async def _load_snapshot_rows(session: AsyncSession, batch_id: str) -> list[_SnapshotRow]:
-    """Read the batch's snapshot rows, then end the read transaction.
+    """Read the batch's snapshot rows (and which of them a newer batch supersedes), then end the read transaction.
 
     The restore commits skill version rows through other sessions of the same SQLite file. A read snapshot kept
     open across those commits makes the final DELETE fail with SQLITE_BUSY_SNAPSHOT (``database is locked``, which
     busy_timeout does not cover), so the DELETE has to begin its own transaction.
     """
     result = await session.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == batch_id))
-    rows = [
-        _SnapshotRow(
-            skill_id=row.skill_id,
-            skill_content_before=row.skill_content_before,
-            skill_metadata=dict(row.skill_metadata or {}),
+    rows: list[_SnapshotRow] = []
+    for row in result.scalars().all():
+        rows.append(
+            _SnapshotRow(
+                skill_id=row.skill_id,
+                skill_content_before=row.skill_content_before,
+                skill_metadata=dict(row.skill_metadata or {}),
+                superseded_by=await _newer_batch_id(session, batch_id, row),
+            )
         )
-        for row in result.scalars().all()
-    ]
     await session.rollback()
     return rows
 
@@ -287,6 +316,10 @@ async def rollback_skill_mutation_batch(session: AsyncSession, batch_id: str) ->
             batch_kind = kind
         elif batch_kind != kind:
             raise MutationBatchRollbackError(f"Batch {batch_id} mixes incompatible batch_kind values.")
+        if row.superseded_by:
+            raise MutationBatchSupersededError(
+                f"Skill {row.skill_id} was changed again by batch {row.superseded_by}; undo that batch first."
+            )
 
     live_by_id: dict[str, _SkillLiveState] = {}
     for row in rows:
@@ -298,9 +331,10 @@ async def rollback_skill_mutation_batch(session: AsyncSession, batch_id: str) ->
         if row.skill_id not in live_by_id:
             live_by_id[row.skill_id] = await _capture_live_state(row.skill_id, paths)
         # A deleted skill stays deleted: writing its SKILL.md back would persist a version row for a directory that is
-        # gone and still answer "restored". Refusing before anything is applied leaves nothing to compensate.
-        if meta.get("existed_before_batch") and not live_by_id[row.skill_id].skill_existed:
-            raise MutationBatchRollbackError(f"Skill {row.skill_id} no longer exists; nothing to restore.")
+        # gone and still answer "restored", and a skill the batch created has nothing left to remove. Refusing before
+        # anything is applied leaves nothing to compensate.
+        if not live_by_id[row.skill_id].skill_existed:
+            raise MutationBatchSkillMissingError(f"Skill {row.skill_id} no longer exists; there is nothing left to undo.")
 
     applied_ids: list[str] = []
     current_skill_id: str | None = None
