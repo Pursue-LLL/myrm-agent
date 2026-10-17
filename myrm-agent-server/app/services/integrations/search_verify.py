@@ -73,7 +73,8 @@ async def verify_search_config_live(cfg: SearchServiceConfig, *, query: str | No
         )
         return bool(results)
     except Exception as exc:
-        logger.warning("Search verify probe failed for %s: %s", "/".join(member.search_service for member in members), exc)
+        chain_slugs = "/".join(member.search_service for member in members)
+        logger.warning("Search verify probe failed for %s: %s", chain_slugs, exc)
         return False
 
 
