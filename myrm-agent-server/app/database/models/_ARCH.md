@@ -13,7 +13,7 @@
 | `base.py` | 核心 | DeclarativeBase 基类 | ✅ |
 | `api_key.py` | 域模块 | APIKey（OpenAI 兼容 API Key 模型） | ✅ |
 | `batch_directory.py` | 域模块 | BatchDirectoryProjectModel（Batch 目录并行 prompt 项目） | ✅ |
-| `chat.py` | 域模块 | Chat, Message, ConversationFork, InterruptedTurnMarker（crash auto-continue write-ahead marker）；系统通知行的 `extra_data` 标记键 `SYSTEM_NOTICE_EXTRA_KEYS`（后台任务完成、语音任务完成），写入方与重试读取同一份定义 | ✅ |
+| `chat.py` | 域模块 | Chat（含 `history_sync_token`：上一轮完成时 agent 检查点线程所对应的对话摘要，NULL 表示线程不可信、下一轮重建）, Message, ConversationFork, InterruptedTurnMarker（crash auto-continue write-ahead marker）；系统通知行的 `extra_data` 标记键 `SYSTEM_NOTICE_EXTRA_KEYS`（后台任务完成、语音任务完成），写入方与重试读取同一份定义 | ✅ |
 | `commitment.py` | 域模块 | CommitmentModel（隐式承诺/跟进追踪） | ✅ |
 | `agent.py` | 域模块 | Agent (含 tool_gateway_config, cron_post_run_verify 列), AgentSecret, AgentProfileSnapshot（WebUI rollback SSOT） | ✅ |
 | `agent_history.py` | 域模块 | AgentProfileHistory（乐观锁 version 审计 + Prompt 浏览，非 rollback SSOT） | ✅ |

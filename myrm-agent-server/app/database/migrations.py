@@ -678,6 +678,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "DROP TABLE IF EXISTS search_quota_records",
     "DROP TABLE IF EXISTS browser_runtime_records",
     "DROP TABLE IF EXISTS sandbox_workload_records",
+    "ALTER TABLE chats ADD COLUMN history_sync_token VARCHAR(64)",
 ]
 
 # 创建索引的SQL语句列表

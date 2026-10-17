@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.agent.streaming_support.hitl_timeout::arm_interrupt_timeout (POS: arms or reopens the timer of the interrupt the turn stopped at)
 - app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: persisted turn content)
+- app.services.agent.stream_session.turn_history_sync::commit_turn_history_sync (POS: records that the agent thread mirrors the stored chat once a turn completed)
 - app.services.agent.gateway (POS: queue / drain / execution-timeout errors surfaced to the client)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
 
@@ -65,6 +66,7 @@ from app.services.agent.stream_session.turn_capability_terminal import (
     record_turn_capability_send_completed,
     record_turn_capability_send_failed,
 )
+from app.services.agent.stream_session.turn_history_sync import commit_turn_history_sync
 from app.services.agent.streaming_support.citation_persistence import (
     merge_memory_citation_fallback,
 )
@@ -555,6 +557,7 @@ async def finalize_agent_stream_session(
         or (approval.value and not clarification_sched_needed)
         or session.collector.has_pending_hitl_replay()
     )
+    await commit_turn_history_sync(session, pending_hitl=pending_hitl)
     if not pending_hitl and has_turn_capability_terminal_context(session.request):
         if session.cancel_token.is_cancelled:
             await _record_turn_capability_failed_once(session, "abort")

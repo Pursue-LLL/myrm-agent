@@ -35,7 +35,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_memory_events.py` | ✅ 辅助 | 将 assistant 消息的 `citedMemoryRefs` / `memoryRetrievalTraces` 投影为记忆操作账本事件（`record_memory_influence_event`），消息持久化的有界 best-effort 副作用 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
 | `turn_outline_service.py` | ✅ 辅助 | `TurnOutlineProjectionService`: 将会话消息折叠为轮次大纲投影（`TurnOutlineItem`），供聊天详情与 `GET /chats/{chat_id}/outline` 导航轨使用 | ✅ |
-| `chat_turn.py` | [Pass] 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换；rewind 支持 `scope=conversation/both`（both 联动文件 revert + 快照清理 + 异常自愈补偿 `_restore_pre_rewind_snapshot`，revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；分支突变后 checkpoint sync + `Chat.total_*` 用量重算 + `_sync_todos_for_active_branch` 物理工作区进度文件原子对齐 | [Pass] |
+| `chat_turn.py` | [Pass] 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换；rewind 支持 `scope=conversation/both`（both 联动文件 revert + 快照清理 + 异常自愈补偿 `_restore_pre_rewind_snapshot`，revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；分支突变后：撤销/重试/截断/回退立即清空该会话的 checkpoint 线程（`invalidate_chat_checkpoint`），重新生成与兄弟切换不清线程、由 `history_sync_token` 失配使下一轮重建；`Chat.total_*` 用量重算 + `_sync_todos_for_active_branch` 物理工作区进度文件原子对齐 | [Pass] |
 | `chat_title.py` | ✅ 核心 | 独立聊天标题生成服务：支持轻量模型自动总结、多级容灾降级调用与智能 Snippet 后备提取；截断到提示窗口前先按隐私策略脱敏（避免跨截断点的敏感串半截泄漏） | ✅ |
 | `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口；送给摘要模型的内容由 harness 出站闸门按隐私策略脱敏，库内消息与召回归档保持原文） | ✅ |
 | `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）；`WAKEUP_MESSAGE_ID_PREFIX` 标识系统注入的 wakeup 用户行。 | ✅ |
@@ -58,6 +58,9 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `context_bomb_guard.py` | ✅ 核心 | 入站大文本门禁（>16,000 字符）与透明沙箱工作区文件外溢（`.myrm/spillover/payload_<sha256>.md`）、Prompt Cache 保护引用注入（开头的 `[use skill]` 显式调用标签保持在引用块之前）与 24h 过期自动清扫看门狗 | ✅ |
 | `chat_todo_sync.py` | [Pass] 核心 | 会话树分支局部状态折叠解析（`resolve_session_todo_store`）与全部分支突变（retry/regenerate/undo/truncate/rewind/switch_sibling）物理工作区进度文件原子对齐同步（`sync_workspace_todos_for_active_branch`） | [Pass] |
 
+| `zero_replay/` | ✅ 核心 | 基于单次原子状态快照与零事件重放 Live SSE 订阅的前后端无缝重连协议服务子包（`ZeroReplaySnapshotService`，对接 Harness 框架层 `ZeroReplayProtocolEngine`） | [zero_replay/_ARCH.md](zero_replay/_ARCH.md) |
+| `command_matrix/` | ✅ 核心 | 全量系统指令全景目录（5大领域20+项核心指令）与基于会话状态机的情境感知智能推荐服务（`CommandMatrixService`，对接 Harness 框架层 `CapabilityDiscoveryEngine`） | [command_matrix/_ARCH.md](command_matrix/_ARCH.md) |
+| `group/` | ✅ 核心 | Bot Mode 多 Agent 协同群聊与 Hermes peer 对等私信调度服务（`GroupChatOrchestrationService`） | [group/_ARCH.md](group/_ARCH.md) |
 ---
 
 ## Mixin 组合结构

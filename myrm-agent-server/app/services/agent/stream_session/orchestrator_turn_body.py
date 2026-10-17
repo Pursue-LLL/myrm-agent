@@ -4,11 +4,12 @@
 - app.services.agent.stream_session.orchestrator helpers (POS: shared turn setup)
 - app.services.agent.stream_session.orchestrator_turn_setup (POS: params, search gate, goal provider and runtime context of the turn)
 - app.services.agent.stream_session.pre_reply_compact_sse (POS: idle compact SSE)
+- app.services.agent.stream_session.turn_history_sync (POS: how the turn relates to the chat's agent thread)
 - app.services.agent.stream_session.stream_pump::pump_to_buffer (POS: SSE pump)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle of the turn, registered at turn entry)
 
 [OUTPUT]
-- execute_agent_turn_after_reserve: register cancel token → persist → pre-reply compact → agent session → pump (background)
+- execute_agent_turn_after_reserve: register cancel token → persist → pre-reply compact → history → agent session → pump (background)
 - fail_buffered_turn: end a turn that failed before its stream started with an error SSE and release its cancel token
 - write_interrupted_turn_marker: persist the write-ahead marker that makes a crashed turn recoverable
 
@@ -24,6 +25,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from fastapi import Request
+from myrm_agent_harness.runtime.context.session import HISTORY_MODE_CONTEXT_KEY
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationRegistry,
     CancellationToken,
@@ -51,6 +53,7 @@ from app.services.agent.stream_session.stream_session_types import AgentStreamSe
 from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
 )
+from app.services.agent.stream_session.turn_history_sync import resolve_turn_history_mode
 from app.services.agent.streaming_support.sse_helpers import error_sse
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.compact_service import CompactResult
@@ -127,6 +130,7 @@ async def execute_agent_turn_after_reserve(
         request,
         exclude_message_id=persisted_message_id,
     )
+    history_mode = await resolve_turn_history_mode(request, exclude_message_id=persisted_message_id)
 
     await apply_migration_bound_project(request)
 
@@ -157,6 +161,8 @@ async def execute_agent_turn_after_reserve(
         base=turn.extra_context,
         goal_provider=goal_provider,
     )
+    if history_mode is not None:
+        extra_context[HISTORY_MODE_CONTEXT_KEY] = history_mode
 
     is_long_running_task = request.action_mode in ("deep_research", "agentic_search")
     collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)

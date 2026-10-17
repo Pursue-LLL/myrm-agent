@@ -68,8 +68,8 @@ def _assert_held(response: _HttpResponse) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _checkpoint_sync_is_not_under_test() -> Iterator[None]:
-    with patch("app.services.chat.chat_turn._ChatTurnMixin._sync_checkpoint_after_mutation", new_callable=AsyncMock):
+def _checkpoint_invalidation_is_not_under_test() -> Iterator[None]:
+    with patch("app.services.chat.chat_turn._ChatTurnMixin._invalidate_checkpoint_after_mutation", new_callable=AsyncMock):
         yield
 
 

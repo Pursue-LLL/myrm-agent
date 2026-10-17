@@ -117,6 +117,7 @@ async def _dispatch_auto_continue(
             return
 
         from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+        from myrm_agent_harness.runtime.context.session import HISTORY_MODE_CONTEXT_KEY
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
         from app.ai_agents import GeneralAgentParams
@@ -166,10 +167,11 @@ async def _dispatch_auto_continue(
 
         answer = AnswerDraft()
         token_economics: dict[str, object] | None = None
+        # The interrupted run left its partial state on the thread; the replay rebuilds the thread from history.
         stream = ai_agent_service_stream(
             params=params,
             cancel_token=token,
-            extra_context=runtime_context,
+            extra_context={**runtime_context, HISTORY_MODE_CONTEXT_KEY: "replace"},
         )
         async for chunk in stream:
             if not isinstance(chunk, dict):

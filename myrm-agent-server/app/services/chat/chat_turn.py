@@ -49,10 +49,10 @@ class _ChatTurnMixin(_ChatServiceBase):
         await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, {"last_message": new_last})
 
     @staticmethod
-    async def _sync_checkpoint_after_mutation(chat_id: str) -> None:
-        from app.services.chat.session_continuity_service import sync_chat_checkpoint_from_db
+    async def _invalidate_checkpoint_after_mutation(chat_id: str) -> None:
+        from app.services.chat.session_continuity_service import invalidate_chat_checkpoint
 
-        await sync_chat_checkpoint_from_db(chat_id)
+        await invalidate_chat_checkpoint(chat_id)
 
     @staticmethod
     async def _sync_todos_for_active_branch(chat_id: str) -> None:
@@ -98,7 +98,7 @@ class _ChatTurnMixin(_ChatServiceBase):
                 deleted_message_ids=deleted_ids,
             )
         if result.success:
-            await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+            await _ChatTurnMixin._invalidate_checkpoint_after_mutation(chat_id)
             await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
             await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return result
@@ -160,7 +160,7 @@ class _ChatTurnMixin(_ChatServiceBase):
                 deleted_message_ids=deleted_ids,
             )
         if result.success and result.deleted_count > 0:
-            await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+            await _ChatTurnMixin._invalidate_checkpoint_after_mutation(chat_id)
             await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
             await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return result
@@ -188,7 +188,7 @@ class _ChatTurnMixin(_ChatServiceBase):
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
             result = TruncateResult(success=True, deleted_count=len(deleted_ids))
         if result.success and result.deleted_count > 0:
-            await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+            await _ChatTurnMixin._invalidate_checkpoint_after_mutation(chat_id)
             await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
             await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return result
@@ -306,7 +306,7 @@ class _ChatTurnMixin(_ChatServiceBase):
                 error="NOTHING_TO_REWIND",
             )
 
-        await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
+        await _ChatTurnMixin._invalidate_checkpoint_after_mutation(chat_id)
         await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
         await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         goal_paused = await pause_active_goal_for_rewind(chat_id)
