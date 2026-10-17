@@ -328,7 +328,6 @@ class TestRunRetry:
                 success=False,
                 error="RunawayCircuitBreakException",
                 circuit_broken=True,
-                circuit_break_reason="Runaway loop detected",
             )
         )
 

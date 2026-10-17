@@ -985,7 +985,6 @@ class AgentJobRunner:
                     success=False,
                     error=str(exc),
                     circuit_broken=True,
-                    circuit_break_reason=str(exc),
                 )
             logger.warning("Cron agent job %s failed: %s", job.id, exc)
             return JobResult(success=False, error=str(exc))
@@ -1009,7 +1008,6 @@ class _StreamAccumulator:
     error: str | None = None
     stop_reason: dict[str, object] | None = None
     circuit_broken: bool = False
-    circuit_break_reason: str | None = None
     _seen_indices: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:
@@ -1042,7 +1040,6 @@ class _StreamAccumulator:
                 error=self.error or "Runaway circuit break triggered",
                 metadata=metadata or None,
                 circuit_broken=self.circuit_broken,
-                circuit_break_reason=self.circuit_break_reason,
             )
 
         return JobResult(
@@ -1134,7 +1131,6 @@ async def _consume_stream(
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
             if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
                 acc.circuit_broken = True
-                acc.circuit_break_reason = str(error_msg)
         elif event_type == "tasks_steps":
             acc.progress_steps.append(
                 {
@@ -1186,7 +1182,6 @@ async def _consume_dynamic_workflow_stream(
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
             if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
                 acc.circuit_broken = True
-                acc.circuit_break_reason = str(error_msg)
         elif event_type == "status":
             data = event.get("data")
             if isinstance(data, dict):
