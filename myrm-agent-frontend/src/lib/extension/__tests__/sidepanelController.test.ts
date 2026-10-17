@@ -615,6 +615,24 @@ describe('side panel stream', () => {
     await vi.waitFor(() => expect(element('btn-send').disabled).toBe(false));
   });
 
+  it('marks the refusal of a message for a reason the browser never sees as an error', async () => {
+    await bootPanel([
+      sse([{ type: 'error', error_type: 'AgentBusyError', data: 'Agent is busy processing another request.' }]),
+    ]);
+
+    await send('and then?');
+
+    await vi.waitFor(() => expect(assistantBubbles()[0].textContent).toBe('panelAgentBusy'));
+    expect(assistantBubbles()[0].classList.contains('error')).toBe(true);
+  });
+
+  it('recognizes the refusal by its status code when the payload carries no error type', async () => {
+    await bootPanel([sse([{ type: 'error', status_code: 409, data: 'Agent is busy processing another request.' }])]);
+
+    await send('and then?');
+
+    await vi.waitFor(() => expect(assistantBubbles()[0].textContent).toBe('panelAgentBusy'));
+  });
   it('puts the page in the language of the browser', async () => {
     await bootPanel([], { uiLanguage: 'zh-CN' });
 

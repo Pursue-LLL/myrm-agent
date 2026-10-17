@@ -162,10 +162,14 @@ body {
     90% { --fade-end: 24px; }
     100% { --fade-start: 24px; --fade-end: 0px; }
   }
+  /* The range covers the whole scrollable distance (the default `normal` range only the first viewport), so a list too
+     short to scroll keeps the 0px it starts at instead of fading its only item. Only the top fade is watched below,
+     because a single `scroll()` timeline covers one axis and its 100% state already drops the bottom fade. */
   .approval-list {
     mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
     animation: approval-list-edges linear both;
     animation-timeline: scroll(self);
+    animation-range: 0 100%;
   }
 }
 .approval-action { display: flex; flex-direction: column; gap: 4px; min-width: 0; }

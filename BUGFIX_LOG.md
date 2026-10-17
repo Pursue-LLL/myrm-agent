@@ -5735,7 +5735,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 手机宽度用的是同源 390px 的 iframe（真实媒体查询），不是真机；iframe 里是通过 store 开启无痕的，没有点底部抽屉里的真实开关；触屏不出现悬停提示来自读 Radix 源码，没有在真机上点过。
 3. E2E 只用了简体中文；其他五种语言的文案更长，容器按词换行，没有逐个在浏览器里看。
 4. 无痕会话被清除时，它的分享链接随之失效；在清除之前，分享链接仍可访问，没有额外限制（本次不做）。
-5. 导出已不带无痕会话的工作区文件与子代理库，但还有四处没有处理：(a) `harness/` 根下共享的产物保险库里属于无痕会话的对象仍随导出走：在线清除对它按文件名、描述、id 做子串匹配（`vault.py` 的 `purge_by_task_ids`），归档侧照搬会误删或漏删，所以没有照搬；(b) 上传的附件进的是用户级文件库 `storage/files/uploads/`，不属于任何会话：前端 `services/file.ts` 的 `uploadFiles` 只发文件，接口 `app/api/files/upload.py` 与 `core/storage/service.py` 的 `upload_file` 没有会话参数，`api/files/suggest.py` 的 `_suggest_stored_files` 对所有会话列出全部上传文件。所以无痕会话里传的附件不会随会话清除，会出现在别的会话的 `@` 文件候选里，也随导出走；要归属到会话需要前端、上传接口、存储元数据、在线清除与导出一起改，这次没有做；(c) `artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）；(d) 在线清除先提交会话行的删除，再删检查点与工作区文件（`chat_deletion.py` 的 `permanently_delete_chat`：事务内删行，事务后才调 `chat_disposal.dispose_permanently_deleted_chats`），而导出的名单只认库里仍存在的无痕会话行：恰在两步之间读名单的导出会带走刚被清除的会话的工作区文件与检查点线程；文件删除失败（该函数只记 warning）留下的孤儿工作区同理。窗口长度没有实测，也没有为它加锁。
+5. 导出已不带无痕会话的工作区文件与子代理库，但还有四处没有处理：(a) `harness/` 根下共享的产物保险库里属于无痕会话的对象仍随导出走：在线清除对它按文件名、描述、id 做子串匹配（`vault.py` 的 `purge_by_task_ids`），归档侧照搬会误删或漏删，所以没有照搬；(b) 上传的附件进的是用户级文件库 `storage/files/uploads/`，不属于任何会话：前端 `services/file.ts` 的 `uploadFiles` 只发文件，接口 `app/api/files/upload.py` 与 `core/storage/service.py` 的 `upload_file` 没有会话参数，`api/files/suggest.py` 的 `_suggest_stored_files` 对所有会话列出全部上传文件。所以无痕会话里传的附件不会随会话清除，会出现在别的会话的 `@` 文件候选里，也随导出走；要归属到会话需要前端、上传接口、存储元数据、在线清除与导出一起改，这次没有做（**已在 `BUG-AGENT-2026-10-17-011` 处理**：上传时绑定 `source_chat_id`、候选按会话收窄、小时级清除带走绑定附件并清扫孤儿、导出按会话真实状态剔除；未绑定的上传仍按本条所述保留）；(c) `artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）；(d) 在线清除先提交会话行的删除，再删检查点与工作区文件（`chat_deletion.py` 的 `permanently_delete_chat`：事务内删行，事务后才调 `chat_disposal.dispose_permanently_deleted_chats`），而导出的名单只认库里仍存在的无痕会话行：恰在两步之间读名单的导出会带走刚被清除的会话的工作区文件与检查点线程；文件删除失败（该函数只记 warning）留下的孤儿工作区同理。窗口长度没有实测，也没有为它加锁。
    本机文件系统层面：库里删掉的行在被之后的写入覆盖之前仍留在空闲页里，`data.db` 与 `checkpoints.db` 的 `secure_delete` 没有开。合成数据实测（2.9KB 消息，真实 `ChatRepository.permanently_delete_chat`、`create_checkpointer` 与 `sync_checkpoint_messages`）：`data.db` 删除并 checkpoint 后 150 条里 140 条仍能在文件字节里读到，再写入 20 至 50 条约 3KB 的消息后降到 0 至 35 条，写 600 条后为 0；`checkpoints.db` 删除后 30/30，再写 15 个检查点 28/30，30 个后 0/30；子代理库顺序跑 60 次、每次结束即删，只剩最后一次可读。窗口由之后写了多少决定：忙碌用户几十条消息内就被覆盖，空闲用户会一直留着；`wal_checkpoint` 之前 WAL 文件里也还有删除前的页（周期 6 小时，关机时 TRUNCATE）。没有开 `secure_delete`：窗口窄、开启磁盘加密时丢失设备的场景已被覆盖、主库的写入要多 7% 到 10%（真实 schema 实测），且会话进行期间做的卷快照里无痕会话本来就是存活的行，开了也防不住。超过一页（约 4KB）的正文被溢出页指针切开，朴素的字节搜索找不到，但取证工具能还原，所以上面的数字是下界。全文索引段、`sqlite_backups/` 里最近 3 份热备份（6 小时一轮）、恢复点、日志与遥测里是否残留无痕内容，没有逐项审计。
 6. 暂存与导出都只剔除 `source = 'web'` 的无痕会话；若将来有第二种「到期即删」的来源，要同时改清除条件与这里的谓词（两处现在各写了一份）。
 7. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`checkpoint_scrub.py`、`incognito_workspaces.py`、`policy.py`、`export_service.py`、`stage_db.py`、`_ARCH.md`、四个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
@@ -6499,6 +6499,62 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ---
 
+## BUG-AGENT-2026-10-17-011: 网页无痕会话里上传的附件不属于任何会话：会话到期即删之后附件仍留在用户文件库里，出现在其他会话的 `@` 文件候选与导出包里；导入的外部转写会话（借无痕标志只为不进侧栏）在 `@` 里被当成无痕而拒绝提及
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-17（对 `BUG-AGENT-2026-10-16-022` 局限 5(b) 落实修复时，逐条读上传链路的上传接口、存储元数据、文件候选与在线清除；B 项在复核 `-022` 的 `is_incognito` 语义时由 `params/mention.py` 的谓词与 `_public_chat_ids` 的对照发现） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P2（附件是用户主动发进无痕会话的原文，会话在一小时后连同消息一起消失，附件却长期留在库里并可被别的会话列出、被导出与备份带走；外部转写会话无法被 `@` 引用是功能缺陷） |
+| 影响范围 | server：`app/core/storage/chat_bound.py`（新）、`service.py`、`models.py`、`_ARCH.md`、`app/api/files/upload.py`、`suggest.py`、`pdf_extract.py`、`_ARCH.md`、`app/services/chat/chat_retention.py`、`_ARCH.md`、`app/services/instance_archive/incognito_uploads.py`（新）、`export_service.py`、`table_policy.py`、`_ARCH.md`、`app/services/agent/params/mention.py`、`conversation_recall_index_service.py`、`_ARCH.md`、`scripts/ci/file_line_budget_baseline.txt`；前端：`src/services/incognitoUploadOptions.ts`（新）、`file.ts`、`file-service/{types,sandbox}.ts`、`IncognitoUploadOptions` 的调用点、两处 `_ARCH.md`、三个测试文件（本条的 A1 前端部分由另一会话先落盘，本次只复核未改动）；测试：`tests/core/storage/test_chat_bound_uploads.py`（新，7 例）、`tests/services/chat/test_incognito_upload_retention.py`（新，4 例）、`tests/services/instance_archive/test_incognito_uploads.py`（新，6 例）、`tests/api/files/test_suggest_api.py`（+1）、`test_upload_e2e.py`（+3）、`tests/services/chat/test_prior_chat_mention.py`（拆出转写用例）、`test_chat_bound_rows.py`（+守卫）、`_ARCH.md` |
+| 出现次数 | 1（presentation） |
+| 关联 | `BUG-AGENT-2026-10-16-022` 局限 5(b) 在此处理、5(c) 与 5(d) 保持原样（边界见局限 2、8）；`source_chat_id` 的三种含义见 `app/core/storage/_ARCH.md`；本地提交，未 push |
+
+### 现象
+
+1. 无痕会话里传一份附件，会话闲置一小时被清除后，附件仍在 `storage/files/uploads/` 里；在别的会话里 `@` 文件名，它能被列出来并读给模型；导出、定时备份与导入暂存都带着它。
+2. 会话还没发出第一条消息时勾掉无痕开关再发：附件早已绑定到那个会话（当时是无痕），会话本身却是普通会话——按「绑定即无痕」推断会把这份正常附件删掉。
+3. 从外部转写导入（Claude Code / Codex 等）的会话借 `is_incognito=1` 只是为了不进侧栏，`@` 会话选择器里能搜到它（`app/services/agent/params/conversation_recall_index_service.py` 的 `_public_chat_ids` 不看无痕标志），选中后却被提及注入拒绝：`mention.py` 只判 `chat.is_incognito`，同一份数据两处结论相反。
+
+### 根因
+
+1. 附件是用户级资源：`FilesService.upload_file` 只收文件名与内容，上传接口只转发 `files`，前端 `uploadFiles` 也不带会话 id；`storage/files/uploads/` 不属于任何会话，所以会话的清除清单里根本没有它。
+2. 「无痕会话的附件」这个概念当初没有写在任何一处元数据里，只有会话行知道自己是无痕的，而候选列表、清除、导出三处各自看会话行的时机不同。
+3. `is_incognito` 被两个语义共用（「到期即删」与「别进侧栏」），`mention.py` 是当初顺手加的防护，只读了前半段。
+
+### 修复
+
+1. 元数据里加一个可选绑定 `File.source_chat_id`：上传接口新增可选表单字段 `chat_id`（`max_length=255`，与 `chats.id` 列同宽，空串视作未绑定），前端只在无痕会话里带上它。新增 `core/storage/chat_bound.py` 作为唯一知道「怎么找、怎么删」的地方：`chat_bound_uploads`（只看 UPLOAD 且带绑定）、`derivatives_of`（`pdf-extract-<上传 id>` 的页图）、`delete_uploads_with_derivatives`（逐个容错删除）。选择逻辑是纯函数，导出侧读磁盘 sidecar 与在线清除侧走 `FilesService` 因此同一条规则。
+2. 小时级的无痕清除在删完会话后调 `purge_incognito_uploads(purged_chat_ids)`：被删会话的绑定附件立刻随之下线；其余绑定附件要先确认「所有者会话行不存在」再加 24 小时宽限（会话行是第一条回复才写入的，没有行不等于不会再有行）。整段失败只记 warning，下一轮再选——会话已经删掉，不能因为文件删除失败而回滚。
+3. `@` 文件候选按绑定收窄：`suggest.py` 跳过 `source_chat_id` 与当前会话不同的文件，无痕会话的附件不再出现在别的会话里。
+4. PDF 页图沿用同一个标记（`pdf_extract_source`），随上传一起删。
+5. 导出按「会话的真实状态」判定：`incognito_uploads.without_incognito_uploads(scan, surviving_chat_ids)` 只保留「所有者会话仍在保留名单里」的绑定附件及其页图（`table_policy.live_surviving_chat_ids` 读在线库的 `chats` 表：全部会话减去网页无痕）。所以在无痕里绑定、之后关掉无痕的附件照常入包；被清掉的会话、没有会话行的附件不入包；sidecar 读不出来时该文件不入包并计入 `unreadable`，名单读不到则导出失败。
+6. `mention.py:797` 收窄成 `chat.is_incognito and chat.source == "web"`，与 `_public_chat_ids` 一致：转写导入的会话可以被 `@`，网页无痕仍然拒绝。
+7. `core/storage/service.py` 顺手瘦身：删掉没有生产调用方的 `save_file`，文件回到 400 行以内。
+
+### 验证
+
+1. 每个新行为先写红灯再改代码。`tests/core/storage/test_chat_bound_uploads.py` 7 例（绑定随 sidecar 落盘、只选带绑定的 UPLOAD、页图只选自己的、删上传带页图不动别的、空输入不扫库、单个删除失败不影响其余、`pdf_extract` 接口的标记与清理一致）；`tests/services/chat/test_incognito_upload_retention.py` 4 例（真实 purge + 真实 `FilesService`：被删会话的附件与页图一起消失、没有会话行的附件过宽限期才清、未绑定与存在会话的附件永不动、存储故障不改变会话删除结果且下一轮补上）；`tests/services/instance_archive/test_incognito_uploads.py` 6 例（真实 `build_export`：无痕附件与页图不在包里且密文字节搜不到、关掉无痕的附件与普通附件连同 sidecar 照常入包、sidecar 读不到则文件不入包并如实报告、sidecar 损坏仍入包、名单读不到则导出失败且不留文件、文件库位置与真实运行时一致）；`tests/api/files` 新增 4 例（上传绑定落盘、空 `chat_id` 视作未绑定、超长 `chat_id` 返回 422、候选收窄到当前会话）；`test_prior_chat_mention.py` 拆出「拒绝网页无痕 / 允许转写导入」两例；`test_chat_bound_rows.py` 加一条守卫，钉住 `chat_bound.py` 与在线清除共用同一份判定。
+2. 变异检查：把 `chat_bound_uploads` 的 `purpose is UPLOAD` 去掉、把宽限期改成 0、把导出的判定从「会话状态」改回「有绑定就排除」、把 `chat_id` 直接原样传（空串不再归一），对应用例各自失败；还原后重跑通过。
+3. 全量回归：`tests/core/storage` + `tests/api/files` + `tests/services/instance_archive` + `tests/api/instance_archive` + 两条转写保留用例共 738 例通过（1 例跳过），唯一失败是他人未提交的 `chats.history_sync_token` 未分类（见局限 3）；`tests/services/chat` + `tests/services/agent/params` 561 例通过；`tests/architecture` 8 例失败全部集中在路由消费方、域划分、深层 harness 导入与文本入口风控门，与本条无关（失败清单里没有本次触碰的文件）。
+4. 代价（本机，同一进程内 5 次取最小）：附件 sidecar 扫描 201 个 52.6 ms、1001 个 258.8 ms、1001 个全部带绑定 252.1 ms，约 **0.26 ms/个 sidecar**；`list_files` 只读 sidecar 不读内容，所以与附件大小无关。每小时跑一次，与库里附件总量线性相关；被删会话的附件在下一轮必然被清，其余靠 24 小时宽限兜底。
+5. ruff check/format 与 pyright（`--pythonpath .venv/bin/python`）在本次触碰的 48 个 Python 文件上为零；前端 `tsc --noEmit` 退出 0，`bunx oxlint` 触碰文件只剩他人未提交的 a11y 警告（`ArtifactPortal.tsx:476-477`），`vitest` 触碰目录 178 例通过。
+
+### 局限
+
+1. 前端只在无痕会话里带 `chat_id`；用别的客户端（命令行、扩展、直接打接口）在无痕会话里上传的附件不会绑定，因此不随会话清除、仍会出现在候选与导出里。要彻底收口只能在服务端按会话状态判定，而上传接口不知道「这条消息会发给哪个会话」。
+2. 有意保留：`artifacts` 索引与 `media_library`（在线清除与导出都保留，同 `-022` 局限 5(c)）；批量任务、工具在无痕会话里写出的 `generated` 产物仍按 7 天过期与普通数据入包；日志与遥测没有审计。
+3. `tests/services/instance_archive/test_schema_reconciliation.py::test_secret_looking_columns_are_classified_or_reviewed` 失败于 `chats.history_sync_token`：那是别的会话未提交的模型改动，需要它的负责人分类，不是本条。
+4. 清除与导出仍有窗口：导出先读会话名单再扫描文件，恰在「会话行已提交删除、附件尚未删除」之间读名单的导出会带走刚清掉的附件。窗口长度没有实测，也没有为它加锁（同 `-022` 局限 5(d)，只是对象从工作区换成了附件）。
+5. `save_file_reference` 在生产上没有调用方，只有测试在 patch 它；本次没有动，属于 `-022` 之后的独立清理项。
+6. 只在本地库上跑过；没有在开启 `secure_delete`、磁盘加密或沙箱（S3）模式的目标机上复核，S3 后端不读 sidecar 的路径逻辑未经实测。
+
+### 教训
+
+1. 「删除的就是整个会话」这句话里，会话的范围要按用户看得见的东西列：消息、检查点、工作区文件、附件、页图，各自住在不同的存储里，谁都不是另一个的附属。
+2. 一个布尔标志承担两种语义（到期即删 / 不进侧栏）时，任何只看这个标志的新判据都会在一半场景里错：要么拆成两个字段，要么每处都带上 `source` 再判。
+3. 「绑定」是上传时的快照，「是否无痕」是会变的：源数据该问当前状态（会话行），快照只配用来找候选，不能直接当结论。
+
 ## BUG-AGENT-2026-10-17-011: 浏览器扩展侧边栏没有渲染澄清表单的位置，Agent 一调用提问工具面板的流就在中断处无声结束；审批超时后服务端仍在续跑，此时发消息被提示「检查连接」；长命令的审批卡只露出三分之一且没有滚动提示
 
 | 属性 | 值 |
@@ -6524,17 +6580,17 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 ### 修复
 
 1. `approval.js` 的 `buildStreamBody`：新消息与审批答复（同一个构造函数）都带 `agent_config.enabled_builtin_tools = ["web_search", "memory"]`，即默认工具集去掉 `structured_clarify`。Agent 因此用对话文字提问，用户在面板输入框回答。复用网页端同款契约（`messageRequest.ts:756-759`），服务端侧 `request.agent_config` 只有 `converter.py:516`（需 `agent_id`，面板没有）与 `:642-647` 两处读取；覆盖的其余字段（`skill_ids`、`auto_restore_domains`、`browser_source`、`dialog_policy`、`session_recording`、`tool_gateway_config`）与不带 `agent_config` 时的初值逐项相同。
-2. `sidepanel.js`：`error_type === "AgentBusyError"` 时显示新文案 `panelAgentBusy`（en：The agent is still working on the previous step. Try again in a moment. / zh_CN：Agent 还在处理上一步，请稍后再试。），其余错误保持通用文案；`error` 事件改走 `chatView.showError`（带 `.error` 样式，无前文时不再有前导空行，有前文时文本与原来一致）。
-3. `sidepanel.css`：审批卡改为纵向 flex，高度随内容增长、上限为面板剩余高度，只有明细列表滚动，标题、提示、截止行与按钮不收缩；列表边缘用 `mask-image` 加 CSS 滚动驱动动画渐隐，只在边缘之外还有内容时出现（无溢出时时间线不活动，渐隐保持初值 0），包在 `@supports (animation-timeline: scroll())` 里。无 JS、无魔法数字。
+2. `sidepanel.js`：`error_type === "AgentBusyError"` 或 `status_code === 409` 时显示新文案 `panelAgentBusy`（en：The agent is still working on the previous step. Try again in a moment. / zh_CN：Agent 还在处理上一步，请稍后再试。；与服务端 `stream_busy.py` 及网页端 `isAgentBusySseEvent` 同口径，两个字段任一命中即可），其余错误保持通用文案；`error` 事件改走 `chatView.showError`（带 `.error` 样式，无前文时不再有前导空行，有前文时文本与原来一致）。
+3. `sidepanel.css`：审批卡改为纵向 flex，高度随内容增长、上限为面板剩余高度，只有明细列表滚动，标题、提示、截止行与按钮不收缩；列表边缘用 `mask-image` 加 CSS 滚动驱动动画渐隐，只在边缘之外还有内容时出现，包在 `@supports (animation-timeline: scroll())` 里；动画范围显式取 `0 100%`（默认的 `normal` 只覆盖第一个视口高度，列表短于视口时时间线已生效，会让唯一一项处于渐隐中），无溢出时两条时间线都停在起点、两个渐隐变量保持 0。无 JS、无魔法数字。
 4. `_locales/{en,zh_CN}`：新增 `panelAgentBusy`；`_ARCH.md`：补 agent-stream 请求体的工具集、AgentBusy 行、卡片高度规则与新增的「Side Panel 工具集」一节。
 
 ### 验证
 
-1. vitest（`src/lib/extension`）：10 个文件 164 例通过。改写/新增：请求体（含 `agent_config`）、「工具集里没有 `structured_clarify`」、审批答复与原请求的 `agent_config` 一致、AgentBusy 显示专属文案且带 `.error`、不回显服务端英文原文、输入框恢复、SSE 通用错误同样带 `.error`；语言包键对齐与孤立键检查自动覆盖新键。
-2. 变异 5 个全部被杀，每次运行后文件还原并核对内容相同：去掉请求体里的 `agent_config`、把 `structured_clarify` 放回工具列表、AgentBusy 当通用错误、`AgentBusyError` 写错、`showError` 改回 `appendText`。
+1. vitest（`src/lib/extension`）：10 个文件 165 例通过。改写/新增：请求体（含 `agent_config`）、「工具集里没有 `structured_clarify`」、审批答复与原请求的 `agent_config` 一致、AgentBusy 按 `error_type` 与按 `status_code` 两种形状都显示专属文案且带 `.error`、不回显服务端英文原文、输入框恢复、SSE 通用错误同样带 `.error`；语言包键对齐与孤立键检查自动覆盖新键。
+2. 变异 7 个全部被杀，每次运行后文件还原并核对内容相同：去掉请求体里的 `agent_config`、把 `structured_clarify` 放回工具列表、AgentBusy 当通用错误、`AgentBusyError` 写错、`showError` 改回 `appendText`、只看 `error_type`（漏掉 `status_code`）、只看 `status_code`（漏掉 `error_type`）。
 3. 服务端真实代码：（a）`AgentConfigRequest` 校验 → `resolve_builtin_tool_flags` → `_should_mount_ask_question_tool`：默认工具集挂载为真，面板工具集为假；（b）用真实 `buildStreamBody` 生成的新消息与 resume 两种请求体，经真实 `AgentRequest.model_validate` 解析，`agent_config.enabled_builtin_tools == ["web_search", "memory"]`、`structured_clarify` 为假、resume 请求带 `resume_value`；（c）`agent_busy_streaming_response` 的真实线上输出为 `data: {"type":"error","data":"Agent is busy processing another request for this session.","messageId":"m-1","error_type":"AgentBusyError","status_code":409}`。
-4. 真实 Chromium（patchright，视口宽 380；页面经本地 HTTP 加载真实 `sidepanel.html`，`chrome.*` 打桩，`agent-stream` 回放真实形状的审批事件），列表可视高度（px，括号内为内容总高）：1500 字符命令 360/560/800 高度下，修复前 144/224/240，修复后 176/376/616（700）；批量 4 项 560/800 高度下，修复前 224/240，修复后 376/586（586，800 高度时全部露出且不出现滚动）；各高度下按钮都在视口内；列表滚到中段时上下两端渐隐，滚到末端底部不再渐隐，内容不溢出时 `mask-image` 保持无渐隐。
-5. `oxlint`、`prettier`（扩展 JS 用 `--no-config --print-width 120 --trailing-comma all`，测试用前端配置）、`node --check` 通过；`sidepanel.js` 392 行、`approval.js` 300 行。
+4. 真实 Chromium（patchright，本地缓存的无头 Chromium 1243；视口宽 380，高度 360/560/800；页面直接加载真实 `sidepanel.html`，输入草稿按 `#chat-input` 上限 120px 撑满，审批卡与流式指示条都置为可见），修复前后在同一页面上各测一次，条目按真实渲染差异生成（1500 字符为单个 `pre` 条目、批量 4 项为 4 个条目）：列表可视高度与占内容百分比——1500 字符命令，修复前 144/224/240px（24.6%/38.3%/41.0%），修复后 202/402/584px（34.6%/68.8%/99.9%，800 高度不再滚动）；批量 4 项，修复前 144/224/240px（27.7%/43.1%/46.2%），修复后 202/402/520px（38.9%/77.4%/100.0%，800 高度不再滚动）。各高度下批准与拒绝按钮都在视口内（最矮的 360 高度也在，按钮底 287 < 360）；卡片底边恒在 `100vh - 70px`，与输入区顶边（`vh - 62`）保持 8px 间距。
+5. 同一页面上核对渐隐：内容不溢出的列表在滚动全程两个自定义属性都为 0px（唯一一项不会被渐隐）；可滚动的列表在滚动 0%/5%/25%/50%/95%/100% 处读数为 `0 与 24 / 12.2 与 24 / 24 与 24 / 24 与 24 / 24 与 12.2 / 24 与 0`（px，前者上缘、后者下缘），即离开顶端后上缘渐显、到底前下缘渐隐、到底后消失。
 
 ### 局限
 
@@ -6545,7 +6601,8 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 5. AgentBusy 之后用户的文字已从输入框清掉（`sendMessage` 在发送前清空输入框），只留在用户气泡里，不恢复草稿：恢复会新增一条「失败后输入框状态」的分支，收益低。
 6. 渐隐依赖 CSS 滚动驱动动画（Chrome 115+，无前缀 `mask-image` 为 120+），更老的 Chrome 没有渐隐提示，布局不受影响；有鼠标或 Windows 的用户本来就看得到滚动条。
 7. 极矮的视口里列表会被压缩：实测 240px 高时列表 56px，180px 高时为 0（按钮仍在视口内）；Chrome 侧栏实际高度远大于此，没有处理。
-8. 审批超时后服务端继续运行，面板仍看不到进度（超时续跑的收集器不带 `chat_id`，`hitl_timeout.py:189`，`attach` 端点订阅不到），结果要在网页端看；本条只让提示说对原因。
+8. 卡片按 `100vh` 计算可用高度，而输入区会随草稿增高（`#chat-input` 上限 120px）挡住卡片底部：实测 360px 高、按钮处于卡片底边（`vh-70`）时，120px 高的草稿遮住拒绝按钮 27px；580px 以上不受影响。把上限改成随输入区实测高度变化需要引入 JS 或容器查询，未做。
+9. 审批超时后服务端继续运行，面板仍看不到进度（超时续跑的收集器不带 `chat_id`，`hitl_timeout.py:189`，`attach` 端点订阅不到），结果要在网页端看；本条只让提示说对原因。
 
 ### 评估后放弃的方案
 
@@ -6556,12 +6613,13 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 5. 工具进度行把工具名换成 5 类通用文案：会在扩展里造第二份 humanize 映射（网页端 `lib/humanize/*.ts` 共 8 个文件 382 行才是 SSOT，扩展是纯 JS 无法复用），随工具增减腐烂，且没有伤害的证据。
 6. 面板重新附着超时续跑的流，或按注册表恢复待决审批：超时续跑不登记收集器，附着无从订阅；改动落在服务端，收益低。
 7. `swarm_fission` 的专门处理：没有出现频率与后果的证据。
+8. 审批卡不 float 而是在输入区上方留出占位：占位会把消息列表压缩、进出时造成跳动，且需要 JS 参与；卡片本来就是覆盖层。
 
 ### 踩坑经验
 
 1. 同一时段同一批文件里出现了我没有写过的修改（测试、样式变量化），同名的探针脚本也被覆盖，文件修改时间与我的操作顺序对不上。每次编辑前重读文件、提交前复核差异与修改时间，避免互相覆盖。
 2. Playwright 的路由处理函数写成 `lambda route, a=actions:` 时，第二个位置参数是请求对象，会顶掉默认参数；闭包捕获值，不要用默认参数。
-3. 把「滚动提示」做成渐隐，用 `mask-image` 加滚动驱动动画即可只在有溢出时出现：无溢出时时间线不活动，自定义属性回到初值 0，实测遮罩无渐隐。
+3. 滚动驱动动画的时间范围默认是 `normal`（只覆盖第一个视口高度），列表短于视口时时间线已经生效：自定义属性在 0% 处正是带渐隐的一侧，唯一一项因此被渐隐；把 `animation-range` 写成 `0 100%` 后，两种极端状态各自落在 keyframes 标注的那一端，无需额外 JS。无头浏览器里时间线确实逐帧更新，但读数前要等一帧渲染（`wait_for_timeout`），否则读到的是上一帧的值。
 4. 已有的 `showError` 就是「在回合末尾追加错误行并保留已流出的文本」，SSE 的 `error` 事件却绕过它自己拼 `\n\n`；复用现成的函数，比给 AgentBusy 再单独处理前导空行更干净。
 
 ---
