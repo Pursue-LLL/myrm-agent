@@ -400,11 +400,24 @@ describe('resume request', () => {
       chat_id: 'c1',
       query: 'hi',
       action_mode: 'agent',
+      agent_config: { enabled_builtin_tools: ['web_search', 'memory'] },
       multiplexed: false,
       timezone: 'UTC',
       timestamp: 1,
     });
     expect('resume_value' in body).toBe(false);
+  });
+
+  it('leaves out the structured clarification form, which only the web app can answer', () => {
+    const { agent_config: agentConfig } = buildStreamBody({
+      messageId: 'm1',
+      chatId: 'c1',
+      query: 'hi',
+      timezone: 'UTC',
+      timestamp: 1,
+    });
+
+    expect(agentConfig.enabled_builtin_tools).not.toContain('structured_clarify');
   });
 
   it('resumes the same message and chat with an empty query and the answer', () => {
@@ -423,6 +436,7 @@ describe('resume request', () => {
       chat_id: 'c1',
       query: '',
       action_mode: 'agent',
+      agent_config: { enabled_builtin_tools: ['web_search', 'memory'] },
       resume_value: resumeValue,
     });
   });

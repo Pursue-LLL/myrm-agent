@@ -296,6 +296,9 @@
   "panelStreamError": {
     "message": "出了点问题，请检查连接后重试。"
   },
+  "panelAgentBusy": {
+    "message": "Agent 还在处理上一步，请稍后再试。"
+  },
   "allowAllEligibleTabs": {
     "message": "允许所有符合条件的网站"
   }

@@ -184,6 +184,7 @@ describe('side panel approval', () => {
       action_mode: 'agent',
       resume_value: { decision: 'approve' },
     });
+    expect(requests[1].agent_config).toEqual(requests[0].agent_config);
     expect(assistantBubbles()).toHaveLength(1);
     expect(overlayVisible()).toBe(false);
   });
@@ -590,7 +591,28 @@ describe('side panel stream', () => {
     await send('hi');
 
     await vi.waitFor(() => expect(assistantBubbles()[0].textContent).toBe('Partial\n\npanelStreamError'));
+    expect(assistantBubbles()[0].classList.contains('error')).toBe(true);
     expect(document.body.textContent).not.toContain('sk-123');
+  });
+
+  it('says the agent is still busy, not that the connection failed, when the server refuses a message for that reason', async () => {
+    await bootPanel([
+      sse([
+        {
+          type: 'error',
+          error_type: 'AgentBusyError',
+          data: 'Agent is busy processing another request for this session.',
+          status_code: 409,
+        },
+      ]),
+    ]);
+
+    await send('and then?');
+
+    await vi.waitFor(() => expect(assistantBubbles()[0].textContent).toBe('panelAgentBusy'));
+    expect(assistantBubbles()[0].classList.contains('error')).toBe(true);
+    expect(document.body.textContent).not.toContain('Agent is busy processing');
+    await vi.waitFor(() => expect(element('btn-send').disabled).toBe(false));
   });
 
   it('puts the page in the language of the browser', async () => {

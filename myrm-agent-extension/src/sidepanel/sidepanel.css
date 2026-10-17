@@ -138,15 +138,36 @@ body {
 
 /* --- Approval Dialog --- */
 
+/* The card grows with its content up to the room the panel has; only the list scrolls, so the answer buttons stay in view. */
 .approval-overlay {
-  display: none; position: fixed; bottom: 60px; left: 10px; right: 10px;
+  --gap: 10px; --input-clearance: 60px;
+  display: none; flex-direction: column; position: fixed; bottom: var(--input-clearance); left: var(--gap); right: var(--gap);
+  max-height: calc(100vh - var(--input-clearance) - var(--gap));
   background: var(--bg-secondary); border: 1px solid var(--warning);
   border-radius: var(--radius); padding: 12px; z-index: 100;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
-.approval-overlay.visible { display: block; }
+.approval-overlay.visible { display: flex; }
+.approval-overlay > :not(.approval-list) { flex-shrink: 0; }
 .approval-title { font-size: 13px; font-weight: 600; color: var(--warning); margin-bottom: 6px; overflow-wrap: anywhere; }
-.approval-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; max-height: min(40vh, 240px); overflow-y: auto; }
+.approval-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; min-height: 0; overflow-y: auto; }
+
+/* An edge of the list fades only while there is more beyond it: the top once scrolled down, the bottom until the end. */
+@supports (animation-timeline: scroll()) {
+  @property --fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
+  @property --fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
+  @keyframes approval-list-edges {
+    0% { --fade-start: 0px; --fade-end: 24px; }
+    10% { --fade-start: 24px; }
+    90% { --fade-end: 24px; }
+    100% { --fade-start: 24px; --fade-end: 0px; }
+  }
+  .approval-list {
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+    animation: approval-list-edges linear both;
+    animation-timeline: scroll(self);
+  }
+}
 .approval-action { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .approval-summary { font-size: 12px; font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
 .approval-body {

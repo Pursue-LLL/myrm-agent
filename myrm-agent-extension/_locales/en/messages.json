@@ -296,6 +296,9 @@
   "panelStreamError": {
     "message": "Something went wrong. Check the connection and try again."
   },
+  "panelAgentBusy": {
+    "message": "The agent is still working on the previous step. Try again in a moment."
+  },
   "allowAllEligibleTabs": {
     "message": "Allow all eligible websites"
   }

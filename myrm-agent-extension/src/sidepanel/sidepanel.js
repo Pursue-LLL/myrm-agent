@@ -203,6 +203,9 @@ async function streamTurn(turn, { query = "", resumeValue } = {}) {
 
 // --- SSE events ---
 
+/** `error_type` of the server's refusal of a message while the chat's previous run is still going. */
+const AGENT_BUSY_ERROR = "AgentBusyError";
+
 function handleSSEEvent(event, turn) {
   switch (event.type) {
     case "message":
@@ -232,10 +235,10 @@ function handleSSEEvent(event, turn) {
       showApproval(event, turn);
       break;
     case "error":
-      // The raw error text is for developers: the chat only says that something went wrong.
+      // The raw error text is for developers: the chat only says what the user can act on.
       if (event.error || event.data) {
         console.error("Agent reported an error", event.error || event.data);
-        chatView.appendText(turn, `\n\n${msg("panelStreamError")}`);
+        chatView.showError(turn, msg(event.error_type === AGENT_BUSY_ERROR ? "panelAgentBusy" : "panelStreamError"));
       }
       break;
   }

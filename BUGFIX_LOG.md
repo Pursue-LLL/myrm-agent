@@ -6497,3 +6497,70 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 3. 底层改成「清空的旧集合被回收」后，断言「旧集合里计数为 0」的上层测试会因为读不到集合而失败，上层测试要断言结果（集合已回收）而不是中间状态。
 
 ---
+
+## BUG-AGENT-2026-10-17-011: 浏览器扩展侧边栏没有渲染澄清表单的位置，Agent 一调用提问工具面板的流就在中断处无声结束；审批超时后服务端仍在续跑，此时发消息被提示「检查连接」；长命令的审批卡只露出三分之一且没有滚动提示
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17（终极叩问：对「侧边栏用户在审批之外还会卡在哪里」逐条追问，并用真实服务端代码与真实 Chromium 复现） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P2（澄清调用后面板无任何提示，是确定性的死路；其余两项是误导与信息不全，不越过任何审批门禁） |
+| 影响范围 | extension：`src/sidepanel/{approval,sidepanel}.js`、`sidepanel.css`、`_locales/{en,zh_CN}/messages.json`、`_ARCH.md`；frontend 测试：`src/lib/extension/__tests__/{sidepanelApproval,sidepanelController}.test.ts` |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-17-006`（侧边栏审批链路；本条是它的后续）；本地提交，未 push |
+
+### 现象
+
+1. 面板的请求不带 `agent_config`，服务端用默认工具集（含 `structured_clarify`，`builtin_tool_ids.py:26-30`、`converter.py:501`），通道固定为 `web_chat`（`converter.py:715`），`ask_question_tool` 因此必挂（实测：默认工具集 → 挂载为真）。工具描述鼓励在缺少前置信息或高风险操作前调用它；一旦调用，SSE 在 `clarification_required` 中断处结束，而面板的事件分发里没有这个类型，用户看到的是一个没有任何提示的断点。澄清不是 `ApprovalRecord`，网关不会拦新消息（`registry.py:288-304`），服务端 900 秒后才超时。
+2. 审批超时后服务端在后台续跑被暂停的回合（`hitl_timeout.py:164-230`），面板此时空闲；用户这时发消息，服务端回 `error_type` 为 `AgentBusyError` 的 SSE 错误（`stream_busy.py:23-30`），面板一律显示「出了点问题，请检查连接后重试」，把用户引向网络。另外 SSE `error` 事件走 `appendText` 加 `\n\n` 前缀：没有前文时气泡以两个空行开头，也没有 `.error` 样式（`chat_view.js` 已有的 `showError` 就是为此写的）。
+3. 审批卡的列表上限是 `max-height: min(40vh, 240px)`。真实 Chromium（380 宽、800 高）里一条 1500 字符的 heredoc 命令占 700px，列表只露 240px（34%）；批量 4 项占 586px 同样只露 240px；卡片上方却有 380px 空闲。macOS 触控板的滚动条自动隐藏，用户看不出还有内容，削弱了「看到完整命令再批准」。
+
+### 根因
+
+1. 面板没有渲染澄清表单的位置，却没有向服务端声明这一点，工具集走服务端默认值。
+2. 面板不区分 `error` 事件的类型；列表上限是魔法数字，不是「面板剩余的高度」。
+
+### 修复
+
+1. `approval.js` 的 `buildStreamBody`：新消息与审批答复（同一个构造函数）都带 `agent_config.enabled_builtin_tools = ["web_search", "memory"]`，即默认工具集去掉 `structured_clarify`。Agent 因此用对话文字提问，用户在面板输入框回答。复用网页端同款契约（`messageRequest.ts:756-759`），服务端侧 `request.agent_config` 只有 `converter.py:516`（需 `agent_id`，面板没有）与 `:642-647` 两处读取；覆盖的其余字段（`skill_ids`、`auto_restore_domains`、`browser_source`、`dialog_policy`、`session_recording`、`tool_gateway_config`）与不带 `agent_config` 时的初值逐项相同。
+2. `sidepanel.js`：`error_type === "AgentBusyError"` 时显示新文案 `panelAgentBusy`（en：The agent is still working on the previous step. Try again in a moment. / zh_CN：Agent 还在处理上一步，请稍后再试。），其余错误保持通用文案；`error` 事件改走 `chatView.showError`（带 `.error` 样式，无前文时不再有前导空行，有前文时文本与原来一致）。
+3. `sidepanel.css`：审批卡改为纵向 flex，高度随内容增长、上限为面板剩余高度，只有明细列表滚动，标题、提示、截止行与按钮不收缩；列表边缘用 `mask-image` 加 CSS 滚动驱动动画渐隐，只在边缘之外还有内容时出现（无溢出时时间线不活动，渐隐保持初值 0），包在 `@supports (animation-timeline: scroll())` 里。无 JS、无魔法数字。
+4. `_locales/{en,zh_CN}`：新增 `panelAgentBusy`；`_ARCH.md`：补 agent-stream 请求体的工具集、AgentBusy 行、卡片高度规则与新增的「Side Panel 工具集」一节。
+
+### 验证
+
+1. vitest（`src/lib/extension`）：10 个文件 164 例通过。改写/新增：请求体（含 `agent_config`）、「工具集里没有 `structured_clarify`」、审批答复与原请求的 `agent_config` 一致、AgentBusy 显示专属文案且带 `.error`、不回显服务端英文原文、输入框恢复、SSE 通用错误同样带 `.error`；语言包键对齐与孤立键检查自动覆盖新键。
+2. 变异 5 个全部被杀，每次运行后文件还原并核对内容相同：去掉请求体里的 `agent_config`、把 `structured_clarify` 放回工具列表、AgentBusy 当通用错误、`AgentBusyError` 写错、`showError` 改回 `appendText`。
+3. 服务端真实代码：（a）`AgentConfigRequest` 校验 → `resolve_builtin_tool_flags` → `_should_mount_ask_question_tool`：默认工具集挂载为真，面板工具集为假；（b）用真实 `buildStreamBody` 生成的新消息与 resume 两种请求体，经真实 `AgentRequest.model_validate` 解析，`agent_config.enabled_builtin_tools == ["web_search", "memory"]`、`structured_clarify` 为假、resume 请求带 `resume_value`；（c）`agent_busy_streaming_response` 的真实线上输出为 `data: {"type":"error","data":"Agent is busy processing another request for this session.","messageId":"m-1","error_type":"AgentBusyError","status_code":409}`。
+4. 真实 Chromium（patchright，视口宽 380；页面经本地 HTTP 加载真实 `sidepanel.html`，`chrome.*` 打桩，`agent-stream` 回放真实形状的审批事件），列表可视高度（px，括号内为内容总高）：1500 字符命令 360/560/800 高度下，修复前 144/224/240，修复后 176/376/616（700）；批量 4 项 560/800 高度下，修复前 224/240，修复后 376/586（586，800 高度时全部露出且不出现滚动）；各高度下按钮都在视口内；列表滚到中段时上下两端渐隐，滚到末端底部不再渐隐，内容不溢出时 `mask-image` 保持无渐隐。
+5. `oxlint`、`prettier`（扩展 JS 用 `--no-config --print-width 120 --trailing-comma all`，测试用前端配置）、`node --check` 通过；`sidepanel.js` 392 行、`approval.js` 300 行。
+
+### 局限
+
+1. 没有用真实 LLM 与真实服务端做端到端：模型是否因此改用文字提问、问得好不好，没有验证；模型调用澄清工具的频率没有数据（无遥测），决策依据是可确定性复现的断点，不是频率。
+2. 面板失去结构化澄清表单；破坏性操作仍由工具审批门禁拦截，与澄清工具无关。
+3. 工具列表写死在扩展里，服务端以后新增默认工具面板不会自动获得；这是有意的：面板显式声明自己能服务的能力。
+4. 同一会话之后在网页端继续时，工具 schema 与面板不同，首轮提示词前缀缓存会失效一次；原先面板不带 `agent_config`、网页端带用户自己的工具列表，已经有同类差异；失效成本没有实测。
+5. AgentBusy 之后用户的文字已从输入框清掉（`sendMessage` 在发送前清空输入框），只留在用户气泡里，不恢复草稿：恢复会新增一条「失败后输入框状态」的分支，收益低。
+6. 渐隐依赖 CSS 滚动驱动动画（Chrome 115+，无前缀 `mask-image` 为 120+），更老的 Chrome 没有渐隐提示，布局不受影响；有鼠标或 Windows 的用户本来就看得到滚动条。
+7. 极矮的视口里列表会被压缩：实测 240px 高时列表 56px，180px 高时为 0（按钮仍在视口内）；Chrome 侧栏实际高度远大于此，没有处理。
+8. 审批超时后服务端继续运行，面板仍看不到进度（超时续跑的收集器不带 `chat_id`，`hitl_timeout.py:189`，`attach` 端点订阅不到），结果要在网页端看；本条只让提示说对原因。
+
+### 评估后放弃的方案
+
+1. 面板渲染澄清表单：要有表单渲染、`resume_value` 的形状、可访问性与双语文案，量远大于改工具集，收益低。
+2. 对 `clarification_required` 显示「去网页端回答」卡片：症状补丁，模型已把问题抛给面板渲染不了的表单；且依赖网页端能看到 `spc-` 面板会话（未验证）。
+3. 服务端新增「客户端能力」请求字段：`agent_config.enabled_builtin_tools` 已是网页端同款契约，不需要新协议。
+4. 删除审批到期定时器的上限守卫：有文档（`_ARCH.md`）、有测试，保留成本一行；标准路径把超时限制在 1–3600 秒（`security/config.py:174`），但不经 `parse_int` 的构造路径是否可达未验证，去掉后的失败模式是卡片在打开瞬间收起。
+5. 工具进度行把工具名换成 5 类通用文案：会在扩展里造第二份 humanize 映射（网页端 `lib/humanize/*.ts` 共 8 个文件 382 行才是 SSOT，扩展是纯 JS 无法复用），随工具增减腐烂，且没有伤害的证据。
+6. 面板重新附着超时续跑的流，或按注册表恢复待决审批：超时续跑不登记收集器，附着无从订阅；改动落在服务端，收益低。
+7. `swarm_fission` 的专门处理：没有出现频率与后果的证据。
+
+### 踩坑经验
+
+1. 同一时段同一批文件里出现了我没有写过的修改（测试、样式变量化），同名的探针脚本也被覆盖，文件修改时间与我的操作顺序对不上。每次编辑前重读文件、提交前复核差异与修改时间，避免互相覆盖。
+2. Playwright 的路由处理函数写成 `lambda route, a=actions:` 时，第二个位置参数是请求对象，会顶掉默认参数；闭包捕获值，不要用默认参数。
+3. 把「滚动提示」做成渐隐，用 `mask-image` 加滚动驱动动画即可只在有溢出时出现：无溢出时时间线不活动，自定义属性回到初值 0，实测遮罩无渐隐。
+4. 已有的 `showError` 就是「在回合末尾追加错误行并保留已流出的文本」，SSE 的 `error` 事件却绕过它自己拼 `\n\n`；复用现成的函数，比给 AgentBusy 再单独处理前导空行更干净。
+
+---

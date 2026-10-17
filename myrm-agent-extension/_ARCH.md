@@ -21,9 +21,9 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/popup.html` | 辅助 | Popup 结构；静态文案 `data-i18n` + 运行时 `applyDocumentI18n` | — |
 | `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链（`lastClipErrorKind` 结构化，非 regex）；审批提醒开关（`approvalNotifyEnabled`，默认开）；`chrome.i18n` 双语 | ✅ |
 | `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面（ES module）：Chat UI 结构（SVG 图标、语义化 HTML）；界面与审批弹窗文案均 `data-i18n`；审批弹窗为 `role="alertdialog"`（`aria-labelledby` 标题、`aria-describedby` 明细） | — |
-| `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题（文字与按钮对比度均不低于 WCAG AA 的 4.5:1）、消息气泡、工具进度、审批弹窗、流式指示器、输入区（审批待决时为虚线禁用态） | — |
-| `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat 控制器：发送消息、渲染 SSE 事件、协调审批（展示、提醒、输入暂停、到期收起）并用 `resume_value` 恢复暂停的回合；错误一律给本地化通用文案，细节只写控制台 | ✅ |
-| `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（白话说明、完整命令/参数、原因、截止时刻，以及能否在面板内批准）、`resolveApprovalCopy`/`clockTimeFormatter`（本地化文案）、`buildResumeValue`/`buildStreamBody`、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
+| `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题（文字与按钮对比度均不低于 WCAG AA 的 4.5:1）、消息气泡、工具进度、审批弹窗（随内容增高，上限为面板剩余高度；只有明细列表滚动，按钮始终可见，列表边缘仅在其外还有内容时渐隐提示）、流式指示器、输入区（审批待决时为虚线禁用态） | — |
+| `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat 控制器：发送消息、渲染 SSE 事件、协调审批（展示、提醒、输入暂停、到期收起）并用 `resume_value` 恢复暂停的回合；错误给本地化文案（服务端因上一回合仍在运行拒绝新消息时说明 Agent 仍在处理，其余为通用文案），细节只写控制台 | ✅ |
+| `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（白话说明、完整命令/参数、原因、截止时刻，以及能否在面板内批准）、`resolveApprovalCopy`/`clockTimeFormatter`（本地化文案）、`buildResumeValue`/`buildStreamBody`（请求体同时声明面板的工具集）、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
 | `src/sidepanel/approval_overlay.js` | 辅助 | 审批弹窗 DOM 渲染：逐项写入说明/命令/原因（一律 `textContent`）、截止行、提示；`focusSafeAnswer` 仅在面板已有焦点时把焦点给「拒绝」 | ✅ |
 | `src/sidepanel/approval_notify.js` | 辅助 | 审批系统通知：窗口不在前台或面板不可见时提醒（不含命令正文），点击把窗口带回前台；同一 id 的通知互相替换，答复/取消/新会话时撤回 | ✅ |
 | `src/sidepanel/chat_view.js` | 辅助 | 消息列表 DOM：用户/助手气泡、流式文本、工具行容器、中性提示、错误气泡（`.error` 样式）、清空 | ✅ |
@@ -55,7 +55,7 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 
 | 端点 | 方法 | 用途 |
 |------|------|------|
-| `/api/v1/agents/agent-stream` | POST | 发送消息并接收 SSE 流式响应；带 `resume_value`（`{decision: "approve"}` 或 `{decision: "reject", feedback}`，审批事件带 `interruptId` 时一并回传）时答复该回合暂停中的工具审批并继续流式输出；审批已被超时或其他窗口处理时服务端返回 409 |
+| `/api/v1/agents/agent-stream` | POST | 发送消息并接收 SSE 流式响应；每个请求都带 `agent_config.enabled_builtin_tools`（`web_search`、`memory`，不含 `structured_clarify`，见下文「Side Panel 工具集」）；带 `resume_value`（`{decision: "approve"}` 或 `{decision: "reject", feedback}`，审批事件带 `interruptId` 时一并回传）时答复该回合暂停中的工具审批并继续流式输出；审批已被超时或其他窗口处理时服务端返回 409 |
 | `/api/v1/agents/agent/{messageId}/cancel` | POST | 取消当前执行 |
 | `/api/v1/health` | GET | 连接状态检测 |
 | `/api/v1/extension/clip-agent` | GET/PUT | Wiki 剪藏目标 agent + WebUI origin（与 Settings → Extension Bridge 同步） |
@@ -75,10 +75,15 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 | 答复请求未送达（网络失败、服务端错误） | 提示「答复没有送达」并让弹窗重新出现，可再次答复；用户取消或开新会话时不重现 |
 | 答复请求返回 409（超时或已在别处处理） | 提示该审批已被处理，不再重试 |
 | 截止时刻已过仍未答复 | 服务端此时自行处理（默认拒绝，`behavior` 为 `allow` 时批准）；弹窗收起并给出「审批已超时」的中性提示，输入框恢复；截止时间超过浏览器定时器上限（约 24.8 天）时不设定时器 |
+| 服务端因该会话上一回合仍在运行拒绝新消息（SSE `error` 事件，`error_type` 为 `AgentBusyError`；例如审批超时后服务端继续运行被暂停的回合，面板此时空闲） | 聊天里提示「Agent 还在处理上一步，请稍后再试」（错误样式），不显示通用的「检查连接」；输入框恢复，被拒绝的文字仍留在用户气泡里 |
 | 审批待决期间的界面 | 弹窗为 `alertdialog`，默认焦点在「拒绝」（仅当面板此刻已有焦点，不从用户正在输入的网页抢走焦点）；输入框与发送暂停并提示先处理审批 |
 | 浏览器窗口不在前台或面板不可见 | popup「审批提醒」开启（默认开）时发一条系统通知，不含命令正文；点击把窗口带回前台；答复、取消、新会话时撤回 |
 
 「原因」一行是 harness 的英文策略文本，面板按原文展示，不翻译；其余文案均走 `chrome.i18n`。
+
+## Side Panel 工具集
+
+面板请求不挂载 `structured_clarify`：它的提问表单（`clarification_required` 中断）只有 Web UI 能回答，而面板没有渲染它的位置，Agent 一旦调用，面板的流在中断处结束且没有任何提示。面板的每个请求（新消息与审批答复）都带同一份 `agent_config.enabled_builtin_tools`（`web_search`、`memory`，即服务端默认工具集去掉 `structured_clarify`），Agent 因此用对话文字提问，用户在面板输入框回答；工具集在一个会话内不变。`agent_config` 的其余字段取默认值，与服务端在没有 `agent_config` 时的初值相同。
 
 ## Wiki clip 产品默认
 
@@ -98,7 +103,7 @@ Settings → Extension Bridge 仅配置 **Wiki clip target agent**（`/extension
 |------|------|------|
 | Popup + clip 错误 + 右键剪藏菜单 + clip 系统通知 | en / zh_CN | `_locales` + `chrome.i18n` |
 | Side Panel 审批弹窗、审批系统通知、popup 审批提醒开关 | en / zh_CN | `_locales` + `chrome.i18n`（`approval*` / `notifyApproval*` 键） |
-| Side Panel Chat 界面（标题栏提示、空状态、输入框、思考/工具提示、错误提示） | en / zh_CN | `_locales` + `chrome.i18n`（`panel*` 键）；错误只给通用文案，细节写控制台 |
+| Side Panel Chat 界面（标题栏提示、空状态、输入框、思考/工具提示、错误提示） | en / zh_CN | `_locales` + `chrome.i18n`（`panel*` 键）；错误只给本地化文案，细节写控制台 |
 | Side Panel 内的 Agent 回复、工具进度行里的工具名 | server 输出 | 回复语言由 server/WebUI 设置决定；工具进度行仍按原名显示 |
 | WebUI Settings → Extension Bridge | 六语 | `myrm-agent-frontend` next-intl |
 

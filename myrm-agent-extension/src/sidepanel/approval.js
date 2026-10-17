@@ -7,7 +7,8 @@
  * [OUTPUT]
  * - describeApproval: what the panel shows for the request and whether it may approve
  * - resolveApprovalCopy / clockTimeFormatter: localized overlay text for a described approval
- * - buildResumeValue / buildStreamBody: the request that settles an interrupt (same endpoint as a new message)
+ * - buildResumeValue / buildStreamBody: the request that settles an interrupt (same endpoint as a new message) and
+ *   the tool set every panel request declares
  * - isResumeConflict: the interrupt was already settled elsewhere
  *
  * [POS] Decision logic of the Side Panel approval flow; sidepanel.js owns the network, approval_overlay.js the DOM.
@@ -265,6 +266,13 @@ export function buildResumeValue(approved, interruptId) {
 }
 
 /**
+ * Built-in tools the panel asks the server to mount. `structured_clarify` is left out on purpose: its question form
+ * can only be answered in the Web UI, so without it the agent asks in plain chat messages that the panel's input
+ * answers. Every request of a chat carries the same list, so the tool set never changes mid-conversation.
+ */
+const PANEL_BUILTIN_TOOLS = ["web_search", "memory"];
+
+/**
  * Body of POST /api/v1/agents/agent-stream: a new message, or with `resumeValue` the answer to a pending interrupt.
  * @param {{ messageId: string, chatId: string, query: string, resumeValue?: object, timezone: string, timestamp: number }} fields
  */
@@ -274,6 +282,7 @@ export function buildStreamBody({ messageId, chatId, query, resumeValue, timezon
     chat_id: chatId,
     query,
     action_mode: "agent",
+    agent_config: { enabled_builtin_tools: PANEL_BUILTIN_TOOLS },
     multiplexed: false,
     timezone,
     timestamp,
