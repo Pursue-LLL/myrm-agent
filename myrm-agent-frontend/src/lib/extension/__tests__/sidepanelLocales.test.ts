@@ -59,6 +59,8 @@ describe('side panel locale keys', () => {
         'approvalHintNoDetails',
         'approvalDeadlineDeny',
         'approvalDeadlineAllow',
+        'approvalExpiredDeny',
+        'approvalExpiredAllow',
         'approvalNotifyLabel',
         'notifyApprovalTitle',
         'panelUsingTool',

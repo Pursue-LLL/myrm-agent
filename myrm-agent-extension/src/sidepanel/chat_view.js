@@ -57,14 +57,20 @@ export function createChatView({ messages, emptyState }) {
       return { messageId, el, bubble: el.querySelector(".message-bubble"), toolEl: null, text: "" };
     },
 
-    /** @param {Turn} turn @param {string} text */
+    /**
+     * @param {Turn} turn
+     * @param {string} text
+     */
     appendText(turn, text) {
       turn.text += text;
       turn.bubble.textContent = turn.text;
       scrollToBottom();
     },
 
-    /** @param {Turn} turn @returns {HTMLElement} the tool-progress block of the turn, created on first use */
+    /**
+     * @param {Turn} turn
+     * @returns {HTMLElement} the tool-progress block of the turn, created on first use
+     */
     toolContainer(turn) {
       if (!turn.toolEl) {
         turn.toolEl = document.createElement("div");
@@ -74,7 +80,10 @@ export function createChatView({ messages, emptyState }) {
       return turn.toolEl;
     },
 
-    /** @param {Turn} turn @param {string} text */
+    /**
+     * @param {Turn} turn
+     * @param {string} text
+     */
     appendNotice(turn, text) {
       const notice = document.createElement("div");
       notice.className = "turn-notice";
@@ -82,7 +91,11 @@ export function createChatView({ messages, emptyState }) {
       turn.el.appendChild(notice);
     },
 
-    /** Ends the turn's message with an error line, keeping what was already streamed. @param {Turn} turn @param {string} text */
+    /**
+     * Ends the turn's message with an error line, keeping what was already streamed.
+     * @param {Turn} turn
+     * @param {string} text
+     */
     showError(turn, text) {
       turn.bubble.textContent = `${turn.text}${turn.text ? "\n\n" : ""}${text}`;
       turn.bubble.classList.add("error");

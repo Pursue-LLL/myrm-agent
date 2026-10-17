@@ -230,6 +230,59 @@ describe('side panel approval', () => {
     expect(element('approval-deadline').hidden).toBe(true);
   });
 
+  it.each([
+    ['deny', 'approvalExpiredDeny'],
+    ['allow', 'approvalExpiredAllow'],
+  ])('closes the card and says so once the deadline passes unanswered (default: %s)', async (behavior, notice) => {
+    await bootPanel([sse([approvalEvent({ extensions: { timeout: { seconds: 0.15, behavior } } })])]);
+    await send('write the file');
+
+    await vi.waitFor(() => expect(textOf('.turn-notice')).toBe(notice), { timeout: 3000 });
+    expect(overlayVisible()).toBe(false);
+    expect(element('chat-input').disabled).toBe(false);
+    expect(browser.notifications.clear).toHaveBeenCalledWith('approval-pending');
+  });
+
+  it('says nothing about a timeout for an approval that was answered in time', async () => {
+    const requests = await bootPanel([
+      sse([approvalEvent({ extensions: { timeout: { seconds: 0.6, behavior: 'deny' } } })]),
+      sse([{ type: 'message_end' }]),
+    ]);
+    await sendAndAwaitApproval();
+
+    element('btn-reject').click();
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    await new Promise((resolveWait) => setTimeout(resolveWait, 800));
+
+    expect(document.querySelector('.turn-notice')).toBeNull();
+  });
+
+  it('keeps the card of a newer approval open when the deadline of the one it replaced passes', async () => {
+    await bootPanel([
+      sse([
+        approvalEvent({ extensions: { timeout: { seconds: 0.15, behavior: 'deny' } }, interruptId: 'first' }),
+        approvalEvent({ actionRequests: [SHELL_ACTION], interruptId: 'second' }),
+      ]),
+    ]);
+    await sendAndAwaitApproval();
+
+    await new Promise((resolveWait) => setTimeout(resolveWait, 400));
+
+    expect(overlayVisible()).toBe(true);
+    expect(textOf('.approval-body')).toBe(CURL_COMMAND);
+    expect(document.querySelector('.turn-notice')).toBeNull();
+  });
+
+  it('keeps the card open when the deadline is further away than a timer can wait', async () => {
+    await bootPanel([sse([approvalEvent({ extensions: { timeout: { seconds: 1e9, behavior: 'deny' } } })])]);
+    await sendAndAwaitApproval();
+
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+
+    expect(overlayVisible()).toBe(true);
+    expect(document.querySelector('.turn-notice')).toBeNull();
+  });
+
   it('only rejects a command too long to show in full', async () => {
     const long = { ...SHELL_ACTION, args: { command: `echo ${'a'.repeat(2500)}; rm -rf ~` } };
     const requests = await bootPanel([

@@ -110,7 +110,7 @@ describe('describeApproval: what the user is asked to approve', () => {
     expect(view.canApprove).toBe(true);
   });
 
-  it('marks where a long argument value was cut, and still lets the rest be approved', () => {
+  it('marks where a long argument value was cut, and never approves what it cannot show in full', () => {
     const view = describeApproval(
       toolEvent([{ action: 'file_write_tool', args: { path: '/a.md', content: `# Report\n${'line\n'.repeat(500)}` } }]),
     );
@@ -119,7 +119,26 @@ describe('describeApproval: what the user is asked to approve', () => {
     expect(pathLine).toBe('path: /a.md');
     expect(contentLine).toBe('content: # Report');
     expect(view.actions[0].body.split('\n').at(-1)?.endsWith('…')).toBe(true);
+    expect(view.canApprove).toBe(false);
+    expect(view.blocker).toBe('too_long');
+  });
+
+  it('shows a value of exactly the limit in full and lets it be approved', () => {
+    const value = 'a'.repeat(300);
+
+    const view = describeApproval(toolEvent([{ action: 'file_write_tool', args: { content: value } }]));
+
+    expect(view.actions[0].body).toBe(`content: ${value}`);
     expect(view.canApprove).toBe(true);
+  });
+
+  it('counts a value that is not a string by its JSON text', () => {
+    const view = describeApproval(
+      toolEvent([{ action: 't', args: { items: Array.from({ length: 200 }, (_, i) => i) } }]),
+    );
+
+    expect(view.canApprove).toBe(false);
+    expect(view.blocker).toBe('too_long');
   });
 
   it.each([
@@ -291,6 +310,7 @@ describe('resolveApprovalCopy', () => {
       title: '__approvalTitleSingle__',
       hint: '',
       deadline: '',
+      expired: '',
       rejectLabel: '__approvalReject__',
     });
   });
@@ -325,14 +345,16 @@ describe('resolveApprovalCopy', () => {
   });
 
   it.each([
-    ['deny', '__approvalDeadlineDeny:t120000__'],
-    ['allow', '__approvalDeadlineAllow:t120000__'],
-  ])('states what happens at the deadline when the default is %s', (behavior, deadline) => {
+    ['deny', '__approvalDeadlineDeny:t120000__', '__approvalExpiredDeny__'],
+    ['allow', '__approvalDeadlineAllow:t120000__', '__approvalExpiredAllow__'],
+  ])('states what happens at the deadline when the default is %s', (behavior, deadline, expired) => {
     const view = describeApproval(toolEvent([PIP], { extensions: { timeout: { seconds: 120, behavior } } }), {
       now: 0,
     });
 
-    expect(resolveApprovalCopy(view, translate, formatTime).deadline).toBe(deadline);
+    const copy = resolveApprovalCopy(view, translate, formatTime);
+    expect(copy.deadline).toBe(deadline);
+    expect(copy.expired).toBe(expired);
   });
 
   it('turns an external request into a dismissable notice without technical detail', () => {
@@ -346,6 +368,7 @@ describe('resolveApprovalCopy', () => {
       title: '__approvalTitleExternal__',
       hint: '__approvalHintExternal__',
       deadline: '',
+      expired: '',
       rejectLabel: '__approvalDismiss__',
     });
   });

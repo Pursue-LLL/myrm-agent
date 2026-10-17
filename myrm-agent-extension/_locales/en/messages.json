@@ -216,7 +216,7 @@
     "message": "Your answer could not be sent. Check the connection and try again."
   },
   "approvalHintTooLong": {
-    "message": "This command is too long to review here. Open it in the Myrm Agent web app, or reject it here."
+    "message": "This is too long to review here. Open it in the Myrm Agent web app, or reject it here."
   },
   "approvalHintNoDetails": {
     "message": "There is nothing to review here for this action. Approve it in the Myrm Agent web app, or reject it here."
@@ -238,6 +238,12 @@
         "example": "10:02:30"
       }
     }
+  },
+  "approvalExpiredDeny": {
+    "message": "The approval timed out and is rejected automatically."
+  },
+  "approvalExpiredAllow": {
+    "message": "The approval timed out and is approved automatically."
   },
   "notifyApprovalTitle": {
     "message": "Your agent is waiting for you"
@@ -279,7 +285,7 @@
     "message": "tool"
   },
   "panelNotConnected": {
-    "message": "Not connected to the server."
+    "message": "Myrm Agent is not connected."
   },
   "panelInputPlaceholder": {
     "message": "Ask anything…"

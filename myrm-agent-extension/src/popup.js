@@ -33,7 +33,9 @@ document.title = msg("extName");
 
 function readPausedTabIds(callback) {
   chrome.storage.local.get(["pausedTabIds"], (data) => {
-    const pausedTabIds = Array.isArray(data.pausedTabIds) ? data.pausedTabIds.filter((id) => Number.isInteger(id)) : [];
+    const pausedTabIds = Array.isArray(data.pausedTabIds)
+      ? data.pausedTabIds.filter((id) => Number.isInteger(id))
+      : [];
     callback(pausedTabIds);
   });
 }
@@ -96,19 +98,17 @@ function connectWithCurrentSettings() {
 }
 
 // Load saved settings
-chrome.storage.local.get(
-  ["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs", APPROVAL_NOTIFY_KEY],
-  (data) => {
-    serverUrlInput.value = data.serverUrl || "";
-    authTokenInput.value = data.authToken || "";
-    domainsTextarea.value = (data.authorizedDomains || []).join("\n");
-    if (allowAllCheckbox) {
-      allowAllCheckbox.checked = data.allowAllEligibleTabs === true;
-    }
-    approvalNotifyCheckbox.checked = data[APPROVAL_NOTIFY_KEY] !== false;
-    refreshStatus();
-  },
-);
+const STORED_SETTINGS = ["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs", APPROVAL_NOTIFY_KEY];
+chrome.storage.local.get(STORED_SETTINGS, (data) => {
+  serverUrlInput.value = data.serverUrl || "";
+  authTokenInput.value = data.authToken || "";
+  domainsTextarea.value = (data.authorizedDomains || []).join("\n");
+  if (allowAllCheckbox) {
+    allowAllCheckbox.checked = data.allowAllEligibleTabs === true;
+  }
+  approvalNotifyCheckbox.checked = data[APPROVAL_NOTIFY_KEY] !== false;
+  refreshStatus();
+});
 
 function refreshStatus() {
   chrome.runtime.sendMessage({ type: "get_status" }, (response) => {

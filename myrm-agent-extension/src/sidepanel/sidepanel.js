@@ -1,11 +1,23 @@
 /**
  * Myrm Agent Extension — Side Panel Chat UI
  *
- * Lightweight chat client that communicates with myrm-agent-server via HTTP+SSE.
- * Reuses existing server API endpoints — zero backend changes required.
+ * [INPUT]
+ * - server_client.js::createServerClient (POS: server location, credentials and health of the Side Panel)
+ * - sse.js::readSSE (POS: transport parsing of the agent stream)
+ * - approval.js::describeApproval (POS: decision logic of the approval flow: what to show, whether to approve)
+ * - approval_overlay.js::createApprovalOverlay (POS: DOM rendering of the approval card)
+ * - approval_notify.js::notifyApprovalPending (POS: system notification while an approval waits)
+ * - chat_view.js::createChatView (POS: DOM rendering of the conversation)
+ * - page_context.js::createPageContext (POS: active tab and selected text a message is asked about)
+ * - tool_steps.js::addToolStep (POS: DOM rendering of tool progress)
+ * - POST /api/v1/agents/agent-stream (SSE chat; with `resume_value` it answers a pending tool approval) and
+ *   POST /api/v1/agents/agent/{messageId}/cancel
  *
- * API contract: POST /api/v1/agents/agent-stream → SSE streaming chat; with `resume_value` it answers a pending tool
- * approval. POST /api/v1/agents/agent/{messageId}/cancel cancels the running turn.
+ * [OUTPUT]
+ * - None: the page's entry script; it wires the modules above to the Side Panel DOM.
+ *
+ * [POS] Controller of the Side Panel chat: turns user input and agent events into the stream, the approval flow and
+ * the input lock.
  */
 
 import { applyDocumentI18n, msg } from "../i18n.js";
@@ -34,6 +46,7 @@ const state = {
   abortController: null,
   /** The approval waiting for an answer: `{ view, turn }`, `turn` being the assistant message it belongs to. */
   pendingApproval: null,
+  approvalExpiryTimer: null,
   currentMessageId: null,
 };
 
@@ -234,6 +247,9 @@ function toolName(event) {
 
 // --- Tool approval ---
 
+/** `setTimeout` runs a delay above this at once, which would close the card the moment it opens. */
+const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
+
 function showApproval(event, turn) {
   renderApproval({ view: describeApproval(event, { language: uiLanguage }), turn });
 }
@@ -246,9 +262,27 @@ function renderApproval(pending) {
   syncInputLock();
   approvalOverlay.focusSafeAnswer();
   notifyApprovalPending(copy.deadline);
+  scheduleApprovalExpiry(pending, copy.expired);
+}
+
+/**
+ * At its deadline the server settles an unanswered approval itself, so the card must not keep asking: it closes and
+ * says so, which also reopens the input.
+ */
+function scheduleApprovalExpiry(pending, notice) {
+  clearTimeout(state.approvalExpiryTimer);
+  if (!pending.view.deadline) return;
+  const delay = Math.max(0, pending.view.deadline.atMs - Date.now());
+  if (delay > MAX_TIMER_DELAY_MS) return;
+  const expire = () => {
+    hideApproval();
+    chatView.appendNotice(pending.turn, notice);
+  };
+  state.approvalExpiryTimer = setTimeout(expire, delay);
 }
 
 function hideApproval() {
+  clearTimeout(state.approvalExpiryTimer);
   state.pendingApproval = null;
   approvalOverlay.hide();
   clearApprovalNotification();

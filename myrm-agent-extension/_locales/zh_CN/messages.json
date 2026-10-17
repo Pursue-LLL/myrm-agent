@@ -216,7 +216,7 @@
     "message": "你的答复没有送达，请检查连接后重试。"
   },
   "approvalHintTooLong": {
-    "message": "此命令太长，无法在这里完整查看。请在 Myrm Agent 网页端查看并批准，或在此处拒绝。"
+    "message": "内容太长，无法在这里完整查看。请在 Myrm Agent 网页端查看并批准，或在此处拒绝。"
   },
   "approvalHintNoDetails": {
     "message": "这项操作在此处没有可供查看的内容。请在 Myrm Agent 网页端批准，或在此处拒绝。"
@@ -238,6 +238,12 @@
         "example": "10:02:30"
       }
     }
+  },
+  "approvalExpiredDeny": {
+    "message": "审批已超时，将自动拒绝。"
+  },
+  "approvalExpiredAllow": {
+    "message": "审批已超时，将自动批准。"
   },
   "notifyApprovalTitle": {
     "message": "智能体正在等你确认"
@@ -279,7 +285,7 @@
     "message": "工具"
   },
   "panelNotConnected": {
-    "message": "未连接到服务器。"
+    "message": "尚未连接到 Myrm Agent。"
   },
   "panelInputPlaceholder": {
     "message": "输入你的问题…"

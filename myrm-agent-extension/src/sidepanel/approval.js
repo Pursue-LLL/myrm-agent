@@ -24,8 +24,9 @@ const PLAIN_REVIEW_KEYS = new Set(["allowedDecisions", "hideAllowAlways", "domai
 const REJECT_FEEDBACK = "User rejected this action.";
 
 /**
- * A shell command is shown in full or not approvable here: its dangerous part may sit anywhere in it, so a
- * truncated view must never be approved. Other tools' argument values are only abbreviated, with the cut marked.
+ * What the panel cannot show in full it does not approve: the dangerous part may sit anywhere in a command or an
+ * argument value, so a cut view is marked with `…` and can only be rejected here. A shell command gets a larger room
+ * than any other argument value.
  */
 const MAX_COMMAND_CHARS = 2000;
 const MAX_VALUE_CHARS = 300;
@@ -49,6 +50,12 @@ const SHELL_COMMAND_KEYS = ["command", "code", "script", "cmd"];
  * `tool`: answerable here (one decision covers every listed action), `interruptId` naming the interrupt it settles.
  * `external`: only the Web UI can answer it.
  */
+
+/** What the card and the notice that replaces it say when the server settles an unanswered request. */
+const DEADLINE_KEYS = {
+  deny: { pending: "approvalDeadlineDeny", expired: "approvalExpiredDeny" },
+  allow: { pending: "approvalDeadlineAllow", expired: "approvalExpiredAllow" },
+};
 
 /**
  * @param {unknown} value
@@ -90,18 +97,28 @@ function shellCommandText(args) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function asText(value) {
+  return typeof value === "string" ? value : (JSON.stringify(value) ?? String(value));
+}
+
+/**
  * @param {unknown} args
- * @returns {string} one `name: value` line per argument, each value abbreviated with the cut marked
+ * @returns {{ body: string, fullyShown: boolean }} one `name: value` line per argument, a value over the limit cut
+ * with the cut marked
  */
 function formatArguments(args) {
-  if (args === null || args === undefined) return "";
-  if (typeof args !== "object" || Array.isArray(args)) return truncate(JSON.stringify(args), MAX_VALUE_CHARS);
-  return Object.entries(args)
-    .map(
-      ([name, value]) =>
-        `${name}: ${truncate(typeof value === "string" ? value : JSON.stringify(value), MAX_VALUE_CHARS)}`,
-    )
-    .join("\n");
+  if (args === null || args === undefined) return { body: "", fullyShown: true };
+  const entries =
+    typeof args === "object" && !Array.isArray(args)
+      ? Object.entries(args).map(([name, value]) => [`${name}: `, asText(value)])
+      : [["", asText(args)]];
+  return {
+    body: entries.map(([label, text]) => `${label}${truncate(text, MAX_VALUE_CHARS)}`).join("\n"),
+    fullyShown: entries.every(([, text]) => text.length <= MAX_VALUE_CHARS),
+  };
 }
 
 /**
@@ -121,7 +138,7 @@ function describeAction(request, language) {
       fullyShown: command.length <= MAX_COMMAND_CHARS,
     };
   }
-  return { summary: "", body: formatArguments(request?.args), reason, fullyShown: true };
+  return { summary: "", ...formatArguments(request?.args), reason };
 }
 
 /**
@@ -204,7 +221,8 @@ export function clockTimeFormatter(language) {
  * @param {ApprovalView} view
  * @param {(key: string, substitution?: string | number) => string} translate
  * @param {(timestampMs: number) => string} formatTime clock time in the user's locale
- * @returns {{ title: string, hint: string, deadline: string, rejectLabel: string }}
+ * @returns {{ title: string, hint: string, deadline: string, expired: string, rejectLabel: string }}
+ * `deadline` is the sentence under the card, `expired` the notice for when the deadline has passed unanswered.
  */
 export function resolveApprovalCopy(view, translate, formatTime) {
   if (view.kind === "external") {
@@ -212,6 +230,7 @@ export function resolveApprovalCopy(view, translate, formatTime) {
       title: translate("approvalTitleExternal"),
       hint: translate("approvalHintExternal"),
       deadline: "",
+      expired: "",
       rejectLabel: translate("approvalDismiss"),
     };
   }
@@ -220,19 +239,15 @@ export function resolveApprovalCopy(view, translate, formatTime) {
     too_long: "approvalHintTooLong",
     no_details: "approvalHintNoDetails",
   };
-  const { deadline } = view;
+  const deadlineKeys = view.deadline && DEADLINE_KEYS[view.deadline.behavior];
   return {
     title:
       view.actions.length === 1
         ? translate("approvalTitleSingle")
         : translate("approvalTitleBatch", view.actions.length),
     hint: view.blocker ? translate(hints[view.blocker]) : "",
-    deadline: deadline
-      ? translate(
-          deadline.behavior === "deny" ? "approvalDeadlineDeny" : "approvalDeadlineAllow",
-          formatTime(deadline.atMs),
-        )
-      : "",
+    deadline: deadlineKeys ? translate(deadlineKeys.pending, formatTime(view.deadline.atMs)) : "",
+    expired: deadlineKeys ? translate(deadlineKeys.expired) : "",
     rejectLabel: translate("approvalReject"),
   };
 }
