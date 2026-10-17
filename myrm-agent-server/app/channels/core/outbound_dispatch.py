@@ -264,11 +264,19 @@ class OutboundDispatchMixin(OutboundFailureMixin):
                 await self._dispatch_one(msg)
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                # One poisoned message must not stop delivery for every channel; the durable
-                # obligation is released so the disk record (or the ephemeral temp file) takes over.
-                logger.exception("Outbound dispatch failed (channel=%s); releasing obligation", msg.channel)
-                self._release_unqueued(msg)
+            except Exception as exc:
+                # One poisoned message must not stop delivery for every channel. A pre-delivery failure
+                # (route resolution, gate, preparation, pacing) means the message never reached the
+                # channel, so it is settled as a failed send instead of merely released: releasing keeps
+                # the disk record pending and idle-timeout recovery re-injects it every cycle, spinning
+                # the loop. Settling acks the record, reports the failure once and preserves the payload
+                # for manual retry.
+                logger.exception("Outbound dispatch failed (channel=%s); settling failed send", msg.channel)
+                try:
+                    await self._record_outbound_failure(msg, str(exc), retries_exhausted=True)
+                except Exception:
+                    logger.exception("Could not settle the failed outbound message; releasing obligation")
+                    self._release_unqueued(msg)
 
     async def _dispatch_one(self, msg: OutboundMessage) -> None:
         """Route one dequeued message; the dispatch loop survives a failure raised here."""

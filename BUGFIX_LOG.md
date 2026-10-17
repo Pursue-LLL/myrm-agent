@@ -6904,7 +6904,7 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 ### 修复
 
 1. **闸门契约（`outbound_gate.py`）**：`probe_url` 改为「永不抛出（除 `CancelledError`）」——内部 `_probe_url` 保持一致逻辑，外层统一 `try/except Exception`，任何探测失败一律落为 `is_alive=False` 并记 `type(exc).__name__`；取消仍原样上抛。
-2. **派发消息级隔离（`outbound_dispatch.py`）**：抽出 `_dispatch_one(msg)` 承载单条路由（无渠道/熔断/内容闸门/限速/投递），循环对每次调用包 `try/except Exception`：`CancelledError` 重抛，其余 `logger.exception` 后调用 `_release_unqueued(msg)` 释放持久化义务（磁盘记录或临时文件接管），循环继续。一条毒消息不再等于全部渠道出站下线。
+2. **派发消息级隔离（`outbound_dispatch.py`）**：抽出 `_dispatch_one(msg)` 承载单条路由（无渠道/熔断/内容闸门/限速/投递），循环对每次调用包 `try/except Exception`：`CancelledError` 重抛，其余把该条**结算为失败**（`_record_outbound_failure`：ack 磁盘条目 + DLQ + 永久失败回调，正文保留供手动重试）后继续。一条毒消息不再等于全部渠道出站下线；结算（而非仅释放义务）是必要的——释放会让磁盘条目留在 pending，空闲 recover 每轮重注入同一毒消息形成 1Hz 空转（实测见验证 3）。
 3. **可观测 + 自愈（`bus.py`、`gateway.py`）**：两处循环均改经 `spawn_observed_task(..., name=...)` 创建；新增 `MessageBus.is_dispatch_loop_alive()` / `ensure_dispatch_loop_alive()`；网关新增 `_check_dispatch_health()`，与 router 自愈同样带指数退避（复用 `_BASE_BACKOFF`/`_BACKOFF_FACTOR`/`_MAX_BACKOFF`），恢复后清零退避。
 4. **健康巡检抗并发（`gateway.py`）**：迭代改为快照 `list(self.bus.channels.items())`，并把单渠道检查抽为 `_check_channel_health(name, channel)`，外层再包一层 `try/except Exception`——一个渠道的检查异常不再中断整轮（凭据热替换、单渠道故障均安全）。
 5. **其余长存活循环统一 `spawn_observed_task`**：`web_push` dispatcher、`notification` dispatcher、`btw` notifier、`goal-terminal` notifier、`webui-voice-work` notifier、`skills_curator`、router janitor；其中 `btw` 与 `webui-voice-work` 的 `_loop` 另把单条 `_deliver` 包 `try/except Exception`，一条不可投递事件不再终止通知器。
@@ -6913,9 +6913,10 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 ### 验证
 
 1. 复现实证（修复前）：以真实 `OutboundMessage` 构造含 `http://[::1]:8080/api` 的消息，`probe_url` 确定性地抛出 `httpx.InvalidURL` 并逃出 `evaluate_and_apply`，证明第 1、2 点可复现。
-2. 新增单测：`tests/channels/test_outbound_gate.py::test_probe_url_never_raises_on_non_request_errors`（`InvalidURL`/`StreamError` 均落为不可达）、`::test_probe_url_propagates_cancellation`、`::test_evaluate_and_apply_survives_a_raising_probe`；`tests/channels/test_bus.py::test_dispatch_loop_survives_poisoned_message_and_releases_obligation`（毒消息后循环仍存活、义务被释放、后续消息正常发出）；`tests/channels/test_channel_health.py::TestDispatchHealthRestart` 4 例 + `TestBusDispatchLoopLiveness` 3 例（关闭不重启、死循环重启、退避门控、存活不动作、`is/ensure_dispatch_loop_alive` 状态）。
-3. 架构护栏实测：`test_long_lived_loops_are_spawned_observed` 在修复前报出全部裸 `create_task` 长存活循环，修复后为空；`test_observed_spawn_calls_are_named` 强制 `name=` 且捕获已知 ≥8 处。
-4. 目标套件全量：`tests/channels/test_bus.py`、`test_outbound_gate.py`、`test_channel_health.py`、`tests/architecture/test_long_lived_loops_observed.py` 共 98 例全绿。
+2. 新增单测：`tests/channels/test_outbound_gate.py::test_probe_url_never_raises_on_non_request_errors`（`InvalidURL`/`StreamError` 均落为不可达）、`::test_probe_url_propagates_cancellation`、`::test_evaluate_and_apply_survives_a_raising_probe`；`tests/channels/test_bus.py::test_dispatch_loop_survives_poisoned_message_and_records_failure`（毒消息后循环仍存活、失败被结算、后续消息正常发出）、`::test_pre_delivery_failure_does_not_livelock_via_durable_recovery`（确定性失败在 3.2s 内只尝试 1 次、磁盘 pending 归 0）；`tests/channels/test_channel_health.py::TestDispatchHealthRestart` 4 例 + `TestBusDispatchLoopLiveness` 3 例（关闭不重启、死循环重启、退避门控、存活不动作、`is/ensure_dispatch_loop_alive` 状态）。
+3. **空转实测（自查发现并修正）**：修复初版把毒消息仅 `_release_unqueued`，实测 3.2s 内闸门被调用 4 次、磁盘 pending 恒为 1（空闲 recover 每轮重注入）；改为 `_record_outbound_failure(..., retries_exhausted=True)` 后，3.2s 内只调用 1 次、磁盘 pending 归 0。
+4. 架构护栏实测：`test_long_lived_loops_are_spawned_observed` 在修复前报出全部裸 `create_task` 长存活循环，修复后为空；`test_observed_spawn_calls_are_named` 强制 `name=` 且捕获已知 ≥8 处。
+5. 目标套件全量：`tests/channels/test_bus.py`、`test_outbound_gate.py`、`test_channel_health.py`、`tests/architecture/test_long_lived_loops_observed.py` 共 99 例全绿。
 
 ### 踩坑经验
 
@@ -6923,9 +6924,7 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 2. **循环里迭代共享容器必须用快照**：只要有 `await`，任何 `dict.items()` 迭代都可能撞上并发增删；健康/巡检这类「必须活着」的循环尤其不能因此整轮死掉。
 3. **自愈机制自身也必须对抗它要处理的故障**：网关健康循环既要能重启 router/dispatch，又不能被渠道热替换、单渠道异常打死。
 4. **同机理的缺陷要一次扫干净**：015 修了入站，016 与出站同源；用 AST 静态护栏把「长存活循环必须观测创建」固化，避免逐个漏网。
-
----
-
+5. **「释放义务」不等于「了结」**：仅在内存里释放跟踪会让磁盘条目留在 pending，空闲 recover 每轮重注入同一条消息；对确定性失败必须走「结算」（ack + DLQ），否则隔离手段本身变成空转源。加消息级隔离后必须实测单位时间内的重试次数，而不是只看循环是否存活。
 
 ---
 
@@ -6960,10 +6959,11 @@ Pydantic 的 `alias_generator` 只作用在**声明字段**上：`PDFExtractResp
 ### 验证
 
 1. **线上口径的实测（修复前）**：用旧模型（无别名配置）跑 `model_dump(by_alias=True)`，读数 `OLD image keys: ['data', 'mime_type', 'file_url']`、`OLD trace keys: ['dropped_count', 'kept_count']`；改成新模型后为 `NEW image keys: ['data', 'mimeType', 'fileUrl']`、`NEW trace keys: ['droppedCount', 'keptCount', 'truncated']`。前端 `multimodalBuilder.ts` 读的正是 `fileUrl`/`mimeType`/`droppedCount`，与旧读数逐字不符，与「提示不弹、图片地址拼成 `data:undefined`」的推理一致。
-2. **服务器回归**：`tests/api/files/test_pdf_extract_api.py` 新增 `test_nested_response_fields_are_camel_case`，用带内嵌图版的 PDF fixture（`_build_pdf_with_figure_bytes` + `pdf_with_figure`）断言 `images` 非空、`imageTrace` 非空、`totalProcessed`/`droppedCount` 存在且整层与整个 `images` 里不存在任何含 `_` 的键。文本型 fixture 下 `images`/`imageTrace` 为空，判别性不足，所以另造了带图 fixture。整目录 385 例通过。
+2. **服务器回归**：`tests/api/files/test_pdf_extract_api.py` 新增 `test_nested_response_fields_are_camel_case`，用带内嵌图版的 PDF fixture（`_build_pdf_with_figure_bytes` + `pdf_with_figure`）断言 `images` 非空、`imageTrace` 非空、`totalProcessed`/`droppedCount` 存在且整层与整个 `images` 里不存在任何含 `_` 的键。文本型 fixture 下 `images`/`imageTrace` 为空，判别性不足，所以另造了带图 fixture。**对抗式审查补记**：另增 `test_trace_truncated_flag_reaches_the_client`（在 `extract_pdf_from_path` 边界替换成携带 `truncated=True` 的结果，走真实 HTTP 断言线上 `imageTrace` 里 `truncated is True` 且 `dropReasons` 存在），把「`truncated` 真的能穿过序列化到达前端」钉住——原 `test_nested_response_fields_are_camel_case` 只断言键的命名，从不制造 `truncated`，因此该字段整条链路此前没有任何用例覆盖。变异验证：把 `field_serializer` 换成 `return dict(trace)`，新用例因 `assert 'dropReasons' in trace` 确定性变红（单字键 `truncated` 自己躲得过坏序列化器，所以必须同时断言一个蛇形双词键）；还原后 sha 一致。整目录 387 例通过。
 3. **前端回归**：`multimodalBuilder.test.ts` 新增两例——截断时弹 `chat.pdfFiguresTruncated`（`{ kept: 30 }`）、截断与过滤同时成立时只弹截断那条；`toastCopyKeys.test.ts` 校验新键的占位符格式。两文件 253 例通过。
 4. **i18n 门禁**：`node scripts/verify-i18n.mjs` 全绿（含 ko/de 无汉字、ja/zh-TW 无简体字形、key parity、占位符、双语对照等）。
 5. **静态检查**：`ruff check`、`ruff format --check` 对 server 两个文件通过；`_ARCH.md`（`app/api/files`、`src/store/chat`、`src/services`）同步说明驼峰契约与新提示。
+6. **字段说明的边界（对抗式审查时发现并纠正）**：本条的 `image_trace` 字段说明最初写成「truncated when the delivery window cut the scan short」，但实测证伪——40 页纯图片扫描件（`ocr_pages=30`）交付 30 页时 `image_trace` 是 `{'total_processed': 30, 'kept_count': 30, 'dropped_count': 0, 'drop_reasons': {}}`，**没有** `truncated`：渲染路径只把缺口写进 `parsed_pages`（`30 < 40`），从不写 `truncated`。`truncated` 的契约只覆盖「整页投递下内嵌图版被上限截断」这一种情形。说明文案已改为 `truncated when the embedded-figure ceiling cut the scan short; a truncated scan delivered fewer pages, which surfaces as parsedPages < pageCount`，并在 harness 侧补 `test_partial_scan_reports_shortfall_through_parsed_pages_not_truncated` 钉死边界（变异验证：把渲染路径改成命中上限即置 `truncated`，该用例确定性变红）。**同一处缺口不能让两条提示同时响**：前端 `chat.pdfParsedPages` 已经按 `parsedPages < pageCount` 报告页缺口，若渲染路径也置 `truncated`，同一次页缺口会经 `pdfParsedPages` 与 `pdfFiguresTruncated` 各报一次，且后者的文案说的是「图版」而非「页」，与事实不符。
 
 ### 踩坑经验
 
@@ -6971,3 +6971,4 @@ Pydantic 的 `alias_generator` 只作用在**声明字段**上：`PDFExtractResp
 2. **内层模型必须自带 `model_config`**：外层有别名不等于内层有；`PDFImageItem` 就是漏网的典型。
 3. **契约要靠测试钉住，而非靠前端类型**：`file.ts` 一直写着驼峰、后端一直发蛇形而无人察觉，是因为没有任何用例同时看两端。补一个「整层不许出现蛇形键」的断言即可把这类偏差钉死。
 4. **判定用例必须真的走到那条分支**：用文本型 PDF 断言 `imageTrace` 会得到空字典，断言恒真；必须构造带图版的 fixture 才有判别力。
+5. **字段说明也会说谎，且比代码更难被抓到**：`truncated` 的说明是本条新写的，写的是「delivery window」，读起来像覆盖两条图像路径；代码只覆盖其中一条，而没有用例会去读说明文字。今后为「跨两条分支共用」的字段措辞时，必须以实测读数逐条核对，不能凭「两条路径都有上限」就顺口概括。

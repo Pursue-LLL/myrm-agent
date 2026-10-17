@@ -504,6 +504,9 @@ StreamCoordinator
 - 发送成功 `ack_delivery`；永久失败移交 DLQ 后 ack 磁盘条目
 - 进程重启 `recover_into_bus` 重注入内存队列；dispatch 空闲时亦自动 recover（QueueFull 后无需重启）；`attempting` 中断恢复带 i18n 前缀
 - 渠道 DISABLED / STOPPED 或未注册（非 CP egress）时 **保留** 磁盘 obligation（不 ack）；`enable_channel` 触发 recover
+- 队列分发对每条消息单独隔离（`_dispatch_one`）：准备阶段（路由解析、内容门、限速）抛出时把该条 **结算为失败**（ack 磁盘条目 + DLQ + 永久失败回调，正文保留供手动重试），而不是仅释放 obligation——释放会让磁盘条目留在 pending，空闲 recover 每轮重注入同一毒消息形成空转
+- 出站内容门 `probe_url` **永不抛出**（除取消）：被 HTTP 客户端拒绝的 URL（如 `httpx.InvalidURL`、`StreamError`，均非 `RequestError` 子类）一律落为不可达，绝不中断消息投递
+- 分发循环与网关健康循环经 `spawn_observed_task` 创建（崩溃留带堆栈的 ERROR），网关按指数退避重启已死的分发循环（同 router 自愈）；健康巡检迭代渠道字典的**快照**，凭据热替换不会中断整轮
 - `channel.send` / CP egress 未证明送达（渠道声明回传 id 却返回 `None`、CP 无 `message_id`）时 **不得 ack**：队列分发与 `send_now` 一律结算为失败（DLQ + 永久失败回调 + 释放磁盘条目），`send_now` 另向调用方抛错
 - `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测
 - 与 `delivery_notify_ledger` 职责分离：后者仅 permanent-failure toast 去重

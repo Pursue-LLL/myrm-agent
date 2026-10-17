@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -399,11 +400,11 @@ class TestMessageBusLifecycle:
             await bus.stop()
 
     @pytest.mark.asyncio
-    async def test_dispatch_loop_survives_poisoned_message_and_releases_obligation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_dispatch_loop_survives_poisoned_message_and_records_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A message that blows up mid-dispatch must not stop delivery for every channel.
 
-        The failure is absorbed per message and its durable obligation released, so the rest
-        of the queue still goes out instead of the loop dying silently.
+        The failure is absorbed per message and recorded as a failed send, so the rest of the
+        queue still goes out instead of the loop dying silently.
         """
         bus = MessageBus()
         ch = FakeChannel()
@@ -419,8 +420,12 @@ class TestMessageBusLifecycle:
             "app.channels.core.outbound_dispatch.get_outbound_content_gate",
             lambda: _FlakyGate(),
         )
-        released: list[OutboundMessage] = []
-        monkeypatch.setattr(bus, "_release_unqueued", released.append)
+        recorded: list[OutboundMessage] = []
+
+        async def _record(msg: OutboundMessage, error: str, *, retries_exhausted: bool) -> None:
+            recorded.append(msg)
+
+        monkeypatch.setattr(bus, "_record_outbound_failure", _record)
 
         await bus.start()
         try:
@@ -429,8 +434,40 @@ class TestMessageBusLifecycle:
             await asyncio.sleep(0.1)
 
             assert bus.is_dispatch_loop_alive()
-            assert [m.content for m in released] == ["poison payload"]
+            assert [m.content for m in recorded] == ["poison payload"]
             assert [m.content for m in ch.sent] == ["healthy payload"]
+        finally:
+            await bus.stop()
+
+    @pytest.mark.asyncio
+    async def test_pre_delivery_failure_does_not_livelock_via_durable_recovery(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A deterministically-failing message must not be re-injected by disk recovery forever.
+
+        Releasing the obligation instead of recording the failure leaves the disk record pending,
+        so the idle-timeout recovery re-injects it every cycle. The failure must be recorded so
+        the record is acked and the DLQ's bounded retries take over.
+        """
+        attempts = {"n": 0}
+
+        class _AlwaysRaisingGate:
+            async def evaluate_and_apply(self, msg: OutboundMessage) -> OutboundMessage:
+                attempts["n"] += 1
+                raise RuntimeError("deterministic pre-delivery failure")
+
+        monkeypatch.setattr(
+            "app.channels.core.outbound_dispatch.get_outbound_content_gate",
+            lambda: _AlwaysRaisingGate(),
+        )
+        bus = MessageBus(dlq_dir=tmp_path)
+        bus.register_channel(FakeChannel())
+        await bus.start()
+        try:
+            await bus.publish_outbound(_make_out(content="payload"))
+            await asyncio.sleep(3.2)
+            assert attempts["n"] == 1
+            assert await bus._durable_outbound.count_pending() == 0
         finally:
             await bus.stop()
 
