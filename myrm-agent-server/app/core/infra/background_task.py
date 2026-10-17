@@ -29,8 +29,12 @@ logger = logging.getLogger(__name__)
 
 
 def spawn_observed_task(coroutine: Coroutine[object, object, None], *, name: str) -> asyncio.Task[None]:
-    """Start a long-lived task and observe its outcome so a crash cannot go unlogged."""
-    task = asyncio.create_task(coroutine)
+    """Start a long-lived task and observe its outcome so a crash cannot go unlogged.
+
+    ``name`` doubles as the asyncio task name, so a stuck or dead scheduler is identifiable in
+    faulthandler dumps and ``asyncio.all_tasks()`` output, not just in the failure log.
+    """
+    task = asyncio.create_task(coroutine, name=name)
     task.add_done_callback(partial(_log_task_failure, name=name))
     return task
 

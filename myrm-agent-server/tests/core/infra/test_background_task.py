@@ -79,3 +79,16 @@ async def test_a_healthy_task_logs_nothing(captured: _CaptureHandler) -> None:
     await asyncio.wait({task})
 
     assert captured.records == []
+
+
+async def test_the_task_carries_its_name_for_diagnostics() -> None:
+    """A stuck scheduler must be identifiable in faulthandler / all_tasks dumps, not only in logs."""
+    task = spawn_observed_task(_never_finishes(), name="remote_backup_auto_sync")
+    await asyncio.sleep(0)
+
+    try:
+        assert task.get_name() == "remote_backup_auto_sync"
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
