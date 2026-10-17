@@ -34,8 +34,19 @@ def _members(cfg: SearchServiceConfig) -> list[SearchServiceConfig]:
     return cfg.provider_chain or [cfg]
 
 
+def _member_identity(member: SearchServiceConfig) -> str:
+    """Everything about one chain member that decides which answer a search comes back with.
+
+    The gateway endpoint and token belong here alongside the provider key: two agents routed through different
+    gateway tokens have different quota and can be answered differently, so one verdict must not serve both.
+    """
+    gateway = member.gateway_config
+    gateway_scope = f"{gateway.gateway_url or ''}:{gateway.auth_token or ''}" if gateway and gateway.use_gateway else ""
+    return f"{member.search_service}:{member.api_key or ''}:{member.api_base or ''}:{gateway_scope}"
+
+
 def _cache_key(cfg: SearchServiceConfig) -> str:
-    return "|".join(f"{m.search_service}:{m.api_key or ''}:{m.api_base or ''}" for m in _members(cfg))
+    return "|".join(_member_identity(member) for member in _members(cfg))
 
 
 def _has_required_credentials(member: SearchServiceConfig) -> bool:

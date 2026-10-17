@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from unittest.mock import patch
 
 import pytest
+from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
 from myrm_agent_harness.toolkits.web_search.coalescing.search_coalescing import (
     reset_search_coalescing_state_for_tests,
 )
@@ -246,3 +247,18 @@ async def test_swapped_key_on_the_same_provider_is_probed_again(providers: Provi
 
     assert await verify_search_service_available(cfg.model_copy(update={"api_key": "account-b"})) is True
     assert providers.calls == ["account-a", "account-b"]
+
+
+async def test_verdict_is_keyed_by_the_gateway_identity(providers: ProviderStub) -> None:
+    """Two agents behind different gateway tokens can have different quota, so one verdict must not serve both."""
+    providers.outcomes = {"key": _ANSWER}
+    first = _member("tavily", "key").model_copy(
+        update={"gateway_config": ToolGatewayConfig(use_gateway=True, gateway_url="https://gw.example", auth_token="vk-a")}
+    )
+    second = first.model_copy(
+        update={"gateway_config": ToolGatewayConfig(use_gateway=True, gateway_url="https://gw.example", auth_token="vk-b")}
+    )
+
+    assert await verify_search_service_available(first) is True
+    assert await verify_search_service_available(second) is True
+    assert providers.calls == ["key", "key"]
