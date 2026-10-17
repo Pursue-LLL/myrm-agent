@@ -34,19 +34,42 @@ print(int(attach_ui_probe_timeout_sec()))
   echo 12
 }
 
-_attach_ui_liveness_probe_timeout_sec() {
+# A probe that fails decides to restart the shared frontend, so its budget must follow the same
+# host-load SSOT as the contract instead of a fixed 8s that a busy host blows through.
+_attach_ui_stale_probe_timeout_sec() {
+  if [[ "${MYRM_E2E_ATTACH_UI_STALE_PROBE_TIMEOUT_SEC:-}" =~ ^[0-9]+$ && "${MYRM_E2E_ATTACH_UI_STALE_PROBE_TIMEOUT_SEC}" -gt 0 ]]; then
+    echo "${MYRM_E2E_ATTACH_UI_STALE_PROBE_TIMEOUT_SEC}"
+    return 0
+  fi
   local resolved=""
   resolved="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
 sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
-from dev_gate.contract import attach_ui_liveness_probe_timeout_sec
-print(int(attach_ui_liveness_probe_timeout_sec()))
+from dev_gate.contract import attach_ui_stale_probe_timeout_sec
+print(int(attach_ui_stale_probe_timeout_sec()))
 " 2>/dev/null)" || true
   if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
     echo "${resolved}"
     return 0
   fi
   echo 8
+}
+
+# The slow band and its probe come from one contract function pair, so the band can never
+# demand an answer faster than the probe that measures it.
+_attach_ui_stale_slow_sec() {
+  local resolved=""
+  resolved="$("${PREFLIGHT_PY:-python3}" -c "
+import sys
+sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
+from dev_gate.contract import attach_ui_stale_slow_sec
+print(int(attach_ui_stale_slow_sec()))
+" 2>/dev/null)" || true
+  if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
+    echo "${resolved}"
+    return 0
+  fi
+  echo "${MYRM_UI_HEAL_SLOW_SEC:-5}"
 }
 
 # Frontend dev-server lock holder must be alive (warmth invalid if Turbopack process died).
@@ -471,7 +494,7 @@ _frontend_root_probe_seconds() {
 
 _frontend_liveness_probe_seconds() {
   local probe_timeout
-  probe_timeout="$(_attach_ui_liveness_probe_timeout_sec)"
+  probe_timeout="$(_attach_ui_stale_probe_timeout_sec)"
   curl -sf --connect-timeout 3 --max-time "${probe_timeout}" -o /dev/null -w "%{time_total}" "${APP_URL}/" 2>/dev/null || return 1
 }
 
@@ -490,7 +513,8 @@ print(attach_ui_heal_post_ensure_max_sec())
 " 2>/dev/null)"
   fi
   [[ "${max_sec}" =~ ^[0-9]+$ && "${max_sec}" -gt 0 ]] || max_sec=120
-  local streak_required="${FRONTEND_WARM_STREAK}" streak=0 i timing="" pressure=0
+  local streak_required="${FRONTEND_WARM_STREAK}" streak=0 i timing="" pressure=0 slow_band=""
+  slow_band="$(_attach_ui_stale_slow_sec)"
   pressure="$("${PREFLIGHT_PY:-python3}" -c "
 import sys
 sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
@@ -506,7 +530,7 @@ print(_parallel_chrome_e2e_pressure())
   fi
   for i in $(seq 1 "${max_sec}"); do
     if timing="$(_frontend_liveness_probe_seconds)"; then
-      if awk -v t="${timing}" -v slow="${MYRM_UI_HEAL_SLOW_SEC}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
+      if awk -v t="${timing}" -v slow="${slow_band}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
         streak=$((streak + 1))
         if [[ "${streak}" -ge "${streak_required}" ]]; then
           echo "${timing}"
@@ -533,7 +557,7 @@ _heal_shared_ui_if_stale() {
   if ! _frontend_port_listening; then
     reason="port_down"
   elif timing="$(_frontend_liveness_probe_seconds)"; then
-    if awk -v t="${timing}" -v slow="${MYRM_UI_HEAL_SLOW_SEC}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
+    if awk -v t="${timing}" -v slow="${slow_band}" 'BEGIN { exit (t <= slow ? 0 : 1) }'; then
       return 0
     fi
     reason="slow_${timing}s"
