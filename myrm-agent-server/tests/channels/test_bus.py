@@ -398,6 +398,42 @@ class TestMessageBusLifecycle:
         finally:
             await bus.stop()
 
+    @pytest.mark.asyncio
+    async def test_dispatch_loop_survives_poisoned_message_and_releases_obligation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A message that blows up mid-dispatch must not stop delivery for every channel.
+
+        The failure is absorbed per message and its durable obligation released, so the rest
+        of the queue still goes out instead of the loop dying silently.
+        """
+        bus = MessageBus()
+        ch = FakeChannel()
+        bus.register_channel(ch)
+
+        class _FlakyGate:
+            async def evaluate_and_apply(self, msg: OutboundMessage) -> OutboundMessage:
+                if "poison" in msg.content:
+                    raise RuntimeError("poisoned message")
+                return msg
+
+        monkeypatch.setattr(
+            "app.channels.core.outbound_dispatch.get_outbound_content_gate",
+            lambda: _FlakyGate(),
+        )
+        released: list[OutboundMessage] = []
+        monkeypatch.setattr(bus, "_release_unqueued", released.append)
+
+        await bus.start()
+        try:
+            await bus.publish_outbound(_make_out(content="poison payload"))
+            await bus.publish_outbound(_make_out(content="healthy payload"))
+            await asyncio.sleep(0.1)
+
+            assert bus.is_dispatch_loop_alive()
+            assert [m.content for m in released] == ["poison payload"]
+            assert [m.content for m in ch.sent] == ["healthy payload"]
+        finally:
+            await bus.stop()
+
 
 class TestMessageBusEdgeCases:
     @pytest.mark.asyncio

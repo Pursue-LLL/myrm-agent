@@ -56,6 +56,7 @@ from app.channels.types import (
     GroupInfo,
     OutboundMessage,
 )
+from app.core.infra.background_task import spawn_observed_task
 
 if TYPE_CHECKING:
     from app.channels.media.sticker_vision import (
@@ -138,6 +139,8 @@ class ChannelGateway:
         self._router: AgentRouter | None = None
         self._router_restart_attempts = 0
         self._router_restart_not_before = 0.0
+        self._dispatch_restart_attempts = 0
+        self._dispatch_restart_not_before = 0.0
         self._status_change_callback: Callable[[str, ChannelStatus, ChannelStatus], None] | None = None
         self._groups_change_callback: Callable[[str, list[object]], None] | None = None
         self._connection_change_callback: Callable[[str, bool], None] | None = None
@@ -288,7 +291,7 @@ class ChannelGateway:
             self._router.set_inbound_journal(self._inbound_journal)
             await self._router.start()
 
-        self._health_task = asyncio.create_task(self._health_loop())
+        self._health_task = spawn_observed_task(self._health_loop(), name="channel_health")
         logger.info(
             "ChannelGateway started (channels: %s, bidirectional: %s)",
             ", ".join(self.bus.registered_channels) or "none",
@@ -665,48 +668,59 @@ class ChannelGateway:
                 break
 
             await self._check_router_health()
+            self._check_dispatch_health()
 
-            for name, channel in self.bus.channels.items():
-                if channel.status in (ChannelStatus.STOPPED, ChannelStatus.DISABLED):
-                    continue
-
+            # Snapshot: a concurrent credential swap adds/removes channels on this same dict,
+            # and awaiting a channel's health check yields control mid-iteration.
+            for name, channel in list(self.bus.channels.items()):
                 try:
-                    healthy = await channel.health_check()
-                except Exception as exc:
-                    healthy = False
-                    logger.warning("Health check exception for '%s': %s", name, exc)
+                    await self._check_channel_health(name, channel)
+                except Exception:
+                    # One misbehaving channel must not stop health monitoring for the rest.
+                    logger.exception("Health check failed for channel '%s'", name)
 
-                if healthy:
-                    if channel.health.consecutive_failures > 0:
-                        logger.warning(
-                            "Channel '%s' recovered after %d failures",
-                            name,
-                            channel.health.consecutive_failures,
-                        )
-                    channel.health.record_success()
-                    if channel.status == ChannelStatus.DEGRADED:
-                        channel._status = ChannelStatus.RUNNING
-                    continue
+    async def _check_channel_health(self, name: str, channel: BaseChannel) -> None:
+        """Run one channel's health check and react to the outcome."""
+        if channel.status in (ChannelStatus.STOPPED, ChannelStatus.DISABLED):
+            return
 
-                channel.health.record_failure()
+        try:
+            healthy = await channel.health_check()
+        except Exception as exc:
+            healthy = False
+            logger.warning("Health check exception for '%s': %s", name, exc)
 
-                failures = channel.health.consecutive_failures
-                if failures >= _DEGRADED_THRESHOLD and channel.status == ChannelStatus.RUNNING:
-                    channel._status = ChannelStatus.DEGRADED
-                    logger.warning(
-                        "Channel '%s' degraded (%d consecutive failures)",
-                        name,
-                        failures,
-                    )
+        if healthy:
+            if channel.health.consecutive_failures > 0:
+                logger.warning(
+                    "Channel '%s' recovered after %d failures",
+                    name,
+                    channel.health.consecutive_failures,
+                )
+            channel.health.record_success()
+            if channel.status == ChannelStatus.DEGRADED:
+                channel._status = ChannelStatus.RUNNING
+            return
 
-                if self._should_restart(channel):
-                    logger.warning(
-                        "Channel '%s' restarting (failures=%d, backoff=%.1fs)",
-                        name,
-                        failures,
-                        self._compute_backoff(failures),
-                    )
-                    await self._restart_channel(name, channel)
+        channel.health.record_failure()
+
+        failures = channel.health.consecutive_failures
+        if failures >= _DEGRADED_THRESHOLD and channel.status == ChannelStatus.RUNNING:
+            channel._status = ChannelStatus.DEGRADED
+            logger.warning(
+                "Channel '%s' degraded (%d consecutive failures)",
+                name,
+                failures,
+            )
+
+        if self._should_restart(channel):
+            logger.warning(
+                "Channel '%s' restarting (failures=%d, backoff=%.1fs)",
+                name,
+                failures,
+                self._compute_backoff(failures),
+            )
+            await self._restart_channel(name, channel)
 
     async def _check_router_health(self) -> None:
         """Restart the router's consume loop if its task has died.
@@ -744,6 +758,36 @@ class ChannelGateway:
         if self._router.is_consume_loop_alive():
             self._router_restart_attempts = 0
             self._router_restart_not_before = 0.0
+
+    def _check_dispatch_health(self) -> None:
+        """Restart the bus outbound dispatch loop if its task has died.
+
+        The loop absorbs a per-message failure, so a finished task means it ended unrecoverably
+        and no channel can deliver anything. A backoff gates restarts so a deterministic crash
+        cannot spin; the failure itself is already logged by the task's observer.
+        """
+        if not self._running or self.bus.is_dispatch_loop_alive():
+            return
+
+        now = time.monotonic()
+        if now < self._dispatch_restart_not_before:
+            return
+
+        self._dispatch_restart_attempts += 1
+        backoff = min(
+            _BASE_BACKOFF * (_BACKOFF_FACTOR ** (self._dispatch_restart_attempts - 1)),
+            _MAX_BACKOFF,
+        )
+        self._dispatch_restart_not_before = now + backoff
+
+        logger.error(
+            "Outbound dispatch loop is not running; restarting (attempt=%d, backoff=%.1fs)",
+            self._dispatch_restart_attempts,
+            backoff,
+        )
+        if self.bus.ensure_dispatch_loop_alive():
+            self._dispatch_restart_attempts = 0
+            self._dispatch_restart_not_before = 0.0
 
     @staticmethod
     def _compute_backoff(failures: int) -> float:

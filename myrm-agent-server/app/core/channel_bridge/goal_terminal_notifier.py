@@ -28,6 +28,7 @@ import logging
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.i18n import channel_t
 from app.channels.types import OutboundMessage
+from app.core.infra.background_task import spawn_observed_task
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class GoalTerminalNotifier:
 
     async def start(self) -> None:
         self._queue = self._bus.subscribe()
-        self._task = asyncio.create_task(self._loop(), name="goal-terminal-notifier")
+        self._task = spawn_observed_task(self._loop(), name="goal-terminal-notifier")
         logger.info("GoalTerminalNotifier started")
 
     async def stop(self) -> None:

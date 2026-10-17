@@ -29,6 +29,7 @@ import logging
 from app.channels.core.exceptions import ChannelSendError
 from app.channels.i18n import channel_t
 from app.channels.types import OutboundMessage
+from app.core.infra.background_task import spawn_observed_task
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class BtwTaskNotifier:
 
     async def start(self) -> None:
         self._queue = self._bus.subscribe()
-        self._task = asyncio.create_task(self._loop(), name="btw-task-notifier")
+        self._task = spawn_observed_task(self._loop(), name="btw-task-notifier")
         logger.info("BtwTaskNotifier started")
 
     async def stop(self) -> None:
@@ -71,7 +72,11 @@ class BtwTaskNotifier:
             event = await self._queue.get()
             if event.event_type != AppEventType.BACKGROUND_TASK_DONE:
                 continue
-            await self._deliver(event.data)
+            try:
+                await self._deliver(event.data)
+            except Exception:
+                # One undeliverable event must not stop the notifier for every later task.
+                logger.exception("BtwTaskNotifier delivery failed")
 
     async def _deliver(self, data: dict[str, object]) -> None:
         from app.core.channel_bridge import channel_gateway

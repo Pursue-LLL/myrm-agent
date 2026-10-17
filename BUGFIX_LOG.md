@@ -5735,7 +5735,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 手机宽度用的是同源 390px 的 iframe（真实媒体查询），不是真机；iframe 里是通过 store 开启无痕的，没有点底部抽屉里的真实开关；触屏不出现悬停提示来自读 Radix 源码，没有在真机上点过。
 3. E2E 只用了简体中文；其他五种语言的文案更长，容器按词换行，没有逐个在浏览器里看。
 4. 无痕会话被清除时，它的分享链接随之失效；在清除之前，分享链接仍可访问，没有额外限制（本次不做）。
-5. 导出已不带无痕会话的工作区文件与子代理库，但还有四处没有处理：(a) `harness/` 根下共享的产物保险库里属于无痕会话的对象仍随导出走：在线清除对它按文件名、描述、id 做子串匹配（`vault.py` 的 `purge_by_task_ids`），归档侧照搬会误删或漏删，所以没有照搬；(b) 上传的附件进的是用户级文件库 `storage/files/uploads/`，不属于任何会话：前端 `services/file.ts` 的 `uploadFiles` 只发文件，接口 `app/api/files/upload.py` 与 `core/storage/service.py` 的 `upload_file` 没有会话参数，`api/files/suggest.py` 的 `_suggest_stored_files` 对所有会话列出全部上传文件。所以无痕会话里传的附件不会随会话清除，会出现在别的会话的 `@` 文件候选里，也随导出走；要归属到会话需要前端、上传接口、存储元数据、在线清除与导出一起改，这次没有做（**已在 `BUG-AGENT-2026-10-17-011` 处理**：上传时绑定 `source_chat_id`、候选按会话收窄、小时级清除带走绑定附件并清扫孤儿、导出按会话真实状态剔除；未绑定的上传仍按本条所述保留）；(c) `artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）；(d) 在线清除先提交会话行的删除，再删检查点与工作区文件（`chat_deletion.py` 的 `permanently_delete_chat`：事务内删行，事务后才调 `chat_disposal.dispose_permanently_deleted_chats`），而导出的名单只认库里仍存在的无痕会话行：恰在两步之间读名单的导出会带走刚被清除的会话的工作区文件与检查点线程；文件删除失败（该函数只记 warning）留下的孤儿工作区同理。窗口长度没有实测，也没有为它加锁。
+5. 导出已不带无痕会话的工作区文件与子代理库，但还有四处没有处理：(a) `harness/` 根下共享的产物保险库里属于无痕会话的对象仍随导出走：在线清除对它按文件名、描述、id 做子串匹配（`vault.py` 的 `purge_by_task_ids`），归档侧照搬会误删或漏删，所以没有照搬；(b) 上传的附件进的是用户级文件库 `storage/files/uploads/`，不属于任何会话：前端 `services/file.ts` 的 `uploadFiles` 只发文件，接口 `app/api/files/upload.py` 与 `core/storage/service.py` 的 `upload_file` 没有会话参数，`api/files/suggest.py` 的 `_suggest_stored_files` 对所有会话列出全部上传文件。所以无痕会话里传的附件不会随会话清除，会出现在别的会话的 `@` 文件候选里，也随导出走；要归属到会话需要前端、上传接口、存储元数据、在线清除与导出一起改，这次没有做（**已在 `BUG-AGENT-2026-10-17-016` 处理**：上传时绑定 `source_chat_id`、候选按会话收窄、小时级清除带走绑定附件并清扫孤儿、导出按会话真实状态剔除；未绑定的上传仍按本条所述保留）；(c) `artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）；(d) 在线清除先提交会话行的删除，再删检查点与工作区文件（`chat_deletion.py` 的 `permanently_delete_chat`：事务内删行，事务后才调 `chat_disposal.dispose_permanently_deleted_chats`），而导出的名单只认库里仍存在的无痕会话行：恰在两步之间读名单的导出会带走刚被清除的会话的工作区文件与检查点线程；文件删除失败（该函数只记 warning）留下的孤儿工作区同理。窗口长度没有实测，也没有为它加锁。
    本机文件系统层面：库里删掉的行在被之后的写入覆盖之前仍留在空闲页里，`data.db` 与 `checkpoints.db` 的 `secure_delete` 没有开。合成数据实测（2.9KB 消息，真实 `ChatRepository.permanently_delete_chat`、`create_checkpointer` 与 `sync_checkpoint_messages`）：`data.db` 删除并 checkpoint 后 150 条里 140 条仍能在文件字节里读到，再写入 20 至 50 条约 3KB 的消息后降到 0 至 35 条，写 600 条后为 0；`checkpoints.db` 删除后 30/30，再写 15 个检查点 28/30，30 个后 0/30；子代理库顺序跑 60 次、每次结束即删，只剩最后一次可读。窗口由之后写了多少决定：忙碌用户几十条消息内就被覆盖，空闲用户会一直留着；`wal_checkpoint` 之前 WAL 文件里也还有删除前的页（周期 6 小时，关机时 TRUNCATE）。没有开 `secure_delete`：窗口窄、开启磁盘加密时丢失设备的场景已被覆盖、主库的写入要多 7% 到 10%（真实 schema 实测），且会话进行期间做的卷快照里无痕会话本来就是存活的行，开了也防不住。超过一页（约 4KB）的正文被溢出页指针切开，朴素的字节搜索找不到，但取证工具能还原，所以上面的数字是下界。全文索引段、`sqlite_backups/` 里最近 3 份热备份（6 小时一轮）、恢复点、日志与遥测里是否残留无痕内容，没有逐项审计。
 6. 暂存与导出都只剔除 `source = 'web'` 的无痕会话；若将来有第二种「到期即删」的来源，要同时改清除条件与这里的谓词（两处现在各写了一份）。
 7. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`checkpoint_scrub.py`、`incognito_workspaces.py`、`policy.py`、`export_service.py`、`stage_db.py`、`_ARCH.md`、四个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
@@ -6499,7 +6499,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ---
 
-## BUG-AGENT-2026-10-17-011: 网页无痕会话里上传的附件不属于任何会话：会话到期即删之后附件仍留在用户文件库里，出现在其他会话的 `@` 文件候选与导出包里；导入的外部转写会话（借无痕标志只为不进侧栏）在 `@` 里被当成无痕而拒绝提及
+## BUG-AGENT-2026-10-17-016: 网页无痕会话里上传的附件不属于任何会话：会话到期即删之后附件仍留在用户文件库里，出现在其他会话的 `@` 文件候选与导出包里；导入的外部转写会话（借无痕标志只为不进侧栏）在 `@` 里被当成无痕而拒绝提及
 
 | 字段 | 内容 |
 |------|------|
@@ -6507,8 +6507,8 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 | 修复日期 | 2026-10-17 |
 | 严重程度 | P2（附件是用户主动发进无痕会话的原文，会话在一小时后连同消息一起消失，附件却长期留在库里并可被别的会话列出、被导出与备份带走；外部转写会话无法被 `@` 引用是功能缺陷） |
 | 影响范围 | server：`app/core/storage/chat_bound.py`（新）、`service.py`、`models.py`、`_ARCH.md`、`app/api/files/upload.py`、`suggest.py`、`pdf_extract.py`、`_ARCH.md`、`app/services/chat/chat_retention.py`、`_ARCH.md`、`app/services/instance_archive/incognito_uploads.py`（新）、`export_service.py`、`table_policy.py`、`_ARCH.md`、`app/services/agent/params/mention.py`、`conversation_recall_index_service.py`、`_ARCH.md`、`scripts/ci/file_line_budget_baseline.txt`；前端：`src/services/incognitoUploadOptions.ts`（新）、`file.ts`、`file-service/{types,sandbox}.ts`、`IncognitoUploadOptions` 的调用点、两处 `_ARCH.md`、三个测试文件（本条的 A1 前端部分由另一会话先落盘，本次只复核未改动）；测试：`tests/core/storage/test_chat_bound_uploads.py`（新，7 例）、`tests/services/chat/test_incognito_upload_retention.py`（新，4 例）、`tests/services/instance_archive/test_incognito_uploads.py`（新，6 例）、`tests/api/files/test_suggest_api.py`（+1）、`test_upload_e2e.py`（+3）、`tests/services/chat/test_prior_chat_mention.py`（拆出转写用例）、`test_chat_bound_rows.py`（+守卫）、`_ARCH.md` |
-| 出现次数 | 1（presentation） |
-| 关联 | `BUG-AGENT-2026-10-16-022` 局限 5(b) 在此处理、5(c) 与 5(d) 保持原样（边界见局限 2、8）；`source_chat_id` 的三种含义见 `app/core/storage/_ARCH.md`；本地提交，未 push |
+| 出现次数 | 1（presentation、真实库与真实导出流水线复现，没有用户数据） |
+| 关联 | `BUG-AGENT-2026-10-16-022` 局限 5(b) 在此处理、5(c) 与 5(d) 保持原样（边界见局限 2、4）；`source_chat_id` 的三种含义见 `app/core/storage/_ARCH.md`；本地提交，未 push |
 
 ### 现象
 
@@ -6581,7 +6581,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 1. `approval.js` 的 `buildStreamBody`：新消息与审批答复（同一个构造函数）都带 `agent_config.enabled_builtin_tools = ["web_search", "memory"]`，即默认工具集去掉 `structured_clarify`。Agent 因此用对话文字提问，用户在面板输入框回答。复用网页端同款契约（`messageRequest.ts:756-759`），服务端侧 `request.agent_config` 只有 `converter.py:516`（需 `agent_id`，面板没有）与 `:642-647` 两处读取；覆盖的其余字段（`skill_ids`、`auto_restore_domains`、`browser_source`、`dialog_policy`、`session_recording`、`tool_gateway_config`）与不带 `agent_config` 时的初值逐项相同。
 2. `sidepanel.js`：`error_type === "AgentBusyError"` 或 `status_code === 409` 时显示新文案 `panelAgentBusy`（en：The agent is still working on the previous step. Try again in a moment. / zh_CN：Agent 还在处理上一步，请稍后再试。；与服务端 `stream_busy.py` 及网页端 `isAgentBusySseEvent` 同口径，两个字段任一命中即可），其余错误保持通用文案；`error` 事件改走 `chatView.showError`（带 `.error` 样式，无前文时不再有前导空行，有前文时文本与原来一致）。
-3. `sidepanel.css`：审批卡改为纵向 flex，高度随内容增长、上限为面板剩余高度，只有明细列表滚动，标题、提示、截止行与按钮不收缩；列表边缘用 `mask-image` 加 CSS 滚动驱动动画渐隐，只在边缘之外还有内容时出现，包在 `@supports (animation-timeline: scroll())` 里；动画范围显式取 `0 100%`（默认的 `normal` 只覆盖第一个视口高度，列表短于视口时时间线已生效，会让唯一一项处于渐隐中），无溢出时两条时间线都停在起点、两个渐隐变量保持 0。无 JS、无魔法数字。
+3. `sidepanel.css`：审批卡改为纵向 flex，高度随内容增长、上限为面板剩余高度，只有明细列表滚动，标题、提示、截止行与按钮不收缩；列表边缘用 `mask-image` 加 CSS 滚动驱动动画渐隐——时间线取列表自身的滚动进度，内容放得下时没有可滚动距离、时间线未激活，因此根本不渐隐；可滚动时按 keyframes 在离开顶端后渐显上缘、到底前渐隐下缘、到底后收起，整段包在 `@supports (animation-timeline: scroll())` 里。无 JS、无魔法数字。
 4. `_locales/{en,zh_CN}`：新增 `panelAgentBusy`；`_ARCH.md`：补 agent-stream 请求体的工具集、AgentBusy 行、卡片高度规则与新增的「Side Panel 工具集」一节。
 
 ### 验证
@@ -6619,7 +6619,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 1. 同一时段同一批文件里出现了我没有写过的修改（测试、样式变量化），同名的探针脚本也被覆盖，文件修改时间与我的操作顺序对不上。每次编辑前重读文件、提交前复核差异与修改时间，避免互相覆盖。
 2. Playwright 的路由处理函数写成 `lambda route, a=actions:` 时，第二个位置参数是请求对象，会顶掉默认参数；闭包捕获值，不要用默认参数。
-3. 滚动驱动动画的时间范围默认是 `normal`（只覆盖第一个视口高度），列表短于视口时时间线已经生效：自定义属性在 0% 处正是带渐隐的一侧，唯一一项因此被渐隐；把 `animation-range` 写成 `0 100%` 后，两种极端状态各自落在 keyframes 标注的那一端，无需额外 JS。无头浏览器里时间线确实逐帧更新，但读数前要等一帧渲染（`wait_for_timeout`），否则读到的是上一帧的值。
+3. 滚动驱动动画的默认时间范围是 `normal`，但在 `animation-timeline: scroll(self)`（默认 `auto` 轴）下与显式写 `0 100%` 的读数逐点相同——实测四种溢出量（0/5/100/400px）全程一致，`animation-range` 是多余声明，已删除。真正让「内容放得下就不渐隐」成立的是时间线未激活：没有可滚动距离时 `scroll()` 时间线不生效，两个自定义属性停在 `initial-value: 0px`。无头浏览器里时间线确实逐帧更新，但读数前要等一帧渲染（`wait_for_timeout`），否则读到的是上一帧的值；另外首次测量用固定高度的容器做夹具，掩盖了「时间线未激活」这一真实机制，必须按列表自身的溢出量构造夹具。
 4. 已有的 `showError` 就是「在回合末尾追加错误行并保留已流出的文本」，SSE 的 `error` 事件却绕过它自己拼 `\n\n`；复用现成的函数，比给 AgentBusy 再单独处理前导空行更干净。
 
 ---
@@ -6863,6 +6863,58 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 2. **强引用任务崩溃是无声的**：不要指望 asyncio 的未观测告警兜底；凡是长期存活的任务都应经带 done callback 的入口创建。
 3. **监督范围要覆盖所有「必须活着」的组件**：网关健康循环只盯渠道就会漏掉 router 这类同样「必须活着」的循环。
 4. **自愈要带退避**：无退避的自动重启会把确定性启动崩溃放大成 crash-loop 并静默消耗资源。
+
+---
+
+## BUG-AGENT-2026-10-17-016: 出站派发循环同样可被单条消息打断且崩溃后静默，并波及托管的全部 IM 渠道；网关健康巡检在凭据热替换时会整轮中断
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P1（出站可用性单点 + 自愈机制被自己的迭代方式打死，均为静默失效） |
+| 影响范围 | `app/channels/core/outbound_dispatch.py`、`app/channels/core/bus.py`、`app/channels/core/gateway.py`、`app/channels/core/outbound_gate.py`、`app/channels/routing/router.py`、`app/core/{web_push,notifications,channel_bridge,skills/curator}` |
+| 出现次数 | 1（`BUG-AGENT-2026-10-17-015` 出站侧的姊妹缺陷，同一「强引用任务静默死亡」机理） |
+| 关联 | `BUG-AGENT-2026-10-17-015`（入站侧）；本地提交，未 push |
+
+### 现象
+
+`BUG-AGENT-2026-10-17-015` 修好入站侧后，逐条核对出站链路与其余长存活循环，发现三处同类但更隐蔽的问题：
+
+1. **出站内容闸门可抛出非 `RequestError` 的异常，且调用点在派发隔离之外**：`OutboundContentGate.probe_url` 原本只捕获 `(httpx.TimeoutException, httpx.RequestError)`。但 `httpx.InvalidURL`、`httpx.StreamError` 都不是 `httpx.RequestError`（也不是 `httpx.HTTPError`）的子类。一条内容里含被拒的 URL（例如方括号 IPv6 `http://[::1]:8080/api`，`httpx.InvalidURL: Invalid port`）时，异常逃出 `evaluate_and_apply(msg)`。
+2. **派发循环整条下线**：`OutboundDispatchMixin._dispatch_loop` 原本把「取队列」之外的全部派发逻辑直接写在循环体里，`evaluate_and_apply` 不在任何 `try` 内。一次抛出即终止整个循环——**所有** IM 渠道（Telegram / Slack / QQ / 微信 / 企业微信…）的任何后续出站消息（Agent 回复、告警、通知）全部发不出，而进程 `health` 依旧健康，运维无法感知。
+3. **网关健康巡检在凭据热替换时整轮中断，自愈随之失效**：`ChannelGateway._health_loop` 直接迭代 `self.bus.channels.items()`（活字典），并在循环体内 `await channel.health_check()`。`swap_channel()`（凭据热替换的唯一原语）在同一循环运行期间对同一字典增删渠道，一旦迭代中途让出控制权即抛 `RuntimeError: dictionary changed size during iteration`，整条健康循环死亡——渠道自愈、router 自愈（015 刚加的）**一起**静默失效。其余长期循环（`web_push`、`notification`、`btw`、`goal-terminal`、`webui-voice-work`、`skills_curator`、router janitor）也用裸 `asyncio.create_task` 创建并强引用持有，崩溃同样无声。
+
+### 根因
+
+与 015 同源：把「单条消息/单轮巡检」与「循环生命周期」混在同一层，且长存活任务的创建方式使崩溃不可观测。
+
+- 内容闸门的接口契约不完整：它被派发循环按「不会中断派发」使用，却允许非 `RequestError` 的 `httpx` 异常逃出，且调用点不在消息级隔离内。
+- 健康循环迭代活字典 + 循环体 `await`：把「并发修改」变成致命的循环级异常，恰好打死了本应负责自愈的那一环。
+- `MessageBus._dispatch_task`、网关 `_health_task` 等被实例/模块属性强引用，未读取异常，故 asyncio 的 "Task exception was never retrieved" 也不会打印。
+
+### 修复
+
+1. **闸门契约（`outbound_gate.py`）**：`probe_url` 改为「永不抛出（除 `CancelledError`）」——内部 `_probe_url` 保持一致逻辑，外层统一 `try/except Exception`，任何探测失败一律落为 `is_alive=False` 并记 `type(exc).__name__`；取消仍原样上抛。
+2. **派发消息级隔离（`outbound_dispatch.py`）**：抽出 `_dispatch_one(msg)` 承载单条路由（无渠道/熔断/内容闸门/限速/投递），循环对每次调用包 `try/except Exception`：`CancelledError` 重抛，其余 `logger.exception` 后调用 `_release_unqueued(msg)` 释放持久化义务（磁盘记录或临时文件接管），循环继续。一条毒消息不再等于全部渠道出站下线。
+3. **可观测 + 自愈（`bus.py`、`gateway.py`）**：两处循环均改经 `spawn_observed_task(..., name=...)` 创建；新增 `MessageBus.is_dispatch_loop_alive()` / `ensure_dispatch_loop_alive()`；网关新增 `_check_dispatch_health()`，与 router 自愈同样带指数退避（复用 `_BASE_BACKOFF`/`_BACKOFF_FACTOR`/`_MAX_BACKOFF`），恢复后清零退避。
+4. **健康巡检抗并发（`gateway.py`）**：迭代改为快照 `list(self.bus.channels.items())`，并把单渠道检查抽为 `_check_channel_health(name, channel)`，外层再包一层 `try/except Exception`——一个渠道的检查异常不再中断整轮（凭据热替换、单渠道故障均安全）。
+5. **其余长存活循环统一 `spawn_observed_task`**：`web_push` dispatcher、`notification` dispatcher、`btw` notifier、`goal-terminal` notifier、`webui-voice-work` notifier、`skills_curator`、router janitor；其中 `btw` 与 `webui-voice-work` 的 `_loop` 另把单条 `_deliver` 包 `try/except Exception`，一条不可投递事件不再终止通知器。
+6. **架构护栏**：新增 `tests/architecture/test_long_lived_loops_observed.py`，AST 静态强制 `app/channels` 与 `app/core` 下所有 `*_loop` 协程必须经 `spawn_observed_task` 且必须带 `name=`。
+
+### 验证
+
+1. 复现实证（修复前）：以真实 `OutboundMessage` 构造含 `http://[::1]:8080/api` 的消息，`probe_url` 确定性地抛出 `httpx.InvalidURL` 并逃出 `evaluate_and_apply`，证明第 1、2 点可复现。
+2. 新增单测：`tests/channels/test_outbound_gate.py::test_probe_url_never_raises_on_non_request_errors`（`InvalidURL`/`StreamError` 均落为不可达）、`::test_probe_url_propagates_cancellation`、`::test_evaluate_and_apply_survives_a_raising_probe`；`tests/channels/test_bus.py::test_dispatch_loop_survives_poisoned_message_and_releases_obligation`（毒消息后循环仍存活、义务被释放、后续消息正常发出）；`tests/channels/test_channel_health.py::TestDispatchHealthRestart` 4 例 + `TestBusDispatchLoopLiveness` 3 例（关闭不重启、死循环重启、退避门控、存活不动作、`is/ensure_dispatch_loop_alive` 状态）。
+3. 架构护栏实测：`test_long_lived_loops_are_spawned_observed` 在修复前报出全部裸 `create_task` 长存活循环，修复后为空；`test_observed_spawn_calls_are_named` 强制 `name=` 且捕获已知 ≥8 处。
+4. 目标套件全量：`tests/channels/test_bus.py`、`test_outbound_gate.py`、`test_channel_health.py`、`tests/architecture/test_long_lived_loops_observed.py` 共 98 例全绿。
+
+### 踩坑经验
+
+1. **「不会抛」是调用方依赖的契约，就必须在实现里强制**：派发循环把闸门当「永不中断」用，闸门就不能只捕获一类异常；`httpx` 的 `InvalidURL`/`StreamError` 不在 `RequestError` 层级内，必须按 `Exception` 兜底（仅放行取消）。
+2. **循环里迭代共享容器必须用快照**：只要有 `await`，任何 `dict.items()` 迭代都可能撞上并发增删；健康/巡检这类「必须活着」的循环尤其不能因此整轮死掉。
+3. **自愈机制自身也必须对抗它要处理的故障**：网关健康循环既要能重启 router/dispatch，又不能被渠道热替换、单渠道异常打死。
+4. **同机理的缺陷要一次扫干净**：015 修了入站，016 与出站同源；用 AST 静态护栏把「长存活循环必须观测创建」固化，避免逐个漏网。
 
 ---
 

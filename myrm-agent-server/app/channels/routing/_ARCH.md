@@ -226,7 +226,9 @@ inbound routing available:
 
 ## Stuck Task Watchdog
 
-`_janitor_loop` runs `_janitor_sweep` every `_JANITOR_INTERVAL` (60s). A sweep
+`_janitor_loop` runs `_janitor_sweep` every `_JANITOR_INTERVAL` (60s). It is
+spawned through `spawn_observed_task(name="agent_router_janitor")`, so an
+unexpected end is logged with a stack instead of dying silently. A sweep
 evicts expired callbacks, streaming sessions and stale session state, then
 calls `_reap_stuck_tasks` to detect IM agent tasks exceeding
 `_STUCK_TASK_TIMEOUT` (600s). The janitor is the only evictor of that state, so

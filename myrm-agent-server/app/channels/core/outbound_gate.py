@@ -110,7 +110,23 @@ class OutboundContentGate:
         return urls
 
     async def probe_url(self, url: str) -> LinkProbeResult:
-        """Probe a single URL using cached results or fast async HTTP request."""
+        """Probe a single URL; never raises — an unusable URL settles as unreachable.
+
+        The dispatch loop probes every URL of every outbound message before sending it, so a
+        probe must not be able to abort message delivery. ``httpx`` raises URL/transport errors
+        that are not ``RequestError`` subclasses (e.g. ``InvalidURL`` for a bracketed IPv6
+        literal it rejects, ``StreamError``), and this method also touches the shared cache and
+        lock — any such failure is reported as "unreachable" instead of propagating.
+        Cancellation is not caught: it must still stop the process.
+        """
+        try:
+            return await self._probe_url(url)
+        except Exception as exc:
+            logger.debug("Outbound probe failed for '%s': %s", url, exc)
+            return LinkProbeResult(url=url, is_alive=False, status_code=None, error=type(exc).__name__)
+
+    async def _probe_url(self, url: str) -> LinkProbeResult:
+        """Resolve one URL via the cache, the trusted-host fast-path, then a network probe."""
         now = time.monotonic()
 
         async with self._lock:

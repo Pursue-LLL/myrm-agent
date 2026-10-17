@@ -42,6 +42,7 @@ from myrm_agent_harness.backends.skills.skill_doctor import evaluate_skill_healt
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
+from app.core.infra.background_task import spawn_observed_task
 from app.core.skills.config_version import bump_skill_config_version
 from app.core.skills.curator.bound_skills import bound_skill_names
 from app.core.skills.curator.local_skills import scan_local_skills
@@ -322,7 +323,7 @@ def start_curator_background_task() -> None:
     global _background_task
     if _background_task is not None and not _background_task.done():
         return
-    _background_task = asyncio.create_task(_curator_background_loop())
+    _background_task = spawn_observed_task(_curator_background_loop(), name="skills_curator")
     logger.info("Curator background task started")
 
 

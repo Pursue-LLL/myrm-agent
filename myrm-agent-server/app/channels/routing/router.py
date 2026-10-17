@@ -419,7 +419,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
     def _start_janitor(self) -> None:
         if self._janitor_task is None or self._janitor_task.done():
-            self._janitor_task = asyncio.create_task(self._janitor_loop())
+            self._janitor_task = spawn_observed_task(self._janitor_loop(), name="agent_router_janitor")
 
     async def _stop_janitor(self) -> None:
         if self._janitor_task and not self._janitor_task.done():
