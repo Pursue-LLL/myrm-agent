@@ -79,7 +79,7 @@ _CONNECT_SETTLE_JS = """(() => {
   const buttons = card ? Array.from(card.querySelectorAll('button')).map((el) => el.textContent || '') : [];
   const connected = /Connected|已连接/i.test(text) && !buttons.some((t) => /Connect|连接/i.test(t));
   if (connected) return { ready: true, connected: true };
-  const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
+  const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [role="alertdialog"]'));
   for (const dialog of dialogs) {
     if (!/风险|risk/i.test(dialog.textContent || '')) continue;
     const ack = Array.from(dialog.querySelectorAll('button')).find(
