@@ -32,8 +32,8 @@ interface ToolApprovalState {
 }
 
 /**
- * A pending interrupt is announced again each time the run pauses on it after another card of the chat was answered;
- * the card already queued for it stays the only one.
+ * A pending pause is announced again each time the run pauses on it after another card of the chat was answered;
+ * the card already queued for it stays the only one. The next pause of the same task has a different id, so it is a new card.
  */
 function isAnnouncedAgain(queued: ToolApprovalRequest, incoming: ToolApprovalRequest): boolean {
   return (

@@ -47,6 +47,17 @@ describe('useToolApprovalStore.addRequest', () => {
     expect(queuedRequestIds()).toEqual(['first']);
   });
 
+  it('keeps the consecutive pauses of one task apart because their ids differ by round', () => {
+    const { addRequest } = useToolApprovalStore.getState();
+    const task = '0123456789abcdef0123456789abcdef';
+
+    addRequest(makeRequest({ requestId: 'step-1', interruptId: `${task}.0` }));
+    addRequest(makeRequest({ requestId: 'step-2', interruptId: `${task}.1` }));
+    addRequest(makeRequest({ requestId: 'step-2-again', interruptId: `${task}.1` }));
+
+    expect(queuedRequestIds()).toEqual(['step-1', 'step-2']);
+  });
+
   it('keeps the cards of one batched interrupt apart by their position in the batch', () => {
     const { addRequest } = useToolApprovalStore.getState();
 
