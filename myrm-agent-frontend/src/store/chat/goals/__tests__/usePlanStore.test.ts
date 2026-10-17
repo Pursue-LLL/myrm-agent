@@ -117,6 +117,26 @@ describe('usePlanStore', () => {
       expect(usePlanStore.getState().plan).toEqual(freshPlan);
     });
 
+    it('discards a reply that arrives after the plan was cleared, as when "new chat" is pressed', async () => {
+      let resolveReply: ((v: unknown) => void) | undefined;
+      fetchMock.mockReturnValueOnce(
+        new Promise((r) => {
+          resolveReply = r;
+        }),
+      );
+
+      const fetching = usePlanStore.getState().fetchPlan('chat-1');
+      expect(usePlanStore.getState().isLoading).toBe(true);
+      usePlanStore.getState().clearPlan();
+
+      expectDefined(resolveReply, 'resolveReply');
+      resolveReply({ ok: true, json: async () => ({ plan: makePlan(['in_progress']) }) });
+      await fetching;
+
+      expect(usePlanStore.getState().plan).toBeNull();
+      expect(usePlanStore.getState().isLoading).toBe(false);
+    });
+
     it('does not update isLoading from stale call', async () => {
       let resolveStale: ((v: unknown) => void) | undefined;
       const stalePromise = new Promise((r) => {

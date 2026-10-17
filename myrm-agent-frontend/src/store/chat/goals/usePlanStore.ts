@@ -42,7 +42,11 @@ export const usePlanStore = create<PlanStore>((set) => ({
       }
       return { plan };
     }),
-  clearPlan: () => set({ plan: null }),
+  clearPlan: () => {
+    // A reply still on its way belongs to a chat the user has left; it must not bring that plan back.
+    _lastFetchId++;
+    set({ plan: null, isLoading: false });
+  },
   clearActivePlan: () =>
     set((state) => {
       if (!state.plan) {

@@ -106,10 +106,17 @@ describe('useGoalStore chat scope', () => {
       expect(useGoalStore.getState().activeGoal).toMatchObject({ status: 'paused', reason: 'Waiting for a decision' });
     });
 
-    it('apply when the stream could not name its chat', () => {
-      useGoalStore.getState().setActiveGoal('', goalOf('Goal of the open chat'));
+    it('ignore a write whose source could not name its chat', () => {
+      const store = useGoalStore.getState();
+      store.setActiveGoal('chat-a', goalOf('Goal of A'));
 
-      expect(objectiveOf()).toBe('Goal of the open chat');
+      store.setActiveGoal('', goalOf('Goal of nobody'));
+      store.updateGoalStatus('', 'cancelled');
+      store.setGitBranch('', 'feature/nobody');
+
+      expect(objectiveOf()).toBe('Goal of A');
+      expect(useGoalStore.getState().activeGoal?.status).toBe('active');
+      expect(useGoalStore.getState().gitBranch).toBeNull();
     });
   });
 
@@ -222,6 +229,39 @@ describe('useGoalStore chat scope', () => {
         '/goals/chat-a/queue/reorder',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ ordered_goal_ids: ['q3', 'q1', 'q2'] }) }),
       );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    describe('when the server does not take the new order', () => {
+      const serverOrder = [queued('q1'), queued('q2'), queued('q3')];
+      const idsInQueue = () => useGoalStore.getState().queuedGoals.map((g) => g.goal_id);
+
+      beforeEach(() => {
+        useGoalStore.setState({ queuedGoals: serverOrder });
+      });
+
+      it('shows the order the server still has after a refusal', async () => {
+        fetchMock.mockImplementation(async (url: string) =>
+          url.endsWith('/reorder') ? json({}, false) : json({ queue: serverOrder }),
+        );
+
+        await useGoalStore.getState().reorderQueue('chat-a', ['q3', 'q1', 'q2']);
+
+        expect(idsInQueue()).toEqual(['q1', 'q2', 'q3']);
+      });
+
+      it('shows the order the server still has after a network failure', async () => {
+        fetchMock.mockImplementation(async (url: string) => {
+          if (url.endsWith('/reorder')) {
+            throw new Error('network down');
+          }
+          return json({ queue: serverOrder });
+        });
+
+        await useGoalStore.getState().reorderQueue('chat-a', ['q3', 'q1', 'q2']);
+
+        expect(idsInQueue()).toEqual(['q1', 'q2', 'q3']);
+      });
     });
   });
 });

@@ -14,8 +14,8 @@ export interface QueuedGoal {
 /**
  * The goal of one chat: the chat it was last bound to. Every write names the chat it is about and is applied only
  * while that chat is still the bound one, so a stream event, a notification or a slow reply that belongs to another
- * chat never lands in the slot the open chat shows. An empty chat id is a write whose source could not name its chat
- * (a stream without a send-time chat); it belongs to whichever chat is bound.
+ * chat never lands in the slot the open chat shows. A write whose source could not name its chat (an empty chat id)
+ * belongs to no chat and is dropped.
  */
 interface GoalStore {
   chatId: string | null;
@@ -37,13 +37,13 @@ interface GoalStore {
 
 const UNRANKED = Number.MAX_SAFE_INTEGER;
 
-export const useGoalStore = create<GoalStore>((set) => {
+export const useGoalStore = create<GoalStore>((set, get) => {
   /**
    * Applies `patch` only while `chatId` is the bound chat. The bound chat is read when the patch is applied, not when
    * the request started, so a reply that comes back after the user opened another chat is dropped.
    */
   const applyForChat = (chatId: string, patch: (state: GoalStore) => Partial<GoalStore>): void =>
-    set((state) => (!chatId || state.chatId === chatId ? patch(state) : state));
+    set((state) => (state.chatId === chatId ? patch(state) : state));
 
   return {
     chatId: null,
@@ -99,14 +99,19 @@ export const useGoalStore = create<GoalStore>((set) => {
         ),
       }));
       try {
-        await fetchWithTimeout(`/goals/${chatId}/queue/reorder`, {
+        const res = await fetchWithTimeout(`/goals/${chatId}/queue/reorder`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ordered_goal_ids: orderedIds }),
         });
+        if (res.ok) {
+          return;
+        }
       } catch {
-        // Silently fail
+        // Fall through: the server did not take the new order.
       }
+      // The order shown optimistically is not the server's; show the server's again.
+      await get().fetchQueue(chatId);
     },
     updateObjective: async (chatId, newObjective) => {
       const res = await fetchWithTimeout(`/goals/${chatId}/objective`, {
