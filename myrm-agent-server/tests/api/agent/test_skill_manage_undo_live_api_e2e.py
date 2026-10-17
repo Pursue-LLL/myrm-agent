@@ -4,9 +4,10 @@ Task flow (no browser): a custom agent with only skill_manage mounted gets a pla
 model calls ``skill_manage_tool``; the skill lands in the catalog with the SKILL.md the model sent; the server
 announces the committed batch on the stream after the call's arguments and persists it on that step; rolling the
 batch back (what the Undo dialog calls) removes the skill the batch created. A second flow rewrites that skill in a
-later turn and expects the undo to bring back what the rewrite replaced instead of removing the skill. A third flow has
-the model delete a skill: the skill is gone, the step is not a failure, and no batch is announced because a delete has
-nothing to undo. A fourth flow patches a skill saved in an earlier turn, which the agent's own backend cannot see, and
+later turn: the first save's undo is refused while the rewrite is still undoable, the rewrite's undo brings back what it
+replaced instead of removing the skill, and then the save's own undo goes through. A third flow has the model delete a
+skill: the skill is gone, the step is not a failure, no batch is announced because a delete has nothing to undo, and the
+save's undo that is still on screen is refused as missing. A fourth flow patches a skill saved in an earlier turn, which the agent's own backend cannot see, and
 expects the patch to land and its undo to put the text back.
 
 Run::
@@ -128,11 +129,27 @@ def test_live_agent_rewrites_a_skill_and_the_undo_brings_back_what_it_replaced()
         rewritten = skill_md(client, backend_url, skill_id)
         assert second_marker in rewritten and first_marker not in rewritten, f"the rewrite did not land:\n{rewritten[:600]}"
 
+        # The first save's Undo is still on screen: pressing it now would write the first text over the rewrite.
+        save_undo_url = f"{backend_url}/api/v1/skill-optimization/mutations/{first}/rollback"
+        stale_undo = client.post(save_undo_url, timeout=60.0)
+        assert stale_undo.status_code == 409 and stale_undo.json()["detail"]["code"] == "batch_superseded", (
+            f"undoing the save while the rewrite is still undoable must be refused: {stale_undo.text[:300]}"
+        )
+        assert second_marker in skill_md(client, backend_url, skill_id), "the refused undo still rewrote the skill"
+
         rollback_url = f"{backend_url}/api/v1/skill-optimization/mutations/{second}/rollback"
         assert data(client.post(rollback_url, timeout=60.0)).get("status")
         assert catalog_skill_id(client, backend_url, skill_name) == skill_id, "the undo of a rewrite removed the skill"
         restored = skill_md(client, backend_url, skill_id)
         assert first_marker in restored and second_marker not in restored, f"the undo kept the rewrite:\n{restored[:600]}"
+
+        # With the rewrite undone the save is the newest batch of the skill again, so its own undo goes through.
+        assert data(client.post(save_undo_url, timeout=60.0)).get("status")
+        wait_for(
+            lambda: catalog_skill_id(client, backend_url, skill_name) is None,
+            timeout_sec=60.0,
+            what="the skill to disappear after the save's undo",
+        )
 
 
 @pytest.mark.e2e
@@ -167,7 +184,9 @@ def test_live_agent_deletes_a_skill_for_good_and_offers_no_undo_for_it() -> None
 
         # The save's Undo is still on screen after the delete: pressing it is refused cleanly and nothing comes back.
         stale_undo = client.post(f"{backend_url}/api/v1/skill-optimization/mutations/{saved}/rollback", timeout=60.0)
-        assert stale_undo.status_code == 409, f"undoing a save whose skill is gone must be a 409: {stale_undo.text[:300]}"
+        assert stale_undo.status_code == 409 and stale_undo.json()["detail"]["code"] == "skill_missing", (
+            f"undoing a save whose skill is gone must be refused as missing: {stale_undo.text[:300]}"
+        )
         assert catalog_skill_id(client, backend_url, skill_name) is None, "the stale undo brought the deleted skill back"
 
 
