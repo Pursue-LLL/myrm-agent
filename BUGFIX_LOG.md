@@ -5314,9 +5314,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-16（复核 `BUG-AGENT-2026-10-16-014`：追问「阻塞通知读 `blocked_reason`，它是否总属于当前这次阻塞」，用真实的 `move_task` 复现；对抗式复查时又用真实的取消工具与真实的计划修订接口找到另外两条离开阻塞列的路径） |
-| 修复日期 | 2026-10-16 |
+| 修复日期 | 2026-10-16（落库规则、迁移）、2026-10-17（`transition_task_status`、前端显示判断、harness 的出口） |
 | 严重程度 | P3（没有数据丢失，调度不受影响：调度器的查询都带 `status == BLOCKED`，`sqlalchemy_store.py:832-833`；错的是卡片上的显示与再次阻塞时的通知文字） |
-| 影响范围 | server：`app/core/kanban/adapters/sqlalchemy_mapping.py`（新增 `stored_block_details`，建行与更新行共用）、`sqlalchemy_store.py`（计划移除任务时直接改行，补一行清除；另把 `list_board_events` 的返回类型改成 `BoardEventRow`，`query_ops.py`、`query_dispatcher_mixin.py` 的签名同步）、`event_publisher.py`（只改 `_terminal_result` 的说明）、`app/database/migrations.py`（末尾新增一条）、`app/core/kanban/adapters/_ARCH.md`、新增 `tests/core/kanban/test_task_mapping_block_details.py`、`tests/integration/test_kanban_cancel_block_details.py`、`tests/api/kanban/test_move_block_details_api.py`、`tests/database/test_kanban_block_fields_migration.py`；frontend、harness、提示词、表结构都没有改 |
+| 影响范围 | server：`app/core/kanban/adapters/sqlalchemy_mapping.py`（新增 `stored_block_details`，建行与更新行共用；新增 `status_change_values`，只改状态的 UPDATE 用）、`sqlalchemy_store.py`（计划移除任务时直接改行，补一行清除；`transition_task_status` 改用 `status_change_values`，加一行导入；另把 `list_board_events` 的返回类型改成 `BoardEventRow`，`query_ops.py`、`query_dispatcher_mixin.py` 的签名同步）、`event_publisher.py`（只改 `_terminal_result` 的说明）、`app/database/migrations.py`（末尾新增一条）、`app/core/kanban/adapters/_ARCH.md`、新增 `tests/core/kanban/test_task_mapping_block_details.py`、`tests/core/kanban/test_store_status_transition_block_details.py`、`tests/integration/test_kanban_cancel_block_details.py`、`tests/api/kanban/test_move_block_details_api.py`、`tests/database/test_kanban_block_fields_migration.py`；frontend：`KanbanTaskCard.tsx`、`KanbanTaskBlockedNotice.tsx`（原因、类型、倒计时只在阻塞态显示）、`kanban/_ARCH.md`，`KanbanTaskCard.test.tsx` 与 `KanbanTaskDrawerDetails.test.tsx` 各加 1 例；harness：`toolkits/kanban/_orchestrator_tools.py`、`stores.py`、`_ARCH.md`、新增 `tests/toolkits/kanban/test_block_details_invariant.py`（见 `BUG-HARNESS-2026-10-17-005`）；提示词、表结构、样式与文案都没有改 |
 | 出现次数 | 1（读码并用真实 `move_task`、真实取消工具、真实计划修订接口复现；没有生产数据，本机库里没有看板，不知道线上频率） |
 | 关联 | 更正 `BUG-AGENT-2026-10-16-014` 里「每种结果只读自己的字段就够」的前提（见其局限 11）；本地提交，未 push |
 
@@ -5336,6 +5336,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 计划移除任务时服务端直接改行、不经 `save_task`（`sqlalchemy_store.py:617-618`），在那里单独清掉三项。
 3. `migrations.py` 末尾新增一条 `UPDATE kanban_tasks SET blocked_reason = NULL, block_kind = NULL, scheduled_until = NULL WHERE status != 'blocked' AND (任一字段非空)`，清掉已经带着残留的历史行；它由 `_schema_migrations` 记录，每个库只跑一次。
 4. 文档：`app/core/kanban/adapters/_ARCH.md` 的 `sqlalchemy_mapping.py` 行、模块说明、`_terminal_result` 的说明同步成「阻塞的原因只在阻塞期间存在」。
+5. `transition_task_status`（状态 CAS，单条 UPDATE，不经 `save_task`）原先只写 `status`，把一个阻塞中的任务 CAS 出阻塞列会留下三项。`sqlalchemy_mapping.py::status_change_values(new_status)` 给出这条 UPDATE 的列值：目标不是阻塞时同时清三项，与 `stored_block_details` 是同一条规则；`sqlalchemy_store.py` 只加一行导入、改一处 `.values(...)`。生产里这条原语的调用方来源状态都不是阻塞（harness 的 `dispatcher.py:260,299` 与 `retry.py:97`、server 的 `review_ops.py:59,114`：来源是待审或失败），所以这一处是对通用原语的预防，不是线上缺陷。
+6. 前端：卡片 `KanbanTaskCard.tsx` 的红色原因与定时倒计时、抽屉 `KanbanTaskBlockedNotice.tsx` 都加 `task.status === 'blocked'` 的判断。拖出阻塞列的乐观更新只改 `status`（`useKanbanMoveTask`），服务端落库的规则清不到浏览器里已有的任务对象，在服务端响应、列表刷新之前三项会继续显示。
+7. harness 自己的出口（取消工具、内存存储的计划移除与状态转移）补齐，框架不依赖业务层存储替它守这条规则，见 `BUG-HARNESS-2026-10-17-005`。
 
 ### 验证
 
@@ -5345,14 +5348,17 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 4. 迁移 2 例按真实升级流程：先让库记录好此前的所有迁移，播种六张任务（移出阻塞后残留的、只留类型与时间的、只留原因的、干净的、仍在阻塞的人工与定时的），再跑这条迁移：非阻塞的清空，仍在阻塞的原样；重复执行不变。
 5. 回归：`tests/services/kanban` 与 `tests/database` 426 例中 425 通过；API、频道命令、`/btw`、集成与 `tests/core/kanban` 一组 714 通过、1 跳过、1 失败；`tests/services/sandbox_wake`（同样经存储层保存定时阻塞）24 通过；失败项见局限 4。对触碰的文件 `ruff check`、`ruff format --check`、`mypy` 通过。
 6. 并发压力：同一个 API 测试文件同时起 6 个进程各跑一遍，48 例全部通过。
+7. `transition_task_status`：`tests/core/kanban/test_store_status_transition_block_details.py` 9 例（对每个目标状态，真实 SQLite，一个带原因、定时类型与到点时间的阻塞任务）。先写测试：修复前 8 例失败、1 例通过（目标仍是阻塞）；变异：把条件改成永不清，8 例失败，改成总是清，1 例失败（阻塞到阻塞被误清）。
+8. 前端：卡片与抽屉各加 1 例（任务在就绪态却带着原因、定时类型与到点时间，不渲染原因、类型与倒计时）。先写测试：修复前 2 例失败、原有 26 例通过；变异（逐个去掉卡片的原因判断、卡片的倒计时判断、抽屉提示条的判断，改完立即恢复）：每个变异各让 1 例失败；`src/components/features/kanban` 34 个文件 472 例通过；`oxlint`、`prettier` 在触及文件上干净；`verify:theme-colors` 通过；`tsc --noEmit` 只报 `src/lib/extension/__tests__/sidepanelNotify.test.ts` 一处（他人的文件，不是这次改的）；`verify:hardcoded-copy`、`verify:stable-mocks` 失败的位置都在他人的文件里，输出里没有触及的文件。
+9. server 回归：在 HEAD 的隔离导出（加上我的改动）上，`tests/core/kanban`、`tests/api/kanban`、`tests/integration/test_kanban_cancel_block_details.py`、`tests/database/test_kanban_block_fields_migration.py` 全部通过（退出码 0）；`ruff check`、`ruff format --check` 干净，`sqlalchemy_mapping.py` 与新测试无 `mypy` 报错。harness 一侧的结果见 `BUG-HARNESS-2026-10-17-005`。
 
 ### 局限
 
-1. 没有在真实浏览器里看卡片，也没有启动真实的服务进程做一遍：本次没有改前端，卡片显示由它读到的字段决定，字段已由 API 层测试确认为空，但渲染本身没有再验证；主机负载 30 以上，上一条里同样的尝试就停在页面加载。
+1. 没有在真实浏览器或桌面端里看卡片：前端的判断只由组件测试（jsdom）覆盖，拖出阻塞列、乐观更新到列表刷新这一段的实际显示没有目视验证。
 2. 不知道这个缺陷在线上多常发生，没有数据。
-3. 迁移只在升级时跑一次，之后的新残留靠落库规则挡住；绕过 `save_task` 与计划移除、直接写行的新代码不受这条规则保护。
+3. 迁移只在升级时跑一次，之后的新残留靠落库规则挡住；绕过 `save_task`、`status_change_values` 与计划移除、直接写行的新代码不受这条规则保护。
 4. 回归里的失败与本条无关：`test_extract_enabled_empty_pdf_falls_back_to_reference`（PDF 提取，`-014` 局限 5 记过）；`test_move_with_result_and_metadata`（他人在途的交接功能：工作区里未提交的 `move_orchestrator.py` 另一处改动往交接元数据里加了 `summary` 与 `timestamp`，该用例的断言还没跟上，我的提交没有包含那处改动）。`tests/architecture` 另有 8 例失败：我展开看了文本入口闸门与 harness 深层导入两组，列表里没有看板文件，其余几例（接口前缀、路由调用方、三个域目录）没有逐个展开。
-5. harness 自带的内存存储（`stores.py` 的 `InMemoryKanbanStore`）没有这道规则；server 的 `app/` 里没有任何地方使用它（检索无结果），所以只影响直接使用 harness 内存存储的调用方与测试。
+5. harness 的取消工具与内存存储（`stores.py` 的 `InMemoryKanbanStore`）的出口已补齐，但在 Myrm 里没有用户可见的效果：server 的 `app/` 里没有任何地方使用内存存储（检索无结果），取消工具发出的事件带的是 `save_task` 返回的落库后对象；`transition_task_status` 的生产调用方来源状态都不是阻塞（见修复 5）。这三处是预防性的，价值是框架自己不依赖业务层存储、通用原语不留缺口，不是修线上缺陷。
 6. 复查中见过一次 API 层「再次阻塞」例的失败，没有保存失败信息，之后连续多次与 6 进程并发都没有再现，原因没有查明；该例现在只看这个任务自己发布的事件，排除了别的任务事件混入的一种可能，但这只是推测，没有证实。
 7. 回归与变异检查在 `sqlalchemy_store.py` 里只涉及我的那一行；同一文件里他人在途的 `earliest_scheduled_until` 没有动。`migrations.py` 本身 1200 多行，超过文件体量的上限，是既有状态，没有拆：它是按下标排序的迁移列表，别人也在同时追加。
 8. 评估后放弃的方案：只在 `move_task` 里清（取消工具与计划移除仍漏）；进入阻塞时一律先清空再写（会破坏阻塞到阻塞的改期，原因会丢）；给每个出口各写一份清除（出口会继续增加，落库处一个入口更稳）。
