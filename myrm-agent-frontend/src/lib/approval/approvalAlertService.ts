@@ -99,12 +99,12 @@ function buildNotificationBody(requests: ToolApprovalRequest[]): { title: string
     const req = requests[0];
     const remaining = Math.max(0, Math.round(req.expiresAt - Date.now() / 1000));
     return {
-      title: `⚠️ ${strings.pending} - ${req.toolName}`,
+      title: `${strings.pending} - ${req.toolName}`,
       body: `${req.reason}, ${strings.remaining.replace('{seconds}', String(remaining))}`,
     };
   }
   return {
-    title: `⚠️ ${strings.pendingMulti.replace('{count}', String(requests.length))}`,
+    title: strings.pendingMulti.replace('{count}', String(requests.length)),
     body: `${strings.includes} ${requests.map((r) => r.toolName).join(', ')}`,
   };
 }
@@ -192,7 +192,7 @@ function startTitleFlash(): void {
   }
   ensureVisibilityListener();
   originalTitle = document.title;
-  const flashTitle = `⚠️ ${getNotificationStrings().pending}`;
+  const flashTitle = getNotificationStrings().pending;
   let isAlternate = false;
   titleFlashTimer = setInterval(() => {
     isAlternate = !isAlternate;

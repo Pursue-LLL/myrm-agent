@@ -180,16 +180,10 @@
     "message": "剪藏失败"
   },
   "approvalTitleSingle": {
-    "message": "批准工具：$TOOL$",
-    "placeholders": {
-      "tool": {
-        "content": "$1",
-        "example": "bash_code_execute_tool"
-      }
-    }
+    "message": "要批准这项操作吗？"
   },
   "approvalTitleBatch": {
-    "message": "批准 $COUNT$ 个工具调用",
+    "message": "要批准这 $COUNT$ 项操作吗？",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -220,5 +214,83 @@
   },
   "approvalSendFailed": {
     "message": "你的答复没有送达，请检查连接后重试。"
+  },
+  "approvalHintTooLong": {
+    "message": "此命令太长，无法在这里完整查看。请在 Myrm Agent 网页端查看并批准，或在此处拒绝。"
+  },
+  "approvalHintNoDetails": {
+    "message": "这项操作在此处没有可供查看的内容。请在 Myrm Agent 网页端批准，或在此处拒绝。"
+  },
+  "approvalDeadlineDeny": {
+    "message": "$TIME$ 前未处理，将自动拒绝。",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "approvalDeadlineAllow": {
+    "message": "$TIME$ 前未处理，将自动批准。",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "notifyApprovalTitle": {
+    "message": "智能体正在等你确认"
+  },
+  "notifyApprovalBody": {
+    "message": "请在 Myrm Agent 侧栏中查看待处理的操作。"
+  },
+  "approvalNotifyLabel": {
+    "message": "智能体需要我批准时通知我"
+  },
+  "panelNewChat": {
+    "message": "新对话"
+  },
+  "panelOpenSettings": {
+    "message": "打开设置"
+  },
+  "panelCancel": {
+    "message": "取消"
+  },
+  "panelEmptyTitle": {
+    "message": "随时提问"
+  },
+  "panelEmptyHint": {
+    "message": "在任意网页选中文字，右键选择“询问 Myrm Agent”，或直接在下方输入。"
+  },
+  "panelThinking": {
+    "message": "思考中…"
+  },
+  "panelUsingTool": {
+    "message": "正在使用 $TOOL$…",
+    "placeholders": {
+      "tool": {
+        "content": "$1",
+        "example": "file_read_tool"
+      }
+    }
+  },
+  "panelToolFallback": {
+    "message": "工具"
+  },
+  "panelNotConnected": {
+    "message": "未连接到服务器。"
+  },
+  "panelInputPlaceholder": {
+    "message": "输入你的问题…"
+  },
+  "panelInputPaused": {
+    "message": "请先处理上方的批准请求"
+  },
+  "panelStreamError": {
+    "message": "出了点问题，请检查连接后重试。"
+  },
+  "allowAllEligibleTabs": {
+    "message": "允许所有符合条件的网站"
   }
 }

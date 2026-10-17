@@ -6,11 +6,13 @@
  */
 
 import { applyDocumentI18n, msg } from "./i18n.js";
+import { APPROVAL_NOTIFY_KEY } from "./sidepanel/approval_notify.js";
 
 const serverUrlInput = document.getElementById("server-url");
 const authTokenInput = document.getElementById("auth-token");
 const domainsTextarea = document.getElementById("domains");
 const allowAllCheckbox = document.getElementById("allow-all-tabs");
+const approvalNotifyCheckbox = document.getElementById("approval-notify");
 const btnConnect = document.getElementById("btn-connect");
 const btnDisconnect = document.getElementById("btn-disconnect");
 const btnApplyPairing = document.getElementById("btn-apply-pairing");
@@ -31,9 +33,7 @@ document.title = msg("extName");
 
 function readPausedTabIds(callback) {
   chrome.storage.local.get(["pausedTabIds"], (data) => {
-    const pausedTabIds = Array.isArray(data.pausedTabIds)
-      ? data.pausedTabIds.filter((id) => Number.isInteger(id))
-      : [];
+    const pausedTabIds = Array.isArray(data.pausedTabIds) ? data.pausedTabIds.filter((id) => Number.isInteger(id)) : [];
     callback(pausedTabIds);
   });
 }
@@ -96,15 +96,19 @@ function connectWithCurrentSettings() {
 }
 
 // Load saved settings
-chrome.storage.local.get(["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs"], (data) => {
-  serverUrlInput.value = data.serverUrl || "";
-  authTokenInput.value = data.authToken || "";
-  domainsTextarea.value = (data.authorizedDomains || []).join("\n");
-  if (allowAllCheckbox) {
-    allowAllCheckbox.checked = data.allowAllEligibleTabs === true;
-  }
-  refreshStatus();
-});
+chrome.storage.local.get(
+  ["serverUrl", "authToken", "authorizedDomains", "allowAllEligibleTabs", APPROVAL_NOTIFY_KEY],
+  (data) => {
+    serverUrlInput.value = data.serverUrl || "";
+    authTokenInput.value = data.authToken || "";
+    domainsTextarea.value = (data.authorizedDomains || []).join("\n");
+    if (allowAllCheckbox) {
+      allowAllCheckbox.checked = data.allowAllEligibleTabs === true;
+    }
+    approvalNotifyCheckbox.checked = data[APPROVAL_NOTIFY_KEY] !== false;
+    refreshStatus();
+  },
+);
 
 function refreshStatus() {
   chrome.runtime.sendMessage({ type: "get_status" }, (response) => {
@@ -288,6 +292,10 @@ domainsTextarea.addEventListener("change", () => {
 
 allowAllCheckbox?.addEventListener("change", () => {
   pushAccessPolicyToBackground();
+});
+
+approvalNotifyCheckbox.addEventListener("change", () => {
+  chrome.storage.local.set({ [APPROVAL_NOTIFY_KEY]: approvalNotifyCheckbox.checked });
 });
 
 // Refresh status periodically while popup is open

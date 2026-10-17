@@ -5,12 +5,12 @@
  * - SSE `tool_approval_request` / `approval_required` events from POST /api/v1/agents/agent-stream
  *
  * [OUTPUT]
- * - describeApproval: what the panel shows and whether it may approve
- * - resolveApprovalCopy: localized overlay text for a described approval
+ * - describeApproval: what the panel shows for the request and whether it may approve
+ * - resolveApprovalCopy / clockTimeFormatter: localized overlay text for a described approval
  * - buildResumeValue / buildStreamBody: the request that settles an interrupt (same endpoint as a new message)
  * - isResumeConflict: the interrupt was already settled elsewhere
  *
- * [POS] Decision logic of the Side Panel approval flow; sidepanel.js owns the DOM and the network.
+ * [POS] Decision logic of the Side Panel approval flow; sidepanel.js owns the network, approval_overlay.js the DOM.
  */
 
 /**
@@ -23,34 +23,119 @@ const PLAIN_REVIEW_KEYS = new Set(["allowedDecisions", "hideAllowAlways", "domai
 /** Denial reason handed to the agent, the same text the Web UI sends. */
 const REJECT_FEEDBACK = "User rejected this action.";
 
-const MAX_DETAIL_CHARS = 300;
+/**
+ * A shell command is shown in full or not approvable here: its dangerous part may sit anywhere in it, so a
+ * truncated view must never be approved. Other tools' argument values are only abbreviated, with the cut marked.
+ */
+const MAX_COMMAND_CHARS = 2000;
+const MAX_VALUE_CHARS = 300;
+
+/** Argument names that carry the command text of a shell tool, in the harness' lookup order (`extract_shell_command_text`). */
+const SHELL_COMMAND_KEYS = ["command", "code", "script", "cmd"];
 
 /**
- * @typedef {{ name: string, detail: string }} ApprovalAction
- * @typedef {{ kind: "tool" | "external", actions: ApprovalAction[], canApprove: boolean, interruptId?: string }} ApprovalView
+ * @typedef {{ summary: string, body: string, reason: string }} ApprovalAction
+ * `summary`: what a shell command does in plain words (empty when the harness has no explanation: an internal tool
+ * name is never shown); `body`: the command or arguments being approved; `reason`: why the policy asks.
+ * @typedef {"elevated" | "too_long" | "no_details"} ApprovalBlocker
+ * @typedef {{
+ *   kind: "tool" | "external",
+ *   actions: ApprovalAction[],
+ *   canApprove: boolean,
+ *   blocker?: ApprovalBlocker,
+ *   interruptId?: string,
+ *   deadline?: { atMs: number, behavior: "deny" | "allow" },
+ * }} ApprovalView
  * `tool`: answerable here (one decision covers every listed action), `interruptId` naming the interrupt it settles.
  * `external`: only the Web UI can answer it.
  */
 
 /**
  * @param {unknown} value
+ * @param {number} limit
  * @returns {string}
  */
-function truncate(value) {
+function truncate(value, limit) {
   const text = String(value);
-  return text.length > MAX_DETAIL_CHARS ? `${text.slice(0, MAX_DETAIL_CHARS - 1)}…` : text;
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }
 
 /**
- * @param {{ action?: unknown, description?: unknown, args?: unknown }} request
- * @returns {ApprovalAction}
+ * @param {unknown} value
+ * @returns {string}
  */
-function describeAction(request) {
-  const description = typeof request?.description === "string" ? request.description.trim() : "";
-  return {
-    name: truncate(request?.action || "tool"),
-    detail: truncate(description || JSON.stringify(request?.args ?? {})),
-  };
+function trimmedText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * @param {unknown} explanation the harness' `{ en, zh }` plain-language explanation of a command
+ * @param {string} language UI language tag
+ * @returns {string}
+ */
+function pickExplanation(explanation, language) {
+  if (!explanation || typeof explanation !== "object") return "";
+  const preferred = language.toLowerCase().startsWith("zh") ? ["zh", "en"] : ["en", "zh"];
+  return preferred.map((key) => trimmedText(explanation[key])).find(Boolean) ?? "";
+}
+
+/**
+ * @param {unknown} args
+ * @returns {string} the shell command text, or "" when the arguments carry none
+ */
+function shellCommandText(args) {
+  if (!args || typeof args !== "object") return "";
+  const key = SHELL_COMMAND_KEYS.find((name) => trimmedText(args[name]));
+  return key ? args[key] : "";
+}
+
+/**
+ * @param {unknown} args
+ * @returns {string} one `name: value` line per argument, each value abbreviated with the cut marked
+ */
+function formatArguments(args) {
+  if (args === null || args === undefined) return "";
+  if (typeof args !== "object" || Array.isArray(args)) return truncate(JSON.stringify(args), MAX_VALUE_CHARS);
+  return Object.entries(args)
+    .map(
+      ([name, value]) =>
+        `${name}: ${truncate(typeof value === "string" ? value : JSON.stringify(value), MAX_VALUE_CHARS)}`,
+    )
+    .join("\n");
+}
+
+/**
+ * @param {{ action?: unknown, description?: unknown, args?: unknown, command_spans?: unknown, plain_explanation?: unknown }} request
+ * @param {string} language
+ * @returns {ApprovalAction & { fullyShown: boolean }}
+ */
+function describeAction(request, language) {
+  const reason = trimmedText(request?.description);
+  // The harness derives command spans and the explanation only for shell tools, so their presence marks one.
+  const command = Array.isArray(request?.command_spans) ? shellCommandText(request?.args) : "";
+  if (command) {
+    return {
+      summary: pickExplanation(request.plain_explanation, language),
+      body: truncate(command, MAX_COMMAND_CHARS),
+      reason,
+      fullyShown: command.length <= MAX_COMMAND_CHARS,
+    };
+  }
+  return { summary: "", body: formatArguments(request?.args), reason, fullyShown: true };
+}
+
+/**
+ * Why the Side Panel may not approve a request, if it may not. An action it has nothing to show for would be approved
+ * blind.
+ * @param {Array<ApprovalAction & { fullyShown: boolean }>} described
+ * @param {boolean} elevated
+ * @returns {ApprovalBlocker | undefined}
+ */
+function findBlocker(described, elevated) {
+  if (elevated) return "elevated";
+  if (!described.every((action) => action.fullyShown)) return "too_long";
+  if (described.some(({ summary, body, reason }) => !summary && !body && !reason)) return "no_details";
+  return undefined;
 }
 
 /**
@@ -67,43 +152,87 @@ function isPlainReviewConfig(config) {
 }
 
 /**
+ * The moment the server settles an unanswered request by itself. Measured from the arrival of the event on the panel's
+ * own clock, because the server's `expiresAt` is on a clock the browser may not share.
+ * @param {unknown} timeout `extensions.timeout` of the event
+ * @param {number} now
+ * @returns {ApprovalView["deadline"]}
+ */
+function describeDeadline(timeout, now) {
+  const seconds = timeout?.seconds;
+  const behavior = timeout?.behavior;
+  if (typeof seconds !== "number" || !(seconds > 0) || (behavior !== "deny" && behavior !== "allow")) return undefined;
+  return { atMs: now + seconds * 1000, behavior };
+}
+
+/**
  * @param {{ type?: string, data?: Record<string, unknown>, interruptId?: unknown }} event SSE event; its payload is untrusted and checked field by field
+ * @param {{ now?: number, language?: string }} [context] arrival time and UI language tag
  * @returns {ApprovalView}
  */
-export function describeApproval(event) {
+export function describeApproval(event, { now = Date.now(), language = "en" } = {}) {
   const payload = event?.data;
   const requests =
     event?.type === "tool_approval_request" && Array.isArray(payload?.actionRequests) ? payload.actionRequests : [];
   if (requests.length === 0) return { kind: "external", actions: [], canApprove: false };
 
   const reviewConfigs = Array.isArray(payload.reviewConfigs) ? payload.reviewConfigs : [];
-  const canApprove = payload.extensions?.displayMode !== "handover" && reviewConfigs.every(isPlainReviewConfig);
+  const described = requests.map((request) => describeAction(request, language));
+  const elevated = payload.extensions?.displayMode === "handover" || !reviewConfigs.every(isPlainReviewConfig);
+  const blocker = findBlocker(described, elevated);
   const interruptId = typeof event.interruptId === "string" && event.interruptId ? event.interruptId : undefined;
-  return { kind: "tool", actions: requests.map(describeAction), canApprove, interruptId };
+  return {
+    kind: "tool",
+    actions: described.map(({ summary, body, reason }) => ({ summary, body, reason })),
+    canApprove: blocker === undefined,
+    blocker,
+    interruptId,
+    deadline: describeDeadline(payload.extensions?.timeout, now),
+  };
+}
+
+/**
+ * @param {string} language UI language tag
+ * @returns {(timestampMs: number) => string} formats a moment as the clock time (with seconds) of the user's locale
+ */
+export function clockTimeFormatter(language) {
+  const format = new Intl.DateTimeFormat(language, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return (timestampMs) => format.format(timestampMs);
 }
 
 /**
  * @param {ApprovalView} view
  * @param {(key: string, substitution?: string | number) => string} translate
- * @returns {{ title: string, detail: string, hint: string, rejectLabel: string }}
+ * @param {(timestampMs: number) => string} formatTime clock time in the user's locale
+ * @returns {{ title: string, hint: string, deadline: string, rejectLabel: string }}
  */
-export function resolveApprovalCopy(view, translate) {
+export function resolveApprovalCopy(view, translate, formatTime) {
   if (view.kind === "external") {
     return {
       title: translate("approvalTitleExternal"),
-      detail: "",
       hint: translate("approvalHintExternal"),
+      deadline: "",
       rejectLabel: translate("approvalDismiss"),
     };
   }
-  const [first] = view.actions;
+  const hints = {
+    elevated: "approvalHintElevated",
+    too_long: "approvalHintTooLong",
+    no_details: "approvalHintNoDetails",
+  };
+  const { deadline } = view;
   return {
     title:
       view.actions.length === 1
-        ? translate("approvalTitleSingle", first.name)
+        ? translate("approvalTitleSingle")
         : translate("approvalTitleBatch", view.actions.length),
-    detail: view.actions.map((action) => `${action.name}: ${action.detail}`).join("\n"),
-    hint: view.canApprove ? "" : translate("approvalHintElevated"),
+    hint: view.blocker ? translate(hints[view.blocker]) : "",
+    deadline: deadline
+      ? translate(
+          deadline.behavior === "deny" ? "approvalDeadlineDeny" : "approvalDeadlineAllow",
+          formatTime(deadline.atMs),
+        )
+      : "",
     rejectLabel: translate("approvalReject"),
   };
 }

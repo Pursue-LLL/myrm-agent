@@ -19,11 +19,16 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/wiki/clip_client.js` | 核心 | Wiki clip REST 客户端；错误文案 `chrome.i18n` | ✅ |
 | `src/wiki/` | 子模块 | Extension wiki clip 客户端与深链 — 见 [src/wiki/_ARCH.md](src/wiki/_ARCH.md) | ✅ |
 | `src/popup.html` | 辅助 | Popup 结构；静态文案 `data-i18n` + 运行时 `applyDocumentI18n` | — |
-| `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链（`lastClipErrorKind` 结构化，非 regex）；`chrome.i18n` 双语 | ✅ |
-| `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面（ES module）：Chat UI 结构（SVG 图标、语义化 HTML）；审批弹窗文案 `data-i18n` | — |
-| `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题、消息气泡、工具进度、审批弹窗、流式指示器、输入区 | — |
-| `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat 控制器：发送消息、渲染 SSE 事件、展示审批弹窗并用 `resume_value` 恢复暂停的回合（聊天界面英文，对话文案由 server/WebUI i18n 覆盖） | ✅ |
-| `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（可答复范围与逐项描述）、`resolveApprovalCopy`、`buildResumeValue`/`buildStreamBody`、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
+| `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链（`lastClipErrorKind` 结构化，非 regex）；审批提醒开关（`approvalNotifyEnabled`，默认开）；`chrome.i18n` 双语 | ✅ |
+| `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面（ES module）：Chat UI 结构（SVG 图标、语义化 HTML）；界面与审批弹窗文案均 `data-i18n`；审批弹窗为 `role="alertdialog"`（`aria-labelledby` 标题、`aria-describedby` 明细） | — |
+| `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题（文字与按钮对比度均不低于 WCAG AA 的 4.5:1）、消息气泡、工具进度、审批弹窗、流式指示器、输入区（审批待决时为虚线禁用态） | — |
+| `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat 控制器：发送消息、渲染 SSE 事件、协调审批（展示、提醒、输入暂停）并用 `resume_value` 恢复暂停的回合；错误一律给本地化通用文案，细节只写控制台 | ✅ |
+| `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（白话说明、完整命令/参数、原因、截止时刻，以及能否在面板内批准）、`resolveApprovalCopy`/`clockTimeFormatter`（本地化文案）、`buildResumeValue`/`buildStreamBody`、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
+| `src/sidepanel/approval_overlay.js` | 辅助 | 审批弹窗 DOM 渲染：逐项写入说明/命令/原因（一律 `textContent`）、截止行、提示；`focusSafeAnswer` 仅在面板已有焦点时把焦点给「拒绝」 | ✅ |
+| `src/sidepanel/approval_notify.js` | 辅助 | 审批系统通知：窗口不在前台或面板不可见时提醒（不含命令正文），点击把窗口带回前台；同一 id 的通知互相替换，答复/取消/新会话时撤回 | ✅ |
+| `src/sidepanel/chat_view.js` | 辅助 | 消息列表 DOM：用户/助手气泡、流式文本、工具行容器、中性提示、错误气泡（`.error` 样式）、清空 | ✅ |
+| `src/sidepanel/page_context.js` | 辅助 | 当前页签与选中文本的上下文条及查询前缀 | ✅ |
+| `src/sidepanel/server_client.js` | 辅助 | 由 `serverUrl` 推导 HTTP 基址、带 Bearer token 的 `apiFetch`、健康检查状态（`disconnected`/`connecting`/`connected`/`error`），`serverUrl`/`authToken` 变更后自动重检 | ✅ |
 | `src/sidepanel/sse.js` | 辅助 | `readSSE`：解析 agent SSE 流（`data:` 行、`[DONE]` 终止；坏行跳过、回调异常记录后继续） | ✅ |
 | `src/sidepanel/tool_steps.js` | 辅助 | 工具进度行渲染：`addToolStep` / `updateLastToolStep`（工具名只作文本写入，不解析为 HTML）；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
 | `src/content/selection.js` | 辅助 | Content Script（manifest 注入）：监听 mouseup 捕获用户选中文本，转发至 Side Panel | ✅ |
@@ -51,9 +56,7 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 | 端点 | 方法 | 用途 |
 |------|------|------|
 | `/api/v1/agents/agent-stream` | POST | 发送消息并接收 SSE 流式响应；带 `resume_value`（`{decision: "approve"}` 或 `{decision: "reject", feedback}`，审批事件带 `interruptId` 时一并回传）时答复该回合暂停中的工具审批并继续流式输出；审批已被超时或其他窗口处理时服务端返回 409 |
-| `/api/v1/chats/{chatId}/messages` | GET | 获取历史消息 |
 | `/api/v1/agents/agent/{messageId}/cancel` | POST | 取消当前执行 |
-| `/api/v1/agents/chat/{chatId}/attach` | GET | 重新附加到活跃流 |
 | `/api/v1/health` | GET | 连接状态检测 |
 | `/api/v1/extension/clip-agent` | GET/PUT | Wiki 剪藏目标 agent + WebUI origin（与 Settings → Extension Bridge 同步） |
 | `/api/v1/wiki/clip` | POST | 浏览器剪藏 multipart 上传（可选 `?agent_id=`；`folder_path=""` 默认月分目录；`queue_compile=false` 零 LLM） |
@@ -64,11 +67,17 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 
 | 请求 | Side Panel 行为 |
 |------|-----------------|
-| `tool_approval_request`（普通） | 弹窗逐项列出全部动作；一次批准/拒绝应用于该中断的全部动作；答复回传事件的 `interruptId`，同一对话有多个待决审批时只答这一个；弹窗一次只显示最后到达的一张，其余待决审批要等服务端在恢复后再次宣告才会出现 |
+| `tool_approval_request`（普通） | 弹窗逐项展示：shell 命令为白话说明（harness 的 `plain_explanation`，按界面语言取 zh/en）+ 完整命令 + 策略原因；其他工具列出参数（单个值超过 300 字符时截断并以 `…` 标明）+ 原因；一律不显示内部工具名。底部一行「HH:MM:SS 前未处理将自动拒绝/允许」，按事件到达时刻加 `extensions.timeout.seconds` 在面板自己的时钟上算（服务端 `expiresAt` 的时钟浏览器不一定共用），`behavior` 决定措辞。一次批准/拒绝应用于该中断的全部动作；答复回传事件的 `interruptId`；弹窗一次只显示最后到达的一张 |
+| shell 命令超过 2000 字符 | 只能拒绝：被截断的视图不能被批准，危险片段可能藏在被截去的尾部 |
+| 某个动作没有任何可展示内容（无说明、无参数、无原因） | 只能拒绝：不盲批 |
 | `tool_approval_request` 且任一动作的 `reviewConfigs` 项带有 `allowedDecisions` / `hideAllowAlways` / `domainApproval` 之外的开启字段（如 `isSpend`、`requiresDualInsurance`、`irreversibleDestructive`、`smartDenied`、`batchImpactSummary`），或 `allowedDecisions` 不含 `approve`，或 `displayMode` 为 `handover` | 只能拒绝；批准须回 Web 端（Web 端有额外确认与信息展示，Side Panel 不绕过；未知新字段同样视为需要 Web 端，默认拒绝批准） |
 | `approval_required` 等其他审批 | 仅提示去 Web 端处理，弹窗可忽略 |
 | 答复请求未送达（网络失败、服务端错误） | 提示「答复没有送达」并让弹窗重新出现，可再次答复；用户取消或开新会话时不重现 |
 | 答复请求返回 409（超时或已在别处处理） | 提示该审批已被处理，不再重试 |
+| 审批待决期间的界面 | 弹窗为 `alertdialog`，默认焦点在「拒绝」（仅当面板此刻已有焦点，不从用户正在输入的网页抢走焦点）；输入框与发送暂停并提示先处理审批 |
+| 浏览器窗口不在前台或面板不可见 | popup「审批提醒」开启（默认开）时发一条系统通知，不含命令正文；点击把窗口带回前台；答复、取消、新会话时撤回 |
+
+「原因」一行是 harness 的英文策略文本，面板按原文展示，不翻译；其余文案均走 `chrome.i18n`。
 
 ## Wiki clip 产品默认
 
@@ -87,8 +96,9 @@ Settings → Extension Bridge 仅配置 **Wiki clip target agent**（`/extension
 | 表面 | 语言 | 机制 |
 |------|------|------|
 | Popup + clip 错误 + 右键剪藏菜单 + clip 系统通知 | en / zh_CN | `_locales` + `chrome.i18n` |
-| Side Panel 审批弹窗与提示 | en / zh_CN | `_locales` + `chrome.i18n`（`approval*` 键） |
-| Side Panel Chat chrome（其余） | en | Agent 回复与 WebUI 设置语言由 server SSE 提供 |
+| Side Panel 审批弹窗、审批系统通知、popup 审批提醒开关 | en / zh_CN | `_locales` + `chrome.i18n`（`approval*` / `notifyApproval*` 键） |
+| Side Panel Chat 界面（标题栏提示、空状态、输入框、思考/工具提示、错误提示） | en / zh_CN | `_locales` + `chrome.i18n`（`panel*` 键）；错误只给通用文案，细节写控制台 |
+| Side Panel 内的 Agent 回复、工具进度行里的工具名 | server 输出 | 回复语言由 server/WebUI 设置决定；工具进度行仍按原名显示 |
 | WebUI Settings → Extension Bridge | 六语 | `myrm-agent-frontend` next-intl |
 
 **Degraded deep links:** When `web_ui_origin` is not yet seeded from WebUI, clip still writes to Wiki; popup shows a success hint (`clipSavedWithoutOrigin`) until origin syncs.

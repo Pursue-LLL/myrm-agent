@@ -39,6 +39,7 @@ function makeRequest(overrides: Partial<ToolApprovalRequest> = {}): ToolApproval
 class MockNotification {
   static permission = 'granted';
   static requestPermission = vi.fn(() => Promise.resolve('granted' as NotificationPermission));
+  title: string;
   body: string;
   tag: string;
   requireInteraction: boolean;
@@ -46,6 +47,7 @@ class MockNotification {
   close = vi.fn();
 
   constructor(title: string, options?: NotificationOptions) {
+    this.title = title;
     this.body = options?.body ?? '';
     this.tag = options?.tag ?? '';
     this.requireInteraction = options?.requireInteraction ?? false;
@@ -107,6 +109,28 @@ describe('approvalAlertService', () => {
     it('sends browser notification for single request', () => {
       notifyIdleApproval([makeRequest()]);
       expect(mockNotificationInstances).toHaveLength(1);
+    });
+
+    it('titles the notification with the tool name and no emoji', () => {
+      notifyIdleApproval([makeRequest()]);
+      expect(mockNotificationInstances[0].title).toBe('Approval Pending - file_write_tool');
+    });
+
+    it('titles a notification for several requests by their count and no emoji', () => {
+      notifyIdleApproval([
+        makeRequest({ requestId: 'r1', batchId: 'b' }),
+        makeRequest({ requestId: 'r2', batchId: 'b' }),
+      ]);
+      expect(mockNotificationInstances[0].title).toBe('2 actions pending approval');
+    });
+
+    it('flashes the tab title between the original and plain text', () => {
+      document.title = 'My App';
+      notifyIdleApproval([makeRequest()]);
+      vi.advanceTimersByTime(1000);
+      expect(document.title).toBe('Approval Pending');
+      vi.advanceTimersByTime(1000);
+      expect(document.title).toBe('My App');
     });
 
     it('batches requests by batchId', () => {

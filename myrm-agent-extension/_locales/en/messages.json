@@ -180,16 +180,10 @@
     "message": "Clip failed"
   },
   "approvalTitleSingle": {
-    "message": "Approve tool: $TOOL$",
-    "placeholders": {
-      "tool": {
-        "content": "$1",
-        "example": "bash_code_execute_tool"
-      }
-    }
+    "message": "Approve this action?"
   },
   "approvalTitleBatch": {
-    "message": "Approve $COUNT$ tool calls",
+    "message": "Approve these $COUNT$ actions?",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -220,5 +214,83 @@
   },
   "approvalSendFailed": {
     "message": "Your answer could not be sent. Check the connection and try again."
+  },
+  "approvalHintTooLong": {
+    "message": "This command is too long to review here. Open it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalHintNoDetails": {
+    "message": "There is nothing to review here for this action. Approve it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalDeadlineDeny": {
+    "message": "Rejected automatically at $TIME$ if you don't answer.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "approvalDeadlineAllow": {
+    "message": "Approved automatically at $TIME$ if you don't answer.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "notifyApprovalTitle": {
+    "message": "Your agent is waiting for you"
+  },
+  "notifyApprovalBody": {
+    "message": "Review the pending action in the Myrm Agent side panel."
+  },
+  "approvalNotifyLabel": {
+    "message": "Notify me when the agent needs my approval"
+  },
+  "panelNewChat": {
+    "message": "New chat"
+  },
+  "panelOpenSettings": {
+    "message": "Open settings"
+  },
+  "panelCancel": {
+    "message": "Cancel"
+  },
+  "panelEmptyTitle": {
+    "message": "Ask anything"
+  },
+  "panelEmptyHint": {
+    "message": "Select text on any page, right-click \"Ask Myrm Agent\", or type below."
+  },
+  "panelThinking": {
+    "message": "Thinking…"
+  },
+  "panelUsingTool": {
+    "message": "Using $TOOL$…",
+    "placeholders": {
+      "tool": {
+        "content": "$1",
+        "example": "file_read_tool"
+      }
+    }
+  },
+  "panelToolFallback": {
+    "message": "tool"
+  },
+  "panelNotConnected": {
+    "message": "Not connected to the server."
+  },
+  "panelInputPlaceholder": {
+    "message": "Ask anything…"
+  },
+  "panelInputPaused": {
+    "message": "Answer the approval above to continue"
+  },
+  "panelStreamError": {
+    "message": "Something went wrong. Check the connection and try again."
+  },
+  "allowAllEligibleTabs": {
+    "message": "Allow all eligible websites"
   }
 }

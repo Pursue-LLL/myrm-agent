@@ -4,36 +4,34 @@
  * Lightweight chat client that communicates with myrm-agent-server via HTTP+SSE.
  * Reuses existing server API endpoints — zero backend changes required.
  *
- * API contracts:
- * - POST /api/v1/agents/agent-stream → SSE streaming chat; with `resume_value` it answers a pending tool approval
- * - GET  /api/v1/chats/{chatId}/messages → message history
- * - POST /api/v1/agents/agent/{messageId}/cancel → cancel
- * - GET  /api/v1/agents/chat/{chatId}/attach → re-attach to active stream
+ * API contract: POST /api/v1/agents/agent-stream → SSE streaming chat; with `resume_value` it answers a pending tool
+ * approval. POST /api/v1/agents/agent/{messageId}/cancel cancels the running turn.
  */
 
 import { applyDocumentI18n, msg } from "../i18n.js";
 import {
   buildResumeValue,
   buildStreamBody,
+  clockTimeFormatter,
   describeApproval,
   isResumeConflict,
   resolveApprovalCopy,
 } from "./approval.js";
+import { clearApprovalNotification, notifyApprovalPending } from "./approval_notify.js";
+import { createApprovalOverlay } from "./approval_overlay.js";
+import { createChatView } from "./chat_view.js";
+import { createPageContext } from "./page_context.js";
+import { createServerClient } from "./server_client.js";
 import { readSSE } from "./sse.js";
 import { addToolStep, updateLastToolStep } from "./tool_steps.js";
 
 // --- State ---
 
 const state = {
-  serverBaseUrl: "",
-  authToken: "",
   chatId: null,
   connected: false,
   streaming: false,
   abortController: null,
-  activeTab: null,
-  selectedText: null,
-  contextDismissed: false,
   /** The approval waiting for an answer: `{ view, turn }`, `turn` being the assistant message it belongs to. */
   pendingApproval: null,
   currentMessageId: null,
@@ -43,21 +41,13 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+const uiLanguage = chrome.i18n.getUILanguage();
+const formatClockTime = clockTimeFormatter(uiLanguage);
+
 const dom = {
   connDot: $("conn-dot"),
-  contextBar: $("context-bar"),
-  contextValue: $("context-value"),
-  contextDismiss: $("context-dismiss"),
-  selectionCtx: $("selection-ctx"),
-  selectionText: $("selection-text"),
-  messagesEl: $("messages"),
-  emptyState: $("empty-state"),
   streamingIndicator: $("streaming-indicator"),
   streamingLabel: $("streaming-label"),
-  approvalOverlay: $("approval-overlay"),
-  approvalTitle: $("approval-title"),
-  approvalDetail: $("approval-detail"),
-  approvalHint: $("approval-hint"),
   btnApprove: $("btn-approve"),
   btnReject: $("btn-reject"),
   notConnected: $("not-connected"),
@@ -70,69 +60,55 @@ const dom = {
   openPopupLink: $("open-popup-link"),
 };
 
+const server = createServerClient(setConnectionState);
+
+const chatView = createChatView({ messages: $("messages"), emptyState: $("empty-state") });
+
+const approvalOverlay = createApprovalOverlay({
+  root: $("approval-overlay"),
+  title: $("approval-title"),
+  list: $("approval-list"),
+  hint: $("approval-hint"),
+  deadline: $("approval-deadline"),
+  approve: dom.btnApprove,
+  reject: dom.btnReject,
+});
+
+const pageContext = createPageContext({
+  bar: $("context-bar"),
+  value: $("context-value"),
+  dismiss: $("context-dismiss"),
+  selectionBox: $("selection-ctx"),
+  selectionText: $("selection-text"),
+});
+
 // --- Init ---
 
 function init() {
+  document.documentElement.lang = uiLanguage;
   applyDocumentI18n();
   setupEventListeners();
   listenForBackgroundMessages();
-  requestActiveTabContext();
-  loadConfig();
+  pageContext.start();
+  server.start();
 }
-
-function loadConfig() {
-  chrome.storage.local.get(["serverUrl", "authToken"], (data) => {
-    const wsUrl = data.serverUrl || "";
-    state.authToken = data.authToken || "";
-    state.serverBaseUrl = wsUrl
-      .replace(/^ws:/, "http:")
-      .replace(/^wss:/, "https:")
-      .replace(/\/api\/v1\/ws\/extension\/?$/, "")
-      .replace(/\/ws\/extension\/?$/, "")
-      .replace(/\/$/, "");
-
-    if (state.serverBaseUrl) {
-      checkConnection();
-    } else {
-      setConnectionState("disconnected");
-    }
-  });
-}
-
-chrome.storage.onChanged.addListener((changes) => {
-  if (changes.serverUrl || changes.authToken) loadConfig();
-});
 
 // --- Connection ---
-
-async function checkConnection() {
-  if (!state.serverBaseUrl) { setConnectionState("disconnected"); return; }
-  setConnectionState("connecting");
-  try {
-    const resp = await apiFetch("/api/v1/health", { method: "GET" });
-    setConnectionState(resp.ok ? "connected" : "error");
-  } catch {
-    setConnectionState("error");
-  }
-}
 
 function setConnectionState(status) {
   state.connected = status === "connected";
   dom.connDot.className = `connection-dot ${status}`;
   dom.notConnected.classList.toggle("visible", !state.connected);
   dom.inputArea.style.display = state.connected ? "block" : "none";
-  dom.btnSend.disabled = !state.connected;
+  syncInputLock();
 }
 
-// --- API helpers ---
-
-function apiFetch(path, options = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {}),
-    ...options.headers,
-  };
-  return fetch(`${state.serverBaseUrl}${path}`, { ...options, headers });
+/** The input is closed while a turn streams and while an approval waits: a new message must not overtake the answer. */
+function syncInputLock() {
+  const locked = state.streaming || Boolean(state.pendingApproval);
+  dom.chatInput.disabled = locked;
+  dom.chatInput.placeholder = msg(state.pendingApproval ? "panelInputPaused" : "panelInputPlaceholder");
+  dom.btnSend.disabled = locked || !state.connected;
 }
 
 function generateId(prefix) {
@@ -143,54 +119,18 @@ function generateId(prefix) {
 
 async function sendMessage() {
   const input = dom.chatInput.value.trim();
-  if (!input || state.streaming) return;
+  if (!input || state.streaming || state.pendingApproval) return;
 
   dom.chatInput.value = "";
   autoResizeInput();
 
   if (!state.chatId) state.chatId = generateId("spc");
-  hideApproval();
 
-  let contextPrefix = "";
-  if (!state.contextDismissed && state.activeTab) {
-    contextPrefix = `[Current page: ${state.activeTab.title} — ${state.activeTab.url}]\n\n`;
-  }
-  if (state.selectedText) {
-    contextPrefix += `[Selected text: "${state.selectedText}"]\n\n`;
-  }
+  const query = pageContext.queryPrefix() + input;
+  chatView.addMessage("user", input);
+  pageContext.clearSelection();
 
-  addMessage("user", input);
-  clearSelection();
-
-  await streamTurn(createTurn(generateId("sp")), { query: contextPrefix + input });
-}
-
-/** One assistant message and what has been streamed into it; a resumed approval continues the same turn. */
-function createTurn(messageId) {
-  const el = addMessage("assistant", "");
-  return { messageId, el, bubble: el.querySelector(".message-bubble"), toolEl: null, text: "" };
-}
-
-function appendTurnText(turn, text) {
-  turn.text += text;
-  turn.bubble.textContent = turn.text;
-  scrollToBottom();
-}
-
-function turnToolEl(turn) {
-  if (!turn.toolEl) {
-    turn.toolEl = document.createElement("div");
-    turn.toolEl.className = "tool-progress";
-    turn.el.appendChild(turn.toolEl);
-  }
-  return turn.toolEl;
-}
-
-function appendTurnNotice(turn, text) {
-  const notice = document.createElement("div");
-  notice.className = "turn-notice";
-  notice.textContent = text;
-  turn.el.appendChild(notice);
+  await streamTurn(chatView.createTurn(generateId("sp")), { query });
 }
 
 /**
@@ -204,7 +144,7 @@ async function streamTurn(turn, { query = "", resumeValue } = {}) {
   let reachedServer = false;
 
   try {
-    const resp = await apiFetch("/api/v1/agents/agent-stream", {
+    const resp = await server.apiFetch("/api/v1/agents/agent-stream", {
       method: "POST",
       body: JSON.stringify(
         buildStreamBody({
@@ -221,7 +161,7 @@ async function streamTurn(turn, { query = "", resumeValue } = {}) {
     });
 
     if (resumeValue && isResumeConflict(resp.status)) {
-      appendTurnNotice(turn, msg("approvalHandledElsewhere"));
+      chatView.appendNotice(turn, msg("approvalHandledElsewhere"));
       return false;
     }
     if (!resp.ok) {
@@ -234,16 +174,16 @@ async function streamTurn(turn, { query = "", resumeValue } = {}) {
   } catch (err) {
     if (err.name === "AbortError") return false;
     if (resumeValue && !reachedServer) {
-      appendTurnNotice(turn, msg("approvalSendFailed"));
+      chatView.appendNotice(turn, msg("approvalSendFailed"));
       return true;
     }
-    turn.bubble.textContent = `${turn.text}${turn.text ? "\n\n" : ""}Error: ${err.message}`;
-    turn.bubble.style.color = "var(--error)";
+    console.error("Agent stream failed", err);
+    chatView.showError(turn, msg("panelStreamError"));
   } finally {
     setStreaming(false);
     state.abortController = null;
     state.currentMessageId = null;
-    scrollToBottom();
+    chatView.scrollToBottom();
   }
   return false;
 }
@@ -253,72 +193,66 @@ async function streamTurn(turn, { query = "", resumeValue } = {}) {
 function handleSSEEvent(event, turn) {
   switch (event.type) {
     case "message":
-      if (event.data) appendTurnText(turn, typeof event.data === "string" ? event.data : "");
+      if (event.data) chatView.appendText(turn, typeof event.data === "string" ? event.data : "");
       break;
     case "message_end":
     case "agent_cancelled":
       notifyGlow(false);
       break;
     case "tool_start": {
-      const name = event.tool_name || "tool";
-      addToolStep(turnToolEl(turn), name, "running");
-      scrollToBottom();
-      dom.streamingLabel.textContent = `Using ${name}\u2026`;
+      const name = toolName(event);
+      addToolStep(chatView.toolContainer(turn), name, "running");
+      chatView.scrollToBottom();
+      dom.streamingLabel.textContent = msg("panelUsingTool", name);
       notifyGlow(true);
       break;
     }
-    case "tool_end": {
-      const name = event.tool_name || "tool";
-      updateLastToolStep(turnToolEl(turn), name, "done");
-      dom.streamingLabel.textContent = "Thinking\u2026";
+    case "tool_end":
+      updateLastToolStep(chatView.toolContainer(turn), toolName(event), "done");
+      dom.streamingLabel.textContent = msg("panelThinking");
       break;
-    }
-    case "tool_failure": {
-      const name = event.tool_name || "tool";
-      updateLastToolStep(turnToolEl(turn), name, "error");
+    case "tool_failure":
+      updateLastToolStep(chatView.toolContainer(turn), toolName(event), "error");
       break;
-    }
     case "tool_approval_request":
     case "approval_required":
       showApproval(event, turn);
       break;
     case "error":
-      if (event.error || event.data) appendTurnText(turn, `\n\nError: ${event.error || event.data}`);
+      // The raw error text is for developers: the chat only says that something went wrong.
+      if (event.error || event.data) {
+        console.error("Agent reported an error", event.error || event.data);
+        chatView.appendText(turn, `\n\n${msg("panelStreamError")}`);
+      }
       break;
-    case "tasks_steps":
-    case "tool_heartbeat":
-    case "sources":
-    case "reasoning":
-    case "token_usage":
-    case "status":
-      break;
-    default: break;
   }
+}
+
+function toolName(event) {
+  return event.tool_name || msg("panelToolFallback");
 }
 
 // --- Tool approval ---
 
 function showApproval(event, turn) {
-  renderApproval({ view: describeApproval(event), turn });
+  renderApproval({ view: describeApproval(event, { language: uiLanguage }), turn });
 }
 
 function renderApproval(pending) {
   const { view } = pending;
-  const copy = resolveApprovalCopy(view, msg);
+  const copy = resolveApprovalCopy(view, msg, formatClockTime);
   state.pendingApproval = pending;
-  dom.approvalTitle.textContent = copy.title;
-  dom.approvalDetail.textContent = copy.detail;
-  dom.approvalDetail.hidden = !copy.detail;
-  dom.approvalHint.textContent = copy.hint;
-  dom.approvalHint.hidden = !copy.hint;
-  dom.btnApprove.hidden = !view.canApprove;
-  dom.btnReject.textContent = copy.rejectLabel;
-  dom.approvalOverlay.classList.add("visible");
+  approvalOverlay.show(view, copy);
+  syncInputLock();
+  approvalOverlay.focusSafeAnswer();
+  notifyApprovalPending(copy.deadline);
 }
 
 function hideApproval() {
   state.pendingApproval = null;
-  dom.approvalOverlay.classList.remove("visible");
+  approvalOverlay.hide();
+  clearApprovalNotification();
+  syncInputLock();
 }
 
 /**
@@ -335,90 +269,26 @@ async function respondApproval(approved) {
   if (answerLost && !state.pendingApproval) renderApproval(pending);
 }
 
-// --- Messages UI ---
-
-function addMessage(role, content) {
-  dom.emptyState.style.display = "none";
-  const div = document.createElement("div");
-  div.className = `message ${role}`;
-  const bubble = document.createElement("div");
-  bubble.className = "message-bubble";
-  bubble.textContent = content;
-  div.appendChild(bubble);
-  dom.messagesEl.appendChild(div);
-  scrollToBottom();
-  return div;
-}
-
-function scrollToBottom() {
-  requestAnimationFrame(() => { dom.messagesEl.scrollTop = dom.messagesEl.scrollHeight; });
-}
-
 // --- Streaming state ---
 
 function setStreaming(active) {
   state.streaming = active;
   dom.streamingIndicator.classList.toggle("visible", active);
-  dom.btnSend.disabled = active || !state.connected;
-  dom.chatInput.disabled = active;
+  syncInputLock();
   dom.btnApprove.disabled = active;
   dom.btnReject.disabled = active;
-  dom.streamingLabel.textContent = "Thinking…";
-  if (!active) notifyGlow(false);
+  dom.streamingLabel.textContent = msg("panelThinking");
+  if (active) return;
+  notifyGlow(false);
+  if (state.pendingApproval) approvalOverlay.focusSafeAnswer();
 }
 
 async function cancelStream() {
   if (state.abortController) state.abortController.abort();
   if (state.currentMessageId) {
-    apiFetch(`/api/v1/agents/agent/${state.currentMessageId}/cancel`, { method: "POST" }).catch(() => {});
+    server.apiFetch(`/api/v1/agents/agent/${state.currentMessageId}/cancel`, { method: "POST" }).catch(() => {});
   }
   setStreaming(false);
-}
-
-// --- Tab context ---
-
-function requestActiveTabContext() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0] && tabs[0].url && !tabs[0].url.startsWith("chrome://")) {
-      state.activeTab = { id: tabs[0].id, title: tabs[0].title || "", url: tabs[0].url };
-      showTabContext();
-    }
-  });
-  chrome.tabs.onActivated.addListener((info) => {
-    chrome.tabs.get(info.tabId, (tab) => {
-      if (tab && tab.url && !tab.url.startsWith("chrome://")) {
-        state.activeTab = { id: tab.id, title: tab.title || "", url: tab.url };
-        state.contextDismissed = false;
-        showTabContext();
-      }
-    });
-  });
-}
-
-function showTabContext() {
-  if (state.contextDismissed || !state.activeTab) return;
-  const title = state.activeTab.title || new URL(state.activeTab.url).hostname;
-  dom.contextValue.textContent = title.length > 50 ? title.slice(0, 47) + "…" : title;
-  dom.contextBar.classList.add("visible");
-}
-
-function hideTabContext() {
-  state.contextDismissed = true;
-  dom.contextBar.classList.remove("visible");
-}
-
-// --- Selected text ---
-
-function setSelection(text) {
-  if (!text || !text.trim()) return;
-  state.selectedText = text.trim().slice(0, 2000);
-  dom.selectionText.textContent = state.selectedText;
-  dom.selectionCtx.classList.add("visible");
-}
-
-function clearSelection() {
-  state.selectedText = null;
-  dom.selectionCtx.classList.remove("visible");
 }
 
 // --- Background message listener ---
@@ -426,9 +296,11 @@ function clearSelection() {
 function listenForBackgroundMessages() {
   chrome.runtime.onMessage.addListener((message) => {
     switch (message.type) {
-      case "selected_text": setSelection(message.text); break;
+      case "selected_text":
+        pageContext.setSelection(message.text);
+        break;
       case "context_menu_query":
-        setSelection(message.text);
+        pageContext.setSelection(message.text);
         dom.chatInput.value = message.prompt || "";
         dom.chatInput.focus();
         break;
@@ -448,22 +320,25 @@ function notifyGlow(active) {
 function setupEventListeners() {
   dom.btnSend.addEventListener("click", sendMessage);
   dom.chatInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   });
   dom.chatInput.addEventListener("input", autoResizeInput);
-  dom.contextDismiss.addEventListener("click", hideTabContext);
   dom.btnNewChat.addEventListener("click", () => {
     state.chatId = null;
-    dom.messagesEl.innerHTML = "";
-    dom.emptyState.style.display = "";
-    dom.messagesEl.appendChild(dom.emptyState);
+    chatView.reset();
     if (state.abortController) state.abortController.abort();
-    setStreaming(false);
     hideApproval();
-    clearSelection();
+    setStreaming(false);
+    pageContext.clearSelection();
   });
   dom.btnSettings.addEventListener("click", () => chrome.action.openPopup());
-  dom.openPopupLink.addEventListener("click", (e) => { e.preventDefault(); chrome.action.openPopup(); });
+  dom.openPopupLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.action.openPopup();
+  });
   dom.btnCancel.addEventListener("click", cancelStream);
   dom.btnApprove.addEventListener("click", () => respondApproval(true));
   dom.btnReject.addEventListener("click", () => respondApproval(false));
