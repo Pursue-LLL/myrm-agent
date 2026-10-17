@@ -140,7 +140,7 @@ body {
 
 /* The card grows with its content up to the room the panel has; only the list scrolls, so the answer buttons stay in view. */
 .approval-overlay {
-  --gap: 10px; --input-clearance: 70px;
+  --gap: 10px; --input-clearance: 60px;
   display: none; flex-direction: column; position: fixed; bottom: var(--input-clearance); left: var(--gap); right: var(--gap);
   max-height: calc(100vh - var(--input-clearance) - var(--gap));
   background: var(--bg-secondary); border: 1px solid var(--warning);
