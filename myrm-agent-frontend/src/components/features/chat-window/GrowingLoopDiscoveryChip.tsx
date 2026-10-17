@@ -4,6 +4,9 @@
  * [INPUT]
  * - @/services/memory/core::getMemoryStats (POS: 记忆总数服务)
  * - next/navigation::useRouter (POS: 路由跳转)
+ * - next-intl::useTranslations (POS: 多语言文案)
+ * - lucide-react::Sparkles, ArrowRight (POS: 图标)
+ * - @/lib/utils/classnameUtils::cn (POS: 类名合并)
  *
  * [OUTPUT]
  * - GrowingLoopDiscoveryChip: EmptyChat「越用越懂」五环自进化发现胶囊芯片。
