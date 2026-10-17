@@ -5960,14 +5960,14 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 
 1. 删除不可撤销（修复 3）；
 2. 快照只按 UTF-8 文本读取，读不出来的资源被记成「批次前不存在」：批次改写这样的资源时，撤销会把它删掉；批次删除它时，撤销放不回来（按代码判断，没有单独测试）；
-3. 撤销与并发写入之间没有逐技能的锁；较早批次的撤销没有「是否已过期」的校验。一次性探针实测（探针文件已删除，没有提交）：保存 v1、改写 v2、改写 v3 后撤销 v2 那一批，内容回到 v1，v3 的改动被静默丢掉；再撤销 v3 那一批，内容变成 v2。保存后改写，再撤销较早的「保存」，技能整体被删除，改写的内容一起消失。同名重建后撤销较早批次会删掉新技能这一条仍是按代码判断、没有测试。要不要拒绝过期的撤销是产品决定，没有实现；
-4. 删除后再点早先那次保存的「撤销」：服务端 409 `rollback_failed`，前端显示通用失败文案，数据不变（API e2e 已断言；删除后再点改写批次的撤销同理，集成测试已断言）。没有改成幂等成功：成功文案「已将 N 个技能恢复为修改前的内容」与事实不符，要改它得动撤销事务；
+3. 撤销与并发写入之间没有逐技能的锁。较早批次的撤销覆盖较新批次的修改这一条已由 `BUG-AGENT-2026-10-17-005` 修掉（较新批次未撤销时，较旧批次的撤销被拒绝，409 `batch_superseded`）；当时的一次性探针实测（探针文件已删除，没有提交）：保存 v1、改写 v2、改写 v3 后撤销 v2 那一批，内容回到 v1，v3 的改动被静默丢掉；保存后改写，再撤销较早的「保存」，技能整体被删除，改写的内容一起消失；
+4. 删除后再点早先某个批次的「撤销」：服务端 409 `skill_missing`（改写批次与新建技能的保存批次都一样），前端给出专属文案，数据不变（`BUG-AGENT-2026-10-17-005` 之前这两种都回 `rollback_failed`，前端显示通用失败文案）。没有改成幂等成功：成功文案「已将 N 个技能恢复为修改前的内容」与事实不符，要改它得动撤销事务；
 5. 手机视口与浅色主题没有真机覆盖；
 6. harness 与服务端的提交相互依赖：服务端传 `snapshot_reader=`，而本条之前 `create_skill_manage_tool` 没有这个形参（按提交前的源码核对）；服务端依赖固定 `myrm-agent-harness==0.1.0rc5`（`pyproject.toml:25`），按提交前源码推断，发布前按锁文件安装的环境挂载 skill_manage 会因多余的关键字参数报 TypeError（没有在已发布版本上实测）。要先发布 harness 再 `./myrm harness sync-lock`；`patch` 读写入根的修复（`5a42b3e2d`）同理，发布前按锁文件安装的环境里 patch 仍读不到本轮没挂载的已存技能（按提交前源码推断，没有在已发布版本上实测）；
 7. Chrome E2E 的墙钟 138 至 556 秒受主机负载均值 12 至 40 影响，真实 agent 用例的 555.75 秒贴近 10 分钟上限；
 8. 他人未提交的改动没有碰也没有提交（`factory.py`、`version_persisting_backend.py`、`stream_collector.py`，以及 `tests/_ARCH.md`、`general_agent/_ARCH.md` 里的他人段落）。
-9. 撤销被拒绝时前端只有通用失败文案，不会说「技能已不存在」，要说清需要新增错误码与中英文案，没有做；一个批次涉及多个技能而其中一个已被删除时，整批撤销被拒绝，其余技能也不恢复（按代码判断：拒绝发生在应用任何快照之前，没有测试）。
-10. 仅含 lock/unlock 的批次也被当成可撤销批次（`undoable = all(op["action"] != "delete" …)`，`batch_runner.py:340`），落库钩子照常调用，结果带撤销提示；但 lock/unlock 只改全局进化库里的锁（`_manage_handlers.py:260`），快照里没有它（`_collect_touch_sets` 只为 `write_file`、`remove_file` 收集资源路径，`batch_runner.py:190-203`）。按代码判断：点「撤销」写回的是同一份 SKILL.md、答「已恢复」，技能仍是锁着的；批次里 lock 之后别的操作失败时，回滚同样不还原锁，而返回文案写的是 `No partial changes were kept`。没有测试；是把这类批次当终局处理还是还原锁，是产品决定，没有做。
+9. 撤销被拒绝的原因已有专属错误码与六种语言文案（`skill_missing`、`batch_superseded`，见 `BUG-AGENT-2026-10-17-005`）。一个批次涉及多个技能而其中一个已被删除时，整批撤销被拒绝，其余技能也不恢复（拒绝发生在应用任何快照之前；「两个技能的批次只要其一被较新批次覆盖就整批拒绝」有单测，已删除这一支没有多技能用例）。
+10. 仅含 lock/unlock 的批次曾被当成可撤销批次，lock 之后别的操作失败时回滚也不还原锁；已由 `BUG-AGENT-2026-10-17-005` 修掉：lock/unlock 不进快照，在全部文件操作成功之后才执行，失败的批次把改过的锁恢复到批次前的状态，只含 lock 的批次没有撤销记录，混合批次的提示说明撤销不含锁。
 11. 测试请求点名了工具与动作（`action=patch`、`action=save`），测的是机制，不是模型在自然语言要求下选 patch 还是 save 的倾向；patch 用例也依赖真实模型照指令去调 patch：目前两次（一次探针、一次用例）都调了，模型若改调 save，用例会报 `the model never called patch`，那是模型行为，不是回归。
 
 ### 踩坑经验
@@ -6088,5 +6088,84 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 ### 踩坑经验
 
 1. 起初只打算去掉面板里的 `run.error ||`，核对展开视图时才发现通用错误块又把同一段文字渲染了一遍；改界面文字时，要把同一个字段在该组件里的所有渲染点都找出来。
+
+---
+
+## BUG-AGENT-2026-10-17-005: 撤销较早的 skill_manage 批次会静默覆盖或删掉同一技能较新的修改；只含 lock/unlock 的批次也给撤销入口，批次失败回滚却不还原锁；技能已删或批次已过期时前端只给通用失败提示
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-17 |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P1（乱序撤销会静默丢掉后续批次的修改，或在「先保存新建、再改写」后撤销第一批时把整个技能删掉；批次失败时残留未还原的进化锁且声称未保留部分修改） |
+| 影响范围 | 服务端 `app/services/skills/mutation_batch_service.py`、`app/services/skill_optimization/rollback_service.py`、`app/api/skill_optimization/routes/versions.py`；前端 `src/components/features/message-box/progress-steps/SkillManageBatchRollbackAction.tsx`、六份 `locales/*.json`；harness `src/myrm_agent_harness/agent/meta_tools/skills/manage/batch_runner.py`、`_manage_handlers.py`、`skill_manage_tool.py`；对应测试与 `_ARCH.md` |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-17-002`（跟进收敛其局限 3、4、9、10）；产品仓提交 `08e26aacb4`、`f78edfc4b9`、`fe5b098b95`；harness 提交 `0ff784a42f`、`d9049bfb61`；本地提交，未 push，未发布 harness 版本 |
+
+### 现象
+
+1. 同一技能连续经历多个 `skill_manage` 批次（例如保存 v1 → 改写 v2 → 改写 v3）后，用户在对话任务步骤里直接点较早批次（v1 或 v2）的「撤销」：服务端照常把较早批次的快照写回（或因第一批 `existed_before_batch=False` 直接把整个技能删掉），较新批次的修改被静默覆盖或随技能一起消失；
+2. 仅含 `lock` / `unlock` 的批次也会落 `batch_snapshots`、返回 `batch_id` 与「撤销技能修改」提示；用户点撤销只会把没变过的 `SKILL.md` 再写回一遍并答「已恢复」，进化锁状态根本不变；
+3. 同一批次里先 `lock` / `unlock`、后一个操作失败（或持久化钩子 `on_batch_committed` 失败）时，回滚只还原文件快照，不还原刚改过的进化锁，返回文案却写 `No partial changes were kept` / `Changes were rolled back`；
+4. 技能在批次之后被删除，用户再点此前「改写批次」或「新建该技能的保存批次」的撤销：两条路径都返回 409 `rollback_failed`，前端弹出通用失败文案「无法撤销此次技能修改，请重试或在技能设置中回滚版本」，既不说明技能已被删除，也不区分「之后又有更新批次修改了该技能」；
+5. `skill_manage_tool` 的中英文工具描述写着 `lock/unlock wraps a multi-step edit on the same skill` / `同一技能多步修改前 lock，完成后 unlock`，把 `lock/unlock` 改到同批所有文件操作之后才执行后，这句话与单次调用内的真实执行顺序矛盾。
+
+### 根因
+
+1. `rollback_skill_mutation_batch` 只加载目标 `batch_id` 的快照行并直接应用，没有检查同一 `skill_id` 在 `batch_snapshots` 表里是否还存在 `created_at` 更晚、尚未撤销的批次快照；且 `batch_snapshots.created_at` 原本依赖数据库 `func.now()`（SQLite 秒级精度），背靠背写入的两个批次可能拿到相同时间戳；
+2. `batch_runner.py` 把除 `delete` 外的全部动作都算进 `_collect_touch_sets` 与可撤销批次，而 `lock` / `unlock` 只改 `evolution.store` 里的 `evolution_locked` 标志，不碰技能目录文件，文件快照既记录不了锁，回滚也还原不了锁；
+3. `mutation_batch_service.py` 在应用快照前虽然捕获了 `live_by_id[row.skill_id].skill_existed`，但原先只对改写批次抛通用的 `MutationBatchRollbackError`，新建批次落到后面的删除补偿分支同样变成 `rollback_failed`，没有独立的 `MutationBatchSkillMissingError` / `MutationBatchSupersededError` 与对应的 409 `detail.code`，前端 `SkillManageBatchRollbackAction.tsx` 也只识别 `compensation_failed` 与 `batch_already_consumed`。
+
+### 修复
+
+1. 服务端顺序守卫与专属错误码：
+   - `rollback_service.py:23-29`、`:56` 新增进程内单调递增微秒时间戳 `_next_created_at()`（`max(datetime.now(UTC), _last_created_at + timedelta(microseconds=1))`），每次 `insert_mutation_batch_snapshot` 显式写入 `created_at`，避免同秒写入的两个批次无法区分先后；
+   - `mutation_batch_service.py:50-56` 新增 `MutationBatchSupersededError` 与 `MutationBatchSkillMissingError`；`_newer_batch_id`（`:258-269`）在 `_load_snapshot_rows` 的同一个读事务里（`session.rollback()` 之前）查询同一 `skill_id` 是否存在 `created_at > row.created_at` 的其他未消费批次；若任一快照行被更新批次覆盖，在写入任何文件前直接抛 `MutationBatchSupersededError`（`:319-322`）；较新的批次先被撤销（其 `batch_snapshots` 行被删除）后，较旧批次即可正常撤销；
+   - `mutation_batch_service.py:336-337` 在应用任何快照前统一检查 `if not live_by_id[row.skill_id].skill_existed: raise MutationBatchSkillMissingError(...)`，无论该批次是改写已有技能还是新建技能，只要技能当前已不存在，都在动盘前拒绝；
+   - `versions.py:168-195` 将上述两个异常映射为 HTTP 409，`detail.code` 分别为 `"batch_superseded"` 与 `"skill_missing"`；
+2. 前端错误分支与六语种文案：
+   - `SkillManageBatchRollbackAction.tsx:38-55`、`:86` 提取 `refusalCode` 与 `rollbackFailureMessage(t, error)`，对 `batch_superseded` 与 `skill_missing` 分别提示 `skillManageRollbackSuperseded`、`skillManageRollbackSkillMissing`（弹窗不关闭、按钮不置为已撤销）；
+   - `locales/{de,en,ja,ko,zh-TW,zh}.json` 的 `progressSteps` 命名空间同步补齐两套文案；
+3. harness `batch_runner` 的 `lock` / `unlock` 语义与工具描述：
+   - `batch_runner.py:57`、`:195`、`:251-284`、`:354-396` 将 `lock` / `unlock` 排除出 `_collect_touch_sets`；通过 `_execution_order` 让所有文件操作先执行、`lock` / `unlock` 在全部文件操作成功后再按原顺序执行（文件操作失败时不会触碰列在它前面的锁），同时用 `results[i]` 保持工具输出仍按入参顺序拼接；
+   - `_manage_handlers.py:272-289` 新增 `_evolution_lock_state(name) -> bool | None` 读取操作前的锁状态；`batch_runner.py` 记录 `_ChangedLock`，当后续锁操作失败或 `batch_committed_hook` 失败时，`_roll_back_batch` 先还原文件快照、再逆序把改过的锁恢复到批次前的状态（原本已加锁再 `lock` 的技能保持加锁，不会被误解锁）；
+   - 仅含 `lock` / `unlock` 的批次因 `snapshots` 为空（`batch_runner.py:376-377`）直接返回结果，不调 `batch_committed_hook`、不生成 `batch_id` 脚注与撤销提示；混合批次的撤销提示（`:296-304`）与 `skill_manage_tool.py:56`、`:61`、`:71`、`:76` 的中英文描述明确说明：锁在多次调用之间持续有效，同一次调用内 `lock/unlock` 在文件操作之后执行，撤销不包含锁变更。
+
+### 验证
+
+1. 服务端单测与集成（`./myrm test -q`）：
+   - `tests/integration/skills/test_skill_manage_undo_lifecycle_integration.py`（13 例，新增「较新批次未撤销前拒绝较早批次，先撤较新再撤较早后回到初始内容」与「保存新建技能后再删除，撤销该次保存返回 `MutationBatchSkillMissingError`」）、`tests/services/skills/test_mutation_batch_superseded.py`（新增 4 例：单技能先后批次、两技能批次中仅一个技能有更新批次时整批拒绝且另一技能不被改动、更新批次消费后旧批次放行、相同时间戳并列时不误拒）、`test_mutation_batch_service.py`、`test_rollback_service.py`、`test_mutation_batch_rollback_http.py` 五个文件共 `41 passed in 6.31s`；
+   - 4 个服务端变异全部被杀：`guard_off`（去掉 `superseded_by` 检查）、`any_skill`（跨技能误判）、`plain_clock`（不走单调时钟）、`older_blocks`（把 `>` 写反成 `<`）；「先保存后删除再撤销保存」在改 `mutation_batch_service.py:336` 前红灯（`1 failed, 12 passed`），改后绿灯；
+   - 服务端大范围回归（`tests/core/skills`、`tests/services/skills`、`tests/integration/skills`、`tests/ai_agents/general_agent`、`tests/api/skill_optimization`）`901 passed in 206.42s`；
+2. harness 单测、变异与类型检查：
+   - 新增 `tests/agent/meta_tools/skill_manage/test_batch_runner_locks.py`（12 例，含参数化）与 `batch_fakes.py`，修复前 `6 failed, 13 passed`；修复后 `tests/agent/meta_tools/skill_manage` 与 `test_meta_tools_locale_unification.py` 共 `45 passed in 5.33s`；工具描述新增断言在上一版描述文本上验证为 False（红）→ 当前为 True（绿）；
+   - 9 个 runner 变异（`mutant_plugin2.py`）9/9 全部被杀；
+   - `tests/agent/meta_tools` 全目录回归 `2151 passed, 2 skipped, 30 deselected in 23.82s`；触及文件 `ruff check`、`ruff format --check`、`mypy`（6 个源文件 0 错误）全部通过；
+3. 前端单测与静态门禁：
+   - `SkillManageBatchRollbackAction.test.tsx`（18 例，含 `batch_superseded` 与 `skill_missing` 表格用例；交换两个错误码映射的变异 `4 failed` 被杀，还原后 18 例全绿）；連同 `src/components/features/message-box/progress-steps` 与 `src/services/skill/__tests__/optimization.rollbackBatch.test.ts` 共 14 个文件 `108 passed in 26.46s`；
+   - `verify:i18n`（`verify-i18n.mjs` + `verify-i18n-references.mjs`，3579 个文件无缺失键引用）、`generate-simplified-glyphs.mjs --check`、`verify:icu-syntax`、触及文件的 `tsc` 与 `oxlint` 全部通过；
+4. 真实模型 API e2e（Lane-B，`./myrm test -m e2e -rs -s myrm-agent/myrm-agent-server/tests/api/agent/test_skill_manage_undo_live_api_e2e.py`，隔离验证后端 + `.env.test` 真实模型 `MiniMax-M3.1-Flash-Preview`）：`4 passed in 227.79s`（日志 `/tmp/jx-ct/api_e2e.log`），其中改写流实测先撤销第一次保存返回 409 `batch_superseded`、按逆序先撤第二次再撤第一次成功；删除流实测删除后再撤销保存返回 409 `skill_missing`；
+5. 真机 Chrome E2E（Lane-C，`./myrm test --detach -m chrome_e2e -rs -s <nodeid>`，每节点独立会话，隔离私有运行时）：
+   - 新增过期批次拒绝节点 `test_skill_manage_undo_superseded_chrome_e2e.py::test_undo_of_an_older_change_says_a_newer_change_came_after_it_and_leaves_the_skill_alone`：`1 passed in 171.97s`，日志 `myrm-test-44115.log`，会话 `e2e-parent-44142-44162-dbe1e745`（`state=SUCCEEDED`、`outcome=PASSED`、`sealed=true`、`physical_released=true`、`ledger_cleaned=true`），页面实测 `{'statuses': [409], 'confirmEnabled': True, 'buttonText': '撤销技能修改'}` 且仅弹出 1 条本地化提示；
+   - 已消费批次拒绝节点 `test_skill_manage_undo_consumed_chrome_e2e.py::test_undo_of_a_save_already_undone_elsewhere_says_so_once_and_leaves_the_skill_alone`（抽共用 `check_refused_undo_reaches_the_user` 后复跑）：`1 passed in 173.32s`，日志 `myrm-test-58247.log`，会话 `e2e-parent-58698-58739-1f5970f3`（`SUCCEEDED/PASSED`，三项 cleanup 皆真）；
+   - 正常回滚恢复节点 `test_skill_manage_undo_rollback_chrome_e2e.py::test_skill_manage_undo_rollback_restores_skill_md`：`1 passed in 95.04s`，日志 `myrm-test-73532.log`，会话 `e2e-parent-73590-73609-f5bc94d5`（`SUCCEEDED/PASSED`，三项 cleanup 皆真）；
+   - 真实 Agent 对话保存并在任务步骤撤销节点 `test_skill_manage_live_agent_chrome_e2e.py::test_live_agent_saves_a_skill_and_the_user_undoes_it_from_task_steps`（真实模型 `minimax / MiniMax-M3.1-Flash-Preview`）：`1 passed in 150.46s`，日志 `myrm-test-78218.log`，会话 `e2e-parent-78242-78275-55c5164c`（`SUCCEEDED/PASSED`，三项 cleanup 皆真）。
+
+### 局限
+
+1. 顺序守卫只比较 `batch_snapshots` 表里的未消费批次快照：用户在技能设置界面直接编辑、自动进化（FIX/DERIVED）改写或 curator 合并等不写 `batch_snapshots` 的改动，仍不会被该守卫拦截；
+2. `_next_created_at()` 是单进程内存单调时钟：库里已有的历史秒级快照行、跨进程并发写入或系统时钟大幅回拨导致的时间戳完全相等（tie）时，`created_at > row.created_at` 为假，按放行处理（有单测覆盖并列放行）；
+3. 撤销只加了按 `batch_id` 的锁（`batch_rollback_lock(batch_id)`），没有按 `skill_id` 的跨批次互斥锁，`_load_snapshot_rows` 读事务结束到写盘完成之间仍存在极短的 TOCTOU 窗口；
+4. 前端其他调用 `rollbackSkillMutationBatch` 的入口（`SkillsSection.tsx` 与他人未提交的 `skillInstallRollbackToastAction.ts`，用于市场替换/上游更新的恢复）在 catch 分支仍直接取 `error.message`（即服务端英文原文），本条只改了对话任务步骤的 `SkillManageBatchRollbackAction.tsx`；
+5. 单次 `skill_manage` 调用内部把 `lock/unlock` 移到了文件操作之后执行，因此同一调用里写在文件操作前面的 `lock` 不再在该调用自己的文件写入期间持锁；跨多次调用的加锁保护不受影响；
+6. 一个批次涉及多个技能而其中某个技能已被删除时，整批撤销在动盘前被 `MutationBatchSkillMissingError` 拒绝（单技能已测；多技能部分删除未单独写用例）；
+7. 服务端的 `pyproject.toml` 仍锁定 `myrm-agent-harness==0.1.0rc5`，harness 侧的提交需发版并执行 `./myrm harness sync-lock` 后才会在按锁文件安装的环境中生效；
+8. 手机视口与浅色主题未跑真机 Chrome E2E；既有 `skillManageRollbackAlreadyConsumed` 文案里保留了原有的「或链接已失效 / or the rollback link expired」措辞（服务端实际没有过期时间机制）。
+
+### 踩坑经验
+
+1. `batch_snapshots` 的主键 `snapshot_id` 是 UUID 字符串，没有自增整数列，`created_at` 的数据库默认值又是秒级精度：用时间戳做先后比较时，必须在写入端提供单调递增的微秒级时间戳，否则同一个测试或背靠背工具调用写出的两批快照会因同秒而漏检；
+2. 前端 `verify-i18n-references.mjs` 通过静态扫描源码里的字面量 `t('key')` 检查翻译键引用，把翻译键塞进动态变量再传给 `t(key)` 会绕过静态扫描或触发误报；用 `switch` 分支逐个写字面量 `t('...')` 既清晰又能被门禁静态校验；
+3. 给单次调用里的 `lock/unlock` 调整执行顺序时，要同步核对面向 LLM 的 `TOOL_DESCRIPTION_EN/ZH`：原来的描述写着 `lock/unlock wraps a multi-step edit`，改完执行顺序若不改提示词，模型拿到的说明就和真实行为相悖。
 
 ---
