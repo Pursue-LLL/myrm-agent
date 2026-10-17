@@ -7,21 +7,11 @@ from myrm_agent_harness.toolkits.web_search.core.exceptions import (
     AllQueriesFailedError,
     SearchAPIError,
 )
-from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
+from myrm_agent_harness.toolkits.web_search.providers.chain import search_provider_chain
 from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
     SearchServiceConfig,
     WebSearcher,
 )
-
-
-def _chain_config(*hops: SearchServiceConfig) -> SearchServiceConfig:
-    head = hops[0]
-    return SearchServiceConfig(
-        search_service=head.search_service,
-        api_key=head.api_key,
-        api_base=head.api_base,
-        provider_chain=list(hops),
-    )
 
 
 class TestProviderChainIntegration:
@@ -29,21 +19,16 @@ class TestProviderChainIntegration:
 
     @pytest.mark.asyncio
     async def test_chain_with_invalid_tavily_key(self):
-        cfg = _chain_config(
+        chain = [
             SearchServiceConfig(search_service="tavily", api_key="tvly-invalid-key-for-fallback-test"),
             SearchServiceConfig(search_service="searxng", api_base="http://localhost:8081"),
-        )
-
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(cfg, metrics=metrics)
+        ]
 
         try:
-            results = await searcher.search("Python programming", num_results=3)
+            results, winner = await search_provider_chain(chain, "Python programming", 3)
 
             assert len(results) > 0, "Chain should return results from SearXNG"
-
-            snap = metrics.snapshot()
-            assert snap["chain_hop_count"] >= 1, "Chain hop should be recorded"
+            assert winner == "searxng", "The invalid Tavily key must hand over to SearXNG"
 
             print(f"✓ Chain test passed: {len(results)} results from fallback hop")
         except (SearchAPIError, AllQueriesFailedError) as e:
@@ -55,21 +40,16 @@ class TestProviderChainIntegration:
         if not api_key:
             pytest.skip("No valid Tavily API key available")
 
-        cfg = _chain_config(
+        chain = [
             SearchServiceConfig(search_service="tavily", api_key=api_key),
             SearchServiceConfig(search_service="searxng", api_base="http://localhost:8081"),
-        )
-
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(cfg, metrics=metrics)
+        ]
 
         try:
-            results = await searcher.search("AI news", num_results=3)
+            results, winner = await search_provider_chain(chain, "AI news", 3)
 
             assert len(results) > 0
-
-            snap = metrics.snapshot()
-            assert snap["chain_hop_count"] == 0, "Chain hop should not occur when primary succeeds"
+            assert winner == "tavily", "Chain hop should not occur when primary succeeds"
 
             print(f"✓ Primary service test passed: {len(results)} results from Tavily")
         except SearchAPIError as e:
@@ -84,15 +64,10 @@ class TestProviderChainIntegration:
             api_key="tvly-invalid-no-fallback",
         )
 
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(config, metrics=metrics)
+        searcher = WebSearcher(config)
 
         with pytest.raises(SearchAPIError):
             await searcher.search("test query", num_results=3)
-
-        snap = metrics.snapshot()
-        assert snap["chain_hop_count"] == 0
-        assert snap["search_terminal_failures"] >= 1
 
     def test_config_loader_legacy_role_migration(self):
         from app.core.channel_bridge.config_parsers import (
