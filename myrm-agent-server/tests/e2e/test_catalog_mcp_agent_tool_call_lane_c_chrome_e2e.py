@@ -127,14 +127,17 @@ def _wait_backend_mcp_config(name: str, *, timeout_sec: float) -> None:
     raise AssertionError(f"backend mcpServers never carried {name!r} within {timeout_sec}s; saw {seen!r}")
 
 
-# MCP tools are named ``mcp__{server}__{tool}`` and the step key appends ``_tool``; a
-# failed call gets ``_error``. A successful one is the proof the bound server served the turn.
+# MCP tools are named ``mcp__{server}__{tool}`` (the server component sanitized to
+# underscores) and the step key appends ``_tool``; a failed call gets ``_error``. A
+# successful call to the bound server is the proof it reached the turn.
 _MCP_TOOL_PREFIX = "mcp__"
-_MCP_SERVER_MARKER = "microsoft"
+_MCP_STEP_SUFFIX_ERROR = "_error"
+_MCP_SERVER_COMPONENT = _MCP_SERVER_NAME.replace("-", "_")
 
 
 def _completed_mcp_tool_steps(chat_id: str, api_url: str) -> list[str]:
-    """Successful MCP tool steps recorded on a *completed* assistant turn."""
+    """Successful MCP tool steps of the bound server recorded on a *completed* assistant turn."""
+    marker = f"{_MCP_TOOL_PREFIX}{_MCP_SERVER_COMPONENT}__"
     steps: list[str] = []
     for message in stored_messages(chat_id, api_url):
         if message.get("role") != "assistant":
@@ -147,12 +150,7 @@ def _completed_mcp_tool_steps(chat_id: str, api_url: str) -> list[str]:
             continue
         for step in recorded:
             key = step.get("step_key") if isinstance(step, dict) else None
-            if (
-                isinstance(key, str)
-                and key.startswith(_MCP_TOOL_PREFIX)
-                and _MCP_SERVER_MARKER in key
-                and not key.endswith("_error")
-            ):
+            if isinstance(key, str) and key.startswith(marker) and not key.endswith(_MCP_STEP_SUFFIX_ERROR):
                 steps.append(key)
     return steps
 
@@ -166,7 +164,7 @@ def _wait_completed_mcp_tool_step(chat_id: str, api_url: str, *, timeout_sec: fl
             return steps
         time.sleep(2.0)
     raise AssertionError(
-        f"no successful {_MCP_SERVER_MARKER} MCP tool step within {timeout_sec}s; "
+        f"no successful {_MCP_SERVER_NAME!r} MCP tool step within {timeout_sec}s; "
         f"stored messages: {_stored_digest(chat_id, api_url)}"
     )
 
