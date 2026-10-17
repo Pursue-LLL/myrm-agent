@@ -21,7 +21,7 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | `src/popup.html` | 辅助 | Popup 结构；静态文案 `data-i18n` + 运行时 `applyDocumentI18n` | — |
 | `src/popup.js` | 辅助 | Popup 控制器：连接状态；clip conflict/security/success 深链（`lastClipErrorKind` 结构化，非 regex）；审批提醒开关（`approvalNotifyEnabled`，默认开）；`chrome.i18n` 双语 | ✅ |
 | `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面（ES module）：Chat UI 结构（SVG 图标、语义化 HTML）；界面与审批弹窗文案均 `data-i18n`；审批弹窗为 `role="alertdialog"`（`aria-labelledby` 标题、`aria-describedby` 明细） | — |
-| `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题（文字与按钮对比度均不低于 WCAG AA 的 4.5:1）、消息气泡、工具进度、审批弹窗（随内容增高，高度上限为面板剩余高度 `100vh - 70px`，底边固定在 `100vh - 60px`；只有明细列表滚动，按钮始终可见；列表边缘仅在其外还有内容时渐隐提示——滚动时间线取自列表自身，内容放得下时没有可滚动距离、时间线未激活，短列表因此不会渐隐）、流式指示器、输入区（审批待决时为虚线禁用态） | — |
+| `src/sidepanel/sidepanel.css` | 核心 | Side Panel 样式：暗色主题（文字与按钮对比度均不低于 WCAG AA 的 4.5:1）、消息气泡、工具进度、审批弹窗（随内容增高，高度上限为面板剩余高度 `100vh - 80px`，底边固定在输入区上方 `100vh - 70px`；只有明细列表滚动，按钮始终可见；列表边缘仅在其外还有内容时渐隐提示——滚动时间线取自列表自身，内容放得下时没有可滚动距离、时间线未激活，短列表因此不会渐隐）、流式指示器、输入区（审批待决时为虚线禁用态） | — |
 | `src/sidepanel/sidepanel.js` | 核心 | Side Panel Chat 控制器：发送消息、渲染 SSE 事件、协调审批（展示、提醒、输入暂停、到期收起）并用 `resume_value` 恢复暂停的回合；错误给本地化文案（服务端因上一回合仍在运行拒绝新消息时说明 Agent 仍在处理，其余为通用文案），细节只写控制台 | ✅ |
 | `src/sidepanel/approval.js` | 核心 | 审批规则（纯函数，无 DOM/chrome）：`describeApproval`（白话说明、完整命令/参数、原因、截止时刻，以及能否在面板内批准）、`resolveApprovalCopy`/`clockTimeFormatter`（本地化文案）、`buildResumeValue`/`buildStreamBody`（请求体同时声明面板的工具集）、`isResumeConflict`；vitest 经 `myrm-agent-frontend/src/lib/extension/__tests__` 覆盖 | ✅ |
 | `src/sidepanel/approval_overlay.js` | 辅助 | 审批弹窗 DOM 渲染：逐项写入说明/命令/原因（一律 `textContent`）、截止行、提示；`focusSafeAnswer` 仅在面板已有焦点时把焦点给「拒绝」 | ✅ |
