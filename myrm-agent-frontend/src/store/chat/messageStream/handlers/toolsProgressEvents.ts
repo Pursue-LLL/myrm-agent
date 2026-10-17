@@ -62,43 +62,34 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     }
 
     if (data.step_key === 'swarm_fission') {
-      import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
-        const total = typeof data.count === 'number' ? data.count : 0;
-        const status = data.status;
-        const failedCount = typeof data.failed_count === 'number' ? data.failed_count : status === 'error' ? total : 0;
-        const completedCount =
-          typeof data.completed_count === 'number' ? data.completed_count : Math.max(0, total - failedCount);
-        const partial =
-          Boolean(data.partial_success) || status === 'partial_success' || (failedCount > 0 && completedCount > 0);
+      const total = typeof data.count === 'number' ? data.count : 0;
+      const status = data.status;
+      const failedCount = typeof data.failed_count === 'number' ? data.failed_count : status === 'error' ? total : 0;
+      const completedCount =
+        typeof data.completed_count === 'number' ? data.completed_count : Math.max(0, total - failedCount);
+      const partial =
+        Boolean(data.partial_success) || status === 'partial_success' || (failedCount > 0 && completedCount > 0);
 
-        if (status === 'running') {
-          useSubagentStore.getState().setFissionBatch({
-            active: true,
-            total,
-            completed: 0,
-            failed: 0,
-            partial: false,
-          });
-        } else if (status === 'completed' || status === 'error' || status === 'partial_success') {
-          useSubagentStore.getState().setFissionBatch({
-            active: false,
-            total,
-            completed: completedCount,
-            failed: failedCount,
-            partial,
-          });
+      if (status === 'running') {
+        H.writeSubagentStore(ctx.state, (store) =>
+          store.setFissionBatch({ active: true, total, completed: 0, failed: 0, partial: false }),
+        );
+      } else if (status === 'completed' || status === 'error' || status === 'partial_success') {
+        H.writeSubagentStore(ctx.state, (store) =>
+          store.setFissionBatch({ active: false, total, completed: completedCount, failed: failedCount, partial }),
+        );
 
-          if (failedCount > 0) {
-            import('@/lib/utils/toast').then(({ toast }) => {
-              const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'en' : 'en';
-              const message = lang.startsWith('zh')
-                ? `并行裂变：${completedCount}/${total} 成功，${failedCount} 路失败`
-                : `Swarm fission: ${completedCount}/${total} succeeded, ${failedCount} failed`;
-              toast.warning(message, { duration: 8000 });
-            });
-          }
+        // The strip belongs to the open chat, but failed workers are worth a warning wherever the stream runs.
+        if (failedCount > 0) {
+          import('@/lib/utils/toast').then(({ toast }) => {
+            const lang = typeof document !== 'undefined' ? document.documentElement.lang || 'en' : 'en';
+            const message = lang.startsWith('zh')
+              ? `并行裂变：${completedCount}/${total} 成功，${failedCount} 路失败`
+              : `Swarm fission: ${completedCount}/${total} succeeded, ${failedCount} failed`;
+            toast.warning(message, { duration: 8000 });
+          });
         }
-      });
+      }
     }
 
     if (!added) {

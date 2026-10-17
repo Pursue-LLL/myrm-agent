@@ -235,14 +235,11 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     };
     useDesktopControlApprovalStore.getState().requestApproval(approvalPayload);
 
-    const streamChatId = H.resolveStreamChatId(state);
-    const { default: useChatStore } = await import('@/store/useChatStore');
-    const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
-    if (streamChatId && activeChatId && streamChatId === activeChatId) {
+    if (H.isStreamForOpenChat(state)) {
       const { default: useDesktopInspectorStore } = await import('@/store/useDesktopInspectorStore');
       const desktopStore = useDesktopInspectorStore.getState();
       desktopStore.setDesktopActive(true);
-      desktopStore.markTurnEngaged(streamChatId);
+      desktopStore.markTurnEngaged(H.resolveStreamChatId(state));
       desktopStore.openPanel();
     }
 

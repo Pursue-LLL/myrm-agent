@@ -11,8 +11,8 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   const { data, actions } = ctx;
   if (data.type === H.AgentEventType.SUBAGENT_START) {
     // Dispatch to dedicated subagent store for Dashboard tree
-    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
-      useSubagentStore.getState().upsertNode({
+    H.writeSubagentStore(ctx.state, (store) => {
+      store.upsertNode({
         task_id: data.data.task_id,
         parent_task_id: data.data.parent_task_id || '',
         agent_type: data.data.agent_type,
@@ -45,12 +45,11 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.SUBAGENT_PROGRESS) {
     // Dispatch to dedicated subagent store for Dashboard
-    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+    H.writeSubagentStore(ctx.state, (store) => {
       const pd = data.data;
       const progressPercent = Math.round((pd.progress ?? 0) * 100);
       const taskId = pd.task_id || pd.agent_instance || '';
       if (taskId) {
-        const store = useSubagentStore.getState();
         store.updateProgress(taskId, progressPercent, pd.current_step);
         const tokenUsage =
           (pd.token_usage as Record<string, unknown> | undefined) ??
@@ -116,7 +115,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.SUBAGENT_LOG) {
-    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+    H.writeSubagentStore(ctx.state, (store) => {
       const logData = data.data;
       const taskId = logData.task_id || logData.agent_instance || '';
       if (taskId) {
@@ -129,7 +128,7 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
               : level === 'DEBUG'
                 ? ('thinking' as const)
                 : ('progress' as const);
-        useSubagentStore.getState().appendStream(taskId, {
+        store.appendStream(taskId, {
           kind,
           text: logData.tool_name
             ? `${logData.tool_name}${logData.message ? `: ${logData.message}` : ''}`
@@ -184,11 +183,11 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.SUBAGENT_STALE) {
-    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+    H.writeSubagentStore(ctx.state, (store) => {
       const payload = data.data;
       const taskId = payload?.task_id;
       if (taskId) {
-        useSubagentStore.getState().markStale(taskId, payload.stale_duration_seconds ?? 0, payload.wasted_tokens ?? 0);
+        store.markStale(taskId, payload.stale_duration_seconds ?? 0, payload.wasted_tokens ?? 0);
       }
     });
 
@@ -233,10 +232,10 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.FISSION_TOPOLOGY) {
-    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+    H.writeSubagentStore(ctx.state, (store) => {
       const payload = data.data as H.FissionTopologyUpdateStreamEvent['data'];
       if (payload && payload.fission_id) {
-        useSubagentStore.getState().setFissionTopology({
+        store.setFissionTopology({
           fission_id: payload.fission_id,
           nodes: payload.nodes || [],
           total_cost_usd: payload.total_cost_usd || 0,
@@ -328,13 +327,12 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   }
 
   if (data.type === H.AgentEventType.TEAMMATE_MESSAGE) {
-    const chatId = H.useChatStore.getState().chatId;
+    const chatId = H.resolveStreamChatId(ctx.state);
     const payload = data.data as Record<string, string | number> | undefined;
-    if (chatId && payload?.from_task_id && payload?.to_task_id) {
+    if (payload?.from_task_id && payload?.to_task_id) {
       import('@/lib/utils/teammateMessage').then(({ normalizeTeammateEntry }) => {
-        import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
-          const entry = normalizeTeammateEntry(payload);
-          useSubagentStore.getState().appendTeammateMessage(entry);
+        H.writeSubagentStore(ctx.state, (store) => {
+          store.appendTeammateMessage(normalizeTeammateEntry(payload));
           if (typeof window !== 'undefined') {
             window.dispatchEvent(
               new CustomEvent('teammate_message', {

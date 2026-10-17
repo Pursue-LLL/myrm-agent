@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import useChatStore from '@/store/useChatStore';
 import { useSubagentStore, isNodeOvertime, type SubagentNode } from '../useSubagentStore';
 
 vi.mock('@/lib/api', () => ({
@@ -190,13 +191,24 @@ describe('fetchSubagents', () => {
   beforeEach(() => {
     useSubagentStore.getState().clear();
     mockFetchWithTimeout.mockReset();
+    useChatStore.setState({ chatId: 'chat-1' });
   });
+
+  /** A request the test answers by hand, so a reply can arrive after the user has moved on. */
+  function slowReply() {
+    let answer: (response: Response) => void = () => undefined;
+    const reply = new Promise<Response>((resolve) => {
+      answer = resolve;
+    });
+    return { reply, answer };
+  }
+
+  const subagentsOf = (...nodes: SubagentNode[]) =>
+    ({ json: vi.fn().mockResolvedValue({ data: nodes }) }) as unknown as Response;
 
   it('hydrates store nodes from the subagents API', async () => {
     const nodes = [makeNode({ task_id: 't-api', status: 'completed', progress: 100 })];
-    mockFetchWithTimeout.mockResolvedValue({
-      json: vi.fn().mockResolvedValue({ data: nodes }),
-    } as unknown as Response);
+    mockFetchWithTimeout.mockResolvedValue(subagentsOf(...nodes));
 
     await useSubagentStore.getState().fetchSubagents('chat-1');
 
@@ -210,7 +222,7 @@ describe('fetchSubagents', () => {
       json: vi.fn().mockResolvedValue({ data: {} }),
     } as unknown as Response);
 
-    await useSubagentStore.getState().fetchSubagents('chat-2');
+    await useSubagentStore.getState().fetchSubagents('chat-1');
 
     expect(Object.keys(useSubagentStore.getState().nodes)).toHaveLength(0);
   });
@@ -224,6 +236,34 @@ describe('fetchSubagents', () => {
   it('survives API failure without throwing', async () => {
     mockFetchWithTimeout.mockRejectedValue(new Error('network down'));
 
-    await expect(useSubagentStore.getState().fetchSubagents('chat-3')).resolves.toBeUndefined();
+    await expect(useSubagentStore.getState().fetchSubagents('chat-1')).resolves.toBeUndefined();
+  });
+
+  describe('a reply that arrives after the user left the chat', () => {
+    it.each([
+      ['opened another chat', 'chat-b'],
+      ['pressed "new chat"', undefined],
+    ])('is dropped when the user %s', async (_name, openedInstead) => {
+      const slow = slowReply();
+      mockFetchWithTimeout.mockReturnValueOnce(slow.reply);
+      const fetching = useSubagentStore.getState().fetchSubagents('chat-1');
+
+      useChatStore.setState({ chatId: openedInstead });
+      slow.answer(subagentsOf(makeNode({ task_id: 'of-chat-1' })));
+      await fetching;
+
+      expect(Object.keys(useSubagentStore.getState().nodes)).toEqual([]);
+    });
+
+    it('is applied when the user is still in that chat', async () => {
+      const slow = slowReply();
+      mockFetchWithTimeout.mockReturnValueOnce(slow.reply);
+      const fetching = useSubagentStore.getState().fetchSubagents('chat-1');
+
+      slow.answer(subagentsOf(makeNode({ task_id: 'of-chat-1' })));
+      await fetching;
+
+      expect(Object.keys(useSubagentStore.getState().nodes)).toEqual(['of-chat-1']);
+    });
   });
 });

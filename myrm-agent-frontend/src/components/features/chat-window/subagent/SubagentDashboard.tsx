@@ -266,8 +266,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/delegation/${endpoint}`, { method: 'POST' });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(body.message || t(delegationPaused ? 'delegationResumeFailed' : 'delegationPauseFailed'));
+        toast.error(t(delegationPaused ? 'delegationResumeFailed' : 'delegationPauseFailed'));
         return;
       }
       setDelegationPaused(!delegationPaused);
@@ -284,8 +283,7 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
     try {
       const res = await fetchWithTimeout(`/chats/${chatId}/subagents/cancel-all`, { method: 'POST' });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        toast.error(body.message || t('stopAllFailed'));
+        toast.error(t('stopAllFailed'));
         return;
       }
       const runningIds = Object.values(useSubagentStore.getState().nodes)
@@ -303,12 +301,12 @@ export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) =
   const prevChatIdRef = useRef(chatId);
   useEffect(() => {
     const prev = prevChatIdRef.current;
-    if (prev !== chatId) {
-      if (prev && chatId && prev !== chatId) {
-        useSubagentStore.getState().clear();
-      }
-      prevChatIdRef.current = chatId;
+    // Leaving a chat empties the tree, whether for another chat or for a new one; a new chat receiving its id with
+    // its first message (no chat -> id) keeps what its stream already put there.
+    if (prev && prev !== chatId) {
+      useSubagentStore.getState().clear();
     }
+    prevChatIdRef.current = chatId;
   }, [chatId]);
 
   useEffect(() => {

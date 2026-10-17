@@ -67,11 +67,9 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const streamChatId = H.resolveStreamChatId(state);
     if (toolName.startsWith('browser_')) {
       const { default: inspectorStore } = await import('@/store/useBrowserInspectorStore');
-      const { default: useChatStore } = await import('@/store/useChatStore');
       inspectorStore.getState().setBrowserActive(true);
       inspectorStore.getState().markTurnEngaged(streamChatId);
-      const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
-      if (streamChatId && activeChatId && streamChatId === activeChatId) {
+      if (H.isStreamForOpenChat(state)) {
         inspectorStore.getState().openPanel();
       }
     }
@@ -96,10 +94,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       // desktop_snapshot_tool already pushed refs via DESKTOP_VIEW_UPDATE SSE;
       // re-fetch here would re-capture the wrong foreground window (e.g. Chrome).
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
-      const { default: useChatStore } = await import('@/store/useChatStore');
-      const streamChatId = H.resolveStreamChatId(state);
-      const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
-      if (streamChatId && activeChatId && streamChatId === activeChatId) {
+      if (H.isStreamForOpenChat(state)) {
         void desktopStore.getState().fetchSnapshot(true);
       }
     }
