@@ -61,7 +61,6 @@ export const GrowingLoopDiscoveryChip = memo(function GrowingLoopDiscoveryChip({
       className={cn(
         'group flex w-full items-center justify-between gap-3 px-3.5 py-2 rounded-full border text-start cursor-pointer select-none transition-all duration-200',
         'bg-background/80 hover:bg-accent/50 border-primary/20 hover:border-primary/40 shadow-xs hover:shadow-sm backdrop-blur-md',
-        'max-w-screen-md mx-auto',
         className,
       )}
     >

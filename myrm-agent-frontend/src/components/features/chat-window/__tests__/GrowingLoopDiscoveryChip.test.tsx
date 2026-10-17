@@ -67,6 +67,17 @@ describe('GrowingLoopDiscoveryChip', () => {
     expect(actionLabel.classList.contains('md:not-sr-only')).toBe(true);
   });
 
+  it('takes its width from the chat column instead of capping itself', () => {
+    memoryService.getMemoryStats.mockReturnValue(new Promise(() => undefined));
+    render(<GrowingLoopDiscoveryChip />);
+
+    // The empty chat column is max-w-screen-md up to lg and 820px from lg. A self-imposed max-w-screen-md cap
+    // stops at 48rem and leaves the pill visibly narrower and indented than the sibling chips.
+    const chip = screen.getByRole('button');
+    expect(chip.classList.contains('w-full')).toBe(true);
+    expect(chip.className).not.toContain('max-w-screen-md');
+  });
+
   it('pulses the icon twice and only when the system allows motion', () => {
     memoryService.getMemoryStats.mockReturnValue(new Promise(() => undefined));
     const { container } = render(<GrowingLoopDiscoveryChip />);
