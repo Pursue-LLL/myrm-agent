@@ -289,7 +289,7 @@ export default function KanbanTaskCard({
                 {t('retries')}: {task.retry_count}/{task.max_retries}
               </span>
             )}
-            {task.blocked_reason && (
+            {task.status === 'blocked' && task.blocked_reason && (
               <span className="inline-flex items-center gap-0.5 text-[10px] text-destructive line-clamp-1">
                 {task.block_kind === 'scheduled' && <Clock className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'external' && <ExternalLink className="w-3 h-3 shrink-0" />}
@@ -297,7 +297,7 @@ export default function KanbanTaskCard({
                 {blockedReasonText(task.blocked_reason, t)}
               </span>
             )}
-            {task.block_kind === 'scheduled' && task.scheduled_until && (
+            {task.status === 'blocked' && task.block_kind === 'scheduled' && task.scheduled_until && (
               <ScheduledCountdown until={task.scheduled_until} />
             )}
             {task.status === 'backlog' && (

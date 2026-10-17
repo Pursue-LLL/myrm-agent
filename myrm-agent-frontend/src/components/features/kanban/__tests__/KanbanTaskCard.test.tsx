@@ -177,6 +177,25 @@ describe('KanbanTaskCard blocked reason', () => {
     expect(screen.getByText('autoUnblocking')).toBeTruthy();
     expect(screen.queryByText(/auto-unblocking/)).toBeNull();
   });
+
+  it('shows no block details on a task that left the blocked column, even if it still carries them', () => {
+    render(
+      <KanbanTaskCard
+        task={makeTask({
+          status: 'ready',
+          block_kind: 'scheduled',
+          blocked_reason: 'Waiting for the reviewer',
+          scheduled_until: new Date(Date.now() - 1000).toISOString(),
+        })}
+        allTasks={[]}
+        onMove={noop}
+        onDelete={noop}
+        onRefresh={noop}
+      />,
+    );
+    expect(screen.queryByText('Waiting for the reviewer')).toBeNull();
+    expect(screen.queryByText('autoUnblocking')).toBeNull();
+  });
 });
 
 describe('KanbanTaskCard attachment badge inside a draggable card', () => {

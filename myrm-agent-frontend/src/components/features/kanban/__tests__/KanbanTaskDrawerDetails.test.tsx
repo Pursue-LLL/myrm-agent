@@ -185,6 +185,20 @@ describe('TaskDetailsSection blocked reason', () => {
     renderSection(makeTask({ status: 'blocked', block_kind: null, blocked_reason: 'Waiting for the reviewer' }));
     expect(screen.getByText('Waiting for the reviewer').closest('p')?.textContent).toContain('status.blocked');
   });
+
+  it('shows no block notice on a task that left the blocked column, even if it still carries a reason', () => {
+    renderSection(
+      makeTask({
+        status: 'ready',
+        block_kind: 'scheduled',
+        blocked_reason: 'Waiting for the reviewer',
+        scheduled_until: '2026-08-10T00:00:00Z',
+      }),
+    );
+    expect(screen.queryByText('Waiting for the reviewer')).toBeNull();
+    expect(screen.queryByText('blockKind.scheduled')).toBeNull();
+    expect(screen.queryByText(/autoUnblockAt/)).toBeNull();
+  });
 });
 
 describe('TaskDetailsSection inline editors', () => {

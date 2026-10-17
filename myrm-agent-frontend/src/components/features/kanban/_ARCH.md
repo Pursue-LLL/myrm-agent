@@ -124,7 +124,7 @@
 
 ## Blocked reason
 
-- `KanbanTaskCard` / `KanbanTaskBlockedNotice`（抽屉）：阻塞原因经 `@/lib/kanban/kanbanBlockedReason::blockedReasonText` 显示——服务端写入的是英文句子或标记（频道命令、诊断、活动流原样展示），服务端自己拥有的几种（依赖任务合并失败、模型用量上限、批次暂停，见 `shared/config/kanban_blocked_reasons.json`）译成界面语言（`kanban.blockedReason.<key>`，六语言），其余原因（目标模式暂停原因、预算耗尽、智能体写的原因）集合是开放的，原样显示；抽屉的阻塞提示条（`KanbanTaskBlockedNotice`）用 `kanban.blockKind.*` 标注阻塞类型，定时任务到点后的提示用 `kanban.autoUnblocking`；任务完成/阻塞/失败的 toast 与系统通知走同一入口（`hooks/globalEvents/kanbanTaskToast.ts`）；定时阻塞不弹窗（卡片倒计时与抽屉的自动解除时间已经说明，任务到点自己恢复）
+- `KanbanTaskCard` / `KanbanTaskBlockedNotice`（抽屉）：阻塞原因经 `@/lib/kanban/kanbanBlockedReason::blockedReasonText` 显示——服务端写入的是英文句子或标记（频道命令、诊断、活动流原样展示），服务端自己拥有的几种（依赖任务合并失败、模型用量上限、批次暂停，见 `shared/config/kanban_blocked_reasons.json`）译成界面语言（`kanban.blockedReason.<key>`，六语言），其余原因（目标模式暂停原因、预算耗尽、智能体写的原因）集合是开放的，原样显示；抽屉的阻塞提示条（`KanbanTaskBlockedNotice`）用 `kanban.blockKind.*` 标注阻塞类型，定时任务到点后的提示用 `kanban.autoUnblocking`；原因、类型与定时倒计时只在任务处于 `blocked` 时显示（卡片与提示条都按 `status === 'blocked'` 判断，拖出阻塞列的乐观更新只改状态，任务对象里残留的这些字段不会露出）；任务完成/阻塞/失败的 toast 与系统通知走同一入口（`hooks/globalEvents/kanbanTaskToast.ts`）；定时阻塞不弹窗（卡片倒计时与抽屉的自动解除时间已经说明，任务到点自己恢复）
 
 ## Completion intent UI
 

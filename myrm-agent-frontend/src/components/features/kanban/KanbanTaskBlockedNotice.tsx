@@ -7,7 +7,7 @@
  * - KanbanTaskBlockedNotice: 任务抽屉里的阻塞提示条——阻塞类型标签（`kanban.blockKind.*`，没有类型时用 `kanban.status.blocked`）、界面语言的原因，定时阻塞时附自动解除时间
  *
  * [POS]
- * 任务抽屉详情区段的阻塞展示；没有 blocked_reason 时不渲染。
+ * 任务抽屉详情区段的阻塞展示；任务不在阻塞态或没有 blocked_reason 时不渲染。
  */
 import { Clock, ExternalLink, User } from 'lucide-react';
 import { blockedReasonText } from '@/lib/kanban/kanbanBlockedReason';
@@ -20,7 +20,7 @@ interface KanbanTaskBlockedNoticeProps {
 }
 
 export function KanbanTaskBlockedNotice({ task, t }: KanbanTaskBlockedNoticeProps) {
-  if (!task.blocked_reason) {
+  if (task.status !== 'blocked' || !task.blocked_reason) {
     return null;
   }
 
