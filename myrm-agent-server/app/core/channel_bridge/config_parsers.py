@@ -23,7 +23,7 @@ Extract typed configs from frontend dict structures.
 - is_search_user_configured: check if user explicitly configured a search service (vs default fallback)
 - extract_search_provider_chain: enabled search configs sorted by priority → harness SearchServiceConfig list
 - extract_active_search_config: head provider + full provider_chain for agent runtime
-- verify_search_service_available: async live probe for chain head (30s TTL cache via search_verify)
+- verify_search_service_available: async live probe of the whole search provider chain (60s verdict cache via search_verify)
 - invalidate_search_health_cache: clear search health cache on config change
 """
 
@@ -922,18 +922,16 @@ _SEARCH_HEALTH_TTL = 30.0
 
 
 async def verify_search_service_available(cfg: "SearchServiceConfig | None") -> bool:
-    """Lightweight connectivity check for the configured search provider chain.
+    """Live probe of the configured search providers behind a short verdict cache.
 
-    Uses live search probe with TTL cache (same semantics as Settings verify).
+    A provider chain is probed the way the agent searches it, so one dead provider does not make search unavailable
+    while another one in the chain still answers.
     """
     if cfg is None:
         return False
 
     from app.services.integrations.search_verify import verify_search_config_cached
 
-    if cfg.provider_chain:
-        head = cfg.provider_chain[0]
-        return await verify_search_config_cached(head)
     return await verify_search_config_cached(cfg)
 
 

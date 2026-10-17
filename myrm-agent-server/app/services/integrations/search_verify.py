@@ -5,10 +5,12 @@
 - search_web_service (POS: Live search probe execution)
 
 [OUTPUT]
-- verify_search_provider: Probe catalog entry and return reachability result
+- verify_search_config_live: Probe a single provider or a whole provider chain (failover included)
+- verify_search_config_cached: Same probe behind a 60s verdict cache (readiness gate)
+- invalidate_search_verify_cache: Drop cached verdicts after Settings changes
 
 [POS]
-Settings/API search provider verify endpoint backing service.
+Settings/API search provider verify endpoint and readiness gate backing service.
 """
 
 from __future__ import annotations
@@ -27,26 +29,40 @@ _VERIFY_TTL_SECONDS = 60.0
 _verify_cache: dict[str, tuple[float, bool]] = {}
 
 
+def _members(cfg: SearchServiceConfig) -> list[SearchServiceConfig]:
+    """Providers a search through ``cfg`` can reach, in failover order."""
+    return cfg.provider_chain or [cfg]
+
+
 def _cache_key(cfg: SearchServiceConfig) -> str:
-    return f"{cfg.search_service}:{cfg.api_key or ''}:{cfg.api_base or ''}"
+    return "|".join(f"{m.search_service}:{m.api_key or ''}:{m.api_base or ''}" for m in _members(cfg))
+
+
+def _has_required_credentials(member: SearchServiceConfig) -> bool:
+    """Whether the provider is selectable and carries what its catalog entry requires."""
+    entry = SearchProviderCatalogRegistry.get_instance().get_by_slug(member.search_service)
+    if entry is None or not entry.backend_ready:
+        logger.warning("Search verify skipped: provider '%s' is not selectable", member.search_service)
+        return False
+    if entry.requires_api_key and not member.api_key:
+        return False
+    return not (entry.requires_api_base and not member.api_base)
 
 
 _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 
 
 async def verify_search_config_live(cfg: SearchServiceConfig, *, query: str | None = None) -> bool:
-    """Run a lightweight live search probe for the given config."""
-    if cfg.api_key in _E2E_PROBE_SKIPPED_API_KEYS:
-        return True
-    registry = SearchProviderCatalogRegistry.get_instance()
-    if not registry.is_selectable_slug(cfg.search_service):
-        logger.warning("Search verify skipped: provider '%s' is not selectable", cfg.search_service)
-        return False
+    """Run a lightweight live search probe for the given config.
 
-    if cfg.search_service == "searxng":
-        if not cfg.api_base:
-            return False
-    elif not cfg.api_key:
+    A chain config is probed as one unit, exactly the way the agent searches it (failover included), so the verdict
+    means "a search will get an answer" and not "the first provider answers". A member without credentials does not
+    veto the probe because the chain skips it at search time; only a chain with no usable member is unavailable.
+    """
+    members = _members(cfg)
+    if members[0].api_key in _E2E_PROBE_SKIPPED_API_KEYS:
+        return True
+    if not any(_has_required_credentials(member) for member in members):
         return False
 
     try:
@@ -57,7 +73,7 @@ async def verify_search_config_live(cfg: SearchServiceConfig, *, query: str | No
         )
         return bool(results)
     except Exception as exc:
-        logger.warning("Search verify probe failed for %s: %s", cfg.search_service, exc)
+        logger.warning("Search verify probe failed for %s: %s", "/".join(member.search_service for member in members), exc)
         return False
 
 
