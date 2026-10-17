@@ -5506,7 +5506,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 发现日期 | 2026-10-16 |
 | 修复日期 | 2026-10-16 |
 | 严重程度 | P3（展示失真与不必要的开销，不影响数据） |
-| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json`、根仓库 `temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` |
+| 影响范围 | `myrm-agent-server/app/api/statistics/learning_loop.py`、`tests/api/statistics/test_learning_loop_integration.py`、`myrm-agent-frontend/src/components/features/chat-window/GrowingLoopDiscoveryChip.tsx`、`src/services/statistics.ts`、胶囊与 Hub 的组件测试、六语种 `locales/*.json` |
 | 出现次数 | 1 |
 | 关联条目 | BUG-AGENT-2026-10-16-015（其「局限」里的技能总数在本条删除） |
 
@@ -5517,6 +5517,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 成长页第 3 环写着「被拦截或失败: 0」，正下方统计卡写着「30 failed」，同屏对不上。
 4. 手机宽度（390）下英、德、日、韩四种语言的胶囊标题被截断：标题与尾注是同一个文案，再加上「View Learning Loop」这类行动文字，英文需要 348 px、只剩 133 px（德 360/121、日 258/150、韩 237/175），中文不截断；平板 640 宽度出现记忆数后英、德再次截断，768 不截断。同类的 `MemoryHygieneDiscoverChip` 与 `ModelOrchestrationPlaybookChip` 在 sm 以下都把行动文字收起，只有这个胶囊没有。
 5. 设置页统计卡「全部案例」在韩语写「최근 사례」、德语写没翻译的「Recent Cases」，数字却是不带时间过滤的累计值（`queries.py` 的 `total`），与成长页第 2 环的「전체 사례」「Fälle gesamt」同数不同名。
+6. 无痕会话里，空白页同时显示红色横幅「开启后，本会话不读写记忆」与胶囊尾注「五环闭环运转中」：`EmptyChat.tsx` 里 `IncognitoNotice` 排在胶囊之前，胶囊没有引用无痕。服务端在无痕或关闭记忆时关掉记忆工具组、检索、自动提取与会话结束后的整合（`active_tool_groups.py`、`factory.py`）。用户在设置里关闭记忆（`MemorySettingsToggles.tsx` 的 `enableMemory`）后同样。尾注在 md 及以上才显示。
+7. 胶囊图标用 `animate-pulse`，在 Tailwind 4.3.3 里是 2 秒的无限循环：空白页一加载就开始、永不停止，系统开启「减少动态效果」时也照常播放。
 
 ### 根因
 
@@ -5525,6 +5527,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 第 3 环与设置页统计卡的口径是 `BLOCKED_LOCKED` 加 `FAILED_SCAN`（`queries.py` 的 `blocked_statuses`），应用失败的 `APPLY_FAILED` 在待审核口径里；设置页筛选器 `matchesFilter('blocked')` 同口径，且叫「已拦截」。「或失败」是多出来的词，与同屏另一处的「失败」撞车。
 4. 标题与尾注合成一个文案、行动文字在所有宽度都显示、记忆数从 sm（640）起显示，窄屏上标题没有余量。
 5. 韩语、德语的 `settings.skills.growth.summary.total` 沿用了「最近」的措辞，没有跟着累计口径走。
+6. 尾注是写死的状态文案，而胶囊与会话无关，不知道当前会话是否无痕、记忆是否开启。
+7. 图标用了框架自带的无限循环类，没有 `motion-safe`，也没有次数上限。
 
 ### 修复
 
@@ -5532,9 +5536,11 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 前端：胶囊入口固定渲染、不等任何请求；记忆数改读 `GET /memory/stats`，读到且大于 0 才在宽屏显示，读不到只留入口；请求带 `silent`，读不到时不弹全局错误提示（`apiRequest` 默认会弹，原先胶囊取五环状态时同样会弹，是复查时才发现的遗漏）；`getMemoryStats` 为此加了可选的 `silent` 参数，记忆页的调用不变；删除 `Ring2DistillationStatus.total_skills` 与所有夹具；文案键 `discoveryChip.stats` 改为 `memoriesCount`（带复数）。
 3. 文案：六语种的 `ring3.metricsBlocked` 与 `settings.skills.growth.summary.blocked` 去掉「或失败」，与同页筛选器 `filters.blocked` 同词。
 4. 测试：后端删去技能目录夹具与对应的失败用例；胶囊测试改为：请求未返回前入口已可点并能跳转、有数时显示、数为 0 或请求失败时只省略数字，且固定请求带 `silent`；服务层测试固定 `getMemoryStats` 默认保留全局错误提示、传 `silent` 才压住；胶囊另加一例固定窄屏约定（记忆数与尾注 `hidden md:inline`、标题不隐藏、行动文字 `sr-only md:not-sr-only`）。
-5. 胶囊：文案键拆成 `growsWithYou`（标题）与新增的 `loopActive`（尾注），六语种同步；md（768）以下只留标题与箭头，尾注、记忆数、行动文字到 md 才显示，记忆数的断点从 sm 改到 md（640 宽度实测会把英、德标题挤断）；行动文字窄屏用 `sr-only` 而不是 `hidden`，读屏仍读得到「查看闭环」。
+5. 胶囊：文案键拆成 `growsWithYou`（标题）与 `loopName`（尾注），六语种同步；md（768）以下只留标题与箭头，尾注、记忆数、行动文字到 md 才显示，记忆数的断点从 sm 改到 md（640 宽度实测会把英、德标题挤断）；行动文字窄屏用 `sr-only` 而不是 `hidden`，读屏仍读得到「查看闭环」。
 6. 文案：韩语 `settings.skills.growth.summary.total` 改为「전체 사례」，德语改为「Fälle gesamt」，与第 2 环同词。
 7. 文档：`topic_09` 路线图两处写「`GrowingLoopDiscoveryChip.tsx:33,35-49` 的 `sessionStorage` 关闭键」，该文件没有关闭键（按 `sessionStorage` 搜该文件与它的 git 历史均为 0 处），删去这一处引用并写明该胶囊每次必渲染；同句里其他胶囊的引用没有动。
+8. 文案：`loopName` 的六语种只写名称、去掉原来的状态词（运转中、Active 等；中「五环闭环」、繁「五環閉環」、英「5-Ring Closed Loop」、日「5環閉ループ」、韩「5개 링 닫힌 루프」与查看页面标题同写法、德「5-Ringe-Closed-Loop」）。
+9. 胶囊：图标改为 `motion-safe:animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_2]`，只脉冲两次（约 4 秒）就静止，系统开启「减少动态效果」时不播放；去掉图标上与父元素重复的 `text-primary`。W3C 对自动开始、持续超过 5 秒且与内容并列的动效要求提供暂停机制，其合规示例是 5 秒后停止。
 
 ### 验证
 
@@ -5545,6 +5551,9 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 5. 窄屏版式（真实浏览器，无头 Chromium，开发服务）：六语种 × 九个宽度（360、375、390、640、700、767、768、1024、1440）× 记忆数 1234 与 0 两种状态共 108 组，全部满足：标题不截断、整行与记忆数不溢出、页面无横向滚动；768 以下尾注、记忆数、行动文字都不显示，768 起按预期显示（记忆数为 0 时不显示）。记忆数是拦截 `/memory/stats` 的响应强制出来的（1234 取最宽的现实位数），不是库里的真实值。把胶囊改回旧写法（尾注与行动文字全宽显示）后，同一脚本在英、德的 18 组里全部报失败：360 至 390 的 6 组标题被截断，640 至 767 的 6 组尾注仍显示；768 起的 6 组报「行动文字不可见」，是这个变异去掉了脚本用来定位行动文字的类名，不是版式问题。
 6. 窄屏约定的单测另做 5 种变异（记忆数断点改回 sm、尾注全宽显示、行动文字改成 `hidden`、去掉尾注、标题在窄屏隐藏），全部被拦住并核对还原；`verify:i18n`（含引用检查）、`verify:theme-colors`、`oxlint`、`prettier`（触碰的 ts/tsx）再次通过。
 7. 无障碍名称（真实 Chromium，静态页面，样式取自已安装 Tailwind 4.3.3 的 `sr-only`、`not-sr-only`、`hidden` 定义，不是运行中的应用）：390 宽度下按钮的名称是「The Agent that Grows with You View Learning Loop」，行动文字在名称里、尾注不在；把行动文字换成 `display:none` 则名称只剩标题；1440 宽度下两者都在。
+8. 单测共 6 例，新增「图标只在允许动效时脉冲两次、不再带无限循环类」一例；另做 4 种变异（图标改回 `animate-pulse text-primary`、尾注取回旧键、去掉 `motion-safe:` 前缀、次数改成 `infinite`），全部被拦住并核对还原。
+9. 动画实测（真实 Chromium，静态页面，用仓库的 Tailwind 4.3.3 编译胶囊源码里的真实类，不是运行中的应用）：允许动效时图标只有 1 个名为 pulse 的动画、2 次、每次 2 秒，约 4.6 秒后没有运行中的动画且不透明度为 1；`prefers-reduced-motion: reduce` 时 `animation-name` 为 none、没有任何动画。
+10. 宽度（静态页面，系统字体，不是应用的字体）：六语种 × 八个宽度（360、390、640、767、768、800、1024、1440）× 记忆数 123456、1234、0 × 新旧尾注共 288 组，新旧各 144 组都没有标题、整行、记忆数的裁切，也没有按钮与页面的横向溢出；不做对照的话这个结论没有意义，所以另跑了对照：把尾注与行动文字改回全宽显示，英、日、韩、德在 360、390 宽度下标题被截断（旧尾注 8/12 组，新尾注 7/12 组，韩语 390 因尾注变短不再截断），说明脚本量得出截断。`verify:i18n`（含引用检查）、`verify:theme-colors`、`oxlint`、`prettier`（触碰的 ts/tsx）通过。
 
 ### 局限
 
@@ -6427,5 +6436,6 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 1. 单槽 store 的写入边界要放在写入点之前的「入口」，而不是每个调用处各写一遍：同一个「是否打开的聊天」比较在三处被抄了三份，第四处（子智能体）就没人抄。
 2. 先写能红的用例再改代码，变异检查不能省：绝对值那条变异最初存活，说明原来的用例没有真正约束它。
 3. 带 `await` 的懒加载会在判定与写入之间让出线程，判定必须放在加载完成之后。
+4. 「新对话」会不会让聊天 id 变空，要读 `initializeChat(undefined)` 的实现（它分配 `c-…`），不能按字面推断；本条最初把现象 3、4 当作线上缺陷，写完修复与文档后复查调用方才发现不可达，并改回如实表述。
 
 ---
