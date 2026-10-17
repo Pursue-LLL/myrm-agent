@@ -794,7 +794,8 @@ async def _prior_chat_part(
     chat = await _ChatCrudMixin.get_chat_metadata(chat_id)
     if chat is None:
         return _xml_error(display, "chat not found"), 0
-    if chat.is_incognito:
+    # Imported external transcripts carry the incognito flag only to stay out of the sidebar; they are real history.
+    if chat.is_incognito and chat.source == "web":
         return _xml_error(display, "incognito chats cannot be referenced"), 0
 
     row = await _load_prior_chat_document(chat_id)

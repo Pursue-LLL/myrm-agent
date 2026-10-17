@@ -4,11 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
+from app.api.files import suggest
+from app.core.storage import FilesService
+from app.services.chat.chat_service import ChatService
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="files")
-from app.services.chat.chat_service import ChatService
 
 
 @pytest.fixture
@@ -71,3 +74,21 @@ async def test_suggest_directory_path_mode(client: AsyncClient):
     assert resp.status_code == 200
     results = resp.json()["data"]["results"]
     assert [item["relative_path"] for item in results] == ["src/components"]
+
+
+@pytest.mark.anyio
+async def test_suggest_uploaded_files_hides_an_incognito_upload_from_other_chats(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    service = FilesService(LocalStorageBackend(tmp_path / "storage"))
+    monkeypatch.setattr(suggest, "files_service", service)
+    await service.upload_file("tax-return.pdf", b"x", source_chat_id="chat_incognito")
+    await service.upload_file("tax-notes.txt", b"y")
+
+    async def labels(chat_id: str) -> list[str]:
+        resp = await client.get("/api/v1/files/suggest", params={"chat_id": chat_id, "q": "tax", "source": "uploaded"})
+        assert resp.status_code == 200
+        return sorted(item["basename"] for item in resp.json()["data"]["results"])
+
+    assert await labels("chat_incognito") == ["tax-notes.txt", "tax-return.pdf"]
+    assert await labels("chat_other") == ["tax-notes.txt"]

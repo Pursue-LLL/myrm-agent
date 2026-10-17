@@ -5735,7 +5735,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 2. 手机宽度用的是同源 390px 的 iframe（真实媒体查询），不是真机；iframe 里是通过 store 开启无痕的，没有点底部抽屉里的真实开关；触屏不出现悬停提示来自读 Radix 源码，没有在真机上点过。
 3. E2E 只用了简体中文；其他五种语言的文案更长，容器按词换行，没有逐个在浏览器里看。
 4. 无痕会话被清除时，它的分享链接随之失效；在清除之前，分享链接仍可访问，没有额外限制（本次不做）。
-5. 导出已不带无痕会话的工作区文件与子代理库，但还有四处没有处理：(a) `harness/` 根下共享的产物保险库里属于无痕会话的对象仍随导出走：在线清除对它按文件名、描述、id 做子串匹配（`vault.py` 的 `purge_by_task_ids`），归档侧照搬会误删或漏删，所以没有照搬；(b) 上传的附件进的是用户级文件库 `storage/files/uploads/`，不属于任何会话：前端 `services/file.ts` 的 `uploadFiles` 只发文件，接口 `app/api/files/upload.py` 与 `core/storage/service.py` 的 `upload_file` 没有会话参数，`api/files/suggest.py` 的 `_suggest_stored_files` 对所有会话列出全部上传文件。所以无痕会话里传的附件不会随会话清除，会出现在别的会话的 `@` 文件候选里，也随导出走；要归属到会话需要前端、上传接口、存储元数据、在线清除与导出一起改，这次没有做（**已在 `BUG-AGENT-2026-10-17-016` 处理**：上传时绑定 `source_chat_id`、候选按会话收窄、小时级清除带走绑定附件并清扫孤儿、导出按会话真实状态剔除；未绑定的上传仍按本条所述保留）；(c) `artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）；(d) 在线清除先提交会话行的删除，再删检查点与工作区文件（`chat_deletion.py` 的 `permanently_delete_chat`：事务内删行，事务后才调 `chat_disposal.dispose_permanently_deleted_chats`），而导出的名单只认库里仍存在的无痕会话行：恰在两步之间读名单的导出会带走刚被清除的会话的工作区文件与检查点线程；文件删除失败（该函数只记 warning）留下的孤儿工作区同理。窗口长度没有实测，也没有为它加锁。
+5. 导出已不带无痕会话的工作区文件与子代理库，但还有四处没有处理：(a) `harness/` 根下共享的产物保险库里属于无痕会话的对象仍随导出走：在线清除对它按文件名、描述、id 做子串匹配（`vault.py` 的 `purge_by_task_ids`），归档侧照搬会误删或漏删，所以没有照搬；(b) 上传的附件进的是用户级文件库 `storage/files/uploads/`，不属于任何会话：前端 `services/file.ts` 的 `uploadFiles` 只发文件，接口 `app/api/files/upload.py` 与 `core/storage/service.py` 的 `upload_file` 没有会话参数，`api/files/suggest.py` 的 `_suggest_stored_files` 对所有会话列出全部上传文件。所以无痕会话里传的附件不会随会话清除，会出现在别的会话的 `@` 文件候选里，也随导出走；要归属到会话需要前端、上传接口、存储元数据、在线清除与导出一起改，这次没有做（**已在 `BUG-AGENT-2026-10-17-017` 处理**：上传时绑定 `source_chat_id`、候选按会话收窄、小时级清除带走绑定附件并清扫孤儿、导出按会话真实状态剔除；未绑定的上传仍按本条所述保留）；(c) `artifacts` 索引与 `media_library` 是在线清除也有意保留的（`tests/services/chat/test_chat_bound_rows.py` 的 `RETAINED_ON_PURPOSE`）；(d) 在线清除先提交会话行的删除，再删检查点与工作区文件（`chat_deletion.py` 的 `permanently_delete_chat`：事务内删行，事务后才调 `chat_disposal.dispose_permanently_deleted_chats`），而导出的名单只认库里仍存在的无痕会话行：恰在两步之间读名单的导出会带走刚被清除的会话的工作区文件与检查点线程；文件删除失败（该函数只记 warning）留下的孤儿工作区同理。窗口长度没有实测，也没有为它加锁。
    本机文件系统层面：库里删掉的行在被之后的写入覆盖之前仍留在空闲页里，`data.db` 与 `checkpoints.db` 的 `secure_delete` 没有开。合成数据实测（2.9KB 消息，真实 `ChatRepository.permanently_delete_chat`、`create_checkpointer` 与 `sync_checkpoint_messages`）：`data.db` 删除并 checkpoint 后 150 条里 140 条仍能在文件字节里读到，再写入 20 至 50 条约 3KB 的消息后降到 0 至 35 条，写 600 条后为 0；`checkpoints.db` 删除后 30/30，再写 15 个检查点 28/30，30 个后 0/30；子代理库顺序跑 60 次、每次结束即删，只剩最后一次可读。窗口由之后写了多少决定：忙碌用户几十条消息内就被覆盖，空闲用户会一直留着；`wal_checkpoint` 之前 WAL 文件里也还有删除前的页（周期 6 小时，关机时 TRUNCATE）。没有开 `secure_delete`：窗口窄、开启磁盘加密时丢失设备的场景已被覆盖、主库的写入要多 7% 到 10%（真实 schema 实测），且会话进行期间做的卷快照里无痕会话本来就是存活的行，开了也防不住。超过一页（约 4KB）的正文被溢出页指针切开，朴素的字节搜索找不到，但取证工具能还原，所以上面的数字是下界。全文索引段、`sqlite_backups/` 里最近 3 份热备份（6 小时一轮）、恢复点、日志与遥测里是否残留无痕内容，没有逐项审计。
 6. 暂存与导出都只剔除 `source = 'web'` 的无痕会话；若将来有第二种「到期即删」的来源，要同时改清除条件与这里的谓词（两处现在各写了一份）。
 7. 另外三处是别的会话尚未提交的目录，改动留在工作区：`instance_archive/`（`table_policy.py`、`checkpoint_scrub.py`、`incognito_workspaces.py`、`policy.py`、`export_service.py`、`stage_db.py`、`_ARCH.md`、四个测试文件）、`command_matrix/registry.py`、harness `capability_matrix/models.py`。
@@ -6499,7 +6499,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 
 ---
 
-## BUG-AGENT-2026-10-17-016: 网页无痕会话里上传的附件不属于任何会话：会话到期即删之后附件仍留在用户文件库里，出现在其他会话的 `@` 文件候选与导出包里；导入的外部转写会话（借无痕标志只为不进侧栏）在 `@` 里被当成无痕而拒绝提及
+## BUG-AGENT-2026-10-17-017: 网页无痕会话里上传的附件不属于任何会话：会话到期即删之后附件仍留在用户文件库里，出现在其他会话的 `@` 文件候选与导出包里；导入的外部转写会话（借无痕标志只为不进侧栏）在 `@` 里被当成无痕而拒绝提及
 
 | 字段 | 内容 |
 |------|------|
@@ -6508,7 +6508,7 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 | 严重程度 | P2（附件是用户主动发进无痕会话的原文，会话在一小时后连同消息一起消失，附件却长期留在库里并可被别的会话列出、被导出与备份带走；外部转写会话无法被 `@` 引用是功能缺陷） |
 | 影响范围 | server：`app/core/storage/chat_bound.py`（新）、`service.py`、`models.py`、`_ARCH.md`、`app/api/files/upload.py`、`suggest.py`、`pdf_extract.py`、`_ARCH.md`、`app/services/chat/chat_retention.py`、`_ARCH.md`、`app/services/instance_archive/incognito_uploads.py`（新）、`export_service.py`、`table_policy.py`、`_ARCH.md`、`app/services/agent/params/mention.py`、`conversation_recall_index_service.py`、`_ARCH.md`、`scripts/ci/file_line_budget_baseline.txt`；前端：`src/services/incognitoUploadOptions.ts`（新）、`file.ts`、`file-service/{types,sandbox}.ts`、`IncognitoUploadOptions` 的调用点、两处 `_ARCH.md`、三个测试文件（本条的 A1 前端部分由另一会话先落盘，本次只复核未改动）；测试：`tests/core/storage/test_chat_bound_uploads.py`（新，7 例）、`tests/services/chat/test_incognito_upload_retention.py`（新，4 例）、`tests/services/instance_archive/test_incognito_uploads.py`（新，6 例）、`tests/api/files/test_suggest_api.py`（+1）、`test_upload_e2e.py`（+3）、`tests/services/chat/test_prior_chat_mention.py`（拆出转写用例）、`test_chat_bound_rows.py`（+守卫）、`_ARCH.md` |
 | 出现次数 | 1（presentation、真实库与真实导出流水线复现，没有用户数据） |
-| 关联 | `BUG-AGENT-2026-10-16-022` 局限 5(b) 在此处理、5(c) 与 5(d) 保持原样（边界见局限 2、4）；`source_chat_id` 的三种含义见 `app/core/storage/_ARCH.md`；本地提交，未 push |
+| 关联 | `BUG-AGENT-2026-10-16-022` 局限 5(b) 在此处理、5(c) 与 5(d) 保持原样（边界见局限 2、4）；`source_chat_id` 的三种含义见 `app/core/storage/_ARCH.md`；存储、上传接口、文件候选、小时级清除、提及与相关测试已本地提交（未 push）；导出侧改在另一会话尚未提交的 `instance_archive/` 目录里，与其他改动一起留在工作区；前端绑定由另一会话落盘，本次只复核未改动 |
 
 ### 现象
 

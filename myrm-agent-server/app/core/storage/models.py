@@ -29,9 +29,11 @@ class File:
     size: int  # 文件大小（字节）
     storage_path: str  # 存储路径
 
-    # 来源信息（仅 GENERATED 类型）
-    source_skill_id: str | None = None  # 生成此文件的技能
-    source_chat_id: str | None = None  # 生成此文件的会话
+    # 来源信息
+    source_skill_id: str | None = None  # 生成此文件的技能（GENERATED）
+    # GENERATED：生成此文件的会话或任务（chat id、`kanban:<task>`、`pdf-extract-<upload>`）；
+    # UPLOAD：上传时绑定的会话，仅无痕会话设置，该会话被清除时一并删除（见 chat_bound）
+    source_chat_id: str | None = None
 
     # 生命周期
     created_at: datetime = field(default_factory=datetime.utcnow)

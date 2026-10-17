@@ -19,12 +19,12 @@
 | `hosting_api.py` | 模块 | Multi-target artifact publish, hosting targets CRUD, publications | ✅ |
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
 | `local_actions.py` | 模块 | Local-only file reveal/open endpoints（单文件 `POST /files/{id}/reveal`、会话产物目录 `POST /files/chats/{chat_id}/reveal`，依赖 `reveal_utils`） | ✅ |
-| `pdf_extract.py` | 模块 | PDF content extraction API endpoint | ✅ |
+| `pdf_extract.py` | 模块 | PDF content extraction API endpoint；沙箱/云模式下页图落盘，来源标记取自 `core.storage.chat_bound.pdf_extract_source`，随绑定上传一起清理 | ✅ |
 | `revert.py` | 模块 | File revert & review API — exposes `revertible`/`skip_reason` on changes; hydrate/cleanup via `revert_hydrate`; Agent notify via `revert_agent_notify`. | ✅ |
 | `router.py` | 路由 | Files API router | ✅ |
 | `storage.py` | 模块 | 文件管理 API | ✅ |
-| `suggest.py` | 模块 | `@` reference suggestion API — workspace via `effective_workspace` SSOT; uploaded/generated/wiki via harness + services. | ✅ |
-| `upload.py` | 模块 | 文件上传 API | ✅ |
+| `suggest.py` | 模块 | `@` reference suggestion API — workspace via `effective_workspace` SSOT; uploaded/generated/wiki via harness + services；带 `source_chat_id` 的文件（会话内生成的、无痕会话上传的）只在该会话的建议里出现 | ✅ |
+| `upload.py` | 模块 | 文件上传 API；可选表单字段 `chat_id`（仅无痕会话由前端传入）把上传绑定到该会话，绑定的文件随会话清理、不进导出（见 `core/storage/_ARCH.md`） | ✅ |
 | `vault_api.py` | 模块 | Retrieve the raw binary/text content of a vault object. | ✅ |
 | `vault_proxy.py` | 模块 | Vault secure artifact proxy router. | ✅ |
 | `workspace_ops.py` | 模块 | Workspace file write operations API. | ✅ |

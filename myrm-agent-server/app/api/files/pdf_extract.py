@@ -24,6 +24,7 @@ from app.config.deploy_mode import is_local_mode
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.storage import files_service
+from app.core.storage.chat_bound import pdf_extract_source
 from app.core.utils.errors import not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
@@ -114,7 +115,7 @@ async def _persist_pdf_images(
                 filename=f"pdf-page-{idx + 1}.{ext}",
                 content=content,
                 content_type=img.mime_type,
-                source_chat_id=f"pdf-extract-{source_id}",
+                source_chat_id=pdf_extract_source(source_id),
             )
             url = f"/api/media/files/{file.id}/content"
             items.append(PDFImageItem(mime_type=img.mime_type, file_url=url))

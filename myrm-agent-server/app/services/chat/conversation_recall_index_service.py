@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - ConversationRecallIndexService: Server business service for recall index lifecycle and management queries.
-- search_citable_chats: GUI @chat: recall-index search (SSOT with prior_chat inject).
+- search_citable_chats: GUI @chat: picker search; hides web incognito chats, the same ones the prior_chat mention refuses.
 
 [POS]
 Conversation Recall 索引生命周期服务。统一编排索引回填、重建、增量追加、排除/恢复、删除、健康检查和前端管理列表。

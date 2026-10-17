@@ -243,7 +243,8 @@ async def _suggest_stored_files(
     for purpose in purposes:
         files = await files_service.list_files(purpose=purpose, include_expired=False)
         for file in files:
-            if purpose == FilePurpose.GENERATED and file.source_chat_id and file.source_chat_id != chat_id:
+            # A file bound to a chat (generated there, or uploaded in an incognito chat) is private to it.
+            if file.source_chat_id and file.source_chat_id != chat_id:
                 continue
             rank = rank_basename(file.filename, query)
             if rank is None:

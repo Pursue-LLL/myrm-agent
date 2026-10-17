@@ -52,6 +52,7 @@ class FilesService:
         filename: str,
         content: bytes,
         content_type: str | None = None,
+        source_chat_id: str | None = None,
     ) -> File:
         """上传文件
 
@@ -59,6 +60,7 @@ class FilesService:
             filename: 文件名
             content: 文件内容
             content_type: MIME 类型（可选，会自动检测）
+            source_chat_id: 绑定的会话（仅无痕会话设置，随会话清理，见 chat_bound）；为空则保留到用户删除
 
         Returns:
             创建的文件对象
@@ -80,6 +82,7 @@ class FilesService:
             content_type=content_type,
             size=len(content),
             storage_path=storage_path,
+            source_chat_id=source_chat_id,
         )
 
         # 上传文件内容（统一接口：write）
@@ -91,51 +94,6 @@ class FilesService:
 
         logger.warning(f"✅ 上传文件: {file_id} ({filename}, {len(content)} bytes)")
         return file
-
-    async def save_file(
-        self,
-        chat_id: str,
-        filename: str,
-        content: bytes | None = None,
-        sandbox_path: str | None = None,
-    ) -> File:
-        """保存文件
-
-        根据参数自动选择保存方式：
-        - content 提供时：上传文件内容（Sandbox 模式）
-        - sandbox_path 提供时：保存文件引用（本地模式）
-
-        Args:
-            chat_id: 会话 ID
-            filename: 文件名
-            content: 文件内容（Sandbox 模式使用）
-            sandbox_path: 本地路径（本地模式使用）
-
-        Returns:
-            文件对象
-
-        Raises:
-            ValueError: 如果 content 和 sandbox_path 都未提供
-        """
-        if content is not None:
-            # Sandbox 模式：上传文件内容
-            return await self.save_generated_file(
-                filename=filename,
-                content=content,
-                source_chat_id=chat_id,
-            )
-        elif sandbox_path is not None:
-            # 本地模式：保存文件引用
-            return await self.save_file_reference(
-                chat_id=chat_id,
-                filename=filename,
-                sandbox_path=sandbox_path,
-                file_size=0,  # 文件大小需要从沙箱获取
-            )
-        else:
-            raise ValueError(
-                "Either content or sandbox_path must be provided. Use content for sandbox mode, sandbox_path for local mode."
-            )
 
     async def save_generated_file(
         self,
