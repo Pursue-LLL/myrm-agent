@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -18,7 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.database.models import Base, BatchSnapshot
 from app.services.skill_optimization.rollback_service import RollbackService
 from app.services.skills import mutation_batch_service as mbs
-from app.services.skills.mutation_batch_service import MutationBatchSupersededError, rollback_skill_mutation_batch
+from app.services.skills.mutation_batch_service import (
+    MutationBatchSkillMissingError,
+    MutationBatchSupersededError,
+    rollback_skill_mutation_batch,
+)
 
 _METADATA: dict[str, object] = {"batch_kind": "skill_mutation", "resource_files": {}, "existed_before_batch": True}
 
@@ -130,3 +135,57 @@ async def test_batches_of_one_skill_are_undone_newest_first(session_factory: asy
             assert await _undo(session_factory, batch_id) == 1
 
     assert await _held_batches(session_factory) == set()
+
+
+async def test_snapshots_sharing_a_creation_time_do_not_block_each_other(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Legacy whole-second rows can share ``created_at``; a tie must fail open rather than deadlock both undos."""
+    shared_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    async with session_factory() as session:
+        for idx, batch_id in enumerate(("batch-a", "batch-b")):
+            session.add(
+                BatchSnapshot(
+                    snapshot_id=f"snap-{idx}",
+                    batch_id=batch_id,
+                    skill_id="skill-a",
+                    skill_content_before=f"before {batch_id}",
+                    skill_version_before=0,
+                    skill_metadata=_METADATA,
+                    created_at=shared_time,
+                )
+            )
+        await session.commit()
+
+    with _skill_files() as apply_snapshot:
+        assert await _undo(session_factory, "batch-a") == 1
+        assert await _undo(session_factory, "batch-b") == 1
+
+    assert apply_snapshot.await_count == 2
+    assert await _held_batches(session_factory) == set()
+
+
+async def test_a_batch_over_two_skills_is_refused_whole_when_one_of_them_was_deleted(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """When one skill of a multi-skill batch is gone, refusing before the apply loop leaves the other skill untouched."""
+    await _snapshot(session_factory, "wide", "skill-a", "skill-b")
+    apply_snapshot = AsyncMock()
+
+    async def _live(skill_id: str, resource_paths: set[str]) -> mbs._SkillLiveState:
+        return mbs._SkillLiveState(
+            skill_id=skill_id,
+            skill_md="live" if skill_id == "skill-a" else None,
+            resources={},
+            skill_existed=(skill_id == "skill-a"),
+        )
+
+    with (
+        patch.object(mbs, "_capture_live_state", _live),
+        patch.object(mbs, "_apply_row_snapshot", apply_snapshot),
+    ):
+        with pytest.raises(MutationBatchSkillMissingError, match="skill-b"):
+            await _undo(session_factory, "wide")
+
+    apply_snapshot.assert_not_awaited()
+    assert await _held_batches(session_factory) == {"wide"}
