@@ -5991,7 +5991,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 6. harness 与服务端的提交相互依赖：服务端传 `snapshot_reader=`，而本条之前 `create_skill_manage_tool` 没有这个形参（按提交前的源码核对）；服务端依赖固定 `myrm-agent-harness==0.1.0rc5`（`pyproject.toml:25`），按提交前源码推断，发布前按锁文件安装的环境挂载 skill_manage 会因多余的关键字参数报 TypeError（没有在已发布版本上实测）。要先发布 harness 再 `./myrm harness sync-lock`；`patch` 读写入根的修复（`5a42b3e2d`）同理，发布前按锁文件安装的环境里 patch 仍读不到本轮没挂载的已存技能（按提交前源码推断，没有在已发布版本上实测）；
 7. Chrome E2E 的墙钟 138 至 556 秒受主机负载均值 12 至 40 影响，真实 agent 用例的 555.75 秒贴近 10 分钟上限；
 8. 他人未提交的改动没有碰也没有提交（`factory.py`、`version_persisting_backend.py`、`stream_collector.py`，以及 `tests/_ARCH.md`、`general_agent/_ARCH.md` 里的他人段落）。
-9. 撤销被拒绝的原因已有专属错误码与六种语言文案（`skill_missing`、`batch_superseded`，见 `BUG-AGENT-2026-10-17-005`）。一个批次涉及多个技能而其中一个已被删除时，整批撤销被拒绝，其余技能也不恢复（拒绝发生在应用任何快照之前；「两个技能的批次只要其一被较新批次覆盖就整批拒绝」有单测，已删除这一支没有多技能用例）。
+9. 撤销被拒绝的原因已有专属错误码与六种语言文案（`skill_missing`、`batch_superseded`，见 `BUG-AGENT-2026-10-17-005`）。一个批次涉及多个技能而其中一个已被删除时，整批撤销被拒绝，其余技能也不恢复（拒绝发生在应用任何快照之前；「两个技能的批次只要其一被较新批次覆盖就整批拒绝」与「两个技能的批次只要其一已被删除就整批拒绝」均有单测覆盖，见 `test_mutation_batch_superseded.py`）。
 10. 仅含 lock/unlock 的批次曾被当成可撤销批次，lock 之后别的操作失败时回滚也不还原锁；已由 `BUG-AGENT-2026-10-17-005` 修掉：lock/unlock 不进快照，在全部文件操作成功之后才执行，失败的批次把改过的锁恢复到批次前的状态，只含 lock 的批次没有撤销记录，混合批次的提示说明撤销不含锁。
 11. 测试请求点名了工具与动作（`action=patch`、`action=save`），测的是机制，不是模型在自然语言要求下选 patch 还是 save 的倾向；patch 用例也依赖真实模型照指令去调 patch：目前两次（一次探针、一次用例）都调了，模型若改调 save，用例会报 `the model never called patch`，那是模型行为，不是回归。
 
@@ -6125,7 +6125,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 | 严重程度 | P1（乱序撤销会静默丢掉后续批次的修改，或在「先保存新建、再改写」后撤销第一批时把整个技能删掉；批次失败时残留未还原的进化锁且声称未保留部分修改） |
 | 影响范围 | 服务端 `app/services/skills/mutation_batch_service.py`、`app/services/skill_optimization/rollback_service.py`、`app/api/skill_optimization/routes/versions.py`；前端 `src/components/features/message-box/progress-steps/SkillManageBatchRollbackAction.tsx`、六份 `locales/*.json`；harness `src/myrm_agent_harness/agent/meta_tools/skills/manage/batch_runner.py`、`_manage_handlers.py`、`skill_manage_tool.py`；对应测试与 `_ARCH.md` |
 | 出现次数 | 1 |
-| 关联 | `BUG-AGENT-2026-10-17-002`（跟进收敛其局限 3、4、9、10）；产品仓提交 `08e26aacb4`、`f78edfc4b9`、`fe5b098b95`；harness 提交 `0ff784a42f`、`d9049bfb61`；本地提交，未 push，未发布 harness 版本 |
+| 关联 | `BUG-AGENT-2026-10-17-002`（跟进收敛其局限 3、4、9、10）；产品仓提交 `08e26aacb4`、`f78edfc4b9`、`fe5b098b95`、`121ae78780`；harness 提交 `0ff784a42f`、`d9049bfb61`；本地提交，未 push，未发布 harness 版本 |
 
 ### 现象
 
@@ -6159,8 +6159,8 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 ### 验证
 
 1. 服务端单测与集成（`./myrm test -q`）：
-   - `tests/integration/skills/test_skill_manage_undo_lifecycle_integration.py`（13 例，新增「较新批次未撤销前拒绝较早批次，先撤较新再撤较早后回到初始内容」与「保存新建技能后再删除，撤销该次保存返回 `MutationBatchSkillMissingError`」）、`tests/services/skills/test_mutation_batch_superseded.py`（新增 4 例：单技能先后批次、两技能批次中仅一个技能有更新批次时整批拒绝且另一技能不被改动、更新批次消费后旧批次放行、相同时间戳并列时不误拒）、`test_mutation_batch_service.py`、`test_rollback_service.py`、`test_mutation_batch_rollback_http.py` 五个文件共 `41 passed in 6.31s`；
-   - 4 个服务端变异全部被杀：`guard_off`（去掉 `superseded_by` 检查）、`any_skill`（跨技能误判）、`plain_clock`（不走单调时钟）、`older_blocks`（把 `>` 写反成 `<`）；「先保存后删除再撤销保存」在改 `mutation_batch_service.py:336` 前红灯（`1 failed, 12 passed`），改后绿灯；
+   - `tests/integration/skills/test_skill_manage_undo_lifecycle_integration.py`（13 例，新增「较新批次未撤销前拒绝较早批次，先撤较新再撤较早后回到初始内容」与「保存新建技能后再删除，撤销该次保存返回 `MutationBatchSkillMissingError`」）、`tests/services/skills/test_mutation_batch_superseded.py`（新增 6 例：单技能先后批次、不同技能的新批次互不阻塞、两技能批次中仅一个技能有更新批次时整批拒绝且另一技能不被改动、单技能两批按逆序依次撤销、相同时间戳并列时不误拒、两技能批次中仅一个技能已被删除时整批以 `MutationBatchSkillMissingError` 拒绝且另一技能不被改动）、`test_mutation_batch_service.py`、`test_rollback_service.py`、`test_mutation_batch_rollback_http.py` 五个文件共 `43 passed in 36.12s`；
+   - 5 个服务端变异全部被杀：`guard_off`（去掉 `superseded_by` 检查）、`any_skill`（跨技能误判）、`plain_clock`（不走单调时钟）、`older_blocks`（把 `>` 写反成 `<`）、`ge_tie`（把 `>` 写成 `>=` 导致同时间戳并列误拒，`1 failed, 5 passed`）；「先保存后删除再撤销保存」在改 `mutation_batch_service.py:336` 前红灯（`1 failed, 12 passed`），改后绿灯；
    - 服务端大范围回归（`tests/core/skills`、`tests/services/skills`、`tests/integration/skills`、`tests/ai_agents/general_agent`、`tests/api/skill_optimization`）`901 passed in 206.42s`；
 2. harness 单测、变异与类型检查：
    - 新增 `tests/agent/meta_tools/skill_manage/test_batch_runner_locks.py`（12 例，含参数化）与 `batch_fakes.py`，修复前 `6 failed, 13 passed`；修复后 `tests/agent/meta_tools/skill_manage` 与 `test_meta_tools_locale_unification.py` 共 `45 passed in 5.33s`；工具描述新增断言在上一版描述文本上验证为 False（红）→ 当前为 True（绿）；
@@ -6171,21 +6171,21 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
    - `verify:i18n`（`verify-i18n.mjs` + `verify-i18n-references.mjs`，3579 个文件无缺失键引用）、`generate-simplified-glyphs.mjs --check`、`verify:icu-syntax`、触及文件的 `tsc` 与 `oxlint` 全部通过；
 4. 真实模型 API e2e（Lane-B，`./myrm test -m e2e -rs -s myrm-agent/myrm-agent-server/tests/api/agent/test_skill_manage_undo_live_api_e2e.py`，隔离验证后端 + `.env.test` 真实模型 `MiniMax-M3.1-Flash-Preview`）：`4 passed in 227.79s`（日志 `/tmp/jx-ct/api_e2e.log`），其中改写流实测先撤销第一次保存返回 409 `batch_superseded`、按逆序先撤第二次再撤第一次成功；删除流实测删除后再撤销保存返回 409 `skill_missing`；
 5. 真机 Chrome E2E（Lane-C，`./myrm test --detach -m chrome_e2e -rs -s <nodeid>`，每节点独立会话，隔离私有运行时）：
-   - 新增过期批次拒绝节点 `test_skill_manage_undo_superseded_chrome_e2e.py::test_undo_of_an_older_change_says_a_newer_change_came_after_it_and_leaves_the_skill_alone`：`1 passed in 171.97s`，日志 `myrm-test-44115.log`，会话 `e2e-parent-44142-44162-dbe1e745`（`state=SUCCEEDED`、`outcome=PASSED`、`sealed=true`、`physical_released=true`、`ledger_cleaned=true`），页面实测 `{'statuses': [409], 'confirmEnabled': True, 'buttonText': '撤销技能修改'}` 且仅弹出 1 条本地化提示；
+   - 新增过期批次拒绝节点 `test_skill_manage_undo_superseded_chrome_e2e.py::test_undo_of_an_older_change_while_a_newer_one_holds_the_skill_says_so_once_and_loses_nothing`：`1 passed in 171.97s`，日志 `myrm-test-44115.log`，会话 `e2e-parent-44142-44162-dbe1e745`（`state=SUCCEEDED`、`outcome=PASSED`、`sealed=true`、`physical_released=true`、`ledger_cleaned=true`），页面实测 `{'statuses': [409], 'confirmEnabled': True, 'buttonText': '撤销技能修改'}` 且仅弹出 1 条本地化提示；
    - 已消费批次拒绝节点 `test_skill_manage_undo_consumed_chrome_e2e.py::test_undo_of_a_save_already_undone_elsewhere_says_so_once_and_leaves_the_skill_alone`（抽共用 `check_refused_undo_reaches_the_user` 后复跑）：`1 passed in 173.32s`，日志 `myrm-test-58247.log`，会话 `e2e-parent-58698-58739-1f5970f3`（`SUCCEEDED/PASSED`，三项 cleanup 皆真）；
    - 正常回滚恢复节点 `test_skill_manage_undo_rollback_chrome_e2e.py::test_skill_manage_undo_rollback_restores_skill_md`：`1 passed in 95.04s`，日志 `myrm-test-73532.log`，会话 `e2e-parent-73590-73609-f5bc94d5`（`SUCCEEDED/PASSED`，三项 cleanup 皆真）；
-   - 真实 Agent 对话保存并在任务步骤撤销节点 `test_skill_manage_live_agent_chrome_e2e.py::test_live_agent_saves_a_skill_and_the_user_undoes_it_from_task_steps`（真实模型 `minimax / MiniMax-M3.1-Flash-Preview`）：`1 passed in 150.46s`，日志 `myrm-test-78218.log`，会话 `e2e-parent-78242-78275-55c5164c`（`SUCCEEDED/PASSED`，三项 cleanup 皆真）。
+   - 真实 Agent 对话保存并在任务步骤撤销节点 `test_skill_manage_live_agent_chrome_e2e.py::test_live_agent_saves_a_skill_and_the_user_undoes_it_from_task_steps`（真实模型 `minimax / MiniMax-M3.1-Flash-Preview`）：`1 passed in 150.46s`，日志 `myrm-test-78218.log`，会话 `e2e-parent-78242-78275-55c5164c`（`SUCCEEDED/PASSED`，三项 cleanup 皆真）；
+   - 额外尝试复跑长回合折叠步骤展开撤销节点 `test_skill_manage_undo_long_turn_chrome_e2e.py::test_undo_hint_unfolds_a_skill_save_hidden_in_a_long_turn_and_the_undo_restores_the_skill`（本轮未修改该流涉及的展开组件）：因共享前端 `:3000` 在主机高负载下处于 `ui=half_dead (http_fail)`，在 bootstrap/hydration 阶段超时退出（`myrm-test-13596.log`、`myrm-test-72025.log`，测试函数本体 `body_started=0` 未能进入）。
 
 ### 局限
 
 1. 顺序守卫只比较 `batch_snapshots` 表里的未消费批次快照：用户在技能设置界面直接编辑、自动进化（FIX/DERIVED）改写或 curator 合并等不写 `batch_snapshots` 的改动，仍不会被该守卫拦截；
-2. `_next_created_at()` 是单进程内存单调时钟：库里已有的历史秒级快照行、跨进程并发写入或系统时钟大幅回拨导致的时间戳完全相等（tie）时，`created_at > row.created_at` 为假，按放行处理（有单测覆盖并列放行）；
+2. `_next_created_at()` 是单进程内存单调时钟：库里已有的历史秒级快照行、跨进程并发写入或系统时钟大幅回拨导致的时间戳完全相等（tie）时，`created_at > row.created_at` 为假，按放行处理（`test_snapshots_sharing_a_creation_time_do_not_block_each_other` 已覆盖并列放行）；
 3. 撤销只加了按 `batch_id` 的锁（`batch_rollback_lock(batch_id)`），没有按 `skill_id` 的跨批次互斥锁，`_load_snapshot_rows` 读事务结束到写盘完成之间仍存在极短的 TOCTOU 窗口；
 4. 前端其他调用 `rollbackSkillMutationBatch` 的入口（`SkillsSection.tsx` 与他人未提交的 `skillInstallRollbackToastAction.ts`，用于市场替换/上游更新的恢复）在 catch 分支仍直接取 `error.message`（即服务端英文原文），本条只改了对话任务步骤的 `SkillManageBatchRollbackAction.tsx`；
 5. 单次 `skill_manage` 调用内部把 `lock/unlock` 移到了文件操作之后执行，因此同一调用里写在文件操作前面的 `lock` 不再在该调用自己的文件写入期间持锁；跨多次调用的加锁保护不受影响；
-6. 一个批次涉及多个技能而其中某个技能已被删除时，整批撤销在动盘前被 `MutationBatchSkillMissingError` 拒绝（单技能已测；多技能部分删除未单独写用例）；
-7. 服务端的 `pyproject.toml` 仍锁定 `myrm-agent-harness==0.1.0rc5`，harness 侧的提交需发版并执行 `./myrm harness sync-lock` 后才会在按锁文件安装的环境中生效；
-8. 手机视口与浅色主题未跑真机 Chrome E2E；既有 `skillManageRollbackAlreadyConsumed` 文案里保留了原有的「或链接已失效 / or the rollback link expired」措辞（服务端实际没有过期时间机制）。
+6. 服务端的 `pyproject.toml` 仍锁定 `myrm-agent-harness==0.1.0rc5`，harness 侧的提交需发版并执行 `./myrm harness sync-lock` 后才会在按锁文件安装的环境中生效；
+7. 手机视口与浅色主题未跑真机 Chrome E2E；既有 `skillManageRollbackAlreadyConsumed` 文案里保留了原有的「或链接已失效 / or the rollback link expired」措辞（服务端实际没有过期时间机制）。
 
 ### 踩坑经验
 
