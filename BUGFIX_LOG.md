@@ -6253,7 +6253,7 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 5. 没有用真实服务端带着真实中断做端到端：服务端是回放真实载荷的模拟实现。
 6. 工具进度行仍显示原始工具名，`tool_steps.js` 用 ◎✓✗ 字形；扩展只有深色主题（原有设计）；非 shell 工具的参数名（如 `path:`、`content:`）按原样显示，不翻译。
 7. 到期后服务端继续运行被暂停的回合，面板不会重新附着到该流（源码里没有这个调用），结果要在网页端看；通知可能在用户看到之前就消失（没有设 `requireInteraction`，以免面板关闭后留下无人能撤的通知），不会补发。
-8. 面板把「带 `command_spans`」当作 shell 动作的标记（harness 只对 `bash_code_execute_tool` 与 `execute_code` 产出，`extract.py:25`）；harness 若改名，shell 命令会按普通参数处理：超过 300 字符时只能拒绝，更短时按原文显示但没有白话说明，不会放行被截断的命令。
+8. 面板把「带 `command_spans`」当作 shell 动作的标记（harness 只对 `bash_code_execute_tool` 与 `execute_code` 产出，见 `extract.py:28` 的 `_SHELL_TOOL_NAMES`）；harness 若改名，shell 命令会按普通参数处理：超过 300 字符时只能拒绝，更短时按原文显示但没有白话说明，不会放行被截断的命令。
 9. 网页端 `approvalAlertService.ts` 的单条通知标题仍拼上 `req.toolName`（内部工具名），本条只去掉了符号；网页端 `system-monitor` 的若干组件还有别的原生符号，不在本条范围。
 
 ### 踩坑经验
