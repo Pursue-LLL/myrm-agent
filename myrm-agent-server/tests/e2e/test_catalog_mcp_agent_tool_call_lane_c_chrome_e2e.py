@@ -10,7 +10,8 @@ credential-free Microsoft Learn entry:
 2. Bind the saved server to a fresh agent by name (``mcp_ids``) and read
    the binding back.
 3. Send a real chat turn whose answer requires the MCP's documentation
-   tools; the completed reply must carry a learn.microsoft.com link.
+   tools; the persisted turn must record a successful call to one of them
+   (a model paraphrasing its findings in prose is not part of the proof).
 
 The PRIVATE namespace is ephemeral, so the saved config, agent, and chat
 are destroyed with the runtime at seal time.
@@ -45,10 +46,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 from tests.support.chrome_skill_hooks_composer import drive_chat_turn  # noqa: E402
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat  # noqa: E402
-from tests.support.chrome_skill_hooks_observe import (  # noqa: E402
-    transcript_text,
-    wait_completed_assistant_reply_containing,
-)
+from tests.support.chrome_skill_hooks_observe import stored_messages  # noqa: E402
 from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger  # noqa: E402
 
@@ -127,6 +125,61 @@ def _wait_backend_mcp_config(name: str, *, timeout_sec: float) -> None:
                 return
         time.sleep(0.5)
     raise AssertionError(f"backend mcpServers never carried {name!r} within {timeout_sec}s; saw {seen!r}")
+
+
+# MCP tools are named ``mcp__{server}__{tool}`` and the step key appends ``_tool``; a
+# failed call gets ``_error``. A successful one is the proof the bound server served the turn.
+_MCP_TOOL_PREFIX = "mcp__"
+_MCP_SERVER_MARKER = "microsoft"
+
+
+def _completed_mcp_tool_steps(chat_id: str, api_url: str) -> list[str]:
+    """Successful MCP tool steps recorded on a *completed* assistant turn."""
+    steps: list[str] = []
+    for message in stored_messages(chat_id, api_url):
+        if message.get("role") != "assistant":
+            continue
+        metadata = message.get("metadata")
+        if not isinstance(metadata, dict) or metadata.get("completionStatus") != "complete":
+            continue
+        recorded = metadata.get("progressSteps")
+        if not isinstance(recorded, list):
+            continue
+        for step in recorded:
+            key = step.get("step_key") if isinstance(step, dict) else None
+            if (
+                isinstance(key, str)
+                and key.startswith(_MCP_TOOL_PREFIX)
+                and _MCP_SERVER_MARKER in key
+                and not key.endswith("_error")
+            ):
+                steps.append(key)
+    return steps
+
+
+def _wait_completed_mcp_tool_step(chat_id: str, api_url: str, *, timeout_sec: float) -> list[str]:
+    """Block until the turn shows a successful MCP tool call; the reply's wording is the model's business."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        steps = _completed_mcp_tool_steps(chat_id, api_url)
+        if steps:
+            return steps
+        time.sleep(2.0)
+    raise AssertionError(
+        f"no successful {_MCP_SERVER_MARKER} MCP tool step within {timeout_sec}s; "
+        f"stored messages: {_stored_digest(chat_id, api_url)}"
+    )
+
+
+def _stored_digest(chat_id: str, api_url: str) -> str:
+    """One line per message: its role and the tool steps it recorded, for a failed wait."""
+    lines: list[str] = []
+    for message in stored_messages(chat_id, api_url):
+        metadata = message.get("metadata")
+        recorded = metadata.get("progressSteps") if isinstance(metadata, dict) else None
+        keys = [step.get("step_key") for step in recorded if isinstance(step, dict)] if isinstance(recorded, list) else []
+        lines.append(f"{message.get('role')}: {keys}")
+    return "\n".join(lines)
 
 
 def _connect_microsoft_learn_via_ui() -> None:
@@ -253,8 +306,5 @@ def test_catalog_mcp_bound_agent_answers_with_live_tool_call(tmp_path: Path, e2e
 
     drive_chat_turn(ui_url, probe, _PROMPT, invoke_skill=False, before_send=agent_bound)
 
-    reply = wait_completed_assistant_reply_containing(chat_id, api_url, "learn.microsoft.com", timeout_sec=300.0)
-    print(f"E2E_ASSISTANT_REPLY[{chat_id}]: {reply[:500]}", flush=True)
-
-    transcript = transcript_text(chat_id, api_url)
-    assert "learn.microsoft.com" in transcript, "transcript must carry the live MCP documentation link"
+    steps = _wait_completed_mcp_tool_step(chat_id, api_url, timeout_sec=300.0)
+    print(f"E2E_MCP_TOOL_STEPS[{chat_id}]: {steps}", flush=True)
