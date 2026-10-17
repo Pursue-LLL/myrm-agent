@@ -71,12 +71,17 @@ function installMatchMedia() {
 }
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+const MOBILE_QUERY = '(max-width: 768px)';
 
-function flipReducedMotion(next: boolean) {
-  mediaState.set(REDUCED_MOTION, next);
-  for (const listener of mediaListeners.get(REDUCED_MOTION) ?? []) {
+function flip(query: string, next: boolean) {
+  mediaState.set(query, next);
+  for (const listener of mediaListeners.get(query) ?? []) {
     listener({ matches: next });
   }
+}
+
+function flipReducedMotion(next: boolean) {
+  flip(REDUCED_MOTION, next);
 }
 
 describe('ThemeProfileProvider reactive media queries', () => {
@@ -129,6 +134,30 @@ describe('ThemeProfileProvider reactive media queries', () => {
       );
     });
     expect(screen.getByTestId('workspace-art-layer')).toHaveAttribute('data-kind', 'image');
+  });
+
+  it('falls back to the still poster when the window crosses the md breakpoint mid-session', async () => {
+    mediaState.set(REDUCED_MOTION, false);
+    mediaState.set(MOBILE_QUERY, false);
+    render(
+      <ThemeProfileProvider>
+        <span>child</span>
+      </ThemeProfileProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workspace-art-layer')).toHaveAttribute('data-kind', 'video');
+    });
+
+    await act(async () => {
+      flip(MOBILE_QUERY, true);
+    });
+
+    await waitFor(() => {
+      const art = screen.getByTestId('workspace-art-layer');
+      expect(art).toHaveAttribute('data-kind', 'image');
+      expect(art).toHaveAttribute('data-url', 'asset://resolved/asset://poster.png');
+    });
   });
 
   it('falls back to the still poster when the system flips to reduced motion mid-session', async () => {
