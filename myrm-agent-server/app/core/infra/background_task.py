@@ -41,9 +41,8 @@ def _log_task_failure(task: asyncio.Task[object], *, name: str) -> None:
         return
     try:
         exc = task.exception()
-    except asyncio.CancelledError:
-        return
     except Exception as err:
+        # A done callback must never raise; surface an unreadable outcome instead of losing it.
         logger.warning("[%s] background task outcome could not be read: %s", name, err)
         return
     if exc is not None:
