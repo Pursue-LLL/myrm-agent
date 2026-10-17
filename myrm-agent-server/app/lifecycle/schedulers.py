@@ -7,6 +7,8 @@ import logging
 import platform
 from typing import TYPE_CHECKING
 
+from app.core.infra.background_task import spawn_observed_task
+
 if TYPE_CHECKING:
     from apscheduler import AsyncScheduler
 
@@ -159,7 +161,7 @@ async def start_context_cleanup_scheduler() -> None:
                 # Run until cancelled
                 await asyncio.Event().wait()
 
-        _context_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
+        _context_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="context_cleanup")
 
     except Exception as e:
         logger.error(f"Failed to start context cleanup scheduler: {e}", exc_info=True)
@@ -276,7 +278,7 @@ async def start_approval_ttl_scheduler() -> None:
                 logger.info("Approval TTL scheduler started (every 5 min)")
                 await asyncio.Event().wait()
 
-        _approval_ttl_scheduler_task = asyncio.create_task(run_scheduler())
+        _approval_ttl_scheduler_task = spawn_observed_task(run_scheduler(), name="approval_ttl_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start approval TTL scheduler: %s", exc)
@@ -338,7 +340,7 @@ async def start_cancellation_cleanup_scheduler() -> None:
                 logger.info("CancellationToken cleanup scheduler started (every 10 min)")
                 await asyncio.Event().wait()
 
-        _cancellation_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
+        _cancellation_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="cancellation_token_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start CancellationToken cleanup scheduler: %s", exc)
@@ -563,8 +565,7 @@ async def start_db_maintenance_scheduler() -> None:
                 logger.info("DB maintenance scheduler started (every 6 hours)")
                 await asyncio.Event().wait()
 
-        _db_maintenance_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Database maintenance scheduler started (every 6h: WAL checkpoint, backup and retention cleanup)")
+        _db_maintenance_scheduler_task = spawn_observed_task(run_scheduler(), name="db_maintenance")
 
     except Exception as e:
         logger.error("Failed to start DB maintenance scheduler: %s", e)
@@ -596,8 +597,7 @@ async def start_login_session_cleanup_scheduler() -> None:
                 logger.info("Login session cleanup scheduler started (every 5 min)")
                 await asyncio.Event().wait()
 
-        _login_session_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Login session cleanup scheduler started (every 5min: remove expired sessions)")
+        _login_session_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="login_session_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start login session cleanup scheduler: %s", exc)
@@ -650,8 +650,7 @@ async def start_auth_log_cleanup_scheduler() -> None:
                 logger.info("Auth log cleanup scheduler started (daily at 04:00)")
                 await asyncio.Event().wait()
 
-        _auth_log_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
-        logger.info("Auth log cleanup scheduler started (daily at 04:00: remove old archives)")
+        _auth_log_cleanup_scheduler_task = spawn_observed_task(run_scheduler(), name="auth_log_cleanup")
 
     except Exception as exc:
         logger.error("Failed to start auth log cleanup scheduler: %s", exc)
@@ -848,7 +847,7 @@ async def start_remote_backup_scheduler() -> None:
                 logger.info("Remote backup auto-sync scheduler started (every 60 min)")
                 await asyncio.Event().wait()
 
-        _remote_backup_scheduler_task = asyncio.create_task(run_scheduler())
+        _remote_backup_scheduler_task = spawn_observed_task(run_scheduler(), name="remote_backup_auto_sync")
 
     except Exception as exc:
         logger.error("Failed to start remote backup scheduler: %s", exc)

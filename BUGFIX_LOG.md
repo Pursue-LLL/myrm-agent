@@ -6653,6 +6653,8 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 2. 两个测试替身 `_RecordingScheduler` 补 `start_in_background`，并新增「已启动」断言——旧替身只实现 `__aenter__/__aexit__/add_schedule`，结构上就能原样吞下一个永不启动的调度器，这正是本 bug 能长期全绿的原因。
 3. 新增静态守卫 `tests/architecture/test_apscheduler_registration_started.py`：AST 扫描每个 `async with AsyncScheduler()` 块，断言其后必含 `start_in_background()` / `run_until_stopped()`，从根源防复现。
 4. 让调度器生命周期在生产可见：`app/config/logging.py` 沿用既有 `resource_monitor` 写法，把 `app.lifecycle.schedulers` 与 `app.services.memory.imports.integration_sync_daemon` 两个 logger 钉在 INFO。启动成功行与各维护成功计数是 INFO，在生产级别（root = WARNING）下被丢弃，所以「调度器从未启动」不留任何痕迹；钉住后它与失败路径的 ERROR 一起在日志里可见。
+5. 观测任务运行期的崩溃，而不是只把它起了起来：8 处 `asyncio.create_task(run_scheduler())` 统一改走 `app.core.infra.background_task.spawn_observed_task`（起任务并挂 done callback 取回异常记 ERROR，取消是正常关闭路径不报），并删掉 3 处紧随 `create_task` 之后、在任务真正启动前就打印的重复「started」行——真实启动成功行在 `start_in_background()` 之后，重复行会在启动失败时产出假绿灯。
+6. 扩展静态守卫：除「每个 `async with AsyncScheduler()` 块必须 `start_in_background`」外，追加「每个调度器任务必须经 `spawn_observed_task` 起且带 `name=`」，并新增单测覆盖崩溃记 ERROR、取消不误报、健康任务无输出。
 
 ### 验证
 
@@ -6662,11 +6664,14 @@ APScheduler 4.0 起，进入 `async with AsyncScheduler()` **不再启动**调�
 4. 静态守卫变异测试：移除任意一处 `start_in_background()` 即失败并点名 `schedulers.py:147`；恢复后通过。
 5. `tests/lifecycle` 144 例、新增守卫与受影响用例 11 例全绿；ruff check / format 干净；mypy 对本项改动无新增告警。
 6. 日志可见性实测：非 DEBUG 下 `configure_logging()` 后两个 logger 的 effective level 为 INFO(=20)、root 为 WARNING(=30)，`app.lifecycle.schedulers` 的 INFO 行正常输出、DEBUG 行仍被抑制；`tests/config` 148 例全过。
+7. 崩溃观测实测（模块全局持有任务的真实形态）：一个崩溃的任务被模块全局持有时，asyncio **永不**输出 "exception was never retrieved"，进程无任何痕迹；同一任务挂上 done callback 后稳定产出 1 行 `ERROR [db_maintenance] background task exited: ...`。
+8. 观测守卫变异测试：把任一 `spawn_observed_task` 改回裸 `asyncio.create_task` 即失败并点名（`assert 7 >= 8`）；恢复后 2 例通过。崩溃观测单测 4 例（记 ERROR / 异常确被读取 / 取消不误报 / 健康任务无输出）全绿。
 
 ### 踩坑经验
 
 1. **`async with` 不等于启动**：APScheduler 4.x 的调度器生命周期 API 变更没有报错也没有日志，只表现为「任务从不执行」，必须靠「已启动」断言而非「已注册」断言看守。
 2. **只测「注册了什么」的测试是假安全感**：替身必须覆盖调用方真正依赖的 API（这里是 `start_in_background`），否则替身会替被替换对象把 bug 一起吞掉。
 3. **静默任务的失效要能被看见**：这些任务的 `logger.info` 在生产级别下不输出，导致失效半个月无人发现；对「必须发生」的周期任务，应留下可观测的成功痕迹。
+4. **「启动了」不等于「能观测到它崩了」**：只把任务 `create_task` 起起来，运行期异常仍无人读取；任务一旦被模块全局持有，连 asyncio 的未观测告警都不会触发，进程表面完全正常。长期存活的后台任务应统一经一个挂好 done callback 的入口起，并且不要让「创建成功」的日志冒充「启动成功」。
 
 ---
