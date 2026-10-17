@@ -185,6 +185,11 @@ async def test_searxng_needs_only_its_base_url(providers: ProviderStub) -> None:
     assert await verify_search_config_live(_member("searxng", api_base="http://localhost:8081")) is True
 
 
+async def test_e2e_probe_key_skips_the_probe(providers: ProviderStub) -> None:
+    assert await verify_search_config_live(_member("tavily", "test-tavily-key")) is True
+    assert providers.calls == []
+
+
 # ── verdict cache ─────────────────────────────────────────────────
 
 

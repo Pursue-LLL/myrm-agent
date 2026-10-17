@@ -24,7 +24,6 @@ Extract typed configs from frontend dict structures.
 - extract_search_provider_chain: enabled search configs sorted by priority → harness SearchServiceConfig list
 - extract_active_search_config: head provider + full provider_chain for agent runtime
 - verify_search_service_available: async live probe of the whole search provider chain (60s verdict cache via search_verify)
-- invalidate_search_health_cache: clear search health cache on config change
 """
 
 if TYPE_CHECKING:
@@ -917,10 +916,6 @@ def is_search_user_configured(search_services_dict: dict[str, object] | None) ->
     return any(isinstance(c, dict) and c.get("enabled") for c in configs)
 
 
-_search_health_cache: tuple[float, bool] | None = None
-_SEARCH_HEALTH_TTL = 30.0
-
-
 async def verify_search_service_available(cfg: "SearchServiceConfig | None") -> bool:
     """Live probe of the configured search providers behind a short verdict cache.
 
@@ -933,38 +928,6 @@ async def verify_search_service_available(cfg: "SearchServiceConfig | None") -> 
     from app.services.integrations.search_verify import verify_search_config_cached
 
     return await verify_search_config_cached(cfg)
-
-
-async def _ping_searxng(cfg: "SearchServiceConfig") -> bool:
-    """HTTP ping SearXNG to verify connectivity."""
-    url = cfg.api_base
-    if not url:
-        logger.warning("Search service check: SearXNG URL not configured")
-        return False
-    try:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(url)
-            if resp.status_code < 500:
-                return True
-            logger.warning("Search service check: SearXNG returned %d at %s", resp.status_code, url)
-            return False
-    except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
-        logger.warning("Search service check: SearXNG unreachable at %s (%s)", url, exc)
-        return False
-    except Exception as exc:
-        logger.warning("Search service check: SearXNG unexpected error at %s (%s)", url, exc)
-        return False
-
-
-def invalidate_search_health_cache() -> None:
-    """Clear the search service health cache (call after config changes)."""
-    global _search_health_cache
-    _search_health_cache = None
-    from app.services.integrations.search_verify import invalidate_search_verify_cache
-
-    invalidate_search_verify_cache()
 
 
 def extract_search_provider_chain(

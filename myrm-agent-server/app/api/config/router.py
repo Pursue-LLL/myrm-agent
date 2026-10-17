@@ -31,7 +31,6 @@ from pydantic import BaseModel, Field, ValidationError
 from app.api.config.pricing import pricing_router
 from app.api.config.privacy_preview import privacy_preview_router
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
-from app.core.channel_bridge.config_parsers import invalidate_search_health_cache
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 from app.core.security.config_crypto import is_sensitive_config
 from app.schemas.config import (
@@ -45,6 +44,7 @@ from app.schemas.config import (
     ConflictErrorResponse,
 )
 from app.services.config.service import VersionConflictError, config_service
+from app.services.integrations.search_verify import invalidate_search_verify_cache
 
 logger = logging.getLogger(__name__)
 
@@ -1040,7 +1040,7 @@ async def set_config(
             device_id=request.device_id,
         )
         invalidate_user_configs_cache()
-        invalidate_search_health_cache()
+        invalidate_search_verify_cache()
         invalidate_ingress_requirement_cache()
         if config_key == "providers":
             try:
@@ -1157,7 +1157,7 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
 
             await await_memory_manager_config_invalidation()
         if config_key == "searchServices":
-            invalidate_search_health_cache()
+            invalidate_search_verify_cache()
 
         return record
     except HTTPException:
@@ -1177,7 +1177,7 @@ async def delete_config(
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Config '{config_key}' not found")
         invalidate_user_configs_cache()
-        invalidate_search_health_cache()
+        invalidate_search_verify_cache()
         invalidate_ingress_requirement_cache()
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
@@ -1231,7 +1231,7 @@ async def sync_configs(
         )
         if result.new_versions:
             invalidate_user_configs_cache()
-            invalidate_search_health_cache()
+            invalidate_search_verify_cache()
             invalidate_ingress_requirement_cache()
             if "channels" in result.new_versions:
                 from app.core.channel_bridge.channel_policy import (
