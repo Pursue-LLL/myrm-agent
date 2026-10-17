@@ -38,7 +38,7 @@
 | **Persistent sandbox** | Agent-in-sandbox architecture — each user gets a dedicated workspace with persistent volume. Files, environment, and configs survive across sessions. |
 | **Cross-session memory** | Multi-layer memory (working / episodic / semantic / shared) powered by SQLite + Qdrant. The agent truly remembers you. |
 | **Agent personas** | Configure custom agents with their own system prompts, tools, skills, and memory — switch instantly in the GUI. |
-| **Multi-channel access** | WhatsApp, Telegram, Discord, WeChat, DingTalk, Feishu, Slack, and 30+ more. One agent, everywhere you work. |
+| **Multi-channel access** | WhatsApp, Telegram, Discord, WeChat, DingTalk, Feishu, Slack, and more — 26 built-in channels. One agent, everywhere you work. |
 | **Scheduled automation** | Natural-language cron — set up recurring tasks with self-healing and heartbeat monitoring. 24/7 unattended. |
 | **Multi-agent orchestration** | Parallel sub-agents with COW workspace isolation and line-level file conflict detection. |
 | **Multi-modal content** | Image generation (20+ models), video creation (4 engines), voice interaction (3 modes + 5 STT providers), document writing. |
