@@ -24,10 +24,10 @@ def patch_session_continuity_sync(monkeypatch) -> None:
     )
 
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.sync_checkpoint_messages",
-        local_sc.sync_checkpoint_messages,
+        "app.services.chat.session_continuity_service.clear_checkpoint_threads",
+        local_sc.clear_checkpoint_threads,
     )
     monkeypatch.setattr(
-        "app.services.chat.session_continuity_service.ContinuitySyncError",
-        local_sc.ContinuitySyncError,
+        "app.services.chat.session_continuity_service.CheckpointClearError",
+        local_sc.CheckpointClearError,
     )

@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.event_log.backends.file_backend::FileEventLogBackend (POS: per-session jsonl event log that keeps the full prompts and tool results of every turn)
-- myrm_agent_harness.runtime.context.session.session_continuity::sync_checkpoint_messages (POS: framework-neutral SSOT aligning LangGraph checkpoint threads with persisted chat history)
+- myrm_agent_harness.runtime.context.session.session_continuity::clear_checkpoint_threads (POS: framework-neutral SSOT dropping a chat's LangGraph checkpoint threads)
 - myrm_agent_harness.agent.security.approval_flow::get_allowlist, reset_denial_counter (POS: session-scoped approval grants and the cross-turn denial circuit breaker)
 - app.config.settings::get_settings (POS: location of the event log directory)
 - app.services.agent.execution_cache::close_execution_cache_for_chat_all_agents (POS: per-chat agent execution scopes)
@@ -38,7 +38,7 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.security.approval_flow import get_allowlist, reset_denial_counter
-from myrm_agent_harness.runtime.context.session.session_continuity import sync_checkpoint_messages
+from myrm_agent_harness.runtime.context.session.session_continuity import clear_checkpoint_threads
 
 from app.config.settings import get_settings
 from app.services.agent.execution_cache import close_execution_cache_for_chat_all_agents
@@ -63,7 +63,7 @@ async def clear_conversation_state(chat_id: str) -> bool:
     try:
         from app.platform_utils import get_checkpointer
 
-        await sync_checkpoint_messages(get_checkpointer(), chat_id, [])
+        await clear_checkpoint_threads(get_checkpointer(), chat_id)
         checkpoint_cleared = True
     except Exception as exc:
         logger.warning("Failed to clear LangGraph checkpoint threads (chat=%s): %s", chat_id, exc)

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.chat.chat_service::ChatService (POS: chat business facade)
-- app.services.chat.session_continuity_service::ContinuitySyncError (POS: DB-to-checkpoint continuity failure)
+- app.services.chat.session_continuity_service::CheckpointClearError (POS: checkpoint-clear failure after a history mutation)
 - app.services.risk.refusal::reject_if_risky (POS: refuses a regeneration guidance a risk rule holds)
 
 [OUTPUT]
@@ -26,7 +26,7 @@ from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
-from app.services.chat.session_continuity_service import ContinuitySyncError
+from app.services.chat.session_continuity_service import CheckpointClearError
 from app.services.risk.refusal import reject_if_risky
 
 router = APIRouter()
@@ -150,7 +150,7 @@ async def truncate_after_message(
         )
     except HTTPException:
         raise
-    except ContinuitySyncError as exc:
+    except CheckpointClearError as exc:
         raise internal_error(operation="Truncate after message", exception=exc) from exc
     except Exception as e:
         raise internal_error(operation="Truncate after message", exception=e) from e

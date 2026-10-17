@@ -22,7 +22,7 @@ from app.core.utils.errors import internal_error, not_found_error, validation_er
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
-from app.services.chat.session_continuity_service import ContinuitySyncError, SessionBusyError
+from app.services.chat.session_continuity_service import CheckpointClearError, SessionBusyError
 
 router = APIRouter()
 
@@ -84,7 +84,7 @@ async def rewind_to_message(
         raise
     except SessionBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except ContinuitySyncError as exc:
+    except CheckpointClearError as exc:
         raise internal_error(operation="Rewind conversation", exception=exc) from exc
     except Exception as exc:
         raise internal_error(operation="Rewind conversation", exception=exc) from exc

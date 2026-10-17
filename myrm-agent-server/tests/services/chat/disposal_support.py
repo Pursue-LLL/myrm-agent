@@ -10,10 +10,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.base import BaseCheckpointSaver, empty_checkpoint
 from langgraph.checkpoint.memory import MemorySaver
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
-from myrm_agent_harness.runtime.context.session.session_continuity import sync_checkpoint_messages
 
 from app.platform_utils import _reset_checkpointer_for_testing, set_checkpointer
 from app.services.chat import chat_disposal
@@ -85,8 +84,20 @@ async def installed_checkpointer() -> AsyncIterator[BaseCheckpointSaver[str]]:
         await get_allowlist().clear_session(OWNER, CHAT_ID)
 
 
+async def _seed_checkpoint(saver: BaseCheckpointSaver[str], thread_id: str) -> None:
+    checkpoint = empty_checkpoint()
+    checkpoint["channel_values"] = {"messages": [HumanMessage("question"), AIMessage("answer")]}
+    await saver.aput(
+        {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}},
+        checkpoint,
+        {"source": "test", "step": 0, "parents": {}},
+        {},
+    )
+
+
 async def grant_and_checkpoint(saver: BaseCheckpointSaver[str]) -> None:
-    await sync_checkpoint_messages(saver, CHAT_ID, [HumanMessage("question"), AIMessage("answer")])
+    for thread_id in (CHAT_ID, f"chat_{CHAT_ID}"):
+        await _seed_checkpoint(saver, thread_id)
     await get_allowlist().add(OWNER, AllowlistEntry(permission="shell_exec", tool_name="bash", session_id=CHAT_ID))
 
 
