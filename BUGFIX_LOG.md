@@ -6038,3 +6038,49 @@ General Agent 的计划确认卡在另一端已经回答之后再点「批准计
 3. 自己的改动与别人未提交的改动落在同一文件时，按精确文本替换在 HEAD 的内容上提交，不整文件提交，提交后核对对方的改动仍在工作区。
 
 ---
+
+## BUG-AGENT-2026-10-17-004: 定时任务被「失控熔断」终止后，展开的运行记录把内部错误原文（一个标记词加中文工程措辞）显示了两遍，而不是用用户的语言说明发生了什么
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-17（核对熔断消息从 harness 到界面的去向时读 `CronRunItem.tsx`） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P3（只影响被熔断的无人值守运行的展开视图；任务处理不受影响，用户看到的是内部文字而不是说明） |
+| 影响范围 | frontend `src/components/features/cron/CronRunItem.tsx`、`__tests__/CronRunItem.test.tsx`、`cron/_ARCH.md`；harness `agent/security/guards/loop_guard/detectors.py`（三条熔断消息）；同批删除无人读取的 `JobResult.circuit_break_reason` 及 server 适配器里写它的五处 |
+| 出现次数 | 1 |
+| 关联 | 前端提交 `884d9b6bb0`、server 提交 `101256f3ba`；harness 提交 `9dcb8e794`、`ffd3b6e2d`；本地提交，未 push |
+
+### 现象
+
+1. 熔断运行展开后，熔断面板里显示 `run.error` 原文（`RUNAWAY_CIRCUIT_BREAKER:` 标记词加工程措辞），紧接着下方通用错误块又显示一遍同样的原文；收起的行本来就只显示本地化说明，展开前后的说法不一致；
+2. 三条熔断消息是中文，与仓内错误文本统一用英文的约定不符。
+
+### 根因
+
+1. 面板写的是 `run.error || t('circuitBreakDesc')`：有错误文本就优先显示错误文本，本地化说明只在没有错误文本时才出现；通用错误块没有排除熔断运行（`CronRunItem.tsx`）；
+2. 熔断消息本是给日志与告警用的内部文字，界面却把它当作说明直接显示。
+
+### 修复
+
+1. 面板固定显示本地化的 `circuitBreakDesc`（六种语言原有，没有改语言包），通用错误块在 `isCircuitBreak` 时不渲染；
+2. harness 的三条消息改成英文，标记词 `RUNAWAY_CIRCUIT_BREAKER` 仍在最前（server `agent_runner.py` 按它识别熔断）；
+3. 同批删除 `JobResult.circuit_break_reason`：server 适配器写了五处、调度器一处也不读，解释本来就在 `error` 里。
+
+### 验证
+
+1. 前端 `src/components/features/cron` 16 个文件 109 例通过（2026-10-17 复跑）；`CronRunItem.test.tsx` 改为断言展开后出现 `circuitBreakDesc`、界面上没有 `RUNAWAY_CIRCUIT_BREAKER` 字样；变异验证：去掉通用错误块的 `!isCircuitBreak` 守卫，该用例失败；
+2. 两个触及的前端文件 oxlint 无告警；`bun run verify:theme-colors` 通过（扫描 3582 个文件）；
+3. 删除字段时，server `test_agent_runner_skip.py` 与 harness `test_cron_executor.py` 里对它的断言一并删除；这两处测试所在的目录里另有他人未提交的 `project_id` 改动引起的失败，与本条无关。
+
+### 局限
+
+1. 没有在真机浏览器里目视展开后的运行记录，也没有手机宽度的目视核对；
+2. 熔断消息仍会经 `job.last_error` 进入失败告警：harness `toolkits/cron/engine/executor.py:697-724` 的模板里 `Last error:` 会带出这段英文原文（最多 200 字符，且只在配置了失败告警时发送），本条没有改告警模板；
+3. 一次性（ONCE）任务被熔断时的路径没有验证；
+4. `circuitBreakDesc` 的六种语言文案是既有文案，没有重新复核。
+
+### 踩坑经验
+
+1. 起初只打算去掉面板里的 `run.error ||`，核对展开视图时才发现通用错误块又把同一段文字渲染了一遍；改界面文字时，要把同一个字段在该组件里的所有渲染点都找出来。
+
+---
