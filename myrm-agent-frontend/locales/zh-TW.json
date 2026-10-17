@@ -17446,7 +17446,7 @@
           "actionCreate": "建立傘形技能",
           "actionDemote": "降級為支援檔案",
           "executeSuccess": "合併完成",
-          "executeResult": "歸檔 {archived} 個技能，建立 {created} 個傘形技能。已更新 {agents} 個智慧體配置。",
+          "executeResult": "歸檔 {archived} 個技能，建立 {created} 個傘形技能。",
           "executeFailed": "合併失敗",
           "confirmTitle": "確認合併",
           "confirmDesc": "此操作將把 {count} 個技能合併為傘形技能。歸檔的技能可隨時恢復。"

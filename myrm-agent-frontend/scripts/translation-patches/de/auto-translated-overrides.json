@@ -4940,7 +4940,7 @@
   "Scanned {scanned} skills: {stale} stale, {archived} archived": "Gescannte {scanned} Fertigkeiten: {stale} veraltet, {archived} archiviert",
   "Merging...": "Zusammenführen...",
   "{affected} skills affected, estimated reduction: {reduction}": "{affected} betroffene Fähigkeiten, geschätzte Reduzierung: {reduction}",
-  "Archived {archived} skills, created {created} umbrellas. {agents} agent configs updated.": "Archivierte {archived} Fähigkeiten, erstellte {created} Regenschirme. {agents} Agent-Konfigurationen aktualisiert.",
+  "Archived {archived} skills, created {created} umbrellas.": "Archivierte {archived} Fähigkeiten, erstellte {created} Regenschirme.",
   "This will merge {count} skill(s) into umbrella skills. Archived skills can be restored anytime.": "Dadurch werden {count} Fertigkeiten zu übergeordneten Fertigkeiten zusammengeführt. Archivierte Fähigkeiten können jederzeit wiederhergestellt werden.",
   "Skill \"{name}\" download has started": "Der Download des Skills „{name}“ wurde gestartet",
   "Are you sure you want to delete skill \"{name}\"? This action cannot be undone.": "Sind Sie sicher, dass Sie den Skill „{name}“ löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",

@@ -18131,7 +18131,7 @@
           "actionCreate": "创建伞形技能",
           "actionDemote": "降级为支持文件",
           "executeSuccess": "合并完成",
-          "executeResult": "归档 {archived} 个技能，创建 {created} 个伞形技能。已更新 {agents} 个智能体配置。",
+          "executeResult": "归档 {archived} 个技能，创建 {created} 个伞形技能。",
           "executeFailed": "合并失败",
           "confirmTitle": "确认合并",
           "confirmDesc": "此操作将把 {count} 个技能合并为伞形技能。归档的技能可随时恢复。"

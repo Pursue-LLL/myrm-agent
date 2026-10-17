@@ -131,7 +131,6 @@ const CuratorSettingsPanel = memo(
           description: t('consolidation.executeResult', {
             archived: result.total_archived,
             created: result.total_created,
-            agents: result.agent_refs_updated,
           }),
         });
         setPreview(null);

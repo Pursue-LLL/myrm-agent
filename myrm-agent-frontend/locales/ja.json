@@ -17446,7 +17446,7 @@
           "actionCreate": "アンブレラスキルを作成",
           "actionDemote": "サポートファイルに降格",
           "executeSuccess": "マージ完了",
-          "executeResult": "{archived} 個のスキルをアーカイブし、{created} 個の傘スキルを作成しました。{agents} 個のエージェント設定を更新しました。",
+          "executeResult": "{archived} 個のスキルをアーカイブし、{created} 個の傘スキルを作成しました。",
           "executeFailed": "マージ失敗",
           "confirmTitle": "マージを確認",
           "confirmDesc": "この操作により {count} 個のスキルが傘スキルに統合されます。アーカイブ済みスキルはいつでも復元できます。"

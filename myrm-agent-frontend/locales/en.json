@@ -18131,7 +18131,7 @@
           "actionCreate": "Create umbrella",
           "actionDemote": "Demote to support files",
           "executeSuccess": "Consolidation complete",
-          "executeResult": "Archived {archived} skills, created {created} umbrellas. {agents} agent configs updated.",
+          "executeResult": "Archived {archived} skills, created {created} umbrellas.",
           "executeFailed": "Consolidation failed",
           "confirmTitle": "Confirm Consolidation",
           "confirmDesc": "This will merge {count} skill(s) into umbrella skills. Archived skills can be restored anytime."

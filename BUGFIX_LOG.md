@@ -6306,3 +6306,52 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 2. 前端只把编号当不透明字符串存取，这次修复因此不需要动前端功能代码：不在前端解析后端的 id 格式。
 
 ---
+
+## BUG-AGENT-2026-10-17-008: 技能合并执行返回的「已更新 N 个智能体配置」永远是 0，背后是一段永远跑不到的智能体引用改写代码；合并的伞形技能名由模型给出却没人核对，会盖掉用户已有的同名技能、或把源技能归档进一个不存在的目标
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-17（对「合并该不该改写 Cron 引用」逐条追问，读到合并路径上的两处写入没有核对） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P3（合并默认关闭、由用户手动预览并执行；碰到时伞形技能名撞上已有技能会盖掉该技能，或源技能被归档进空目标，源技能可从归档恢复，但被盖掉的同名技能没有版本快照） |
+| 影响范围 | 服务端 `app/core/skills/curator/consolidation.py`、`app/api/skills/curator.py`（`ConsolidationExecuteResponse`）；前端 `src/services/skill/core.ts`、`src/components/features/skills/CuratorSettingsPanel.tsx`、6 个语言包的 `consolidation.executeResult` 与韩文/德文翻译补丁；harness 侧见 `BUG-HARNESS-2026-10-17-003` |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-17-003`（harness 提交 `e006e0f7b9`、`1b77887098`：模型给出的目标名不可信）；roadmap topic_08 技能清理链路 ③「合并改写 Cron 引用」改为决定不做；本地提交，未 push |
+
+### 现象
+
+1. 合并执行的响应与前端提示里有「已更新 N 个智能体配置」，N 在任何情况下都是 0；
+2. 模型给出的伞形技能名如果与用户已有技能同名，执行时直接覆盖该技能；合并或降级的目标名不存在时，源技能照常被归档，内容落进空目标；资源文件写入被拒绝时执行器也不报失败。
+
+### 根因
+
+1. 被智能体档案、未完成 Cron 任务或仍可运行看板任务绑定的技能，由服务层经 `protected_names` 交给引擎，引擎用 `exempt_names` 把它们排出 `mergeable`（`myrm-agent-harness/src/myrm_agent_harness/agent/skills/curator/engine.py:195-196`），根本不进入合并；`_rewrite_agent_skill_refs` 只处理成功合并的源技能，所以要改写的集合永远为空。它还只按裸名做相等比较，不认规范 ID（`local::…`）；
+2. 合并执行器把模型返回的目标名当作可信输入写盘（见 harness 条目）。
+
+### 修复
+
+1. 删除 `_rewrite_agent_skill_refs` 与响应字段 `agent_refs_updated`：服务层、API 模型、前端类型、提示文案（6 个语言包，另有韩文与德文补丁）同步移除；合并执行只返回成功条数、失败条数、归档数、创建数、净减少数与摘要；
+2. 不为被引用的技能新增 Cron 改写路径，理由写入 roadmap ③：被引用的技能本来就不会被合并，而合并产物目前只写描述，把在跑的任务指向它会让任务丢掉原技能的步骤；
+3. 目标名不可信的修复在 harness（服务端调用不变，引擎已把 `exempt_names` 作为保留名传入）。
+
+### 验证
+
+1. 服务端 `tests/core/skills/test_curator_consolidation.py` 5 例通过：删掉 `TestRewriteAgentSkillRefs` 后新增 `TestConsolidationExecute`，断言执行返回的字典与六个键逐一相等，字段被加回即失败；
+2. 服务端 `tests/core/skills/curator`、`tests/core/skills/test_curator_consolidation.py`、`tests/api/skills`：301 通过、1 跳过（14 个被取消选择）；API 用例 `tests/api/skills/test_curator.py` 的断言与模拟响应已去掉该字段；
+3. 前端 `CuratorSettingsPanel.test.tsx` 6 例通过；`bun run verify:i18n` 通过（6 个语言包占位符一致）；prettier、oxlint 通过；
+4. harness `tests/agent/skills/curator` 73 例通过（含新增 20 例目标名安全用例）。
+
+### 局限
+
+1. 伞形技能与 `references/` 里的合并产物目前只写源技能的一行描述（`myrm-agent-harness/src/myrm_agent_harness/agent/skills/curator/consolidation/executor.py:181-184,296-303`），源技能正文只进入归档，不是内容蒸馏；Hermes 做的是真实内容蒸馏（`external_reference_project/claw/hermes-agent/agent/curator.py:306-314`），我们没有；
+2. 合并走不带版本快照的 `skill_creation_service`（`consolidation.py:72`），被覆盖的技能无法按版本回退；harness 修复后覆盖不再发生；
+3. 真实模型给出同名目标的频率没有量过；harness 的修复只在发布新版并执行 `./myrm harness sync-lock` 后才进入按锁文件安装的环境；
+4. 提示文案只删去了句子的后半，没有请母语者复核六种语言；没有在浏览器里看 375px 与深色主题下的提示；
+5. 工作区里 `tests/api/skills/test_curator.py` 另有他人未提交的改动使 `ruff format --check` 不通过，本次未重排；`tsc --noEmit` 另有一处与本条无关的报错（`src/lib/extension/__tests__/sidepanelNotify.test.ts:81`）。
+
+### 踩坑经验
+
+1. 响应里一个永远为 0 的计数就是一条告警：它说明背后的分支从未执行，先去查调用链上谁把输入过滤掉了，而不是继续补这个分支（这里它还只认裸名，补了也不对）；
+2. 判断「该不该给功能补一条写路径」，先看这条路径的输入集合是否可能非空；被上游豁免的集合永远不会流到下游。
+
+---

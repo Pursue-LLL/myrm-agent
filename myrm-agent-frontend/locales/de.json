@@ -17446,7 +17446,7 @@
           "actionCreate": "Dach-Fähigkeit erstellen",
           "actionDemote": "Zu Hilfsdateien herabstufen",
           "executeSuccess": "Konsolidierung abgeschlossen",
-          "executeResult": "Archivierte {archived} Fähigkeiten, erstellte {created} Regenschirme. {agents} Agent-Konfigurationen aktualisiert.",
+          "executeResult": "Archivierte {archived} Fähigkeiten, erstellte {created} Regenschirme.",
           "executeFailed": "Konsolidierung fehlgeschlagen",
           "confirmTitle": "Konsolidierung bestätigen",
           "confirmDesc": "Dadurch werden {count} Fertigkeiten zu übergeordneten Fertigkeiten zusammengeführt. Archivierte Fähigkeiten können jederzeit wiederhergestellt werden."

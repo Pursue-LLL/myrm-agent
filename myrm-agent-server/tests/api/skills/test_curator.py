@@ -293,7 +293,6 @@ def test_consolidation_execute_empty(client: TestClient):
             "total_created": 0,
             "net_reduction": 0,
             "summary": "No skills available for consolidation.",
-            "agent_refs_updated": 0,
         }
 
     with patch(
@@ -304,7 +303,6 @@ def test_consolidation_execute_empty(client: TestClient):
     assert response.status_code == 200
     data = response.json()
     assert data["success_count"] == 0
-    assert data["agent_refs_updated"] == 0
 
 
 def test_consolidation_execute_with_results(client: TestClient):
@@ -318,7 +316,6 @@ def test_consolidation_execute_with_results(client: TestClient):
             "total_created": 1,
             "net_reduction": 3,
             "summary": "Consolidated 4 skills into 2 umbrellas.",
-            "agent_refs_updated": 1,
         }
 
     with patch(
@@ -331,7 +328,6 @@ def test_consolidation_execute_with_results(client: TestClient):
     assert data["success_count"] == 2
     assert data["total_archived"] == 4
     assert data["net_reduction"] == 3
-    assert data["agent_refs_updated"] == 1
 
 
 def test_get_skill_diagnostics(client: TestClient):

@@ -273,7 +273,6 @@ class ConsolidationExecuteResponse(BaseModel):
     total_created: int
     net_reduction: int
     summary: str
-    agent_refs_updated: int
 
 
 @router.post("/consolidation/preview", response_model=ConsolidationPreviewResponse)

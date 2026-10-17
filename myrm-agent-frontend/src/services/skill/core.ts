@@ -878,7 +878,6 @@ export interface ConsolidationExecuteResponse {
   total_created: number;
   net_reduction: number;
   summary: string;
-  agent_refs_updated: number;
 }
 
 export async function getConsolidationPreview(): Promise<ConsolidationPreviewResponse> {

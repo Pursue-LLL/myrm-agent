@@ -7,21 +7,20 @@
 - app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles, cron jobs and kanban tasks)
 - app.core.skills.curator.local_skills::scan_local_skills (POS: Scan of all skill roots with installed-skill marking)
 - app.core.skills.creation.service::skill_creation_service (POS: SkillWriteBackend)
-- app.database.connection::get_session (POS: Agent profile refs rewrite)
 
 [OUTPUT]
 - run_consolidation_preview: Dry-run consolidation plan
-- run_consolidation_execute: Apply consolidation and rewrite agent skill refs
+- run_consolidation_execute: Apply consolidation
 
 [POS]
 Curator consolidation business service. Shares the sweep lock and curator
 config with the main curator service so preview/execute stay mutually
-exclusive with background sweeps.
+exclusive with background sweeps. Skills bound by an agent, a cron job or a
+kanban task never take part, so nothing that references a skill is rewritten.
 """
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from .bound_skills import bound_skill_names
@@ -30,14 +29,9 @@ from .service import _get_sweep_lock, get_curator_config, get_stats_collector
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
-    from myrm_agent_harness.agent.skills.curator.consolidation import (
-        ConsolidationPlan,
-        ConsolidationReport,
-    )
+    from myrm_agent_harness.agent.skills.curator.consolidation import ConsolidationPlan
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
     from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
-
-logger = logging.getLogger(__name__)
 
 
 async def _get_consolidation_deps() -> tuple[EmbeddingService, BaseChatModel, SkillWriteBackend]:
@@ -143,7 +137,6 @@ async def run_consolidation_execute() -> dict[str, int | str]:
                 "total_created": 0,
                 "net_reduction": 0,
                 "summary": "No skills available for consolidation.",
-                "agent_refs_updated": 0,
             }
 
         protected_names = await bound_skill_names(scan.skills)
@@ -163,10 +156,7 @@ async def run_consolidation_execute() -> dict[str, int | str]:
                 "total_created": 0,
                 "net_reduction": 0,
                 "summary": "Consolidation not needed or unavailable.",
-                "agent_refs_updated": 0,
             }
-
-    refs_updated = await _rewrite_agent_skill_refs(result)
 
     return {
         "success_count": result.success_count,
@@ -175,70 +165,4 @@ async def run_consolidation_execute() -> dict[str, int | str]:
         "total_created": result.total_created,
         "net_reduction": result.net_reduction,
         "summary": result.to_summary(),
-        "agent_refs_updated": refs_updated,
     }
-
-
-async def _rewrite_agent_skill_refs(report: ConsolidationReport) -> int:
-    """Update agent skill_ids when skills are merged into umbrellas.
-
-    Scans all agent configurations and replaces references to archived
-    source skills with the umbrella skill they were merged into.
-
-    Returns the number of agent configurations updated.
-    """
-    from myrm_agent_harness.agent.skills.curator.consolidation import (
-        ConsolidationActionType,
-    )
-
-    rename_map: dict[str, str] = {}
-    for r in report.results:
-        if not r.success:
-            continue
-        action_type = r.action.action_type
-        if action_type in (
-            ConsolidationActionType.MERGE,
-            ConsolidationActionType.CREATE_UMBRELLA,
-        ):
-            for source in r.archived_skills:
-                rename_map[source] = r.action.target_skill
-
-    if not rename_map:
-        return 0
-
-    try:
-        from app.database.connection import get_session
-        from app.database.repositories.agent_repo import AgentRepository
-
-        updated_count = 0
-        async with get_session() as db:
-            profiles = await AgentRepository.list_profiles(db)
-
-            for profile in profiles:
-                skill_ids = profile.skills or []
-                new_skill_ids: list[str] = []
-                changed = False
-
-                for sid in skill_ids:
-                    if sid in rename_map:
-                        replacement = rename_map[sid]
-                        if replacement not in new_skill_ids:
-                            new_skill_ids.append(replacement)
-                        changed = True
-                    else:
-                        new_skill_ids.append(sid)
-
-                if changed:
-                    await AgentRepository.update_profile(db, profile.id, {"skills": new_skill_ids})
-                    updated_count += 1
-                    logger.info(
-                        "Updated agent '%s' skill refs: replaced merged skills",
-                        profile.display_name or profile.id,
-                    )
-
-            await db.commit()
-
-        return updated_count
-    except Exception as e:
-        logger.warning("Agent skill ref rewrite failed: %s", e)
-        return 0
