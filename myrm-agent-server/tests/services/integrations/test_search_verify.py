@@ -223,3 +223,26 @@ async def test_invalidation_forces_a_new_probe(providers: ProviderStub) -> None:
     await verify_search_service_available(cfg)
 
     assert providers.calls == ["key", "key"]
+
+
+async def test_wrong_key_is_unavailable_even_right_after_a_good_key_was_probed(providers: ProviderStub) -> None:
+    """The probe's payload cache must not answer for a credential that never produced it."""
+    providers.outcomes = {"good-key": _ANSWER, "bad-key": RuntimeError("401 invalid api key")}
+
+    assert await verify_search_service_available(_member("tavily", "good-key")) is True
+    invalidate_search_verify_cache()
+
+    assert await verify_search_service_available(_member("tavily", "bad-key")) is False
+    assert providers.calls == ["good-key", "bad-key"]
+
+
+async def test_swapped_key_on_the_same_provider_is_probed_again(providers: ProviderStub) -> None:
+    """Switching accounts must reach the provider instead of being served the previous account's payload."""
+    providers.outcomes = {"account-a": _ANSWER, "account-b": _ANSWER}
+    cfg = _member("tavily", "account-a")
+
+    assert await verify_search_service_available(cfg) is True
+    invalidate_search_verify_cache()
+
+    assert await verify_search_service_available(cfg.model_copy(update={"api_key": "account-b"})) is True
+    assert providers.calls == ["account-a", "account-b"]
