@@ -43,7 +43,6 @@ describe('memory migration after an embedding model switch', () => {
     statusMock.mockReset();
     useRetrievalStore.setState({
       orphanCount: 12,
-      orphanOldModels: ['old-model'],
       reindexStatus: 'idle',
       reindexProgress: { done: 0, total: 0 },
       reindexResult: null,
@@ -56,15 +55,11 @@ describe('memory migration after an embedding model switch', () => {
   });
 
   it('shows the leftover memories after a switch from the estimate', async () => {
-    estimateMock.mockResolvedValueOnce({
-      total_memories: 7,
-      orphan_collections: [{ old_model_suffix: 'a' }, { old_model_suffix: 'a' }, { old_model_suffix: 'b' }],
-    });
+    estimateMock.mockResolvedValueOnce({ total_memories: 7 });
 
     await useRetrievalStore.getState().checkOrphanCollections();
 
     expect(useRetrievalStore.getState().orphanCount).toBe(7);
-    expect(useRetrievalStore.getState().orphanOldModels).toEqual(['a', 'b']);
   });
 
   it('does not ask for an estimate while a run is in flight', async () => {
@@ -83,7 +78,7 @@ describe('memory migration after an embedding model switch', () => {
 
     const check = useRetrievalStore.getState().checkOrphanCollections();
     await runToEnd();
-    resolveEstimate({ total_memories: 12, orphan_collections: [{ old_model_suffix: 'old-model' }] });
+    resolveEstimate({ total_memories: 12 });
     await check;
 
     expect(useRetrievalStore.getState().orphanCount).toBe(0);
@@ -103,7 +98,6 @@ describe('memory migration after an embedding model switch', () => {
     expect(state.reindexStatus).toBe('done');
     expect(state.reindexResult).toEqual({ migrated: 10, skipped: 2, failed: 0 });
     expect(state.orphanCount).toBe(0);
-    expect(state.orphanOldModels).toEqual([]);
     expect(progress).toContain(5);
     expect(statusMock).toHaveBeenCalledTimes(2);
   });
@@ -117,7 +111,6 @@ describe('memory migration after an embedding model switch', () => {
     expect(state.reindexStatus).toBe('done');
     expect(state.reindexResult).toEqual({ migrated: 9, skipped: 0, failed: 3 });
     expect(state.orphanCount).toBe(3);
-    expect(state.orphanOldModels).toEqual(['old-model']);
   });
 
   it('reports an interrupted run instead of claiming success when the request fails', async () => {
@@ -181,7 +174,7 @@ describe('memory migration after an embedding model switch', () => {
     useRetrievalStore.setState({ embeddingAppliedAt: 1000 });
     startMock.mockResolvedValueOnce(status({ total: 12 }));
     statusMock.mockImplementationOnce(async () => {
-      useRetrievalStore.setState({ embeddingAppliedAt: 2000, orphanCount: 30, orphanOldModels: ['older-model'] });
+      useRetrievalStore.setState({ embeddingAppliedAt: 2000, orphanCount: 30 });
       return finished(12, 0, 0);
     });
 
@@ -191,7 +184,6 @@ describe('memory migration after an embedding model switch', () => {
     expect(state.reindexStatus).toBe('idle');
     expect(state.reindexResult).toBeNull();
     expect(state.orphanCount).toBe(30);
-    expect(state.orphanOldModels).toEqual(['older-model']);
   });
 
   it('dismissing clears the reminder and any shown outcome', () => {

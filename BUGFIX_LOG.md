@@ -6442,3 +6442,58 @@ harness 把卡片编号改为 `<中断 id>.<轮次>`，每次挂起各有各的�
 4. 「新对话」会不会让聊天 id 变空，要读 `initializeChat(undefined)` 的实现（它分配 `c-…`），不能按字面推断；本条最初把现象 3、4 当作线上缺陷，写完修复与文档后复查调用方才发现不可达，并改回如实表述。
 
 ---
+
+## BUG-AGENT-2026-10-17-010: 更换嵌入模型的迁移周围留着一整条无人使用的链（孤儿集合诊断探针、永远手动的「迁移」修复项、估算接口返回却无人读取的旧模型列表与前端状态、公开文档里一条已不存在的功能）；mem0 兼容的「清空全部记忆」在某个类型清不掉时仍回复「已删除」
+
+| 字段 | 内容 |
+|------|------|
+| 发现日期 | 2026-10-17（对 `BUG-HARNESS-2026-10-16-006` 的局限逐条复核时，沿「谁在调用它」查到诊断与估算这一侧没有调用方；mem0 一条是同一份局限清单里「异常被吞」那一项） |
+| 修复日期 | 2026-10-17 |
+| 严重程度 | P3（无人使用的链只增加维护面与错误的公开说明；mem0 兼容接口只有 mem0 SDK 用户会碰到，碰到时 `delete_all()` 报成功而部分记忆还在，违背「删除就是真的忘记」） |
+| 影响范围 | 服务端 `app/services/memory/diagnostics/diagnostic/{diagnostic_static_checks,diagnostic_repair_plans}.py`、`app/api/memory/operations/reindex.py`、`app/api/mem0_compat/endpoints.py`；前端 `src/services/memory/reindex.ts`、`src/store/useRetrievalStore.ts`；公开文档 `core-concepts/memory-system.mdx`（en / zh / ko）；测试见下；harness 侧见 `BUG-HARNESS-2026-10-17-007` |
+| 出现次数 | 1 |
+| 关联 | `BUG-HARNESS-2026-10-17-007`（按 id 永久删除清旧模型副本、迁移不再把嵌入握在锁里）；`BUG-HARNESS-2026-10-16-006` 局限 ⑬；本地提交，未 push |
+
+### 现象
+
+1. Memory Doctor 的孤儿集合探针 `probe_orphan_collections` 在 HEAD 上只有定义和它自己的两个测试，没有任何调用方；它挂的 `reindex_memories` 修复项是「手动」，修复执行器白名单（`run_diagnostics` / `run_health_refresh` / `restore_disciplined_defaults`）里没有它，界面上永远点不动；
+2. `GET /memory/reindex/estimate` 返回的 `orphan_collections`（集合名、类型、旧模型后缀、条数）前端只用来算出 `orphanOldModels`，这个状态只在 store 与测试里被读写，没有任何组件读取；前端真正用到的只有 `total_memories`；
+3. 公开文档在三种语言里都写着一条「Memory Doctor 集成」，点名 `probe_orphan_collections`，描述的是一个界面上不存在的功能；
+4. mem0 兼容的 `DELETE /mem0/v1/memories/` 对每个类型调 `delete_by_type`，任何一个类型抛异常都只记一条警告，最后无条件返回「Memories deleted successfully!」：向量库不可写或旧模型集合清不掉时，SDK 调用方得到成功应答，记忆还在。
+
+### 根因
+
+1. 用户能触发迁移的地方只有设置页的内联提示（设置 > 模型 > 嵌入、设置 > 记忆）；诊断一侧的探针没有调用方、修复项不在执行器白名单里、估算里的明细没有读取方，三者都没有消费者，也没有门禁发现「一个函数只有它自己的测试在用」，为什么当初留下没有追溯；
+2. mem0 兼容层的 `delete_all` 把「尽量多删」与「报告结果」混在一个 `except` 里，只实现了前者。
+
+### 修复
+
+1. 删除 `probe_orphan_collections`、`reindex_memories` 修复计划、`OrphanCollectionItem` 与响应里的 `orphan_collections`（估算响应只剩 `total_memories`）、前端 `MemoryOrphanEstimate.orphan_collections` 与 store 的 `orphanOldModels`（5 处读写）、公开文档那一条（en / zh / ko）；harness 的 `detect_orphan_collections` 保留，迁移与估算仍在用；
+2. mem0 `delete_all`：每个类型都尝试（一个类型失败不影响其余类型被清），失败的类型用 `logger.exception` 记完整堆栈，任一类型失败整体返回 500，`detail` 写明哪些类型（`Failed to delete memories of type: episodic`），全部成功才返回「已删除」；
+3. `tests/core/memory/adapters/test_cascade.py` 随 harness 的行为改为断言「级联清空后，只装着这个聊天记忆的旧模型集合被回收」（原先断言旧集合里计数为 0，集合被回收后读不到了），固件收尾先判断集合是否存在；
+4. 同文件 `diagnostic_static_checks.py` 的 `DiagnosticStatus` 原为 `str`，传给要求 `Literal` 的字段，有 5 处 mypy 报错，一并改为同一组字面量；
+5. 公开文档迁移流程的「安全可续」一条补上「永久删除某一条记忆也同时作用于新旧集合，已删除的不会在之后的迁移里回来」（en / zh / ko）。
+
+### 验证
+
+1. 先红后绿：mem0 新增 `test_delete_all_reports_failure_but_still_clears_the_other_types`（`episodic` 类型抛 `OSError`；断言 500、`detail` 点名该类型、全部类型都被尝试）在原实现上为 200 而红；变异检查：去掉 `raise HTTPException` 后该用例变红，还原后文件逐字节相同、6 例全绿；
+2. 服务端 `tests/services/memory`、`tests/api/memory`、`tests/api/mem0_compat`、`tests/core/memory`：982 通过（4 个被取消选择）；`diagnostic` 相关 48 例通过；`ruff check` / `ruff format --check` 触及文件通过，`mypy` 对 `diagnostic_static_checks.py` 无报错；
+3. `test_reindex_api.py` 的估算用例改为整体相等 `{"total_memories": 5}`，字段被加回即失败；诊断测试里删掉的是探针与修复计划的三个用例；
+4. 前端 `useRetrievalStore.reindex.test.ts` 与 `MemoryMigrationNotice.test.tsx` 共 24 例通过；`tsc --noEmit` 全量退出码 0；触及文件 `oxlint` 无输出、`prettier --check` 通过；`bun run verify:icu-syntax`、`verify:theme-colors` 通过；
+5. harness `tests/toolkits/memory` 与 `tests/toolkits/vector`：3328 通过、6 跳过（含本次的 harness 修复）。
+
+### 局限
+
+1. `tests/architecture` 在当前工作区没有拿到干净结果：一次整套运行里 10 个用例失败（路由有无前端调用、`api` 与 `services` 域名划分、前端 API 路径、深层 harness 导入基线、文本入口风险门等），已看到的失败路由集中在 `/agents`、`/chats`、`/fleet`、`/settings`、`/workspaces` 下，与本条无关，来自他人未提交的新路由与基线；之后他人对 harness `runtime/context/session/session_continuity.py` 的改动使整个 `app` 暂时无法导入，该组用例全部报 `ImportError`，所以没有重跑确认；`test_no_temp_docs_links` 失败的是他人未提交的一条记录（`BUGFIX_LOG.md:5616`）引用了私有路径，不是本条；
+2. `verify:hardcoded-copy` 失败，列出的全是他人未提交的新文件（群聊、活动流等），触及文件里没有命中；
+3. 没有在真实浏览器里走迁移与删除的完整路径：`./myrm test -m chrome_e2e` 的共享预检在本机上排不到名额（见 `BUG-AGENT-2026-10-17-009` 局限 1），用例由 vitest 与服务端接口测试覆盖；
+4. 公开文档的两处改动没有请母语者复核 zh / ko 措辞；
+5. mem0 的 500 可能让原本「总是 200」的 SDK 调用方在向量库故障时开始报错，这是有意的；没有统计过 SDK 用户的调用量。
+
+### 踩坑经验
+
+1. 「公开函数只有测试在调用」是死代码的最强信号：删除前用 `git grep HEAD` 在 HEAD 上查调用方，工作区里已被改动的文件会掩盖事实；
+2. 一个响应字段是否「需要」，看的是消费方读取，而不是消费方的类型里有没有声明：前端把它写进了 store，却没有任何组件读它；
+3. 底层改成「清空的旧集合被回收」后，断言「旧集合里计数为 0」的上层测试会因为读不到集合而失败，上层测试要断言结果（集合已回收）而不是中间状态。
+
+---

@@ -36,7 +36,8 @@ async def written_by_two_models() -> AsyncIterator[tuple[str, list[str]]]:
         yield chat_id, collections
     finally:
         for collection in collections:
-            await manager._vector.delete_by_filter(collection, {"source_chat_id": chat_id})  # type: ignore[union-attr]
+            if await manager._vector.collection_exists(collection):  # type: ignore[union-attr]
+                await manager._vector.delete_by_filter(collection, {"source_chat_id": chat_id})  # type: ignore[union-attr]
 
 
 @pytest.mark.asyncio
@@ -51,5 +52,6 @@ async def test_purge_removes_the_chats_memories_from_every_models_collection(
 
     assert preview["semantic"] == 2
     assert purged["semantic"] == 2
+    # Each collection held only this chat's memory, so purging empties them and they are retired.
     for collection in collections:
-        assert await manager._vector.count(collection, {"source_chat_id": chat_id}) == 0  # type: ignore[union-attr]
+        assert not await manager._vector.collection_exists(collection)  # type: ignore[union-attr]

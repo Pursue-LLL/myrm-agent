@@ -51,7 +51,6 @@ export interface RetrievalConfig {
 
   // Orphan collection 状态（模型切换后的旧记忆检测）
   orphanCount: number;
-  orphanOldModels: string[];
 
   // 旧记忆迁移运行状态：'running' 期间轮询服务端后台任务，'done' 带逐条计数，'error' 表示运行中断
   reindexStatus: ReindexRunStatus;
@@ -112,7 +111,6 @@ const DEFAULT_CONFIG: RetrievalConfig = {
   rerankerApplyMessage: undefined,
   enableAdvancedRetrieval: false,
   orphanCount: 0,
-  orphanOldModels: [],
   reindexStatus: 'idle',
   reindexProgress: { done: 0, total: 0 },
   reindexResult: null,
@@ -373,8 +371,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
       if (get().reindexStatus === 'running' || get().reindexResult !== resultAtStart) {
         return;
       }
-      const uniqueModels = [...new Set(estimate.orphan_collections.map((c) => c.old_model_suffix))];
-      set({ orphanCount: estimate.total_memories, orphanOldModels: uniqueModels });
+      set({ orphanCount: estimate.total_memories });
     } catch {
       // Non-critical; silently ignore
     }
@@ -413,12 +410,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
         return;
       }
       // Only memories that could not migrate keep the reminder; running again retries just those.
-      set({
-        reindexStatus: 'done',
-        reindexResult: status.result,
-        orphanCount: status.result.failed,
-        orphanOldModels: status.result.failed > 0 ? get().orphanOldModels : [],
-      });
+      set({ reindexStatus: 'done', reindexResult: status.result, orphanCount: status.result.failed });
     } catch (error) {
       console.warn('Memory reindex did not finish:', error);
       set({ reindexStatus: 'error' });
@@ -426,7 +418,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
   },
 
   dismissOrphanWarning: () => {
-    set({ orphanCount: 0, orphanOldModels: [], reindexStatus: 'idle', reindexResult: null });
+    set({ orphanCount: 0, reindexStatus: 'idle', reindexResult: null });
   },
 
   // ============ 重置 ============

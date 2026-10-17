@@ -35,7 +35,6 @@ describe('MemoryMigrationNotice', () => {
     checkOrphanCollections.mockReset().mockResolvedValue(undefined);
     useRetrievalStore.setState({
       orphanCount: 0,
-      orphanOldModels: [],
       reindexStatus: 'idle',
       reindexProgress: { done: 0, total: 0 },
       reindexResult: null,

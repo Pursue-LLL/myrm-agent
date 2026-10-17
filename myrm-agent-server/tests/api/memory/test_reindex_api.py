@@ -114,8 +114,8 @@ def test_status_reports_a_failed_run_without_an_outcome(client: TestClient) -> N
     assert body["result"] is None
 
 
-def test_estimate_lists_orphan_collections(client: TestClient) -> None:
-    body = client.get("/api/v1/memory/reindex/estimate").json()
+def test_estimate_reports_how_many_memories_the_previous_models_left_behind(client: TestClient) -> None:
+    response = client.get("/api/v1/memory/reindex/estimate")
 
-    assert body["total_memories"] == 5
-    assert body["orphan_collections"][0]["old_model_suffix"] == "old-model"
+    assert response.status_code == 200
+    assert response.json() == {"total_memories": 5}

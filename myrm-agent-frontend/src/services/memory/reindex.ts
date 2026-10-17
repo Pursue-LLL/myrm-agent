@@ -17,7 +17,6 @@ import { apiRequest } from '@/lib/api';
 
 export interface MemoryOrphanEstimate {
   total_memories: number;
-  orphan_collections: { old_model_suffix: string }[];
 }
 
 /** Memories counted one by one: migrated now, already in place (or empty), or unable to migrate (retry later). */

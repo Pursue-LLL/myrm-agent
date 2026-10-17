@@ -12,7 +12,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app.schemas.memory.command_center import MemoryCommandRuntimeStatus
-from app.services.memory.diagnostics.diagnostic.diagnostic_repair_plans import build_repair_plans
 from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import (
     probe_context_bundle_manifest,
     probe_deployment_boundary,
@@ -21,7 +20,6 @@ from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import 
     probe_health_snapshot,
     probe_knowledge_graph,
     probe_memory_base_path,
-    probe_orphan_collections,
     probe_relational_store,
     probe_vector_index,
 )
@@ -152,25 +150,6 @@ def test_probe_deployment_boundary() -> None:
     assert check.status == "ready"
     assert "local_web" in check.evidence
     assert "control plane status: not_used" in check.evidence
-
-
-def test_probe_orphan_collections_with_orphans() -> None:
-    check = probe_orphan_collections(orphan_count=2, old_models=["model-a", "model-b"])
-    assert check.status == "warning"
-    assert check.repair_actions == ["reindex_memories"]
-
-
-def test_reindex_plan_is_manual_because_the_migration_runs_from_settings() -> None:
-    (plan,) = build_repair_plans(["reindex_memories"])
-
-    assert (plan.risk_level, plan.executable, plan.requires_confirmation) == ("manual", False, False)
-    assert "Settings" in plan.expected_effect
-
-
-def test_probe_orphan_collections_clean() -> None:
-    check = probe_orphan_collections(orphan_count=0, old_models=[])
-    assert check.status == "ready"
-    assert check.repair_actions == []
 
 
 def test_probe_context_bundle_manifest_ready() -> None:

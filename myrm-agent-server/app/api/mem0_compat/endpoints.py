@@ -198,13 +198,17 @@ async def delete_memory(
 async def delete_all_memories(
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> Mem0DeleteResponse:
-    """Delete all memories."""
+    """Delete all memories; every type is attempted and any type left behind fails the request."""
+    failed_types: list[str] = []
     for mem_type in ALL_MEMORY_TYPES:
         try:
             await manager.delete_by_type(mem_type)
-        except Exception as e:
-            logger.warning("Error deleting %s memories for mem0-compat: %s", mem_type, e)
+        except Exception:
+            logger.exception("Mem0-compat delete-all could not clear %s memories", mem_type.value)
+            failed_types.append(mem_type.value)
 
+    if failed_types:
+        raise HTTPException(status_code=500, detail=f"Failed to delete memories of type: {', '.join(failed_types)}")
     return Mem0DeleteResponse(message="Memories deleted successfully!")
 
 

@@ -32,16 +32,8 @@ from app.services.memory.reindex_run import (
 router = APIRouter(prefix="/reindex")
 
 
-class OrphanCollectionItem(BaseModel):
-    collection_name: str
-    memory_type: str
-    old_model_suffix: str
-    document_count: int
-
-
 class ReindexEstimateResponse(BaseModel):
     total_memories: int
-    orphan_collections: list[OrphanCollectionItem]
 
 
 class ReindexResultResponse(BaseModel):
@@ -82,18 +74,7 @@ async def estimate_reindex(
 ) -> ReindexEstimateResponse:
     """Estimate orphan memories that need re-embedding after a model switch."""
     estimate = await manager.estimate_reindex()
-    return ReindexEstimateResponse(
-        total_memories=estimate.total_memories,
-        orphan_collections=[
-            OrphanCollectionItem(
-                collection_name=o.collection_name,
-                memory_type=o.memory_type,
-                old_model_suffix=o.old_model_suffix,
-                document_count=o.document_count,
-            )
-            for o in estimate.orphan_collections
-        ],
-    )
+    return ReindexEstimateResponse(total_memories=estimate.total_memories)
 
 
 @router.post("", response_model=ReindexStatusResponse, status_code=202)
