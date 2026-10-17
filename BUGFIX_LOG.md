@@ -6973,3 +6973,31 @@ Pydantic 的 `alias_generator` 只作用在**声明字段**上：`PDFExtractResp
 3. **契约要靠测试钉住，而非靠前端类型**：`file.ts` 一直写着驼峰、后端一直发蛇形而无人察觉，是因为没有任何用例同时看两端。补一个「整层不许出现蛇形键」的断言即可把这类偏差钉死。
 4. **判定用例必须真的走到那条分支**：用文本型 PDF 断言 `imageTrace` 会得到空字典，断言恒真；必须构造带图版的 fixture 才有判别力。
 5. **字段说明也会说谎，且比代码更难被抓到**：`truncated` 的说明是本条新写的，写的是「delivery window」，读起来像覆盖两条图像路径；代码只覆盖其中一条，而没有用例会去读说明文字。今后为「跨两条分支共用」的字段措辞时，必须以实测读数逐条核对，不能凭「两条路径都有上限」就顺口概括。
+
+---
+
+## BUG-AGENT-2026-10-17-019: 主题视频背景不跟随系统「减少动态效果」与窗口跨断点变化，用户改完设置后视频仍在播放
+
+### 现象
+
+`ThemeProfileProvider` 决定是否让用户上传的视频背景播放时，读的是两个媒体查询：`(prefers-reduced-motion: reduce)` 与 `(max-width: 768px)`。两者都只在渲染那一刻读一次（`window.matchMedia(...).matches` 直接写在函数体里）。用户在系统里开启「减少动态效果」，或把窗口跨过 md 断点，页面不重新读这两个值；而承载它的资源副作用（`loadAssets`）的依赖数组里既没有这两个值，也与它们无关。于是编译主题用的仍是旧上下文：视频照旧自动播放。
+
+### 根因
+
+一次性读取没有订阅媒体查询的 `change` 事件，值在会话中途变化不会引起重渲染；`prefersReducedMotion`/`isMobile` 参与 `compileThemeProfile` 的 `useMemo` 与依赖数组，只有值本身变化才会重编译，而它永远不会变化。
+
+### 修复
+
+改用既有的响应式 hooks `usePrefersReducedMotion()` / `useIsMobile()`（`@/hooks/ui/useMediaQuery`，内部订阅 `change`）。值变化触发重编译，`canPlayVideo` 转假，视频换成其静态海报。
+
+### 验证
+
+1. **回归用例**（`ThemeProfileProvider.reactiveMedia.test.tsx`，4 例）：构造一个带海报的真实视频背景 overlay，用可控的 `matchMedia` 桩（`matches` 走 getter、`addEventListener` 收集监听器）。
+2. **变异验证（两次，各自单杀）**：把 `usePrefersReducedMotion()` 换回一次性读取 → 减少动态效果那条确定性变红；把 `useIsMobile()` 换回一次性读取 → 跨断点那条确定性变红。还原后逐次核对内容。
+3. **首帧没有被这次改动弄出视频闪烁**：把 `data-kind` 在同步首帧读出来（探针主动抛错带出读数）为 `image`。原因是解析后的视频地址要等资源副作用返回，海报本来就先出现。
+4. 现有 `ThemeProfileProvider.petOverlay.test.tsx` 与 `theme` / `theme-engine` / `hooks/ui` 共 199 例、`theme-studio` 与 `settings` 共 1345 例通过；`tsc`、`prettier`、`oxlint` 对本文件无新增问题。
+
+### 踩坑经验
+
+1. **在一次会话里「提交时带上索引里已有的暂存内容」会误伤别人**：`git commit` 默认提交整个索引。本次 `git add <我的两个文件>` 之后提交，结果把另一个会话早已 `git add` 但尚未提交的两个扩展文件与 `BUGFIX_LOG.md` 一并带走，把对方已提交的 70px 徽标间距改回了 60px。提交前先 `git diff --cached --name-only` 看清单、只提交点名路径；发现误伤后用还原内容的新提交补救（不回退历史）。
+
