@@ -3,7 +3,7 @@
 [INPUT]
 - app.config.settings::DatabaseSettings (POS: every path of the persistent state, including the relocated ones)
 - app.database.operations.backup::backup_dir_for (POS: where the SQLite backup manager keeps its backups)
-- myrm_agent_harness.observability.storage_governance::StorageCategory
+- myrm_agent_harness.observability.storage_governance::StorageCategory (POS: category enum of the storage ledger)
 
 [OUTPUT]
 - build_storage_layout: category -> paths, in the form the storage inspector takes
