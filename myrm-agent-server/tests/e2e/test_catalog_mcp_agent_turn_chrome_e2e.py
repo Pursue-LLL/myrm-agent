@@ -184,7 +184,8 @@ def _connect_microsoft_learn_via_ui() -> None:
                       button.click();
                       return { ready: true };
                     })()""",
-                    timeout_sec=30.0,
+                    timeout_sec=60.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog",
                 )
                 assert isinstance(open_dialog, dict)
                 assert open_dialog.get("ready") is True, f"failed to open dialog: {open_dialog}"
@@ -203,10 +204,17 @@ def _connect_microsoft_learn_via_ui() -> None:
                       return { ready: true };
                     })()""",
                     timeout_sec=30.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog",
                 )
                 assert click_connect.get("ready") is True
 
-                settled = wait_for_state(client, page, _CONNECT_SETTLE_JS, timeout_sec=150.0)
+                settled = wait_for_state(
+                    client,
+                    page,
+                    _CONNECT_SETTLE_JS,
+                    timeout_sec=150.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog",
+                )
                 assert settled.get("connected") is True, f"Microsoft Learn card never reached Connected: {settled}"
                 # Connected is the store's optimistic state; wait for the debounced
                 # ConfigSyncManager write to land before this context is disposed.

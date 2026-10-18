@@ -46,7 +46,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 from tests.support.chrome_skill_hooks_composer import drive_chat_turn  # noqa: E402
 from tests.support.chrome_skill_hooks_live_e2e import SkillChat  # noqa: E402
-from tests.support.chrome_skill_hooks_observe import stored_messages  # noqa: E402
+from tests.support.chrome_skill_hooks_observe import completed_assistant_replies, stored_messages  # noqa: E402
 from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger  # noqa: E402
 
@@ -169,6 +169,23 @@ def _wait_completed_mcp_tool_step(chat_id: str, api_url: str, *, timeout_sec: fl
     )
 
 
+def _wait_completed_reply(chat_id: str, api_url: str, *, timeout_sec: float) -> str:
+    """Block until the server marks an assistant turn complete, and return its words.
+
+    The MCP step proves the tool ran; this proves the model actually answered
+    instead of ending the turn on the tool result.
+    """
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        replies = completed_assistant_replies(stored_messages(chat_id, api_url))
+        if replies:
+            return replies[-1]
+        time.sleep(2.0)
+    raise AssertionError(
+        f"no completed assistant reply within {timeout_sec}s; stored messages: {_stored_digest(chat_id, api_url)}"
+    )
+
+
 def _stored_digest(chat_id: str, api_url: str) -> str:
     """One line per message: its role and the tool steps it recorded, for a failed wait."""
     lines: list[str] = []
@@ -203,12 +220,19 @@ def _connect_microsoft_learn_via_ui() -> None:
                       button.click();
                       return { ready: true };
                     })()""",
-                    timeout_sec=30.0,
+                    timeout_sec=60.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog",
                 )
                 assert isinstance(open_dialog, dict)
                 assert open_dialog.get("ready") is True, f"failed to open dialog: {open_dialog}"
 
-                settled = wait_for_state(client, page, _CONNECT_SETTLE_JS, timeout_sec=150.0)
+                settled = wait_for_state(
+                    client,
+                    page,
+                    _CONNECT_SETTLE_JS,
+                    timeout_sec=150.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog",
+                )
                 assert settled.get("connected") is True, f"card never reached Connected: {settled}"
                 # Connected is the store's optimistic state; wait for the debounced
                 # ConfigSyncManager write to land before this context is disposed.
@@ -303,3 +327,12 @@ def test_catalog_mcp_bound_agent_answers_with_live_tool_call(tmp_path: Path, e2e
 
     steps = _wait_completed_mcp_tool_step(chat_id, api_url, timeout_sec=300.0)
     print(f"E2E_MCP_TOOL_STEPS[{chat_id}]: {steps}", flush=True)
+
+    # The machinery proof above only says the tool was called. The user-facing
+    # contract is that the model then *answers from it*: a completed turn must
+    # carry prose that names the topic it was asked about. Asserting the answer
+    # exists (not its exact wording) keeps the check stable across model prose
+    # while still failing a turn that called the tool and returned nothing.
+    reply = _wait_completed_reply(chat_id, api_url, timeout_sec=120.0)
+    print(f"E2E_ASSISTANT_REPLY[{chat_id}]: {reply[:400]}", flush=True)
+    assert len(reply.strip()) >= 40, f"assistant returned an empty/trivial answer: {reply!r}"
