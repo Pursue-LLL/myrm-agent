@@ -516,14 +516,40 @@ def _assert_search_cleared(api_base: str) -> None:
     assert configs == [], f"searchServices must be empty before UI send, got {value!r}"
 
 
-async def _prepare_chat(chat: McpChatSession) -> None:
+async def _page_backend_base(chat: McpChatSession) -> str | None:
+    """The backend this page actually reads config from.
+
+    An isolated runtime (SHPOIB) serves the turn through the Next.js rewrite, so the workspace stream's
+    origin — not the injected base — is the backend that holds ``searchServices``.
+    """
+    probe = await chat.evaluate(
+        """(() => {
+          const stream = window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null;
+          return {
+            streamOrigin: stream?.origin ?? null,
+            injected: window.__MYRM_E2E_API_BASE__ ?? null,
+          };
+        })()""",
+        intent=EvaluateIntent.SYNC_PROBE,
+    )
+    if not isinstance(probe, dict):
+        return None
+    for key in ("streamOrigin", "injected"):
+        value = str(probe.get(key) or "").rstrip("/")
+        if value:
+            return value
+    return None
+
+
+async def _prepare_chat(chat: McpChatSession) -> str:
+    """Fresh chat on a cleared search config; returns the API base the page actually reads."""
     # Start each run from a fresh chat at the root route. The reset must happen outside the CDP evaluation:
     # a navigation destroys the inspected target, so any await still running in that document never settles
     # ("Inspected target navigated or closed").
     await chat.cdp("Page.navigate", {"url": f"{BASE_URL.rstrip('/')}/"})
     await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
-    # The page must talk to the same backend this test seeds and clears; otherwise the agent sees a search
-    # config the test never emptied and runs web_search instead of emitting the config-gap preflight.
+    # The page reads its config through whatever base it is bound to; a lane that skips the CDP inject
+    # (RESOURCE_WRITE) reaches a different backend than E2E_API_BASE, so empty the page's own base too.
     await chat.ensure_e2e_api_base_binding()
     bound: object = None
     for attempt in range(2):
@@ -539,9 +565,8 @@ async def _prepare_chat(chat: McpChatSession) -> None:
             await asyncio.sleep(1.0)
             await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
     assert isinstance(bound, dict), bound
-    assert str(bound.get("apiBase") or "").rstrip("/") == get_e2e_api_url().rstrip("/"), (
-        f"page bound to {bound.get('apiBase')!r}, but the test seeds {get_e2e_api_url()!r}"
-    )
+    page_api_base = await _page_backend_base(chat) or str(bound.get("apiBase") or "").rstrip("/")
+    assert page_api_base, f"no backend base reachable from the page; probe={bound!r}"
     # A navigation can land while the bound backend is still restarting; pinning reads the provider config
     # over HTTP, so retry the race instead of failing the whole signoff on a transient 404.
     enabled: object = None
@@ -563,7 +588,8 @@ async def _prepare_chat(chat: McpChatSession) -> None:
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(idle, dict) and idle.get("ok") is True, idle
-    await ensure_e2e_search_cleared_in_browser(chat, api_url=get_e2e_api_url())
+    await ensure_e2e_search_cleared_in_browser(chat, api_url=page_api_base)
+    return page_api_base
 
 
 @pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_shpoib")
@@ -578,6 +604,10 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
     if not wait_e2e_provider_ready(api_url=api_base):
         pytest.fail("Provider config not ready for web_search config-gap Chrome E2E")
 
+    # The page reaches its backend through the Next.js rewrite (RESOURCE_WRITE lanes skip the CDP API
+    # inject), so the config this run must empty is the one the turn actually reads. Empty both the
+    # shared base and the backend the browser is bound to, otherwise the agent still sees a search
+    # config and runs web_search instead of emitting the config-gap preflight.
     backup = fetch_config_value("searchServices", api_url=api_base)
     wall_deadline = time.monotonic() + _E2E_GAP_TEST_WALL_SEC
     try:
@@ -589,11 +619,10 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
             page = await _open_e2e_page_with_runtime_retry(client, BASE_URL, api_base)
             chat = McpChatSession(client, page)
             await chat.bootstrap(BASE_URL, timeout_sec=120.0)
-            await _prepare_chat(chat)
-            await asyncio.to_thread(_assert_search_cleared, api_base)
-            clear_search_services_ssot(api_url=api_base)
-            await ensure_e2e_search_cleared_in_browser(chat, api_url=api_base)
-
+            page_api_base = await _prepare_chat(chat)
+            _assert_search_cleared(page_api_base)
+            clear_search_services_ssot(api_url=page_api_base)
+            await ensure_e2e_search_cleared_in_browser(chat, api_url=page_api_base)
             workspace_ready = await chat.evaluate(
                 WAIT_WORKSPACE_STREAM_JS,
                 intent=EvaluateIntent.AGENT_SUBMIT,
@@ -618,7 +647,7 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
             await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
             toast_state, sse_events, send, diag = await _send_and_collect_gap_while_streaming(
                 chat,
-                api_base=api_base,
+                api_base=page_api_base,
                 wall_deadline=wall_deadline,
                 timeout_sec=45.0,
             )
