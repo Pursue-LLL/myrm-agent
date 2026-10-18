@@ -475,3 +475,4 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - `tests/conftest.py` → integration/e2e/lifecycle 路径 autouse `reset_global_browser_pool_for_tests()`（防 Chromium 跨测累积）；sessionfinish 释放 DB engine 与 `_memory_manager_cache`
 - `tests/unit/test_system_storage.py`：系统存储 API 单元测（**禁止**在 `tests/unit/` 下创建 `api/` 子包，会与 `tests/api/` 在 `import_mode=importlib` 下冲突）
 - `app/startup/env_loader.py` **不**读取 `.env.test`
+| `e2e/test_incognito_switch_starts_fresh_chat_chrome_e2e.py` | 模块 | 真实浏览器里无痕开关总是开新会话（SHARED+NAMESPACE_WRITE×3，无 LLM，但每个用例经真实 API seed 一个真实会话）：等开关与输入框都挂上 React props且 store 已持有该会话后才点真实开关；三条分别覆盖 ①普通会话→开无痕 ②已存在但无消息的会话行（`/focus` 留下的状态）→开无痕 ③无痕会话→关无痕；每条都断言 `chatId` 不再是原会话且新会话无消息 |
