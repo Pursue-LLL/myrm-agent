@@ -7056,23 +7056,24 @@ if route.unavailable:
 
 ---
 
-## BUG-AGENT-2026-10-18-002: 系统开启「减少动态效果」后，CSS 持续脉冲/旋转动画照旧无限运行，framer-motion 过渡也完全不受该偏好约束（全局兜底缺失，只有 2 处窄补丁）
+## BUG-AGENT-2026-10-18-002: 系统开启「减少动态效果」后，CSS 持续脉冲/旋转动画、framer-motion 过渡与 AI 生成 widget 内的动画均不受该偏好约束（全局兜底缺失，只有 2 处窄补丁）
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-18 |
 | 修复日期 | 2026-10-18 |
 | 严重程度 | P2（无障碍契约系统性失效；前庭敏感用户持续不适，低端机/触屏持续重绘耗电） |
-| 影响范围 | `myrm-agent-frontend/src/app/globals.css`（新增通用选择器兜底）、`src/app/__tests__/reduced-motion-safety-net.test.ts`、`src/components/layout/PageLayout.tsx`（framer 根配置）、`src/components/layout/__tests__/PageLayout.test.tsx` |
+| 影响范围 | `myrm-agent-frontend/src/app/globals.css`（新增通用选择器兜底）、`src/app/__tests__/reduced-motion-safety-net.test.ts`、`src/components/layout/PageLayout.tsx`（framer 根配置）、`src/components/layout/__tests__/PageLayout.test.tsx`、`src/lib/widget-theme-bridge.ts`（widget iframe 注入样式）、`src/lib/__tests__/widget-theme-bridge.test.ts` |
 | 出现次数 | 1（`BUG-AGENT-2026-10-17-019` 的姊妹缺陷：019 修的是「视频背景不跟随系统偏好」，本条是「CSS 动画与 framer 过渡没有全局跟随」） |
 | 关联 | `BUG-AGENT-2026-10-17-019`（同一「系统减少动态效果未被尊重」主题的另一条路径）；`temp-docs/roadmap/topic_09 #407` |
 
 ### 现象
 
-用户在系统里开启「减少动态效果」后进入 WebUI，两类动画均无视该系统偏好：
+用户在系统里开启「减少动态效果」后进入 WebUI，三类动画均无视该系统偏好：
 
 1. **CSS 动画**：空聊天页与首页的 `animate-pulse` 心跳点、`animate-spin` 的加载/运行指示、`animate-shimmer` 的勋章光泽照旧无限运行。
 2. **framer-motion 过渡**：设置页、聊天卡片、工作区弹层等 20 个文件里的展开/收起、位移与缩放过渡照旧播放——这类动画由 Web Animations API 驱动（`element.animate`），CSS 媒体查询在原理上覆盖不到它。
+3. **AI 生成 widget 内部**：widget 渲染在沙箱 iframe 里，是独立文档，宿主 `globals.css` 不作用于它；其注入样式自带 `button:active{transform:scale(.98)}` 与 `.transition{transition:all .15s ease}`，在 reduce 下照旧播放。
 
 ### 根因
 
@@ -7082,9 +7083,11 @@ if route.unavailable:
 
 framer-motion 侧是第二条独立缺口：其根配置默认 `reducedMotion: "never"`（`node_modules/framer-motion/dist/es/context/MotionConfigContext.mjs:10`，`motion-dom/dist/es/render/VisualElement.mjs:206` 据此直接置 `shouldReduceMotion = false`），全仓 `MotionConfig` 零命中，因此没有任何一处让它跟随系统设置。
 
+第三条是 widget iframe：`src/lib/widget-theme-bridge.ts` 拼出的注入样式**不含任何媒体查询**，而 iframe 是独立文档、宿主样式表不作用于它，所以其中的 `button:active{transform:scale(.98)}`（`:150`）与 `.transition{transition:all .15s ease}`（`:134`）在 reduce 下依旧生效。widget 能力提示词要求模型「按裸标签写 button」，因此每个带按钮的生成 widget 都会命中。
+
 ### 修复
 
-两条互补缺口，分别由 CSS 与壳层 framer 配置覆盖：
+三类互补缺口，分别由 CSS、壳层 framer 配置与 widget iframe 注入样式覆盖：
 
 **① CSS 动画与过渡**——在 `globals.css` 增加一个通用选择器兜底块（与竞品 `claw/hermes-agent/apps/desktop/src/styles.css:24-32` 逐字同源）：
 
@@ -7111,12 +7114,15 @@ framer-motion 侧是第二条独立缺口：其根配置默认 `reducedMotion: "
 
 放在 `PageLayout` 而非 `AppLayout`：`PageLayout.tsx:117` 对 `?mode=focused`（Tauri 会话二级 webview）走不带应用壳的分支，而该形态渲染 `ChatWindow` 与其中 10 个 framer 文件；挂在 `AppLayout` 会漏掉这一形态。
 
+**③ AI 生成 widget 的沙箱 iframe**——在 `src/lib/widget-theme-bridge.ts` 的 `buildWidgetStyleBlock()` 拼出的 `<style>` 末尾追加同一个 reduced-motion 块。widget 文档是独立文档，宿主 `globals.css` 不作用于它，因此必须由注入样式自带守卫；该 CSS 本身含位移类动画（`button:active{transform:scale(.98)}`，`:150`）与过渡（`.transition{transition:all .15s ease}`，`:134`），而 widget 能力提示词要求模型「按裸标签写 button」，所以每个带按钮的生成 widget 都会命中。
+
 ### 验证
 
 1. **真实引擎实测（headless Chromium 经 CDP，`Emulation.setEmulatedMedia` 切 `prefers-reduced-motion`）**：`no-preference` 下无限脉冲读到 `duration 2s / iteration infinite`；切 `reduce` 后同一元素读到 `duration 1e-05s / iteration 1`，即真的停下。
 2. **浮层契约未被破坏（同一实测）**：`reduce` 下 `animationend` 仍正常派发（返回值 `true`），证明依赖它的卸载路径不受影响；同时组件自行 `animation: none` 的元素在 reduce 下仍解析为 `none`，兜底不会把被刻意移除的动画「复活」。
 3. **负向对照**：把兜底块替换为空后同一脚本确定性失败（`reduced pulse duration 2s != 0.01ms`、`reduced iteration infinite != 1`、`animationend did not fire`），证明测量真的在判别而不是恒真。
 4. **framer 根配置实测**：以 esbuild 打包一个真实 framer + React 应用，在 `reduce` 下 `reducedMotion="user"` 使位移动画瞬时到位（`x=300`，对照组 `no-preference` 同一时刻为 `x=212`），而透明度淡出保留（`opacity=0.73`），即语义保留降级。
+5. **widget iframe 实测**：把真实 `buildWidgetStyleBlock()` 的输出注入内核，在 `reduce` 下按钮过渡由 `0.15s, 0.1s` 降为 `1e-05s`、`.transition` 由 `0.15s` 降为 `1e-05s`；`no-preference` 下仍为原值。守卫用例含「必须是通用选择器、不能写成类名清单」一例，变异验证：删块、把通用选择器换成 `button{}` 清单两种改法各自确定性变红。
 5. **回归用例**：`src/app/__tests__/reduced-motion-safety-net.test.ts`（3 例，从真实 `globals.css` 解析该块）钉住「通用选择器覆盖」「用瞬时而非移除」「绝不出现 `animation: none`」；`src/components/layout/__tests__/PageLayout.test.tsx` 钉住壳层的 `reducedMotion="user"` 覆盖应用内两种形态。变异验证：删块、改成 `animation: none`、删掉 `animation-iteration-count`、移除 `MotionConfig`、把 `reducedMotion` 改回 `"never"` 各自确定性变红。
 6. **未引入新问题**：`tsc` 对本改动零新增错误；`prettier`、`oxlint` 对改动文件通过；`verify:theme-colors` 通过（扫描 3588 文件）；`verify:a11y` 的告警数与本改动无关（退化全部来自另一位开发者未跟踪的 `system-monitor/` 目录，见下条经验）；仅作用于 `reduce` 分支，`no-preference` 用户所见不变。
 
@@ -7538,3 +7544,85 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 
 1. 若日后需要批量机翻，需重建一次性脚本或接入翻译平台——这是删除的已知代价，收益（消除致损、去双重维护、仓库 -1.3MB）远大于它。
 2. 同批发现的其它零引用脚本（`i18n-de-fix-remaining.mjs`、`sync_i18n.py`、`verify-shell-i18n-runtime.mjs`、未跟踪的 `fix-v12-scc-i18n.mjs`）未一并删除：它们零执行、零风险，且逐个确认用途的成本高于收益，留待单独评估。
+
+---
+
+## BUG-AGENT-2026-10-18-011: 抽屉里在「批准」时写的备注被静默丢弃——前端把备注发成 `feedback`，而三个独立闸门的批准路径只读「批没批准」，谁也不读它，也不落库
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18 |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P1（用户当面给出的安全决策被吞：界面上明确承诺「帮助 AI 理解你的决定」，实际无人接收） |
+| 影响范围 | `myrm-agent-frontend/src/lib/approval/buildDrawerResumeValue.ts`、`src/components/approval/PolymorphicApprovalCard.tsx`、`src/components/approval/ApprovalDrawer.tsx`；harness 侧新增批准侧通道见 `myrm-agent-harness/BUGFIX_LOG.md` BUG-HARNESS-2026-10-18-017 |
+| 出现次数 | 1（三个独立闸门自接入抽屉起就没有批准侧通道，一次性彻底修复） |
+
+### 现象
+
+1. 审批抽屉的卡片对每一种动作类型都渲染备注框（`PolymorphicApprovalCard.tsx`），label 为 `commentsOptional`，placeholder 六语言都写着类似「请输入备注，帮助 AI 理解你的决定...」（`locales/zh.json`）。
+2. 用户在高风险 DOM 动作、特权脚本或批量费用卡上点「批准」并写下「只发 staging，别碰 prod」，动作照常执行，但这句约束**到不了模型**：这三个动作类型由 harness 的独立闸门发出，它们的批准路径只问「批没批准」与「驳回理由」，没有读批准侧备注的代码，`ApprovalRecord` 也没有承接它的列。
+3. 同一个用户在聊天窗卡片上做同样的事却有效——那条路径由 tool-approval middleware 处理，它会读 `guidance` 并注入一条末尾消息。同一个用户动作，两个面表现不一致。
+
+### 根因
+
+1. 前端把批准时的备注放进 `feedback`（`ApprovalDrawer.tsx` 的 `feedback: extra?.feedback ?? comment`；卡片各按钮传 `feedback: comment || undefined`）。`feedback` 在 harness 侧只在**拒绝**时被读（作为拒绝理由），批准侧不是它的通道。
+2. `buildDrawerResumeValue.ts` 对「一次挂起一个决策」的三个动作类型只转发 `feedback`，`guidance` 在构建时被丢掉。
+3. 因此备注既没有正确的键，也没有正确的读者——两个问题叠加。
+
+### 修复
+
+1. `PolymorphicApprovalCard.tsx` 的 approve/edit 分支把备注发成 `guidance`（5 处），reject 分支保持 `feedback` 不变。
+2. `ApprovalDrawer.tsx` 的续跑载荷按动作分流：批准/编辑走 `guidance`，驳回走 `feedback`，不再用 `comment` 覆盖。
+3. `buildDrawerResumeValue.ts` 让单决策形状也转发 `guidance`（并 trim），纯批准仍然不带任何备注字段。
+4. 顺手清掉 `deploy_approval` 死路径（见 BUG-AGENT-2026-10-18-012），它同属「抽屉里一张永远不会出现的卡」。
+
+### 验证
+
+1. `src/lib/approval/__tests__/buildDrawerResumeValue.test.ts` 新增两例：批准时备注出现在 `guidance` 且 `feedback` 为 `undefined`；单决策闸门批准时载荷为 `{ decision: 'approve', guidance: ... }`，纯批准仍为 `{ decision: 'approve' }`。修复前第二例在缺 `guidance` 处失败。
+2. 审批相关前端 25 个测试文件 238 例通过（`src/lib/approval`、`src/components/approval`、`src/lib/humanize`）；`bunx tsc --noEmit` 与 `oxlint`、`prettier --check` 对改动文件干净。
+3. harness 侧端到端：真实 middleware 链 × 真实 `create_agent`，备注落在工具结果之后且消息顺序合法（详见 BUG-HARNESS-2026-10-18-017 的实测段）。
+4. 未在真实浏览器里点完整流程；端到端结论来自真实 harness 链与生产函数探针。
+
+### 踩坑经验
+
+1. **「界面写了」不等于「有消费者」**：一个输入框只要渲染出来，用户就会以为它有效。加任何 UI 输入前先确认后端的哪一行会读它。
+2. **同一个用户动作在不同面上应当一致**：聊天卡能用、抽屉不能用，说明两条路径的答复键不一致——修法是让两者发同一个键，而不是把两处都改成「都不发」。
+3. **批准与驳回不是同一个通道**：`feedback` 在拒绝时是人的理由，在批准时可能是计时器的合成文案（`Auto-approved: approval timeout`），因此批准侧的备注必须走 `guidance`，后端也不得为了「兼容」去读批准侧的 `feedback`。
+
+---
+
+## BUG-AGENT-2026-10-18-012: 抽屉里留着一张永远不会出现的 `deploy_approval` 卡——它服务的 Vercel 部署执行器早已并入托管发布流水线，三个仓都没有生产者
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18 |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P3（死路径：无用户可见后果，但让白名单、渲染分支、locale 与 scope note 持续误导后来者） |
+| 影响范围 | `myrm-agent-frontend/src/components/approval/{PolymorphicApprovalCard.tsx,_ARCH.md}`、`src/lib/approval/buildDrawerResumeValue.ts`、`src/lib/humanize/scopeNote.ts`、`locales/{en,zh,zh-TW,ja,ko,de}.json` |
+| 出现次数 | 1（部署执行器搬走后残留，一次性清掉） |
+
+### 现象
+
+`deploy_approval` 在抽屉里有完整的渲染分支、可续跑白名单项、三个 locale key（六语言）与 `scopeNote` 条目，但 harness、server、control plane **三仓全扫零生产者**——没有任何代码会抛出这种审批，用户永远看不到这张卡。
+
+### 根因
+
+它由 `9c3df085cc feat(deploy): unify Vercel deploy executor and credentials SSOT` 引入，随后 Vercel 部署被并入托管发布流水线（`app/services/hosting/`，其 `agent_publish_tool.py` 不抛审批）。执行器搬走时只删了后端，前端的卡片与文案留在原地。
+
+### 修复
+
+1. 移除 `PolymorphicApprovalCard.tsx` 的 `deploy_approval` 渲染分支与其上方的编辑按钮条件（`singleShellToolCall` 单独成立即可）。
+2. 从 `DRAWER_RESUME_ACTION_TYPES` 移除该动作类型。
+3. 删除六语言的三条 `deployApproval*` 文案。
+4. 从 `scopeNote.ts` 的 `EXTERNAL_TOOLS` 移除它；同步 `components/approval/_ARCH.md`。
+
+### 验证
+
+1. 全仓 Python 扫描（harness `src`、server `app`、`assets`、control plane）对 `deploy_approval` **0 命中**；前端 `src` 与 `locales` 扫描 **0 命中**。
+2. `bunx tsc --noEmit` 无新增错误；`oxlint` 对改动文件仅剩一个既有的 `<img>` 提示（在未触碰的文件里）。
+3. 审批与人文化相关前端 238 例通过；六份 locale JSON 均可解析。
+
+### 踩坑经验
+
+1. **搬走实现时要连它的 UI 承诺一起搬**：后端删掉、前端卡片留着，比留着后端更糟——后者至少还能被发现。
+2. **白名单也是承诺**：`DRAWER_RESUME_ACTION_TYPES` 写着「这些中断可以续跑」，加一个没有生产者的成员就是在骗下一个读它的人。
