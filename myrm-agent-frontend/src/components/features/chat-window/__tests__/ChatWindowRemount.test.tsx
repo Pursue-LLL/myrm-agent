@@ -143,4 +143,21 @@ describe('ChatWindow keeps the chat view mounted', () => {
 
     expect(useChatStore.getState().chatId).not.toBe('c-previous');
   });
+
+  it('starts a new chat when the held chat is not the one the route can show', () => {
+    // A chat that failed to load must not be kept: the window would render its 404 in place of a fresh chat.
+    useChatStore.setState({
+      chatId: 'c-missing',
+      incognitoMode: true,
+      messages: [],
+      isMessagesLoaded: true,
+      compactedSummary: null,
+      notFound: true,
+      loadError: false,
+    });
+
+    render(<ChatWindow />);
+
+    expect(useChatStore.getState().chatId).not.toBe('c-missing');
+  });
 });
