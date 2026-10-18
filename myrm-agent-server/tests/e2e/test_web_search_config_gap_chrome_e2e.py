@@ -86,7 +86,8 @@ _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS = """(async () => {
   window.__MYRM_E2E_DIRECT_SSE__ = false;
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
   bridge.setActionMode?.('agent');
-  bridge.setCurrentBuiltinTools?.(['web_search', 'memory', 'structured_clarify']);
+  const prevTools = bridge.getCurrentBuiltinTools?.() ?? [];
+  bridge.setCurrentBuiltinTools?.([...new Set([...prevTools, 'web_search'])]);
   return { ok: true, tools: bridge.getCurrentBuiltinTools?.() ?? [], directSse: !!window.__MYRM_E2E_DIRECT_SSE__ };
 })()"""
 
