@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';
 import { requestUntrustedLink } from '@/lib/untrusted-link';
 import { useTranslations } from 'next-intl';
-import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
+import { IMAGE_LAZY_LOAD_MARGIN, LARGE_FILE_THRESHOLD } from '@/lib/constants/artifact';
 import { buildWidgetSrcdoc, subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
 import { useWidgetStorage } from '@/hooks/workspace/useWidgetStorage';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
@@ -368,15 +368,70 @@ export const VideoPreview: React.FC<{ url: string; filename: string; errorMessag
 );
 VideoPreview.displayName = 'VideoPreview';
 
-/** SVG 内联渲染组件（使用 DOMPurify 安全渲染） */
+/**
+ * SVG 预览组件。
+ *
+ * 常规体积走 DOMPurify 清洗 + 内联 DOM（保留元素语义与页面样式继承）；
+ * 超过 LARGE_FILE_THRESHOLD 的大文件改走 Blob URL + `<img>` 浏览器原生栅格化：
+ * DOMPurify 同步清洗与数万 DOM 节点内联会阻塞主线程数秒且随连续渲染劣化，
+ * 而 `<img>` 上下文按规范禁用 SVG 脚本与外部资源加载，安全性不低于内联路径。
+ */
 export const SvgPreview: React.FC<{ content: string }> = memo(({ content }) => {
+  const t = useTranslations('artifacts');
+  const isLarge = content.length >= LARGE_FILE_THRESHOLD;
+  const [rasterUrl, setRasterUrl] = useState<string | null>(null);
+  const [rasterFailed, setRasterFailed] = useState(false);
+
+  useEffect(() => {
+    if (!isLarge) {
+      setRasterUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([content], { type: 'image/svg+xml' }));
+    setRasterUrl(url);
+    setRasterFailed(false);
+    return () => URL.revokeObjectURL(url);
+  }, [content, isLarge]);
+
   const sanitizedContent = useMemo(() => {
+    if (isLarge) {
+      return '';
+    }
     return DOMPurify.sanitize(content, {
       USE_PROFILES: { svg: true, svgFilters: true },
       ADD_TAGS: ['use'],
       ADD_ATTR: ['xlink:href'],
     });
-  }, [content]);
+  }, [content, isLarge]);
+
+  if (isLarge) {
+    if (rasterFailed) {
+      return (
+        <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4">
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+              <IconImage className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <span className="text-sm">{t('inlinePreview.loadError')}</span>
+          </div>
+        </div>
+      );
+    }
+    if (!rasterUrl) {
+      return <div className="h-full w-full bg-muted/30" />;
+    }
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4 overflow-auto">
+        {/* oxlint-disable-next-line next/no-img-element -- the source is an in-memory blob URL rasterized from an oversized SVG, which next/image cannot optimize */}
+        <img
+          src={rasterUrl}
+          alt={t('types.svg')}
+          className="max-w-full max-h-full object-contain"
+          onError={() => setRasterFailed(true)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
