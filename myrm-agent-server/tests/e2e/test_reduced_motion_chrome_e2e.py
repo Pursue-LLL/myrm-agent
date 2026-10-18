@@ -18,13 +18,20 @@ under test is still the real dev server; only the client differs.
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.request
 
 import pytest
 
-_CDP_BASE = 'http://127.0.0.1:9333'
-_UI_URL = 'http://127.0.0.1:3000/'
+def _cdp_base() -> str:
+    """The E2E Chrome port is dynamic per run; the harness exports it as MYRM_CHROME_E2E_PORT."""
+    return f"http://127.0.0.1:{os.environ.get('MYRM_CHROME_E2E_PORT', '9333')}"
+
+
+def _ui_url() -> str:
+    """LIVE/PRIVATE runs bind their own UI port; E2E_UI_BASE is the SSOT for it."""
+    return os.environ.get('E2E_UI_BASE', 'http://127.0.0.1:3000').rstrip('/') + '/'
 
 # Reads the first running pulse plus the media query state. `found` distinguishes "no element yet"
 # from "element covered by the guard", which is what makes T2 meaningful.
@@ -67,7 +74,7 @@ class _Target:
     def __init__(self) -> None:
         from e2e_core.effect_guard import assert_http_effect_allowed
 
-        _new_target_url = f'{_CDP_BASE}/json/new?about:blank'
+        _new_target_url = f'{_cdp_base()}/json/new?about:blank'
         assert_http_effect_allowed(method='PUT', url=_new_target_url)
         request = urllib.request.Request(_new_target_url, method='PUT')
         self._info = json.load(urllib.request.urlopen(request, timeout=15))
@@ -121,7 +128,7 @@ class _Target:
             self._ws.close()
         finally:
             try:
-                urllib.request.urlopen(f'{_CDP_BASE}/json/close/{self._info["id"]}', timeout=5)
+                urllib.request.urlopen(f'{_cdp_base()}/json/close/{self._info["id"]}', timeout=5)
             except OSError:
                 pass
 
@@ -137,9 +144,10 @@ def _seconds(value: str) -> float:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(300)
@@ -151,7 +159,7 @@ def test_webui_collapses_motion_when_the_os_asks() -> None:
 
         # T1: the baseline must really animate, otherwise T2 proves nothing.
         target.set_reduced_motion('no-preference')
-        target.send('Page.navigate', {'url': _UI_URL})
+        target.send('Page.navigate', {'url': _ui_url()})
         normal = target.wait_for_pulse()
         assert normal['reduced'] is False, normal
         assert _seconds(normal['duration']) > 0.1, f"no real animation: {normal!r}"
