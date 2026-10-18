@@ -126,6 +126,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_wiki_citation_chrome_e2e.py` | 模块 | Wiki citation Chrome MCP E2E（READ×2：citation reload + `/settings/wiki?agentId=`） |
 | `e2e/test_wiki_dedup_chrome_e2e.py` | 模块 | Wiki corpus dedup Chrome MCP E2E（SHARED+READ×1：seed-after-warm → duplicateReview exact group panel） |
 | `e2e/test_wiki_compound_chrome_e2e.py` | 模块 | Wiki chat compound Chrome E2E（SHARED+READ×3：`POST /chats/` seed Q&A → `POST /wiki/compound` happy+409 dedup · incognito 403 · user role 422） |
+| `e2e/test_incognito_switch_starts_fresh_chat_chrome_e2e.py` | 模块 | 真实浏览器里无痕开关总是开新会话（SHARED+NAMESPACE_WRITE×3，无 LLM，但每个用例经真实 API seed 一个真实会话）：等开关与输入框都挂上 React props且 store 已持有该会话后才点真实开关；三条分别覆盖 ①普通会话→开无痕 ②已存在但无消息的会话行（`/focus` 留下的状态）→开无痕 ③无痕会话→关无痕；每条都断言 `chatId` 不再是原会话且新会话无消息 |
+| `e2e/test_incognito_switch_after_live_turn_chrome_e2e.py` | 模块 | 真实模型一轮问答之后开无痕会开新会话（PRIVATE+LIVE×1，`live_shpoib`）：seed 一个普通会话 → E2E bridge attach → 用真实模型（`minimax/MiniMax-M3.1-Flash-Preview`，经 `seed_live_e2e_providers` 就绪）回答一轮并轮询落库的 assistant 回复非空 → 等输入框与开关都 hydrated 且回合结束 → 点真实开关 → 断言路由到 `/`、`chatId` 不是原会话、`incognitoMode` 为真、新会话无消息 |
 | `e2e/test_wiki_health_report_chrome_e2e.py` | 模块 | Wiki health report Chrome E2E（SHARED+READ×1：API structural health + seed provenance gap → 单 tab Overview `[data-testid=wiki-health-section]` + stats badge；shell 探针 `wiki-settings-shell`；transport retry 同 dedup） |
 | `e2e/test_clarify_refresh_chrome_e2e.py` | 模块 | Clarify refresh Chrome MCP E2E（READ×4 SHPOIB：`seed-clarify-refresh-fixture` pending/answered/regenerate_sibling/structured_form → F5 hydrate 断言 composer 态） |
 | `e2e/test_clarify_skip_chrome_e2e.py` | 模块 | Clarify skip LIVE×1 SHPOIB：真实 LLM HITL → Skip → resume（`E2E_SIGNOFF=1` API fallback）；M3 stub 签收腿已删 |

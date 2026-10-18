@@ -118,4 +118,46 @@ describe('ChatWindow keeps the chat view mounted', () => {
     act(() => useChatStore.setState({ activeKnowledgeBaseIds: [], activeKnowledgeBaseNames: {} }));
     expect(chatView.mounts).toBe(mountsBeforeLoad + 1);
   });
+
+  it('keeps the chat the store chose for home instead of replacing it with a new one', () => {
+    // The incognito toggle starts a fresh chat and then navigates to `/`, which mounts this window with no id.
+    // Replacing the id here would hand out a new one and drop the mode the toggle just set.
+    useChatStore.setState({
+      chatId: 'c-just-started',
+      incognitoMode: true,
+      messages: [],
+      isMessagesLoaded: true,
+      compactedSummary: null,
+    });
+
+    render(<ChatWindow />);
+
+    expect(useChatStore.getState().chatId).toBe('c-just-started');
+    expect(useChatStore.getState().incognitoMode).toBe(true);
+  });
+
+  it('still starts a new chat when home is reached from a conversation with messages', () => {
+    useChatStore.setState({ chatId: 'c-previous', messages: [FIRST_MESSAGE], isMessagesLoaded: true });
+
+    render(<ChatWindow />);
+
+    expect(useChatStore.getState().chatId).not.toBe('c-previous');
+  });
+
+  it('starts a new chat when the held chat is not the one the route can show', () => {
+    // A chat that failed to load must not be kept: the window would render its 404 in place of a fresh chat.
+    useChatStore.setState({
+      chatId: 'c-missing',
+      incognitoMode: true,
+      messages: [],
+      isMessagesLoaded: true,
+      compactedSummary: null,
+      notFound: true,
+      loadError: false,
+    });
+
+    render(<ChatWindow />);
+
+    expect(useChatStore.getState().chatId).not.toBe('c-missing');
+  });
 });
