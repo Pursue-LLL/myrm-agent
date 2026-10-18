@@ -3602,7 +3602,8 @@
       "strategyAuto": "自動",
       "strategyDirect": "僅直接執行",
       "strategyMultiAgent": "一律多智能體"
-    }
+    },
+    "pdfScannedPages": "[PDF] {fileName}：第 {pages} 頁無文字層，已以圖片傳送"
   },
   "mode": {
     "fast": "快速搜尋",
@@ -18923,7 +18924,7 @@
         "confirmResetTitle": "恢復預設",
         "confirmResetDesc": "您對「{name}」的本地修改將被永久覆蓋為內建預設版本。此操作不可撤銷。",
         "confirmAcceptTitle": "應用上游更新",
-        "confirmAcceptDesc": "您對「{name}」的本地修改將被替換為最新上游版本。此操作不可撤銷。",
+        "confirmAcceptDesc": "您對「{name}」的本地修改將被替換為最新上游版本。之後可在技能詳情頁撤銷此次更新。",
         "confirmAction": "繼續",
         "cancelAction": "取消",
         "export": "匯出",

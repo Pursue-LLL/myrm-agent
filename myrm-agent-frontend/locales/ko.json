@@ -3602,7 +3602,8 @@
       "strategyAuto": "자동",
       "strategyDirect": "직접 실행만",
       "strategyMultiAgent": "항상 멀티 에이전트"
-    }
+    },
+    "pdfScannedPages": "[PDF] {fileName}: {pages}페이지에 텍스트 레이어가 없어 이미지로 전송했습니다"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -18923,7 +18924,7 @@
         "confirmResetTitle": "기본값으로 복원",
         "confirmResetDesc": "\"{name}\"에 대한 로컬 수정 사항이 기본 버전으로 영구적으로 덮어쓰기됩니다. 이 작업은 되돌릴 수 없습니다.",
         "confirmAcceptTitle": "업스트림 업데이트 적용",
-        "confirmAcceptDesc": "\"{name}\"에 대한 로컬 수정 사항이 최신 업스트림 버전으로 대체됩니다. 이 작업은 되돌릴 수 없습니다.",
+        "confirmAcceptDesc": "\"{name}\"에 대한 로컬 수정 사항이 최신 업스트림 버전으로 대체됩니다. 이후 스킬 상세 페이지에서 이 업데이트를 되돌릴 수 있습니다.",
         "confirmAction": "계속",
         "cancelAction": "취소",
         "export": "내보내기",

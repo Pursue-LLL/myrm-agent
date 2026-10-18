@@ -3602,7 +3602,8 @@
       "strategyAuto": "自動",
       "strategyDirect": "直接実行のみ",
       "strategyMultiAgent": "常にマルチエージェント"
-    }
+    },
+    "pdfScannedPages": "[PDF] {fileName}：{pages} ページにはテキスト層がなく、画像として送信しました"
   },
   "mode": {
     "fast": "高速検索",
@@ -18923,7 +18924,7 @@
         "confirmResetTitle": "デフォルトに戻す",
         "confirmResetDesc": "「{name}」へのローカル変更は、内蔵のデフォルトバージョンで永久に上書きされます。この操作は取り消せません。",
         "confirmAcceptTitle": "上流の更新を適用",
-        "confirmAcceptDesc": "「{name}」へのローカル変更は、最新の上流バージョンで置き換えられます。この操作は取り消せません。",
+        "confirmAcceptDesc": "「{name}」へのローカル変更は、最新の上流バージョンで置き換えられます。この更新は、後からスキルの詳細ページで元に戻せます。",
         "confirmAction": "続行",
         "cancelAction": "キャンセル",
         "export": "エクスポート",
