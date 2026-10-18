@@ -339,20 +339,30 @@ async def _evaluate_gap_snapshot(
     message_id: str | None,
     wall_deadline: float,
 ) -> dict[str, object]:
-    """Single MCP evaluate for toast + SSE + streamMessageId (minimize page churn)."""
+    """Single MCP evaluate for toast + SSE + streamMessageId (minimize page churn).
+
+    A poll is idempotent, so an orphaned evaluate (the mux reset the page mid-probe, which SYNC_PROBE
+    deliberately does not retry) is re-issued once instead of failing a healthy session.
+    """
     _assert_gap_wall_budget(wall_deadline)
     js = _gap_poll_snapshot_js(message_id)
-    try:
-        raw = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
-    except RuntimeError as exc:
-        message = str(exc).lower()
-        if "not owned" in message or "pageid" in message:
-            await chat._heal_reclaimed_page()  # noqa: SLF001
-            _assert_gap_wall_budget(wall_deadline)
+    for attempt in range(2):
+        try:
             raw = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
-        else:
+            return raw if isinstance(raw, dict) else {"value": raw}
+        except (RuntimeError, TimeoutError) as exc:
+            message = str(exc).lower()
+            if "not owned" in message or "pageid" in message:
+                await chat._heal_reclaimed_page()  # noqa: SLF001
+                _assert_gap_wall_budget(wall_deadline)
+                raw = await chat.evaluate(js, intent=EvaluateIntent.SYNC_PROBE)
+                return raw if isinstance(raw, dict) else {"value": raw}
+            # SYNC_PROBE is deliberately fail-fast on mux orphans; a poll is idempotent, so re-issue it once.
+            if attempt == 0 and ("orphaned" in message or "exceeded" in message):
+                _assert_gap_wall_budget(wall_deadline)
+                continue
             raise
-    return raw if isinstance(raw, dict) else {"value": raw}
+    raise AssertionError("gap snapshot retry exhausted without an exception")
 
 
 async def _send_and_collect_gap_while_streaming(
@@ -512,6 +522,26 @@ async def _prepare_chat(chat: McpChatSession) -> None:
     # ("Inspected target navigated or closed").
     await chat.cdp("Page.navigate", {"url": f"{BASE_URL.rstrip('/')}/"})
     await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+    # The page must talk to the same backend this test seeds and clears; otherwise the agent sees a search
+    # config the test never emptied and runs web_search instead of emitting the config-gap preflight.
+    await chat.ensure_e2e_api_base_binding()
+    bound: object = None
+    for attempt in range(2):
+        try:
+            bound = await chat.evaluate(
+                "(() => ({ apiBase: window.__MYRM_E2E_API_BASE__ ?? null }))()",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            break
+        except (RuntimeError, TimeoutError):
+            if attempt == 1:
+                raise
+            await asyncio.sleep(1.0)
+            await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+    assert isinstance(bound, dict), bound
+    assert str(bound.get("apiBase") or "").rstrip("/") == get_e2e_api_url().rstrip("/"), (
+        f"page bound to {bound.get('apiBase')!r}, but the test seeds {get_e2e_api_url()!r}"
+    )
     # A navigation can land while the bound backend is still restarting; pinning reads the provider config
     # over HTTP, so retry the race instead of failing the whole signoff on a transient 404.
     enabled: object = None
@@ -522,8 +552,8 @@ async def _prepare_chat(chat: McpChatSession) -> None:
                 intent=EvaluateIntent.AGENT_SUBMIT,
             )
             break
-        except RuntimeError as exc:
-            if attempt == 3 or "provider-config-fetch" not in str(exc):
+        except (RuntimeError, TimeoutError) as exc:
+            if attempt == 3 or ("provider-config-fetch" not in str(exc) and "orphaned" not in str(exc).lower()):
                 raise
             await asyncio.sleep(3.0)
             await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
