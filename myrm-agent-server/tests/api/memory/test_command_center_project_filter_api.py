@@ -62,6 +62,7 @@ def _build_empty_snapshot() -> MemoryCommandCenterResponse:
                 "vector_persistence": "persistent",
                 "graph_status": "unavailable",
                 "embedding_status": "custom",
+                "retrieval_mode": "semantic",
                 "control_plane_status": "not_used",
                 "event_ledger_status": "available",
                 "health_snapshot_status": "available",
