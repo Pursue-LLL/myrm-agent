@@ -7143,7 +7143,15 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 
 测试专用捷径被写进了生产分支。最初的意图是让 E2E 用占位密钥（`test-tavily-key`）预置 `searchServices` 后，就绪探测不必真的联网，从而让 `web_search_tool` 能在同一轮挂载。但这把「E2E 关注点」固化成了一条**永不验证**的生产判定：判定的输入是用户可写的数据（`apiKey`），而判定里有一个与产品语义无关的魔法字面量。
 
-关键在于：E2E 之所以能挂载 `web_search_tool`，**并不**依赖这个捷径。Web 面（fast / 普通 Web 聊天）在 `converter.py` 里对 `search_available` 有后续赋值——fast 走 `search_available = search_cfg is not None`（`:1103`），普通 Web 聊天走 `if search_cfg is not None and "web_search" in enabled_builtin_tools: search_available = True`（`:1133`）——两者都会**覆盖** `:462` 处就绪判定的结果。所以对 Web 面而言，这段早退保护的是一个随后就被丢弃的判定；真正决定「工具挂不挂」的是「配置是否存在」，而非「探测是否通过」。
+关键在于：E2E 之所以能挂载 `web_search_tool`，**并不**依赖这个捷径。`converter.py` 在 `:462` 算出就绪判定后，还对该值有后续赋值，实测（真实 `convert_to_general_agent_params` + 托住 `verify_search_service_available`，逐形状对照 `params.enable_web_search`）：
+
+| action_mode | enabled_builtin_tools | 探测值 | 最终 `enable_web_search` |
+|---|---|---|---|
+| agent | `["web_search"]` | `True` / `False` | `True` / `True`（`:1133` 覆盖） |
+| agent | `["memory"]`（无 web_search） | `True` / `False` | `True` / `False`（**沿用探测值，未被覆盖**） |
+| fast | `["web_search"]` | `True` / `False` | `True` / `True`（`:1103` 覆盖） |
+
+即：只要 `web_search` 在启用工具里，fast 走 `search_available = search_cfg is not None`（`:1103`）、普通 Web 聊天走 `if search_cfg is not None and "web_search" in enabled_builtin_tools: search_available = True`（`:1133`），都会覆盖 `:462` 的判定——E2E 挂载 `web_search_tool` 的场景正落在这里，故不依赖捷径；而 `web_search` **不在**启用工具时，`:462` 的探测值会原样传到 `enable_web_search`，捷径在那条路径上确实改变过结果（带捷径时占位密钥恒为 `True`，移除后按真实探测给出 `False`）。
 
 ### 修复
 
@@ -7170,4 +7178,108 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 1. **测试捷径不能写进生产分支，尤其不能以「用户数据里的字面量」为条件**：把 `api_key == "..."` 当作测试钩子，等于让一条用户可写的字段去决定「是否验证」，用户数据一旦命中就静默改变产品判定。需要放行时，开关应是显式的运行模式/环境标记，而不是数据内容。
 2. **移除前先量化「谁真的需要它」，别凭名字下判断**：`_E2E_PROBE_SKIPPED_API_KEYS` 的名字写着 E2E 需要它，但逐面追下去，Web 面真正驱动工具挂载的是「配置是否存在」，探测结果在 `converter.py` 被后续分支覆盖；E2E 面实测也确实不依赖它。名字不是证据，控制流才是。
 3. **用对照实验区分「本次引入的失败」与「他人未提交的 WIP」**：把被移除的哨兵用插件临时注回后重跑，失败若照旧复现（含 `stream_pump` 通知、`web_fetch` 升级等看似无关的红灯），即可判定与本改动无关，而不是被噪声带偏、误改他人代码。
+
+---
+
+## BUG-AGENT-2026-10-18-004: 后台聊天的流式事件按「当前打开的聊天」落写——终止事件会清掉屏幕上另一聊天的 plan，审批卡片也会记到错误的聊天名下
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（复核多 pane 并行流式下的单槽 store 归属，逐条追终止路径与审批归属） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；但会清掉用户正在看的 plan 步骤树、并按错误聊天/模式记账审批卡片，应答时会续到错误的 turn） |
+| 影响范围 | frontend：`store/chat/messageStream/handlers/{completionEvents,agentControlEvents,toolsProgressEvents}.ts`、`store/chat/messageStream/types.ts`、`store/chat/consumeStream.ts`、`lib/approval/resumeApprovalStream.ts`、`components/features/chat-window/ChatWindow.tsx` 及其测试 |
+| 出现次数 | 1 |
+| 关联 | `temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #399（同源的「单槽 store 按 chat 隔离」主题，本条补齐 plan 槽与审批归属两处遗漏）；本地提交，未 push |
+
+### 现象
+
+多 pane / 后台聊天同时流式时，两个全局单槽 store 的写入没有按「发起它的那个聊天」收窄：
+
+1. **plan 被后台聊天清掉**（Task A）：`agentControlEvents` 的 ERROR / AGENT_CANCELLED、`completionEvents` 的 MESSAGE_END 无条件调用 `usePlanStore.getState().clearActivePlan()`。plan 面板显示的只是**当前打开聊天**的计划（`GoalControlPlane` 读 `useChatStore.chatId` 并调用 `useGoalPlanSync(chatId)`），所以后台聊天 B 的 turn 一结束，屏幕上 A 的 plan 就被清空。同理 `CONTEXT_OVERFLOW_RESET` 无条件 `H.useChatStore.getState().initializeChat(undefined)`——后台聊天溢出会把**打开聊天**的对话重置掉。
+
+2. **审批卡片记错聊天/模式**（Task B）：`toolsProgressEvents.ts` 构造审批请求时读 `const { chatId: currentChatId, actionMode: currentActionMode } = H.useChatStore.getState();`，即**当前打开聊天**的值。后台聊天 A 挂起等待审批时，卡片被记成聊天 B（以及 B 的 `actionMode`），应答该卡片会 `resumeApprovalStream` 到 B 的 turn，并按 B 的模式选模型。
+
+### 根因
+
+这两处写入都读了「全局当前状态」而不是「这一条流的归属」。仓库里早有对应的判定 helper——`handlerDeps.isStreamForOpenChat(state)`（`handlerDeps.ts:93-96`，优先 `state.chatId`（发送时快照），回退 `messages[0].chatId`；无法解析或 store 还没有 chat id 时一律 false）——并且已有 `writeSubagentStore`（`:103-108`）、`toolLifecycleEvents.ts:72,97`、`fileDiffEvents.ts:238` 三处在用。这两处遗漏了它：
+
+- plan 清空把「plan 是单槽、只描述打开聊天」的事实忽略了，直接无条件清。
+- 审批归属把「卡片属于发起它的那条流」忽略了，改读打开聊天的 `chatId`/`actionMode`（`StreamHandlerState` 当时也没有 `actionMode` 字段可读）。
+
+### 修复
+
+1. **plan 清空收窄到打开聊天**：`completionEvents.ts`（MESSAGE_END）、`agentControlEvents.ts`（ERROR / AGENT_CANCELLED）三处改为在懒加载 `.then()` 内判定 `H.isStreamForOpenChat(state)` 再 `clearActivePlan()`——判定发生在懒加载之后，所以加载期间发生的切换会把这次清空丢弃，而不会落到下一个聊天的 plan 上（与 `writeSubagentStore` 同一写法与理由）。
+2. **上下文溢出重置同样收窄**：`agentControlEvents.ts` 的 `CONTEXT_OVERFLOW_RESET` 只在 `isStreamForOpenChat(ctx.state)` 为真时才 `initializeChat(undefined)`；后台聊天溢出仍弹告警 toast，只是不动打开聊天的对话。
+3. **审批卡片按流归属**：`StreamHandlerState` 增加可选 `actionMode?: ActionMode`（发送时快照），在 `consumeStream.ts`（`state.actionMode`）、`resumeApprovalStream.ts`（`request.actionMode`）、`ChatWindow.tsx`（异步 chunk 路径的 `useChatStore.getState().actionMode`，同时补上此前缺失的 `chatId: id`）三处填充。`toolsProgressEvents.ts` 改用 `H.resolveStreamChatId(ctx.state)` 与 `ctx.state.actionMode ?? H.useChatStore.getState().actionMode`。
+
+### 验证
+
+1. **先红后绿**：先在未改动的代码上写出失败用例并确认红——`completionEvents.planChatScope.test.ts`（后台 turn 结束保留打开 chat 的 plan，红 1）、`agentControlEvents.planChatScope.test.ts`（后台 ERROR/AGENT_CANCELLED 不清 plan、后台溢出不重置打开聊天，红 3；打开聊天的 3 条守卫绿）、`toolsProgressEvents.approvalChatScope.test.ts`（卡片按 stream 的 chatId/actionMode 归属，红 2）——共红 6、绿 4；修复后 10 全绿。
+2. **变异检查**：把 MESSAGE_END 的判定改成 `isStreamForOpenChat(state) || true`（等价于回到原缺陷），`completionEvents.planChatScope.test.ts` 的「后台 turn 结束保留打开 chat 的 plan」确定性变红；恢复后全绿，证明用例守卫的是修复本身而不是 mock 遮掩。
+3. **回归**：`store/chat/messageStream/handlers/__tests__/` 全量 44 文件 220 用例通过、零 unhandled rejection；`store/chat` + `components/features/chat-window` + `lib/approval` + `hooks/approval` 共 443 文件 2672 用例通过。
+4. **门禁**：改动文件 `oxlint` 0 告警、`prettier --check` 通过、全量 `tsc --noEmit` 0 错误。
+5. **测试线的连带修正**：`StreamHandlerState` 新增字段后，11 个整体 mock `../handlerDeps` 的既有测试缺少新 helper（`isStreamForOpenChat`）而崩溃，已按真实语义补上；`toolsProgressEvents.{interruptId,petDispatch}.test.ts` 用的是**真实** `handlerDeps`（其 `vi.mock('./handlerDeps')` 路径不匹配），空 `state: {}` 会让真实 `resolveStreamChatId` 读 `messages[0]` 抛错，已给它们补上合法的 `state`。
+
+### 局限
+
+1. 没有真实浏览器里「两条后台聊天 + 一条打开聊天」并排运行的端到端复现，归属行为只由 jsdom 里的真实 store + 真实 handler 用例覆盖。
+2. `usePlanStore` 仍沿用「单槽 + 调用方判定归属」的形态（与 road #399 的 `useGoalStore` 显式 `bindChat` 不同）；本次只在终止路径补齐判定，未把 plan 槽改造成自带 `chatId` 归属的 store。
+3. `ChatWindow.tsx` 异步 chunk 路径此前连 `chatId` 都没有，本次补上；该路径的 `actionMode` 取的是读取时刻的打开聊天模式，若流开启后用户改了模式，跨模式场景未做额外区分（`consumeStream` 主路径是发送时快照，不受影响）。
+
+### 踩坑经验
+
+1. **单槽 store 的写入必须带上「发起它的聊天」**：全局单槽 store（plan / 子代理树 / 裂变条）只描述打开的那个聊天，任何来自某条流的写入都要先判定「这条流是否属于打开聊天」，否则后台事件会清掉或覆盖屏幕上的状态。仓库里 `isStreamForOpenChat` 就是为此而生，新增写入应先看它。
+2. **判定要放在懒加载之后**：`void import(...).then(() => { if (isStreamForOpenChat(state)) ... })`——判定若放在 import 之前，加载期间用户切换聊天会把写入落到新聊天上；放在 `.then()` 内则以「写入真正发生的时刻」为准。`writeSubagentStore` 的注释已写明这一点。
+3. **归属问题的两个方向都要测**：只测「后台不清」会漏掉「打开聊天该清时没清」。本次每组都用「OpenChat 守卫（绿）+ Background 守卫（红）」成对固定，避免修复把功能本身改坏（例如把 plan 清空彻底失效）。
+4. **整体 mock 一个模块时，新增导出会打到所有 mock 它的测试**：给 `handlerDeps` 这类「切片共享 import」模块加导出，会让所有 `vi.mock('../handlerDeps', ...)` 的测试在运行期抛「No export is defined on the mock」；这是测试替身的正常维护成本，应按真实语义补齐而非绕过。
+
+### 参考
+
+- 归属判定 SSOT：`myrm-agent-frontend/src/store/chat/messageStream/handlers/handlerDeps.ts`（`isStreamForOpenChat` / `resolveStreamChatId` / `writeSubagentStore`）
+- 同源已收编项：`toolLifecycleEvents.ts:72,97`、`fileDiffEvents.ts:238`、`subagentEvents.ts`（roadmap #399）
+
+
+## BUG-AGENT-2026-10-18-005: 开启无痕不会离开已有会话行：会话行的 `is_incognito` 永远为假，服务端据此永远不会清除它，其消息与绑定附件照样写库并随导出、备份走
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（对 `BUG-AGENT-2026-10-17-017` 做对抗式复核时，逐行追「客户端绑定谓词」与「服务端清除谓词」的来源，发现两侧判据不同源） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；但用户在无痕会话里发送的原文与附件实际被持久化，并可被导出、定时备份带走，与「闲置到期即删、不进备份」的承诺不符） |
+| 影响范围 | frontend：`components/features/message-input-actions/IncognitoModeToggle.tsx`、`message-input-actions/_ARCH.md`、新增 `__tests__/IncognitoModeToggle.test.tsx`；server：`app/services/instance_archive/incognito_uploads.py`（docstring）、`_ARCH.md`、`tests/services/instance_archive/test_incognito_uploads.py`（注释措辞） |
+| 出现次数 | 1 |
+| 关联 | 补 `BUG-AGENT-2026-10-17-017` 的绑定侧缝隙：该条让上传按会话绑定、清除与导出按会话行状态判定，本条保证「无痕开启后 `chatId` 必然是新会话」，两侧判据因此同源；无痕是会话级属性的业界对照见 OpenClaw（`docs/concepts/session.md` 的 Incognito sessions：只能在新建 thread 时开启）与 Claude 帮助中心 *Use incognito chats*（开启后不能转为普通对话）；本地提交，未 push |
+
+### 现象
+
+在一个「会话行已存在、但当前没有任何消息」的会话里点开无痕开关，会话本身并不会变成无痕：
+
+1. 无痕开关的实现是「切换即开新会话」——`messages.length > 0` 时才 `initializeChat(undefined)` 生成新 `chatId`，否则只翻转 `incognitoMode` 标志（`IncognitoModeToggle.tsx:20-25`）。
+2. 于是 `chatId` 仍指向一个**普通会话行**；此时上传的附件绑定到该行，发送的消息也写进该行。
+3. 服务端的无痕清除只查 `is_incognito = 1 AND source = 'web'`（`chat_retention.py:85`），导出只按同一判据决定保留名单（`table_policy.py:76`、`:144-148`），所以这条会话**永远不会被清除，且随导出与定时备份走**——用户在无痕下发出的原文与附件被长期保留。
+4. 「行已存在但无消息」是真实可达的状态：`/focus`（`builtinActions.ts:144-168` → `DELETE /chats/{id}/messages`）在服务端软删全部消息（`chat_repo.py:261-262` 置 `is_active=False`）但保留会话行，前端 `resetSessionState`（`useChatStore.ts:803-828`）清空 `messages` 而不动 `chatId`；直接打开 `/chat/<id>` 或首屏加载窗口内同样命中。
+5. 同一缝隙还有第二个出口：在无痕下上传、发送前关掉无痕，该附件绑定到一个最终为普通的会话，照样入包（`incognito_uploads.py:16-18` 曾把这一点写成有意为之）。
+
+### 根因
+
+绑定侧读的是**客户端标志**（`incognitoUploadOptions.ts:18-19` 的 `incognitoMode`），清除与导出侧读的是**会话行的 `is_incognito`**，但会话行只在首条消息时创建、且已有行不会因开关而改判（`chat_message.py:218` 建行写标志，`:227-236` 的 existing-row 分支只更新 `ephemeral_subagents / agent_id / moa preset`，不写 `is_incognito`）。开关的守卫让「已有行 + 无消息」这一种输入绕过了「开新会话」的语义，两侧判据因此可以指向同一个 id 的不同结论。
+
+### 修复
+
+1. 去掉 `IncognitoModeToggle` 的 `messages.length > 0` 守卫：任何一次切换都 `router.push('/')` 并 `initializeChat(undefined)`，使 `incognitoMode = true` 时 `chatId` 必然是刚生成、尚无行的新会话。新 id 的首条消息建行时写入 `is_incognito`（`chat_message.py:218`），绑定、清除、导出三处判据由此天然同源，服务端无需改动。
+2. 顺带关闭第二个出口：切换总是换会话后，在无痕下上传再关掉开关，附件落在被弃置的无行 id 上，由既有的 24 小时孤儿清扫删除（`chat_retention.py:127-131`）。
+3. 同步 `incognito_uploads.py` docstring 与两处 `_ARCH.md` 中「关掉无痕仍会备份」的旧表述；`test_incognito_uploads.py` 的夹具（向一个非无痕会话绑定附件、断言其随导出走）继续保留——它固定的是导出端「按会话真实状态判定」的规则，与绑定侧如何产生无关。
+
+### 验证
+
+1. 先红后绿：新增 `__tests__/IncognitoModeToggle.test.tsx` 4 例（已有 `chatId` 且 `messages=[]` 时开无痕会换会话、切回普通也会换、非首页路由会 `push('/')`、`aria-pressed` 反映状态）。在未改动的组件上跑得 **3 红 1 绿**（换会话两例与 `push('/')` 一例失败），改后 4 全绿；随后把组件临时改回旧写法复跑，再次 3 红，确认用例守卫的是修复本身。
+2. 组件改动仅在切换处理内，`state` 从 store 取 `incognitoMode / setIncognitoMode / initializeChat`；移除的 `messages` 选择器已无引用（`rg` 确认），无未用变量。
+3. 服务端只改 docstring 与测试注释，`tests/services/instance_archive/test_incognito_uploads.py` 行为不变（用例断言未动）。
+
+### 局限
+
+1. 只修了「切换入口」这一条路径；其它入口若在已有 `chatId` 上写入无痕标志（例如外部客户端直接向 `POST /chats` 提交 `is_incognito`），仍由服务端自行处理，本条的判据不覆盖。上传接口不知道「这条消息会发给哪个会话」，无法在服务端补判（同 `-017` 局限 1）。
+2. 未在真实浏览器里点按开关走完整链路（`./myrm test -m chrome_e2e` 在本机排不到共享预检名额，同 `BUG-AGENT-2026-10-17-009` 局限 1），行为由组件测试与逐行读码固定。
+
 
