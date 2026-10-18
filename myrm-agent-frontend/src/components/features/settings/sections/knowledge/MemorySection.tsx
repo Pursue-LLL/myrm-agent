@@ -18,6 +18,7 @@ import {
   IconUpload,
   IconBook,
   IconShieldCheck,
+  IconSparkles,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import useConfigStore from '@/store/useConfigStore';
@@ -133,6 +134,7 @@ const MemorySection = memo(() => {
     purgeMemory,
   } = useMemoryStore();
   const checkOrphanCollections = useRetrievalStore((state) => state.checkOrphanCollections);
+  const embeddingApplied = useRetrievalStore((state) => state.embeddingApplied);
 
   const [activeMemoryTab, setActiveMemoryTab] = useState<MemoryTab>('pending');
   const [searchInput, setSearchInput] = useState('');
@@ -530,6 +532,17 @@ const MemorySection = memo(() => {
             </Tooltip>
           </div>
           <p className="text-sm text-muted-foreground">{t('description')}</p>
+          {enableMemory && !embeddingApplied && (
+            <p
+              className={cn(
+                'inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/60 bg-muted/40',
+                'px-2.5 py-1.5 text-xs text-muted-foreground',
+              )}
+            >
+              <IconSparkles className="h-3.5 w-3.5 shrink-0" />
+              <span>{t('keywordModeHint')}</span>
+            </p>
+          )}
         </div>
         {isLoggedIn && enableMemory && (
           <div className="flex items-center gap-1">

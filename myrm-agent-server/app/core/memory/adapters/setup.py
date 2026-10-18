@@ -48,6 +48,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_SPARSE_ONLY_EMBEDDING_MODEL = "sparse-only"
+"""Cache-key marker for embeddings-less managers (mirrors the harness setup marker)."""
+
 # Conflicts whose importance reaches this threshold are treated as high-risk:
 # they are never auto-resolved (auto_resolve_at stays None) and always require
 # explicit user resolution, so critical preferences (stack moves, relocations,
@@ -105,7 +108,7 @@ def _manager_cache_key(
     approval_required: bool,
     dedup_llm: object | None,
     consolidation_llm: object | None = None,
-    embedding_config: EmbeddingConfig,
+    embedding_config: EmbeddingConfig | None,
     namespaces: list[str] | None,
     agent_id: str | None,
     channel_id: str | None,
@@ -122,9 +125,9 @@ def _manager_cache_key(
         approval_required,
         recall_mode.value,
         time_decay_half_life_days,
-        embedding_config.model,
-        embedding_config.api_key,
-        embedding_config.api_base,
+        embedding_config.model if embedding_config is not None else _SPARSE_ONLY_EMBEDDING_MODEL,
+        embedding_config.api_key if embedding_config is not None else "",
+        embedding_config.api_base if embedding_config is not None else "",
         reranker_config.model if reranker_config else None,
         reranker_config.api_key if reranker_config else None,
         reranker_config.api_base if reranker_config else None,
@@ -141,7 +144,7 @@ def _manager_cache_key(
 
 async def create_memory_manager(
     binding: ResolvedContextBinding,
-    embedding_config: EmbeddingConfig,
+    embedding_config: EmbeddingConfig | None,
     *,
     approval_required: bool = False,
     dedup_llm: object | None = None,
@@ -163,6 +166,10 @@ async def create_memory_manager(
     memory volume (e.g. evaluation runs that must never touch the user's real
     memory). When set, an embedded vector store is created inside the override
     directory so both relational and vector data stay fully isolated.
+
+    ``embedding_config=None`` selects the embeddings-less mode: semantic and
+    episodic memories persist through the BM25 sparse mirror and stay
+    retrievable by keyword until an embedding backend is configured.
     """
     from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
 
@@ -259,7 +266,7 @@ async def create_memory_manager(
 
 async def create_memory_tools_for_user(
     binding: ResolvedContextBinding,
-    embedding_config: EmbeddingConfig,
+    embedding_config: EmbeddingConfig | None,
     *,
     approval_required: bool = False,
     dedup_llm: object | None = None,

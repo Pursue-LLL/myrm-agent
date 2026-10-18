@@ -383,6 +383,7 @@ export interface MemoryCommandRuntimeStatus {
   vector_persistence: 'persistent' | 'memory_fallback' | 'unavailable';
   graph_status: 'available' | 'unavailable';
   embedding_status: 'custom' | 'unavailable';
+  retrieval_mode: 'semantic' | 'keyword';
   control_plane_status: 'not_used' | 'proxied_by_sandbox';
   event_ledger_status: 'available' | 'unavailable';
   health_snapshot_status: 'available' | 'unavailable';

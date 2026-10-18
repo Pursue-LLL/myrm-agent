@@ -313,6 +313,9 @@ class MemoryCommandCenterService:
             vector_persistence=self._build_vector_persistence(),
             graph_status=("available" if self._memory_manager.has_graph else "unavailable"),
             embedding_status=(get_embedding_mode().value if self._memory_manager.has_vector else "unavailable"),
+            # Without an embedding backend semantic and episodic memories are
+            # served by the BM25 sparse mirror: keyword recall, not semantics.
+            retrieval_mode=("semantic" if self._memory_manager.has_vector else "keyword"),
             control_plane_status=("proxied_by_sandbox" if get_deployment_capabilities().is_sandbox_instance else "not_used"),
             event_ledger_status="available",
             health_snapshot_status="available",

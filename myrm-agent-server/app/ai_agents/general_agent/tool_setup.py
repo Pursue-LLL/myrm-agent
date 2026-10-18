@@ -664,8 +664,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             if self.embedding_config is None:
-                logger.warning("⚠️ 记忆工具未加载（缺少 embedding_config）")
-                return None
+                # Embeddings-less degradation: memories persist through the
+                # BM25 sparse mirror and stay retrievable by keyword instead
+                # of dropping the memory tools entirely.
+                logger.info("🧠 记忆工具以关键词模式加载（未配置 embedding）")
 
             time_decay_half_life_days = 90.0
             if self.memory_decay_profile == "permanent":

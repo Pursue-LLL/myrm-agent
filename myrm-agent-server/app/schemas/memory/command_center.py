@@ -485,6 +485,7 @@ class MemoryCommandRuntimeStatus(BaseModel):
     vector_persistence: Literal["persistent", "memory_fallback", "unavailable"]
     graph_status: Literal["available", "unavailable"]
     embedding_status: Literal["custom", "unavailable"]
+    retrieval_mode: Literal["semantic", "keyword"]
     control_plane_status: Literal["not_used", "proxied_by_sandbox"]
     event_ledger_status: Literal["available", "unavailable"]
     health_snapshot_status: Literal["available", "unavailable"]

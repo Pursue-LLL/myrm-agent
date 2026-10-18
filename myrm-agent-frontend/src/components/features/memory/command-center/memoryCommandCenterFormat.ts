@@ -35,6 +35,8 @@ const RUNTIME_STATUSES = [
   'proxied_by_sandbox',
   'persistent',
   'memory_fallback',
+  'semantic',
+  'keyword',
 ] as const;
 const COVERAGE_STATUSES = ['not_tracked', 'partial', 'complete'] as const;
 const MIGRATION_ADAPTER_STATUSES = ['ready', 'planned', 'missing'] as const;

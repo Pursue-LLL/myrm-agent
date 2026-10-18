@@ -4479,6 +4479,7 @@
     },
     "title": "记忆管理",
     "description": "管理 AI 从对话中学习到的记忆",
+    "keywordModeHint": "当前为关键词记忆模式：记忆可被关键词检索。配置 Embedding 后自动升级为语义记忆。",
     "scopeHierarchy": {
       "cardTitle": "记忆作用域层级图谱",
       "cardSubtitle": "智能体长效知识的生命周期与边界隔离可视化管理",
@@ -4873,7 +4874,7 @@
       "deployMode": "部署模式",
       "vectorStatus": "向量索引",
       "vectorPersistence": "向量存储持久化",
-      "embeddingStatus": "嵌入模型",
+      "embeddingStatus": "嵌入模型", "retrievalMode": "记忆检索模式",
       "controlPlaneStatus": "控制平面",
       "eventLedgerStatus": "事件账本",
       "healthSnapshotStatus": "健康快照",
@@ -5409,7 +5410,7 @@
         "not_used": "未使用",
         "proxied_by_sandbox": "沙箱代理",
         "persistent": "持久化",
-        "memory_fallback": "内存模式（重启后丢失）"
+        "memory_fallback": "内存模式（重启后丢失）", "semantic": "语义检索", "keyword": "关键词检索"
       },
       "coverageStatus": {
         "not_tracked": "暂无外部记忆导入记录",

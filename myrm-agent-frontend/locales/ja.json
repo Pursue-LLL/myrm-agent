@@ -4479,6 +4479,7 @@
     },
     "title": "メモリ管理",
     "description": "会話から AI が学習したメモリを管理",
+    "keywordModeHint": "キーワード記憶モード：記憶はキーワードで検索されます。Embedding を設定すると意味検索にアップグレードされます。",
     "scopeHierarchy": {
       "cardTitle": "メモリスコープ階層マップ",
       "cardSubtitle": "エージェントの長期知識のライフサイクルと境界分離の可視化管理",
@@ -4873,7 +4874,7 @@
       "deployMode": "デプロイモード",
       "vectorStatus": "ベクトルインデックス",
       "vectorPersistence": "ベクトルストレージの永続化",
-      "embeddingStatus": "エンベディングモデル",
+      "embeddingStatus": "エンベディングモデル", "retrievalMode": "記憶検索モード",
       "controlPlaneStatus": "制御平面",
       "eventLedgerStatus": "イベント台帳",
       "healthSnapshotStatus": "ヘルススナップショット",
@@ -5409,7 +5410,7 @@
         "not_used": "未使用",
         "proxied_by_sandbox": "サンドボックスプロキシ",
         "persistent": "永続化",
-        "memory_fallback": "メモリモード（再起動で消失）"
+        "memory_fallback": "メモリモード（再起動で消失）", "semantic": "意味検索", "keyword": "キーワード検索"
       },
       "coverageStatus": {
         "not_tracked": "外部メモリインポートの記録はありません",

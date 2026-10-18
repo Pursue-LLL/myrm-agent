@@ -153,6 +153,11 @@ export const RuntimePanel = ({ snapshot, t }: { snapshot: MemoryCommandCenterRes
       value={translateRuntimeStatus(snapshot.runtime.embedding_status, t)}
     />
     <RuntimeRow
+      label={t('commandCenter.retrievalMode')}
+      value={translateRuntimeStatus(snapshot.runtime.retrieval_mode, t)}
+      alert={snapshot.runtime.retrieval_mode === 'keyword'}
+    />
+    <RuntimeRow
       label={t('commandCenter.eventLedgerStatus')}
       value={translateRuntimeStatus(snapshot.runtime.event_ledger_status, t)}
     />

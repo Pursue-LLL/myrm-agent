@@ -32,6 +32,7 @@ def _runtime(
     relational_status: str = "unavailable",
     graph_status: str = "unavailable",
     embedding_status: str = "custom",
+    retrieval_mode: str = "semantic",
     event_ledger_status: str = "available",
     control_plane_status: str = "not_used",
 ) -> MemoryCommandRuntimeStatus:
@@ -44,6 +45,7 @@ def _runtime(
             "vector_persistence": vector_persistence,
             "graph_status": graph_status,
             "embedding_status": embedding_status,
+            "retrieval_mode": retrieval_mode,
             "control_plane_status": control_plane_status,
             "event_ledger_status": event_ledger_status,
             "health_snapshot_status": "available",

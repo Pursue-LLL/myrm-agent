@@ -4479,6 +4479,7 @@
     },
     "title": "Speicherverwaltung",
     "description": "Verwalten Sie Erinnerungen, die die KI aus Gesprächen gelernt hat",
+    "keywordModeHint": "Keyword-Speichermodus: Erinnerungen werden per Schlüsselwort abgerufen. Mit einem Embedding-Modell wird auf semantische Suche aufgerüstet.",
     "scopeHierarchy": {
       "cardTitle": "Gedächtnisbereichs-Hierarchie",
       "cardSubtitle": "Visuelle Verwaltung von Lebenszyklus & Isolationsgrenzen für Agentenwissen",
@@ -4873,7 +4874,7 @@
       "deployMode": "Bereitstellungsmodus",
       "vectorStatus": "Vektorindex",
       "vectorPersistence": "Vektorpersistenz",
-      "embeddingStatus": "Einbetten",
+      "embeddingStatus": "Einbetten", "retrievalMode": "Speicher-Abrufmodus",
       "controlPlaneStatus": "Kontrollebene",
       "eventLedgerStatus": "Ereignisbuch",
       "healthSnapshotStatus": "Gesundheitsmomentaufnahme",
@@ -5409,7 +5410,7 @@
         "not_used": "Nicht verwendet",
         "proxied_by_sandbox": "Sandbox-Proxy",
         "persistent": "Permanent",
-        "memory_fallback": "Speichermodus (geht bei Neustart verloren)"
+        "memory_fallback": "Speichermodus (geht bei Neustart verloren)", "semantic": "Semantische Suche", "keyword": "Schlüsselwort-Suche"
       },
       "coverageStatus": {
         "not_tracked": "Es wurden keine externen Speicherimporte verfolgt",

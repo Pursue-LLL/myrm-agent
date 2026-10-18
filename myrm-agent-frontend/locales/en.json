@@ -4479,6 +4479,7 @@
     },
     "title": "Memory Management",
     "description": "Manage memories AI learned from conversations",
+    "keywordModeHint": "Keyword memory mode: memories are retrieved by keyword. Configure an embedding model to upgrade to semantic recall.",
     "scopeHierarchy": {
       "cardTitle": "Memory Scope Hierarchy",
       "cardSubtitle": "Visual boundary & lifecycle management for agent long-term knowledge",
@@ -4873,7 +4874,7 @@
       "deployMode": "Deploy mode",
       "vectorStatus": "Vector index",
       "vectorPersistence": "Vector persistence",
-      "embeddingStatus": "Embedding",
+      "embeddingStatus": "Embedding", "retrievalMode": "Memory recall mode",
       "controlPlaneStatus": "Control plane",
       "eventLedgerStatus": "Event ledger",
       "healthSnapshotStatus": "Health snapshot",
@@ -5409,7 +5410,7 @@
         "not_used": "Not used",
         "proxied_by_sandbox": "Sandbox proxy",
         "persistent": "Persistent",
-        "memory_fallback": "Memory mode (lost on restart)"
+        "memory_fallback": "Memory mode (lost on restart)", "semantic": "Semantic recall", "keyword": "Keyword recall"
       },
       "coverageStatus": {
         "not_tracked": "No external memory imports tracked",

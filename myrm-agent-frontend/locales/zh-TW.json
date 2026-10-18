@@ -4479,6 +4479,7 @@
     },
     "title": "記憶管理",
     "description": "管理 AI 從對話中學習到的記憶",
+    "keywordModeHint": "目前為關鍵詞記憶模式：記憶可被關鍵詞檢索。設定 Embedding 後自動升級為語意記憶。",
     "scopeHierarchy": {
       "cardTitle": "記憶作用域層級圖譜",
       "cardSubtitle": "智能體長效知識的生命週期與邊界隔離視覺化管理",
@@ -4873,7 +4874,7 @@
       "deployMode": "部署模式",
       "vectorStatus": "向量索引",
       "vectorPersistence": "向量儲存持久化",
-      "embeddingStatus": "嵌入模型",
+      "embeddingStatus": "嵌入模型", "retrievalMode": "記憶檢索模式",
       "controlPlaneStatus": "控制平面",
       "eventLedgerStatus": "事件賬本",
       "healthSnapshotStatus": "健康快照",
@@ -5409,7 +5410,7 @@
         "not_used": "未使用",
         "proxied_by_sandbox": "沙箱代理",
         "persistent": "持久化",
-        "memory_fallback": "記憶體模式（重啟後遺失）"
+        "memory_fallback": "記憶體模式（重啟後遺失）", "semantic": "語意檢索", "keyword": "關鍵詞檢索"
       },
       "coverageStatus": {
         "not_tracked": "暫無外部記憶匯入記錄",
