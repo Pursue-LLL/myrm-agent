@@ -7640,6 +7640,43 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 
 ---
 
+## BUG-AGENT-2026-10-18-014: 混合型 PDF 的扫描页在上传链路里没有读者——`pagesWithoutText` 只到 API 边界，前端只报「解析了几页」，用户与模型都不知道哪几页是无文本层的图片页
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（用真实栅格 PDF 探针走 `/files/extract-pdf`，逐字段核对响应与前端消费） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；但用户与模型都会把部分文档当成全文） |
+| 影响范围 | server：`app/api/files/pdf_extract.py`（`PDFExtractResponse.pages_without_text` 字段与赋值）；frontend：`src/services/file.ts`（`PDFExtractResult.pagesWithoutText`）、`src/store/chat/multimodalBuilder.ts`（`formatPageRanges` + `chat.pdfScannedPages` 提示）、`locales/{en,zh,zh-TW,ja,ko,de}.json` |
+| 出现次数 | 1 |
+| 关联 | harness 侧 `BUG-HARNESS-2026-10-18-018`（判据与字段的产出层）；本地提交，未 push |
+
+### 现象
+
+用户上传一份「正文 + 扫描签字页」的 PDF（例如 3 页正文、第 4-8 页是扫描件）。前端提示「已解析 8/8 页」，看起来完整无缺；模型收到 5 张页面图，但没有任何一句说明这 5 页是靠图片而非文字来的。页数与帧数都「对」，内容却少了——用户按提示以为全部读到了。
+
+### 根因
+
+两个字段都在说「覆盖」，但各说一半，且没有第三个字段说「哪几页读不到」：
+
+- `parsedPages` 的语义是**投递窗口**（`min(parsed_pages, image_ceiling)`），窗口够大时它就等于 `pageCount`，对「窗口内有没有读不出的页」一无所知。
+- `imageTrace.truncated` 的语义是**内嵌图版被上限截断**，与扫描页无关。
+- 探针读数：8 页混合件 `pageCount=8, parsedPages=8, pagesWithoutText=[4,5,6,7,8]`——前两项都「满」，只有第三项揭穿了缺口，而它在修前**根本不存在**：harness 的 `PDFExtractResult` 不产出、API 不转发、前端类型里也没有，三层全无读者。
+
+### 修复
+
+- harness 产出 `pages_without_text`（判据见 `BUG-HARNESS-2026-10-18-018`）。
+- `PDFExtractResponse` 增加 `pages_without_text` 并在构造处赋值；camelCase 由既有 `alias_generator` 负责，wire 上为 `pagesWithoutText`。
+- 前端类型补 `pagesWithoutText?: number[]`；`multimodalBuilder.ts` 新增 `formatPageRanges`（`[2,3,4,8]` → `'2-4, 8'`），非空时提示 `chat.pdfScannedPages`，文案说明「这些页无文本层、已按图片发送」。
+- 6 个 locale 同步新增该 key（`/jx` 门禁要求全量 parity）。
+
+### 验证
+
+- server：`tests/api/files/test_pdf_extract_api.py` 新增 `test_pages_without_text_reaches_the_client`（自造 2 页 PDF：第 1 页有文本层、第 2 页只有图形；断言 `pagesWithoutText == [2]` 且 `parsedPages == pageCount`），并把它加进 `test_response_schema_completeness` 的必需键集合。16 例通过。
+- frontend：`multimodalBuilder.test.ts` 新增 3 例（点名扫描页、折叠成 `'2-4, 8'`、无缺口时不提示），`toastCopyKeys.test.ts` 收录新 key 以守住占位符；变异验证：禁用披露分支后 2 例确定性变红。262 例通过；`verify:i18n`（6 locale parity + 3585 文件引用检查）与 `verify:theme-colors` 通过；`tsc --noEmit` 对我改的文件无报错（唯一 2 处报错来自他人进行中的 `messageStream` 改动）。
+
+---
+
 ## BUG-AGENT-2026-10-18-013: 澄清卡的续跑/旧接口判定读了「打开聊天的模式」——后台普通轮次的澄清被误判成 Deep Research，走只认 DR 的旧接口，答案 404
 
 | 属性 | 值 |
@@ -7691,4 +7728,54 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 
 1. **一条规则只允许有一个主人**：同一语义在 hydrate 与 live handler 各写一份，且 live 那份悄悄引入了服务端不用的输入，分叉就发生在这里。提取纯函数让三处共用，比「修其中一处」更能防回归。
 2. **事件的判定要用事件自己的字段**：续跑与否由事件的 `source` 决定；`useChatStore.actionMode` 是「用户此刻开着哪个聊天」的全局值，既不是发起方（`BUG-AGENT-2026-10-18-004`），也不是这条事件的属性。凡「读环境当前状态来判定某条流/某张卡」的地方都要警觉。
+
+---
+
+## BUG-AGENT-2026-10-18-014: 后台聊天的上下文压缩把「已省 tokens」写到屏幕上另一聊天的里程碑卡上，并顺带发出针对该聊天的 3 个请求
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（把「读全局会话字段」的点位全量枚举后，逐条核对 `context_compaction` 分支） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；用户看到不属于本聊天的「已省 tokens」，每次后台压缩多发 3 个 REST） |
+| 影响范围 | frontend：`store/chat/messageStream/handlers/statusStreamProgressSteps.ts` 及其测试 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-18-004` / `-013`（同属「读全局而非事件/流自身」一族）；`temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #399 补遗第四处；本地提交，未 push |
+
+### 现象
+
+用户停在聊天 B（B 有压缩摘要）。另一个后台聊天 A 触发一次上下文压缩（`context_compaction` 完成），B 的摘要卡上就显示出「已省 4242 tokens」——那是 A 节省的量。同时该分支还为 B 发出 `getChatDetail` / `listContextBranches` / `getContextPins` 三个请求。
+
+### 根因
+
+`applyStatusProgressStep` 对每条流都会执行（`statusStreamEvents.ts:22`），而 `context_compaction` 分支读的是**打开聊天**的 id：
+
+```ts
+const chatId = useChatStore.getState().chatId;   // 打开聊天
+if (chatId) {
+  await useChatStore.getState().refreshCompactionState(chatId, { tokensSaved, snapshotPath });
+}
+```
+
+`refreshCompactionState` 内部的守卫（`useChatStore.ts:323` `state.chatId !== chatId`）比对的是传入值，而传入值就是打开聊天，所以守卫必然放行；它会把 `lastCompactionMeta`（`:343`）、`compactedSummary`、`contextBranches`、`contextPinnedFiles` 全写成这条流的数据。里程碑卡由此渲染错误的数字（`CompactedSummaryView.tsx:246`）。
+
+### 修复
+
+把该分支经 `H.isStreamForOpenChat(ctx.state)` 收窄到打开中的 chat（判定放在懒加载之后，与既有单槽写入一致），后台 chat 的压缩不再触碰打开 chats 的里程碑与上下文列表，也不再发起那 3 个请求。
+
+### 验证
+
+1. **先红后绿**：新增 `__tests__/statusStreamProgressSteps.compactionScope.test.ts`（真实 store + 真实 handler：后台 `context_compaction` 不得调 `refreshCompactionState`；打开聊天压缩时仍以自身 chatId 调一次）。修复前 1 红 1 绿，修复后 2 绿。
+2. **回归**：handler 套件 46 文件 223 用例通过；`oxlint` 0 告警、`prettier` 通过。
+
+### 局限
+
+1. 未在真实浏览器里开两个 pane 复现（本机 E2E 名额争抢），由 jsdom 下的真实 store + 真实 handler 用例固定。
+2. 未处理「事件本身是否应携带 `chat_id`」这条更上游的选择：当前按流归属判定已足够，服务端未在该事件上带 chat 标识。
+
+### 踩坑经验
+
+1. **单槽 UI 的写入条件要写在最外层**：`refreshCompactionState` 的守卫看着像保护，但它比对的是调用方传进来的 id；如果调用方一开始就传了「打开聊天」，守卫只会确认「打开聊天还是打开聊天」。真正的判定必须在**决定传哪个 chatId 之前**。
+2. **列举而不是抽查**：这一族缺陷先后发现四处（plan 终止、审批卡片、澄清卡、压缩里程碑）。把「handler 里所有 `useChatStore.getState()` 的会话字段读取」列成清单逐条判定，比按灵感抽查更快收口。
+
 
