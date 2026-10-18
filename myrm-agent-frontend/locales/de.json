@@ -18924,7 +18924,7 @@
         "confirmResetTitle": "Auf Standard zurücksetzen",
         "confirmResetDesc": "Ihre lokalen Änderungen an \"{name}\" werden dauerhaft mit der Standardversion überschrieben. Dies kann nicht rückgängig gemacht werden.",
         "confirmAcceptTitle": "Upstream-Update anwenden",
-        "confirmAcceptDesc": "Ihre lokalen Änderungen an \"{name}\" werden durch die neueste Upstream-Version ersetzt. Diese Aktualisierung können Sie anschließend auf der Skill-Detailseite rückgängig machen.",
+        "confirmAcceptDesc": "Ihre lokalen Änderungen an \"{name}\" werden durch die neueste Upstream-Version ersetzt. Diese Aktualisierung können Sie anschließend in den Fähigkeitsdetails rückgängig machen.",
         "confirmAction": "Fortfahren",
         "cancelAction": "Abbrechen",
         "export": "Exportieren",
