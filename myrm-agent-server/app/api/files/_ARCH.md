@@ -19,7 +19,7 @@
 | `hosting_api.py` | 模块 | Multi-target artifact publish, hosting targets CRUD, publications | ✅ |
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
 | `local_actions.py` | 模块 | Local-only file reveal/open endpoints（单文件 `POST /files/{id}/reveal`、会话产物目录 `POST /files/chats/{chat_id}/reveal`，依赖 `reveal_utils`） | ✅ |
-| `pdf_extract.py` | 模块 | PDF content extraction API endpoint；沙箱/云模式下页图落盘，来源标记取自 `core.storage.chat_bound.pdf_extract_source`，随绑定上传一起清理 | ✅ |
+| `pdf_extract.py` | 模块 | PDF content extraction API endpoint；沙箱/云模式下页图落盘，来源标记取自 `core.storage.chat_bound.pdf_extract_source`，随绑定上传一起清理。响应统一走 camelCase：声明字段由 `alias_generator=to_camel` 负责，`image_trace` 是裸字典、由 `field_serializer` 逐键转换（含 `truncated`），`PDFImageItem` 自带同一 `model_config`，否则前端读 `mimeType` / `fileUrl` / `droppedCount` 会静默落空。三个投递缺口各有字段：`truncated` 表示「整页投递下内嵌图版被上限截断」，`parsedPages < pageCount` 表示投递窗口截断，`pagesWithoutText` 逐页列出文本层读不到的页（扫描/空白），三者不互相代替；`PDFImageItem.pageNumber` 让前端区分「哪些扫描页真被当图发出」与「超出图版上限而未发出的页」 | ✅ |
 | `revert.py` | 模块 | File revert & review API — exposes `revertible`/`skip_reason` on changes; hydrate/cleanup via `revert_hydrate`; Agent notify via `revert_agent_notify`. | ✅ |
 | `router.py` | 路由 | Files API router | ✅ |
 | `storage.py` | 模块 | 文件管理 API | ✅ |

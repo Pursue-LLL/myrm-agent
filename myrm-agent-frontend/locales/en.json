@@ -3602,7 +3602,9 @@
       "strategyAuto": "Auto",
       "strategyDirect": "Direct only",
       "strategyMultiAgent": "Always multi-agent"
-    }
+    },
+    "pdfScannedPages": "[PDF] {fileName}: pages {pages} have no text layer and were sent as images",
+    "pdfScannedPagesWithheld": "[PDF] {fileName}: pages {pages} have no text layer and could not be sent (over the per-delivery limit)"
   },
   "mode": {
     "fast": "Fast Search",

@@ -7779,3 +7779,55 @@ if (chatId) {
 2. **列举而不是抽查**：这一族缺陷先后发现四处（plan 终止、审批卡片、澄清卡、压缩里程碑）。把「handler 里所有 `useChatStore.getState()` 的会话字段读取」列成清单逐条判定，比按灵感抽查更快收口。
 
 
+
+## BUG-AGENT-2026-10-18-015: Curator 面板 E2E 的就绪探针把「外层壳已挂载」当成「页面已就绪」——面板正文还是骨架、页签尚未进 DOM 时就去点页签，手机宽度那次三次全红
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（跑 `test_curator_panel_sections_chrome_e2e.py` 时桌面通过、手机阶段连续两次以同一断言失败） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P3（只影响测试可信度，不影响产品行为；但它让「手机宽度是否可用」这条断言长期拿不到结论） |
+| 影响范围 | `myrm-agent-server/tests/e2e/test_curator_panel_sections_chrome_e2e.py`（两个就绪探针） |
+| 出现次数 | 1（此前 `0a97d42a46` 已如实记录「三次尝试、手机阶段未跑通」，本条目把原因定位到探针而非负载） |
+| 关联 | `BUG-AGENT-2026-10-15-013` 验证 6（此前那次真机通过含 375px）；本地提交，未 push |
+
+### 现象
+
+`E2E_CURATOR_DESKTOP_PROBLEMS: []`（桌面深浅两套主题都干净），紧接着手机阶段失败：
+
+```
+AssertionError: Browser state did not become ready:
+{'ready': False, 'tabs': [], 'path': '/settings/skills',
+ 'bodyStart': '…定时任务已停止运行…技能管理 设计师之眼 小莫中枢…会话切换 工作台'}
+```
+
+`tabs: []` 说明 `[role="tab"]` 一个都没有；`bodyStart` 显示的是设置菜单目录，而不是技能面板正文。桌面阶段两次都能通过、手机阶段两次都在同一断言失败，不是随机抖动。
+
+### 根因
+
+两处就绪探针都只查了 `[data-testid="settings-layout"]`，而那是**外层 div，永远存在**：
+
+- `SettingsLayout.tsx:302` `data-testid="settings-layout"` 在外层 `<div>` 上，第一帧就有；
+- `:303` `aria-busy={deferredLocaleReady ? undefined : true}` 才是「延迟 i18n 包已就绪」的信号；
+- `:350` `{!deferredLocaleReady ? <SettingsSkeleton /> : …}`——页签所在的区块**只在 `deferredLocaleReady` 之后才进 DOM**；
+- `:374` `data-section={tab} data-active` 只在该 tab 进入 `visitedTabs` 后才挂载。
+
+于是探针在「壳在、正文还是骨架」时就判 ready，下一步立刻去读 `[role="tab"]`，必然为空。手机 iframe 要重新拉一套资源，落在骨架窗口里的概率比桌面高得多，所以桌面绿、手机红。
+
+### 修复
+
+两个探针都改成「壳存在 + `aria-busy` 已清 + 目标区块 `data-section="skills"` 且 `data-active`」：
+
+1. `_SETTINGS_READY_JS`（供 `_SETTINGS_SHELL_STATE` 使用）增加 `!section` 与 `busy` 两个判据；
+2. `_PHONE_FRAME_JS` 用同一套判据，并把 `busy` / `hasSection` 一并回传，失败信息能区分「卡在骨架」与「区块没挂载」。
+
+### 验证
+
+1. **真机通过**：`./myrm test -m chrome_e2e test_curator_panel_sections_chrome_e2e.py` → `1 passed in 87.75s`，`E2E_CURATOR_DESKTOP_PROBLEMS: []`，session `state=SUCCEEDED` / `outcome=PASSED` / `rc=0`（修复前同一节点连续两次断言失败）。
+2. **回归**：`tests/core/infra/health/test_skill_quality_diagnostic.py` + `tests/core/skills/gates/` 共 60 例通过。
+3. **诚实边界**：期间另有多次运行死在基础设施（`rc=247` 引导期被回收、`BROWSER_ORCHESTRATOR_CDP_UNAVAILABLE`），这些失败都发生在用例体之外，不构成对本修复的判定；只有上面那次完整跑到结尾。
+
+### 踩坑经验
+
+1. **就绪探针要探「目标元素」，不要探「外层容器」**：容器往往第一帧就在，拿它当 ready 等于把「页面开始加载」当成「页面已可用」；探针应命中真正要被操作的那个节点（这里是 `[data-section="skills"][data-active]`）。
+2. **桌面绿 ≠ 手机绿**：两个宽度跑同一条逻辑，但手机 iframe 会重新拉资源，落在骨架窗口里的概率更高——这正是此前「桌面两次通过、手机阶段未跑通」的成因，别把宽度差异当负载噪音。

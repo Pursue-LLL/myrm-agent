@@ -39,6 +39,25 @@ const attachmentReferencePart = (fileName: string): VisionContentPart => ({
   text: `[Attachment: ${fileName}]`,
 });
 
+/** Collapse ascending page numbers into a compact “2-4, 7” form for the toast copy. */
+const formatPageRanges = (pages: number[]): string => {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (const page of sorted.slice(1)) {
+    if (page === prev + 1) {
+      prev = page;
+      continue;
+    }
+    ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+    start = page;
+    prev = page;
+  }
+  ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+  return ranges.join(', ');
+};
+
 /**
  * Process PDF files via backend extraction API (parallel).
  * Text-first; when text is sparse, backend renders pages as images.
@@ -63,9 +82,14 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
       continue;
     }
     const { file, result } = settled.value;
+    const hasImages = Boolean(result.images && result.images.length > 0);
+    const scannedPages = result.pagesWithoutText ?? [];
 
     if (result.text) {
       parts.push({ type: 'text', text: `[PDF: ${file.fileName}]\n${result.text}` });
+    } else if (!hasImages) {
+      // Nothing readable came back: keep the attachment visible to the model instead of dropping it silently.
+      parts.push(attachmentReferencePart(file.fileName));
     }
 
     if (result.parsedPages > 0 && result.parsedPages < result.pageCount) {
@@ -76,16 +100,48 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
       );
     }
 
-    if (result.images && result.images.length > 0) {
+    if (scannedPages.length > 0) {
+      // Only pages that actually travelled as images may be called "sent". Past the
+      // delivery ceiling the rest were dropped, so the copy must not promise them.
+      const sentPages = result.images.map((img) => img.pageNumber).filter((page): page is number => typeof page === 'number');
+      const sentSet = new Set(sentPages);
+      const delivered = scannedPages.filter((page) => sentSet.has(page));
+      const withheld = scannedPages.filter((page) => !sentSet.has(page));
+
+      if (delivered.length > 0) {
+        showI18nToast(
+          'chat.pdfScannedPages',
+          { fileName: file.fileName, pages: formatPageRanges(delivered) },
+          { type: 'info', duration: 6000 },
+        );
+      }
+      if (withheld.length > 0) {
+        showI18nToast(
+          'chat.pdfScannedPagesWithheld',
+          { fileName: file.fileName, pages: formatPageRanges(withheld) },
+          { type: 'warning', duration: 8000 },
+        );
+      }
+    }
+
+    if (hasImages) {
       for (const img of result.images) {
         const url = img.fileUrl || `data:${img.mimeType};base64,${img.data}`;
         parts.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
       }
 
-      if (result.imageTrace && result.imageTrace.droppedCount > 0) {
+      const trace = result.imageTrace;
+      if (trace?.truncated) {
+        // Figures past the delivery window never reached the model; say so instead of implying full coverage.
+        showI18nToast(
+          'chat.pdfFiguresTruncated',
+          { kept: trace.keptCount ?? result.images.length },
+          { type: 'info', duration: 6000 },
+        );
+      } else if (trace && trace.droppedCount > 0) {
         showI18nToast(
           'chat.pdfImageOptimized',
-          { kept: result.imageTrace.keptCount, dropped: result.imageTrace.droppedCount },
+          { kept: trace.keptCount, dropped: trace.droppedCount },
           { type: 'success', duration: 6000 },
         );
       }

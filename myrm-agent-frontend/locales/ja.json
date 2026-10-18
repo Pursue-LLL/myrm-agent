@@ -3603,7 +3603,8 @@
       "strategyDirect": "直接実行のみ",
       "strategyMultiAgent": "常にマルチエージェント"
     },
-    "pdfScannedPages": "[PDF] {fileName}：{pages} ページにはテキスト層がなく、画像として送信しました"
+    "pdfScannedPages": "[PDF] {fileName}：{pages} ページにはテキスト層がなく、画像として送信しました",
+    "pdfScannedPagesWithheld": "[PDF] {fileName}：{pages} ページはテキスト層がなく、1回の送信上限を超えたため送信できませんでした"
   },
   "mode": {
     "fast": "高速検索",

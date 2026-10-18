@@ -3602,7 +3602,9 @@
       "strategyAuto": "自动",
       "strategyDirect": "仅直接执行",
       "strategyMultiAgent": "始终多智能体"
-    }
+    },
+    "pdfScannedPages": "[PDF] {fileName}：第 {pages} 页无文本层，已按图片发送",
+    "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 页无文本层，且超出单次投递上限，未能发送"
   },
   "mode": {
     "fast": "快速搜索",

@@ -21,7 +21,10 @@ type Values = Record<string, string | number>;
 const WITH_VALUES: ReadonlyArray<readonly [string, Values]> = [
   ['chat.cacheResetNotice', { reason: 'reason-x', tokens: 7 }],
   ['chat.pdfParsedPages', { fileName: 'report.pdf', parsed: 3, total: 9 }],
+  ['chat.pdfScannedPages', { fileName: 'report.pdf', pages: '4-6' }],
+  ['chat.pdfScannedPagesWithheld', { fileName: 'report.pdf', pages: '7-9' }],
   ['chat.pdfImageOptimized', { kept: 3, dropped: 8 }],
+  ['chat.pdfFiguresTruncated', { kept: 3 }],
   ['chat.folderDrop.grantFailed', { path: '/data/projects' }],
   ['settings.sshVault.probeFailed', { host: 'host-x', message: 'message-x' }],
   ['settings.securityPolicy.profile.activated', { name: 'profile-x' }],
