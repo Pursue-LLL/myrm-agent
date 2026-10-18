@@ -4479,7 +4479,7 @@
     },
     "title": "记忆管理",
     "description": "管理 AI 从对话中学习到的记忆",
-    "keywordModeHint": "当前为关键词记忆模式：记忆可被关键词检索。配置 Embedding 后自动升级为语义记忆。",
+    "keywordModeHint": "当前为关键词记忆模式：记忆通过关键词检索。配置 Embedding 后可启用语义检索。",
     "scopeHierarchy": {
       "cardTitle": "记忆作用域层级图谱",
       "cardSubtitle": "智能体长效知识的生命周期与边界隔离可视化管理",

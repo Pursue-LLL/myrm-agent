@@ -4479,7 +4479,7 @@
     },
     "title": "Speicherverwaltung",
     "description": "Verwalten Sie Erinnerungen, die die KI aus Gesprächen gelernt hat",
-    "keywordModeHint": "Keyword-Speichermodus: Erinnerungen werden per Schlüsselwort abgerufen. Mit einem Embedding-Modell wird auf semantische Suche aufgerüstet.",
+    "keywordModeHint": "Keyword-Speichermodus: Erinnerungen werden per Schlüsselwort abgerufen. Mit einem Embedding-Modell lässt sich die semantische Suche aktivieren.",
     "scopeHierarchy": {
       "cardTitle": "Gedächtnisbereichs-Hierarchie",
       "cardSubtitle": "Visuelle Verwaltung von Lebenszyklus & Isolationsgrenzen für Agentenwissen",

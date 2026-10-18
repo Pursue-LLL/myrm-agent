@@ -4479,7 +4479,7 @@
     },
     "title": "記憶管理",
     "description": "管理 AI 從對話中學習到的記憶",
-    "keywordModeHint": "目前為關鍵詞記憶模式：記憶可被關鍵詞檢索。設定 Embedding 後自動升級為語意記憶。",
+    "keywordModeHint": "目前為關鍵詞記憶模式：記憶透過關鍵詞檢索。設定 Embedding 後可啟用語意檢索。",
     "scopeHierarchy": {
       "cardTitle": "記憶作用域層級圖譜",
       "cardSubtitle": "智能體長效知識的生命週期與邊界隔離視覺化管理",

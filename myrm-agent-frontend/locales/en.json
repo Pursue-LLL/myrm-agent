@@ -4479,7 +4479,7 @@
     },
     "title": "Memory Management",
     "description": "Manage memories AI learned from conversations",
-    "keywordModeHint": "Keyword memory mode: memories are retrieved by keyword. Configure an embedding model to upgrade to semantic recall.",
+    "keywordModeHint": "Keyword memory mode: memories are retrieved by keyword. Configure an embedding model to enable semantic retrieval.",
     "scopeHierarchy": {
       "cardTitle": "Memory Scope Hierarchy",
       "cardSubtitle": "Visual boundary & lifecycle management for agent long-term knowledge",
