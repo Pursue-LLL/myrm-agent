@@ -134,11 +134,15 @@ async def test_head_without_credentials_does_not_veto_a_configured_backup(provid
     assert await verify_search_service_available(cfg) is True
 
 
-async def test_e2e_probe_key_on_chain_head_skips_probe(providers: ProviderStub) -> None:
+async def test_a_credential_that_only_looks_like_a_test_key_is_probed_like_any_other(
+    providers: ProviderStub,
+) -> None:
+    """No credential value in user data may exempt a hop from the probe and report a false 'available'."""
+    providers.outcomes = {"test-tavily-key": RuntimeError("401 invalid api key"), "backup-key": _ANSWER}
     cfg = _chain(_member("tavily", "test-tavily-key"), _member("brave", "backup-key"))
 
     assert await verify_search_service_available(cfg) is True
-    assert providers.calls == []
+    assert providers.calls == ["test-tavily-key", "backup-key"]
 
 
 async def test_verdict_cache_is_keyed_by_the_whole_chain(providers: ProviderStub) -> None:
@@ -186,9 +190,11 @@ async def test_searxng_needs_only_its_base_url(providers: ProviderStub) -> None:
     assert await verify_search_config_live(_member("searxng", api_base="http://localhost:8081")) is True
 
 
-async def test_e2e_probe_key_skips_the_probe(providers: ProviderStub) -> None:
-    assert await verify_search_config_live(_member("tavily", "test-tavily-key")) is True
-    assert providers.calls == []
+async def test_a_single_provider_is_probed_whatever_its_key_reads_like(providers: ProviderStub) -> None:
+    providers.outcomes = {"test-tavily-key": RuntimeError("401 invalid api key")}
+
+    assert await verify_search_config_live(_member("tavily", "test-tavily-key")) is False
+    assert providers.calls == ["test-tavily-key"]
 
 
 # ── verdict cache ─────────────────────────────────────────────────

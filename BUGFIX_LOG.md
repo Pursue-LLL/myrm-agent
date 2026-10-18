@@ -7113,3 +7113,61 @@ if route.unavailable:
 3. **门禁红灯要先分清归属再动手**：`verify:a11y` 当前为红，但退化项（豁免 82→102、`label-has-associated-control` 0→12 等）**全部落在未跟踪的 `system-monitor/` 目录**（该目录 113 个文件只有 6 个被 git 跟踪），属他人进行中的 WIP；按「不动别人未提交工作」的原则只上报、不修改，避免误伤。
 4. **本地化的一次性验证脚本不要进仓**：用 CDP 驱动 headless Chromium 的验证脚本硬编码了机器与版本相关的浏览器路径（`~/Library/Caches/ms-playwright/chromium_headless_shell-1243/...`），进仓会在 CI 上无法运行；验证结论写进本条日志，可长期防退化的守卫留在不依赖浏览器的静态用例里。
 
+---
+
+## BUG-AGENT-2026-10-18-003: 生产代码用「密钥字面量」充当跳过搜索就绪探测的开关——`search_verify` 认死 `test-tavily-key` 直接判「可用」且一次请求都不发
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（复核搜索就绪判定，逐字检查 `verify_search_config_live` 的早退分支） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；就绪判定可对一条从未被验证过的凭据回复「可用」，而这道判定正是 IM/语音/定时/看板/目标/评测入口的准入闸门） |
+| 影响范围 | server：`app/services/integrations/search_verify.py`、`tests/services/integrations/test_search_verify.py`、`app/services/agent/search.py`（顺带清掉 mypy 报的冗余 `cast`） |
+| 出现次数 | 1（`BUG-AGENT-2026-10-17-013` 同批引入的 E2E 捷径，本条把它从生产路径移除） |
+| 关联 | `BUG-AGENT-2026-10-17-013`（其修复项 1 记载的「链首在 E2E 固定密钥名单里仍跳过探测」在本条被移除）；本地提交，未 push |
+
+### 现象
+
+`verify_search_config_live` 在进入真实探测前有一段早退：只要链首的 `api_key` 命中一个写死的字符串，就直接 `return True`（判「可用」）并跳过后续所有请求：
+
+```python
+_E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
+...
+    if members[0].api_key in _E2E_PROBE_SKIPPED_API_KEYS:
+        return True
+```
+
+也就是说，「是否真的验证过」这件事，被一个**用户数据里的字面量**决定了：任何一条 `api_key == "test-tavily-key"` 的搜索配置，无论供应商是否可用、密钥是否有效，都会在就绪判定里被直接盖章「可用」，且一次网络请求都不发。这条判定由 12 个生产调用点共用（`execute_preamble/agent.py:174`、`params/converter.py:462`、`kanban/task_runner/runner.py`、`voice/agent_bridge.py:440`、`eval/executor.py`、四个评测路由、`goals/goal_stream_trigger.py:323`、`cron/adapters/agent_runner.py:368`、`api/wiki/router.py`），因此它一旦误判「可用」，这些入口都会在真正搜索时才暴露失败，或干脆不发「搜索服务不可用」的提示。
+
+### 根因
+
+测试专用捷径被写进了生产分支。最初的意图是让 E2E 用占位密钥（`test-tavily-key`）预置 `searchServices` 后，就绪探测不必真的联网，从而让 `web_search_tool` 能在同一轮挂载。但这把「E2E 关注点」固化成了一条**永不验证**的生产判定：判定的输入是用户可写的数据（`apiKey`），而判定里有一个与产品语义无关的魔法字面量。
+
+关键在于：E2E 之所以能挂载 `web_search_tool`，**并不**依赖这个捷径。Web 面（fast / 普通 Web 聊天）在 `converter.py` 里对 `search_available` 有后续赋值——fast 走 `search_available = search_cfg is not None`（`:1103`），普通 Web 聊天走 `if search_cfg is not None and "web_search" in enabled_builtin_tools: search_available = True`（`:1133`）——两者都会**覆盖** `:462` 处就绪判定的结果。所以对 Web 面而言，这段早退保护的是一个随后就被丢弃的判定；真正决定「工具挂不挂」的是「配置是否存在」，而非「探测是否通过」。
+
+### 修复
+
+1. 删除 `_E2E_PROBE_SKIPPED_API_KEYS` 常量与 `verify_search_config_live` 里的早退分支，让每一条被配置的凭据都走真实探测；并在 docstring 里明确「任何凭据值都不得豁免某跳的探测」。
+2. 让原本依赖该捷径的两条单测转为**钉住行为**的守卫：`test_search_verify.py` 的两例改为断言占位密钥与普通密钥一样被真实探测（链上被逐个问过），而不是被跳过。
+3. 顺带清掉 `app/services/agent/search.py` 的冗余 `cast(list[SearchResult], ...)`（`WebSearchTools.search` 已声明返回 `list[SearchResult]`，mypy `redundant-cast`），去掉无用的 `typing.cast` 导入。
+
+### 验证
+
+1. **先红后绿**：改写后的两例在改动前确定性失败——链例断言 `providers.calls == ["test-tavily-key", "backup-key"]` 得到 `[]`（被跳过），单例断言 `is False` 得到 `True`（被盖章可用）；改动后 `test_search_verify.py` 全量 `22 passed`。
+2. **谁真的需要它**：把种子密钥换成 CI 风格的 `test-tavily-key`，在没有该捷径的情况下跑遍所有消费方——`tests/core/channel_bridge/test_execute_preamble_early_exit.py`、`tests/api/voice/test_agent_bridge.py`、`tests/services/agent/test_goal_stream_trigger_failure_policy.py`、`test_goal_stream_profile_suffix.py`、`tests/api/eval/test_memory_ab.py`、`test_eval_router_coverage.py` 共 `107 passed`；纯搜索/配置邻近套件 `239 passed`。
+3. **E2E 面不依赖捷径**：以 `TAVILY_API_KEY=test-tavily-key` 跑种子占位密钥的 `tests/api/agent/test_tools_snapshot_layer_integration.py`（`-m e2e`），在没有捷径的情况下 `1 passed`，证明工具挂载由「配置存在」驱动而非探测结果。
+4. **真实探测的开销与失败模式**：用真实搜索客户端直接对占位密钥探测，得到 `verdict=False`、约 5.4s（冷启动；实际调用点在调用侧另有 60s 判定缓存），失败被 `except` 收敛为 `False`，不抛出。
+5. **门禁**：`ruff check` / `ruff format --check` 对三个改动文件通过；`mypy` 对 `search_verify.py`、`search.py` 零报错；行数 `search_verify.py` 111 行、`test_search_verify.py` 270 行（均远低于 500 行阈值）。
+
+### 局限
+
+1. 该捷径只在密钥**恰好等于** `"test-tavily-key"` 时命中；我没有构造「真实用户恰好使用该字符串」的场景，其生产影响因此只是「某个特定字面量会让判定失真」，而不是一个已在真实环境被踩到的缺陷。
+2. 移除后，凡是配置里带占位密钥的 Web 面，`converter.py:462` 会真实探测一次（结果随后被覆盖），比带该捷径时多一次可能失败的出网尝试；`params/converter.py` 上的重复探测受 `verify_search_config_cached` 的 60s 判定缓存收敛。我没有在受控网络下量化「CI 阻断出网」时这一跳的耗时，只确认了失败会被收敛且不影响判定与测试结论。
+3. 本次只处理这一处「用字面量跳过验证」的写法；同族「测试关注点渗入生产分支」的其他形式未做全仓排查。
+
+### 踩坑经验
+
+1. **测试捷径不能写进生产分支，尤其不能以「用户数据里的字面量」为条件**：把 `api_key == "..."` 当作测试钩子，等于让一条用户可写的字段去决定「是否验证」，用户数据一旦命中就静默改变产品判定。需要放行时，开关应是显式的运行模式/环境标记，而不是数据内容。
+2. **移除前先量化「谁真的需要它」，别凭名字下判断**：`_E2E_PROBE_SKIPPED_API_KEYS` 的名字写着 E2E 需要它，但逐面追下去，Web 面真正驱动工具挂载的是「配置是否存在」，探测结果在 `converter.py` 被后续分支覆盖；E2E 面实测也确实不依赖它。名字不是证据，控制流才是。
+3. **用对照实验区分「本次引入的失败」与「他人未提交的 WIP」**：把被移除的哨兵用插件临时注回后重跑，失败若照旧复现（含 `stream_pump` 通知、`web_fetch` 升级等看似无关的红灯），即可判定与本改动无关，而不是被噪声带偏、误改他人代码。
+

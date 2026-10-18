@@ -1,7 +1,6 @@
 """搜索服务 - Web搜索工具"""
 
 import logging
-from typing import cast
 
 from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
 from myrm_agent_harness.toolkits.web_search.engine import SearchServiceConfig, WebSearchTools
@@ -25,10 +24,7 @@ async def search_web_service(
         搜索结果列表
     """
     web_search_tool = WebSearchTools(search_service_cfg)
-    return cast(
-        list[SearchResult],
-        await web_search_tool.search(
-            query=query,
-            num_results=num_results,
-        ),
+    return await web_search_tool.search(
+        query=query,
+        num_results=num_results,
     )

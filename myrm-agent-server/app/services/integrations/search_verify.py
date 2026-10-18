@@ -60,19 +60,17 @@ def _has_required_credentials(member: SearchServiceConfig) -> bool:
     return not (entry.requires_api_base and not member.api_base)
 
 
-_E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
-
-
 async def verify_search_config_live(cfg: SearchServiceConfig, *, query: str | None = None) -> bool:
     """Run a lightweight live search probe for the given config.
 
     A chain config is probed as one unit, exactly the way the agent searches it (failover included), so the verdict
     means "a search will get an answer" and not "the first provider answers". A member without credentials does not
     veto the probe because the chain skips it at search time; only a chain with no usable member is unavailable.
+
+    Every configured credential is probed for real: no value may excuse a hop from the probe, because a verdict of
+    "available" that no request produced would let a dead credential through the readiness gate.
     """
     members = _members(cfg)
-    if members[0].api_key in _E2E_PROBE_SKIPPED_API_KEYS:
-        return True
     if not any(_has_required_credentials(member) for member in members):
         return False
 
