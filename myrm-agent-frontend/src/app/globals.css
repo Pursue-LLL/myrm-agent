@@ -574,8 +574,9 @@ a[href] {
 
 /* 辅助功能：系统偏好减少动态效果时，把全站动画与过渡压到瞬时，兜住组件层没逐一处理的部分
    （animate-pulse/spin/shimmer 这类持续重绘会让前庭敏感用户不适，也让低端机持续掉电）。
-   刻意用 `0.01ms` 而不是 `animation: none`：Radix 的 usePresence 靠 animationend 决定浮层何时卸载，
-   事件必须照常派发；`0.01ms` 让动画瞬时结束并正常触发，`none` 会让浮层判断不到动画而提前卸载。 */
+   刻意用 `0.01ms` 而不是 `animation: none`：瞬时收尾仍会正常派发 animationend，依赖该事件
+   决定卸载时机的浮层组件才能照常收场；`none` 会让它们判断不到动画而提前卸载。
+   仅覆盖 CSS 动画与过渡；framer-motion 走 Web Animations API，由壳层的 MotionConfig 负责。 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

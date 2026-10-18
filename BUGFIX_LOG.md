@@ -7056,30 +7056,37 @@ if route.unavailable:
 
 ---
 
-## BUG-AGENT-2026-10-18-002: 系统开启「减少动态效果」后，全站持续脉冲/旋转动画照旧无限运行（全局兜底缺失，只有 2 处窄补丁）
+## BUG-AGENT-2026-10-18-002: 系统开启「减少动态效果」后，CSS 持续脉冲/旋转动画照旧无限运行，framer-motion 过渡也完全不受该偏好约束（全局兜底缺失，只有 2 处窄补丁）
 
 | 属性 | 值 |
 |------|------|
 | 发现日期 | 2026-10-18 |
 | 修复日期 | 2026-10-18 |
 | 严重程度 | P2（无障碍契约系统性失效；前庭敏感用户持续不适，低端机/触屏持续重绘耗电） |
-| 影响范围 | `myrm-agent-frontend/src/app/globals.css`（新增通用选择器兜底）、`src/app/__tests__/reduced-motion-safety-net.test.ts` |
-| 出现次数 | 1（`BUG-AGENT-2026-10-17-019` 的姊妹缺陷：019 修的是「视频背景不跟随系统偏好」，本条是「CSS 动画根本没有全局跟随」） |
-| 关联 | `BUG-AGENT-2026-10-17-019`（同一「系统减少动态效果未被尊重」主题的另一条路径） |
+| 影响范围 | `myrm-agent-frontend/src/app/globals.css`（新增通用选择器兜底）、`src/app/__tests__/reduced-motion-safety-net.test.ts`、`src/components/layout/PageLayout.tsx`（framer 根配置）、`src/components/layout/__tests__/PageLayout.test.tsx` |
+| 出现次数 | 1（`BUG-AGENT-2026-10-17-019` 的姊妹缺陷：019 修的是「视频背景不跟随系统偏好」，本条是「CSS 动画与 framer 过渡没有全局跟随」） |
+| 关联 | `BUG-AGENT-2026-10-17-019`（同一「系统减少动态效果未被尊重」主题的另一条路径）；`temp-docs/roadmap/topic_09 #407` |
 
 ### 现象
 
-用户在系统里开启「减少动态效果」后进入 WebUI，页面上的持续动画照旧无限运行：空聊天页与首页的 `animate-pulse` 心跳点、`animate-spin` 的加载/运行指示、`animate-shimmer` 的勋章光泽，全部无视该系统偏好。
+用户在系统里开启「减少动态效果」后进入 WebUI，两类动画均无视该系统偏好：
+
+1. **CSS 动画**：空聊天页与首页的 `animate-pulse` 心跳点、`animate-spin` 的加载/运行指示、`animate-shimmer` 的勋章光泽照旧无限运行。
+2. **framer-motion 过渡**：设置页、聊天卡片、工作区弹层等 20 个文件里的展开/收起、位移与缩放过渡照旧播放——这类动画由 Web Animations API 驱动（`element.animate`），CSS 媒体查询在原理上覆盖不到它。
 
 ### 根因
 
-`globals.css`（1418 行）此前**只有两处** `@media (prefers-reduced-motion: reduce)`：一处只关 `.animate-node-pulse`、一处只关品牌按钮那一组选择器。而全前端含 `animate-*` 的文件 **856 个**、使用处 **1529 处**，其中无限循环类（`animate-pulse/bounce/ping/spin`）**1237 处**，`motion-safe:` 保护 **0 处**。
+`globals.css` 此前**只有两处** `@media (prefers-reduced-motion: reduce)`：一处只关 `.animate-node-pulse`、一处只关品牌按钮那一组选择器。而全前端含 `animate-*` 的文件 **856 个**、使用处 **1529 处**，其中无限循环类（`animate-pulse/bounce/ping/spin`）**1237 处**，`motion-safe:` 保护 **0 处**。
 
 作者不得不手写 `.animate-node-pulse { animation: none }` 来单独关掉一个动画——**需要手写恰恰证明没有自动兜底**：组件层没有任何机制覆盖其余全部动画，属于「半接上」的契约，比完全不支持更糟，因为它看起来已经支持了。
 
+framer-motion 侧是第二条独立缺口：其根配置默认 `reducedMotion: "never"`（`node_modules/framer-motion/dist/es/context/MotionConfigContext.mjs:10`，`motion-dom/dist/es/render/VisualElement.mjs:206` 据此直接置 `shouldReduceMotion = false`），全仓 `MotionConfig` 零命中，因此没有任何一处让它跟随系统设置。
+
 ### 修复
 
-在 `globals.css` 增加一个通用选择器兜底块（与竞品 `claw/hermes-agent/apps/desktop/src/styles.css:24-32` 逐字同源）：
+两条互补缺口，分别由 CSS 与壳层 framer 配置覆盖：
+
+**① CSS 动画与过渡**——在 `globals.css` 增加一个通用选择器兜底块（与竞品 `claw/hermes-agent/apps/desktop/src/styles.css:24-32` 逐字同源）：
 
 ```css
 @media (prefers-reduced-motion: reduce) {
@@ -7094,24 +7101,36 @@ if route.unavailable:
 }
 ```
 
-刻意用 `0.01ms` 而**不用** `animation: none !important`：Radix `usePresence`（`@radix-ui/react-presence/dist/index.js:101,120`）在 `animationName === "none"` 时直接 UNMOUNT、并靠 `animationName.includes(event.animationName)` 匹配 `animationend` 收尾；`0.01ms` 让动画瞬时结束并照常派发事件，`none` 会让浮层判断不到动画而提前卸载。
+刻意用 `0.01ms` 而**不用** `animation: none !important`：依赖 `animationend` 决定卸载时机的浮层组件（如 `@radix-ui/react-presence/dist/index.js:101,120`）在 `animationName === "none"` 时行为不同；`0.01ms` 让动画瞬时结束并照常派发事件。
 
 `scroll-behavior: auto` 不是死代码：`src/components/primitives/carousel.tsx:154-155` 使用了 `scroll-smooth`，该条正是把它在 reduce 下收回。
 
+通用选择器比枚举类名更完整：任意值写法（`animate-[shimmer_2s_infinite]` 等实测 12 处）与内联样式动画都在覆盖内，无需先改类名。
+
+**② framer-motion 过渡**——在 `src/components/layout/PageLayout.tsx` 用 `<MotionConfig reducedMotion="user">` 包住壳层输出。framer 的位移/缩放/透明度走 Web Animations API，CSS 无法覆盖；该配置让 framer 跟随同一系统偏好，且语义保留：位置类动画瞬时到位、透明度淡出保留，界面不会生硬跳变。
+
+放在 `PageLayout` 而非 `AppLayout`：`PageLayout.tsx:117` 对 `?mode=focused`（Tauri 会话二级 webview）走不带应用壳的分支，而该形态渲染 `ChatWindow` 与其中 10 个 framer 文件；挂在 `AppLayout` 会漏掉这一形态。
+
 ### 验证
 
-1. **真实引擎实测（headless Chromium 经 CDP，`Emulation.setEmulatedMedia` 切 `prefers-reduced-motion`）**：注入前 `no-preference` 下无限脉冲读到 `duration 2s / iteration infinite`；切 `reduce` 后同一元素读到 `duration 1e-05s / iteration 1`，即真的停下。
-2. **浮层契约未被破坏（同一实测）**：`reduce` 下 `animationend` 仍正常派发（返回值 `true`），证明 Radix 卸载路径不受影响；同时组件自行 `animation: none` 的元素在 reduce 下仍解析为 `none`，兜底不会把被刻意移除的动画「复活」。
+1. **真实引擎实测（headless Chromium 经 CDP，`Emulation.setEmulatedMedia` 切 `prefers-reduced-motion`）**：`no-preference` 下无限脉冲读到 `duration 2s / iteration infinite`；切 `reduce` 后同一元素读到 `duration 1e-05s / iteration 1`，即真的停下。
+2. **浮层契约未被破坏（同一实测）**：`reduce` 下 `animationend` 仍正常派发（返回值 `true`），证明依赖它的卸载路径不受影响；同时组件自行 `animation: none` 的元素在 reduce 下仍解析为 `none`，兜底不会把被刻意移除的动画「复活」。
 3. **负向对照**：把兜底块替换为空后同一脚本确定性失败（`reduced pulse duration 2s != 0.01ms`、`reduced iteration infinite != 1`、`animationend did not fire`），证明测量真的在判别而不是恒真。
-4. **回归用例**：`src/app/__tests__/reduced-motion-safety-net.test.ts`（3 例，从真实 `globals.css` 解析该块）钉住「通用选择器覆盖」「用瞬时而非移除」「绝不出现 `animation: none`」；变异验证：删块、改成 `animation: none`、删掉 `animation-iteration-count` 三种改法各自确定性变红。
-5. **未引入新问题**：`tsc` 对本改动零新增错误；`prettier` 对两个文件通过；`verify:theme-colors` 通过（扫描 3588 文件）；`verify:a11y` 的告警数与本改动无关（退化全部来自另一位开发者未跟踪的 `system-monitor/` 目录，见下条经验）；本目录与 `theme` 套件共 19 例通过。仅作用于 `reduce` 分支，`no-preference` 用户像素不变。
+4. **framer 根配置实测**：以 esbuild 打包一个真实 framer + React 应用，在 `reduce` 下 `reducedMotion="user"` 使位移动画瞬时到位（`x=300`，对照组 `no-preference` 同一时刻为 `x=212`），而透明度淡出保留（`opacity=0.73`），即语义保留降级。
+5. **回归用例**：`src/app/__tests__/reduced-motion-safety-net.test.ts`（3 例，从真实 `globals.css` 解析该块）钉住「通用选择器覆盖」「用瞬时而非移除」「绝不出现 `animation: none`」；`src/components/layout/__tests__/PageLayout.test.tsx` 钉住壳层的 `reducedMotion="user"` 覆盖应用内两种形态。变异验证：删块、改成 `animation: none`、删掉 `animation-iteration-count`、移除 `MotionConfig`、把 `reducedMotion` 改回 `"never"` 各自确定性变红。
+6. **未引入新问题**：`tsc` 对本改动零新增错误；`prettier`、`oxlint` 对改动文件通过；`verify:theme-colors` 通过（扫描 3588 文件）；`verify:a11y` 的告警数与本改动无关（退化全部来自另一位开发者未跟踪的 `system-monitor/` 目录，见下条经验）；仅作用于 `reduce` 分支，`no-preference` 用户所见不变。
+
+### 已知取舍（如实记录）
+
+`animate-spin`（实测 804 处）与 `animate-pulse`（360 处）在 reduce 下同样被冻结。二者是否应当保留（冻结后等待态可能显得像卡死）仍有讨论空间；但 openclaw `apps/linux/ui/styles.css:506-514`、hermes-agent `apps/desktop/src/styles.css:24-32` 与 MDN/web.dev 的通用指引同样冻结，本条与通行做法一致。
 
 ### 踩坑经验
 
 1. **「手写特例」是缺兜底的证据，不是兜底的证据**：`.animate-node-pulse` 之所以被单独关，正是因为通用选择器块不存在；看到「某个动画被单独处理」时，应反过来查「其余动画为什么不需要处理」。
-2. **无障碍降级要选「瞬时」而不是「移除」**：`animation-duration: 0.01ms` 保留事件派发链路，`animation: none` 会切断它；依赖 `animationend`/`transitionend` 的组件（如 Radix 浮层）会因此提前卸载。web.dev 与 MDN 同样推荐前者。
-3. **门禁红灯要先分清归属再动手**：`verify:a11y` 当前为红，但退化项（豁免 82→102、`label-has-associated-control` 0→12 等）**全部落在未跟踪的 `system-monitor/` 目录**（该目录 113 个文件只有 6 个被 git 跟踪），属他人进行中的 WIP；按「不动别人未提交工作」的原则只上报、不修改，避免误伤。
-4. **本地化的一次性验证脚本不要进仓**：用 CDP 驱动 headless Chromium 的验证脚本硬编码了机器与版本相关的浏览器路径（`~/Library/Caches/ms-playwright/chromium_headless_shell-1243/...`），进仓会在 CI 上无法运行；验证结论写进本条日志，可长期防退化的守卫留在不依赖浏览器的静态用例里。
+2. **无障碍降级要选「瞬时」而不是「移除」**：`animation-duration: 0.01ms` 保留事件派发链路，`animation: none` 会切断它；依赖 `animationend`/`transitionend` 的组件会因此提前卸载。web.dev 与 MDN 同样推荐前者。
+3. **CSS 媒体查询覆盖不到 JS 驱动的动画**：framer-motion 走 Web Animations API，必须有独立的根配置；只改 CSS 会得出「已全局生效」的错误结论，实际仍有 20 个文件的过渡在跑。
+4. **门禁红灯要先分清归属再动手**：`verify:a11y` 当前为红，但退化项（豁免 82→102、`label-has-associated-control` 0→12 等）**全部落在未跟踪的 `system-monitor/` 目录**（该目录 113 个文件只有 6 个被 git 跟踪），属他人进行中的 WIP；按「不动别人未提交工作」的原则只上报、不修改，避免误伤。
+5. **本地化的一次性验证脚本不要进仓**：用 CDP 驱动 headless Chromium 的验证脚本硬编码了机器与版本相关的浏览器路径（`~/Library/Caches/ms-playwright/chromium_headless_shell-1243/...`），进仓会在 CI 上无法运行；验证结论写进本条日志，可长期防退化的守卫留在不依赖浏览器的静态用例里。
 
 ---
 
@@ -7283,3 +7302,142 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 2. 未在真实浏览器里点按开关走完整链路（`./myrm test -m chrome_e2e` 在本机排不到共享预检名额，同 `BUG-AGENT-2026-10-17-009` 局限 1），行为由组件测试与逐行读码固定。
 
 
+## BUG-AGENT-2026-10-18-006: 机翻缓存放在补丁目录里，被补丁应用器当作补丁整表写入语言包——一次应用覆盖 4 棵已翻译子树（`Agent`/`Goal`/`images`）、新增 5629 个孤儿键；补丁应用器本身也没有任何结构校验
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（追「旧模型遗留记忆的提示文案」这条线的补丁源时，顺手把 `i18n-patch-apply.mjs` 的合并逻辑对着 `locales/en.json` 逐键核了一遍） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢已落盘的译文——破坏只发生在「重新应用补丁」这一步；但真跑一次会静默覆盖 4 棵子树、把 5629 个孤儿键写进 `de.json`，且应用器打印的是「✅ 已更新，替换 5633 条 / 新增 0 条」，看不出任何异常） |
+| 影响范围 | frontend：`scripts/i18n-patch-apply.mjs`、新增 `scripts/i18n-prune-patch-keys.mjs`、新增 `scripts/__tests__/i18n-patch-guard.test.ts`、`scripts/translation-patches/de/auto-translated-overrides.json` → `scripts/i18n-caches/de.json`（`git mv`）、`scripts/i18n-de-bulk-translate.py`、`scripts/i18n-de-apply-cache.py`、42 个补丁文件（清理死键）、`scripts/_ARCH.md`、`src/i18n/_ARCH.md`；未改任何 `locales/*.json` |
+| 出现次数 | 未在真实提交前触发（破坏只在手工重跑补丁时发生；本次用临时目录复现，仓库语言包一个字节未动） |
+| 关联 | `BUG-AGENT-2026-10-16-006`（`orphanWarning` 等迁移文案最初就是走这条补丁链落盘的）；harness 侧同批的集合/维度加固见 `BUG-HARNESS-2026-10-16-006`；本地提交，未 push |
+
+### 现象
+
+`scripts/translation-patches/de/` 下除了真正的补丁 `batch-NN.json`，还躺着 `auto-translated-overrides.json`。它是一个「英文原文 → 德文译文」的**映射表**（5633 个根键：`Backend` / `Frontend` / `Version` / `Analyst` …），却被放在了 `i18n-patch-apply.mjs` 会遍历的补丁目录里。把这个目录当作补丁跑一次，结果是：
+
+1. `auto-translated-overrides.json: 替换 5633 / 新增 0`，`de.json` 新增 5629 个顶层孤儿键（映射表里 4 个键恰好与语言包顶层键同名，其余全是新键）。
+2. 4 棵已翻译子树被**单个字符串**替换掉：`Agent` → `"Agent"`（丢掉 `Agent.list.title` / `Agent.form.*` / `Agent.sessionPolicy.*` 等整棵）、`Goal` → `"Ziel"`、`agent` → `"Agent"`、`images` → `"Bilder"`（丢掉 `images.search` / `images.viewMore`）。
+3. 应用器最后打印「✅ de.json 已更新：替换 5633 条 / 新增 0 条」——把上述损害报告成一次成功。
+
+同一类结构破坏还有第二个独立实例：`ko/batch-08.json` 把 `cron.schedule` 写成了字符串 `"일정"`，而 en 与线上 `ko.json` 里它都是对象（`title` / `once` / `onceAt` / `everyMinutes` / …）。再跑一次这个补丁，`cron.schedule` 整棵会变成 `"일정"`。
+
+### 根因
+
+1. **缓存与补丁同构但不同语义**：`i18n-patch-apply.mjs` 的 `applyPatch` 把每个 `*.json` 当作「与语言包同构的嵌套补丁树」深度合并，而机翻缓存是「英文原文 → 译文」的扁平映射。两者都合法 JSON，放进同一目录就分不出来了。缓存也无法自愈：`i18n-de-bulk-translate.py` 读回它是 `{en: de}` 映射，一旦被应用器写成嵌套树，两个读取方看到的结构互相矛盾。
+2. **应用器只做「补丁 vs 语言包」的字符串比对**：`if (existing !== value)` 是唯一的判据，既不检查键路径在 en（唯一 key SSOT）里是否存在，也不检查「补丁叶子会不会替换掉一个已存在的对象子树」。这两种情况在当时都只会多写一个键，不会报错。
+3. **补丁是可重放的**：语言包即便已被清干净，只要重放历史补丁，死键与坏值就会被带回（仓库里已有同类记录：`notifications.configHealthWarning` 只能同时从语言包和补丁里删）。所以补丁源本身的腐坏是「迟早会生效」的隐患，而不是无害的历史文件。
+
+### 修复
+
+1. 缓存搬出补丁目录：`git mv scripts/translation-patches/de/auto-translated-overrides.json scripts/i18n-caches/de.json`，`i18n-de-bulk-translate.py` 与 `i18n-de-apply-cache.py` 两处路径同步；`i18n-caches/` 只放机翻缓存，`translation-patches/` 只放补丁。
+2. `i18n-patch-apply.mjs` 增加结构校验，三种破坏一律拒绝：补丁叶子路径在 `locales/en.json` 里不是叶子 → 拒绝（写进去就是该语言独有键，`verify-i18n` 9b 会拒）；补丁叶子会替换一个已存在的对象子树 → 拒绝；补丁带来的新子树里有任何一个叶子不在 en → 拒绝。校验先在内存里跑完全部补丁再落盘，发现问题时 `locales/<locale>.json` 一个字节都不写，并一次列出所有违规路径与修复指引。
+3. 新增 `scripts/i18n-prune-patch-keys.mjs`：把补丁里 en 已不存在的键就地删掉（子树变空则整段摘除），`--check` 只报告（有需修剪的键时退出码 1）、`--locale` 限定语言；用它对 42 个补丁文件清掉 368 个死键（含 `checkpoint.resumable` 这类 en 里已删的键）。
+4. 修掉另外两类已腐坏的补丁源：删除 `ko/batch-08.json` 的 `cron.schedule` 标量；把 10 处 ICU 无效的补丁值改回线上值——它们都丢了线上的 `'{{secret:KEY}}'` / `'<token>'` / `'{ ... }'` 单引号转义（少了引号，`{{secret:KEY}}` 是 `MALFORMED_ARGUMENT`、`<token>` 是 `UNCLOSED_TAG`），重放会让这些文案在运行时抛 `INVALID_MESSAGE`。
+
+### 验证
+
+1. 先复现后修：在临时目录里复制 `locales/de.json` 并把真实补丁目录软链进去跑改动前的应用器，得到「新增 5629 个孤儿键 + 4 棵子树被覆盖成字符串」；改动后同一命令退出码 1、逐键列出原因，且 `de.json` 与仓库副本 `cmp` 完全一致（0 字节写入）。
+2. 正反两向都测：新增 `scripts/__tests__/i18n-patch-guard.test.ts` 6 例——`cron.schedule` 标量替换对象子树被拒、en 不存在的键被拒、键路径正确且同值的补丁仍然成功、新子树每个叶子都在 en 里时才允许整段新增、修剪器 `--check` 只报告而写入后只删死键、以及「沙箱用例绝不触碰仓库 `locales/*.json`」的隔离守卫。全部通过。
+3. 五个有补丁目录的语言现在都能干净应用：`ko` 175 / `de` 151 / `ja` 57 / `zh` 1 / `zh-TW` 2 条替换，退出码均为 0；修剪器 `--check` 从「42 个文件 / 368 个死键」变为 0；补丁 ICU 扫描从 10 条无效变为 0。
+4. 门禁全绿：`bun scripts/check-icu-syntax.mjs`（6 个语言 116616 条文案）通过；`bun run verify:i18n` 全部通过（含 `verify-i18n-references.mjs` 3585 个文件无缺失键）；`bunx vitest run scripts/__tests__/ src/store/__tests__/useRetrievalStore.reindex.test.ts` 242 例通过；harness `tests/toolkits/memory tests/toolkits/vector` 3338 例通过、`ruff` 干净。
+5. 六个语言包逐叶核对：`en/ko/zh/ja/de/zh-TW` 均 19436 个叶子、0 个不在 en 的孤儿键（与改动前一致）。
+
+### 局限
+
+1. 补丁链没有接入 CI：仓库里没有任何脚本调用 `i18n-patch-apply.mjs`，所以这次的结构校验只在人手工跑工作流时生效。没有顺手接进 CI——那要动他人正在编辑的共享 workflow，超出本次范围。
+2. 只清理了「结构性」腐坏：补丁里仍有部分叶子的值与本语言当前译文不同，本次未逐条改写（属内容裁决）。这类「重放会不会覆盖已有译文」的风险由 `BUG-AGENT-2026-10-18-008` 处理——实测 de 112 / ko 55 / ja 2 共 169 条的方向是「退回英文」，008 把应用器改成只填充未翻译键、不覆盖已有译文。ICU 无效的 10 处是另一类：它们不是措辞差异，而是重放必然导致运行时错误，已在本次改回线上值。
+3. 隔离守卫是被自己的错误逼出来的：迭代中有一版测试用真实脚本路径执行（而非沙箱副本），脚本按自身位置推导 `rootDir`，于是真的覆盖了仓库的 `locales/ko.json` 与 `locales/zh.json`。已用测试前的副本恢复，`ko/zh` 的叶子数、孤儿数（0）、`verify:i18n` 与 ICU 门禁均确认回到原状；其余四个语言包的 mtime 全程未变。`i18n-patch-guard.test.ts` 末尾的「never touches the repository locales」用例就是为这类错误加的回归保护。
+4. `verify:a11y` 与 `verify:hardcoded-copy` 当前失败，来自他人未提交的组件（`visual-theming/*`、`ConnectionIndicator.tsx` 等把文案写死在内），与本次改动无关，未动。
+## BUG-AGENT-2026-10-18-007: 德语文案把机翻保护标记 `__BR_OAuth2__` 交给了用户——`AgentOpenAPIServicesTab` 的下拉选项直接显示内部记号；根因是品牌保护按短→长匹配，`OAuth` 先替掉了 `OAuth2` 的前半段
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（复核 `BUG-AGENT-2026-10-18-006` 的补丁值差异时，逐条看 `agent.openapi.auth.oauth2` 的 patch 值里出现 `__BR_` 前缀，追到线上 `de.json` 同样带这个前缀） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；但德语用户在下拉里直接看到 `__BR_OAuth2__ Client-Anmeldeinformationen`，内部记号泄漏到 ToC 界面） |
+| 影响范围 | frontend：`locales/de.json`（`agent.openapi.auth.oauth2`）、`scripts/i18n-de-bulk-translate.py`（`protect_brands`）、`scripts/i18n-caches/de.json`（同键的重放源）、`scripts/check-icu-syntax.mjs` + `scripts/icu-syntax-scan.ts`（新增标记门禁）、`scripts/__tests__/icu-syntax-scan.test.ts`、`scripts/_ARCH.md` |
+| 出现次数 | 1（`de.json` 全库唯一一处残留标记；其余五个语言包 0 处） |
+| 关联 | `BUG-AGENT-2026-10-18-006`（同一轮复核发现；-006 修的是补丁源结构，本条修的是补丁/缓存里的**值**）；本地提交，未 push |
+
+### 现象
+
+德语设置页「OpenAPI 服务」的认证类型下拉里，OAuth2 选项显示为 `__BR_OAuth2__ Client-Anmeldeinformationen`（消费点 `AgentOpenAPIServicesTab.tsx:337` 的 `t('oauth2')` → `agent.openapi.auth.oauth2`）。`__BR_` 是批量机翻脚本给品牌名加的占位记号，本应在翻译后还原成 `OAuth2`。
+
+### 根因
+
+`i18n-de-bulk-translate.py` 的 `protect_brands` 逐个品牌做 `str.replace`，且 `BRANDS` 列表里 `OAuth` 排在 `OAuth2` 之后、`Myrm` 排在 `MyrmAgent` 之前。对 `OAuth2 Client Credentials`：
+
+1. 先替换 `OAuth`（它命中 `OAuth2` 的前四个字母）→ `__BR_OAuth__2 Client Credentials`；
+2. 再替换 `OAuth2` 时该串已不存在，不再命中；
+3. 还原阶段按前缀 `__BR_OAuth__` 替换回 `OAuth`，`2__` 就留在了文本里。
+
+单次运行的实测（保护后 → 还原后）：`'__BR___BR_OAuth__2__ Client Credentials'` → `'__BR_OAuth2__ Client Credentials'`，即占位符套娃后外层记号的尾部残留。占位符本身包含品牌名，使这个问题无法靠「按长度排序」解决：先替长品牌时，长品牌的替换文本里又含短品牌，短品牌会在下一轮继续命中。
+
+### 修复
+
+1. `protect_brands` 改用一条按长度降序、最短优先不成立的正则（`_BRAND_RE`）单次左到右替换，重叠品牌（`OAuth`/`OAuth2`、`Myrm`/`MyrmAgent`、`API`/`OpenAPI`）不再互相套娃；`restore_brands` 的匹配串按品牌名精确构造，还原顺序无关。
+2. 清掉线上值与两处重放源：`locales/de.json` 的 `agent.openapi.auth.oauth2` 与 `i18n-caches/de.json` 里对应条目都改为 `OAuth2 Client-Anmeldeinformationen`（其余五个语言包已是正确写法）。
+3. 加门禁：`icu-syntax-scan.ts` 新增 `scanTranslationArtifacts`，`check-icu-syntax.mjs`（`LINT_GATES` 之一，进 CI）在解析 ICU 之前先拒绝残留的 `__BR_…__` / `__PHn__`，失败时指出键路径与具体记号。
+
+### 验证
+
+1. 先证明门禁能抓住真实缺陷：把 HEAD 上 `de.json` 的实际值喂给新扫描器，得到 `{path: 'agent.openapi.auth.oauth2', error: 'ARTIFACT __BR_OAuth2__'}`（1 条命中）；清干净后同一门禁 6 语言 116616 条文案 0 命中。
+2. 品牌往返实测（修复后）：`OAuth2 Client Credentials` / `MyrmAgent Desktop` / `Use OAuth and OAuth2` / `Myrm is great` / `GitHub API and URL` / `Next.js + LangGraph` 六个样例 `restore(protect(x)) === x` 全为真；修复前 `OAuth2…` 与 `MyrmAgent…` 两个样例为假。
+3. `bunx vitest run scripts/__tests__/` 20 个文件 231 例通过（含新增的 2 例：标记检出与「仓库全部语言包 0 残留」）；`bun scripts/check-icu-syntax.mjs`、`bun run verify:i18n` 通过；六个语言包仍然 19436 叶、0 孤儿键。
+4. `rg '__BR_|__PH'` 在 `locales/`、`translation-patches/`、`i18n-caches/` 三处均为 0 命中。
+
+### 局限
+
+1. 门禁只拦「已经落到 `locales/*.json` 的残留」；它拦不住「下一次机翻又会产出残留」，那由 `protect_brands` 的单次替换修掉，但两条链路之间没有联动测试（`i18n-de-bulk-translate.py` 需要真实翻译服务，未在 CI 跑）。
+2. 只清理了这一个键。`BRANDS` 里其余重叠对（`API`/`OpenAPI`、`Myrm`/`MyrmAgent` 等）在当前六个语言包里没有残留，但若将来重跑机翻，修复前产生的其它残留需要靠门禁报出来，本次没有做全量历史扫描。
+## BUG-AGENT-2026-10-18-008: 补丁应用器用「快照」覆盖目标语言已有译文——重放 de 补丁一次把 103 条德语退回英文（`Goal.verifications` 的「Prüfungen」变回「Tests」）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（修完 `BUG-AGENT-2026-10-18-006` 后，把 de 补丁在真实 `de.json` 副本上完整跑一遍做端到端复核，发现 151 条「替换」里混着把已翻译文案改回英文的项） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据、不崩；但一次重放会把 103 条德语界面退回英文——德语用户看到 `Name` / `Tests` / `Lean` / `Naked` 这类英文单词出现在本该是 `Bezeichnung` / `Prüfungen` / `Mager` / `Nackt` 的位置） |
+| 影响范围 | frontend：`scripts/i18n-patch-apply.mjs`（填充条件与计数输出）、`scripts/__tests__/i18n-patch-guard.test.ts`、`scripts/_ARCH.md`、`src/i18n/_ARCH.md`；未改任何 `locales/*.json` |
+| 出现次数 | 1（沙箱实测：不改代码重放 de 补丁，103 条德语退回英文；修复后 0 条） |
+| 关联 | `BUG-AGENT-2026-10-18-006`（同一补丁链的结构性破坏）、`BUG-AGENT-2026-10-18-007`（同链的值标记残留）；`topic_09` 十九审 ⑥ 曾把「`i18n-patch-apply.mjs` 的覆盖语义」判为「只在维护者重放时触发、本管线无场景」而未做，本条用实测推翻该判断：重放确实会把已本地化内容退回英文，属真实可达的维护动作后果；本地提交，未 push |
+
+### 现象
+
+`i18n-patch-apply.mjs` 原先的唯一判据是 `existing !== value`，即「目标语言的值与本补丁不同就覆盖」。补丁是某一时刻的翻译快照，因此重放旧补丁会覆盖后来改好的译文。实测（把 de 补丁目录软链进临时目录、对仓库 `de.json` 的副本执行）：
+
+```
+✅ de.json 已更新：替换 151 条 / 新增 0 条
+德国用户可见文案中被改回英文 SSOT 值的条数：103
+   Goal.verifications        "Prüfungen" → "Tests"
+   agent.indicator.default   "KI-Agent"   → "Agent"
+   agent.name               "Bezeichnung" → "Name"
+   agent.promptMode.modes.lean   "Mager"  → "Lean"
+   agent.personality.styles.shakespeare "Shakespeare-Stil" → "Shakespeare"
+```
+
+跨语言统计（补丁值 == en 值 且 目标语言已有不同译文）：**de 112、ko 55、ja 2**，共 169 条；zh / zh-TW 为 0（译文都已与补丁一致）。这些键的目标语言文案明确优于补丁里的英文原样（`Prüfungen`、`Mager`、`Nackt`、`Schlagworte`、`Namensraum`），覆盖方向是净退化。
+
+### 根因
+
+补丁与语言包的职责被混淆：补丁是「内容补齐」（填尚未翻译的键），实现却成了「与快照比对后整值替换」。对已经翻译过的键，补丁里的值往往还停在英文原文或更老的措辞，于是「应用补丁」等价于「把已本地化的界面按快照回滚」。原先的输出把这类覆盖与正常填充都记成「替换」，从计数上看不出异常。
+
+### 修复
+
+`applyPatch` 的叶子分支改为三分支：键不存在 → 新增；键存在且值等于 **en SSOT 当前值**（说明该语言还没翻译它）→ 填充；其余（已有独立译文）→ 保留。`enLeaves` 随之由「路径集合」改为「路径 → en 值」映射，因为判定「是否仍未翻译」必须比较 en 当前值，不能只看键是否存在。输出改为「填充未翻译 / 新增 / 保留已有译文」三项计数，覆盖行为不再隐藏在一个笼统的「替换」数字里。
+
+### 验证
+
+1. 修复前后各做一次完整重放（de）：修复前「退回英文 103 条」，修复后「0 条」，`Goal.verifications` 保持 `Prüfungen`；de 输出变为 `填充未翻译 0 / 新增 0 / 保留已有译文 3759`。
+2. 五个语言各重放一次，退回英文条数全部为 0（de / ko / ja / zh / zh-TW）。
+3. 确认填充能力没有一起被削掉：把 `zh.json` 的 `agent.name` 人为改回英文 `Name`，补丁把它填成 `名称`（`填充未翻译 1`）。
+4. 新增两例守卫（`i18n-patch-guard.test.ts` 7 例全绿）：① 仍是英文 SSOT 值的键会被填充；② `Goal.verifications` 已有德语 `Prüfungen` 时，携带英文 `Tests` 的补丁不许改写它，且输出含「保留已有译文」。第 ② 例在旧实现上是红的。
+5. `bunx vitest run scripts/__tests__/` 20 文件 232 例通过；`bun scripts/check-icu-syntax.mjs`、`bun run verify:i18n` 通过；六个语言包仍 19436 叶、0 孤儿键。
+
+### 局限
+
+1. 只把「已翻译」定义为「不等于 en 当前值」。若某语言的译文本就与 en 完全相同（专有名词、`Markdown`、`Top-P` 这类），补丁对该键的改写会被判为合法填充；这类词本来也不需要翻译，风险可接受，但判据不是「该语言是否真的翻译过」而是它的代理。
+2. 补丁链仍未接 CI（同 `006` 局限 1），本条的守卫只在维护者跑应用器时生效。
+3. 代价是补丁不再能修正已有译文：想把某条已翻译文案改掉，必须直接编辑 `locales/<locale>.json`（`src/i18n/_ARCH.md` 的工作流本来就写明可以「直接写回」）。正常流程不受影响——补丁由「剩余壳清单」生成，而壳的定义就是「值仍等于 en」，正落在填充分支。
+4. 未逐个复核 169 条中每一条的目标文案是否真的优于补丁值（抽样 6 条方向明确）；修复方式是「不改动已有译文」，因此即使个别条目旧译文更好，也不会被本条改坏。
