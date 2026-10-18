@@ -20,7 +20,6 @@ import {
 
 const DRAWER_RESUME_ACTION_TYPES = new Set([
   'subagent_approval',
-  'deploy_approval',
   'high_risk_dom_action',
   'script_privileged_api',
   'batch_cost_approval',

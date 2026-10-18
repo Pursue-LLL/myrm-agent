@@ -1,6 +1,6 @@
 import type { ScopeNote, TranslateFn } from './types';
 
-const EXTERNAL_TOOLS = new Set(['send_message', 'send_message_tool', 'send_file', 'channel_send', 'deploy_approval']);
+const EXTERNAL_TOOLS = new Set(['send_message', 'send_message_tool', 'send_file', 'channel_send']);
 
 export function platformLabelFromTarget(target: string): string {
   const platform = target.split(':')[0]?.toLowerCase() ?? '';
