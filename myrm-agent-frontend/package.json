@@ -38,6 +38,7 @@
     "verify:orphans:diff": "bun scripts/check-orphan-modules.mjs --base origin/main",
     "verify:a11y": "bun scripts/check-a11y-ratchet.mjs",
     "verify:theme-colors": "bun scripts/check-theme-colors.mjs",
+    "verify:reduced-motion": "bun scripts/check-reduced-motion.mjs",
     "verify:hardcoded-copy": "bun scripts/check-hardcoded-copy.mjs",
     "verify:icu-syntax": "bun scripts/check-icu-syntax.mjs",
     "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
