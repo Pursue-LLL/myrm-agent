@@ -75,14 +75,12 @@ class ChannelHealth:
     """
 
     consecutive_failures: int = 0
-    last_success_at: float | None = None
     last_failure_at: float | None = None
     last_error: str = ""
     circuit_open_until: float = 0.0
 
     def record_success(self) -> None:
         self.consecutive_failures = 0
-        self.last_success_at = time.monotonic()
         self.last_error = ""
         self.circuit_open_until = 0.0
 
@@ -103,25 +101,19 @@ class ChannelHealth:
 class ChannelActivity:
     """Per-channel inbound/outbound activity.
 
-    Tracked by Router (inbound) and MessageBus (outbound) and surfaced by the
-    status API, which reports when a channel last saw traffic in either
-    direction and how many outbound attempts failed.
+    Tracked by Router (inbound) and MessageBus (outbound). The status API reports
+    the last inbound/outbound timestamps so the UI can show when a channel was
+    last active.
     """
 
     last_inbound_at: float | None = None
     last_outbound_at: float | None = None
-    total_outbound: int = 0
-    total_errors: int = 0
 
     def record_inbound(self) -> None:
         self.last_inbound_at = time.time()
 
     def record_outbound(self) -> None:
         self.last_outbound_at = time.time()
-        self.total_outbound += 1
-
-    def record_error(self) -> None:
-        self.total_errors += 1
 
     @property
     def last_active_at(self) -> float | None:

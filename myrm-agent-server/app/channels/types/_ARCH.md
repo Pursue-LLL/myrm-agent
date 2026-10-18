@@ -17,5 +17,5 @@
 | `components.py` | 核心 | 跨渠道交互组件（按钮、快捷回复等）类型 | ✅ |
 | `session.py` | 核心 | 会话标识与隔离策略 | ✅ |
 | `notification.py` | 核心 | 通知模式枚举与显式 @ 元数据 | ✅ |
-| `status.py` | 核心 | 渠道状态与诊断类型：`ChannelStatus`、`StartMode`、`ChannelHealth`（熔断）、`ChannelActivity`（最近出入站时间与出站失败计数，供 status API 消费）、`ChannelIssue`、`ChannelCapabilities` | ✅ |
+| `status.py` | 核心 | 渠道状态与诊断类型：`ChannelStatus`、`StartMode`、`ChannelHealth`（熔断）、`ChannelActivity`（最近出入站时间，供 status API 消费）、`ChannelIssue`、`ChannelCapabilities` | ✅ |
 | `thread_sharing.py` | 核心 | 话题级 thread 共享/隔离模式 | ✅ |

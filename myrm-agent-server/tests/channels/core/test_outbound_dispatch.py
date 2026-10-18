@@ -34,7 +34,6 @@ class TestSendNowOutcome:
 
             assert await load_pending_deliveries(base_dir=tmp_path) == []
             assert [item.content["content"] for item in await bus.get_dlq_messages()] == ["needs proof"]
-            assert channel.activity.total_errors == 1
 
     @pytest.mark.asyncio
     async def test_id_less_channel_counts_none_as_delivered(self, tmp_path: Path) -> None:
@@ -44,7 +43,7 @@ class TestSendNowOutcome:
 
             assert await load_pending_deliveries(base_dir=tmp_path) == []
             assert await bus.get_dlq_messages() == []
-            assert channel.activity.total_outbound == 1
+            assert channel.activity.last_outbound_at is not None
 
     @pytest.mark.asyncio
     async def test_media_only_send_without_id_is_delivered(self, tmp_path: Path) -> None:

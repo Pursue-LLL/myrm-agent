@@ -175,7 +175,7 @@ class OutboundDispatchMixin(OutboundFailureMixin):
             await self._durable_outbound.mark_attempting(msg)
             message_id = await self._attempt_send(msg, route, label=label)
         except Exception as exc:
-            await self._settle_failure(msg, origin, route, exc, final_on_error=final_on_error)
+            await self._settle_failure(msg, origin, exc, final_on_error=final_on_error)
             raise
         await self._durable_outbound.ack(msg)
         discard_ephemeral_media(origin.media)
@@ -228,7 +228,6 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         self,
         msg: OutboundMessage,
         origin: OutboundMessage,
-        route: _Route,
         exc: Exception,
         *,
         final_on_error: bool,
@@ -237,8 +236,6 @@ class OutboundDispatchMixin(OutboundFailureMixin):
 
         Ephemeral files stay only while a failure record may still re-send them.
         """
-        if route.channel is not None:
-            route.channel.activity.record_error()
         logger.warning("Channel '%s' send failed: %s", msg.channel, exc)
 
         if isinstance(exc, ChannelSendError) and exc.accepted and exc.failed_attachments and msg.media:

@@ -32,7 +32,6 @@ class TestChannelHealth:
     def test_initial_state(self) -> None:
         h = ChannelHealth()
         assert h.consecutive_failures == 0
-        assert h.last_success_at is None
         assert h.last_failure_at is None
         assert h.last_error == ""
 
@@ -40,8 +39,8 @@ class TestChannelHealth:
         h = ChannelHealth(consecutive_failures=3, last_error="timeout")
         h.record_success()
         assert h.consecutive_failures == 0
-        assert h.last_success_at is not None
         assert h.last_error == ""
+        assert h.circuit_open is False
 
     def test_record_failure(self) -> None:
         h = ChannelHealth()
@@ -105,8 +104,8 @@ class TestBaseChannelHealth:
     async def test_start_records_success(self) -> None:
         ch = DummyChannel()
         await ch.start()
-        assert ch.health.last_success_at is not None
         assert ch.health.consecutive_failures == 0
+        assert ch.health.last_error == ""
 
 
 # ---------------------------------------------------------------------------

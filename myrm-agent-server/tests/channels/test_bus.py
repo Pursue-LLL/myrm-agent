@@ -729,7 +729,7 @@ class TestMessageBusEdgeCases:
         try:
             await bus.publish_outbound(_make_out())
             await asyncio.sleep(0.5)
-            assert ch.activity.total_errors > 0
+            assert ch.health.consecutive_failures > 0
         finally:
             await bus.stop()
 
