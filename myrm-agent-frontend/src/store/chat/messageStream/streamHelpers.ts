@@ -196,7 +196,7 @@ export async function getUserFriendlyError(
  * rather than the chat the user happens to have open: a general-agent clarify carries no `source` and resumes.
  */
 export function resolveClarifyIsResumeMode(source: unknown): boolean {
-  return source !== 'deep_research';
+  return typeof source === 'string' && source.trim() ? source.trim() !== 'deep_research' : true;
 }
 
 export function normalizeClarificationForm(value: unknown): ClarificationForm | undefined {

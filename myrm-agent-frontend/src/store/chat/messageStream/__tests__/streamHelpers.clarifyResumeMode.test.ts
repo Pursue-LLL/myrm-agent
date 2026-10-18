@@ -18,4 +18,14 @@ describe('resolveClarifyIsResumeMode', () => {
   it('treats any other source as a resume', () => {
     expect(resolveClarifyIsResumeMode('conversation_history')).toBe(true);
   });
+
+  it('ignores surrounding whitespace, matching how the server trims before comparing', () => {
+    expect(resolveClarifyIsResumeMode(' deep_research ')).toBe(false);
+    expect(resolveClarifyIsResumeMode('   ')).toBe(true);
+  });
+
+  it('treats a non-string source as a resume, matching the server rule', () => {
+    expect(resolveClarifyIsResumeMode(123)).toBe(true);
+    expect(resolveClarifyIsResumeMode(null)).toBe(true);
+  });
 });
