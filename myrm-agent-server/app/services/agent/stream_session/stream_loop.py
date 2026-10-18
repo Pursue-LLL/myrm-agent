@@ -477,13 +477,15 @@ async def iter_agent_stream_chunks(
                                 )
 
                                 await SystemNotificationService.create_notification(
-                                    title="Agent 预算已耗尽",
-                                    message=f"您的 Agent 会话由于达到 Token 预算上限（{active_goal.budget.max_tokens} Tokens）已自动暂停。请在聊天窗口中追加预算以恢复执行。",
+                                    title="Goal budget exhausted",
+                                    message=f"The agent session paused after reaching its token budget ({active_goal.budget.max_tokens} tokens). Add budget in the chat to resume.",
                                     type="warning",
                                     source="goal_budget",
                                     meta_data={
                                         "chat_id": session.request.chat_id,
                                         "goal_id": active_goal.goal_id,
+                                        "i18n_title_key": "notifications.goalBudgetLimited",
+                                        "i18n_message_key": "Goal.budgetExhaustedMessage",
                                     },
                                 )
                             except Exception as e:
@@ -575,14 +577,16 @@ async def iter_agent_stream_chunks(
                                             )
 
                                             await SystemNotificationService.create_notification(
-                                                title="预算已耗尽",
-                                                message="您的任务因预算耗尽已自动暂停，请点击追加预算以继续。",
+                                                title="Goal budget exhausted",
+                                                message="The task paused after exhausting its budget. Add budget to continue.",
                                                 type="warning",
                                                 source="goal_budget",
                                                 meta_data={
                                                     "chat_id": session.request.chat_id,
                                                     "goal_id": latest.goal_id,
                                                     "action_url": f"/{session.request.chat_id}",
+                                                    "i18n_title_key": "notifications.goalBudgetLimited",
+                                                    "i18n_message_key": "Goal.budgetExhaustedMessage",
                                                 },
                                             )
                                         except Exception as e:
