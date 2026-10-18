@@ -55,7 +55,7 @@ function makeCtx(eventType: string, extra: Record<string, unknown> = {}): Stream
     sources: undefined,
     added: true,
     recievedMessage: '',
-    state: {} as never,
+    state: { chatId: 'c1', messages: [] } as never,
     actions: {
       setLoading: vi.fn(),
       setMessages: vi.fn(),

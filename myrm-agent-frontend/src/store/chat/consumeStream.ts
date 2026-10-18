@@ -68,6 +68,7 @@ export async function consumeStream(
 
   const streamState: StreamHandlerState = {
     chatId: state.chatId,
+    actionMode: state.actionMode,
     messages: state.messages,
     messageAppeared: state.messageAppeared,
     loading: state.loading,

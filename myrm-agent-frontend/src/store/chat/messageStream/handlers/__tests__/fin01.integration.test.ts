@@ -43,6 +43,7 @@ vi.mock('../handlerDeps', () => ({
   normalizeGoalState: vi.fn(),
   getUserFriendlyError: vi.fn(async () => ({ message: 'Error', hint: undefined })),
   releaseInspectorControls: vi.fn(),
+  isStreamForOpenChat: vi.fn(() => true),
   resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
     state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
   useChatStore: {

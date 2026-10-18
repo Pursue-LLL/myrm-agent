@@ -74,7 +74,9 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
 
     actions.setLoading(false);
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
-      usePlanStore.getState().clearActivePlan();
+      if (H.isStreamForOpenChat(ctx.state)) {
+        usePlanStore.getState().clearActivePlan();
+      }
     });
     H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
     return done(ctx);
@@ -104,7 +106,9 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     // Release the processing lock on cancellation
     H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
-      usePlanStore.getState().clearActivePlan();
+      if (H.isStreamForOpenChat(ctx.state)) {
+        usePlanStore.getState().clearActivePlan();
+      }
     });
     H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
     return done(ctx);
@@ -218,7 +222,11 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
   if (data.type === H.AgentEventType.CONTEXT_OVERFLOW_RESET) {
     const { toast } = await import('@/lib/utils/toast');
     toast.warning(H.getContextOverflowMessage(), { duration: 8000 });
-    H.useChatStore.getState().initializeChat(undefined);
+    // Resetting the conversation mutates the chat the user has open, so only the overflowing chat may do it; a
+    // background chat's overflow leaves the open chat's conversation intact (the toast still warns about it).
+    if (H.isStreamForOpenChat(ctx.state)) {
+      H.useChatStore.getState().initializeChat(undefined);
+    }
     actions.setLoading(false);
     H.releaseInspectorControls(H.resolveStreamChatId(ctx.state));
     return done(ctx);

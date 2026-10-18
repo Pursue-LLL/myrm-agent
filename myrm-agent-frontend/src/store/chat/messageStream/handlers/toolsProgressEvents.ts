@@ -273,7 +273,11 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       return done(ctx);
     }
 
-    const { chatId: currentChatId, actionMode: currentActionMode } = H.useChatStore.getState();
+    // The card belongs to the turn that raised it: the stream's own chat and mode. Reading the open chat's values
+    // here would attribute a background turn's approval to the chat on screen, so answering it would resume the
+    // wrong turn. The open chat's mode is only a fallback for streams built without one.
+    const streamChatId = H.resolveStreamChatId(ctx.state);
+    const streamActionMode = ctx.state.actionMode ?? H.useChatStore.getState().actionMode;
 
     const extensions = payload.extensions ?? {};
     const approvalMeta = extensions.approval ?? {};
@@ -316,8 +320,8 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         reviewConfig,
         requestId,
         messageId: data.messageId,
-        chatId: currentChatId ?? '',
-        actionMode: currentActionMode,
+        chatId: streamChatId,
+        actionMode: streamActionMode,
         extensions: normalizedExtensions,
         batchId: batchId || undefined,
         batchIndex: isBatch ? i : undefined,

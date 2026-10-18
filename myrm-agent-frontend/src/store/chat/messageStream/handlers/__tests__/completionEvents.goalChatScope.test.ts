@@ -42,6 +42,7 @@ vi.mock('../handlerDeps', () => ({
   dispatchPetSurfaceAwayCompletion: vi.fn(),
   releaseInspectorControls: vi.fn(),
   resolveStreamChatId: (state: { chatId?: string }) => state.chatId?.trim() ?? '',
+  isStreamForOpenChat: (state: { chatId?: string }) => (state.chatId?.trim() ?? '') === 'chat-a',
 }));
 
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';

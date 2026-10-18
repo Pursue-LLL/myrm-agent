@@ -10,7 +10,7 @@
  * Type definitions for the chat message stream handler subsystem.
  */
 
-import type { Message } from '@/store/chat/types';
+import type { ActionMode, Message } from '@/store/chat/types';
 import type { AdaptiveScheduler } from '../adaptiveScheduler';
 
 export interface StreamMutableState {
@@ -33,6 +33,12 @@ export interface StreamHandlerState extends StreamMutableState {
    * messages[0].chatId (which would be empty and silently no-op releases).
    */
   chatId?: string;
+  /**
+   * Execution mode the turn was started in, captured at send time. Approval cards raised by an SSE event belong to
+   * the stream's own mode, not the open chat's, so a background turn's approval keeps its mode-specific model
+   * selection when answered.
+   */
+  actionMode?: ActionMode;
 }
 
 export interface StreamHandlerActions {

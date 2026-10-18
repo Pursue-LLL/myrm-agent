@@ -23,7 +23,7 @@ function makeCtx(type: string, data: unknown, interruptId?: string): StreamCtx {
     sources: undefined,
     added: true,
     recievedMessage: '',
-    state: {} as never,
+    state: { chatId: 'c1', messages: [] } as never,
     actions: { setLoading: vi.fn(), setMessages: vi.fn() } as never,
     files: [],
   };

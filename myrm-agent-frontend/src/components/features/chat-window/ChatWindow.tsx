@@ -340,6 +340,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       };
 
       const stateSnapshot: StreamHandlerState = {
+        chatId: id,
+        actionMode: useChatStore.getState().actionMode,
         messages: useChatStore.getState().messages,
         messageAppeared: useChatStore.getState().messageAppeared,
         loading: false, // 只有在不 loading 时才执行

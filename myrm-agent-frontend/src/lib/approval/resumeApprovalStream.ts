@@ -96,6 +96,7 @@ export async function resumeApprovalStream(
   const scheduler = new AdaptiveScheduler();
   const streamState: StreamHandlerState = {
     chatId: chatState.chatId,
+    actionMode: request.actionMode,
     messages: chatState.messages,
     messageAppeared: chatState.messageAppeared,
     loading: chatState.loading,
