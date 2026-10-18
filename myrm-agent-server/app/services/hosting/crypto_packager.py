@@ -169,6 +169,15 @@ def _render_decryptor_html(encrypted_data: dict[str, str], title: str = "Protect
       border: none;
       background: #fff;
     }}
+
+    /* 系统偏好减少动态效果时把过渡收到瞬时：解锁页是独立文档，宿主样式表的守卫到不了这里。 */
+    @media (prefers-reduced-motion: reduce) {{
+      *, *::before, *::after {{
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }}
+    }}
   </style>
 </head>
 <body>

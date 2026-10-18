@@ -49,6 +49,13 @@ describe('findUnguardedMotionSurface', () => {
     expect(findUnguardedMotionSurface('src/a.tsx', source)).toBeUndefined();
   });
 
+  // 过渡同样连续重绘：`transition: all` 配一处 `:hover { transform: ... }` 就是真实位移动画
+  // （`crypto_packager.py` 的生成页就是这样）。只盯 animation / @keyframes 会整批漏掉。
+  it('treats a transition as motion, so a transition-only document is covered too', () => {
+    const source = 'const h = `<html><style>.a{transition: background .2s} .a:hover{background:red}</style></html>`;';
+    expect(findUnguardedMotionSurface('svc/page.py', source)?.evidence).toContain('transition');
+  });
+
   it('ignores a file with no motion at all', () => {
     expect(findUnguardedMotionSurface('ext/static.css', '.a { color: red; }')).toBeUndefined();
   });

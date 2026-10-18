@@ -23,8 +23,14 @@
  * `globals.css` 守卫已经覆盖它，所以 `.tsx` / `.jsx` 不参与“拼文档”判定。
  */
 const EMITS_HTML = /<style[\s>]|<html[\s>]|<!DOCTYPE html>/i;
-/** 动画来源：CSS 声明、关键帧，或 Tailwind 的 `animate-*` 工具类（含任意值写法 `animate-[...]`）。 */
-const HAS_MOTION = /@keyframes|\banimation\s*:|\banimate-[\w[]/;
+/**
+ * 动画来源：CSS 声明、关键帧，或 Tailwind 的 `animate-*` 工具类（含任意值写法 `animate-[...]`）。
+ *
+ * 为什么要算 `transition:`：过渡同样会连续重绘。`transition: all` 加一处 `:hover { transform: ... }`
+ * 就是一段真实的位移动画（`crypto_packager.py` 的生成页就是这样）；只盯 `animation` / `@keyframes`
+ * 会把这类独立文档整批漏掉。
+ */
+const HAS_MOTION = /@keyframes|\banimation\s*:|\btransition\s*:|\banimate-[\w[]/;
 const HAS_GUARD = /prefers-reduced-motion/;
 /**
  * 守卫必须落到通用选择器上，而不是只关掉一两个具名动画。
@@ -51,7 +57,10 @@ export interface ReducedMotionSurface {
 }
 
 function firstMotionEvidence(source: string): string | undefined {
-  const match = /@keyframes\s+[\w-]+|\banimation\s*:[^;]{0,60}|\banimate-[\w[\]-]{0,40}/.exec(source);
+  const match =
+    /@keyframes\s+[\w-]+|\banimation\s*:[^;]{0,60}|\btransition\s*:[^;]{0,60}|\banimate-[\w[\]-]{0,40}/.exec(
+      source,
+    );
   return match?.[0];
 }
 

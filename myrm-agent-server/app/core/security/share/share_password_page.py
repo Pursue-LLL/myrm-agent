@@ -56,6 +56,7 @@ background:#6366f1;color:#fff;font-size:.875rem;font-weight:500;
 cursor:pointer;margin-top:.75rem;transition:background .15s}
 button:hover{background:#4f46e5}
 .err{color:#ef4444;font-size:.8125rem;margin-top:.5rem;display:%(err_display)s}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}}
 </style>
 </head>
 <body>
