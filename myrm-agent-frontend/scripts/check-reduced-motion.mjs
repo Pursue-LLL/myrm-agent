@@ -26,8 +26,9 @@ const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** 需要一起判定的包：前端自己，加上会产出独立文档的兄弟包。 */
 const SCAN_ROOTS = ['src', '../myrm-agent-extension', '../myrm-agent-desktop', '../myrm-agent-server'];
 /**
- * 剪掉依赖、构建产物与第三方快照：`.venv` 里是 patchright/playwright 自带的报告页，
- * `external_reference_project` 是竞品快照（含它们的测试页），都不是我们的产物。
+ * 剪掉依赖、构建产物、第三方快照与本地运行态：`.venv` 里是 patchright/playwright 自带的报告页，
+ * `external_reference_project` 是竞品快照（含它们的测试页），`.myrm` 是 git 忽略的本地工作区数据
+ * （基准夹具、临时产物），三者都不是我们的产品代码。
  */
 const PRUNE_DIRS = new Set([
   'node_modules',
@@ -41,6 +42,7 @@ const PRUNE_DIRS = new Set([
   '.mypy_cache',
   '.pytest_cache',
   'external_reference_project',
+  '.myrm',
 ]);
 const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js', '.rs', '.py', '.html', '.css']);
 const TEST_PATH = /(?:^|[\\/])__tests__[\\/]|\.test\.(?:tsx?|mjs|js)$/;
