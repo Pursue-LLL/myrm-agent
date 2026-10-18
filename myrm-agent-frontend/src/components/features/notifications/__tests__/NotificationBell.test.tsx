@@ -11,7 +11,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
   useLocale: () => 'en',
 }));
-
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
@@ -78,5 +77,74 @@ describe('NotificationBell action routing', () => {
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/settings/developer?sub=usage'));
     expect(apiRequestMock).toHaveBeenCalledWith('/notifications/notif-1/read', { method: 'POST' });
+  });
+
+  it('renders catalog-key copy through the translator so the bell is localized', async () => {
+    apiRequestMock.mockImplementation((path: string) => {
+      if (path === '/notifications?limit=20') {
+        return Promise.resolve({
+          items: [
+            {
+              id: 'notif-2',
+              title: 'Message delivery failed',
+              message: 'Delivery to telegram failed permanently.',
+              type: 'error',
+              source: 'channel_gateway',
+              is_read: false,
+              created_at: '2026-10-18T00:00:00Z',
+              meta_data: {
+                delivery_id: 'd1',
+                i18n_title_key: 'chat.messageFailed.title',
+                i18n_message_key: 'notifications.messageDeadLettered',
+                i18n_params: { channel: 'telegram', reason: 'timeout' },
+              },
+            },
+          ],
+          total: 1,
+          unread_count: 1,
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(<NotificationBell />);
+    await waitFor(() => expect(apiRequestMock).toHaveBeenCalledWith('/notifications?limit=20'));
+    fireEvent.click(screen.getByRole('button', { name: 'title' }));
+
+    // The stub translator returns the key, proving the stored keys drive the copy.
+    await waitFor(() => expect(screen.getByText('chat.messageFailed.title')).toBeInTheDocument());
+    expect(screen.getByText('notifications.messageDeadLettered')).toBeInTheDocument();
+    expect(screen.queryByText('Message delivery failed')).not.toBeInTheDocument();
+  });
+
+  it('falls back to stored text when no catalog keys are present', async () => {
+    apiRequestMock.mockImplementation((path: string) => {
+      if (path === '/notifications?limit=20') {
+        return Promise.resolve({
+          items: [
+            {
+              id: 'notif-3',
+              title: 'Legacy title',
+              message: 'Legacy body',
+              type: 'info',
+              source: 'legacy',
+              is_read: true,
+              created_at: '2026-10-18T00:00:00Z',
+              meta_data: null,
+            },
+          ],
+          total: 1,
+          unread_count: 0,
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(<NotificationBell />);
+    await waitFor(() => expect(apiRequestMock).toHaveBeenCalledWith('/notifications?limit=20'));
+    fireEvent.click(screen.getByRole('button', { name: 'title' }));
+
+    await waitFor(() => expect(screen.getByText('Legacy title')).toBeInTheDocument());
+    expect(screen.getByText('Legacy body')).toBeInTheDocument();
   });
 });

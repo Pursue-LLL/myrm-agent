@@ -17,6 +17,10 @@ interface SystemNotificationMeta {
   chat_id?: string;
   delivery_id?: string;
   retried?: boolean;
+  /** Catalog keys + params for the copy, so the bell renders it in the reader's locale. */
+  i18n_title_key?: string;
+  i18n_message_key?: string;
+  i18n_params?: Record<string, string>;
 }
 
 interface SystemNotification {
@@ -36,8 +40,38 @@ interface NotificationListResponse {
   unread_count: number;
 }
 
+/**
+ * Render a stored notification's copy in the reader's locale.
+ *
+ * The server stores English title/message plus optional catalog keys in ``meta_data``;
+ * when the keys are present they win (so the notification center is localized), and
+ * anything stored before the keys existed keeps rendering its stored text.
+ */
+function resolveNotificationCopy(
+  notif: SystemNotification,
+  translate: (key: string, values?: Record<string, string>) => string,
+): { title: string; message: string } {
+  const meta = notif.meta_data;
+  const params = meta?.i18n_params ?? {};
+  const localized = (key: string | undefined, fallback: string): string => {
+    if (!key) {
+      return fallback;
+    }
+    try {
+      return translate(key, params) || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  return {
+    title: localized(meta?.i18n_title_key, notif.title),
+    message: localized(meta?.i18n_message_key, notif.message),
+  };
+}
+
 export default function NotificationBell() {
   const t = useTranslations('notifications');
+  const translateCatalog = useTranslations();
   const locale = useLocale();
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -164,7 +198,9 @@ export default function NotificationBell() {
             <div className="p-8 text-center text-sm text-muted-foreground">{t('empty')}</div>
           ) : (
             <div className="flex flex-col">
-              {notifications.map((notif) => (
+              {notifications.map((notif) => {
+                const copy = resolveNotificationCopy(notif, translateCatalog);
+                return (
                 // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis
                 <div
                   key={notif.id}
@@ -192,8 +228,8 @@ export default function NotificationBell() {
                       )}
                     />
                     <div className="flex-1 space-y-1 min-w-0">
-                      <p className="text-sm font-medium leading-none text-foreground">{notif.title}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{notif.message}</p>
+                      <p className="text-sm font-medium leading-none text-foreground">{copy.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{copy.message}</p>
                       <div className="flex items-center justify-between pt-1">
                         <p className="text-[10px] text-muted-foreground/70">
                           {formatRelativeTime(notif.created_at, locale)}
@@ -212,7 +248,8 @@ export default function NotificationBell() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
