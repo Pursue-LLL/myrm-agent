@@ -18,11 +18,17 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
+    get_e2e_ui_url,
     http_json,
     open_settings_subroute,
     wait_for_state,
     warm_ui_route,
 )
+
+
+def _catalog_page_url() -> str:
+    """Owned Service Directory URL, so ``wait_for_state`` can run its blank heals."""
+    return f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog"
 
 
 def _closed_loopback_url() -> str:
@@ -238,6 +244,7 @@ def test_integration_catalog_loopback_guard_end_to_end() -> None:
                       return { ready: found };
                     })()""",
                     timeout_sec=60.0,
+                    page_url=_catalog_page_url(),
                 )
                 assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                 open_dialog = client.evaluate(
@@ -391,11 +398,12 @@ def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> Non
                         page,
                         """(() => {
                           const titles = Array.from(document.querySelectorAll('h4'));
-                          const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
-                          return { ready: found };
-                        })()""",
-                        timeout_sec=60.0,
-                    )
+                    const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                    return { ready: found };
+                  })()""",
+                    timeout_sec=60.0,
+                    page_url=_catalog_page_url(),
+                )
                     assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                     open_dialog = client.evaluate(
                         page,
@@ -564,6 +572,7 @@ def test_integration_catalog_recommended_retry_unknown_auto_continue_end_to_end(
                               return { ready: found };
                             })()""",
                             timeout_sec=60.0,
+                            page_url=_catalog_page_url(),
                         )
                         assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                         open_dialog = client.evaluate(
@@ -736,11 +745,12 @@ def test_integration_catalog_tls_verification_failed_end_to_end() -> None:
                         page,
                         """(() => {
                           const titles = Array.from(document.querySelectorAll('h4'));
-                          const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
-                          return { ready: found };
-                        })()""",
-                        timeout_sec=60.0,
-                    )
+                    const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                    return { ready: found };
+                  })()""",
+                    timeout_sec=60.0,
+                    page_url=_catalog_page_url(),
+                )
                     assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                     open_dialog = client.evaluate(
                         page,

@@ -18,6 +18,7 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
+    get_e2e_ui_url,
     http_json,
     open_settings_subroute,
     wait_for_state,
@@ -76,6 +77,22 @@ def test_postiz_remote_entry_skips_probe_and_reaches_security_gate() -> None:
     for attempt in range(3):
         try:
             with open_settings_subroute("/settings/integrationCatalog", timeout_ms=90_000) as (client, page):
+                # The card only renders after the async catalog fetch resolves. Wait on
+                # it with the page URL so ``wait_for_state`` can run its documented
+                # blank/deferred heal if parallel load strands the settings skeleton,
+                # and before the fetch spy is installed so a heal reload cannot wipe it.
+                card_ready = wait_for_state(
+                    client,
+                    page,
+                    """(() => {
+                      const titles = Array.from(document.querySelectorAll('h4'));
+                      return { ready: titles.some((el) => /Postiz/i.test(el.textContent || '')) };
+                    })()""",
+                    timeout_sec=60.0,
+                    page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/integrationCatalog",
+                )
+                assert card_ready.get("ready") is True, f"Postiz card never rendered: {card_ready}"
+
                 fetch_spy = client.evaluate(
                     page,
                     """(() => {
@@ -109,10 +126,7 @@ def test_postiz_remote_entry_skips_probe_and_reaches_security_gate() -> None:
                 )
                 assert isinstance(fetch_spy, dict)
                 assert fetch_spy.get("ready") is True
-
-                # Wait for the async catalog fetch to render the Postiz card, then connect.
-                open_dialog = wait_for_state(
-                    client,
+                open_dialog = client.evaluate(
                     page,
                     """(() => {
                       const titles = Array.from(document.querySelectorAll('h4'));
@@ -127,7 +141,7 @@ def test_postiz_remote_entry_skips_probe_and_reaches_security_gate() -> None:
                       button.click();
                       return { ready: true };
                     })()""",
-                    timeout_sec=30.0,
+                    timeout_sec=8.0,
                 )
                 assert isinstance(open_dialog, dict)
                 assert open_dialog.get("ready") is True, f"failed to open dialog: {open_dialog}"
