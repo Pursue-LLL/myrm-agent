@@ -202,7 +202,9 @@ type E2eProviderConfigBody = {
  * 并行复用时 upsert 的 corrupt primary）不被前端感知。
  */
 async function fetchE2eProviderConfigBody(): Promise<E2eProviderConfigBody> {
-  const apiBase = (resolveE2eApiBase() || getApiBaseUrl()).replace(/\/+$/, '');
+  // `getApiBaseUrl()` already ends in `/api/v1`; only the injected E2E base is a bare origin.
+  const rawBase = resolveE2eApiBase() || getApiBaseUrl();
+  const apiBase = rawBase.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
   const res = await fetch(`${apiBase}/api/v1/config/providers`, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(`e2e-provider-config-fetch-${res.status}`);

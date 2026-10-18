@@ -123,6 +123,18 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   }
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const sendOpts = { baselineUserCount: usersBefore, preserveActionMode: true };
+  // The guard toast lives 6s and fires *inside* the send call, so remember the DOM presence before
+  // awaiting: a send that resolves slowly would otherwise let the toast expire unobserved. Reading the
+  // node count here avoids depending on helpers declared later in this function body.
+  let toastPeak = document.querySelectorAll('[data-sonner-toast]').length;
+  let toastTextsAtPeak = [];
+  const toastTimer = setInterval(() => {
+    const nodes = document.querySelectorAll('[data-sonner-toast]');
+    if (nodes.length > toastPeak) {
+      toastPeak = nodes.length;
+      toastTextsAtPeak = Array.from(nodes).map((n) => (n.textContent || '').trim()).filter(Boolean);
+    }
+  }, 120);
   let result;
   if (typeof bridge.sendChatMessage === 'function') {
     result = await bridge.sendChatMessage('快速搜索今天新闻', sendOpts);
@@ -172,7 +184,11 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
       sendErr === 'send-completed-without-progress' ||
       sendErr === 'send-blocked');
   if (expectBlocked) {
-    const { texts, clientCount, toastNodes } = await waitForClientToast(Date.now() + 15000);
+    clearInterval(toastTimer);
+    // A toast observed while the send was in flight is authoritative; otherwise fall back to polling.
+    const { texts, clientCount, toastNodes } = toastPeak > 0
+      ? { texts: toastTextsAtPeak, clientCount: toastPeak, toastNodes: toastTextsAtPeak }
+      : await waitForClientToast(Date.now() + 15000);
     if (clientCount >= 1 && usersAfter === usersBefore) {
       return {
         ok: true,
@@ -722,10 +738,20 @@ async def test_fast_mode_blocks_send_with_client_search_toast(
             await ensure_e2e_search_cleared_in_browser(chat, api_url=api_base)
             await asyncio.to_thread(_assert_search_cleared, api_base)
 
-            result = await chat.evaluate(
-                _FAST_MODE_CLIENT_GUARD_JS,
-                intent=EvaluateIntent.AGENT_SUBMIT,
-            )
+            # Pinning reads the provider config over HTTP; a backend restart window can 404 once.
+            result: object = None
+            for attempt in range(4):
+                try:
+                    result = await chat.evaluate(
+                        _FAST_MODE_CLIENT_GUARD_JS,
+                        intent=EvaluateIntent.AGENT_SUBMIT,
+                    )
+                    break
+                except RuntimeError as exc:
+                    if attempt == 3 or "provider-config-fetch" not in str(exc):
+                        raise
+                    await asyncio.sleep(3.0)
+                    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
             assert isinstance(result, dict), result
             assert result.get("ok") is True, json.dumps(result, ensure_ascii=False)
             assert int(result.get("clientCount") or 0) >= 1, result
