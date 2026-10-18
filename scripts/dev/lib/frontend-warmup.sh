@@ -554,6 +554,10 @@ print(_parallel_chrome_e2e_pressure())
 _heal_shared_ui_if_stale() {
   local stack="${MYRM_DEV_STACK:-}"
   local timing="" reason=""
+  # The staleness verdict compares a probe against the same bound the warm-streak gate uses; leaving this
+  # unset aborts the whole attach under ``set -u`` before the UI can be healed.
+  local slow_band
+  slow_band="$(_attach_ui_stale_slow_sec)"
   if ! _frontend_port_listening; then
     reason="port_down"
   elif timing="$(_frontend_liveness_probe_seconds)"; then
