@@ -7441,3 +7441,61 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 2. 补丁链仍未接 CI（同 `006` 局限 1），本条的守卫只在维护者跑应用器时生效。
 3. 代价是补丁不再能修正已有译文：想把某条已翻译文案改掉，必须直接编辑 `locales/<locale>.json`（`src/i18n/_ARCH.md` 的工作流本来就写明可以「直接写回」）。正常流程不受影响——补丁由「剩余壳清单」生成，而壳的定义就是「值仍等于 en」，正落在填充分支。
 4. 未逐个复核 169 条中每一条的目标文案是否真的优于补丁值（抽样 6 条方向明确）；修复方式是「不改动已有译文」，因此即使个别条目旧译文更好，也不会被本条改坏。
+
+---
+
+## BUG-AGENT-2026-10-18-009: 搜索就绪探测没有自己的时间上限——「接受连接却不回包」的供应商让每个会话窗口的首条消息阻塞约 60s
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（复核 `BUG-AGENT-2026-10-18-003` 移除捷径后暴露的真实探测路径，用黑洞 socket 逐形态实测） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；IM/语音/定时/看板/目标/评测的就绪门与 Settings 的「测试搜索服务」在最坏形态下都阻塞约一分钟，Web 聊天则表现为首条消息白屏） |
+| 影响范围 | server：`app/services/integrations/search_verify.py`、`tests/services/integrations/test_search_verify.py`、`app/services/integrations/_ARCH.md` |
+| 出现次数 | 1（`BUG-AGENT-2026-10-18-003` 的相邻风险：那条移除的是「不验证」，本条补上「验证自身的时延上限」） |
+| 关联 | `BUG-AGENT-2026-10-18-003`（同批；`003` 让每条凭据都走真实探测，本条的预算就是为该探测加界）；本地提交，未 push |
+
+### 现象
+
+搜索就绪判定会真的发起一次搜索（`search_web_service`），但这次探测**没有自己的时间上限**，完全继承供应商客户端的重试预算。对「TCP 握手能成、请求永不回包」的供应商（自托管 SearXNG 起了一半、反向代理挂起、防火墙 DROP 而非 REJECT），实测阻塞：
+
+| 供应商形态 | 就绪探测耗时 |
+|---|---|
+| 接受连接、永不回包 | **60.5s** |
+| 连接被拒（端口关闭） | 1.6s |
+| 托管端点 401（无效密钥） | 1.7s |
+
+只有「接受不回包」这一形态会跑到约一分钟：默认 `search_max_retries=2` + `timeout_seconds=20` 让单次探测走 3 次尝试（`20s × 3 + 退避 ≈ 62.5s`）。该探测在首条消息的 setup 阶段被 `await`（`converter.py:462`、`orchestrator_turn_body.py:138`），所以用户看到的是「发出消息后长时间没有任何流式输出」；每过 60s（判定缓存 TTL）又会重来一次。Settings 的 `POST /verify`（`api/integrations/search.py:88`）同样受影响。
+
+### 根因
+
+探测把自己当成了真实搜索：`verify_search_config_live` 直接 `await search_web_service(...)`，而该路径最终走进 harness 的供应商链，继承了「整条链的墙钟预算 + 每跳的客户端重试」。但 harness 的链墙钟（`chain.py:51` `_CHAIN_WALL_CLOCK_SECONDS = 45.0`）只以 `allowance` 形式套在**非末跳**（`chain.py:219` `allowance = remaining / 2 if index < final_index else None`）——单供应商配置下它就是末跳，`allowance=None`，于是 45s 墙钟不生效，实际由客户端自身的 `20s × 3` 主导。探测的语义是「现在能不能用」的快检，与「尽力把这次搜索做完」的重试语义不同，不应继承后者的预算。
+
+### 修复
+
+给探测一个自己的墙钟上限，不与真实搜索共享该预算：
+
+1. `search_verify.py` 新增模块常量 `_PROBE_WALL_CLOCK_SECONDS = 25.0`。
+2. `verify_search_config_live` 用 `async with asyncio.timeout(_PROBE_WALL_CLOCK_SECONDS):` 包住那一发 `await search_web_service(...)`，`TimeoutError` 单独捕获、记一条 WARNING 并返回 `False`；其余异常保持原有 `except Exception` 收敛。
+3. 只在探测这一处加界，**不改** `SearchServiceConfig` 的 `search_max_retries` / `timeout_seconds`：探测与真实搜索共用同一个 `cfg` 对象（`converter.py:462` 探测、`:1168` 真实搜索），改配置会连带缩短真实搜索的预算（修 A 伤 B）。
+4. 不改 harness 的链墙钟语义：末跳 `allowance=None` 是有意设计（`chain.py:217-219` 注释写明「末跳无人可移交，封顶只会多一个注定失败的请求」），就绪关切属业务层。
+
+### 验证
+
+1. **先红后绿**：新增用例用一个「接受调用但不回包」的客户端替身（`asyncio.sleep(5.0)`），断言探测必须在预算内返回 `False`。修复前实测 `5.49s`（等于替身的睡眠时长，证明完全受制于供应商）、修复后 `test_search_verify.py` 全量 `23 passed`。
+2. **真实套接字实测（非可取消的 `to_thread` 路径）**：对一个只 `accept`、永不回包的本地 socket 直接调用生产探测函数，修复后 `budget=25.0s actual=25.0s verdict=False`（修复前同一合成场景为 `60.5s`）。
+3. **未伤害真实搜索预算**：`_PROBE_WALL_CLOCK_SECONDS` 只作用于 `verify_search_config_live` 内的 `async with`，`search_service_cfg` 未改；241 例就绪/配置相邻套件全绿。
+4. **消费面回归**：`tests/api/voice`、`tests/services/agent/test_goal_stream_*`、`tests/api/eval/test_memory_ab`、`test_eval_router_coverage`、`tests/api/integrations`（以 CI 风格占位密钥）共 `416 passed`（唯一红灯 `test_catalog_api.py::test_list_all` 属他人未提交的 catalog 分类变更，与 `search_verify` 无导入关系）。
+5. **门禁**：`ruff check` / `ruff format --check` 通过；`mypy` 对 `search_verify.py` 零报错；行数 `search_verify.py` 120 行、`test_search_verify.py` 310 行（均低于 500）。
+
+### 局限
+
+1. 25s 是经验取值：高于一次健康应答，也高于客户端单次 `timeout_seconds=20` 的挂起检测，但**没有**按真实供应商的应答分布标定。若有「健康但稳定慢于 25s」的供应商会被误判不可用，这类形态未观测到。
+2. `asyncio.timeout` 只放弃等待，不能终止底层线程：LiteLLM 客户端经 `asyncio.to_thread` 运行（`litellm_search.py:125`），超时后该线程仍会把自身重试跑完（≤客户端预算）。用户侧等待被封顶，代价是短暂多一个后台线程（探测每次最多一个，且受 60s 判定缓存约束，不累积）。
+3. 未在真实自托管 SearXNG 上复现「半死」形态，所有数字都来自本地黑洞 socket 与调用替身。
+
+### 踩坑经验
+
+1. **「探活」与「实干」必须用两套预算**：探活的语义是「现在能不能用」，它继承实干（重试到底）的预算时，最坏形态的代价就变成用户可见的等待。给探活单独设界，比调整实干的重试参数更准——后者会同时削弱真实搜索的韧性。
+2. **共享同一个配置对象时，改字段会外溢**：探测与真实搜索传入的是同一个 `SearchServiceConfig`，任何对该对象的字段调整都会同时改变两条路径；给单条路径加界要包在该路径内，而不是改被共享的配置。
+3. **黑洞形态（接受不回包）和「拒绝/DNS 失败」是两回事**：后两者 1~2s 就收敛，只有前者会吃满重试预算；用「连不上」的场景测不出这个缺陷，必须构造「连得上但不回包」。

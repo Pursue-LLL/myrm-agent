@@ -12,7 +12,7 @@
 | `retired_provider_oauth_purge.py` | 辅助 | 启动期数据清理（幂等，每次启动执行）：`purge_retired_provider_credentials` 从 oauthCredentials 中移除不受支持的订阅 issuer（`RETIRED_PROVIDER_ISSUERS`：`provider_anthropic` / `provider_openai` / `provider_copilot`）；在共享行锁内读改写，无该类 issuer 时不写回，无法解析的 blob 不覆盖；由 `server/lifespan.py` Phase 1a 在 DB 就绪后调用 |
 | `mcp_posture.py` | 核心 | MCP 静态/运行时安全姿态编排；posture block 抛结构化 `validation_error`（findings 在 error.details） |
 | `mcp_registry.py` | 核心 | MCP 注册中心代理服务；搜索/详情代理 Smithery Registry，LRU 缓存，异步 httpx |
-| `search_verify.py` | 核心 | 统一搜索 provider 验证服务；`verify_search_config_live` 基于 catalog manifest SSOT 校验凭证（链中至少一个成员可用，缺凭据的成员不否决整条链）+ 按智能体真实搜索方式探测整条 provider 链（含故障转移，单个成员失效不判不可用）；每条已配置的凭据都走真实探测，没有任何密钥值可豁免；`verify_search_config_cached` 以整条链（含网关端点与令牌）为键做 60s 判定缓存 |
+| `search_verify.py` | 核心 | 统一搜索 provider 验证服务；`verify_search_config_live` 基于 catalog manifest SSOT 校验凭证（链中至少一个成员可用，缺凭据的成员不否决整条链）+ 按智能体真实搜索方式探测整条 provider 链（含故障转移，单个成员失效不判不可用）；每条已配置的凭据都走真实探测，没有任何密钥值可豁免；探测自身有 25s 墙钟上限（`_PROBE_WALL_CLOCK_SECONDS`），接受连接却不回包的供应商不会让就绪门阻塞在它的重试预算上；`verify_search_config_cached` 以整条链（含网关端点与令牌）为键做 60s 判定缓存 |
 
 ## 依赖关系
 

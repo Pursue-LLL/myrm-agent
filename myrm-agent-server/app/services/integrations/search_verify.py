@@ -15,6 +15,7 @@ Settings/API search provider verify endpoint and readiness gate backing service.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -26,6 +27,7 @@ from app.services.agent.search import search_web_service
 logger = logging.getLogger(__name__)
 
 _VERIFY_TTL_SECONDS = 60.0
+_PROBE_WALL_CLOCK_SECONDS = 25.0
 _verify_cache: dict[str, tuple[float, bool]] = {}
 
 
@@ -69,20 +71,27 @@ async def verify_search_config_live(cfg: SearchServiceConfig, *, query: str | No
 
     Every configured credential is probed for real: no value may excuse a hop from the probe, because a verdict of
     "available" that no request produced would let a dead credential through the readiness gate.
+
+    The probe gives up on its own wall clock: a provider that accepts the connection but never answers would
+    otherwise hold the caller for its full retry budget (seconds to about a minute) on every cache window.
     """
     members = _members(cfg)
     if not any(_has_required_credentials(member) for member in members):
         return False
 
+    chain_slugs = "/".join(member.search_service for member in members)
     try:
-        results = await search_web_service(
-            query=query or "Beijing Forbidden City",
-            search_service_cfg=cfg,
-            num_results=1,
-        )
+        async with asyncio.timeout(_PROBE_WALL_CLOCK_SECONDS):
+            results = await search_web_service(
+                query=query or "Beijing Forbidden City",
+                search_service_cfg=cfg,
+                num_results=1,
+            )
         return bool(results)
+    except TimeoutError:
+        logger.warning("Search verify probe exceeded %.0fs for %s", _PROBE_WALL_CLOCK_SECONDS, chain_slugs)
+        return False
     except Exception as exc:
-        chain_slugs = "/".join(member.search_service for member in members)
         logger.warning("Search verify probe failed for %s: %s", chain_slugs, exc)
         return False
 

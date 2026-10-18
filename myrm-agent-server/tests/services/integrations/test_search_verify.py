@@ -7,6 +7,7 @@ provider's API key, so each test scripts exactly what every chain member answers
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from unittest.mock import patch
@@ -195,6 +196,45 @@ async def test_a_single_provider_is_probed_whatever_its_key_reads_like(providers
 
     assert await verify_search_config_live(_member("tavily", "test-tavily-key")) is False
     assert providers.calls == ["test-tavily-key"]
+
+
+# ── probe wall clock ──────────────────────────────────────────────
+
+
+async def test_a_provider_that_never_answers_is_abandoned_within_the_probe_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A half-dead self-hosted provider accepts the connection and never replies; the gate must not block on it.
+
+    Without a budget the probe inherits the provider's own timeout and retries (20s x (2+1)), so the first message
+    of every cache window stalls for about a minute. The probe is a readiness check, so it gives up on its own clock.
+    """
+    monkeypatch.setattr(search_verify, "_PROBE_WALL_CLOCK_SECONDS", 0.3)
+
+    class _HungClient:
+        def __init__(self, key: str) -> None:
+            self._key = key
+
+        async def search(self, query: str, num_results: int = 5, **kwargs: object) -> list[SearchResult]:
+            await asyncio.sleep(5.0)
+            return []
+
+    async def build_hung_client(self: WebSearcher, bypass_gateway: bool = False) -> _HungClient:
+        return _HungClient(self.config.api_key or self.config.api_base or "")
+
+    invalidate_search_verify_cache()
+    reset_search_coalescing_state_for_tests()
+    default_quota_tracker.reset_all()
+    started = time.perf_counter()
+    with patch.object(WebSearcher, "_get_search_service", build_hung_client):
+        verdict = await verify_search_config_live(_member("searxng", api_base="http://127.0.0.1:9"))
+    elapsed = time.perf_counter() - started
+    invalidate_search_verify_cache()
+    reset_search_coalescing_state_for_tests()
+    default_quota_tracker.reset_all()
+
+    assert verdict is False
+    assert elapsed < 1.5, f"probe must give up on its own budget, not the provider's retries (took {elapsed:.2f}s)"
 
 
 # ── verdict cache ─────────────────────────────────────────────────
