@@ -636,6 +636,12 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
             chat = McpChatSession(client, page)
             await chat.bootstrap(BASE_URL, timeout_sec=120.0)
             page_api_base = await _prepare_chat(chat)
+            # The workspace stream bind is what tells the page which backend will actually serve the turn;
+            # resolve it before clearing, otherwise the clear lands on E2E_API_BASE while the turn runs on
+            # the pool backend and the agent still sees a search config (running web_search instead of the
+            # config-gap preflight). `_prepare_chat` resolves the stream origin when one is already bound.
+            await chat.evaluate(WAIT_WORKSPACE_STREAM_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+            page_api_base = await _page_backend_base(chat) or page_api_base
             _assert_search_cleared(page_api_base)
             clear_search_services_ssot(api_url=page_api_base)
             await ensure_e2e_search_cleared_in_browser(chat, api_url=page_api_base)
