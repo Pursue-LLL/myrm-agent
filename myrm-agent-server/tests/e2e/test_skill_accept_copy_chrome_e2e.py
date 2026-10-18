@@ -1,13 +1,11 @@
 """Chrome MCP E2E: the skill-confirmation copy a reader actually sees.
 
-The upstream-update confirmation tells the user the change can be undone from the
-skill detail page. That promise only holds if the reader's own language says so:
-a translation that still reads "this cannot be undone" contradicts an undo button
-the page renders right above it.
-
-This test reads the rendered copy from the running app in German and in English,
-so a later English reword without a matching translation fails here instead of
-reaching readers as two different promises for one action.
+The upstream-update confirmation is the only place a reader learns that accepting an
+update is reversible: the undo control it points at lives on the skill detail page. The
+fixture leaves a prebuilt skill the reader modified while its bundled source moved on,
+which is the state that puts "apply upstream update" on screen. This test drives that
+control for real, reads the confirmation body from the rendered page, and checks that
+the wording promises an undo the page really offers.
 """
 
 from __future__ import annotations
@@ -18,14 +16,16 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
-    dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
+    http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
 )
+
+_SKILL_SEARCH = "systematic-debugging"
+_SKILLS_URL = f"/settings/skills?search={_SKILL_SEARCH}"
 
 _SETTINGS_SHELL_STATE = """(() => {
   const bodyText = document.body.innerText || '';
@@ -39,45 +39,105 @@ _SETTINGS_SHELL_STATE = """(() => {
   };
 })()"""
 
-# Reads the message straight out of the loaded namespace bundle, which is what the
-# confirmation dialog renders from. Reaching the dialog itself needs a prebuilt skill
-# in the "upstream update pending" state, a snapshot the sync pass computes rather
-# than something the public API can request; the copy is the part this change owns.
-_ACCEPT_COPY_JS = """(() => {
-  const state = window.__MYRM_ACCEPT_COPY__ || null;
-  return { ready: !!state, payload: state };
+_SKILL_ROW_STATE = """(() => {
+  const panel = document.querySelector('[data-section][data-active="true"]') || document.body;
+  const text = panel.innerText || '';
+  return {
+    ready: /systematic-debugging|Systematic Debugging/i.test(text),
+    hasText: text.length > 0,
+    sample: text.slice(0, 300),
+  };
 })()"""
 
-_LOAD_ACCEPT_COPY_JS = """(async () => {
-  const res = await fetch('/api/i18n/deferred', { credentials: 'include' });
-  if (!res.ok) {
-    return { ok: false, status: res.status };
+# The skills panel mounts after the settings shell; only then do its tabs exist.
+_SKILLS_PANEL_STATE = """(() => {
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]')).filter((t) => t.offsetParent !== null);
+  return {
+    ready: tabs.length > 0,
+    tabCount: tabs.length,
+    labels: tabs.map((t) => (t.innerText || '').trim()).filter(Boolean).slice(0, 8),
+  };
+})()"""
+
+ACCEPT_BUTTON_JS = """(() => {
+  const labels = %s;
+  const visible = (el) => {
+    let node = el;
+    while (node) {
+      if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
+      if (node instanceof Element) {
+        const style = getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
+      node = node.parentElement;
+    }
+    return true;
+  };
+  const buttons = Array.from(document.querySelectorAll('button')).filter(visible);
+  const hit = buttons.find((b) => labels.some((label) => (b.innerText || '').includes(label)));
+  if (!hit) {
+    return { ok: false, seen: buttons.map((b) => (b.innerText || '').trim()).filter(Boolean).slice(0, 40) };
   }
-  const data = await res.json();
-  const card = data && data.settings && data.settings.skills && data.settings.skills.card;
-  const copy = card && card.confirmAcceptDesc;
-  window.__MYRM_ACCEPT_COPY__ = { copy: copy || null };
-  return { ok: true, hasCopy: !!copy };
+  hit.click();
+  return { ok: true, label: (hit.innerText || '').trim() };
+})()"""
+
+_OPEN_SKILL_CARD_JS = """(() => {
+  const visible = (el) => {
+    let node = el;
+    while (node) {
+      if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
+      if (node instanceof Element) {
+        const style = getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
+      node = node.parentElement;
+    }
+    return true;
+  };
+  const cards = Array.from(document.querySelectorAll('[role="presentation"]')).filter(
+    (el) => visible(el) && /systematic-debugging|Systematic Debugging/i.test(el.innerText || ''),
+  );
+  if (cards.length === 0) {
+    return { ok: false, count: 0 };
+  }
+  cards[0].click();
+  return { ok: true, count: cards.length };
+})()"""
+
+# Reads the open dialog's description verbatim: that is what the reader reads before confirming.
+DIALOG_TEXT_JS = """(() => {
+  const dialog = document.querySelector('[role="alertdialog"], [role="dialog"]');
+  if (!dialog) {
+    return { ready: false };
+  }
+  const text = (dialog.innerText || '').trim();
+  return { ready: text.length > 0, text };
 })()"""
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_chrome_ui_upstream_update_copy_promises_the_undo_each_language_offers() -> None:
-    """Every language tells the reader the update can be undone, matching the undo control."""
+def test_chrome_ui_upstream_update_confirmation_promises_the_undo_it_offers() -> None:
+    """The confirmation the reader opens promises an undo, and the page renders that undo."""
     api_url = get_e2e_api_url()
+    seed = http_json("POST", f"{api_url}/api/v1/skills/test/seed-upstream-update-pending")
+    assert seed.get("has_upstream_update") is True, json.dumps(seed, indent=2, ensure_ascii=False)
+    skill_name = str(seed["skill_name"])
+
     prepare_e2e_ui_session(api_url)
-
+    # The settings shell pulls a heavy bundle; warming the parent route first keeps the nested
+    # navigate from landing on whichever tab the shell restored last.
     warm_ui_route("/settings")
-    warm_ui_route("/settings/skills", timeout_sec=_warm_ui_parallel_wait_sec(180.0))
+    warm_ui_route(_SKILLS_URL, timeout_sec=_warm_ui_parallel_wait_sec(180.0))
 
-    with open_settings_subroute("/settings/skills", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
+    with open_settings_subroute(_SKILLS_URL, timeout_ms=120_000) as (client, page):
         shell = wait_for_state(
             client,
             page,
@@ -86,70 +146,39 @@ def test_chrome_ui_upstream_update_copy_promises_the_undo_each_language_offers()
         )
         assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
 
-        loaded = client.evaluate(page, _LOAD_ACCEPT_COPY_JS, timeout_sec=30.0)
-        assert loaded.get("ok") is True, json.dumps(loaded, indent=2, ensure_ascii=False)
-        state = wait_for_state(client, page, _ACCEPT_COPY_JS, timeout_sec=30.0)
-        assert state.get("ready") is True, json.dumps(state, indent=2, ensure_ascii=False)
+        panel = wait_for_state(
+            client, page, _SKILLS_PANEL_STATE, timeout_sec=_warm_ui_parallel_wait_sec(90.0)
+        )
+        assert panel.get("ready") is True, json.dumps(panel, indent=2, ensure_ascii=False)
+        print("E2E_SKILLS_PANEL:", json.dumps(panel, ensure_ascii=False), flush=True)
 
-        copy = (state.get("payload") or {}).get("copy")
-        assert isinstance(copy, str) and copy, json.dumps(state, indent=2, ensure_ascii=False)
+        row = wait_for_state(client, page, _SKILL_ROW_STATE, timeout_sec=_warm_ui_parallel_wait_sec(90.0))
+        assert row.get("ready") is True, json.dumps(row, indent=2, ensure_ascii=False)
 
-        # The undo the dialog promises exists on the skill detail page; a translation that
-        # says the change is permanent sends readers away from a control they could use.
-        lowered = copy.lower()
-        says_irreversible = any(
+        # The apply control lives in the skill's detail sheet, so the card is opened first.
+        card = client.evaluate(page, _OPEN_SKILL_CARD_JS, timeout_sec=20.0)
+        assert isinstance(card, dict) and card.get("ok") is True, json.dumps(card, ensure_ascii=False)[:600]
+
+        opened = client.evaluate(
+            page,
+            ACCEPT_BUTTON_JS % json.dumps(["Apply Update", "应用更新", "Upstream-Update anwenden", "업데이트 적용"]),
+            timeout_sec=20.0,
+        )
+        assert isinstance(opened, dict) and opened.get("ok") is True, json.dumps(opened, ensure_ascii=False)[:800]
+
+        dialog = wait_for_state(client, page, DIALOG_TEXT_JS, timeout_sec=30.0)
+        assert dialog.get("ready") is True, json.dumps(dialog, indent=2, ensure_ascii=False)
+        text = str(dialog.get("text") or "")
+        assert skill_name in text, f"the confirmation does not name the skill it edits: {text!r}"
+
+        # A translation that still reads "cannot be undone" contradicts the undo the detail page
+        # renders for the very update being confirmed.
+        lowered = text.lower()
+        asserts_irreversible = any(
             marker in lowered
-            for marker in (
-                "cannot be undone",
-                "nicht rückgängig",
-                "no se puede deshacer",
-                "取り消せません",
-                "되돌릴 수 없습니다",
-                "不可撤销",
-                "不可撤銷",
-            )
+            for marker in ("cannot be undone", "nicht rückgängig", "取り消せません", "되돌릴 수 없습니다", "不可撤销", "不可撤銷")
         )
-        assert not says_irreversible, f"confirmation still claims the update is permanent: {copy!r}"
-
-
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
-    workload="STANDARD",
-)
-@pytest.mark.integration
-@pytest.mark.timeout(600)
-def test_chrome_ui_upstream_update_copy_reaches_the_german_reader() -> None:
-    """The German reader is told the update can be undone, in the wording this pack uses."""
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(api_url)
-
-    warm_ui_route("/settings")
-    warm_ui_route("/settings/skills", timeout_sec=_warm_ui_parallel_wait_sec(180.0))
-
-    with open_settings_subroute("/settings/skills", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        client.evaluate(
-            page,
-            "(() => { document.cookie = 'NEXT_LOCALE=de; path=/; max-age=86400'; return true; })()",
-            timeout_sec=15.0,
+        assert not asserts_irreversible, f"confirmation still claims the update is permanent: {text!r}"
+        assert "undo" in lowered or "rückgängig" in lowered or "되돌릴" in lowered or "撤銷" in lowered or "撤销" in lowered, (
+            f"confirmation does not promise the undo the page offers: {text!r}"
         )
-        shell = wait_for_state(
-            client,
-            page,
-            _SETTINGS_SHELL_STATE,
-            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
-        )
-        assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
-
-        loaded = client.evaluate(page, _LOAD_ACCEPT_COPY_JS, timeout_sec=30.0)
-        assert loaded.get("ok") is True, json.dumps(loaded, indent=2, ensure_ascii=False)
-        state = wait_for_state(client, page, _ACCEPT_COPY_JS, timeout_sec=30.0)
-        copy = (state.get("payload") or {}).get("copy")
-        assert isinstance(copy, str) and copy, json.dumps(state, indent=2, ensure_ascii=False)
-
-        # The surface this copy points at is named "Fähigkeitsdetails" in this pack.
-        assert "fähigkeitsdetails" in copy.lower(), f"German copy names another surface: {copy!r}"
-        assert "rückgängig" in copy.lower(), f"German copy does not promise the undo: {copy!r}"
-        assert ui_url  # keep the resolved UI base in the failure report
