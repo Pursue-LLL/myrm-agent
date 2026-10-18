@@ -71,7 +71,25 @@ function resolveE2eApiBase(): string {
   return resolveInjectedE2eApiBase() ?? '';
 }
 
-function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig | null): boolean {
+/**
+ * A chat id already present in the route (``/<chatId>``), so a bridge-bound page keeps the chat it opened.
+ * Only ids the app actually mints are adopted (a server UUID, or the local ``c-…`` form): a dev bridge mounted
+ * on a non-chat page (``/settings``) must still open a fresh chat, as it did before.
+ */
+function resolveChatIdFromLocation(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  if (segments.length !== 1) {
+    return undefined;
+  }
+  const [segment] = segments;
+  const isChatId =
+    segment.startsWith('c-') ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
+  return isChatId ? segment : undefined;
+}function isE2eProviderSendReady(actionMode: ActionMode, agentConfig: AgentConfig | null): boolean {
   const refreshed = useProviderStore.getState();
   if (!refreshed.isInitialized) {
     return false;
@@ -859,8 +877,11 @@ export default function E2EChatBridge() {
           prepareAutomationSend();
         }
         if (!useChatStore.getState().chatId?.trim()) {
+          // A page opened at /<chatId> is already bound to that chat by the route; minting a fresh local id here
+          // would make the turn land in a new chat and leave the seeded one empty. Adopt the route's id instead.
+          const routed = resolveChatIdFromLocation();
           flushSync(() => {
-            useChatStore.getState().initializeChat(undefined);
+            useChatStore.getState().initializeChat(routed);
           });
         }
       },
