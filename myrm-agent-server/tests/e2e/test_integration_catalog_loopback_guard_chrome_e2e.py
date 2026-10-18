@@ -398,12 +398,12 @@ def test_integration_catalog_recommended_retry_auto_continue_end_to_end() -> Non
                         page,
                         """(() => {
                           const titles = Array.from(document.querySelectorAll('h4'));
-                    const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
-                    return { ready: found };
-                  })()""",
-                    timeout_sec=60.0,
-                    page_url=_catalog_page_url(),
-                )
+                          const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                          return { ready: found };
+                        })()""",
+                        timeout_sec=60.0,
+                        page_url=_catalog_page_url(),
+                    )
                     assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                     open_dialog = client.evaluate(
                         page,
@@ -745,12 +745,12 @@ def test_integration_catalog_tls_verification_failed_end_to_end() -> None:
                         page,
                         """(() => {
                           const titles = Array.from(document.querySelectorAll('h4'));
-                    const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
-                    return { ready: found };
-                  })()""",
-                    timeout_sec=60.0,
-                    page_url=_catalog_page_url(),
-                )
+                          const found = titles.some((el) => /Unreal Engine|虚幻引擎/i.test(el.textContent || ''));
+                          return { ready: found };
+                        })()""",
+                        timeout_sec=60.0,
+                        page_url=_catalog_page_url(),
+                    )
                     assert card_ready.get("ready") is True, f"catalog card never rendered: {card_ready}"
                     open_dialog = client.evaluate(
                         page,
