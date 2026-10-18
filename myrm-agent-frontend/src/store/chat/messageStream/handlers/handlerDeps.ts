@@ -56,6 +56,7 @@ export {
   normalizeClarificationForm,
   normalizeGoalState,
   normalizeSubagentStatus,
+  resolveClarifyIsResumeMode,
 } from '../streamHelpers';
 export { parseProgressFilePath, pathsMatchForFileDiff, pickMergedFileDiffPayload } from '../fileDiffMerge';
 export { sanitizeStreamText } from '../textSanitize';

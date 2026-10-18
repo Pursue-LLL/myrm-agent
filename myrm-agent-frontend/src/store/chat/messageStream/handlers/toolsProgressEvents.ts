@@ -211,9 +211,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const form = resolveClarificationFormFromEventData(data.data);
     const payload =
       data.data && typeof data.data === 'object' ? (data.data as unknown as Record<string, unknown>) : undefined;
-    const actionMode = H.useChatStore.getState().actionMode;
-    const source = typeof payload?.source === 'string' ? payload.source : undefined;
-    const isResumeMode = source === 'deep_research' ? false : actionMode !== 'deep_research';
+    const isResumeMode = H.resolveClarifyIsResumeMode(payload?.source);
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {

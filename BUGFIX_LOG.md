@@ -7626,3 +7626,58 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 
 1. **搬走实现时要连它的 UI 承诺一起搬**：后端删掉、前端卡片留着，比留着后端更糟——后者至少还能被发现。
 2. **白名单也是承诺**：`DRAWER_RESUME_ACTION_TYPES` 写着「这些中断可以续跑」，加一个没有生产者的成员就是在骗下一个读它的人。
+
+---
+
+## BUG-AGENT-2026-10-18-013: 澄清卡的续跑/旧接口判定读了「打开聊天的模式」——后台普通轮次的澄清被误判成 Deep Research，走只认 DR 的旧接口，答案 404
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（复核多 chat 并行下单槽判定覆盖面时，把澄清卡的 `isResumeMode` 与服务端 SSOT 逐字对照） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（不丢数据；但卡片当场答不下去，刷新后由服务端持久值自愈） |
+| 影响范围 | frontend：`store/chat/messageStream/streamHelpers.ts`、`handlers/toolsProgressEvents.ts`、`handlers/messageContentEvents.ts`、`handlers/handlerDeps.ts`、`store/chat/clarificationState.ts` 及其测试 |
+| 出现次数 | 1 |
+| 关联 | `BUG-AGENT-2026-10-18-004`（同属「读全局而非事件自身」一族）；`temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #399 补遗；本地提交，未 push |
+
+### 现象
+
+用户正停在 **deep_research 模式**的聊天里，另一个后台/邻栏的**普通 agent 轮次**发起澄清提问。该澄清卡被算成「非续跑（legacy）」，点答案后走 `submitClarifyResponse` → `POST /agents/clarify-response`（服务端该路由只服务 **Deep Research** 的 `PhaseWaiter`，见 `myrm-agent-server/app/api/agents/general_agent/phase_response.py:54` 注释与 `:58-59` 的「无 pending 则 404」），于是**卡片当场答不下去**。
+
+刷新后能恢复：服务端持久的是按 `source` 算出的正确值，hydrate 不覆盖既有值，因此错值只在当前会话存活。故严重度按「当场卡住、可自愈」计。
+
+### 根因
+
+同一条 `isResumeMode` 规则在前后端存在**三份写法**，且其中两份前端 live 路径**引入了服务端根本没用的输入**：
+
+- 服务端 SSOT（`stream_collector_helpers.py:162-167`）：**只看事件自带的 `source`**——有则 `source != "deep_research"`，无则 `true`。
+- hydrate（`clarificationState.ts:25`，修复前）：`source !== 'deep_research'`，**与服务端一致**。
+- `toolsProgressEvents.ts:216`（修复前）：`source === 'deep_research' ? false : actionMode !== 'deep_research'` —— 在**无 `source`** 时改用 `useChatStore.actionMode`。
+- `messageContentEvents.ts:116`（修复前）：`existing?.isResumeMode ?? actionMode !== 'deep_research'`。
+
+关键事实：harness 的 GA 澄清载荷是 `{type:"ask_question", form}`，**从不带 `source`**（`clarification_agent_tools.py:45`）；只有 DR 澄清带 `source:"deep_research"`（`_orchestrator_phases.py:207`）。因此 `actionMode` 只会在「无 source」这一种情况参与——而那正是 GA 澄清，服务端规定它必须续跑。于是只要用户当前聊天是 DR 模式（`actionMode` 是全局值、`initializeChat` 不按聊天恢复、仅随 `setActionMode` 与会话 localStorage 变化），后台 GA 澄清就被误判。
+
+探针（真实 store + 真实 handler）在未改动的代码上确定性失败：`expected false to be true`。
+
+### 修复
+
+1. `streamHelpers.ts` 新增纯函数 `resolveClarifyIsResumeMode(source: unknown): boolean`，规则与服务端 SSOT 逐字一致（仅 `deep_research` 为 legacy，其余续跑）。
+2. 三处调用统一到该函数：`toolsProgressEvents.ts`（改读事件 `payload?.source`）、`messageContentEvents.ts`（改读卡片自身 `existing?.source`）、`clarificationState.ts`（消掉本地重复规则）。
+3. 两处 live handler 删除不再需要的 `useChatStore.actionMode` 读取；`handlerDeps.ts` 再导出该 helper 供切片使用。
+
+### 验证
+
+1. **先红后绿**：新增 `__tests__/toolsProgressEvents.clarifyResumeScope.test.ts`（真实 store + 真实 handler：打开聊天 deep_research、后台 GA 澄清 → `isResumeMode` 必须为 `true`）与 `__tests__/streamHelpers.clarifyResumeMode.test.ts`（SSOT 规则：`deep_research`→false、无 source→true、其他→true），修复前 4 例全红（3 例 helper 未实现 + 1 例 `expected false to be true`），修复后全绿。
+2. **回归**：`store/chat/messageStream` + `store/chat/__tests__` + `lib/approval` 共 118 文件 899 用例通过、零 unhandled error；`memoryBriefStatus.e2eFlow.test.ts` 的整模块 `handlerDeps` mock 补齐 `isStreamForOpenChat`（`BUG-AGENT-2026-10-18-004` 引入 gate 时漏补的测试替身）。
+3. **门禁**：改动文件 `oxlint` 0 告警、`prettier --check` 通过、`tsc --noEmit` 在本批文件 0 错误（仓内其余错误来自他人未提交的 `NotificationBell.tsx`）。
+
+### 局限
+
+1. 没有真实浏览器多 pane 端到端复现（本机 E2E 名额争抢），行为由 jsdom 里的真实 store + 真实 handler 用例覆盖。
+2. 服务端在「无 source」时直接判 `true` 而不看任何模式；本修复是让前端与其对齐，未改动服务端。
+
+### 踩坑经验
+
+1. **一条规则只允许有一个主人**：同一语义在 hydrate 与 live handler 各写一份，且 live 那份悄悄引入了服务端不用的输入，分叉就发生在这里。提取纯函数让三处共用，比「修其中一处」更能防回归。
+2. **事件的判定要用事件自己的字段**：续跑与否由事件的 `source` 决定；`useChatStore.actionMode` 是「用户此刻开着哪个聊天」的全局值，既不是发起方（`BUG-AGENT-2026-10-18-004`），也不是这条事件的属性。凡「读环境当前状态来判定某条流/某张卡」的地方都要警觉。
+

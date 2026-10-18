@@ -100,7 +100,6 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
 
           if (isClarify) {
             const existing = updateState.messages[messageIndex].clarification;
-            const actionMode = H.useChatStore.getState().actionMode;
             updateState.messages[messageIndex].clarification = {
               ...existing,
               question: recievedMessage,
@@ -113,7 +112,7 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
                     form: clarificationForm,
                   }
                 : {}),
-              isResumeMode: existing?.isResumeMode ?? actionMode !== 'deep_research',
+              isResumeMode: existing?.isResumeMode ?? H.resolveClarifyIsResumeMode(existing?.source),
             };
           }
 

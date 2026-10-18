@@ -7,7 +7,7 @@
  * Shared clarify state helpers for message hydrate and Composer takeover selection.
  */
 
-import { normalizeClarificationForm } from './messageStream/streamHelpers';
+import { normalizeClarificationForm, resolveClarifyIsResumeMode } from './messageStream/streamHelpers';
 import type { Message } from './types';
 
 export function normalizeHydratedClarification(
@@ -21,8 +21,7 @@ export function normalizeHydratedClarification(
     clarification.form = normalizeClarificationForm(clarification.form);
   }
   if (clarification.isResumeMode === undefined) {
-    const source = (clarification as { source?: string }).source;
-    clarification.isResumeMode = source !== 'deep_research';
+    clarification.isResumeMode = resolveClarifyIsResumeMode(clarification.source);
   }
   return clarification;
 }

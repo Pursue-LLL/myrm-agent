@@ -50,6 +50,7 @@ vi.mock('../handlerDeps', () => ({
   },
   mapTaskStepStatus: vi.fn(() => 'success'),
   mergeMessageSources: vi.fn(),
+  resolveClarifyIsResumeMode: (source: unknown) => source !== 'deep_research',
 }));
 
 import { toolsProgressEvents } from '../toolsProgressEvents';
