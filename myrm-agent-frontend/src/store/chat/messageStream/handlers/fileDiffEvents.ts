@@ -233,6 +233,8 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       changed_since_last_grant: Boolean(data.data.changed_since_last_grant ?? false),
       messageId: data.messageId,
     };
+    // The consent dialog is single-slot and must stay answerable for a background chat's turn too, so it keeps
+    // opening regardless of which chat is on screen; only the inspector surface is limited to the open chat.
     useDesktopControlApprovalStore.getState().requestApproval(approvalPayload);
 
     if (H.isStreamForOpenChat(state)) {
