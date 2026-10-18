@@ -58,9 +58,7 @@ export interface ReducedMotionSurface {
 
 function firstMotionEvidence(source: string): string | undefined {
   const match =
-    /@keyframes\s+[\w-]+|\banimation\s*:[^;]{0,60}|\btransition\s*:[^;]{0,60}|\banimate-[\w[\]-]{0,40}/.exec(
-      source,
-    );
+    /@keyframes\s+[\w-]+|\banimation\s*:[^;]{0,60}|\btransition\s*:[^;]{0,60}|\banimate-[\w[\]-]{0,40}/.exec(source);
   return match?.[0];
 }
 
