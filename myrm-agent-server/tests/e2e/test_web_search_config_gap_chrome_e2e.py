@@ -327,16 +327,19 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
       if (streamMessageId) {{
         window.__MYRM_E2E_CHAT__?.setSseCaptureMessageId?.(streamMessageId);
       }}
-      // Event types alone cannot tell a web_search call from a web_fetch call, and web_fetch is mounted
-      // without any search configuration. Collect the tool names behind each tool_start so the assertion
-      // can fail on web_search specifically instead of on any tool the agent legitimately used.
+      // tool_start carries no tool name (the harness treats it as a frontend-only signal), but the
+      // tools_snapshot event carries the Turn1-bound list, which is what decides whether web_search was
+      // mounted at all. web_fetch mounts without any search configuration, so only web_search matters.
       const toolNames = [];
       const payloads = window.__MYRM_E2E_CHAT__?.ssePayloadSnapshot?.() ?? [];
       for (const entry of payloads) {{
-        if (entry?.type !== 'tool_start') continue;
-        const data = entry.data ?? {{}};
-        const name = data.tool_name ?? data.toolName ?? data.name ?? (data.tool && data.tool.name) ?? null;
-        if (typeof name === 'string' && name.trim()) toolNames.push(name.trim());
+        if (entry?.type !== 'tools_snapshot') continue;
+        const rows = Array.isArray(entry.data) ? entry.data : [];
+        for (const row of rows) {{
+          if (!row || typeof row !== 'object') continue;
+          const name = row.name ?? row.tool_name ?? row.slug ?? null;
+          if (typeof name === 'string' && name.trim()) toolNames.push(name.trim());
+        }}
       }}
       return {{
         toast: {{
@@ -695,10 +698,14 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 if isinstance(all_sse, list) and "capability_gap" in all_sse:
                     recorded_sse = list(all_sse)
 
+            # web_fetch mounts without any search configuration, so a plain tool_start proves nothing.
+            # The real question is whether web_search was bound at all for this turn.
             tool_names = diag.get("toolNames") if isinstance(diag.get("toolNames"), list) else []
-            ran_web_search = any("web_search" in str(name) for name in tool_names)
-            if ran_web_search and "capability_gap" not in recorded_sse:
-                pytest.fail(f"agent ran web_search instead of config-gap preflight; tools={tool_names!r}; sse={recorded_sse!r}")
+            web_search_bound = any("web_search" in str(name) for name in tool_names)
+            if web_search_bound and "capability_gap" not in recorded_sse:
+                pytest.fail(
+                    f"web_search was mounted instead of the config-gap preflight; tools={tool_names!r}; sse={recorded_sse!r}"
+                )
 
             if "capability_gap" not in recorded_sse:
                 pytest.fail(
