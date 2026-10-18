@@ -49,7 +49,7 @@ const STYLESHEET_EXTENSIONS = new Set(['.css']);
  */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.mjs', '.js', '.rs', '.py', '.html']);
 
-export interface ReducedMotionSurface {
+interface ReducedMotionSurface {
   /** 相对仓库根的路径。 */
   path: string;
   /** 命中的动画片段（首条），便于在报错里定位。 */
@@ -150,7 +150,7 @@ function isImportedIntoMainDocument(path: string): boolean {
  * 汇总一次扫描结果：`surfaces` 为需要守卫却缺失的文件，`allowlisted` 为命中白名单的文件，
  * `scanned` 为参与判定的候选文件数（用于反向自检，避免路径失效后静默通过）。
  */
-export interface ReducedMotionScanReport {
+interface ReducedMotionScanReport {
   violations: ReducedMotionSurface[];
   allowlisted: ReducedMotionSurface[];
   scanned: number;
