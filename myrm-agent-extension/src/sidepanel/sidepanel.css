@@ -271,3 +271,12 @@ body {
   0%, 80%, 100% { opacity: 0.3; }
   40% { opacity: 1; }
 }
+
+/* 系统偏好减少动态效果时把动画与过渡收到瞬时：面板是独立文档，宿主样式表的守卫到不了这里。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

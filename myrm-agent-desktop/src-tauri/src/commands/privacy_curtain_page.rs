@@ -84,6 +84,14 @@ fn curtain_html(texts: &CurtainTexts) -> String {
     .hint {{ margin-top: 26px; font-size: 12px; color: #4b5563; border: 1px solid #1f2937;
             border-radius: 999px; padding: 8px 18px; letter-spacing: 0.02em; }}
     @keyframes pulse {{ 0%, 100% {{ opacity: 0.35; }} 50% {{ opacity: 1; }} }}
+    /* 系统偏好减少动态效果时把动画收到瞬时：帷幕经自定义协议单独成页，宿主样式表的守卫到不了这里。 */
+    @media (prefers-reduced-motion: reduce) {{
+      *, *::before, *::after {{
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }}
+    }}
   </style>
 </head>
 <body>
@@ -176,5 +184,23 @@ mod tests {
         assert!(body.contains("primary-token"));
         assert!(body.contains("sub-token"));
         assert!(body.contains("hint-token"));
+    }
+
+    /// The curtain is its own document served over a custom scheme, so the app's global
+    /// stylesheet cannot reach it; the page must carry its own reduced-motion guard.
+    #[test]
+    fn page_carries_its_own_reduced_motion_guard() {
+        let html = curtain_html(&default_texts());
+        assert!(html.contains("@media (prefers-reduced-motion: reduce)"));
+        assert!(html.contains("animation-iteration-count: 1 !important"));
+        assert!(html.contains("transition-duration: 0.01ms !important"));
+    }
+
+    /// The guard uses the universal selector so the dot's own animation is covered without
+    /// naming it; a rule listing `.dot` would miss any later addition.
+    #[test]
+    fn reduced_motion_guard_is_universal() {
+        let html = curtain_html(&default_texts());
+        assert!(html.contains("*, *::before, *::after {"));
     }
 }
