@@ -159,6 +159,11 @@ async def test_missing_config_is_unavailable() -> None:
     assert await verify_search_service_available(None) is False
 
 
+async def test_cached_verify_of_a_missing_config_is_unavailable() -> None:
+    """The cache layer is reached directly by callers that pass the config straight through."""
+    assert await search_verify.verify_search_config_cached(None) is False
+
+
 # ── single provider ───────────────────────────────────────────────
 
 
