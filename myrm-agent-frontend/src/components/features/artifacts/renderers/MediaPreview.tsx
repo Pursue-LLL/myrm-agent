@@ -1,5 +1,23 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - dompurify::DOMPurify (POS: SVG sanitization for inline previews)
+ * - @/lib/constants/artifact::IMAGE_LAZY_LOAD_MARGIN, LARGE_FILE_THRESHOLD (POS: lazy-load margin, rasterization threshold)
+ * - @/lib/untrusted-link::requestUntrustedLink (POS: external link gating for widget navigation)
+ * - @/lib/widget-theme-bridge::buildWidgetSrcdoc, subscribeHostThemeVars (POS: sandboxed iframe document + host theme bridge)
+ * - @/hooks/workspace/useWidgetStorage (POS: KV persistence for widget iframes)
+ * - @/components/features/icons/PremiumIcons, @/components/features/image-editor/uploadAnnotated (POS: media fallback icons, annotated image upload)
+ *
+ * [OUTPUT]
+ * - HtmlPreview: sandboxed iframe viewer with theme bridge, height sync, link interception, element picker
+ * - ImagePreview / VideoPreview / AudioPreview: media viewers with lazy loading and error fallback
+ * - SvgPreview: threshold-split SVG viewer (inline sanitized DOM below LARGE_FILE_THRESHOLD, blob-backed img rasterization at or above it)
+ *
+ * [POS]
+ * Media preview renderers consumed by ArtifactRenderer / ArtifactCard / RichMediaFilePreview.
+ */
+
 import React, { memo, useMemo, useRef, useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';

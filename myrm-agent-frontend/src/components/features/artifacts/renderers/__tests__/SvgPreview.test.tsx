@@ -1,4 +1,15 @@
 /** @vitest-environment jsdom */
+/**
+ * [INPUT]
+ * - MediaPreview::SvgPreview (POS: threshold-split SVG viewer under test)
+ * - @/lib/constants/artifact::LARGE_FILE_THRESHOLD (POS: rasterization threshold)
+ *
+ * [OUTPUT]
+ * - Vitest: inline path stays sanitized and blob-free; raster path creates/revokes blob URLs, degrades to the shared error copy on load failure
+ *
+ * [POS]
+ * Behavior guard for the SvgPreview rasterization split.
+ */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
