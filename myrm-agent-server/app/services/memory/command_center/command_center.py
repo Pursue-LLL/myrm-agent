@@ -298,9 +298,11 @@ class MemoryCommandCenterService:
 
         Reflects whether vector memories survive restarts: an embedded store
         that degraded to ``:memory:`` reports ``"memory_fallback"`` so the UI
-        can warn instead of implying durable storage.
+        can warn instead of implying durable storage. A store without an
+        embedding backend still persists its sparse mirror, so only a missing
+        store reports ``"unavailable"``.
         """
-        if not self._memory_manager.has_vector:
+        if not self._memory_manager.has_vector_store:
             return "unavailable"
         return "persistent" if self._memory_manager.vector_is_persistent else "memory_fallback"
 
@@ -309,7 +311,7 @@ class MemoryCommandCenterService:
             deploy_mode=deploy_mode,
             memory_base_path=settings.database.memory_base_path,
             relational_status=("available" if self._memory_manager.has_relational else "unavailable"),
-            vector_status=("available" if self._memory_manager.has_vector else "unavailable"),
+            vector_status=("available" if self._memory_manager.has_vector_store else "unavailable"),
             vector_persistence=self._build_vector_persistence(),
             graph_status=("available" if self._memory_manager.has_graph else "unavailable"),
             embedding_status=(get_embedding_mode().value if self._memory_manager.has_vector else "unavailable"),

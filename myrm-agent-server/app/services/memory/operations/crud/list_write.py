@@ -187,7 +187,9 @@ async def create_memory(
         return memory_to_item(result, mem_type)
 
     elif mem_type == MemoryType.SEMANTIC:
-        if not manager.has_vector:
+        # Type-enabled, not dense-capable: without an embedding backend the memory
+        # lives in the BM25 sparse mirror and stays writable.
+        if MemoryType.SEMANTIC not in manager.get_enabled_types():
             raise HTTPException(status_code=400, detail="Semantic memory is not enabled")
         try:
             memory = await manager.add_knowledge(body.content, importance=body.importance, tags=body.tags)
@@ -202,7 +204,7 @@ async def create_memory(
         return memory_to_item(memory, mem_type)
 
     elif mem_type == MemoryType.EPISODIC:
-        if not manager.has_vector:
+        if MemoryType.EPISODIC not in manager.get_enabled_types():
             raise HTTPException(status_code=400, detail="Episodic memory is not enabled")
         try:
             memory = await manager.add_event(
