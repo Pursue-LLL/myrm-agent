@@ -53,17 +53,10 @@
 | `source-files.mjs` | 静态门禁共用的源码遍历 `walkSourceFiles(dir, extensions, { includeTests })`（单测 `__tests__/source-files.test.ts`）：剪掉 `node_modules` / `.next` / `dist`，默认排除 `__tests__` 与 `*.test.ts(x)`，统计口径需覆盖测试时传 `includeTests: true`（`check-theme-colors.mjs`、`check-hardcoded-copy.mjs`、`check-a11y-ratchet.mjs` 共用） |
 | `ci/hardcoded_copy_baseline.json` | 硬编码文案存量基线（相对 myrm-agent-frontend 的文件路径 → 字面量数量，额度只降不升，经 `check-hardcoded-copy.mjs --write-baseline` 收紧） |
 | `i18n-shell-core.mjs` | 翻译壳检测共享逻辑（单测 `__tests__/i18n-shell-core.test.ts`；`hasNonAsciiLetter`（含非 ASCII 字母即已本地化，与 9k 共用）；`isLegitSameValue` 值整体类型判据：含非 ASCII 字母/URL/纯路径/邮箱/域名 → 合法保留（非 ASCII 标点与符号 `·`/`—`/`…`/箭头不携带语言信息，按分隔符处理，不构成合法依据）；无空格 token：全大写国际缩写（`MCP`/`FAQ`/`URL`）→ 合法，含非字母结构（`-`/`/`/`@`/`#`/数字等，如 `sk-...`、`spaces/xxxxx`、`@bot:matrix.org`）→ 合法，纯英文单词（`Active`/`Paused`）或纯单词+省略号（`Loading...`）→ 判壳；去除 ICU 占位符后不再含英文实义词（≥2 字母）→ 纯格式模板（如 `{count} / {max}`）→ 合法；其余含英文实义词的值 → 判为翻译壳（需翻译或由 allowlist 显式豁免）。仅豁免具体格式，不含 `{}$%^`、`/`、`...` 字符级一刀切豁免，避免「Loading...」「Task {taskId} resumed」等未翻译英文漏检；`collectTranslationShells`/`isTranslationShell`（与 en 比较前剔除 emoji，加 emoji 装饰的英文值同样判壳）等；verify-i18n 与 dump-remaining 共用，防 gate 口径漂移） |
-| `i18n-patch-apply.mjs` | 将 `translation-patches/<locale>/*.json` 深度合并进 `locales/<locale>.json`（内容补齐工作流）。**只补不覆盖**：目标语言里仍是英文 SSOT 的键才填充，已有独立译文的键一律保留——补丁是某一时刻的翻译快照，用它覆盖会丢掉该语言当前的译法。结构性破坏直接失败（单测 `__tests__/i18n-patch-guard.test.ts`）：补丁叶子键在 `locales/en.json`（key SSOT）里不存在 → 拒绝（写进去就是孤儿键，`verify:i18n` 的 key parity 会拒）；补丁叶子会替换已存在的对象子树 → 拒绝（会静默丢掉整棵已翻译子树）。校验先在内存里全部跑完，发现问题时 `locales/<locale>.json` 一个字节都不写；输出按「填充未翻译 / 新增 / 保留已有译文」分组计数 |
-| `i18n-prune-patch-keys.mjs` | 修剪 `translation-patches/` 里 en SSOT 已不存在的键（单测 `__tests__/i18n-patch-guard.test.ts`）：en 是唯一 key SSOT，补丁里 en 不存在的键写回 locale 就是孤儿键，在源头删掉比应用时拦截更接近根因；`--check` 只报告（有需修剪的键时退出码 1）；带 `--locale` 可限定语言 |
-| `i18n-build-patch.mjs` | 扁平 key→翻译 JSON 构建嵌套 `translation-patches` 补丁树 |
-| `i18n-de-bulk-translate.py` | 从 en SSOT 批量机翻 de 剩余壳（Google Translate + placeholder 保护；英→德缓存 `i18n-caches/de.json`，键为英文原文，**不是**补丁树） |
-| `i18n-de-apply-cache.py` | 将英→德缓存 `i18n-caches/de.json` 回写到 `locales/de.json`（壳清零前的增量应用） |
-| `i18n-caches/` | 机翻缓存目录（`<locale>.json` 的 `{英文原文: 译文}` 映射，供 `i18n-de-bulk-translate.py` / `i18n-de-apply-cache.py` 读写）。与 `translation-patches/` 分开：缓存是映射表，放进补丁目录会被 `i18n-patch-apply.mjs` 当作补丁整表写入 locale，覆盖同名的对象子树并新增大量孤儿键 |
 | `i18n-de-fix-remaining.mjs` | de 收尾：认知词/渠道 Connect 文案壳 + glossary forbidden 键修正 |
-| `i18n-dump-remaining.mjs` | 按 `i18n-shell-core.mjs` 同款壳检测逻辑导出某语言剩余翻译壳清单（TSV/JSON，支持 `--limit`/`--offset`/`--stats`） |
+| `i18n-dump-remaining.mjs` | 按 `i18n-shell-core.mjs` 同款壳检测逻辑导出某语言剩余翻译壳清单（TSV/JSON，支持 `--limit`/`--offset`/`--stats`），供人工补译前定位待翻译键 |
 | `i18n-glossary.json` | Native QA 术语表 SSOT（de Sie-Form + ko 敬语约束 + ja です・ます体约束与禁止模式 + zh-TW 繁體约束；`forbidden` 由 `verify-i18n/locale-parity.mjs` 强制执行（支持 `/正则/` 模式），ja 用于拦截中文乱码残留（词汇级中文独有词，含纯同形词——每个字形合法但组合为日语不存在的词，如 文件/窗口/屏幕/信息/提交/刷新/小伙伴/演示文稿/跟随/摸回数/搞定 + 中文介词残留如 按名前/按ユーザー/以アクセス/移動端/検査器/必須はい/に対する象 + 语序乱码 + 中文式组合残留如 終ログイン/首ページ/使用 Google ログイン/終サンドボックス/最ビジーツール/首字/にあなた啦/見る見る + 宾语+动词+失敗 中文动宾句残留如 リセットコンテナ環境/承認下書き/キャンセルピン留め/テンプレート適用失敗 + 简体独有词 + 动词+空格+名词 动宾按钮残留如 選択 MCP/作成 APIキー/エクスポート CSV/クリア OAuth/承認 + 中文式短标签拟声/语气词残留如 好！/完！/嘭！/啦！ + 中文「X完」后缀残留（正则 `/X完(?!了)/` 拦截，如 クエリ完/コンパイル完/スキャン完/準備完）+ 動詞+名詞 动宾按钮语序残留（如 確認削除/開く設定/閉じるパネル/追加ルール/選択ゴール/入力スキル名前，名词复合词如 検索サービス/実行モード 不受影响）+ Shadow）、zh-TW 用于拦截豁免字形字的简体词残留与两岸差异词（标准/云端/用于/基于/里面/关于/屏幕/信息/窗口/兼容/搜索/界面/支持/保存/刷新/文件夾/拖拽/退出登入/全屏/插件 等 41 词）；de/ko rules 声明汉字纯净约束、zh-TW rules 声明简体字形纯净约束） |
 | `i18n-shell-allowlist.json` | 翻译壳检测豁免清单：真正不可翻译的值（品牌/凭据字段名/占位示例/纯格式模板如 `PID {pid}`、`{wu} WU`、`TLS / mTLS`、`sk-...`）与键路径 |
-| `translation-patches/` | 各语言内容补齐补丁目录（`<locale>/batch-NN.json` 等嵌套 JSON 补丁，供 `i18n-patch-apply.mjs` 深度合并；补丁键必须存在于 en SSOT，否则应用时直接失败；应用前以 `i18n-dump-remaining.mjs` 导出剩余壳清单）。机翻缓存放 `i18n-caches/`，不在此目录 |
 | `verify-sw-push.mjs` | `public/sw.js` 须含 Web Push handler、URL 消毒、`resolvePushClientFocusAction`、`.navigate(`（`bun run build` 末段执行，位于 `build:sw-inject` 与 Serwist inject-manifest 之后） |
 | `build-sw-src.mjs` | esbuild 打包 `src/app/sw.ts` → `.serwist/sw-inject-src.js`（inject-manifest 入口，解析 lib import） |
 | `scan-home-i18n-shell.mjs` | home-route `settings.*` 引用须在 SSR shell（CI via verify-i18n） |
@@ -91,7 +84,7 @@
 
 - 新 CI 门禁脚本放本目录并在本 `_ARCH.md` 与根 `_ARCH.md` CI 节登记
 - `frontend-build.yml` 的门禁步骤互相独立（`if: ${{ !cancelled() }}`），一次运行列出全部红灯；`lint` 步骤内的静态门禁同理由 `run-lint-gates.ts` 全部执行，新增此类门禁只改 `LINT_GATES`；新增独立步骤沿用 `if` 写法，依赖 `locales/namespaces/` 生成物的门禁须排在 `bun run i18n:split` 步骤之后；`verify-sw-push.mjs` 随 `bun run build` 执行，不单列步骤
-- locale 文案按 ICU 书写：插值变量写 `{name}`；要原样显示的花括号 / 尖括号，把以它开头的片段用单引号括起来（`'{{secret:KEY}}'`、`'<token>'`、`[ '{"a": 1}' ]`），单引号必须紧贴 `{` `}` `<` `>`；`check-icu-syntax.mjs` 零容忍，`translation-patches` 等批量补丁写回 `locales/*.json` 前同样适用
+- locale 文案按 ICU 书写：插值变量写 `{name}`；要原样显示的花括号 / 尖括号，把以它开头的片段用单引号括起来（`'{{secret:KEY}}'`、`'<token>'`、`[ '{"a": 1}' ]`），单引号必须紧贴 `{` `}` `<` `>`；`check-icu-syntax.mjs` 零容忍，手写或批量写回 `locales/*.json` 前同样适用
 - toast 文案不得写死：组件用 `useTranslations`，store / 工具函数用 `@/services/i18nToastService` 的 `showI18nToast` / `translateI18nKey`；`t(key) || 'x'` 的兜底永远不会执行，`check-hardcoded-copy.mjs` 零容忍
 - 棘轮基线只通过门禁自带的收紧命令更新：`check-hardcoded-copy.mjs --write-baseline`、`check-a11y-ratchet.mjs --ratchet`（只写入降低的额度，不新增条目、不抬高额度）；`check_file_line_budget.py`、`check_fractal_docs.py` 的台账用各自的 `--write-baseline`；禁止手改豁免逻辑
 - `ci/barrel_whitelist.txt` 跨域 barrel 条目须与根 `_ARCH.md` 桶表同步，手改后跑 `check_barrel_exports.py` 验证

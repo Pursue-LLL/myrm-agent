@@ -7499,3 +7499,42 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 1. **「探活」与「实干」必须用两套预算**：探活的语义是「现在能不能用」，它继承实干（重试到底）的预算时，最坏形态的代价就变成用户可见的等待。给探活单独设界，比调整实干的重试参数更准——后者会同时削弱真实搜索的韧性。
 2. **共享同一个配置对象时，改字段会外溢**：探测与真实搜索传入的是同一个 `SearchServiceConfig`，任何对该对象的字段调整都会同时改变两条路径；给单条路径加界要包在该路径内，而不是改被共享的配置。
 3. **黑洞形态（接受不回包）和「拒绝/DNS 失败」是两回事**：后两者 1~2s 就收敛，只有前者会吃满重试预算；用「连不上」的场景测不出这个缺陷，必须构造「连得上但不回包」。
+## BUG-AGENT-2026-10-18-010: 退役 i18n 补丁链——132 个补丁文件与 6 个专用脚本零生产消费者，唯一现实效应是回放致损
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18（修完 `-006/-007/-008` 后追问「这条链还有产出能力吗」，逐条统计消费者与提交动机） |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（无用户可见崩溃；但每条新文案要维护两份、且已三次致损，是真实的维护负担与隐患） |
+| 影响范围 | frontend：删除 `scripts/translation-patches/`（132 文件）、`scripts/i18n-caches/`、`i18n-patch-apply.mjs`、`i18n-build-patch.mjs`、`i18n-prune-patch-keys.mjs`、`i18n-de-bulk-translate.py`、`i18n-de-apply-cache.py`、`__tests__/i18n-patch-guard.test.ts`；`scripts/_ARCH.md` 与 `src/i18n/_ARCH.md` 同步；`check-icu-syntax.mjs` 的一处提示文案不再指向已删脚本 |
+| 出现次数 | 3（同一机制的三次致损：`-006` 结构覆写、`-007` 标记泄漏到 UI、`-008` 译文退回英文） |
+| 关联 | `-006`/`-007`/`-008` 都发生在这条链上，本条目终结其根源；本地提交，未 push |
+
+### 现象
+
+`scripts/translation-patches/` 与配套脚本没有消费者，却持续产生维护动作。
+
+### 根因
+
+1. **零消费者**：对 `myrm-agent` + `myrm-agent-harness` + `myrm-control-plane` 全量检索，排除链自身与文档后，引用全部落在链内部（`i18n-prune-patch-keys.mjs` → `i18n-patch-apply.mjs` → 补丁目录；两个 de 脚本 → `i18n-caches/`）。CI `frontend-build.yml` 只跑 `i18n:split`（:41）与 `verify:i18n`（:70），从不调用补丁链。
+2. **产出能力已归零**：最后一次新增补丁文件是 `2026-08-08`；以 `2026-10-01` 起算的新增补丁文件数为 0；五语言 `i18n-dump-remaining.mjs --stats` 剩余壳全部为 0。
+3. **职能与门禁重叠**：补丁由「剩余壳清单」生成，而壳的定义就是「值仍等于 en」；`verify-i18n` 的 shell 门禁已强制清除（实测 `isTranslationShell('Save changes','Save changes')` 返回 true → CI 红）。即每个 en 键都必须有真译文，补丁没有可补对象。
+4. **唯一现实效应是致损**：十月 221 次 locale 提交中有 31 次同时改补丁，其中 3 次是**只改补丁、不改 locale**的：`69d691ddbd`、`83e42c62e3`、`83c0f9d265`。这三个提交的 message 明确写着「补丁里的旧值会在重跑 `i18n-patch-apply.mjs` 时覆盖语言包」，即提交的唯一目的是阻止这条链破坏语言包。
+5. **竞品均无此机制**（本地仓库实地检索）：openclaw `ui/src/i18n/locales`、hermes-agent `ui-tui/src/i18n`、deer-flow `frontend/src/core/i18n`、deepseek-harness `packages/settings/settings/locale`（仅 en/zh 两个 json）——`find -iname '*translation-patch*' -o -iname '*patch-apply*' -o -iname '*i18n-patch*'` 全部为空。它们用「翻译直接写语言包 + 门禁保证一致」，不需要快照回放。
+
+### 修复
+
+删除整条链（139 个文件：132 个补丁 + 5 个专用脚本 + 机翻缓存 + 它的守卫测试），保留全部活的门禁与工具：`verify-i18n/*`、`check-icu-syntax.mjs`、`i18n-shell-core.mjs`、`i18n-dump-remaining.mjs`、`split-locale-namespaces.mjs`、6 个语言包。补译改为「`i18n-dump-remaining.mjs` 导出剩余壳 → 人工或批量写入 `locales/<locale>.json`」，一致性由 `verify:i18n` + `check-icu-syntax.mjs` 把关。保留 `check-icu-syntax.mjs` 的机翻标记检查（`__BR_…__` / `__PHn__`），它断言的是「内部记号不得出现在用户界面」，保护的是交付物而非被删的脚本。
+
+### 验证
+
+1. `locales/*.json` 未被本次改动触及：删除前后逐语言比对叶子数与孤儿键（6 语言均 19436 叶、0 孤儿键不变）。
+2. `bun scripts/check-icu-syntax.mjs` 通过（6 语言 116616 条）；`bun run verify:i18n` 通过（含 3585 文件引用检查）。
+3. `bunx vitest run scripts/__tests__/` **19 文件 225 例通过**（删前 20 文件 232 例，减少的正是被删链的守卫测试）；`bun run i18n:split` 正常产出 `locales/namespaces/`。
+4. 全仓库检索 `i18n-patch-apply|i18n-build-patch|i18n-de-bulk-translate|i18n-de-apply-cache|translation-patches|i18n-caches` 已 **0 命中**（代码、文档、测试全域）。
+5. `bun scripts/check-theme-colors.mjs` 通过（3588 文件）。
+
+### 局限
+
+1. 若日后需要批量机翻，需重建一次性脚本或接入翻译平台——这是删除的已知代价，收益（消除致损、去双重维护、仓库 -1.3MB）远大于它。
+2. 同批发现的其它零引用脚本（`i18n-de-fix-remaining.mjs`、`sync_i18n.py`、`verify-shell-i18n-runtime.mjs`、未跟踪的 `fix-v12-scc-i18n.mjs`）未一并删除：它们零执行、零风险，且逐个确认用途的成本高于收益，留待单独评估。
