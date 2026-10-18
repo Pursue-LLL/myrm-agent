@@ -106,6 +106,10 @@ export function findUnguardedMotionSurface(path: string, source: string): Reduce
   if (!HAS_MOTION.test(production)) {
     return undefined;
   }
+  // 被主文档 @import 的样式表由主文档的守卫统一覆盖，不属于“独立文档”。
+  if (isStylesheet && isImportedIntoMainDocument(path, production)) {
+    return undefined;
+  }
   // 守卫要“真的兜住全部动画”：既出现在 reduce 媒体查询里，又落在通用选择器上。
   if (HAS_GUARD.test(production) && UNIVERSAL_GUARD.test(production)) {
     return undefined;
@@ -125,6 +129,22 @@ export const ALLOWED_WITHOUT_GUARD: Readonly<Record<string, string>> = {
     '8 个预置模板中 5 个用 canvas + requestAnimationFrame 绘制，CSS 守卫对 canvas 无效；' +
     '且这些模板的交付物本身就是动画（烟花、流星雨、转盘、弹球、波浪），属用户要的结果，不由宿主强加',
 };
+
+/**
+ * 被主文档样式表 `@import` 的样式表：它们不是独立文档，编译后并进 Next 的主文档，
+ * 由 `globals.css` 的守卫统一覆盖，不需要（也不应）各自再带一份。
+ *
+ * 为什么需要单独排除：这类文件同样是 `.css` 且可能带 `transition:`，只按「样式表 + 带动画」
+ * 判定会把它们误报成漏守卫的独立文档。
+ */
+const MAIN_STYLESHEET_IMPORTERS = new Set([
+  'myrm-agent-frontend/src/app/mermaid.css',
+  'myrm-agent-frontend/src/app/focus-ring.css',
+]);
+
+function isImportedIntoMainDocument(path: string): boolean {
+  return MAIN_STYLESHEET_IMPORTERS.has(path);
+}
 
 /**
  * 汇总一次扫描结果：`surfaces` 为需要守卫却缺失的文件，`allowlisted` 为命中白名单的文件，

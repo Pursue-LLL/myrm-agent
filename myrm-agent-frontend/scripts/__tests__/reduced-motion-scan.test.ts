@@ -56,6 +56,17 @@ describe('findUnguardedMotionSurface', () => {
     expect(findUnguardedMotionSurface('svc/page.py', source)?.evidence).toContain('transition');
   });
 
+  // 被 globals.css @import 的样式表并进主文档，由主文档的守卫覆盖，不该被当成独立文档。
+  it('ignores a stylesheet that globals.css imports into the main document', () => {
+    const source = '.a { transition: all 0.2s; }';
+    expect(findUnguardedMotionSurface('myrm-agent-frontend/src/app/mermaid.css', source)).toBeUndefined();
+  });
+
+  it('still flags an unrelated stylesheet with the same content', () => {
+    const source = '.a { transition: all 0.2s; }';
+    expect(findUnguardedMotionSurface('ext/somewhere.css', source)?.path).toBe('ext/somewhere.css');
+  });
+
   it('ignores a file with no motion at all', () => {
     expect(findUnguardedMotionSurface('ext/static.css', '.a { color: red; }')).toBeUndefined();
   });
