@@ -2,7 +2,7 @@
 
 Extracts text and/or images from a PDF file.
 Strategy: text-first via pdfplumber; image-fallback via pypdfium2 when text is sparse;
-scanned PDFs get best-effort OCR text via PaddleOCR when the optional `pdf-ocr` extra
+scanned PDFs get best-effort OCR text via RapidOCR when the optional `pdf-ocr` extra
 is installed (graceful degradation otherwise).
 
 Supports two resolution modes:
@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import PDFExtractConfig
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from pydantic.alias_generators import to_camel
 
 from app.config.deploy_mode import is_local_mode
@@ -34,12 +34,17 @@ router = APIRouter()
 
 
 class PDFImageItem(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     data: str = Field(default="", description="Base64-encoded PNG data (empty when file_url is provided)")
     mime_type: str = Field(default="image/png", description="MIME type")
     file_url: str | None = Field(default=None, description="StorageProvider URL (preferred over inline base64)")
+    page_number: int = Field(default=0, description="1-based source page this image came from; 0 when unknown")
 
 
 class PDFTableItem(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     page_number: int
     table_index: int
     data: list[list[str]]
@@ -47,27 +52,47 @@ class PDFTableItem(BaseModel):
     markdown: str
     summary_l0: str
 
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
-
 
 class PDFExtractResponse(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     text: str = Field(
         default="", description="Extracted text; scanned PDFs include OCR text when the optional pdf-ocr extra is installed"
     )
     images: list[PDFImageItem] = Field(default=[], description="Rendered page images (only when text is sparse)")
     page_count: int = Field(default=0, description="Total pages in PDF")
-    parsed_pages: int = Field(default=0, description="Number of pages actually parsed (may be less than page_count)")
+    parsed_pages: int = Field(
+        default=0,
+        description="Pages actually delivered (text or images); less than page_count when an extraction window cut the document",
+    )
+    pages_without_text: list[int] = Field(
+        default=[],
+        description=(
+            "1-based pages the text layer could not read (scanned images or blanks); "
+            "independent of parsedPages, which reports the delivery window"
+        ),
+    )
     strategy: str = Field(default="", description="Extraction strategy: 'text', 'image', or 'hybrid'")
     tables: list[PDFTableItem] = Field(default=[], description="Extracted table capsules with L0 summaries and L2 markdown")
     image_trace: dict[str, object] = Field(
-        default_factory=dict, description="Diagnostic trace of the image ablation process (heuristic filtering details)"
+        default_factory=dict,
+        description=(
+            "Diagnostic trace of the image ablation process (keys: totalProcessed, keptCount, "
+            "droppedCount, dropReasons, and truncated when the embedded-figure ceiling cut the scan "
+            "short; a truncated scan delivered fewer pages, which surfaces as parsedPages < pageCount)"
+        ),
     )
 
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
+    @field_serializer("image_trace")
+    def _serialize_image_trace(self, trace: dict[str, object]) -> dict[str, object]:
+        """Camelize the trace's own keys.
+
+        ``alias_generator`` only rewrites declared model fields; a raw dict reaches the client
+        verbatim, so without this the frontend's ``droppedCount`` lookup never matches. Future
+        harness keys pass through unchanged on purpose: the harness ships independently, so the
+        trace must not be narrowed to the keys this version happens to know.
+        """
+        return {to_camel(key): value for key, value in trace.items()}
 
 
 class PDFExtractRequest(BaseModel):
@@ -81,9 +106,7 @@ class PDFExtractRequest(BaseModel):
     min_text_chars: int = Field(default=200, ge=0, description="Min chars before image fallback")
     table_format: str = Field(default="placeholder", description="Table output: 'inline' or 'placeholder'")
 
-    class Config:
-        alias_generator = to_camel
-        populate_by_name = True
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 async def _persist_pdf_images(
@@ -100,7 +123,7 @@ async def _persist_pdf_images(
         return []
 
     if is_local_mode():
-        return [PDFImageItem(data=img.data, mime_type=img.mime_type) for img in images]
+        return [PDFImageItem(data=img.data, mime_type=img.mime_type, page_number=img.page_number) for img in images]
 
     import base64
 
@@ -117,10 +140,10 @@ async def _persist_pdf_images(
                 source_chat_id=f"pdf-extract-{source_id}",
             )
             url = f"/api/media/files/{file.id}/content"
-            items.append(PDFImageItem(mime_type=img.mime_type, file_url=url))
+            items.append(PDFImageItem(mime_type=img.mime_type, file_url=url, page_number=img.page_number))
         except Exception:
             logger.warning("Failed to persist PDF image %d, falling back to inline", idx)
-            items.append(PDFImageItem(data=img.data, mime_type=img.mime_type))
+            items.append(PDFImageItem(data=img.data, mime_type=img.mime_type, page_number=img.page_number))
 
     return items
 
@@ -189,6 +212,7 @@ async def extract_pdf(
         images=image_items,
         page_count=result.page_count,
         parsed_pages=result.parsed_pages,
+        pages_without_text=result.pages_without_text,
         strategy=result.strategy,
         tables=[
             PDFTableItem(

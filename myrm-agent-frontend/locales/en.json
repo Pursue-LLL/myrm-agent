@@ -3502,7 +3502,9 @@
     },
     "cacheResetNotice": "Cache reset: {reason}{tokens, plural, =0 {} other {, ~#k tokens uncached}}",
     "pdfParsedPages": "[PDF] {fileName}: parsed {parsed}/{total} pages",
-    "pdfImageOptimized": "[PDF] Parsing optimized: extracted {kept} key images, filtered out {dropped} visual-noise images"
+    "pdfImageOptimized": "[PDF] Parsing optimized: extracted {kept} key images, filtered out {dropped} visual-noise images",
+    "pdfScannedPages": "[PDF] {fileName}: pages {pages} have no text layer and were sent as images",
+    "pdfScannedPagesWithheld": "[PDF] {fileName}: pages {pages} have no text layer and could not be sent (over the per-delivery limit)"
   },
   "mode": {
     "fast": "Fast Search",

@@ -1636,25 +1636,25 @@
       },
       "roles": {
         "entry": "メインエージェント",
-      "bulk": {
-        "title": "一括エクスポートとアセット移行",
-        "selectDescription": "移行するエージェントを選択します。依存関係をすべて自動計算し、標準のプラグインパッケージを作成します。",
-        "reviewDescription": "アセットの依存関係と機密情報のマスク設定を確認し、標準の Agent Plugins ZIP を生成します。",
-        "migrationHint": "移行ガイド：ZIP には移行用のマニフェストが含まれます。新しい端末やサンドボックスで「設定 → エージェント → インポート」を開くと、そのまま復元できます。",
-        "exportReady": "アセットパッケージの準備ができました。別の端末や新しいインスタンスで復元するには「設定 → エージェント → インポート」を開いてください。",
-        "next": "次へ：依存関係を分析 ({count})",
-        "back": "戻る",
-        "search": "エージェントを検索...",
-        "selectAll": "すべて選択",
-        "clear": "クリア",
-        "selectedCount": "{selected} / {total} 件選択",
-        "bundleName": "パッケージ名（任意、例：myrm-export-bundle）",
-        "empty": "エクスポートできるカスタムエージェントがありません",
-        "subagents": "サブエージェント {count} 件を含む",
-        "noDescription": "説明なし",
-        "entry": "一括エクスポート",
-        "entryTitle": "複数のエージェントを 1 つのパッケージとしてエクスポート"
-      },
+        "bulk": {
+          "title": "一括エクスポートとアセット移行",
+          "selectDescription": "移行するエージェントを選択します。依存関係をすべて自動計算し、標準のプラグインパッケージを作成します。",
+          "reviewDescription": "アセットの依存関係と機密情報のマスク設定を確認し、標準の Agent Plugins ZIP を生成します。",
+          "migrationHint": "移行ガイド：ZIP には移行用のマニフェストが含まれます。新しい端末やサンドボックスで「設定 → エージェント → インポート」を開くと、そのまま復元できます。",
+          "exportReady": "アセットパッケージの準備ができました。別の端末や新しいインスタンスで復元するには「設定 → エージェント → インポート」を開いてください。",
+          "next": "次へ：依存関係を分析 ({count})",
+          "back": "戻る",
+          "search": "エージェントを検索...",
+          "selectAll": "すべて選択",
+          "clear": "クリア",
+          "selectedCount": "{selected} / {total} 件選択",
+          "bundleName": "パッケージ名（任意、例：myrm-export-bundle）",
+          "empty": "エクスポートできるカスタムエージェントがありません",
+          "subagents": "サブエージェント {count} 件を含む",
+          "noDescription": "説明なし",
+          "entry": "一括エクスポート",
+          "entryTitle": "複数のエージェントを 1 つのパッケージとしてエクスポート"
+        },
         "sub": "サブエージェント"
       },
       "skill": {
@@ -3434,7 +3434,9 @@
     },
     "cacheResetNotice": "キャッシュをリセットしました：{reason}{tokens, plural, =0 {} other {、約 #k トークンがキャッシュ外}}",
     "pdfParsedPages": "[PDF] {fileName}：{parsed}/{total} ページを解析しました",
-    "pdfImageOptimized": "[PDF] 解析を最適化しました：主要な画像 {kept} 枚を抽出（視覚ノイズ {dropped} 枚を除外）"
+    "pdfImageOptimized": "[PDF] 解析を最適化しました：主要な画像 {kept} 枚を抽出（視覚ノイズ {dropped} 枚を除外）",
+    "pdfScannedPages": "[PDF] {fileName}：{pages} ページにはテキスト層がなく、画像として送信しました",
+    "pdfScannedPagesWithheld": "[PDF] {fileName}：{pages} ページはテキスト層がなく、1回の送信上限を超えたため送信できませんでした"
   },
   "mode": {
     "fast": "高速検索",

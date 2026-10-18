@@ -3502,7 +3502,9 @@
     },
     "cacheResetNotice": "缓存已重置：{reason}{tokens, plural, =0 {} other {，约 #k token 未命中缓存}}",
     "pdfParsedPages": "[PDF] {fileName}：已解析 {parsed}/{total} 页",
-    "pdfImageOptimized": "[PDF] 解析优化：已提取 {kept} 张核心图像（拦截 {dropped} 张视觉噪点）"
+    "pdfImageOptimized": "[PDF] 解析优化：已提取 {kept} 张核心图像（拦截 {dropped} 张视觉噪点）",
+    "pdfScannedPages": "[PDF] {fileName}：第 {pages} 页无文本层，已按图片发送",
+    "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 页无文本层，且超出单次投递上限，未能发送"
   },
   "mode": {
     "fast": "快速搜索",

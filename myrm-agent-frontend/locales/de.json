@@ -1636,25 +1636,25 @@
       },
       "roles": {
         "entry": "Hauptagent",
-      "bulk": {
-        "title": "Sammelexport und Asset-Migration",
-        "selectDescription": "Wähle die Agenten für die Migration. Alle Abhängigkeiten werden automatisch berechnet und als Standard-Plugin-Paket gebündelt.",
-        "reviewDescription": "Prüfe die Abhängigkeiten und die Einstellungen zur Schwärzung sensibler Daten und erzeuge dann ein Standard-Agent-Plugins-ZIP.",
-        "migrationHint": "Migrationshinweis: Das ZIP enthält ein Migrationsmanifest. Öffne auf einem neuen Gerät oder in einer neuen Sandbox „Einstellungen → Agenten → Import“, um alles verlustfrei wiederherzustellen.",
-        "exportReady": "Das Asset-Paket ist bereit! Um es auf einem anderen Gerät oder in einer neuen Instanz wiederherzustellen, öffne „Einstellungen → Agenten → Import“.",
-        "next": "Weiter: Abhängigkeiten analysieren ({count})",
-        "back": "Zurück",
-        "search": "Agenten suchen...",
-        "selectAll": "Alle auswählen",
-        "clear": "Leeren",
-        "selectedCount": "{selected} / {total} ausgewählt",
-        "bundleName": "Paketname (optional, z. B. myrm-export-bundle)",
-        "empty": "Keine eigenen Agenten zum Exportieren",
-        "subagents": "Enthält {count} Unter-Agent(en)",
-        "noDescription": "Keine Beschreibung",
-        "entry": "Sammelexport",
-        "entryTitle": "Mehrere Agenten als ein Paket exportieren"
-      },
+        "bulk": {
+          "title": "Sammelexport und Asset-Migration",
+          "selectDescription": "Wähle die Agenten für die Migration. Alle Abhängigkeiten werden automatisch berechnet und als Standard-Plugin-Paket gebündelt.",
+          "reviewDescription": "Prüfe die Abhängigkeiten und die Einstellungen zur Schwärzung sensibler Daten und erzeuge dann ein Standard-Agent-Plugins-ZIP.",
+          "migrationHint": "Migrationshinweis: Das ZIP enthält ein Migrationsmanifest. Öffne auf einem neuen Gerät oder in einer neuen Sandbox „Einstellungen → Agenten → Import“, um alles verlustfrei wiederherzustellen.",
+          "exportReady": "Das Asset-Paket ist bereit! Um es auf einem anderen Gerät oder in einer neuen Instanz wiederherzustellen, öffne „Einstellungen → Agenten → Import“.",
+          "next": "Weiter: Abhängigkeiten analysieren ({count})",
+          "back": "Zurück",
+          "search": "Agenten suchen...",
+          "selectAll": "Alle auswählen",
+          "clear": "Leeren",
+          "selectedCount": "{selected} / {total} ausgewählt",
+          "bundleName": "Paketname (optional, z. B. myrm-export-bundle)",
+          "empty": "Keine eigenen Agenten zum Exportieren",
+          "subagents": "Enthält {count} Unter-Agent(en)",
+          "noDescription": "Keine Beschreibung",
+          "entry": "Sammelexport",
+          "entryTitle": "Mehrere Agenten als ein Paket exportieren"
+        },
         "sub": "Unteragent"
       },
       "skill": {
@@ -3434,7 +3434,9 @@
     },
     "cacheResetNotice": "Cache zurückgesetzt: {reason}{tokens, plural, =0 {} other {, ca. #k Tokens nicht im Cache}}",
     "pdfParsedPages": "[PDF] {fileName}: {parsed}/{total} Seiten verarbeitet",
-    "pdfImageOptimized": "[PDF] Analyse optimiert: {kept} Kernbilder extrahiert, {dropped} irrelevante Bilder herausgefiltert"
+    "pdfImageOptimized": "[PDF] Analyse optimiert: {kept} Kernbilder extrahiert, {dropped} irrelevante Bilder herausgefiltert",
+    "pdfScannedPages": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und wurden als Bilder gesendet",
+    "pdfScannedPagesWithheld": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und konnten nicht gesendet werden (über dem Übermittlungslimit)"
   },
   "mode": {
     "fast": "Schnellsuche",

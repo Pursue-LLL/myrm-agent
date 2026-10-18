@@ -19,6 +19,8 @@ export interface PDFImageItem {
   data: string;
   mimeType: string;
   fileUrl?: string;
+  /** 1-based source page; 0/undefined when the server could not attribute it. */
+  pageNumber?: number;
 }
 
 export interface PDFTableItem {
@@ -35,6 +37,8 @@ export interface PDFExtractResult {
   images: PDFImageItem[];
   pageCount: number;
   parsedPages: number;
+  /** 1-based pages the text layer could not read (scanned images or blanks). Absent on older server payloads. */
+  pagesWithoutText?: number[];
   strategy: 'text' | 'image' | 'hybrid';
   tables: PDFTableItem[];
   imageTrace?: {
@@ -42,6 +46,8 @@ export interface PDFExtractResult {
     keptCount: number;
     droppedCount: number;
     dropReasons: Record<string, number>;
+    /** Set when the delivery window cut the figure scan short, so more figures exist in the file. */
+    truncated?: boolean;
   };
 }
 

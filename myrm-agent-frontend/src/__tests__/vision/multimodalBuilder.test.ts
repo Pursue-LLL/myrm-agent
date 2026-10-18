@@ -246,6 +246,52 @@ describe('buildMultimodalQuery - PDF images always included', () => {
   });
 });
 
+describe('buildMultimodalQuery - PDF without readable content', () => {
+  const blankPdf = {
+    id: 'f4',
+    fileName: 'blank.pdf',
+    fileExtension: 'pdf',
+    fileUrl: '/files/f4',
+    fileType: 'uploaded' as const,
+  };
+
+  it('keeps the attachment visible to the model when extraction returns neither text nor images', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: '',
+      images: [],
+      pageCount: 3,
+      parsedPages: 3,
+      strategy: 'image',
+      tables: [],
+    });
+
+    const result = await buildMultimodalQuery('summarize', [blankPdf]);
+
+    expect(result).toEqual([
+      { type: 'text', text: 'summarize' },
+      { type: 'text', text: '[Attachment: blank.pdf]' },
+    ]);
+  });
+
+  it('adds no reference when page images carry the content', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: '',
+      images: [{ mimeType: 'image/png', data: 'scan' }],
+      pageCount: 1,
+      parsedPages: 1,
+      strategy: 'image',
+      tables: [],
+    });
+
+    const result = (await buildMultimodalQuery('read it', [blankPdf])) as VisionContentPart[];
+
+    expect(result.filter((part) => part.type === 'text' && part.text.startsWith('[Attachment'))).toHaveLength(0);
+    expect(result.filter((part) => part.type === 'image_url')).toHaveLength(1);
+  });
+});
+
 describe('buildMultimodalQuery - PDF extraction notices', () => {
   const pdfFile = {
     id: 'f3',
@@ -317,5 +363,158 @@ describe('buildMultimodalQuery - PDF extraction notices', () => {
     await buildMultimodalQuery('analyze', [pdfFile]);
 
     expect(showI18nToast).not.toHaveBeenCalled();
+  });
+
+  it('says figures were withheld when the delivery window cut the scan short', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'Chapters',
+      images: [{ mimeType: 'image/png', data: 'base64chart' }],
+      pageCount: 40,
+      parsedPages: 40,
+      strategy: 'hybrid',
+      tables: [],
+      imageTrace: {
+        totalProcessed: 30,
+        keptCount: 30,
+        droppedCount: 0,
+        dropReasons: {},
+        truncated: true,
+      },
+    });
+
+    await buildMultimodalQuery('analyze', [pdfFile]);
+
+    expect(showI18nToast).toHaveBeenCalledTimes(1);
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfFiguresTruncated',
+      { kept: 30 },
+      { type: 'info', duration: 6000 },
+    );
+  });
+
+  it('names the scanned pages when the text layer could not read them', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'Contract body',
+      images: [
+        { mimeType: 'image/png', data: 'p4', pageNumber: 4 },
+        { mimeType: 'image/png', data: 'p5', pageNumber: 5 },
+      ],
+      pageCount: 6,
+      parsedPages: 6,
+      pagesWithoutText: [4, 5],
+      strategy: 'hybrid',
+      tables: [],
+    });
+
+    await buildMultimodalQuery('summarize', [pdfFile]);
+
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfScannedPages',
+      { fileName: 'big.pdf', pages: '4-5' },
+      { type: 'info', duration: 6000 },
+    );
+  });
+
+  it('collapses the scanned page list into ranges', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'Contract body',
+      images: [
+        { mimeType: 'image/png', data: 'p2', pageNumber: 2 },
+        { mimeType: 'image/png', data: 'p3', pageNumber: 3 },
+        { mimeType: 'image/png', data: 'p4', pageNumber: 4 },
+        { mimeType: 'image/png', data: 'p8', pageNumber: 8 },
+      ],
+      pageCount: 10,
+      parsedPages: 10,
+      pagesWithoutText: [2, 3, 4, 8],
+      strategy: 'hybrid',
+      tables: [],
+    });
+
+    await buildMultimodalQuery('summarize', [pdfFile]);
+
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfScannedPages',
+      { fileName: 'big.pdf', pages: '2-4, 8' },
+      { type: 'info', duration: 6000 },
+    );
+  });
+
+  it('warns instead of claiming delivery when scanned pages exceed the image ceiling', async () => {
+    /**
+     * Past the per-delivery image ceiling the scan pages are dropped, so the copy must not
+     * say they were "sent as images" — that would promise content the model never received.
+     */
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'Contract body',
+      images: [{ mimeType: 'image/png', data: 'p4', pageNumber: 4 }],
+      pageCount: 10,
+      parsedPages: 10,
+      pagesWithoutText: [4, 5, 6],
+      strategy: 'hybrid',
+      tables: [],
+    });
+
+    await buildMultimodalQuery('summarize', [pdfFile]);
+
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfScannedPages',
+      { fileName: 'big.pdf', pages: '4' },
+      { type: 'info', duration: 6000 },
+    );
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfScannedPagesWithheld',
+      { fileName: 'big.pdf', pages: '5-6' },
+      { type: 'warning', duration: 8000 },
+    );
+  });
+
+  it('stays quiet about scanned pages when the text layer read every page', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'All readable',
+      images: [],
+      pageCount: 3,
+      parsedPages: 3,
+      pagesWithoutText: [],
+      strategy: 'text',
+      tables: [],
+    });
+
+    await buildMultimodalQuery('summarize', [pdfFile]);
+
+    expect(showI18nToast).not.toHaveBeenCalled();
+  });
+
+  it('prefers the truncation notice over the ablation summary when both would apply', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    vi.mocked(extractPdfContent).mockResolvedValue({
+      text: 'Chapters',
+      images: [{ mimeType: 'image/png', data: 'base64chart' }],
+      pageCount: 40,
+      parsedPages: 40,
+      strategy: 'hybrid',
+      tables: [],
+      imageTrace: {
+        totalProcessed: 30,
+        keptCount: 28,
+        droppedCount: 2,
+        dropReasons: { monochrome_or_blank: 2 },
+        truncated: true,
+      },
+    });
+
+    await buildMultimodalQuery('analyze', [pdfFile]);
+
+    expect(showI18nToast).toHaveBeenCalledTimes(1);
+    expect(showI18nToast).toHaveBeenCalledWith(
+      'chat.pdfFiguresTruncated',
+      { kept: 28 },
+      { type: 'info', duration: 6000 },
+    );
   });
 });
