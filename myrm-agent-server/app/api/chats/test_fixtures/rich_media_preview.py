@@ -7,7 +7,7 @@ app.services.chat.chat_service::ChatService (POS: chat/message persistence)
 app.services.agent.params.workspace_resolve::resolve_default_chat_workspace_dir (POS: workspace path)
 
 [OUTPUT]
-seed_rich_media_preview_fixture: chat + workspace rich-media files (png/pdf/zip/txt)
+seed_rich_media_preview_fixture: chat + workspace rich-media files (png/pdf/zip/txt/svg)
 for the workspace browser preview Chrome E2E.
 
 [POS]
@@ -73,11 +73,29 @@ def _minimal_pdf() -> bytes:
     return bytes(out)
 
 
+_SMALL_SVG = (
+    b'<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60">'
+    b'<rect x="5" y="5" width="110" height="50" fill="#eef2ff" stroke="#4f46e5"/>'
+    b'<circle cx="35" cy="30" r="14" fill="#4f46e5"/>'
+    b'<text x="58" y="35" font-size="12" fill="#1e293b">SVG E2E</text>'
+    b"</svg>"
+)
+
+
+def _large_svg() -> bytes:
+    """Build an SVG past the 1MB text-read ceiling so the preview hits the truncation boundary."""
+    node = b'<circle cx="10" cy="10" r="1.5" fill="#334155"/>'
+    count = (1024 * 1024) // len(node) + 64
+    return b'<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' + node * count + b"</svg>"
+
+
 _FIXTURE_FILES: dict[str, bytes] = {
     "preview.png": _png_bytes(),
     "preview.pdf": _minimal_pdf(),
     "bundle.zip": b"PK\x03\x04rich-media-preview-placeholder",
     "readme.txt": b"rich media preview E2E fixture\n",
+    "preview.svg": _SMALL_SVG,
+    "preview_large.svg": _large_svg(),
 }
 
 
