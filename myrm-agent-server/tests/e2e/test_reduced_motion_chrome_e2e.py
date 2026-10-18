@@ -65,7 +65,11 @@ class _Target:
     """One raw CDP target with a tiny command helper."""
 
     def __init__(self) -> None:
-        request = urllib.request.Request(f'{_CDP_BASE}/json/new?about:blank', method='PUT')
+        from e2e_core.effect_guard import assert_http_effect_allowed
+
+        _new_target_url = f'{_CDP_BASE}/json/new?about:blank'
+        assert_http_effect_allowed(method='PUT', url=_new_target_url)
+        request = urllib.request.Request(_new_target_url, method='PUT')
         self._info = json.load(urllib.request.urlopen(request, timeout=15))
         from websockets.sync.client import connect
 
