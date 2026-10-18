@@ -171,7 +171,6 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         Success releases the durable obligation and updates activity. Failure is recorded (DLQ,
         permanent-failure callback) and re-raised; ``final_on_error`` marks it as not worth a DLQ retry.
         """
-        t0 = time.monotonic()
         try:
             await self._durable_outbound.mark_attempting(msg)
             message_id = await self._attempt_send(msg, route, label=label)
@@ -181,7 +180,7 @@ class OutboundDispatchMixin(OutboundFailureMixin):
         await self._durable_outbound.ack(msg)
         discard_ephemeral_media(origin.media)
         if route.channel is not None:
-            route.channel.activity.record_outbound(latency_ms=(time.monotonic() - t0) * 1000)
+            route.channel.activity.record_outbound()
         if route.capabilities.send_rate_limit > 0:
             self._last_send_times[msg.channel] = time.monotonic()
         return message_id

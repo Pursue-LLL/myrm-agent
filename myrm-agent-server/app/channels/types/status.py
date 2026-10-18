@@ -101,71 +101,27 @@ class ChannelHealth:
 
 @dataclass
 class ChannelActivity:
-    """Per-channel message activity and throughput metrics.
+    """Per-channel inbound/outbound activity.
 
-    Tracked by Router (inbound) and MessageBus (outbound).
-    Consumed by the status API / frontend for dashboard display.
-
-    Delivery tracking: ``record_delivery()`` / ``record_delivery_failure()``
-    are called by providers that support delivery receipts (e.g. WhatsApp,
-    Telegram). Providers without receipt support simply don't call them,
-    and ``delivery_success_rate`` returns 1.0 (optimistic default).
+    Tracked by Router (inbound) and MessageBus (outbound) and surfaced by the
+    status API, which reports when a channel last saw traffic in either
+    direction and how many outbound attempts failed.
     """
 
     last_inbound_at: float | None = None
     last_outbound_at: float | None = None
-    total_inbound: int = 0
     total_outbound: int = 0
     total_errors: int = 0
-    _send_latency_sum: float = 0.0
-    _send_latency_count: int = 0
-    _deliveries_confirmed: int = 0
-    _deliveries_failed: int = 0
 
     def record_inbound(self) -> None:
         self.last_inbound_at = time.time()
-        self.total_inbound += 1
 
-    def record_outbound(self, latency_ms: float = 0.0) -> None:
+    def record_outbound(self) -> None:
         self.last_outbound_at = time.time()
         self.total_outbound += 1
-        if latency_ms > 0:
-            self._send_latency_sum += latency_ms
-            self._send_latency_count += 1
 
     def record_error(self) -> None:
         self.total_errors += 1
-
-    @property
-    def avg_send_latency_ms(self) -> float:
-        """Average outbound send latency in milliseconds (0.0 if no data)."""
-        if self._send_latency_count == 0:
-            return 0.0
-        return self._send_latency_sum / self._send_latency_count
-
-    @property
-    def error_rate(self) -> float:
-        """Error rate as fraction of total outbound attempts (0.0 if no data)."""
-        total = self.total_outbound + self.total_errors
-        if total == 0:
-            return 0.0
-        return self.total_errors / total
-
-    def record_delivery(self) -> None:
-        """Record a confirmed delivery (platform acknowledged receipt)."""
-        self._deliveries_confirmed += 1
-
-    def record_delivery_failure(self) -> None:
-        """Record a delivery failure (platform reported non-delivery)."""
-        self._deliveries_failed += 1
-
-    @property
-    def delivery_success_rate(self) -> float:
-        """Fraction of confirmed deliveries (1.0 if no delivery data)."""
-        total = self._deliveries_confirmed + self._deliveries_failed
-        if total == 0:
-            return 1.0
-        return self._deliveries_confirmed / total
 
     @property
     def last_active_at(self) -> float | None:

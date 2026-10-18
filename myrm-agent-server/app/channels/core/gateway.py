@@ -537,45 +537,6 @@ class ChannelGateway:
                 result[name] = issues
         return result
 
-    async def get_health_summary(
-        self,
-        *,
-        timeout: float = 5.0,
-    ) -> dict[str, dict[str, object]]:
-        """Aggregate health status from all channels concurrently.
-
-        Args:
-            timeout: Per-channel health_check timeout in seconds.
-
-        Returns a dict keyed by channel name with health, status, and issues.
-        """
-
-        async def _check(name: str, ch: BaseChannel) -> tuple[str, dict[str, object]]:
-            try:
-                healthy = await asyncio.wait_for(ch.health_check(), timeout=timeout)
-            except Exception:
-                healthy = False
-            issues = ch.collect_issues()
-            return name, {
-                "status": ch.status.value,
-                "healthy": healthy,
-                "consecutive_failures": ch.health.consecutive_failures,
-                "circuit_open": ch.health.circuit_open,
-                "last_error": ch.health.last_error,
-                "delivery_success_rate": ch.activity.delivery_success_rate,
-                "issues": [
-                    {
-                        "kind": i.kind.value,
-                        "severity": i.severity.value,
-                        "message": i.message,
-                    }
-                    for i in issues
-                ],
-            }
-
-        results = await asyncio.gather(*[_check(n, ch) for n, ch in self.bus.channels.items()])
-        return dict(results)
-
     async def reload_channel(self, name: str) -> bool:
         """Hot-reload a channel: stop the old instance and restart it.
 

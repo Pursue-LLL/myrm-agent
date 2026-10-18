@@ -36,7 +36,6 @@ from app.channels.core.allow_policy import (
     AllowPolicy,
 )
 from app.channels.core.events import EventEmitter
-from app.channels.core.metrics import ChannelMetrics
 from app.channels.core.rate_limit import (
     DISABLED_RATE_LIMIT,
     RateLimitConfig,
@@ -187,7 +186,6 @@ class BaseChannel(ABC, EventEmitter):
         self._inbound_handler: InboundHandler | None = None
         self.health = ChannelHealth()
         self.activity = ChannelActivity()
-        self.metrics = ChannelMetrics()
         self._bot_id: str = ""
         self._seen_msg_ids: OrderedDict[str, float] = OrderedDict()
         self._debounce_tasks: dict[str, asyncio.Task[None]] = {}
@@ -521,7 +519,6 @@ class BaseChannel(ABC, EventEmitter):
             self._evict_expired_dedup(now)
 
         if not await self._rate_limiter.check_and_update(msg):
-            self.metrics.record_rate_limit_hit()
             logger.debug(
                 "Channel '%s': message from %s rate limited",
                 self.name,
@@ -547,7 +544,6 @@ class BaseChannel(ABC, EventEmitter):
     async def _dispatch_inbound(self, msg: InboundMessage) -> None:
         """Final dispatch to the registered handler."""
         self.activity.record_inbound()
-        self.metrics.record_message()
         if self._inbound_handler:
             await self._inbound_handler(msg)
         else:
