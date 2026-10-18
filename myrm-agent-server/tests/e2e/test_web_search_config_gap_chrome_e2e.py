@@ -327,6 +327,17 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
       if (streamMessageId) {{
         window.__MYRM_E2E_CHAT__?.setSseCaptureMessageId?.(streamMessageId);
       }}
+      // Event types alone cannot tell a web_search call from a web_fetch call, and web_fetch is mounted
+      // without any search configuration. Collect the tool names behind each tool_start so the assertion
+      // can fail on web_search specifically instead of on any tool the agent legitimately used.
+      const toolNames = [];
+      const payloads = window.__MYRM_E2E_CHAT__?.ssePayloadSnapshot?.() ?? [];
+      for (const entry of payloads) {{
+        if (entry?.type !== 'tool_start') continue;
+        const data = entry.data ?? {{}};
+        const name = data.tool_name ?? data.toolName ?? data.name ?? (data.tool && data.tool.name) ?? null;
+        if (typeof name === 'string' && name.trim()) toolNames.push(name.trim());
+      }}
       return {{
         toast: {{
           count: toastNodes.length,
@@ -336,6 +347,7 @@ def _gap_poll_snapshot_js(message_id: str | None) -> str:
         }},
         sseEvents,
         allSseEvents,
+        toolNames,
         streamMessageId: streamMessageId ?? null,
         muxMessageId: typeof muxMessageId === 'string' ? muxMessageId : null,
       }};
@@ -683,8 +695,10 @@ async def test_agent_web_search_config_gap_shows_single_sse_toast(
                 if isinstance(all_sse, list) and "capability_gap" in all_sse:
                     recorded_sse = list(all_sse)
 
-            if "tool_start" in recorded_sse and "capability_gap" not in recorded_sse:
-                pytest.fail(f"agent ran web_search tools instead of config-gap preflight; sse={recorded_sse!r}; diag={diag!r}")
+            tool_names = diag.get("toolNames") if isinstance(diag.get("toolNames"), list) else []
+            ran_web_search = any("web_search" in str(name) for name in tool_names)
+            if ran_web_search and "capability_gap" not in recorded_sse:
+                pytest.fail(f"agent ran web_search instead of config-gap preflight; tools={tool_names!r}; sse={recorded_sse!r}")
 
             if "capability_gap" not in recorded_sse:
                 pytest.fail(

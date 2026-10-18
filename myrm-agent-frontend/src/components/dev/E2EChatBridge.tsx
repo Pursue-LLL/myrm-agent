@@ -1234,6 +1234,13 @@ export default function E2EChatBridge() {
         }
         return sseEvents.filter((entry) => entry.messageId === filterId).map((entry) => entry.type);
       },
+      // Event types alone cannot tell a web_search call from a web_fetch call; signoffs that need to know
+      // which tool actually ran read the captured payloads instead.
+      ssePayloadSnapshot: (messageId?: string | null) => {
+        const filterId = typeof messageId === 'string' ? messageId.trim() : '';
+        const scoped = filterId ? sseEvents.filter((entry) => entry.messageId === filterId) : sseEvents;
+        return scoped.map((entry) => ({ type: entry.type, data: entry.data }));
+      },
       clearSseSnapshot: () => {
         sseEvents.length = 0;
         sseCaptureMessageId = null;
