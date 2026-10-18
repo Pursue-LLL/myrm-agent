@@ -14,6 +14,7 @@ from typing import Optional
 import pytest
 from fastapi.testclient import TestClient
 
+from app.services.agent.stream_session.stream_loop import _BUDGET_EXHAUSTED_NOTICE
 from tests.api.agent.utils import get_model_selection
 
 
@@ -89,7 +90,7 @@ class TestGoalModeBudgetE2E:
         goal_status["goal_id"]
 
         # 验证系统级通知消息 (The backend sends a warning message when budget is limited)
-        warning_msg = "\n\n**预算已耗尽，任务自动暂停。**"
+        warning_msg = _BUDGET_EXHAUSTED_NOTICE["en"]
         has_warning = any(d.get("type") == "message" and d.get("data") == warning_msg for d in events)
         assert has_warning, "Should yield a budget limited warning message to the chat stream"
 

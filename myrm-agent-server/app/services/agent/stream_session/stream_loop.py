@@ -66,6 +66,58 @@ _CITATION_PATTERN = re.compile(r"<cite:([^>]+)>")
 _TTFT_VISIBLE_EVENT_TYPES = frozenset({"message", "reasoning"})
 _REASONING_DISPLAY_MODE_OFF = "off"
 
+# User-visible stream copy. The web UI renders the SSE ``message`` payload verbatim, so it
+# follows the chat locale instead of a single hard-coded language.
+_BUDGET_EXHAUSTED_NOTICE: dict[str, str] = {
+    "en": "\n\n**Budget exhausted — the task paused automatically.**",
+    "zh": "\n\n**预算已耗尽，任务自动暂停。**",
+}
+_PRIVACY_BLOCKED_HEADER: dict[str, str] = {
+    "en": "🛑 **Execution blocked by the privacy fail-closed ladder**",
+    "zh": "🛑 **执行已被隐私安全门禁阻断 (Privacy Fail-Closed Ladder)**",
+}
+_PRIVACY_BLOCKED_FIELDS: dict[str, dict[str, str]] = {
+    "en": {
+        "level": "Level",
+        "violation": "Violation",
+        "reason": "Reason",
+        "target": "Target path",
+    },
+    "zh": {
+        "level": "违规层级",
+        "violation": "违规类型",
+        "reason": "阻断原因",
+        "target": "目标路径",
+    },
+}
+_GATE_BLOCKED_HEADER: dict[str, str] = {
+    "en": "🛑 **Execution blocked by the safety gate (MissingSemantics Gate)**",
+    "zh": "🛑 **执行已被安全门禁阻断 (MissingSemantics Gate)**",
+}
+_GATE_BLOCKED_FIELDS: dict[str, dict[str, str]] = {
+    "en": {
+        "code": "Error code",
+        "policy": "Gate policy",
+        "missing": "Missing component",
+        "hint": "Suggested fix",
+    },
+    "zh": {
+        "code": "错误代号",
+        "policy": "门禁策略",
+        "missing": "缺失组件",
+        "hint": "修复建议",
+    },
+}
+_GATE_POLICY_NOTE: dict[str, str] = {
+    "en": " (silent degradation or bare execution is not allowed)",
+    "zh": "（严禁静默降级/裸跑）",
+}
+
+
+def _stream_locale(locale: str | None) -> str:
+    """Two-way stream copy: Chinese readers get Chinese, everyone else gets the English baseline."""
+    return "zh" if (locale or "en").lower().startswith("zh") else "en"
+
 
 def _dynamic_workflow_unattended(params: object) -> bool:
     """Auto-approve DW plan_confirm when YOLO or plan confirm is disabled in security config."""
@@ -73,7 +125,9 @@ def _dynamic_workflow_unattended(params: object) -> bool:
     if not isinstance(raw, dict):
         return False
     yolo_enabled = bool(raw.get("yolo_mode_enabled") or raw.get("yoloModeEnabled"))
-    plan_confirm_enabled = bool(raw.get("plan_confirm_enabled") or raw.get("planConfirmEnabled"))
+    plan_confirm_enabled = bool(
+        raw.get("plan_confirm_enabled") or raw.get("planConfirmEnabled")
+    )
     return yolo_enabled or not plan_confirm_enabled
 
 
@@ -126,7 +180,9 @@ def _capture_stream_ttft_if_needed(
     if not _has_visible_text_for_ttft(event_type, chunk.get("data")):
         return
 
-    elapsed_ms = int(max((time.perf_counter() - session.stream_started_at_monotonic) * 1000.0, 0.0))
+    elapsed_ms = int(
+        max((time.perf_counter() - session.stream_started_at_monotonic) * 1000.0, 0.0)
+    )
     session.stream_ttft_ms = elapsed_ms
     logger.info(
         "stream_ttft_captured message_id=%s ttft_ms=%d event_type=%s",
@@ -160,12 +216,20 @@ def _inject_message_end_memory_insights(
     if citations:
         chunk["citations"] = citations
 
-    preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+    preview = (
+        session.extra_context.get("memory_brief_preview")
+        if isinstance(session.extra_context, dict)
+        else None
+    )
     if isinstance(preview, dict):
         snapshot_id = preview.get("snapshot_id")
         if isinstance(snapshot_id, str) and snapshot_id.strip():
             chunk["memory_brief_snapshot_id"] = snapshot_id.strip()
-    brief_status = session.extra_context.get("memory_brief_status") if isinstance(session.extra_context, dict) else None
+    brief_status = (
+        session.extra_context.get("memory_brief_status")
+        if isinstance(session.extra_context, dict)
+        else None
+    )
 
     budget = None
     injection = None
@@ -198,7 +262,9 @@ def _inject_message_end_memory_insights(
             session.request.chat_id,
         )
     except Exception as e:
-        logger.warning("Failed to build memory brief status payload in stream_loop: %s", e)
+        logger.warning(
+            "Failed to build memory brief status payload in stream_loop: %s", e
+        )
         return
     if status_payload is None:
         return
@@ -225,7 +291,11 @@ async def iter_agent_stream_chunks(
     clarification: ClarificationTimeoutHolder,
 ) -> AsyncGenerator[str, None]:
     if session.request.resume_value is None:
-        preview = session.extra_context.get("memory_brief_preview") if isinstance(session.extra_context, dict) else None
+        preview = (
+            session.extra_context.get("memory_brief_preview")
+            if isinstance(session.extra_context, dict)
+            else None
+        )
         if isinstance(preview, dict):
             yield SSEEnvelope.from_any(
                 {
@@ -237,12 +307,17 @@ async def iter_agent_stream_chunks(
 
     stream: AsyncIterable[str | dict[str, object]]
     agent_config = getattr(session.request, "agent_config", None)
-    orchestration_mode = getattr(agent_config, "orchestration_mode", None) if agent_config else None
+    orchestration_mode = (
+        getattr(agent_config, "orchestration_mode", None) if agent_config else None
+    )
     use_workflow_requested = bool(
-        getattr(session.request, "use_workflow", False) or (agent_config is not None and orchestration_mode == "orchestrated")
+        getattr(session.request, "use_workflow", False)
+        or (agent_config is not None and orchestration_mode == "orchestrated")
     )
     if getattr(session.request, "action_mode", None) == "deep_research":
-        stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
+        stream = create_deep_research_stream(
+            session.params, session.cancel_token, session.research_model_cfg
+        )
     elif (
         use_workflow_requested or getattr(session.request, "workflow_template_id", None)
     ) and not should_bypass_dw_for_admission(session):
@@ -259,9 +334,15 @@ async def iter_agent_stream_chunks(
         dw_stream = create_dynamic_workflow_stream(
             session.params,
             session.cancel_token,
-            (session.request.resume_value if isinstance(getattr(session.request, "resume_value", None), dict) else None),
+            (
+                session.request.resume_value
+                if isinstance(getattr(session.request, "resume_value", None), dict)
+                else None
+            ),
             workflow_template_id=getattr(session.request, "workflow_template_id", None),
-            workflow_template_args=getattr(session.request, "workflow_template_args", None),
+            workflow_template_args=getattr(
+                session.request, "workflow_template_args", None
+            ),
             unattended=_dynamic_workflow_unattended(session.params),
         )
         stream = await dw_stream if inspect.iscoroutine(dw_stream) else dw_stream
@@ -297,7 +378,9 @@ async def iter_agent_stream_chunks(
         and not session.request.ephemeral_subagents
         and not session.params.enable_web_search
     ):
-        logger.info(f"🚀 Fast Lane activated for message_id={session.params.message_id}")
+        logger.info(
+            f"🚀 Fast Lane activated for message_id={session.params.message_id}"
+        )
         stream = create_fast_lane_stream(session.params, session.cancel_token)
     elif should_use_wiki_knowledge_lane(session):
         logger.info(
@@ -311,7 +394,9 @@ async def iter_agent_stream_chunks(
             and not session.request.use_workflow
             and should_suggest_workflow_for_session(session)
         ):
-            logger.info(f"💡 Workflow suggestion emitted for message_id={session.params.message_id}")
+            logger.info(
+                f"💡 Workflow suggestion emitted for message_id={session.params.message_id}"
+            )
             yield SSEEnvelope.from_any(
                 {
                     "type": "status",
@@ -338,7 +423,7 @@ async def iter_agent_stream_chunks(
 
     from app.services.agent.stream_session.phase_stepper import PhaseTransitionTracker
 
-    phase_tracker = PhaseTransitionTracker(message_id=session.params.message_id)
+    phase_tracker = PhaseTransitionTracker(message_id=session.params.message_id, locale=getattr(session.params, "locale", None))
     initial_phase_event = phase_tracker.emit_initial_if_needed()
     if initial_phase_event:
         yield SSEEnvelope.from_any(initial_phase_event).to_sse_chunk()
@@ -378,7 +463,9 @@ async def iter_agent_stream_chunks(
                             get_background_registry,
                         )
 
-                        await get_background_registry().kill_session_jobs(session.request.chat_id)
+                        await get_background_registry().kill_session_jobs(
+                            session.request.chat_id
+                        )
                     except Exception as exc:
                         logger.warning(
                             "Failed to kill background jobs for cancelled session %s: %s",
@@ -415,7 +502,9 @@ async def iter_agent_stream_chunks(
             if session.goal_provider and session.request.chat_id:
                 if estimated_tokens - last_reported_tokens >= 20:
                     last_reported_tokens = estimated_tokens
-                    active_goal = await session.goal_provider.get_active_goal(session.request.chat_id)
+                    active_goal = await session.goal_provider.get_active_goal(
+                        session.request.chat_id
+                    )
                     if active_goal and active_goal.budget:
                         current_total = active_goal.tokens_used + estimated_tokens
                         max_tokens = active_goal.budget.max_tokens
@@ -430,9 +519,13 @@ async def iter_agent_stream_chunks(
                             logger.warning(
                                 f"🎯 Real-time circuit breaker triggered! Estimated tokens: {current_total} >= {max_tokens}"
                             )
-                            await session.goal_provider.update_status(active_goal.goal_id, GoalStatus.BUDGET_LIMITED)
+                            await session.goal_provider.update_status(
+                                active_goal.goal_id, GoalStatus.BUDGET_LIMITED
+                            )
                             active_goal.status = GoalStatus.BUDGET_LIMITED
-                            session.cancel_token.cancel(CancelReason.USER_CANCELLED)  # Using USER_CANCELLED as a fallback
+                            session.cancel_token.cancel(
+                                CancelReason.USER_CANCELLED
+                            )  # Using USER_CANCELLED as a fallback
 
                         incremental_goal_status = {
                             "goal_id": active_goal.goal_id,
@@ -443,7 +536,8 @@ async def iter_agent_stream_chunks(
                             "time_used_seconds": active_goal.time_used_seconds,
                             "turns_used": active_goal.turns_used,
                             "constraints": active_goal.constraints or [],
-                            "acceptance_criteria": active_goal.acceptance_criteria or [],
+                            "acceptance_criteria": active_goal.acceptance_criteria
+                            or [],
                             "budget": {
                                 "max_tokens": active_goal.budget.max_tokens,
                                 "max_usd": active_goal.budget.max_usd,
@@ -461,7 +555,9 @@ async def iter_agent_stream_chunks(
                         ).to_sse_chunk()
 
                         if active_goal.status == GoalStatus.BUDGET_LIMITED:
-                            warning_msg = "\n\n**预算已耗尽，任务自动暂停。**"
+                            warning_msg = _BUDGET_EXHAUSTED_NOTICE[
+                                _stream_locale(getattr(session.params, "locale", None))
+                            ]
                             yield SSEEnvelope.from_any(
                                 {
                                     "type": "message",
@@ -489,16 +585,23 @@ async def iter_agent_stream_chunks(
                                     },
                                 )
                             except Exception as e:
-                                logger.error(f"Failed to create system notification: {e}")
+                                logger.error(
+                                    f"Failed to create system notification: {e}"
+                                )
 
                             break
 
             if isinstance(chunk, str):
-                sse_chunk = chunk if chunk.startswith("data: ") else f"data: {chunk}\n\n"
+                sse_chunk = (
+                    chunk if chunk.startswith("data: ") else f"data: {chunk}\n\n"
+                )
             else:
                 try:
                     # Forward rate_limit_warning directly
-                    if isinstance(chunk, dict) and chunk.get("type") == "rate_limit_warning":
+                    if (
+                        isinstance(chunk, dict)
+                        and chunk.get("type") == "rate_limit_warning"
+                    ):
                         chunk["messageId"] = session.params.message_id
 
                     if isinstance(chunk, dict) and chunk.get("messageId") is None:
@@ -508,17 +611,24 @@ async def iter_agent_stream_chunks(
                     if isinstance(chunk, dict) and chunk.get("type") == "message_end":
                         if accumulated_cost_usd > 0 and "cost_usd" not in chunk:
                             chunk["cost_usd"] = round(accumulated_cost_usd, 6)
-                        if session.stream_ttft_ms is not None and "stream_ttft_ms" not in chunk:
+                        if (
+                            session.stream_ttft_ms is not None
+                            and "stream_ttft_ms" not in chunk
+                        ):
                             chunk["stream_ttft_ms"] = session.stream_ttft_ms
                         from app.services.agent.stream_session.stream_lane_factory import (
                             _inject_wu_consumed,
                         )
 
                         _inject_wu_consumed(chunk)
-                        _inject_message_end_memory_insights(chunk=chunk, session=session)
+                        _inject_message_end_memory_insights(
+                            chunk=chunk, session=session
+                        )
                         if isinstance(session.extra_context, dict):
                             if "turn_prewarm_hit" in session.extra_context:
-                                chunk["turn_prewarm_hit"] = session.extra_context["turn_prewarm_hit"]
+                                chunk["turn_prewarm_hit"] = session.extra_context[
+                                    "turn_prewarm_hit"
+                                ]
                             prewarm_ms = session.extra_context.get("turn_prewarm_ms")
                             if isinstance(prewarm_ms, int):
                                 chunk["turn_prewarm_ms"] = prewarm_ms
@@ -528,9 +638,13 @@ async def iter_agent_stream_chunks(
                                 GoalRegistry,
                             )
 
-                            provider = GoalRegistry.get_provider(session.request.chat_id)
+                            provider = GoalRegistry.get_provider(
+                                session.request.chat_id
+                            )
                             if provider:
-                                latest = await provider.get_latest_goal(session.request.chat_id)
+                                latest = await provider.get_latest_goal(
+                                    session.request.chat_id
+                                )
                                 if latest:
                                     goal_payload: dict[str, object] = {
                                         "goal_id": latest.goal_id,
@@ -541,7 +655,8 @@ async def iter_agent_stream_chunks(
                                         "time_used_seconds": latest.time_used_seconds,
                                         "turns_used": latest.turns_used,
                                         "constraints": latest.constraints or [],
-                                        "acceptance_criteria": latest.acceptance_criteria or [],
+                                        "acceptance_criteria": latest.acceptance_criteria
+                                        or [],
                                         "reason": latest.metadata.get("pause_reason"),
                                         "budget": (
                                             {
@@ -560,7 +675,9 @@ async def iter_agent_stream_chunks(
                                     chunk["goal_status"] = goal_payload
                                     if latest.status.value == "budget_limited":
                                         # 1. Yield a message chunk to the chat
-                                        warning_msg = "\n\n**预算已耗尽，任务自动暂停。**"
+                                        warning_msg = _BUDGET_EXHAUSTED_NOTICE[
+                                            _stream_locale(getattr(session.params, "locale", None))
+                                        ]
                                         yield SSEEnvelope.from_any(
                                             {
                                                 "type": "message",
@@ -590,12 +707,16 @@ async def iter_agent_stream_chunks(
                                                 },
                                             )
                                         except Exception as e:
-                                            logger.error(f"Failed to create budget limit notification: {e}")
+                                            logger.error(
+                                                f"Failed to create budget limit notification: {e}"
+                                            )
 
                     envelope = SSEEnvelope.from_any(chunk)
                     sse_chunk = envelope.to_sse_chunk()
                 except Exception as e:
-                    logger.error("SSEEnvelope serialization failed: %s", e, exc_info=True)
+                    logger.error(
+                        "SSEEnvelope serialization failed: %s", e, exc_info=True
+                    )
                     sse_chunk = f"data: {str(chunk)}\n\n"
 
             session.collector.feed_sse(sse_chunk)
@@ -609,16 +730,24 @@ async def iter_agent_stream_chunks(
                         WorkspaceMultiplexer,
                     )
 
-                    WorkspaceMultiplexer.get().publish_session_status(session.request.chat_id, "awaiting_approval")
+                    WorkspaceMultiplexer.get().publish_session_status(
+                        session.request.chat_id, "awaiting_approval"
+                    )
 
-            if is_compression_exhausted(sse_chunk) and session.request.chat_id and session.request.resume_value is None:
+            if (
+                is_compression_exhausted(sse_chunk)
+                and session.request.chat_id
+                and session.request.resume_value is None
+            ):
                 from app.platform_utils import get_session_factory
                 from app.services.chat.chat_service import ChatService
 
                 try:
                     session_factory = get_session_factory()
                     async with session_factory() as _db:
-                        result = await ChatService.undo_last_turn(session.request.chat_id)
+                        result = await ChatService.undo_last_turn(
+                            session.request.chat_id
+                        )
                         if result.success and result.deleted_count > 0:
                             logger.warning(
                                 "🧹 Compression exhausted: removed %d message(s) from chat %s to prevent death loop",
@@ -651,18 +780,28 @@ async def iter_agent_stream_chunks(
             blocked_payload = {
                 "type": "privacy_ladder_blocked",
                 "messageId": session.params.message_id,
-                "level": stream_err.verdict.level.value if stream_err.verdict.level else "unknown",
-                "violation_type": stream_err.verdict.violation_type.value if stream_err.verdict.violation_type else "unknown",
+                "level": (
+                    stream_err.verdict.level.value
+                    if stream_err.verdict.level
+                    else "unknown"
+                ),
+                "violation_type": (
+                    stream_err.verdict.violation_type.value
+                    if stream_err.verdict.violation_type
+                    else "unknown"
+                ),
                 "reason": stream_err.verdict.reason,
                 "target_path": stream_err.target_path,
             }
             yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
+            lang = _stream_locale(getattr(session.params, "locale", None))
+            privacy_copy = _PRIVACY_BLOCKED_FIELDS[lang]
             error_message = (
-                f"\n\n🛑 **执行已被隐私安全门禁阻断 (Privacy Fail-Closed Ladder)**\n\n"
-                f"- **违规层级**: `{stream_err.verdict.level}`\n"
-                f"- **违规类型**: `{stream_err.verdict.violation_type}`\n"
-                f"- **阻断原因**: {stream_err.verdict.reason}\n"
-                f"- **目标路径**: `{stream_err.target_path}`\n"
+                f"\n\n{_PRIVACY_BLOCKED_HEADER[lang]}\n\n"
+                f"- **{privacy_copy['level']}**: `{stream_err.verdict.level}`\n"
+                f"- **{privacy_copy['violation']}**: `{stream_err.verdict.violation_type}`\n"
+                f"- **{privacy_copy['reason']}**: {stream_err.verdict.reason}\n"
+                f"- **{privacy_copy['target']}**: `{stream_err.target_path}`\n"
             )
             yield SSEEnvelope.from_any(
                 {
@@ -683,8 +822,14 @@ async def iter_agent_stream_chunks(
         if isinstance(stream_err, MissingSemanticsBlockedError):
             # Decorator-raised blocks carry no contract; the exception's own fields are always populated.
             contract = stream_err.contract
-            blocked_category = str(contract.category) if contract else stream_err.component_name
-            blocked_message = contract.user_message if contract else (stream_err.detail or str(stream_err))
+            blocked_category = (
+                str(contract.category) if contract else stream_err.component_name
+            )
+            blocked_message = (
+                contract.user_message
+                if contract
+                else (stream_err.detail or str(stream_err))
+            )
             blocked_hint = stream_err.repair_hint or ""
             logger.error(
                 "MissingSemanticsBlockedError intercepted in stream_loop: code=%s, category=%s, msg=%s",
@@ -703,12 +848,13 @@ async def iter_agent_stream_chunks(
                 "detail": stream_err.detail,
             }
             yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
+            gate_copy = _GATE_BLOCKED_FIELDS[lang]
             error_message = (
-                f"\n\n🛑 **执行已被安全门禁阻断 (MissingSemantics Gate)**\n\n"
-                f"- **错误代号**: `{stream_err.error_code}`\n"
-                f"- **门禁策略**: `{stream_err.policy.value}` (严禁静默降级/裸跑)\n"
-                f"- **缺失组件**: {blocked_message}\n"
-                f"- **修复建议**: {blocked_hint}\n"
+                f"\n\n{_GATE_BLOCKED_HEADER[lang]}\n\n"
+                f"- **{gate_copy['code']}**: `{stream_err.error_code}`\n"
+                f"- **{gate_copy['policy']}**: `{stream_err.policy.value}`{_GATE_POLICY_NOTE[lang]}\n"
+                f"- **{gate_copy['missing']}**: {blocked_message}\n"
+                f"- **{gate_copy['hint']}**: {blocked_hint}\n"
             )
             yield SSEEnvelope.from_any(
                 {
