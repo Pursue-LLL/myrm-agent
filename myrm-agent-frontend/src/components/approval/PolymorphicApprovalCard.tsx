@@ -463,7 +463,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     await onResolve('approve', comment, undefined, {
       allow_always: scopeToAllowAlwaysValue(allowAlwaysScope, allowAlwaysDuration),
       ttl_seconds: ttlSeconds,
-      feedback: comment || undefined,
+      guidance: comment || undefined,
       ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
     });
   }, [allowAlwaysDuration, allowAlwaysScope, comment, onResolve, stagedCredentialHandles]);
@@ -512,14 +512,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         edited_args: mergeShellEditedArgs(originalArgs, parsed),
         allow_always: allowAlwaysValue,
         ttl_seconds: ttlSeconds,
-        feedback: comment || undefined,
+        guidance: comment || undefined,
         ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
       });
     } else {
       await onResolve('approve', comment, undefined, {
         allow_always: allowAlwaysValue || undefined,
         ttl_seconds: ttlSeconds,
-        feedback: comment || undefined,
+        guidance: comment || undefined,
         ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
       });
     }
@@ -1316,7 +1316,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               variant="outline"
               onClick={() => {
                 onResolve('approve', comment, undefined, {
-                  feedback: comment || undefined,
+                  guidance: comment || undefined,
                   action_digest: spendConfig?.actionDigest,
                   actionDigest: spendConfig?.actionDigest,
                   ephemeral_credential_handles:
@@ -1367,7 +1367,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   }
                 }
                 onResolve('approve', comment, edited_payload, {
-                  feedback: comment || undefined,
+                  guidance: comment || undefined,
                   action_digest: spendConfig?.actionDigest,
                   actionDigest: spendConfig?.actionDigest,
                   ephemeral_credential_handles:

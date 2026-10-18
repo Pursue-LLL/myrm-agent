@@ -40,7 +40,9 @@ export function ApprovalDrawer() {
           action,
           {
             ...extra,
-            feedback: extra?.feedback ?? comment,
+            // A note on an approval rides `guidance`; `feedback` is read only as a rejection reason,
+            // so sending an approval note there would reach nobody.
+            ...(action === 'reject' ? { feedback: extra?.feedback ?? comment } : { guidance: extra?.guidance }),
           },
           tToolApproval('resumeError'),
         );

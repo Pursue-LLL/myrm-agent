@@ -79,6 +79,37 @@ describe('buildDrawerResumeValue', () => {
     });
   });
 
+  it('carries the note written on an approval as guidance, not feedback', () => {
+    // The harness reads `guidance` on an approval and `feedback` on a rejection; a note sent as
+    // feedback on an approval is read by nobody.
+    const resumeValue = buildDrawerResumeValue(baseApproval, 'approve', { guidance: 'only staging, not prod' });
+    const decisions = decisionsOf(resumeValue);
+    expect(decisions).toHaveLength(2);
+    for (const decision of decisions) {
+      expect(decision.guidance).toBe('only staging, not prod');
+      expect(decision.feedback).toBeUndefined();
+    }
+  });
+
+  it('carries the note written on a single-decision gate approval', () => {
+    const domApproval: ApprovalPayload = {
+      approval_id: 'dom-1',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      chat_id: 'chat-1',
+      payload: { tool_input: { action: 'evaluate', expression: 'document.forms[0].submit()' } },
+    };
+
+    expect(buildDrawerResumeValue(domApproval, 'approve', { guidance: 'use the staging URL' })).toEqual({
+      decision: 'approve',
+      guidance: 'use the staging URL',
+    });
+    // A plain approve stays exactly what it was.
+    expect(buildDrawerResumeValue(domApproval, 'approve')).toEqual({ decision: 'approve' });
+  });
+
   it('marks high_risk_dom_action as resumable with semantic decision payload', () => {
     expect(shouldResumeDrawerApproval('high_risk_dom_action')).toBe(true);
 

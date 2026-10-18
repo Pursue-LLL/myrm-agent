@@ -49,22 +49,31 @@ export function buildDrawerResumeValue(
     feedback: extra?.feedback ?? (action === 'reject' ? 'User rejected this action.' : undefined),
   };
 
+  // A note the person wrote belongs on `guidance`, never on `feedback`, when they approve: the
+  // harness reads `feedback` on a decision only as a rejection reason, so an approval note sent
+  // there reaches nobody. A rejection keeps `feedback` — that is where the reason is read from.
+  const note = extra?.guidance?.trim();
+  const guidance = action === 'reject' ? undefined : note || undefined;
+
   if (SINGLE_DECISION_ACTION_TYPES.has(approval.action_type)) {
     return {
       decision: action === 'reject' ? 'reject' : 'approve',
       ...(resolveExtra.feedback ? { feedback: resolveExtra.feedback } : {}),
+      ...(guidance ? { guidance } : {}),
     };
   }
+
+  const decisionExtra: ToolApprovalResolveExtra = guidance ? { ...resolveExtra, guidance } : resolveExtra;
 
   if (approval.action_type === 'subagent_approval') {
     const toolCount = approval.payload?.tool_calls?.length ?? 0;
     const decisionCount = Math.max(toolCount, 1);
     return {
-      decisions: Array.from({ length: decisionCount }, () => buildApprovalDecision(decisionType, resolveExtra)),
+      decisions: Array.from({ length: decisionCount }, () => buildApprovalDecision(decisionType, decisionExtra)),
     };
   }
 
   return {
-    decisions: [buildApprovalDecision(decisionType, resolveExtra)],
+    decisions: [buildApprovalDecision(decisionType, decisionExtra)],
   };
 }
