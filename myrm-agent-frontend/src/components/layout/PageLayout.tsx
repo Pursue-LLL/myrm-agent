@@ -2,6 +2,7 @@
 
 import React, { memo, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { usePathname } from 'next/navigation';
+import { MotionConfig } from 'framer-motion';
 import AppLayout from './AppLayout';
 import { isStandalonePath } from '@/lib/marketing-paths';
 import { ensureLocalBackendReady } from '@/lib/backend-health';
@@ -113,29 +114,34 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
     void runReadinessGate();
   }, [runReadinessGate]);
 
-  if (isStandaloneRoute || isFocusedMode) {
-    return <>{children}</>;
-  }
+  const content =
+    isStandaloneRoute || isFocusedMode ? (
+      children
+    ) : (
+      <>
+        <AppLayout configReadinessDegraded={readinessDegraded} onRetryConfigReadiness={handleRetryReadiness}>
+          {children}
+        </AppLayout>
 
-  return (
-    <>
-      <AppLayout configReadinessDegraded={readinessDegraded} onRetryConfigReadiness={handleRetryReadiness}>
-        {children}
-      </AppLayout>
+        {needsOnboarding && (
+          <Suspense fallback={localhostSuspenseFallback()}>
+            <OnboardingWizard onComplete={handleOnboardingComplete} />
+          </Suspense>
+        )}
 
-      {needsOnboarding && (
-        <Suspense fallback={localhostSuspenseFallback()}>
-          <OnboardingWizard onComplete={handleOnboardingComplete} />
-        </Suspense>
-      )}
+        {showNormalBoot && !needsOnboarding && (
+          <Suspense fallback={localhostSuspenseFallback()}>
+            <BootScreen onComplete={handleBootComplete} />
+          </Suspense>
+        )}
+      </>
+    );
 
-      {showNormalBoot && !needsOnboarding && (
-        <Suspense fallback={localhostSuspenseFallback()}>
-          <BootScreen onComplete={handleBootComplete} />
-        </Suspense>
-      )}
-    </>
-  );
+  // framer-motion drives transform and opacity through the Web Animations API, so the global
+  // `prefers-reduced-motion` CSS block cannot reach it. `reducedMotion="user"` makes framer follow
+  // the same OS setting: positional animation collapses to instant while opacity fades stay, so a
+  // state change remains legible instead of the element simply jumping.
+  return <MotionConfig reducedMotion="user">{content}</MotionConfig>;
 });
 
 PageLayout.displayName = 'PageLayout';

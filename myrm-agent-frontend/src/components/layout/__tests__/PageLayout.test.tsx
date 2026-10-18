@@ -7,6 +7,16 @@ vi.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
 }));
 
+// framer-motion 的 reduced-motion 语义无法在 jsdom 里靠计算样式断言，因此把它的根配置原样透出到
+// data 属性，钉住「壳层确实用 reducedMotion="user" 包住两种应用内形态」这一契约。
+vi.mock('framer-motion', () => ({
+  MotionConfig: ({ reducedMotion, children }: { reducedMotion?: string; children: React.ReactNode }) => (
+    <div data-testid="motion-config" data-reduced-motion={reducedMotion}>
+      {children}
+    </div>
+  ),
+}));
+
 vi.mock('../AppLayout', () => ({
   __esModule: true,
   default: ({
@@ -172,5 +182,32 @@ describe('PageLayout', () => {
     expect(screen.getByText('pricing-child')).toBeInTheDocument();
     expect(screen.queryByTestId('app-layout')).not.toBeInTheDocument();
     expect(screen.queryByTestId('boot-screen-mock')).not.toBeInTheDocument();
+  });
+
+  it('follows the OS reduced-motion setting for framer-motion, which CSS cannot reach', () => {
+    mockShouldShowBootScreen.mockReturnValue(false);
+    render(
+      <PageLayout>
+        <span>child</span>
+      </PageLayout>,
+    );
+
+    expect(screen.getByTestId('motion-config')).toHaveAttribute('data-reduced-motion', 'user');
+    // The wrapper must sit above the shell, otherwise a component rendered beside AppLayout escapes it.
+    expect(screen.getByTestId('motion-config')).toContainElement(screen.getByTestId('app-layout'));
+  });
+
+  it('applies the same reduced-motion root to focused session windows, which skip AppLayout', () => {
+    window.history.replaceState({}, '', '/chat-1?mode=focused');
+    mockShouldShowBootScreen.mockReturnValue(false);
+    render(
+      <PageLayout>
+        <span>focused-child</span>
+      </PageLayout>,
+    );
+
+    expect(screen.getByTestId('motion-config')).toHaveAttribute('data-reduced-motion', 'user');
+    expect(screen.getByTestId('motion-config')).toContainElement(screen.getByText('focused-child'));
+    expect(screen.queryByTestId('app-layout')).not.toBeInTheDocument();
   });
 });
