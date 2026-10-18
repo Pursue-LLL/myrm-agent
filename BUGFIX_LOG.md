@@ -7054,3 +7054,62 @@ if route.unavailable:
 2. **修复必须与语义对齐，而不是套用上一条的修法**：本条的直觉修法（照抄 016 走 `_record_outbound_failure`）是错的——它会把「用户稍后会启用的渠道」误判为永久失败、丢进 DLQ。判据来自既有测试契约：`test_unregistered_channel_retains_disk_obligation` 要求记录保留、`test_recover_after_disabled_channel_sends_message` 要求启用后能恢复。
 3. **同一机理要沿分支扫干净**：016 的修复只覆盖了「抛出」分支，「正常 return 但不可用」分支是它没走到的另一条路；同一函数里「同一条消息的不同终局」都要按各自的正确语义检查一遍，不能只修报错的那条。
 
+---
+
+## BUG-AGENT-2026-10-18-002: 系统开启「减少动态效果」后，全站持续脉冲/旋转动画照旧无限运行（全局兜底缺失，只有 2 处窄补丁）
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-18 |
+| 修复日期 | 2026-10-18 |
+| 严重程度 | P2（无障碍契约系统性失效；前庭敏感用户持续不适，低端机/触屏持续重绘耗电） |
+| 影响范围 | `myrm-agent-frontend/src/app/globals.css`（新增通用选择器兜底）、`src/app/__tests__/reduced-motion-safety-net.test.ts` |
+| 出现次数 | 1（`BUG-AGENT-2026-10-17-019` 的姊妹缺陷：019 修的是「视频背景不跟随系统偏好」，本条是「CSS 动画根本没有全局跟随」） |
+| 关联 | `BUG-AGENT-2026-10-17-019`（同一「系统减少动态效果未被尊重」主题的另一条路径） |
+
+### 现象
+
+用户在系统里开启「减少动态效果」后进入 WebUI，页面上的持续动画照旧无限运行：空聊天页与首页的 `animate-pulse` 心跳点、`animate-spin` 的加载/运行指示、`animate-shimmer` 的勋章光泽，全部无视该系统偏好。
+
+### 根因
+
+`globals.css`（1418 行）此前**只有两处** `@media (prefers-reduced-motion: reduce)`：一处只关 `.animate-node-pulse`、一处只关品牌按钮那一组选择器。而全前端含 `animate-*` 的文件 **856 个**、使用处 **1529 处**，其中无限循环类（`animate-pulse/bounce/ping/spin`）**1237 处**，`motion-safe:` 保护 **0 处**。
+
+作者不得不手写 `.animate-node-pulse { animation: none }` 来单独关掉一个动画——**需要手写恰恰证明没有自动兜底**：组件层没有任何机制覆盖其余全部动画，属于「半接上」的契约，比完全不支持更糟，因为它看起来已经支持了。
+
+### 修复
+
+在 `globals.css` 增加一个通用选择器兜底块（与竞品 `claw/hermes-agent/apps/desktop/src/styles.css:24-32` 逐字同源）：
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+```
+
+刻意用 `0.01ms` 而**不用** `animation: none !important`：Radix `usePresence`（`@radix-ui/react-presence/dist/index.js:101,120`）在 `animationName === "none"` 时直接 UNMOUNT、并靠 `animationName.includes(event.animationName)` 匹配 `animationend` 收尾；`0.01ms` 让动画瞬时结束并照常派发事件，`none` 会让浮层判断不到动画而提前卸载。
+
+`scroll-behavior: auto` 不是死代码：`src/components/primitives/carousel.tsx:154-155` 使用了 `scroll-smooth`，该条正是把它在 reduce 下收回。
+
+### 验证
+
+1. **真实引擎实测（headless Chromium 经 CDP，`Emulation.setEmulatedMedia` 切 `prefers-reduced-motion`）**：注入前 `no-preference` 下无限脉冲读到 `duration 2s / iteration infinite`；切 `reduce` 后同一元素读到 `duration 1e-05s / iteration 1`，即真的停下。
+2. **浮层契约未被破坏（同一实测）**：`reduce` 下 `animationend` 仍正常派发（返回值 `true`），证明 Radix 卸载路径不受影响；同时组件自行 `animation: none` 的元素在 reduce 下仍解析为 `none`，兜底不会把被刻意移除的动画「复活」。
+3. **负向对照**：把兜底块替换为空后同一脚本确定性失败（`reduced pulse duration 2s != 0.01ms`、`reduced iteration infinite != 1`、`animationend did not fire`），证明测量真的在判别而不是恒真。
+4. **回归用例**：`src/app/__tests__/reduced-motion-safety-net.test.ts`（3 例，从真实 `globals.css` 解析该块）钉住「通用选择器覆盖」「用瞬时而非移除」「绝不出现 `animation: none`」；变异验证：删块、改成 `animation: none`、删掉 `animation-iteration-count` 三种改法各自确定性变红。
+5. **未引入新问题**：`tsc` 对本改动零新增错误；`prettier` 对两个文件通过；`verify:theme-colors` 通过（扫描 3588 文件）；`verify:a11y` 的告警数与本改动无关（退化全部来自另一位开发者未跟踪的 `system-monitor/` 目录，见下条经验）；本目录与 `theme` 套件共 19 例通过。仅作用于 `reduce` 分支，`no-preference` 用户像素不变。
+
+### 踩坑经验
+
+1. **「手写特例」是缺兜底的证据，不是兜底的证据**：`.animate-node-pulse` 之所以被单独关，正是因为通用选择器块不存在；看到「某个动画被单独处理」时，应反过来查「其余动画为什么不需要处理」。
+2. **无障碍降级要选「瞬时」而不是「移除」**：`animation-duration: 0.01ms` 保留事件派发链路，`animation: none` 会切断它；依赖 `animationend`/`transitionend` 的组件（如 Radix 浮层）会因此提前卸载。web.dev 与 MDN 同样推荐前者。
+3. **门禁红灯要先分清归属再动手**：`verify:a11y` 当前为红，但退化项（豁免 82→102、`label-has-associated-control` 0→12 等）**全部落在未跟踪的 `system-monitor/` 目录**（该目录 113 个文件只有 6 个被 git 跟踪），属他人进行中的 WIP；按「不动别人未提交工作」的原则只上报、不修改，避免误伤。
+4. **本地化的一次性验证脚本不要进仓**：用 CDP 驱动 headless Chromium 的验证脚本硬编码了机器与版本相关的浏览器路径（`~/Library/Caches/ms-playwright/chromium_headless_shell-1243/...`），进仓会在 CI 上无法运行；验证结论写进本条日志，可长期防退化的守卫留在不依赖浏览器的静态用例里。
+
