@@ -726,6 +726,9 @@ async def test_dispatch_injects_runtime_context():
     assert isinstance(extra_context, dict)
     assert extra_context["execution_mode"] == "pooled"
     assert extra_context["disabled_skill_roots"] == ["skills/prebuilt/off"]
+    # An auto-continued segment replays on a rebuilt thread: the interrupted half-turn
+    # must not stack on the thread the previous attempt left behind.
+    assert extra_context["history_mode"] == "replace"
 
 
 @pytest.mark.asyncio
