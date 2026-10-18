@@ -7074,6 +7074,8 @@ if route.unavailable:
 1. **CSS 动画**：空聊天页与首页的 `animate-pulse` 心跳点、`animate-spin` 的加载/运行指示、`animate-shimmer` 的勋章光泽照旧无限运行。
 2. **framer-motion 过渡**：设置页、聊天卡片、工作区弹层等 20 个文件里的展开/收起、位移与缩放过渡照旧播放——这类动画由 Web Animations API 驱动（`element.animate`），CSS 媒体查询在原理上覆盖不到它。
 3. **AI 生成 widget 内部**：widget 渲染在沙箱 iframe 里，是独立文档，宿主 `globals.css` 不作用于它；其注入样式自带 `button:active{transform:scale(.98)}` 与 `.transition{transition:all .15s ease}`，在 reduce 下照旧播放。
+4. **浏览器扩展 Side Panel**：面板同样是一个独立文档（`sidepanel.html` 只引入自身样式表），「连接中」状态点（`sidepanel.css:61`）、工具步骤运行中图标（`:133`）与输入中三点（`:209`）三处无限动画照旧运行。
+5. **Tauri 桌面端隐私帷幕页**：帷幕经自定义协议单独成页，不加载前端样式表，页内状态点（`privacy_curtain_page.rs:80`）在 reduce 下照旧呼吸。
 
 ### 根因
 
@@ -7116,6 +7118,10 @@ framer-motion 侧是第二条独立缺口：其根配置默认 `reducedMotion: "
 
 **③ AI 生成 widget 的沙箱 iframe**——在 `src/lib/widget-theme-bridge.ts` 的 `buildWidgetStyleBlock()` 拼出的 `<style>` 末尾追加同一个 reduced-motion 块。widget 文档是独立文档，宿主 `globals.css` 不作用于它，因此必须由注入样式自带守卫；该 CSS 本身含位移类动画（`button:active{transform:scale(.98)}`，`:150`）与过渡（`.transition{transition:all .15s ease}`，`:134`），而 widget 能力提示词要求模型「按裸标签写 button」，所以每个带按钮的生成 widget 都会命中。
 
+**④ 浏览器扩展 Side Panel**——在 `src/sidepanel/sidepanel.css` 末尾追加块。面板是独立文档（`sidepanel.html:7` 只引自身样式表），自带三处无限动画：「连接中」点（`:61`）、工具步骤运行中（`:133`）、输入中三点（`:209`）。
+
+**⑤ Tauri 桌面端隐私帷幕页**——在 `commands/privacy_curtain_page.rs` 的内嵌 `<style>` 末尾追加块。帷幕经自定义协议 `myrm-curtain` 单独成页（`app/chain.rs:42` 注册），不加载前端样式表，页内 `.dot` 有 `animation: pulse 2.4s infinite`（`:80`）。
+
 ### 验证
 
 1. **真实引擎实测（headless Chromium 经 CDP，`Emulation.setEmulatedMedia` 切 `prefers-reduced-motion`）**：`no-preference` 下无限脉冲读到 `duration 2s / iteration infinite`；切 `reduce` 后同一元素读到 `duration 1e-05s / iteration 1`，即真的停下。
@@ -7123,8 +7129,9 @@ framer-motion 侧是第二条独立缺口：其根配置默认 `reducedMotion: "
 3. **负向对照**：把兜底块替换为空后同一脚本确定性失败（`reduced pulse duration 2s != 0.01ms`、`reduced iteration infinite != 1`、`animationend did not fire`），证明测量真的在判别而不是恒真。
 4. **framer 根配置实测**：以 esbuild 打包一个真实 framer + React 应用，在 `reduce` 下 `reducedMotion="user"` 使位移动画瞬时到位（`x=300`，对照组 `no-preference` 同一时刻为 `x=212`），而透明度淡出保留（`opacity=0.73`），即语义保留降级。
 5. **widget iframe 实测**：把真实 `buildWidgetStyleBlock()` 的输出注入内核，在 `reduce` 下按钮过渡由 `0.15s, 0.1s` 降为 `1e-05s`、`.transition` 由 `0.15s` 降为 `1e-05s`；`no-preference` 下仍为原值。守卫用例含「必须是通用选择器、不能写成类名清单」一例，变异验证：删块、把通用选择器换成 `button{}` 清单两种改法各自确定性变红。
-5. **回归用例**：`src/app/__tests__/reduced-motion-safety-net.test.ts`（3 例，从真实 `globals.css` 解析该块）钉住「通用选择器覆盖」「用瞬时而非移除」「绝不出现 `animation: none`」；`src/components/layout/__tests__/PageLayout.test.tsx` 钉住壳层的 `reducedMotion="user"` 覆盖应用内两种形态。变异验证：删块、改成 `animation: none`、删掉 `animation-iteration-count`、移除 `MotionConfig`、把 `reducedMotion` 改回 `"never"` 各自确定性变红。
-6. **未引入新问题**：`tsc` 对本改动零新增错误；`prettier`、`oxlint` 对改动文件通过；`verify:theme-colors` 通过（扫描 3588 文件）；`verify:a11y` 的告警数与本改动无关（退化全部来自另一位开发者未跟踪的 `system-monitor/` 目录，见下条经验）；仅作用于 `reduce` 分支，`no-preference` 用户所见不变。
+6. **扩展 Side Panel 与桌面帷幕页实测**：读取真实 `sidepanel.css` 与按 Rust 模板规则渲染出的帷幕 HTML，在 `reduce` 下侧边栏连接点与工具步骤由 `pulse / 1.5s / infinite`、`pulse / 1s / infinite` 降为 `pulse / 1e-05s / 1`，其 `transition` 由 `0.3s` 降为 `1e-05s`；帷幕点由 `pulse / 2.4s / infinite` 降为 `pulse / 1e-05s / 1`；`no-preference` 下均保持原值。守卫用例：扩展侧 `src/lib/extension/__tests__/sidepanelReducedMotion.test.ts`（删块变异确定性变红），Rust 侧 `page_carries_its_own_reduced_motion_guard`、`reduced_motion_guard_is_universal`。
+7. **回归用例**：`src/app/__tests__/reduced-motion-safety-net.test.ts`（3 例，从真实 `globals.css` 解析该块）钉住「通用选择器覆盖」「用瞬时而非移除」「绝不出现 `animation: none`」；`src/components/layout/__tests__/PageLayout.test.tsx` 钉住壳层的 `reducedMotion="user"` 覆盖应用内两种形态。变异验证：删块、改成 `animation: none`、删掉 `animation-iteration-count`、移除 `MotionConfig`、把 `reducedMotion` 改回 `"never"` 各自确定性变红。
+8. **未引入新问题**：`tsc` 对本改动零新增错误；`prettier`、`oxlint` 对改动文件通过；`verify:theme-colors` 通过（扫描 3588 文件）；`verify:a11y` 的告警数与本改动无关（退化全部来自另一位开发者未跟踪的 `system-monitor/` 目录，见下条经验）；仅作用于 `reduce` 分支，`no-preference` 用户所见不变。
 
 ### 已知取舍（如实记录）
 
