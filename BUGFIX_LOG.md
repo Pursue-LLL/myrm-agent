@@ -7297,17 +7297,21 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 
 绑定侧读的是**客户端标志**（`incognitoUploadOptions.ts:18-19` 的 `incognitoMode`），清除与导出侧读的是**会话行的 `is_incognito`**，但会话行只在首条消息时创建、且已有行不会因开关而改判（`chat_message.py:218` 建行写标志，`:227-236` 的 existing-row 分支只更新 `ephemeral_subagents / agent_id / moa preset`，不写 `is_incognito`）。开关的守卫让「已有行 + 无消息」这一种输入绕过了「开新会话」的语义，两侧判据因此可以指向同一个 id 的不同结论。
 
+第二个根因在挂载侧：`ChatWindow` 每次挂载都按路由 id 调 `initializeChat`（`ChatWindow.tsx:433-437`），`/` 路由不带 id，于是走「开新会话」分支，而该分支明确把 `incognitoMode` 置回假（`chatSessionInit.ts:56-74`）。`/` 与 `/[chatId]` 是两个不同的页面组件（`src/app/page.tsx`、`src/app/[chatId]/page.tsx`），因此 `router.push('/')` 会重挂 `ChatWindow`。在 `/c-<id>` 这类会话路由上点开关，开关先设好标志、再导航到 `/`，重挂立即把标志清掉——界面看着像是开关没生效，会话也没真正进入无痕。
+
 ### 修复
 
 1. 去掉 `IncognitoModeToggle` 的 `messages.length > 0` 守卫：任何一次切换都 `router.push('/')` 并 `initializeChat(undefined)`，使 `incognitoMode = true` 时 `chatId` 必然是刚生成、尚无行的新会话。新 id 的首条消息建行时写入 `is_incognito`（`chat_message.py:218`），绑定、清除、导出三处判据由此天然同源，服务端无需改动。
-2. 顺带关闭第二个出口：切换总是换会话后，在无痕下上传再关掉开关，附件落在被弃置的无行 id 上，由既有的 24 小时孤儿清扫删除（`chat_retention.py:127-131`）。
-3. 同步 `incognito_uploads.py` docstring 与两处 `_ARCH.md` 中「关掉无痕仍会备份」的旧表述；`test_incognito_uploads.py` 的夹具（向一个非无痕会话绑定附件、断言其随导出走）继续保留——它固定的是导出端「按会话真实状态判定」的规则，与绑定侧如何产生无关。
+2. `ChatWindow` 的挂载初始化在「`/` 路由（无 id）且 store 已持有一间空会话（有 id、已就绪、无消息、无压缩摘要）」时直接沿用，不再重置：这正是开关刚刚选定并交给 `/` 的会话，重置会换掉 id 并清掉标志。带消息（或带压缩摘要）的会话仍照旧重开，所以从真实对话回到首页仍会开始新会话。
+3. 顺带关闭第二个出口：切换总是换会话后，在无痕下上传再关掉开关，附件落在被弃置的无行 id 上，由既有的 24 小时孤儿清扫删除（`chat_retention.py:127-131`）。
+4. 同步 `incognito_uploads.py` docstring 与三处 `_ARCH.md` 中「关掉无痕仍会备份」的旧表述；`test_incognito_uploads.py` 的夹具（向一个非无痕会话绑定附件、断言其随导出走）继续保留——它固定的是导出端「按会话真实状态判定」的规则，与绑定侧如何产生无关。
 
 ### 验证
 
 1. 先红后绿：新增 `__tests__/IncognitoModeToggle.test.tsx` 4 例（已有 `chatId` 且 `messages=[]` 时开无痕会换会话、切回普通也会换、非首页路由会 `push('/')`、`aria-pressed` 反映状态）。在未改动的组件上跑得 **3 红 1 绿**（换会话两例与 `push('/')` 一例失败），改后 4 全绿；随后把组件临时改回旧写法复跑，再次 3 红，确认用例守卫的是修复本身。
-2. 组件改动仅在切换处理内，`state` 从 store 取 `incognitoMode / setIncognitoMode / initializeChat`；移除的 `messages` 选择器已无引用（`rg` 确认），无未用变量。
-3. 服务端只改 docstring 与测试注释，`tests/services/instance_archive/test_incognito_uploads.py` 行为不变（用例断言未动）。
+2. `ChatWindowRemount.test.tsx` 补 2 例并同样先红后绿：`/` 上 store 已持有空会话（`c-just-started`，`incognitoMode = true`）时挂载必须保留该 id 与标志（未加守卫时确定性变红，加后转绿）；带消息的会话回到 `/` 仍换新 id。连同原有 2 例共 4 例全绿。
+3. 组件改动仅在切换处理内，`state` 从 store 取 `incognitoMode / setIncognitoMode / initializeChat`；移除的 `messages` 选择器已无引用（`rg` 确认），无未用变量。
+4. 服务端只改 docstring 与测试注释，`tests/services/instance_archive/test_incognito_uploads.py` 行为不变（用例断言未动）。
 
 ### 局限
 

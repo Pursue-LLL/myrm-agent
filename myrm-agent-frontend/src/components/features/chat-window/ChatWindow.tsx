@@ -411,7 +411,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         void refreshOpenChatTranscript(id);
       }
 
-      if (meta?.kind === 'goal_needs_review' && id && meta?.chat_id === id) {
+      if ((meta?.kind === 'goal_needs_review' || meta?.kind === 'goal_usage_limit') && id && meta?.chat_id === id) {
         void useGoalStore.getState().refreshActiveGoal(id);
       }
     };
@@ -431,6 +431,20 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   }, [initConfig]);
 
   useLayoutEffect(() => {
+    // The `/` route mounts this window with no id while the store may already hold the chat to show there — the
+    // incognito toggle chooses one before it navigates here. Resetting would replace that id and clear the flag
+    // the toggle just set, so the reset is skipped only when there is nothing to replace: an empty, fully loaded
+    // chat that no summary stands for. A chat with messages (or a compacted one) still starts over, so arriving
+    // home from a real conversation opens a new one.
+    const current = useChatStore.getState();
+    const holdsEmptyChat =
+      Boolean(current.chatId) &&
+      current.isMessagesLoaded &&
+      current.messages.length === 0 &&
+      !current.compactedSummary?.trim();
+    if (id === undefined && holdsEmptyChat) {
+      return;
+    }
     initializeChat(id);
   }, [id, initializeChat]);
 
