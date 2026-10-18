@@ -476,3 +476,5 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - `tests/unit/test_system_storage.py`：系统存储 API 单元测（**禁止**在 `tests/unit/` 下创建 `api/` 子包，会与 `tests/api/` 在 `import_mode=importlib` 下冲突）
 - `app/startup/env_loader.py` **不**读取 `.env.test`
 | `e2e/test_incognito_switch_starts_fresh_chat_chrome_e2e.py` | 模块 | 真实浏览器里无痕开关总是开新会话（SHARED+NAMESPACE_WRITE×3，无 LLM，但每个用例经真实 API seed 一个真实会话）：等开关与输入框都挂上 React props且 store 已持有该会话后才点真实开关；三条分别覆盖 ①普通会话→开无痕 ②已存在但无消息的会话行（`/focus` 留下的状态）→开无痕 ③无痕会话→关无痕；每条都断言 `chatId` 不再是原会话且新会话无消息 |
+| `e2e/test_incognito_switch_starts_fresh_chat_chrome_e2e.py` | 模块 | 真实浏览器里无痕开关总是开新会话（SHARED+NAMESPACE_WRITE×3，无 LLM，但每个用例经真实 API seed 一个真实会话）：等开关与输入框都挂上 React props且 store 已持有该会话后才点真实开关；三条分别覆盖 ①普通会话→开无痕 ②已存在但无消息的会话行（`/focus` 留下的状态）→开无痕 ③无痕会话→关无痕；每条都断言 `chatId` 不再是原会话且新会话无消息 |
+| `e2e/test_incognito_switch_after_live_turn_chrome_e2e.py` | 模块 | 真实模型一轮问答之后开无痕会开新会话（PRIVATE+LIVE×1，`live_shpoib`）：seed 一个普通会话 → E2E bridge attach → 用真实模型（`minimax/MiniMax-M3.1-Flash-Preview`，经 `seed_live_e2e_providers` 就绪）回答一轮并轮询落库的 assistant 回复非空 → 等输入框与开关都 hydrated 且回合结束 → 点真实开关 → 断言路由到 `/`、`chatId` 不是原会话、`incognitoMode` 为真、新会话无消息 |
