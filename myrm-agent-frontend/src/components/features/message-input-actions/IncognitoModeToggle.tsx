@@ -13,16 +13,17 @@ const IncognitoModeToggle = () => {
   const pathname = usePathname();
   const incognitoMode = useChatStore((s) => s.incognitoMode);
   const setIncognitoMode = useChatStore((s) => s.setIncognitoMode);
-  const messages = useChatStore((s) => s.messages);
   const initializeChat = useChatStore((s) => s.initializeChat);
 
   const toggle = () => {
-    if (messages.length > 0) {
-      if (pathname !== '/') {
-        router.push('/');
-      }
-      initializeChat(undefined);
+    // Incognito is a property of the chat, not a mode the current chat can enter: the server keys every
+    // removal and export decision off the chat row's `is_incognito`, and a chat that already has a row can
+    // never become one. Switching always starts a fresh chat, whose first message is what gives the row its
+    // flag — so an id that predates the switch can never end up bound to an upload it will not outlive.
+    if (pathname !== '/') {
+      router.push('/');
     }
+    initializeChat(undefined);
     setIncognitoMode(!incognitoMode);
   };
 
