@@ -86,11 +86,7 @@ _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS = """(async () => {
   window.__MYRM_E2E_DIRECT_SSE__ = false;
   window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
   bridge.setActionMode?.('agent');
-  bridge.resetChat?.();
-  bridge.setActionMode?.('agent');
-  await bridge.ensureChatSession?.({ preserveActionMode: true });
-  const prev = bridge.getCurrentBuiltinTools?.() ?? [];
-  bridge.setCurrentBuiltinTools?.([...new Set([...prev, 'web_search'])]);
+  bridge.setCurrentBuiltinTools?.(['web_search', 'memory', 'structured_clarify']);
   return { ok: true, tools: bridge.getCurrentBuiltinTools?.() ?? [], directSse: !!window.__MYRM_E2E_DIRECT_SSE__ };
 })()"""
 
@@ -105,8 +101,6 @@ _FAST_MODE_CLIENT_GUARD_JS = """(async () => {
   if (bridge.pinLiteModelForE2e) {
     await bridge.pinLiteModelForE2e({ preserveActionMode: true });
   }
-  bridge.resetChat?.();
-  bridge.setActionMode('fast');
   if (typeof bridge.clearSearchServicesForE2e === 'function') {
     bridge.clearSearchServicesForE2e();
   }
@@ -513,11 +507,26 @@ def _assert_search_cleared(api_base: str) -> None:
 
 
 async def _prepare_chat(chat: McpChatSession) -> None:
-    await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
-    enabled = await chat.evaluate(
-        _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS,
-        intent=EvaluateIntent.AGENT_SUBMIT,
-    )
+    # Start each run from a fresh chat at the root route. The reset must happen outside the CDP evaluation:
+    # a navigation destroys the inspected target, so any await still running in that document never settles
+    # ("Inspected target navigated or closed").
+    await chat.cdp("Page.navigate", {"url": f"{BASE_URL.rstrip('/')}/"})
+    await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
+    # A navigation can land while the bound backend is still restarting; pinning reads the provider config
+    # over HTTP, so retry the race instead of failing the whole signoff on a transient 404.
+    enabled: object = None
+    for attempt in range(4):
+        try:
+            enabled = await chat.evaluate(
+                _PIN_LITE_AND_ENABLE_WEB_SEARCH_JS,
+                intent=EvaluateIntent.AGENT_SUBMIT,
+            )
+            break
+        except RuntimeError as exc:
+            if attempt == 3 or "provider-config-fetch" not in str(exc):
+                raise
+            await asyncio.sleep(3.0)
+            await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
     assert isinstance(enabled, dict) and enabled.get("ok") is True, enabled
     idle = await chat.evaluate(
         _WAIT_CHAT_IDLE_JS,
