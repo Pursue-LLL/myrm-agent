@@ -12,7 +12,6 @@
     "rewind": {
       "title": "Hierher zurückspulen",
       "description": "Das Gespräch auf vor diese Nachricht zurücksetzen und den Text in den Editor legen.",
-      "sideEffectNotice": "Der Chat-Kontext wird zurückgespult. Dateien, Speicher und Tool-Nebeneffekte werden nicht rückgängig gemacht.",
       "cancel": "Abbrechen",
       "confirm": "Zurückspulen",
       "success": "Gespräch zurückgespult",
@@ -156,7 +155,6 @@
     "regenerate_detailed": "Ausführlicher",
     "regenerate_creative": "Kreativer",
     "regenerate_submit": "Neu generieren",
-    "undo": "Rückgängig",
     "copiedSuccessfully": "Erfolgreich kopiert",
     "linkDetected": "Möchten Sie externe Ressourcen verwenden?",
     "linkDetectedDescription": "Verwenden Sie @, um externe Ressourcen zu referenzieren, sonst wird es als normaler Text behandelt. Möchten Sie es hinzufügen?",

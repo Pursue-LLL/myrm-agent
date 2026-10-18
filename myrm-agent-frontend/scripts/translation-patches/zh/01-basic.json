@@ -16,8 +16,12 @@
   },
   "loadout": {
     "openWiki": "知识库",
-    "tiles": { "wiki": "知识库" },
-    "teamHub": { "wikiTitle": "知识库" }
+    "tiles": {
+      "wiki": "知识库"
+    },
+    "teamHub": {
+      "wikiTitle": "知识库"
+    }
   },
   "agent": {
     "temperature": "温度",
@@ -28,24 +32,17 @@
   },
   "memory": {
     "commandCenter": {
-      "spaceKind": { "agent": "智能体" }
+      "spaceKind": {
+        "agent": "智能体"
+      }
     }
   },
   "channels": {
     "wechatOfficialToken": "令牌",
     "wecomToken": "令牌",
-    "authorizeNow": "立即授权",
-    "cancelLoginFailed": "取消失败",
-    "connectionError": "连接错误",
-    "loginCancelled": "登录已取消",
-    "loginFailed": "登录失败",
-    "loginTimeout": "登录超时",
-    "oauth2LoginDesc": "通过浏览器授权",
-    "qrCodeLogin": "扫码登录",
-    "selectLoginMethod": "选择登录方式",
-    "startLoginFailed": "启动登录失败",
-    "unknownError": "未知错误",
-    "wecom": { "secret": "密钥" },
+    "wecom": {
+      "secret": "密钥"
+    },
     "feishuEncryptKeyPlaceholder": "可选，用于消息加密",
     "feishuNotConfigured": "尚未配置飞书。",
     "feishuWebhookFailed": "Webhook 配置失败，请检查配置。",

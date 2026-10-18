@@ -87,9 +87,9 @@
     "mcpTlsHint": "mTLS: 클라이언트 인증서와 선택적으로 별도 키를 제공하세요. 경로는 ~ 확장을 지원합니다.",
     "mcpHeadersSection": "HTTP 헤더",
     "mcpHeadersConfigured": "구성됨",
-    "mcpHeadersHint": "에이전트 시크릿에 저장된 시크릿을 참조하려면 {{secret:KEY_NAME}}을 사용하세요.",
+    "mcpHeadersHint": "에이전트 시크릿에 저장된 시크릿을 참조하려면 '{{secret:KEY_NAME}}'을 사용하세요.",
     "mcpHeaderKeyPlaceholder": "헤더 이름 (예: Authorization)",
-    "mcpHeaderValuePlaceholder": "값 또는 {{secret:API_KEY}}",
+    "mcpHeaderValuePlaceholder": "값 또는 '{{secret:API_KEY}}'",
     "mcpHeaderAdd": "헤더 추가",
     "mcpSecretRefSaveHint": "구성이 저장되었습니다",
     "mcpSecretRefSaveHintDesc": "헤더의 시크릿 참조는 런타임에 해석됩니다."

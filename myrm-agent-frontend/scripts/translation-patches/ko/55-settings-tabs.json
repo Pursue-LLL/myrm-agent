@@ -126,10 +126,6 @@
         "title": "메모리 백업",
         "description": "데이터 안전을 위해 메모리 데이터를 백업하고 복원합니다"
       },
-      "memory-archival": {
-        "title": "메모리 보관",
-        "description": "검색 성능 향상을 위해 오래된 메모리를 보관합니다"
-      },
       "enterprise": {
         "title": "엔터프라이즈 조직",
         "description": "엔터프라이즈 조직, 팀 구성원, 퇴사자 관리를 관리합니다"
@@ -141,14 +137,6 @@
       "about": {
         "title": "MyrmAgent 정보",
         "description": "애플리케이션에 대한 정보를 봅니다"
-      },
-      "skillQuality": {
-        "title": "스킬 품질",
-        "description": "스킬 품질 모니터링 및 관리"
-      },
-      "toolQuality": {
-        "title": "실행 품질",
-        "description": "스킬과 도구의 실행 품질 및 안정성을 모니터링하고 분석합니다"
       },
       "memory": {
         "title": "메모리 관리 센터",

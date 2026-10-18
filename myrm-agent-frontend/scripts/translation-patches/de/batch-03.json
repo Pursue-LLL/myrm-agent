@@ -31,10 +31,7 @@
           "toolsS2Desc": "Tool-Aufrufe, die den S2-Schutz auslösen sollen.",
           "toolsS3Label": "S3-Sensible Tools",
           "toolsS3Desc": "Tool-Aufrufe, die den S3-Schutz auslösen sollen.",
-          "invalidRegex": "Ungültiges Regex-Muster",
-          "keywordTooShort": "Schlüsselwort muss mindestens 2 Zeichen lang sein",
-          "testMatch": "Treffer testen",
-          "testMatchNoResult": "Keine benutzerdefinierten Regeln stimmten überein"
+          "keywordTooShort": "Schlüsselwort muss mindestens 2 Zeichen lang sein"
         }
       },
       "domainAllowlist": {
@@ -127,14 +124,11 @@
         "displayName": "Anzeigename",
         "pattern": "Regex-Muster",
         "severity": "Schweregrad",
-        "action": "Aktion",
         "category": "Kategorie",
         "sortOrder": "Sortierreihenfolge",
         "severityLow": "Niedrig",
         "severityMedium": "Mittel",
         "severityHigh": "Hoch",
-        "actionAllow": "Erlauben",
-        "actionBlock": "Blockieren",
         "categoryPersonal": "Persönliche Daten",
         "categoryCompany": "Unternehmensintern",
         "categorySecurity": "Sicherheitsanmeldedaten",
@@ -171,8 +165,6 @@
         "hitsEmpty": "Keine Risiko-Treffer aufgezeichnet",
         "hitsRuleName": "Regel",
         "hitsSeverity": "Schweregrad",
-        "hitsAction": "Aktion",
-        "hitsMatch": "Trefferinhalt",
         "hitsTime": "Zeit",
         "hitsUser": "Benutzer",
         "searchNoResults": "Keine passenden Regeln gefunden",

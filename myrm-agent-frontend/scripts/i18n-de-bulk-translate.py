@@ -14,7 +14,7 @@ from deep_translator import GoogleTranslator
 ROOT = Path(__file__).resolve().parents[1]
 LOCALES = ROOT / "locales"
 GLOSSARY = ROOT / "scripts" / "i18n-glossary.json"
-OUT_OVERRIDES = ROOT / "scripts" / "translation-patches" / "de" / "auto-translated-overrides.json"
+OUT_OVERRIDES = ROOT / "scripts" / "i18n-caches" / "de.json"
 
 PLACEHOLDER_RE = re.compile(r"\{[^{}]+\}")
 ICU_BLOCK_RE = re.compile(r"\{[^{}]*,[^}]*\}")
@@ -63,11 +63,19 @@ def restore(text: str, tokens: list[str]) -> str:
     return out
 
 
+_BRAND_RE = re.compile("|".join(re.escape(b) for b in sorted(BRANDS, key=len, reverse=True)))
+
+
 def protect_brands(text: str) -> str:
-    out = text
-    for brand in BRANDS:
-        out = out.replace(brand, f"__BR_{brand}__")
-    return out
+    """Replace every brand with a placeholder in a single left-to-right pass.
+
+    One pass with longest-alternative-first is what makes overlapping brands safe:
+    with per-brand ``str.replace`` passes, a shorter brand that is a substring of a
+    longer one ("OAuth" in "OAuth2", "Myrm" in "MyrmAgent") would be replaced first,
+    and the later longer pass would then match nothing — the placeholder then survives
+    translation and reaches the user as literal text.
+    """
+    return _BRAND_RE.sub(lambda m: f"__BR_{m.group(0)}__", text)
 
 
 def restore_brands(text: str) -> str:

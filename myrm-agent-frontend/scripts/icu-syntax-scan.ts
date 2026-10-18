@@ -27,6 +27,31 @@ function errorKind(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).split('\n')[0] ?? 'UNKNOWN';
 }
 
+/**
+ * 机翻保护标记：批量翻译把品牌 / ICU 占位符换成 `__BR_` / `__PH` 记号，翻译后必须还原。
+ * 残留说明还原环节漏了，用户会在界面上看到 `__BR_OAuth2__` 这种内部标记。
+ */
+const ARTIFACT_RE = /__[A-Z]{2,}_[A-Za-z0-9._-]+|__PH[0-9]+__/;
+
+/** Scan one already-parsed locale tree for leftover translation-pipeline markers. */
+export function scanTranslationArtifacts(tree: unknown, prefix = ''): IcuScanResult {
+  if (typeof tree === 'string') {
+    return ARTIFACT_RE.test(tree)
+      ? { scanned: 1, invalid: [{ path: prefix, error: `ARTIFACT ${ARTIFACT_RE.exec(tree)?.[0]}` }] }
+      : { scanned: 1, invalid: [] };
+  }
+  const result: IcuScanResult = { scanned: 0, invalid: [] };
+  if (tree === null || typeof tree !== 'object') {
+    return result;
+  }
+  for (const [key, child] of Object.entries(tree)) {
+    const nested = scanTranslationArtifacts(child, prefix === '' ? key : `${prefix}.${key}`);
+    result.scanned += nested.scanned;
+    result.invalid.push(...nested.invalid);
+  }
+  return result;
+}
+
 /** 递归扫描 locale 树；非字符串叶子（数字、布尔、null）不是文案，跳过。 */
 export function scanIcuMessages(tree: unknown, prefix = ''): IcuScanResult {
   if (typeof tree === 'string') {

@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CACHE = ROOT / "scripts" / "translation-patches" / "de" / "auto-translated-overrides.json"
+CACHE = ROOT / "scripts" / "i18n-caches" / "de.json"
 DE = ROOT / "locales" / "de.json"
 
 

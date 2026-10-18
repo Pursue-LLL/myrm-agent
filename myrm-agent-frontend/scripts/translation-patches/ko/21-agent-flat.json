@@ -103,8 +103,6 @@
     "rollbackConfirmRestoring": "복원 중…",
     "snapshotSaveFailed": "구성 백업 실패",
     "snapshotSaveFailedDesc": "변경 사항은 저장되었지만 롤백 스냅샷이 생성되지 않았습니다. 실행 취소를 사용할 수 없을 수 있습니다.",
-    "exportSuccess": "에이전트 구성이 내보내졌습니다",
-    "exportFailed": "에이전트 구성 내보내기 실패",
     "maxIterations": "최대 반복",
     "maxIterationsDesc": "대화 턴당 최대 도구 호출 라운드 (비워 두면 기본값: 100)",
     "modelParams": "모델 매개변수",

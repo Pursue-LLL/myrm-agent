@@ -9,7 +9,6 @@
       "matrix": "매트릭스 비교"
     },
     "benchmarkMode": "벤치마크 모드",
-    "wbBenchRunStarted": "WorkBuddy Bench 평가가 시작되었습니다",
     "alreadyRunning": "이미 실행 중인 평가가 있습니다",
     "report": {
       "environment": "환경 스냅샷",
@@ -122,7 +121,6 @@
   },
   "Catchup": {
     "inboxTitle": "정리함",
-    "loading": "불러오는 중...",
     "allCaughtUp": "모두 정리되었습니다!",
     "statusCompleted": "완료됨",
     "statusWaiting": "승인 대기 중",

@@ -135,8 +135,6 @@
           "backgroundReview": "Hintergrundprüfung",
           "manualEvolution": "Manuelle Evolution"
         },
-        "testPassed": "Validierung bestanden",
-        "testFailed": "Validierung fehlgeschlagen",
         "actions": {
           "confirmReject": "Ablehnung bestätigen",
           "reject": "Ablehnen",
@@ -162,22 +160,6 @@
         "empty": {
           "title": "Keine Fälle in dieser Ansicht",
           "description": "Aktuelle Fähigkeitswachstumsaktivitäten erscheinen hier, nachdem der Agent Verbesserungen erfasst oder geprüft hat."
-        },
-        "export": {
-          "description": "Inhalt vor dem Export prüfen. Sensible Informationen werden automatisch geschwärzt.",
-          "safeTitle": "Sicher zu exportieren",
-          "safeDescription": "Keine sensiblen Informationen (API-Schlüssel, absolute Pfade) in dieser Fähigkeit erkannt.",
-          "warningTitle": "Sensible Informationen erkannt",
-          "warningDescription": "Wir haben potenziell sensible Informationen gefunden. Es wird dringend empfohlen, die geschwärzte Version zu exportieren.",
-          "diffPreview": "Schwärzungsvorschau",
-          "cancel": "Abbrechen",
-          "exportOriginal": "Original exportieren (unsicher)",
-          "exportRedacted": "Geschwärzt exportieren (sicher)",
-          "export": "Exportieren",
-          "previewFailed": "Vorschau der Fähigkeit fehlgeschlagen",
-          "exportSuccess": "Fähigkeit erfolgreich exportiert",
-          "exportFailed": "Export der Fähigkeit fehlgeschlagen",
-          "toggleAll": "Alle umschalten"
         }
       },
       "upload": {

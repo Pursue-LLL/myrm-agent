@@ -15,9 +15,7 @@
       "mcp": "MCP",
       "skills": "스킬",
       "compoundingPlaybook": "복리 루프",
-      "skillQuality": "스킬 품질",
       "toolStability": "도구 안정성",
-      "toolQuality": "실행 품질",
       "eval": "평가",
       "credentials": "자격 증명",
       "wiki": "위키",
@@ -42,7 +40,6 @@
       "memory-backup": "메모리 백업",
       "memory-team-hub": "팀 자산",
       "memory-cloud-backup": "클라우드 동기화",
-      "memory-archival": "메모리 아카이빙",
       "memory-migration": "마이그레이션",
       "experimentalFeatures": "실험 기능",
       "system": "시스템",
@@ -83,7 +80,6 @@
         "title": "팁",
         "usage": "입력창에 / 를 입력하면 명령 팔레트가 실행됩니다",
         "trigger": "입력창에 / 를 입력하면 명령 팔레트가 실행됩니다",
-        "variables": "템플릿은 변수를 지원합니다: '{{input}}', '{{date}}', '{{time}}'",
         "examples": "예: /translate 번역용, /review 코드 리뷰용",
         "example": "예: /translate 번역용, /review 코드 리뷰용"
       },
@@ -103,8 +99,7 @@
           },
           "description": {
             "label": "설명",
-            "placeholder": "영어로 번역",
-            "hint": "다음을 영어로 번역하세요:"
+            "placeholder": "영어로 번역"
           },
           "template": {
             "label": "템플릿",
@@ -117,17 +112,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "title": "예시",
-          "translate": {
-            "name": "translate",
-            "template": "영어로 번역하세요: '{{input}}'"
-          },
-          "review": {
-            "name": "review",
-            "template": "다음 코드를 리뷰하세요: '{{input}}'"
-          }
         },
         "actions": {
           "cancel": "취소",

@@ -69,7 +69,6 @@
       "toolsConnect": {
         "pageTitle": "일상적인 도구 연결",
         "pageDescription": "어시스턴트가 매일 사용하는 서비스에 접근하도록 하세요. 나중에 설정에서 언제든 추가할 수 있습니다.",
-        "connected": "연결됨",
         "connectButton": "연결",
         "moreHint": "설정 → 통합에서 30개 이상의 연동 사용 가능",
         "continueButton": "계속",

@@ -47,9 +47,6 @@
         "variables": {
           "title": "Variable einfügen"
         },
-        "examples": {
-          "title": "Beispiele"
-        },
         "actions": {
           "cancel": "Abbrechen",
           "save": "Speichern"

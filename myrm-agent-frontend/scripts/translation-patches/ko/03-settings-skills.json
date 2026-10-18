@@ -85,8 +85,6 @@
           "manualEvolution": "수동 진화"
         },
         "confidence": "신뢰도 {value}%",
-        "testPassed": "검증 통과",
-        "testFailed": "검증 실패",
         "actions": {
           "confirmReject": "거부 확인",
           "reject": "거부",
@@ -113,30 +111,11 @@
           "title": "런타임 실패 증거",
           "tool": "도구: {value}",
           "count": "실패: {value}",
-          "confidence": "귀속 {value}%",
-          "loopKind": "루프: {value}"
+          "confidence": "귀속 {value}%"
         },
         "empty": {
           "title": "이 보기에 사례가 없습니다",
           "description": "에이전트가 개선 사항을 캡처하거나 검토한 후 최근 스킬 성장 활동이 여기에 표시됩니다."
-        },
-        "export": {
-          "title": "스킬 내보내기: {name}",
-          "description": "내보내기 전에 내용을 검토하세요. 민감한 정보는 자동으로 편집됩니다.",
-          "scanning": "민감한 정보 검사 중...",
-          "safeTitle": "내보내기 안전",
-          "safeDescription": "이 스킬에서 민감한 정보(API 키, 절대 경로)가 감지되지 않았습니다.",
-          "warningTitle": "민감한 정보 감지됨",
-          "warningDescription": "잠재적으로 민감한 정보가 발견되었습니다. 편집된 버전으로 내보내는 것을 적극 권장합니다.",
-          "diffPreview": "편집 미리보기",
-          "cancel": "취소",
-          "exportOriginal": "원본 내보내기 (안전하지 않음)",
-          "exportRedacted": "편집본 내보내기 (안전)",
-          "export": "내보내기",
-          "previewFailed": "스킬 미리보기 실패",
-          "exportSuccess": "스킬이 성공적으로 내보내졌습니다",
-          "exportFailed": "스킬 내보내기 실패",
-          "toggleAll": "모두 선택/해제"
         },
         "loadingDetail": "변경 사항 로드 중…",
         "detailLoadFailed": "변경 사항 세부 정보 로드 실패",

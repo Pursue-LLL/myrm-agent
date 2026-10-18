@@ -96,13 +96,7 @@
       }
     },
     "browserRecording": {
-      "title": "브라우저 세션 녹화",
-      "description": "브라우저 자동화 세션의 비디오/스크린샷 녹화를 제어합니다.",
-      "recording": "녹화 중",
-      "stopped": "중지됨",
-      "screenshots": "스크린샷",
-      "video": "비디오",
-      "storageHint": "브라우저 자동화가 수행되는 동안 스크린샷과 비디오가 생성됩니다."
+      "title": "브라우저 세션 녹화"
     },
     "localCapabilities": {
       "detecting": "로컬 AI 및 검색 서비스 감지 중...",

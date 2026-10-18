@@ -95,12 +95,7 @@
           "toolsS2Desc": "S2 보호를 트리거해야 하는 도구 호출.",
           "toolsS3Label": "S3 민감 도구",
           "toolsS3Desc": "S3 보호를 트리거해야 하는 도구 호출.",
-          "invalidRegex": "잘못된 정규식 패턴",
-          "keywordTooShort": "키워드는 최소 2자여야 합니다",
-          "testMatch": "일치 테스트",
-          "testMatchPlaceholder": "규칙에 대해 테스트할 텍스트 입력...",
-          "testMatchResult": "일치: {level} — {patterns}",
-          "testMatchNoResult": "일치하는 사용자 정의 규칙이 없습니다"
+          "keywordTooShort": "키워드는 최소 2자여야 합니다"
         }
       },
       "domainAllowlist": {

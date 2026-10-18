@@ -69,7 +69,7 @@
       "tunnelDockerRunLabel": "Docker実行コマンド",
       "tunnelDockerRunCopied": "Dockerコマンドをコピーしました",
       "tunnelUpstreamAuthLabel": "アップストリーム認証ヘッダー（任意）",
-      "tunnelUpstreamAuthPlaceholder": "Bearer <token>",
+      "tunnelUpstreamAuthPlaceholder": "Bearer <トークン>",
       "tunnelUpstreamAuthHint": "トンネルエージェントがリクエストを転送するときに内部MCPサーバーへ送信されます。",
       "tunnelBindMcp": "組織MCPとして追加",
       "tunnelBindMcpSuccess": "トンネルを組織MCPサーバーに追加しました",

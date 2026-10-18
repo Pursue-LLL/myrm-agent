@@ -110,7 +110,7 @@
       "delete": "削除",
       "deleteConfirm": "このFAQエントリを削除しますか？",
       "import": "一括インポート",
-      "importDesc": "JSONからFAQエントリをインポート。形式: [{\"question\": \"...\", \"answer\": \"...\"}]",
+      "importDesc": "JSONからFAQエントリをインポート。形式: ['{\"question\": \"...\", \"answer\": \"...\"}']",
       "importBtn": "インポート",
       "importSuccess": "{count} 件のエントリをインポートしました",
       "importFailed": "インポートに失敗しました",

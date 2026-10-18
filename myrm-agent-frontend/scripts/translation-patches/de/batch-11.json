@@ -168,7 +168,6 @@
       "parameters": "Parameter",
       "layers": {
         "core": "Kern",
-        "common": "Allgemein",
         "extended": "Erweitert",
         "external": "Extern"
       },

@@ -75,7 +75,6 @@
       "parameters": "매개변수",
       "layers": {
         "core": "핵심",
-        "common": "일반",
         "extended": "확장",
         "external": "외부"
       },

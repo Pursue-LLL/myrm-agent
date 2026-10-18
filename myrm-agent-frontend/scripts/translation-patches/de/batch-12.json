@@ -155,10 +155,6 @@
         "title": "Speicher-Backup",
         "description": "Speicherdaten sichern und wiederherstellen"
       },
-      "memory-archival": {
-        "title": "Speicher-Archivierung",
-        "description": "Alte Erinnerungen archivieren, um die Suchleistung zu verbessern"
-      },
       "enterprise": {
         "title": "Unternehmensorganisation",
         "description": "Unternehmensorganisation, Teammitglieder und Mitarbeiter-Offboarding verwalten"
@@ -170,14 +166,6 @@
       "about": {
         "title": "Über MyrmAgent",
         "description": "Informationen über die Anwendung anzeigen"
-      },
-      "skillQuality": {
-        "title": "Fähigkeitsqualität",
-        "description": "Fähigkeitsqualitätsüberwachung und -verwaltung"
-      },
-      "toolQuality": {
-        "title": "Ausführungsqualität",
-        "description": "Ausführungsqualität und Stabilität von Fähigkeiten und Tools überwachen und analysieren"
       },
       "memory": {
         "title": "Speicherverwaltungszentrum",

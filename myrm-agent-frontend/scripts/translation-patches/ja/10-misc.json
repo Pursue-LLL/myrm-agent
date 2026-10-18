@@ -365,7 +365,6 @@
       "toolsConnect": {
         "pageTitle": "日常のツールを接続",
         "pageDescription": "毎日使うサービスにアシスタントがアクセスできるようにします。設定から後でいつでも追加できます。",
-        "connected": "接続済み",
         "connectButton": "接続",
         "moreHint": "設定 → 統合 に30以上の統合があります",
         "continueButton": "続行",

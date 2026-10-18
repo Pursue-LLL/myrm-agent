@@ -119,7 +119,6 @@
     "cloneSuccess": "Agent erfolgreich geklont",
     "configEditor": {
       "actionSpaceRadar": {
-        "smartPruneFailed": "Curator-Durchlauf fehlgeschlagen",
         "turn1CatalogTitle": "Skill-Katalog Runde 1"
       },
       "addMore": "Weitere hinzufügen",

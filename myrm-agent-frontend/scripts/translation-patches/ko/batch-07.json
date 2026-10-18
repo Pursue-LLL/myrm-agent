@@ -51,59 +51,6 @@
     "toolGatewayNote": "웹 검색, 이미지 생성, 텍스트 음성 변환은 작업 단위에 포함됩니다 — 클라우드 모드에서는 별도의 API 키가 필요하지 않습니다.",
     "loading": "로딩 중..."
   },
-  "agentEvents": {
-    "noEvents": "아직 이벤트가 없습니다",
-    "showDetails": "세부 정보 보기",
-    "toolCallStart": "도구 호출 시작됨",
-    "toolCallEnd": "도구 호출 완료됨",
-    "commandStart": "명령 시작됨",
-    "commandOutput": "명령 출력",
-    "commandEnd": "명령 완료됨",
-    "fileDiff": "파일 변경됨",
-    "artifactCreated": "아티팩트 생성됨",
-    "permissionRequest": "권한 요청됨",
-    "permissionResponse": "권한 응답됨",
-    "thinking": "사고 중",
-    "assistantMessage": "어시스턴트 메시지",
-    "error": "오류 발생",
-    "risk": {
-      "low": "낮은 위험",
-      "medium": "중간 위험",
-      "high": "높은 위험",
-      "critical": "치명적 위험"
-    },
-    "permission": {
-      "title": "권한 필요",
-      "resource": "리소스",
-      "reason": "이유",
-      "details": "세부 정보",
-      "approve": "승인",
-      "deny": "거부",
-      "warningHigh": "이 작업은 높은 위험을 가집니다. 승인 전에 신중히 검토하세요.",
-      "warningCritical": "이 작업은 치명적이며 되돌릴 수 없는 변경을 초래할 수 있습니다. 극도로 주의하여 진행하세요.",
-      "actions": {
-        "toolCall": "도구 호출",
-        "command": "명령 실행",
-        "fileWrite": "파일 쓰기",
-        "fileDelete": "파일 삭제"
-      }
-    },
-    "permissionMode": {
-      "title": "권한 모드",
-      "safe": {
-        "label": "안전 모드",
-        "description": "읽기 전용 및 안전한 작업만 허용합니다. 신뢰할 수 없는 환경에 적합합니다."
-      },
-      "ask": {
-        "label": "질문 모드",
-        "description": "잠재적으로 위험한 작업에 대해 승인을 요청합니다. 대부분의 사용자에게 권장됩니다."
-      },
-      "allowAll": {
-        "label": "모두 허용",
-        "description": "확인 없이 모든 작업을 신뢰합니다. 신뢰할 수 있는 환경에서만 주의하여 사용하세요."
-      }
-    }
-  },
   "runs": {
     "stopReasonTitle": "중지 사유",
     "stopReasonIterationLimit": "반복 한도에 도달",
@@ -119,7 +66,6 @@
     "title": "예약 작업",
     "loading": "로딩 중...",
     "empty": "아직 예약 작업이 없습니다",
-    "once": "일회성",
     "cancel": "취소",
     "trigger": "지금 실행",
     "pause": "일시 중지",
@@ -168,7 +114,6 @@
     "refresh": "새로고침",
     "nextRun": "다음 실행",
     "createdAt": "생성 시각",
-    "interval": "매 {value}",
     "noModel": "모델이 구성되지 않음",
     "tabJobs": "작업",
     "tabAllRuns": "전체 실행",
@@ -259,14 +204,12 @@
     "addPath": "추가",
     "pathPlaceholder": "예: ~/reports 또는 /tmp",
     "commonPaths": "일반:",
-    "securityDenied": "보안 거부",
     "verificationPass": "검증됨",
     "verificationFail": "검증 실패",
     "verificationSkipped": "검증 건너뜀",
     "verificationError": "검증 오류",
     "verificationSummary": "전달 검토",
     "verificationRunOkReviewFailed": "작업이 완료되었지만 전달 검토를 통과하지 못했습니다 — 자세히 보려면 펼치세요.",
-    "securityDeniedHint": "일부 도구가 보안 정책에 의해 거부되었습니다. 위의 기능 펜스에서 필요한 권한을 구성하세요.",
     "monitorContractError": "출력 계약 오류",
     "monitorContractErrorInvalidJson": "이 실행은 잘못된 구조화 출력을 생성하여 증분 diff가 건너뛰어졌습니다.",
     "monitorContractErrorGeneric": "이 실행의 출력이 모니터 계약과 일치하지 않았습니다.",

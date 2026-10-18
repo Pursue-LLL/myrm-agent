@@ -216,14 +216,6 @@
           "input": "'{{input}}'",
           "date": "'{{date}}'",
           "time": "'{{time}}'"
-        },
-        "examples": {
-          "translate": {
-            "name": "translate"
-          },
-          "review": {
-            "name": "review"
-          }
         }
       }
     },

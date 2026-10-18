@@ -514,7 +514,7 @@
       "recipeImport": {
         "title": "AIスキルからレシピをインポート",
         "hint": "generate-myrm-theme のJSONを貼り付け、必要に応じてステップ1でヒーローメディアをアップロードしてください。",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "レシピをインポート",
         "success": "レシピをエディタにインポートしました"
       }

@@ -194,7 +194,7 @@
       "recipeImport": {
         "title": "AI 스킬에서 레시피 가져오기",
         "hint": "generate-myrm-theme 의 JSON을 붙여넣은 후 필요한 경우 1단계에서 히어로 미디어를 업로드하세요.",
-        "placeholder": "{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }",
+        "placeholder": "'{ \"name\": \"...\", \"layoutId\": \"full-bleed\", ... }'",
         "import": "레시피 가져오기",
         "success": "레시피가 편집기에 가져와졌습니다",
         "errors": {

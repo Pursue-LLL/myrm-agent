@@ -11,19 +11,14 @@
     "title": "检查点",
     "confirmDelete": "确定要删除此检查点吗？",
     "confirmCleanup": "确定要清理旧的检查点（7 天有效期）吗？",
-    "resumable": "可恢复",
-    "notResumable": "不可恢复",
     "progress": "进度",
     "lastTool": "最后使用的工具",
-    "resume": "恢复",
     "delete": "删除",
     "refresh": "刷新",
     "cleanup": "清理旧检查点",
     "loadError": "加载检查点失败",
-    "resumeError": "恢复检查点失败",
     "deleteError": "删除检查点失败",
     "cleanupError": "清理检查点失败",
-    "resumeSuccess": "检查点恢复成功",
     "empty": "未找到检查点",
     "noCheckpoints": "未找到检查点",
     "description": "管理已保存的检查点，恢复被中断的智能体任务",
@@ -31,16 +26,26 @@
     "savedCheckpointsDesc": "当智能体任务被中断时，所有检查点都会自动保存"
   },
   "growthDashboard": {
-    "dailyJournal": { "tokens": "Token" }
+    "dailyJournal": {
+      "tokens": "Token"
+    }
   },
   "billing": {
     "wuBalance": "工作单元",
     "pricing": {
       "plans": {
-        "companion": { "name": "Companion" },
-        "plus": { "name": "Plus" },
-        "pro": { "name": "Pro" },
-        "max": { "name": "Max" }
+        "companion": {
+          "name": "Companion"
+        },
+        "plus": {
+          "name": "Plus"
+        },
+        "pro": {
+          "name": "Pro"
+        },
+        "max": {
+          "name": "Max"
+        }
       }
     }
   },

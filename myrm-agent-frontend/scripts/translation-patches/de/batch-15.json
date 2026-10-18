@@ -111,8 +111,6 @@
     "exportConfigAction": "Konfiguration exportieren",
     "exportConfigSaveFirst": "Vor dem Export speichern",
     "exportConfigTitle": "Agentenkonfiguration exportieren",
-    "exportFailed": "Agentenkonfiguration konnte nicht exportiert werden",
-    "exportSuccess": "Agentenkonfiguration exportiert",
     "failedToLoadPrompt": "Systemprompt konnte nicht geladen werden, bitte erneut versuchen",
     "faq": {
       "addEntry": "Eintrag hinzufügen",

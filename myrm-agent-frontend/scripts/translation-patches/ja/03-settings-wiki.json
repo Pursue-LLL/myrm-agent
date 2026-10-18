@@ -62,7 +62,6 @@
         "reviewPending": "保留中の編集をレビュー（{count}）",
         "actionRecompile": "再コンパイル",
         "actionRepair": "メタデータを修復",
-        "open": "開く",
         "driftSampleHint": "フルメンテナンスはドリフト検出のために最大5記事をサンプリングします — 網羅的監査ではありません。",
         "lastDriftCheck": "最終フルドリフトチェック: {checkedAt}",
         "structuralScopeHint": "構造スキャンのみです。ドリフトサンプリングにはアクションの「フルメンテナンス」を実行してください。",

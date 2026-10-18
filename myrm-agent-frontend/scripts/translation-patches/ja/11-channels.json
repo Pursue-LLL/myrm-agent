@@ -5,17 +5,6 @@
     "wechatDefaultLabel": "微信 1",
     "wecomToken": "トークン",
     "wecomAibotSecret": "AIボットシークレット",
-    "authorizeNow": "今すぐ承認",
-    "cancelLoginFailed": "ログインのキャンセルに失敗しました",
-    "connectionError": "接続エラー",
-    "loginCancelled": "ログインがキャンセルされました",
-    "loginFailed": "ログインに失敗しました",
-    "loginTimeout": "ログインがタイムアウトしました",
-    "oauth2LoginDesc": "ブラウザで承認",
-    "qrCodeLogin": "QRコードログイン",
-    "selectLoginMethod": "ログイン方法を選択",
-    "startLoginFailed": "ログインの開始に失敗しました",
-    "unknownError": "不明なエラー",
     "wecom": {
       "secret": "シークレット"
     },

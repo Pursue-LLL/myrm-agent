@@ -109,7 +109,6 @@
           "archiveRestoreSizeProbeFailed": "보관 크기 확인 실패",
           "unknown": "보관 복원이 차단됨"
         },
-        "signal": "신호",
         "signals": {
           "inactive": "활성화되지 않음",
           "restoreBlocked": "복원에는 더 좁은 범위가 필요합니다",
@@ -144,15 +143,6 @@
         "policy": "보존 정책",
         "observation": "보존 신호",
         "sample": "관찰 샘플",
-        "strategy": "전략",
-        "strategies": {
-          "inactive": "비활성",
-          "hotProtected": "뜨거운 캐시 보호됨",
-          "insufficientData": "데이터 부족",
-          "coldEligible": "차가운 캐시 대상",
-          "coldWatch": "차가운 캐시 관찰",
-          "stable": "안정적 재사용"
-        },
         "observationStates": {
           "observed": "관찰됨",
           "estimated": "추정됨",
