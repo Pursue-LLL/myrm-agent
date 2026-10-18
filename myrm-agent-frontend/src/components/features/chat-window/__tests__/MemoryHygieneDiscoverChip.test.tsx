@@ -57,10 +57,17 @@ describe('MemoryHygieneDiscoverChip', () => {
     expect(screen.getByText('Hermes 迁民健康标准')).toBeInTheDocument();
   });
 
+  it('keeps the card a plain container so no button is nested inside another button', () => {
+    render(<MemoryHygieneDiscoverChip />);
+    const card = screen.getByTestId('memory-hygiene-discover-chip');
+    expect(card).not.toHaveAttribute('role');
+    expect(card).not.toHaveAttribute('tabindex');
+    expect(card.closest('button')).toBeNull();
+  });
+
   it('navigates to memory settings doctor panel on click', () => {
     render(<MemoryHygieneDiscoverChip />);
-    const chip = screen.getByTestId('memory-hygiene-discover-chip');
-    fireEvent.click(chip);
+    fireEvent.click(screen.getByRole('button', { name: /5 分钟记忆体检/ }));
     expect(mockPush).toHaveBeenCalledWith('/settings/memory?sub=command-center&focus=doctor');
   });
 

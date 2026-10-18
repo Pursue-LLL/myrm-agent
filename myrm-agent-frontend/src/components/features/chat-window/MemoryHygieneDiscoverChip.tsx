@@ -20,7 +20,6 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Activity, ArrowRight, ShieldCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { activateOnKey } from '@/lib/utils/a11y';
 
 interface MemoryHygieneDiscoverChipProps {
   className?: string;
@@ -65,49 +64,50 @@ export const MemoryHygieneDiscoverChip = memo(function MemoryHygieneDiscoverChip
   return (
     <div
       data-testid="memory-hygiene-discover-chip"
-      onClick={handleNavigate}
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
-      role="button"
-      tabIndex={0}
-      onKeyDown={activateOnKey}
       className={cn(
-        'group relative w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer select-none',
+        'group relative w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl select-none',
         'bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-cyan-500/5 dark:from-emerald-950/20 dark:via-teal-950/20 dark:to-cyan-950/20',
         'border border-emerald-500/20 dark:border-emerald-500/15 hover:border-emerald-500/35 dark:hover:border-emerald-500/30',
         'shadow-xs hover:shadow-sm transition-all duration-200',
         className,
       )}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
-          <Activity className="w-4 h-4" />
-        </div>
-        <div className="flex flex-col min-w-0 text-left">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">{t('title')}</span>
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shrink-0">
-              <ShieldCheck className="w-2.5 h-2.5" />
-              {t('hermesBadge')}
-            </span>
+      <button
+        type="button"
+        onClick={handleNavigate}
+        className="flex flex-1 items-center gap-3 min-w-0 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+            <Activity className="w-4 h-4" />
           </div>
-          <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{t('subtitle')}</span>
+          <div className="flex flex-col min-w-0 text-left">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">
+                {t('title')}
+              </span>
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shrink-0">
+                <ShieldCheck className="w-2.5 h-2.5" />
+                {t('hermesBadge')}
+              </span>
+            </div>
+            <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{t('subtitle')}</span>
+          </div>
         </div>
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
+        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors shrink-0 ml-auto">
           {t('action')}
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </span>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 transition-colors"
-          aria-label={t('dismiss')}
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      </button>
+
+      <button
+        type="button"
+        onClick={handleDismiss}
+        className="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={t('dismiss')}
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
     </div>
   );
 });
