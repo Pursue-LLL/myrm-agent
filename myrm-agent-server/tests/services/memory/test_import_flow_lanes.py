@@ -430,3 +430,29 @@ async def test_readiness_persistence_failure_does_not_raise() -> None:
             workspace_rules_skipped=0,
         ),
     )
+
+
+def test_lane_response_rows_mark_excluded_episodic_as_a_part() -> None:
+    from app.services.memory.operations.crud.import_dry_run_preview import build_lane_response_rows
+    from app.services.migration.source.source_migration_types import LaneDetailPart, MigrationLanePreview
+
+    lane = MigrationLanePreview(
+        lane="memory",
+        status="pending",
+        label="memory_lane",
+        detail="0 mapped item(s)",
+        detail_parts=(LaneDetailPart("memory_mapped", {"count": 0}),),
+    )
+
+    rows = build_lane_response_rows(
+        [lane],
+        memory_status="ready",
+        memory_mapped=3,
+        episodic_excluded=True,
+    )
+
+    assert rows[0].status == "ready"
+    assert [(part.code, part.params) for part in rows[0].detail_parts] == [
+        ("memory_mapped", {"count": 3}),
+        ("memory_episodic_excluded", {}),
+    ]
