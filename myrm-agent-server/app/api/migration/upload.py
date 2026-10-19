@@ -65,9 +65,10 @@ def _is_safe_path(member_name: str) -> bool:
 def _oversized_member(members: list[zipfile.ZipInfo]) -> str | None:
     """Return the member that breaks the expansion budget, if any.
 
-    ``member.file_size`` is the declared uncompressed size, so the whole archive
-    is refused before a single byte touches disk — a highly compressible archive
-    cannot fill the sandbox volume or the host temp drive.
+    ``member.file_size`` is the declared uncompressed size, and ``zipfile`` stops
+    reading each member at exactly that many bytes (``ZipExtFile._read1`` truncates
+    to the remaining declared size), so refusing oversized members here bounds
+    what extraction can write before a single byte touches disk.
     """
 
     expanded = 0

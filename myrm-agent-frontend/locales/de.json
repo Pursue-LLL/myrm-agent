@@ -5697,7 +5697,7 @@
       "trae_empty_payload": "In diesem Export wurden keine TRAE-Regeln gefunden.",
       "unsupported_source": "Diese Quelle kann noch nicht importiert werden.",
       "windsurf_empty_payload": "In diesem Export wurden keine Windsurf-Erinnerungen gefunden.",
-      "pasted_model_extraction_failed": "Das Modell konnte diesen Text nicht aufbereiten; er wurde stattdessen zeilenweise ausgewertet."
+      "pasted_model_extraction_failed": "Für diesen Text wurde keine Modell-Aufbereitung angewendet; er wurde zeilenweise ausgewertet."
     },
     "importDedupeHint": "Einträge, deren Inhalt bereits im Speicher vorhanden ist, werden beim Import zusammengeführt oder übersprungen.",
     "migrationWizard": {

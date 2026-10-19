@@ -5697,7 +5697,7 @@
       "trae_empty_payload": "這份匯出檔中找不到 TRAE 規則。",
       "unsupported_source": "暫不支援匯入這個來源。",
       "windsurf_empty_payload": "這份匯出檔中找不到 Windsurf 記憶。",
-      "pasted_model_extraction_failed": "模型未能整理這段文字，已改為逐行解析。"
+      "pasted_model_extraction_failed": "這段文字未經模型整理，已改為逐行解析。"
     },
     "importDedupeHint": "與資料庫中既有內容相同的項目會在匯入時自動合併或略過。",
     "migrationWizard": {

@@ -5697,7 +5697,7 @@
       "trae_empty_payload": "이 내보내기에서 TRAE 규칙을 찾지 못했습니다.",
       "unsupported_source": "이 소스는 아직 가져올 수 없습니다.",
       "windsurf_empty_payload": "이 내보내기에서 Windsurf 메모리를 찾지 못했습니다.",
-      "pasted_model_extraction_failed": "모델이 이 텍스트를 정리하지 못해 줄 단위 분석으로 대체했습니다."
+      "pasted_model_extraction_failed": "이 텍스트에는 모델 정리를 적용하지 않고 줄 단위 분석으로 대체했습니다."
     },
     "importDedupeHint": "이미 메모리에 있는 내용과 같은 항목은 가져오기할 때 병합되거나 건너뜁니다.",
     "migrationWizard": {

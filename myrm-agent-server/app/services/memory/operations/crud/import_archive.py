@@ -1037,6 +1037,12 @@ async def _apply_model_migration(
             logger.warning("OpenClaw default model migration failed (non-fatal): %s", exc)
 
 
+# Model extraction is a single LLM call, so the pasted text is only sent when it
+# fits a bounded budget; longer pastes keep the deterministic parser instead of
+# risking a failed or oversized call.
+_MODEL_EXTRACTION_MAX_CHARS = 40_000
+
+
 def _is_paste_payload(payload: dict[str, object], source: str) -> bool:
     """True when the payload is the wizard paste lane (free text, no discovery)."""
 
@@ -1066,6 +1072,9 @@ async def _with_model_extracted_paste_items(
     enriched = dict(payload)
     text = str(payload.get("text", "")).strip()
     if not text:
+        return enriched
+    if len(text) > _MODEL_EXTRACTION_MAX_CHARS:
+        enriched["_model_extraction_failed"] = True
         return enriched
 
     from langchain_core.messages import HumanMessage, SystemMessage

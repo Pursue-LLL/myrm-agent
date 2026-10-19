@@ -5697,7 +5697,7 @@
       "trae_empty_payload": "这份导出包中未找到 TRAE 规则。",
       "unsupported_source": "暂不支持导入这个来源。",
       "windsurf_empty_payload": "这份导出包中未找到 Windsurf 记忆。",
-      "pasted_model_extraction_failed": "模型未能整理这段文本，已改为按行解析。"
+      "pasted_model_extraction_failed": "这段文本未经过模型整理，已改为按行解析。"
     },
     "importDedupeHint": "与库内已有内容相同的条目会在导入时自动合并或跳过。",
     "migrationWizard": {

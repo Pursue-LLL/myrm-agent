@@ -5697,7 +5697,7 @@
       "trae_empty_payload": "No TRAE rules were found in this export.",
       "unsupported_source": "This source cannot be imported yet.",
       "windsurf_empty_payload": "No Windsurf memories were found in this export.",
-      "pasted_model_extraction_failed": "The model could not organize this text, so it was parsed line by line instead."
+      "pasted_model_extraction_failed": "Model organization was not applied to this text, so it was parsed line by line instead."
     },
     "importDedupeHint": "Entries whose content already exists in memory are merged or skipped during import.",
     "migrationWizard": {

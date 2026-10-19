@@ -5697,7 +5697,7 @@
       "trae_empty_payload": "このエクスポートに TRAE ルールが見つかりませんでした。",
       "unsupported_source": "このソースはまだインポートできません。",
       "windsurf_empty_payload": "このエクスポートに Windsurf メモリが見つかりませんでした。",
-      "pasted_model_extraction_failed": "モデルで整理できなかったため、行単位の解析に切り替えました。"
+      "pasted_model_extraction_failed": "このテキストにはモデル整理を適用せず、行単位の解析に切り替えました。"
     },
     "importDedupeHint": "すでにメモリにある内容と同じ項目は、インポート時に統合またはスキップされます。",
     "migrationWizard": {

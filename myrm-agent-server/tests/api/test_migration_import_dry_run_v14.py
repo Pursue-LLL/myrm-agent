@@ -598,6 +598,41 @@ class TestPasteModelLane:
         assert body["result"]["normalized_data"]["profile"][0]["content"] == "Prefers concise answers"
         assert body["result"]["warnings"] == []
 
+    def test_long_paste_skips_the_model_call(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _resolver(_agent_id: str | None) -> object:
+            return object()
+
+        async def _extract(*_args: object, **_kwargs: object) -> object:
+            raise AssertionError("the model must not be called for oversized pastes")
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _resolver,
+        )
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_memories_from_conversation",
+            _extract,
+        )
+
+        long_line = "## FACTS\n- Uses Postgres 17 and keeps long notes " + ("x" * 41_000)
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": long_line},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "pasted_model_extraction_failed" in body["result"]["warnings"]
+        assert body["result"]["summary"]["mapped_items"] == 1
+
     def test_falls_back_to_parsing_without_a_model(
         self,
         client: TestClient,
