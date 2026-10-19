@@ -20,9 +20,12 @@ from app.schemas.memory.archive import (
     MigrationLanePreviewItem,
     TokenEconomicsComparison,
 )
+from app.services.memory.operations.crud.import_dry_run_source import (
+    LoadedSource,
+    SideChannels,
+)
 from app.services.migration.source.source_migration_types import (
     MigrationLanePreview,
-    SourceInstructionPlan,
     build_lane_previews,
 )
 
@@ -50,38 +53,30 @@ def skipped_cron_preview(raw: dict[str, object] | None) -> list[CronMigrationSki
 
 def build_lane_rows(
     *,
-    instruction_plan: SourceInstructionPlan,
-    pending_skills_total: int,
-    pending_skills_kept: int,
-    source_has_api_keys: bool,
+    loaded: LoadedSource,
+    channels: SideChannels,
     providers_configured: bool,
-    include_episodic: bool,
-    competitor: str,
-    cron_plan_raw: dict[str, object] | None,
-    session_count: int,
-    memory_mapped: int,
-    memory_status: str,
 ) -> list[MigrationLanePreview]:
     """Coverage rows for instruction / memory / skill / key lanes plus cron and sessions."""
 
     lanes = build_lane_previews(
-        instruction=instruction_plan,
-        memory_mapped=memory_mapped,
-        memory_status=memory_status,
-        skill_count=pending_skills_total or pending_skills_kept,
-        has_api_keys=source_has_api_keys,
+        instruction=loaded.instruction_plan,
+        memory_mapped=0,
+        memory_status="pending",
+        skill_count=loaded.pending_skills_total or len(loaded.pending_skills),
+        has_api_keys=loaded.source_has_api_keys,
         providers_ready=providers_configured,
-        include_episodic=include_episodic,
+        include_episodic=loaded.migration_opts.include_episodic,
     )
-    if competitor == "hermes":
-        lanes = [*lanes, _cron_lane(cron_plan_raw)]
-    if session_count > 0:
+    if loaded.competitor == "hermes":
+        lanes = [*lanes, _cron_lane(channels.cron_plan_raw)]
+    if channels.sessions:
         lanes.append(
             MigrationLanePreview(
                 lane="session",
                 status="ready",
                 label="session_lane",
-                detail=f"{session_count} session(s) ready for resumption",
+                detail=f"{len(channels.sessions)} session(s) ready for resumption",
             ),
         )
     return lanes

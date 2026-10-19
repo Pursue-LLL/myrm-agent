@@ -4,7 +4,7 @@
 
 外部助手记忆迁移 Wizard 的步骤 UI（`MigrationWizardSection.tsx` 负责状态与接口编排，本目录只负责呈现与步骤内交互）。目录名带 `memory-` 前缀是为了与 onboarding 的 `settings/sections/system/migration-wizard/`（竞品足迹扫描抽屉）区分开。
 
-按「步骤 + 卡片」分层：步骤文件持有交互，卡片文件只吃 props 呈现；`wizardShared.ts` 收敛翻译契约与文案键表，避免各步骤各自维护一份。预览页条目较多，参考性内容（解析样例、映射表、MCP 预览、指令预览）收进 `CollapsibleSection` 折叠区并带数量徽标，决策要点（计数、覆盖矩阵、泳道、告警、备份与确认）保持常显。
+按「步骤 + 卡片」分层：步骤文件持有交互，卡片文件只吃 props 呈现；`wizardShared.ts` 收敛翻译契约与文案键表，避免各步骤各自维护一份。预览页条目较多：解析样例与指令预览默认折叠并带数量徽标，映射表、MCP 预览与 cron 跳过清单默认展开，计数、覆盖矩阵、泳道、告警、备份与确认保持常显。
 
 ## 文件清单
 

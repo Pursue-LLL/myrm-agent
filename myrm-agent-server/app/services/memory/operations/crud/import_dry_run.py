@@ -16,8 +16,6 @@ binds the review to a server-side session hash before anything is written.
 
 from __future__ import annotations
 
-import logging
-
 from app.database.connection import get_session
 from app.schemas.memory.archive import (
     MemoryImportDryRunRequest,
@@ -53,8 +51,6 @@ from app.services.migration.source.source_secrets_importer import (
     external_source_providers_configured,
 )
 
-logger = logging.getLogger(__name__)
-
 
 async def dry_run_import_memories(
     body: MemoryImportDryRunRequest,
@@ -75,7 +71,6 @@ async def dry_run_import_memories(
     instruction_total_chars = 0
     cron_skipped = []
     mcp_servers_preview: list[dict[str, object]] = []
-    include_episodic = False
 
     if body.use_model_extraction and not is_competitor and _is_paste_payload(body.payload, resolved_source):
         import_payload = await _with_model_extracted_paste_items(
@@ -93,7 +88,6 @@ async def dry_run_import_memories(
         pending_skills_total = loaded.pending_skills_total
         coverage_items = loaded.coverage_items
         mcp_servers_preview = channels.mcp_servers_preview
-        include_episodic = loaded.migration_opts.include_episodic
         session_preview = build_session_preview(channels.sessions)
         cron_skipped = skipped_cron_preview(channels.cron_plan_raw)
         instruction_total_chars = instruction_char_total(loaded.instruction_plan)
@@ -107,17 +101,9 @@ async def dry_run_import_memories(
             for item in channels.bind_candidates
         ]
         lanes = build_lane_rows(
-            instruction_plan=loaded.instruction_plan,
-            pending_skills_total=pending_skills_total,
-            pending_skills_kept=len(pending_skills),
-            source_has_api_keys=loaded.source_has_api_keys,
+            loaded=loaded,
+            channels=channels,
             providers_configured=providers_configured,
-            include_episodic=include_episodic,
-            competitor=loaded.competitor,
-            cron_plan_raw=channels.cron_plan_raw,
-            session_count=len(session_preview),
-            memory_mapped=0,
-            memory_status="pending",
         )
 
     async with get_session() as db:

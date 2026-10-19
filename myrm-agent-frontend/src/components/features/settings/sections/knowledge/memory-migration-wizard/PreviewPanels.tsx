@@ -138,7 +138,8 @@ export function MappingsPanel({ mappings, t }: { mappings: MemoryImportMappingIt
   }
 
   return (
-    <CollapsibleSection title={t('preview.mappings')} badge={mappings.length}>
+    <div className="space-y-2">
+      <h3 className="text-sm font-medium">{t('preview.mappings')}</h3>
       <div className="overflow-hidden rounded-xl border border-border/50">
         <table className="w-full text-sm">
           <thead className="bg-secondary/40">
@@ -173,7 +174,7 @@ export function MappingsPanel({ mappings, t }: { mappings: MemoryImportMappingIt
           </tbody>
         </table>
       </div>
-    </CollapsibleSection>
+    </div>
   );
 }
 
@@ -183,7 +184,10 @@ export function McpServersPanel({ servers, t }: { servers: MCPServerPreviewItem[
   }
 
   return (
-    <CollapsibleSection title={t('preview.mcpServersTitle')} badge={servers.length}>
+    <div className="space-y-2 rounded-xl border border-border/50 bg-secondary/20 p-4">
+      <h3 className="text-sm font-medium">
+        {t('preview.mcpServersTitle')} ({servers.length})
+      </h3>
       <p className="text-xs text-muted-foreground">{t('preview.mcpServersHint')}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {servers.map((server) => (
@@ -221,6 +225,6 @@ export function McpServersPanel({ servers, t }: { servers: MCPServerPreviewItem[
           </div>
         ))}
       </div>
-    </CollapsibleSection>
+    </div>
   );
 }
