@@ -13,6 +13,13 @@ import type {
 import { CollapsibleSection } from './CollapsibleSection';
 import { formatCronSkippedReason, type TranslationFn } from './wizardShared';
 
+/** Adapter statuses with user-facing copy; anything else is rendered as-is. */
+const MAPPING_STATUS_KEYS = new Set(['mapped', 'partially_mapped', 'unsupported', 'dropped']);
+
+function mappingStatusLabel(status: string, t: TranslationFn): string {
+  return MAPPING_STATUS_KEYS.has(status) ? t(`preview.mappingStatus.${status}`) : status;
+}
+
 /**
  * Reference-only blocks of the review step. They are folded by default so the
  * counts, coverage matrix and confirm button stay above the fold, while every
@@ -166,7 +173,7 @@ export function MappingsPanel({ mappings, t }: { mappings: MemoryImportMappingIt
                 <td className="px-4 py-2 text-right tabular-nums">{mapping.item_count}</td>
                 <td className="px-4 py-2">
                   <Badge variant={mapping.status === 'mapped' ? 'default' : 'secondary'} className="text-[10px]">
-                    {mapping.status}
+                    {mappingStatusLabel(mapping.status, t)}
                   </Badge>
                 </td>
               </tr>

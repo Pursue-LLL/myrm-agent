@@ -5852,7 +5852,13 @@
           "task_digest": "タスク要約",
           "integration": "インテグレーション"
         },
-        "pendingSkillsTruncated": "スキルは {total} 件中 {kept} 件のみインポートされ、残りは取り込まれません。"
+        "pendingSkillsTruncated": "スキルは {total} 件中 {kept} 件のみインポートされ、残りは取り込まれません。",
+        "mappingStatus": {
+          "mapped": "マッピング済み",
+          "partially_mapped": "一部マッピング",
+          "unsupported": "インポート不可",
+          "dropped": "スキップ"
+        }
       },
       "result": {
         "title": "インポート完了",

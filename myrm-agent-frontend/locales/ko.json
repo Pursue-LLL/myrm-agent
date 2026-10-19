@@ -5852,7 +5852,13 @@
           "task_digest": "작업 요약",
           "integration": "통합 데이터"
         },
-        "pendingSkillsTruncated": "스킬 {total}개 중 {kept}개만 가져오며 나머지는 포함되지 않습니다."
+        "pendingSkillsTruncated": "스킬 {total}개 중 {kept}개만 가져오며 나머지는 포함되지 않습니다.",
+        "mappingStatus": {
+          "mapped": "매핑됨",
+          "partially_mapped": "부분 매핑",
+          "unsupported": "가져올 수 없음",
+          "dropped": "건너뜀"
+        }
       },
       "result": {
         "title": "가져오기 완료",

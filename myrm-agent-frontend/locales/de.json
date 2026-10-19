@@ -5852,7 +5852,13 @@
           "task_digest": "Aufgabenzusammenfassungen",
           "integration": "Integrationen"
         },
-        "pendingSkillsTruncated": "Es werden nur die ersten {kept} von {total} Skills importiert; der Rest entfällt."
+        "pendingSkillsTruncated": "Es werden nur die ersten {kept} von {total} Skills importiert; der Rest entfällt.",
+        "mappingStatus": {
+          "mapped": "Zugeordnet",
+          "partially_mapped": "Teilweise zugeordnet",
+          "unsupported": "Nicht importiert",
+          "dropped": "Übersprungen"
+        }
       },
       "result": {
         "title": "Import abgeschlossen",

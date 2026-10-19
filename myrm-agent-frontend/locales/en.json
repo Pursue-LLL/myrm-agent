@@ -5852,7 +5852,13 @@
           "task_digest": "Task summaries",
           "integration": "Integrations"
         },
-        "pendingSkillsTruncated": "Only the first {kept} of {total} skills are imported; the rest are left out."
+        "pendingSkillsTruncated": "Only the first {kept} of {total} skills are imported; the rest are left out.",
+        "mappingStatus": {
+          "mapped": "Mapped",
+          "partially_mapped": "Partially mapped",
+          "unsupported": "Not imported",
+          "dropped": "Skipped"
+        }
       },
       "result": {
         "title": "Import Complete",

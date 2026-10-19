@@ -5852,7 +5852,13 @@
           "task_digest": "任务摘要",
           "integration": "集成数据"
         },
-        "pendingSkillsTruncated": "本次仅导入前 {kept} 个技能（共 {total} 个），其余未纳入。"
+        "pendingSkillsTruncated": "本次仅导入前 {kept} 个技能（共 {total} 个），其余未纳入。",
+        "mappingStatus": {
+          "mapped": "已映射",
+          "partially_mapped": "部分映射",
+          "unsupported": "无法导入",
+          "dropped": "已跳过"
+        }
       },
       "result": {
         "title": "导入完成",

@@ -192,6 +192,80 @@ describe('migration wizard preview copy', () => {
     ).toBeInTheDocument();
   });
 
+  it('localizes mapping statuses instead of exposing adapter codes', () => {
+    const withMappings: MemoryImportDryRunResponse = {
+      ...dryRun,
+      result: {
+        ...dryRun.result,
+        mappings: [
+          {
+            source_bucket: 'MEMORY.md',
+            target_bucket: 'semantic',
+            status: 'mapped',
+            item_count: 2,
+            imported_count: 2,
+            unmapped_count: 0,
+            reason: '',
+          },
+          {
+            source_bucket: 'SOUL.md',
+            target_bucket: 'profile',
+            status: 'partially_mapped',
+            item_count: 2,
+            imported_count: 1,
+            unmapped_count: 1,
+            reason: '',
+          },
+          {
+            source_bucket: 'skills',
+            target_bucket: null,
+            status: 'unsupported',
+            item_count: 1,
+            imported_count: 0,
+            unmapped_count: 1,
+            reason: '',
+          },
+          {
+            source_bucket: 'cron',
+            target_bucket: null,
+            status: 'dropped',
+            item_count: 1,
+            imported_count: 0,
+            unmapped_count: 1,
+            reason: '',
+          },
+        ],
+      },
+    };
+
+    render(
+      <PreviewStep
+        source={{
+          competitor: 'pasted',
+          root: '',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 2,
+          skill_count: 0,
+          has_api_keys: false,
+        }}
+        dryRun={withMappings}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    expect(screen.getByText('Mapped')).toBeInTheDocument();
+    expect(screen.getByText('Partially mapped')).toBeInTheDocument();
+    expect(screen.getByText('Not imported')).toBeInTheDocument();
+    expect(screen.getByText('Skipped')).toBeInTheDocument();
+    expect(screen.queryByText('partially_mapped')).toBeNull();
+  });
+
   it('says how many skills the import leaves out when the source exceeds the review cap', () => {
     render(
       <PreviewStep
