@@ -65,10 +65,9 @@ export function PreviewStep({
   const previewBuckets = Object.entries(result.normalized_data ?? {}).filter(
     ([, entries]) => Array.isArray(entries) && entries.length > 0,
   );
-  const sessionCount = dryRun.session_preview?.length ?? 0;
   const lanes = (dryRun.migration_lanes ?? []).map((lane) =>
     lane.lane === 'session' && !importSessions
-      ? { ...lane, status: 'manual', detail_parts: [{ code: 'session_skipped', params: { count: sessionCount } }] }
+      ? { ...lane, status: 'manual', detail_parts: [{ code: 'session_skipped', params: {} }] }
       : lane,
   );
 

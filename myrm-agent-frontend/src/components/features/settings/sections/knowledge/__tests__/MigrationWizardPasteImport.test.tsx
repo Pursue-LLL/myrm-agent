@@ -18,7 +18,10 @@ const en = (await import('../../../../../../../locales/en.json')).default;
 
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 
+import { useTranslations } from 'next-intl';
+
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
+import { LANE_DETAIL_CODES } from '../memory-migration-wizard/PreviewCards';
 import { PreviewStep } from '../memory-migration-wizard/PreviewStep';
 import { ScanStep } from '../memory-migration-wizard/ScanStep';
 import type { TranslationFn } from '../memory-migration-wizard/wizardShared';
@@ -93,6 +96,11 @@ const dryRun: MemoryImportDryRunResponse = {
   coverage_items: [],
   migration_lanes: [],
 };
+
+function RealIntlPreviewStep(props: Omit<Parameters<typeof PreviewStep>[0], 't'>) {
+  const t = useTranslations('memory.migrationWizard');
+  return <PreviewStep {...props} t={t} />;
+}
 
 describe('migration wizard paste lane', () => {
   afterEach(cleanup);
@@ -270,6 +278,13 @@ describe('migration wizard preview copy', () => {
     expect(screen.queryByText('partially_mapped')).toBeNull();
   });
 
+  it('has copy for every lane fragment code the wizard knows', () => {
+    const laneDetailCopy = en.memory.migrationWizard.preview.laneDetail as unknown as Record<string, string>;
+    const missing = LANE_DETAIL_CODES.filter((code) => !(code in laneDetailCopy));
+
+    expect(missing).toEqual([]);
+  });
+
   it('renders lane details from localized parts instead of the raw detail line', () => {
     const withLanes: MemoryImportDryRunResponse = {
       ...dryRun,
@@ -312,6 +327,53 @@ describe('migration wizard preview copy', () => {
 
     expect(screen.getByText('120 chars of persona · 9000 chars total, above the recommended size')).toBeInTheDocument();
     expect(screen.queryByText('agent persona (120 chars), 9000 chars total (large)')).toBeNull();
+  });
+
+  it('renders plural lane fragments through the real translator', () => {
+    const withPluralLanes: MemoryImportDryRunResponse = {
+      ...dryRun,
+      migration_lanes: [
+        {
+          lane: 'memory',
+          status: 'ready',
+          label: 'memory_lane',
+          detail: '1 mapped item(s)',
+          detail_parts: [{ code: 'memory_mapped', params: { count: 1 } }],
+        },
+        {
+          lane: 'cron',
+          status: 'ready',
+          label: 'cron_lane',
+          detail: '2 scheduled task(s) will import paused; 1 skipped',
+          detail_parts: [{ code: 'cron_importable', params: { importable: 2, skipped: 1 } }],
+        },
+      ],
+    };
+
+    render(
+      <RealIntlPreviewStep
+        source={{
+          competitor: 'hermes',
+          root: '/home/user/.hermes',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 1,
+          skill_count: 0,
+          has_api_keys: false,
+        }}
+        dryRun={withPluralLanes}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('1 mapped item')).toBeInTheDocument();
+    expect(screen.getByText('2 scheduled tasks will import paused · 1 skipped')).toBeInTheDocument();
   });
 
   it('falls back to the raw detail line when no fragment is known', () => {

@@ -13,8 +13,11 @@ import type {
 
 import { COVERAGE_LABEL_KEYS, type TranslationFn } from './wizardShared';
 
-/** Lane detail fragments with localized copy; unknown codes fall back to the raw detail line. */
-const LANE_DETAIL_CODES = new Set([
+/**
+ * Lane detail fragment codes the wizard localizes; a code outside this list
+ * falls back to the server's raw detail line.
+ */
+export const LANE_DETAIL_CODES = [
   'instruction_persona',
   'instruction_global',
   'instruction_rules',
@@ -32,10 +35,12 @@ const LANE_DETAIL_CODES = new Set([
   'cron_none',
   'session_ready',
   'session_skipped',
-]);
+] as const;
+
+const LOCALIZED_LANE_DETAIL_CODES = new Set<string>(LANE_DETAIL_CODES);
 
 function laneDetailText(lane: MigrationLanePreviewItem, t: TranslationFn): string {
-  const parts = (lane.detail_parts ?? []).filter((part) => LANE_DETAIL_CODES.has(part.code));
+  const parts = (lane.detail_parts ?? []).filter((part) => LOCALIZED_LANE_DETAIL_CODES.has(part.code));
   if (parts.length === 0) {
     return lane.detail;
   }
