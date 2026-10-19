@@ -314,6 +314,46 @@ describe('migration wizard preview copy', () => {
     expect(screen.queryByText('agent persona (120 chars), 9000 chars total (large)')).toBeNull();
   });
 
+  it('falls back to the raw detail line when no fragment is known', () => {
+    const withUnknownPart: MemoryImportDryRunResponse = {
+      ...dryRun,
+      migration_lanes: [
+        {
+          lane: 'instruction',
+          status: 'ready',
+          label: 'instruction_lane',
+          detail: 'future lane summary from a newer server',
+          detail_parts: [{ code: 'instruction_future', params: { count: 1 } }],
+        },
+      ],
+    };
+
+    render(
+      <PreviewStep
+        source={{
+          competitor: 'pasted',
+          root: '',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 2,
+          skill_count: 0,
+          has_api_keys: false,
+        }}
+        dryRun={withUnknownPart}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    expect(screen.getByText('future lane summary from a newer server')).toBeInTheDocument();
+  });
+
   it('lets the user skip imported chats and hides their preview when off', () => {
     const onImportSessionsChange = vi.fn();
     const withSessions: MemoryImportDryRunResponse = {
