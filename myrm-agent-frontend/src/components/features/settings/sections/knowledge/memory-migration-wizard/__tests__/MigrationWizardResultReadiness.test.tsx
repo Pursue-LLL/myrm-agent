@@ -2,9 +2,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PreviewStep } from '../memory-migration-wizard/PreviewStep';
-import { ResultStep } from '../memory-migration-wizard/ResultStep';
-import type { TranslationFn } from '../memory-migration-wizard/wizardShared';
+import { PreviewStep } from '../PreviewStep';
+import { ResultStep } from '../ResultStep';
+import type { TranslationFn } from '../wizardShared';
 import useChatStore from '@/store/useChatStore';
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
 

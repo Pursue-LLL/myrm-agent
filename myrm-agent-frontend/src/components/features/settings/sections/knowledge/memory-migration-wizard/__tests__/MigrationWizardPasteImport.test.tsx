@@ -14,18 +14,18 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const en = (await import('../../../../../../../locales/en.json')).default;
+const en = (await import('../../../../../../../../locales/en.json')).default;
 
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 
 import { useTranslations } from 'next-intl';
 
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
-import { LANE_DETAIL_CODES } from '../memory-migration-wizard/PreviewCards';
-import { MAPPING_STATUS_CODES } from '../memory-migration-wizard/PreviewPanels';
-import { PreviewStep } from '../memory-migration-wizard/PreviewStep';
-import { ScanStep } from '../memory-migration-wizard/ScanStep';
-import { COVERAGE_LABEL_KEYS, type TranslationFn } from '../memory-migration-wizard/wizardShared';
+import { LANE_DETAIL_CODES } from '../PreviewCards';
+import { MAPPING_STATUS_CODES } from '../PreviewPanels';
+import { PreviewStep } from '../PreviewStep';
+import { ScanStep } from '../ScanStep';
+import { COVERAGE_LABEL_KEYS, type TranslationFn } from '../wizardShared';
 
 const wizardMessages = en.memory.migrationWizard as unknown as Record<string, unknown>;
 
