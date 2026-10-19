@@ -667,7 +667,9 @@ _NARROW_AUDIT_JS = """(() => {
   return {
     ready: true,
     cardWidth: Math.round(cardRect.width),
-    overflowsX: card.scrollWidth > Math.round(cardRect.width) + 1,
+    // The message body may hold a wide code block with its own scroll; judge our own surfaces.
+    badgeOverflows: badge.scrollWidth > badge.clientWidth + 1,
+    noticeOverflows: notice.scrollWidth > notice.clientWidth + 1,
     badge: audit(badge),
     notice: audit(notice),
     noticeText: (notice.textContent || '').trim().slice(0, 160),
@@ -716,7 +718,8 @@ def test_disclosure_surfaces_fit_a_narrow_card_chrome_e2e() -> None:
         audit = client.evaluate(page, _NARROW_AUDIT_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
         audit = audit if isinstance(audit, dict) else {}
         assert audit.get("ready") is True, audit
-        assert audit.get("overflowsX") is False, audit
+        assert audit.get("badgeOverflows") is False, audit
+        assert audit.get("noticeOverflows") is False, audit
         badge = audit.get("badge")
         notice = audit.get("notice")
         assert isinstance(badge, dict) and badge.get("inside") is True, badge
