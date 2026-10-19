@@ -11810,7 +11810,10 @@
       "sampled": "Stichprobe",
       "sampledTitle": "Dieser Lauf verwendete eine zufällige Stichprobe der Benchmark-Aufgaben (reproduzierbar)",
       "abortedBadge": "abgebrochen",
-      "historyActions": "Aktionen"
+      "historyActions": "Aktionen",
+      "alreadyRunning": "Eine Auswertung läuft bereits",
+      "evalStartFailed": "Auswertung konnte nicht gestartet werden",
+      "abortSent": "Abbruch angefordert"
     },
     "skillAb": {
       "title": "Skill-A/B-Evaluierungsprotokoll",

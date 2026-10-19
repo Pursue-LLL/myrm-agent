@@ -11810,7 +11810,10 @@
       "sampled": "抽样",
       "sampledTitle": "本次运行随机抽取了基准任务的一部分（结果可复现）",
       "abortedBadge": "已中止",
-      "historyActions": "操作"
+      "historyActions": "操作",
+      "alreadyRunning": "已有评测正在运行",
+      "evalStartFailed": "评测启动失败",
+      "abortSent": "已发送停止请求"
     },
     "skillAb": {
       "title": "技能 A/B 评测工坊 (Skill A/B Protocol)",

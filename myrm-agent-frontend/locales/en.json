@@ -11810,7 +11810,10 @@
       "sampled": "sampled",
       "sampledTitle": "This run used a random sample of the benchmark tasks (reproducible)",
       "abortedBadge": "aborted",
-      "historyActions": "Actions"
+      "historyActions": "Actions",
+      "alreadyRunning": "An evaluation is already running",
+      "evalStartFailed": "Failed to start the evaluation",
+      "abortSent": "Abort request sent"
     },
     "skillAb": {
       "title": "Skill A/B Evaluation Protocol",

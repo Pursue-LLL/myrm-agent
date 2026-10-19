@@ -11810,7 +11810,10 @@
       "sampled": "サンプル",
       "sampledTitle": "この実行ではベンチマークタスクをランダムに抽出しました（再現可能）",
       "abortedBadge": "中止",
-      "historyActions": "操作"
+      "historyActions": "操作",
+      "alreadyRunning": "評価は既に実行中です",
+      "evalStartFailed": "評価の開始に失敗しました",
+      "abortSent": "中止リクエストを送信しました"
     },
     "skillAb": {
       "title": "スキル A/B 評価プロトコル",
