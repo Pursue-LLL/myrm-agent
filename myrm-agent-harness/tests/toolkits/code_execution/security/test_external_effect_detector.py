@@ -2,7 +2,9 @@
 
 import pytest
 
-from myrm_agent_harness.agent.file_snapshot.external_effect_detector import detect_external_effects
+from myrm_agent_harness.toolkits.code_execution.security.external_effect_detector import (
+    detect_external_effects,
+)
 
 
 class TestDetectExternalEffects:
