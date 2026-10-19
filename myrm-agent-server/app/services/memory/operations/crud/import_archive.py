@@ -1067,7 +1067,7 @@ async def _with_model_extracted_paste_items(
     from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
         resolve_import_extraction_llm,
     )
-    from app.services.memory.imports.import_pasted import MODEL_BUCKETS
+    from app.services.memory.imports.import_pasted_model import MODEL_BUCKETS
 
     enriched = dict(payload)
     text = str(payload.get("text", "")).strip()

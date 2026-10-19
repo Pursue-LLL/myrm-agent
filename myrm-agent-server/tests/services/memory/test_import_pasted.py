@@ -6,8 +6,8 @@ from app.services.memory.imports.import_pasted import (
     MAX_PASTED_ENTRIES,
     MAX_PASTED_TEXT_CHARS,
     dry_run_pasted_memory,
-    dry_run_pasted_model_items,
 )
+from app.services.memory.imports.import_pasted_model import dry_run_pasted_model_items
 
 _PROMPT_SHAPED_TEXT = """Here is the export you asked for:
 

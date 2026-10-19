@@ -9,12 +9,14 @@ headings ``## RULES`` / ``## PROFILE`` / ``## FACTS`` / ``## PREFERENCES``.
 [OUTPUT]
 MemoryImportDryRunResult mapping parsed entries into procedural / profile /
 semantic buckets; dates are lifted out of the entry text into the timestamp.
+refusal_result(): explicit zero-item refusal with a user-readable reason.
 
 [POS]
-Deterministic competitor import adapter for sources that have no export package.
-No LLM calls: the export prompt is the schema, secrets are scrubbed before
-parsing, oversized input is refused explicitly, and unparseable input never
-silently imports nothing.
+Deterministic lane of the paste import (sources without an export package). No
+LLM calls: the export prompt is the schema, secrets are scrubbed before parsing,
+oversized input is refused explicitly, and unparseable input never silently
+imports nothing. The optional model-assisted lane lives in import_pasted_model.py
+and reuses the vocabulary helpers defined here.
 """
 
 from __future__ import annotations
@@ -156,141 +158,29 @@ class _ParsedEntry(NamedTuple):
     dated: str | None
 
 
-# Buckets the model-assisted lane can fill, mirroring the deterministic lane.
-MODEL_BUCKETS = (
-    BUCKET_PROFILE,
-    BUCKET_PROCEDURAL,
-    BUCKET_SEMANTIC,
-    "episodic",
-)
-
-
-def dry_run_pasted_model_items(
-    items: list[object],
-    *,
-    extraction_failed: bool = False,
-) -> MemoryImportDryRunResult:
-    """Build a paste-lane result from model-extracted items."""
-
-    normalized: dict[str, list[dict[str, object]]] = {}
-    for raw in items:
-        if not isinstance(raw, dict):
-            continue
-        content = str(raw.get("content", "")).strip()
-        if not content:
-            continue
-        bucket = str(raw.get("bucket", BUCKET_SEMANTIC)).strip()
-        if bucket not in MODEL_BUCKETS:
-            bucket = BUCKET_SEMANTIC
-        normalized.setdefault(bucket, []).append(_model_item(raw, content=content, bucket=bucket))
-
-    if not normalized:
-        return _refusal(
-            WARNING_PASTED_EMPTY,
-            "The model could not find any memories in the pasted text.",
-        )
-
-    mappings: list[MemoryImportMappingItem] = []
-    mapped_items = 0
-    for bucket in MODEL_BUCKETS:
-        bucket_items = normalized.get(bucket, [])
-        if not bucket_items:
-            continue
-        mapped_items += len(bucket_items)
-        mappings.append(
-            MemoryImportMappingItem(
-                source_bucket="model_extracted_entries",
-                target_bucket=bucket,
-                status="mapped",
-                item_count=len(bucket_items),
-                imported_count=len(bucket_items),
-            ),
-        )
-
-    result = build_result(
-        source="pasted_memory",
-        version="1",
-        normalized=normalized,
-        mappings=mappings,
-        mapped_items=mapped_items,
-        unmapped_items=0,
-        warnings=[WARNING_PASTED_MODEL_FALLBACK] if extraction_failed else [],
-    )
-    return result
-
-
-def _model_item(raw: dict[str, object], *, content: str, bucket: str) -> dict[str, object]:
-    """Shape one extracted memory into the native bucket item."""
-
-    metadata = build_metadata(
-        "pasted_memory",
-        {"extraction": "model"},
-        ("extraction",),
-    )
-    item: dict[str, object] = {
-        "content": content,
-        "created_at": iso_or_now(None),
-        "metadata": metadata,
-    }
-    if bucket == BUCKET_PROFILE:
-        profile_key = str(raw.get("profile_key", "")).strip()
-        if profile_key:
-            item["key"] = profile_key
-        item["value"] = str(raw.get("profile_value", "")).strip() or content
-        item["importance"] = 0.75
-        item["confidence"] = 0.8
-        item["tags"] = ["pasted_memory", "profile"]
-        return item
-    if bucket == BUCKET_PROCEDURAL:
-        trigger = str(raw.get("trigger", "")).strip()
-        item["priority"] = 5
-        item["trigger_keywords"] = [trigger] if trigger else ["pasted_memory"]
-        item["tags"] = ["pasted_memory", "rule"]
-        return item
-    item["importance"] = _bounded_float(raw.get("importance"), default=0.7)
-    item["confidence"] = _bounded_float(raw.get("confidence"), default=0.75)
-    item["tags"] = ["pasted_memory"]
-    return item
-
-
-def _bounded_float(value: object, *, default: float) -> float:
-    try:
-        number = float(str(value))
-    except (TypeError, ValueError):
-        return default
-    return min(1.0, max(0.0, number))
-
-
 def dry_run_pasted_memory(payload: dict[str, object]) -> MemoryImportDryRunResult:
     """Parse pasted assistant output into memory buckets without persisting."""
-
-    model_items = payload.get("_model_items")
-    if isinstance(model_items, list) and model_items:
-        return dry_run_pasted_model_items(
-            model_items,
-            extraction_failed=bool(payload.get("_model_extraction_failed")),
-        )
 
     raw_text = payload.get("text")
     if not isinstance(raw_text, str) or not raw_text.strip():
         raw_text = payload.get("payload")
     if not isinstance(raw_text, str) or not raw_text.strip():
-        return _refusal(WARNING_PASTED_EMPTY, "No pasted text found in the payload.")
+        return refusal_result(WARNING_PASTED_EMPTY, "No pasted text found in the payload.")
 
     if len(raw_text) > MAX_PASTED_TEXT_CHARS:
-        return _refusal(
+        return refusal_result(
             WARNING_PASTED_TEXT_TOO_LARGE,
             f"The pasted text exceeds the {MAX_PASTED_TEXT_CHARS // 1_000_000} MB limit; split the export into several pastes.",
         )
 
     entries, duplicate_count = _parse_entries(scrub_sensitive_data(raw_text))
     if not entries:
-        return _refusal(
+        return refusal_result(
             WARNING_PASTED_EMPTY,
             "No memory entries were recognized. Use the export prompt and paste the code block it produces.",
         )
     if len(entries) > MAX_PASTED_ENTRIES:
-        return _refusal(
+        return refusal_result(
             WARNING_PASTED_ENTRIES_OVER_LIMIT,
             f"The pasted text contains {len(entries)} entries, over the {MAX_PASTED_ENTRIES} limit; "
             "split the export into several pastes.",
@@ -339,7 +229,7 @@ def dry_run_pasted_memory(payload: dict[str, object]) -> MemoryImportDryRunResul
     )
 
 
-def _refusal(warning_code: str, reason: str) -> MemoryImportDryRunResult:
+def refusal_result(warning_code: str, reason: str) -> MemoryImportDryRunResult:
     """Return an explicit zero-item refusal with a user-readable reason."""
 
     return build_result(

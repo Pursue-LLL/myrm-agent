@@ -26,7 +26,8 @@
 | `import_myrm_archive.py` | 辅助 | Myrm Archive 导入解析器。处理 Myrm Memory Archive 的 memory section | ✅ |
 | `import_native_json.py` | 辅助 | Native JSON 导入解析器。处理原生 JSON 格式导入映射 | ✅ |
 | `import_openclaw.py` | 辅助 | OpenClaw 竞品导入解析器。解析 OpenClaw sessions 和 memory entries | ✅ |
-| `import_pasted.py` | 辅助 | 粘贴导入解析器（无导出包来源的唯一通道）。确定性解析 `[YYYY-MM-DD] - 内容` 行与分类标题到 procedural/profile/semantic 三桶，日期写入时间戳，超限显式拒绝，入库前清洗密钥；模型辅助通道消费 `_model_items`（agent 模型抽取结果，四桶映射、profile 保留 key/value），模型不可用或失败时回落确定性解析并附 `pasted_model_extraction_failed` 警示 | ✅ |
+| `import_pasted.py` | 辅助 | 粘贴导入确定性车道（无导出包来源的唯一通道）。解析 `[YYYY-MM-DD] - 内容` 行与分类标题到 procedural/profile/semantic 三桶，日期写入时间戳，超限显式拒绝，入库前清洗密钥；对外暴露 `refusal_result` 供模型车道复用 | ✅ |
+| `import_pasted_model.py` | 辅助 | 粘贴导入模型车道：把 agent 模型抽取出的条目（`_model_items`）映射到 profile/procedural/semantic/episodic 四桶（profile 保留 key/value、procedural 保留 trigger），模型未配置、文本超预算或抽取失败时由调用方回落确定性解析并附 `pasted_model_extraction_failed` 警示 | ✅ |
 | `import_plur.py` | 辅助 | PLUR 竞品导入解析器。按 Open Engram Standard v1 解析 `engrams.yaml`（statement/type/status/scope/domain），active 之外的状态按理由跳过，时间戳不臆造 | ✅ |
 | `import_trae.py` | 辅助 | TRAE 竞品导入解析器。解析 TRAE project/user rules 与 settings，映射到 procedural 与 profile 记忆分桶（Memory Center 手动导入层） | ✅ |
 | `import_windsurf.py` | 辅助 | Windsurf 竞品导入解析器。解析 Windsurf cascade memories 与 settings，映射到 semantic 与 profile 记忆分桶（Memory Center 手动导入层） | ✅ |

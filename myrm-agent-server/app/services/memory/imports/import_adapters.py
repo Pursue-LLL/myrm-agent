@@ -50,6 +50,7 @@ from app.services.memory.imports.import_myrm_archive import (
 from app.services.memory.imports.import_native_json import dry_run_native_json
 from app.services.memory.imports.import_openclaw import dry_run_openclaw
 from app.services.memory.imports.import_pasted import dry_run_pasted_memory
+from app.services.memory.imports.import_pasted_model import dry_run_pasted_model_items
 from app.services.memory.imports.import_plur import dry_run_plur, is_plur_payload
 from app.services.memory.imports.import_trae import dry_run_trae
 from app.services.memory.imports.import_windsurf import dry_run_windsurf
@@ -142,6 +143,12 @@ def build_memory_import_dry_run(
     if detected == "trae":
         return dry_run_trae(resolved_payload)
     if detected == "pasted_memory":
+        model_items = resolved_payload.get("_model_items")
+        if isinstance(model_items, list) and model_items:
+            return dry_run_pasted_model_items(
+                model_items,
+                extraction_failed=bool(resolved_payload.get("_model_extraction_failed")),
+            )
         return dry_run_pasted_memory(resolved_payload)
     if _is_pi_payload(resolved_payload):
         return _dry_run_pi(resolved_payload)
