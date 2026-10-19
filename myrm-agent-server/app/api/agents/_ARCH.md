@@ -22,8 +22,8 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `suggestions.py` | 模块 | Generate follow-up question suggestions using the filter model. | ✅ |
 | `fleet_overview.py` | 模块 | Agent Fleet Overview — 按 agent_id 聚合月度 Token/Cost、Cron 数、待审批数（goal 审批 + kanban IN_REVIEW 按 agent 分组）、实时运行状态的 KPI 端点，供 /agents 页面 Fleet 视图使用。零新表，纯读聚合。 | ✅ |
 | `fleet_telemetry.py` | 路由 | 分布式机队六态健康遥测与配额诊断 API 端点：提供 `POST /fleet/diagnose`（五级渐进自省探针排障）与 `GET /fleet/health-summary`（六态分布概览）。 | ✅ |
-| `templates.py` | 模块 | Agent template catalog and factory. |
-| `personality/` | 子包 | 通信风格目录（只读）：`GET /agents/personalities` 返回 17 个预置风格的中英双语名称/描述/示例回复、GUI 图标标识与分类。目录本体在 `ai_agents/personality_templates.py`，本子包只做序列化，前端不再维护第二份风格清单。 | ✅ | ✅ |
+| `templates.py` | 模块 | Agent template catalog and factory. | ✅ |
+| `personality/` | 子包 | 通信风格目录（只读）：`GET /agents/personalities` 返回 17 个预置风格的中英双语名称/描述/示例回复、GUI 图标标识与分类。目录本体在 `ai_agents/personality_templates.py`，本子包只做序列化，前端不再维护第二份风格清单。 | ✅ |
 | `profile_audit.py` | 模块 | Agent Profile security audit: POST /{agent_id}/audit — deterministic risk scoring via harness profile_audit engine. | ✅ |
 | `readiness.py` | 模块 | Per-agent readiness dry-run: GET /{agent_id}/readiness + POST /{agent_id}/readiness/invalidate — 6-dimension config readiness check. | ✅ |
 | `governance.py` | 模块 | Responsibility-unit governance: GET /governance/overview（孤儿/重叠只读巡检，零 LLM）+ POST /governance/merge/dry-run + POST /governance/merge/execute（快照→并配置→重绑定时/渠道→删来源复用级联）。 | ✅ |

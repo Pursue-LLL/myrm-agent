@@ -489,7 +489,7 @@ class VoiceAgentBridge:
         enabled_builtin_tools = list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
         memory_context = voice_memory_context_from(memory_settings, enabled_builtin_tools)
 
-        return GeneralAgentParams(
+        params = GeneralAgentParams(
             query=query + transcript_ctx,
             model_cfg=agent_model_cfg,
             fallback_model_cfg=fallback_model_cfg,
@@ -528,6 +528,18 @@ class VoiceAgentBridge:
             providers_dict=configs.providers_dict,
             **privacy_agent_params(memory_settings),
         )
+
+        from app.ai_agents.event_log_injector import (
+            inject_event_log_config,
+            sanitize_channel_event_log_session_id,
+        )
+
+        voice_event_log_sid = sanitize_channel_event_log_session_id(
+            chat_id,
+            default_prefix="voice",
+        )
+        inject_event_log_config(params, session_id_override=voice_event_log_sid)
+        return params
 
     # ── Agent stream consumption ──────────────────────────────────────
 
