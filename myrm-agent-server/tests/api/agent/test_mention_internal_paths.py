@@ -561,6 +561,28 @@ async def test_stored_file_part_reports_a_vanished_upload(monkeypatch: pytest.Mo
     assert consumed == 0
 
 
+def test_workspace_file_part_reports_a_read_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    path = tmp_path / "note.txt"
+    path.write_text("hi", encoding="utf-8")
+
+    def _raise(file_path: str, start_line: int | None, end_line: int | None) -> str:
+        raise OSError("read boom")
+
+    monkeypatch.setattr(mention, "_read_file_lines", _raise)
+
+    part, consumed = mention._workspace_file_part(str(path), "note.txt", None, None, 0)
+
+    assert 'error="read failed"' in part
+    assert consumed == 0
+
+
+@pytest.mark.asyncio
+async def test_load_prior_chat_document_returns_none_without_a_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.database.repositories.uow.UnitOfWork", _NoSessionUow)
+
+    assert await mention._load_prior_chat_document("chat-1") is None
+
+
 @pytest.mark.asyncio
 async def test_folder_tree_truncates_inside_the_directory_walk(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "one").mkdir()
