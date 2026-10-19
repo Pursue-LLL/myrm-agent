@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ArrowLeft, Download, Loader2, ShieldAlert } from 'lucide-react';
 
@@ -35,6 +35,8 @@ export function PreviewStep({
   importing,
   importSecrets,
   onImportSecretsChange,
+  importSessions,
+  onImportSessionsChange,
   onConfirm,
   onBack,
   t,
@@ -44,6 +46,8 @@ export function PreviewStep({
   importing: boolean;
   importSecrets: boolean;
   onImportSecretsChange: (value: boolean) => void;
+  importSessions: boolean;
+  onImportSessionsChange: (value: boolean) => void;
   onConfirm: () => void;
   onBack: () => void;
   t: TranslationFn;
@@ -51,6 +55,7 @@ export function PreviewStep({
   const { result } = dryRun;
   const { summary, mappings, warnings } = result;
   const tMemory = useTranslations('memory');
+  const locale = useLocale();
   const [exportingBackup, setExportingBackup] = useState(false);
   const [trustedSourceConfirmed, setTrustedSourceConfirmed] = useState(false);
 
@@ -98,7 +103,28 @@ export function PreviewStep({
 
       <PreviewItemsPanel buckets={previewBuckets} t={t} />
 
-      <SessionPreviewCard sessions={dryRun.session_preview ?? []} t={t} />
+      {(dryRun.session_preview?.length ?? 0) > 0 && (
+        <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border/50 bg-secondary/20 px-4 py-3 text-xs">
+          <input
+            type="checkbox"
+            data-testid="migration-import-sessions"
+            className="mt-0.5 rounded border-border"
+            checked={importSessions}
+            onChange={(event) => onImportSessionsChange(event.target.checked)}
+            disabled={importing}
+          />
+          <span className="min-w-0">
+            <span className="block font-medium text-foreground">
+              {t('preview.importSessionsLabel', { count: dryRun.session_preview?.length ?? 0 })}
+            </span>
+            <span className="mt-0.5 block leading-relaxed text-muted-foreground">
+              {t('preview.importSessionsHint')}
+            </span>
+          </span>
+        </label>
+      )}
+
+      {importSessions && <SessionPreviewCard sessions={dryRun.session_preview ?? []} t={t} />}
 
       {source.competitor === 'hermes' && <HermesArchitectureMappingCard t={t} />}
 
@@ -156,10 +182,10 @@ export function PreviewStep({
 
       <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground/50">
         <span>
-          {t('preview.dryRunId')}: {dryRun.dry_run_id}
-        </span>
-        <span>
-          {t('preview.expiresAt')}: {new Date(dryRun.expires_at).toLocaleString()}
+          {t('preview.expiresAt')}:{' '}
+          {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+            new Date(dryRun.expires_at),
+          )}
         </span>
       </div>
 

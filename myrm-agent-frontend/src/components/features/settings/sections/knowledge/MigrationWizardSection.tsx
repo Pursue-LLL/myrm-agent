@@ -76,6 +76,7 @@ const MigrationWizardSection = memo(
     const [previewing, setPreviewing] = useState(false);
     const [dryRunResult, setDryRunResult] = useState<MemoryImportDryRunResponse | null>(null);
     const [importSecrets, setImportSecrets] = useState(false);
+    const [importSessions, setImportSessions] = useState(true);
     const [includeEpisodic, setIncludeEpisodic] = useState(false);
     const [targetAgentId, setTargetAgentId] = useState<string | null>(null);
 
@@ -280,7 +281,7 @@ const MigrationWizardSection = memo(
       setSkillSubmitFailed(false);
       setSecretsImportMessage(null);
       try {
-        const result = await confirmImportMemories(dryRunResult.dry_run_id);
+        const result = await confirmImportMemories(dryRunResult.dry_run_id, true, importSessions);
         setImportResult(result);
         persistWorkspaceBindCandidates(result.workspace_bind_candidates ?? workspaceBindCandidates);
 
@@ -322,6 +323,7 @@ const MigrationWizardSection = memo(
     }, [
       dryRunResult,
       importSecrets,
+      importSessions,
       onMigrationComplete,
       persistWorkspaceBindCandidates,
       selectedSource,
@@ -427,6 +429,8 @@ const MigrationWizardSection = memo(
             importing={importing}
             importSecrets={importSecrets}
             onImportSecretsChange={setImportSecrets}
+            importSessions={importSessions}
+            onImportSessionsChange={setImportSessions}
             onConfirm={handleConfirmImport}
             onBack={handleBackToScan}
             t={t}

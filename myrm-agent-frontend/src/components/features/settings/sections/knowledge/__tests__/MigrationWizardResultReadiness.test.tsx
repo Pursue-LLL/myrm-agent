@@ -413,6 +413,8 @@ describe('PreviewStep trusted source disclosure gate', () => {
         importing={false}
         importSecrets={false}
         onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
         onConfirm={onConfirm}
         onBack={vi.fn()}
         t={t}
@@ -460,6 +462,8 @@ describe('PreviewStep trusted source disclosure gate', () => {
         importing={false}
         importSecrets={false}
         onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
         onConfirm={onConfirm}
         onBack={vi.fn()}
         t={t}

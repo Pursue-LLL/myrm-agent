@@ -5812,7 +5812,6 @@
         "trustedSourceTitle": "Sicherheitshinweis zu externen Erweiterungen und Fähigkeiten",
         "trustedSourceDesc": "Externe Erweiterungen oder Fähigkeiten zum Importieren erkannt. Fähigkeiten verfügen über Werkzeugausführungsfunktionen; bösartige Erweiterungen könnten Systembefehle über Prompt-Injektionen ausführen. Im lokalen/Desktop-Modus laufen Werkzeuge mit Ihren Betriebssystemrechten; der Cloud-Modus isoliert sie in Sandbox-Containern.",
         "trustedSourceConfirmLabel": "Ich bestätige, dass externe Fähigkeiten über Befehlsausführungsfunktionen verfügen, und bestätige diese Quelle als vertrauenswürdig",
-        "dryRunId": "Rezensions-ID",
         "expiresAt": "Läuft ab um",
         "mappings": "Mapping-Details",
         "tableSource": "Quelle",
@@ -5858,7 +5857,27 @@
           "partially_mapped": "Teilweise zugeordnet",
           "unsupported": "Nicht importiert",
           "dropped": "Übersprungen"
-        }
+        },
+        "laneDetail": {
+          "instruction_persona": "{chars} Zeichen Persona",
+          "instruction_global": "{chars} Zeichen globale Anweisungen",
+          "instruction_rules": "{count, plural, one {# Regeldatei} other {# Regeldateien}}",
+          "instruction_none": "Keine Anweisungen gefunden",
+          "instruction_large": "Insgesamt {chars} Zeichen, über der empfohlenen Größe",
+          "memory_mapped": "{count, plural, one {# zugeordneter Eintrag} other {# zugeordnete Einträge}}",
+          "memory_episodic_excluded": "episodische Erinnerungen ausgeschlossen",
+          "skill_pending": "{count, plural, one {# Skill zur Prüfung} other {# Skills zur Prüfung}}",
+          "skill_none": "Keine Skills",
+          "credential_opt_in": "API-Schlüssel vorhanden (optionaler Import)",
+          "credential_no_providers": "API-Schlüssel gefunden, aber keine Modellanbieter konfiguriert",
+          "credential_none": "Keine API-Schlüssel gefunden",
+          "cron_importable": "{importable, plural, one {# geplante Aufgabe} other {# geplante Aufgaben}} werden pausiert importiert{skipped, plural, =0 {} other { · # übersprungen}}",
+          "cron_skipped": "{skipped, plural, one {# geplante Aufgabe} other {# geplante Aufgaben}} können nicht importiert werden",
+          "cron_none": "Keine geplanten Aufgaben gefunden",
+          "session_ready": "{count, plural, one {# Sitzung} other {# Sitzungen}} zum Fortsetzen bereit"
+        },
+        "importSessionsLabel": "Auch {count} frühere Chats importieren",
+        "importSessionsHint": "Ausschalten, um nur Erinnerungen und Assets zu übernehmen; die Chats bleiben beim Quell-Agenten."
       },
       "result": {
         "title": "Import abgeschlossen",
@@ -5942,7 +5961,7 @@
         "readinessRecheckFailed": "Der Bereitschaftsstatus konnte nicht aktualisiert werden. Versuchen Sie es erneut.",
         "rollbackDeleteAgentConfirm": "Auch den durch diesen Import erstellten Agenten löschen?",
         "rollbackAgentDeleted": "Der importierte Agent wurde entfernt",
-        "rollbackAvailable": "Ein-Klick-Rollback verfügbar",
+        "rollbackAvailable": "Der Rollback stellt importierte Erinnerungen, Anweisungen und Zeitpläne wieder her. Importierte Chats bleiben im Verlauf.",
         "done": "Erledigt",
         "rollbackButton": "Rollback dieses Batches",
         "rollingBack": "Zurückrollen...",

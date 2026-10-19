@@ -5812,7 +5812,6 @@
         "trustedSourceTitle": "External Extension & Skill Security Disclosure",
         "trustedSourceDesc": "Detected external extensions or skills to import. Skills have tool execution capabilities; malicious extensions could invoke system commands via prompt injection. In local/desktop mode, tools run with your OS permissions; cloud mode isolates them inside sandbox containers.",
         "trustedSourceConfirmLabel": "I acknowledge external skills have command execution potential and confirm this source is trusted",
-        "dryRunId": "Review ID",
         "expiresAt": "Expires at",
         "mappings": "Mapping Details",
         "tableSource": "From",
@@ -5858,7 +5857,27 @@
           "partially_mapped": "Partially mapped",
           "unsupported": "Not imported",
           "dropped": "Skipped"
-        }
+        },
+        "laneDetail": {
+          "instruction_persona": "{chars} chars of persona",
+          "instruction_global": "{chars} chars of global instructions",
+          "instruction_rules": "{count, plural, one {# rule file} other {# rule files}}",
+          "instruction_none": "No instruction content detected",
+          "instruction_large": "{chars} chars total, above the recommended size",
+          "memory_mapped": "{count, plural, one {# mapped item} other {# mapped items}}",
+          "memory_episodic_excluded": "episodic memories excluded",
+          "skill_pending": "{count, plural, one {# skill pending review} other {# skills pending review}}",
+          "skill_none": "No skills",
+          "credential_opt_in": "API keys available (optional import)",
+          "credential_no_providers": "API keys found, but no model providers configured",
+          "credential_none": "No API keys detected",
+          "cron_importable": "{importable, plural, one {# scheduled task} other {# scheduled tasks}} will import paused{skipped, plural, =0 {} other { · # skipped}}",
+          "cron_skipped": "{skipped, plural, one {# scheduled task} other {# scheduled tasks}} cannot be imported",
+          "cron_none": "No scheduled tasks detected",
+          "session_ready": "{count, plural, one {# session} other {# sessions}} ready to resume"
+        },
+        "importSessionsLabel": "Also import {count} historical chats",
+        "importSessionsHint": "Turn off to bring over memories and assets only; your chats stay in the source agent."
       },
       "result": {
         "title": "Import Complete",
@@ -5942,7 +5961,7 @@
         "readinessRecheckFailed": "Could not refresh readiness status. Try again.",
         "rollbackDeleteAgentConfirm": "Also delete the agent created by this import?",
         "rollbackAgentDeleted": "Imported agent was removed",
-        "rollbackAvailable": "One-click rollback available",
+        "rollbackAvailable": "Rollback restores imported memories, instructions, and scheduled jobs. Imported chats stay in your history.",
         "done": "Done",
         "rollbackButton": "Rollback This Batch",
         "rollingBack": "Rolling back...",

@@ -234,11 +234,17 @@ export interface MemoryImportMigrationOptions {
   apply_global_instructions?: boolean;
 }
 
+export interface MigrationLaneDetailPart {
+  code: string;
+  params: Record<string, string | number>;
+}
+
 export interface MigrationLanePreviewItem {
   lane: string;
   status: string;
   label: string;
   detail: string;
+  detail_parts?: MigrationLaneDetailPart[];
 }
 
 export interface TokenEconomicsComparison {
@@ -330,7 +336,7 @@ export interface MemoryImportConfirmResponse extends MemoryImportResponse {
 export interface MemoryImportReadinessIssue {
   code: string;
   severity: 'warning' | 'critical';
-  params: Record<string, string | number | boolean>;
+  params: Record<string, string | number>;
   settings_path?: string | null;
 }
 
@@ -347,7 +353,7 @@ export interface MemoryImportReadinessRecheckResponse {
 export interface MemoryImportRollbackWarning {
   code: string;
   severity: 'info' | 'warning' | 'error';
-  params: Record<string, string | number | boolean>;
+  params: Record<string, string | number>;
 }
 
 export interface MemoryImportRollbackPreviewResponse {

@@ -174,6 +174,8 @@ describe('migration wizard preview copy', () => {
         importing={false}
         importSecrets={false}
         onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
         t={t}
@@ -253,6 +255,8 @@ describe('migration wizard preview copy', () => {
         importing={false}
         importSecrets={false}
         onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
         t={t}
@@ -264,6 +268,125 @@ describe('migration wizard preview copy', () => {
     expect(screen.getByText('Not imported')).toBeInTheDocument();
     expect(screen.getByText('Skipped')).toBeInTheDocument();
     expect(screen.queryByText('partially_mapped')).toBeNull();
+  });
+
+  it('renders lane details from localized parts instead of the raw detail line', () => {
+    const withLanes: MemoryImportDryRunResponse = {
+      ...dryRun,
+      migration_lanes: [
+        {
+          lane: 'instruction',
+          status: 'ready',
+          label: 'instruction_lane',
+          detail: 'agent persona (120 chars), 9000 chars total (large)',
+          detail_parts: [
+            { code: 'instruction_persona', params: { chars: 120 } },
+            { code: 'instruction_large', params: { chars: 9000 } },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <PreviewStep
+        source={{
+          competitor: 'pasted',
+          root: '',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 2,
+          skill_count: 0,
+          has_api_keys: false,
+        }}
+        dryRun={withLanes}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    expect(screen.getByText('120 chars of persona · 9000 chars total, above the recommended size')).toBeInTheDocument();
+    expect(screen.queryByText('agent persona (120 chars), 9000 chars total (large)')).toBeNull();
+  });
+
+  it('lets the user skip imported chats and hides their preview when off', () => {
+    const onImportSessionsChange = vi.fn();
+    const withSessions: MemoryImportDryRunResponse = {
+      ...dryRun,
+      session_preview: [
+        {
+          session_id: 'session-1',
+          title: 'Debug the importer',
+          turn_count: 2,
+          tool_call_count: 1,
+          source_platform: 'claude_code',
+        },
+      ],
+    };
+
+    render(
+      <PreviewStep
+        source={{
+          competitor: 'claude',
+          root: '/home/user/.claude',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 2,
+          skill_count: 0,
+          has_api_keys: false,
+        }}
+        dryRun={withSessions}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        importSessions={false}
+        onImportSessionsChange={onImportSessionsChange}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    const toggle = screen.getByTestId('migration-import-sessions');
+    expect(toggle).not.toBeChecked();
+    expect(screen.queryByText('Debug the importer')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(onImportSessionsChange).toHaveBeenCalledWith(true);
+  });
+
+  it('does not expose the review id and formats the expiry with the app locale', () => {
+    render(
+      <PreviewStep
+        source={{
+          competitor: 'pasted',
+          root: '',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 2,
+          skill_count: 0,
+          has_api_keys: false,
+        }}
+        dryRun={dryRun}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    expect(screen.queryByText(/memory-import:test/)).toBeNull();
+    expect(screen.getByText(/Expires at/)).toBeInTheDocument();
+    expect(screen.queryByText(/2026-01-02T01:00:00Z/)).toBeNull();
   });
 
   it('says how many skills the import leaves out when the source exceeds the review cap', () => {
@@ -286,6 +409,8 @@ describe('migration wizard preview copy', () => {
         importing={false}
         importSecrets={false}
         onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
         onConfirm={vi.fn()}
         onBack={vi.fn()}
         t={t}

@@ -5812,7 +5812,6 @@
         "trustedSourceTitle": "外部拡張・スキルのセキュリティ開示",
         "trustedSourceDesc": "インポート対象に外部拡張またはスキルが含まれています。スキルにはツール実行権限があります。ローカル／デスクトップ環境ではホストOS権限で動作し、クラウド環境ではサンドボックス内で分離されます。",
         "trustedSourceConfirmLabel": "外部スキルにコマンド実行能力があることを理解し、提供元が信頼できることを確認しました",
-        "dryRunId": "審査 ID",
         "expiresAt": "有効期限至",
         "mappings": "映射詳細",
         "tableSource": "取り込み元",
@@ -5858,7 +5857,27 @@
           "partially_mapped": "一部マッピング",
           "unsupported": "インポート不可",
           "dropped": "スキップ"
-        }
+        },
+        "laneDetail": {
+          "instruction_persona": "ペルソナ {chars} 文字",
+          "instruction_global": "グローバル指示 {chars} 文字",
+          "instruction_rules": "ルールファイル {count} 件",
+          "instruction_none": "指示内容は見つかりません",
+          "instruction_large": "合計 {chars} 文字（推奨サイズを超過）",
+          "memory_mapped": "{count} 件をマッピング済み",
+          "memory_episodic_excluded": "エピソード記憶は除外",
+          "skill_pending": "{count} 件のスキルがレビュー待ち",
+          "skill_none": "スキルなし",
+          "credential_opt_in": "API キーあり（任意でインポート）",
+          "credential_no_providers": "API キーはありますが、モデルプロバイダーが未設定です",
+          "credential_none": "API キーは見つかりません",
+          "cron_importable": "スケジュールタスク {importable} 件を一時停止でインポートします{skipped, plural, =0 {} other {（# 件スキップ）}}",
+          "cron_skipped": "スケジュールタスク {skipped} 件はインポートできません",
+          "cron_none": "スケジュールタスクは見つかりません",
+          "session_ready": "{count} 件のセッションを再開できます"
+        },
+        "importSessionsLabel": "過去のチャット {count} 件もインポート",
+        "importSessionsHint": "オフにすると記憶とアセットのみをインポートし、チャットは元のエージェントに残ります。"
       },
       "result": {
         "title": "インポート完了",
@@ -5942,7 +5961,7 @@
         "readinessRecheckFailed": "準備状態を更新できませんでした。もう一度お試しください。",
         "rollbackDeleteAgentConfirm": "このインポートで作成されたエージェントも削除しますか？",
         "rollbackAgentDeleted": "今回のインポートで作成されたエージェントを削除しました",
-        "rollbackAvailable": "ワンクリックロールバック対応",
+        "rollbackAvailable": "ロールバックはインポートした記憶・指示・スケジュールを復元します。インポートしたチャットは履歴に残ります。",
         "done": "完了",
         "rollbackButton": "このバッチをロールバック",
         "rollingBack": "ロールバック中...",

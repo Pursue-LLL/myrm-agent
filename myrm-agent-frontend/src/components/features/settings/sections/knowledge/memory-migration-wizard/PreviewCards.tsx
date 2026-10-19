@@ -13,6 +13,34 @@ import type {
 
 import { COVERAGE_LABEL_KEYS, type TranslationFn } from './wizardShared';
 
+/** Lane detail fragments with localized copy; unknown codes fall back to the raw detail line. */
+const LANE_DETAIL_CODES = new Set([
+  'instruction_persona',
+  'instruction_global',
+  'instruction_rules',
+  'instruction_none',
+  'instruction_large',
+  'memory_mapped',
+  'memory_episodic_excluded',
+  'skill_pending',
+  'skill_none',
+  'credential_opt_in',
+  'credential_no_providers',
+  'credential_none',
+  'cron_importable',
+  'cron_skipped',
+  'cron_none',
+  'session_ready',
+]);
+
+function laneDetailText(lane: MigrationLanePreviewItem, t: TranslationFn): string {
+  const parts = (lane.detail_parts ?? []).filter((part) => LANE_DETAIL_CODES.has(part.code));
+  if (parts.length === 0) {
+    return lane.detail;
+  }
+  return parts.map((part) => t(`preview.laneDetail.${part.code}`, part.params)).join(' · ');
+}
+
 export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]; t: TranslationFn }) {
   if (items.length === 0) {
     return null;
@@ -70,7 +98,7 @@ export function MigrationLaneMatrix({ lanes, t }: { lanes: MigrationLanePreviewI
             className={cn('rounded-lg border px-3 py-2.5 text-xs', statusStyles[lane.status] ?? statusStyles.manual)}
           >
             <div className="font-medium">{t(`preview.laneLabels.${lane.label}`, { defaultValue: lane.label })}</div>
-            <div className="mt-1 text-muted-foreground">{lane.detail}</div>
+            <div className="mt-1 text-muted-foreground">{laneDetailText(lane, t)}</div>
           </div>
         ))}
       </div>

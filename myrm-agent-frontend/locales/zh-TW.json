@@ -5812,7 +5812,6 @@
         "trustedSourceTitle": "外部擴展與技能安全披露",
         "trustedSourceDesc": "檢測到待匯入的外部擴展或技能。技能具備系統工具調用潛力；惡意擴展可能通過間接提示詞注入誘導大模型執行命令。在本地或桌面模式下，工具以當前作業系統權限執行；雲端模式在獨立沙箱卷中隔離。",
         "trustedSourceConfirmLabel": "我已知曉外部技能具備命令執行潛力，確認此來源安全可信",
-        "dryRunId": "審查 ID",
         "expiresAt": "有效期至",
         "mappings": "對映詳情",
         "tableSource": "來源",
@@ -5858,7 +5857,27 @@
           "partially_mapped": "部分對應",
           "unsupported": "無法匯入",
           "dropped": "已略過"
-        }
+        },
+        "laneDetail": {
+          "instruction_persona": "人設 {chars} 字元",
+          "instruction_global": "全域指令 {chars} 字元",
+          "instruction_rules": "{count} 個規則檔案",
+          "instruction_none": "未偵測到指令內容",
+          "instruction_large": "共 {chars} 字元，超過建議容量",
+          "memory_mapped": "{count} 條已對應",
+          "memory_episodic_excluded": "已排除情景記憶",
+          "skill_pending": "{count} 個技能待審",
+          "skill_none": "無技能",
+          "credential_opt_in": "偵測到 API Key（可選匯入）",
+          "credential_no_providers": "偵測到 API Key，但尚未設定模型服務商",
+          "credential_none": "未偵測到 API Key",
+          "cron_importable": "{importable} 個排程任務將以暫停狀態匯入{skipped, plural, =0 {} other {，另有 # 個略過}}",
+          "cron_skipped": "{skipped} 個排程任務無法匯入",
+          "cron_none": "未偵測到排程任務",
+          "session_ready": "{count} 個會話可恢復"
+        },
+        "importSessionsLabel": "同時匯入 {count} 條歷史會話",
+        "importSessionsHint": "關閉後僅匯入記憶與資產，歷史會話仍保留在原本的助手中。"
       },
       "result": {
         "title": "匯入完成",
@@ -5942,7 +5961,7 @@
         "readinessRecheckFailed": "無法重新整理就緒狀態，請重試。",
         "rollbackDeleteAgentConfirm": "是否同時刪除本次匯入建立的智慧體？",
         "rollbackAgentDeleted": "已刪除本次匯入的智慧體",
-        "rollbackAvailable": "支援一鍵回滾",
+        "rollbackAvailable": "回滾會恢復已匯入的記憶、指令與排程任務；已匯入的歷史會話會保留在聊天列表中。",
         "done": "完成",
         "rollbackButton": "回滾此批次",
         "rollingBack": "正在回滾...",

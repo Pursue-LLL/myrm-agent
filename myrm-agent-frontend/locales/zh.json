@@ -5812,7 +5812,6 @@
         "trustedSourceTitle": "外部扩展与技能安全披露",
         "trustedSourceDesc": "检测到待导入的外部扩展或技能。技能具备系统工具调用潜力；恶意扩展可能通过间接提示词注入诱导大模型执行命令。在本地或桌面模式下，工具以当前操作系统权限执行；云端模式在独立沙箱卷中隔离。",
         "trustedSourceConfirmLabel": "我已知晓外部技能具备命令执行潜力，确认此来源安全可信",
-        "dryRunId": "审查 ID",
         "expiresAt": "有效期至",
         "mappings": "映射详情",
         "tableSource": "来源",
@@ -5858,7 +5857,27 @@
           "partially_mapped": "部分映射",
           "unsupported": "无法导入",
           "dropped": "已跳过"
-        }
+        },
+        "laneDetail": {
+          "instruction_persona": "人设 {chars} 字符",
+          "instruction_global": "全局指令 {chars} 字符",
+          "instruction_rules": "{count} 个规则文件",
+          "instruction_none": "未检测到指令内容",
+          "instruction_large": "共 {chars} 字符，超过建议体积",
+          "memory_mapped": "{count} 条已映射",
+          "memory_episodic_excluded": "已排除情景记忆",
+          "skill_pending": "{count} 个技能待审",
+          "skill_none": "无技能",
+          "credential_opt_in": "检测到 API Key（可选导入）",
+          "credential_no_providers": "检测到 API Key，但未配置模型服务商",
+          "credential_none": "未检测到 API Key",
+          "cron_importable": "{importable} 个定时任务将以暂停状态导入{skipped, plural, =0 {} other {，另有 # 个跳过}}",
+          "cron_skipped": "{skipped} 个定时任务无法导入",
+          "cron_none": "未检测到定时任务",
+          "session_ready": "{count} 个会话可恢复"
+        },
+        "importSessionsLabel": "同时导入 {count} 条历史会话",
+        "importSessionsHint": "关闭后仅导入记忆与资产，历史会话仍保留在原助手中。"
       },
       "result": {
         "title": "导入完成",
@@ -5942,7 +5961,7 @@
         "readinessRecheckFailed": "无法刷新就绪状态，请重试。",
         "rollbackDeleteAgentConfirm": "是否同时删除本次导入创建的智能体？",
         "rollbackAgentDeleted": "已删除本次导入的智能体",
-        "rollbackAvailable": "支持一键回滚",
+        "rollbackAvailable": "回滚会恢复已导入的记忆、指令与定时任务；已导入的历史会话会保留在聊天列表中。",
         "done": "完成",
         "rollbackButton": "回滚此批次",
         "rollingBack": "正在回滚...",
