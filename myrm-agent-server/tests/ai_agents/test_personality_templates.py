@@ -14,8 +14,6 @@ from app.ai_agents.personality_templates import (
     STYLE_SCOPE_INVARIANT,
     PersonalityStyle,
     PersonalityTemplate,
-    get_personality_template,
-    is_valid_personality_style,
     list_all_personalities,
     render_personality_block,
 )
@@ -90,15 +88,6 @@ class TestPersonalityTemplateFields:
 class TestQueryAPI:
     """查询 API 正确性测试"""
 
-    def test_get_personality_template_valid(self) -> None:
-        template = get_personality_template("concise")
-        assert template.name == "concise"
-        assert "terse" in template.system_prompt_suffix.lower()
-
-    def test_get_personality_template_invalid_raises(self) -> None:
-        with pytest.raises(KeyError):
-            get_personality_template("nonexistent")  # type: ignore[arg-type]
-
     def test_list_all_personalities_count(self) -> None:
         all_styles = list_all_personalities()
         assert len(all_styles) == len(PERSONALITY_TEMPLATES)
@@ -108,17 +97,9 @@ class TestQueryAPI:
         for style in all_styles:
             assert isinstance(style, PersonalityTemplate)
 
-    def test_is_valid_personality_style_valid(self) -> None:
-        assert is_valid_personality_style("professional") is True
-        assert is_valid_personality_style("wenyan") is True
-
-    def test_is_valid_personality_style_invalid(self) -> None:
-        assert is_valid_personality_style("nonexistent") is False
-        assert is_valid_personality_style("") is False
-
     def test_default_personality_style(self) -> None:
         assert DEFAULT_PERSONALITY_STYLE == "professional"
-        assert is_valid_personality_style(DEFAULT_PERSONALITY_STYLE) is True
+        assert DEFAULT_PERSONALITY_STYLE in PERSONALITY_TEMPLATES
 
 
 class TestConcisePromptQuality:

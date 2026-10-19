@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对话入口、子 Agent 预设、Provider 配置与 OpenAPI 服务发现。上级：[../_ARCH.md](../_ARCH.md) · 流式核心：[general_agent/_ARCH.md](general_agent/_ARCH.md)。
+Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对话入口、子 Agent 预设、Provider 配置、OpenAPI 服务发现与沟通风格目录。上级：[../_ARCH.md](../_ARCH.md) · 流式核心：[general_agent/_ARCH.md](general_agent/_ARCH.md) · 沟通风格目录：[personality/_ARCH.md](personality/_ARCH.md)。
 
 ## 文件清单
 

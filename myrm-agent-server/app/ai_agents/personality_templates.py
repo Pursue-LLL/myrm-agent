@@ -6,9 +6,7 @@
 - PersonalityTemplate: 人格风格模板数据类
 - PERSONALITY_TEMPLATES: 全部预置风格模板字典
 - DEFAULT_PERSONALITY_STYLE: 默认风格常量
-- get_personality_template(): 按风格名获取模板
-- list_all_personalities(): 列出全部风格
-- is_valid_personality_style(): 检验风格名是否有效
+- list_all_personalities(): 列出全部风格（目录接口与 IM 列表共用）
 - render_personality_block(): 渲染注入给模型的沟通风格块（含作用域不变量），非默认风格才有值
 
 [POS]
@@ -384,19 +382,9 @@ PERSONALITY_TEMPLATES: dict[PersonalityStyle, PersonalityTemplate] = {
 }
 
 
-def get_personality_template(style: PersonalityStyle) -> PersonalityTemplate:
-    """获取人格风格模板"""
-    return PERSONALITY_TEMPLATES[style]
-
-
 def list_all_personalities() -> list[PersonalityTemplate]:
     """列出所有可用人格风格"""
     return list(PERSONALITY_TEMPLATES.values())
-
-
-def is_valid_personality_style(style: str) -> bool:
-    """检查风格名称是否有效"""
-    return style in PERSONALITY_TEMPLATES
 
 
 def render_personality_block(style: str | None) -> str | None:
@@ -420,8 +408,6 @@ __all__ = [
     "PersonalityCategory",
     "PersonalityStyle",
     "PersonalityTemplate",
-    "get_personality_template",
-    "is_valid_personality_style",
     "list_all_personalities",
     "render_personality_block",
 ]

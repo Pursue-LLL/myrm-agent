@@ -1,7 +1,7 @@
 """Communication style preset API package.
 
 [INPUT]
-(none — package façade)
+- personality.catalog::router (POS: communication style catalog endpoint)
 
 [OUTPUT]
 - router: aggregated FastAPI router for the communication style catalog
