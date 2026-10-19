@@ -37,6 +37,8 @@ PersonalityCategory = Literal["practical", "fun"]
 # 避免在 17 个风格里各写一份（唯一事实源）。
 STYLE_SCOPE_INVARIANT = (
     "Scope: this style shapes only how you word your replies in this conversation. "
+    "Where it disagrees with other tone, structure, or length guidance, follow this style; "
+    "accuracy, completeness, and safety are never traded away for it. "
     "Content you write into files, commits, documents, memory, or messages to other people keeps complete, "
     "natural, professional language unless the user asks for that content in this style. "
     "Security warnings, irreversible or destructive actions, and step sequences that could be misread "

@@ -190,7 +190,7 @@ class TestConcisePromptQuality:
 
 
 class TestStyleScopeInvariant:
-    """作用域不变量测试：风格只作用于聊天回复，不污染交付物"""
+    """作用域不变量测试：风格只作用于聊天回复，不污染交付物，且与默认规则冲突时有裁决"""
 
     def test_block_carries_persisted_content_scope(self) -> None:
         block = render_personality_block("concise")
@@ -198,6 +198,13 @@ class TestStyleScopeInvariant:
         assert STYLE_SCOPE_INVARIANT in block
         assert "files, commits, documents, memory" in block
         assert "messages to other people" in block
+
+    def test_block_arbitrates_conflicts_with_default_rules(self) -> None:
+        """风格与默认的 tone/structure/length 规则冲突时必须以风格为准，且不得牺牲准确性/完整性/安全"""
+        block = render_personality_block("concise")
+        assert block is not None
+        assert "follow this style" in block
+        assert "accuracy, completeness, and safety are never traded away" in block
 
     def test_default_style_injects_nothing(self) -> None:
         assert render_personality_block(DEFAULT_PERSONALITY_STYLE) is None
