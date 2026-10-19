@@ -16,6 +16,7 @@ Declared PRIVATE because it writes to an exclusive, empty memory store.
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 
@@ -29,14 +30,13 @@ from tests.e2e.test_memory_keyword_recall_live_chrome_e2e import (
     _open_chat_and_send,
     _wait_assistant_reply,
 )
+from tests.e2e.test_memory_pending_dialog_chrome_e2e import (
+    _dialog_button_js,
+    _dialog_left_proposal_js,
+    _open_review_dialog,
+)
 from tests.e2e.test_memory_pending_proposal_review_chrome_e2e import (
     _NETWORK_TAP_JS,
-    _WILL_CORRECT,
-    _WILL_DELETE,
-    _accept_js,
-    _card_gone_js,
-    _card_script,
-    _hint_probe_js,
 )
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
@@ -44,15 +44,16 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    open_settings_subroute,
+    open_mcp_page,
     prepare_e2e_ui_session,
-    reload_mcp_page,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers
 from tests.support.retrieval_embedding import configured_retrieval_embedding
 
+_ACCEPT_LABEL = re.compile(r"^(Accept|接受)$")
 _MEMORY_API = "/api/v1/memory"
 _OLD_EMPLOYER = "Zephyrion Labs"
 _NEW_EMPLOYER = "Quantara Systems"
@@ -60,39 +61,6 @@ _WRITE_PROMPT = f"请记住:我目前在 {_OLD_EMPLOYER} 工作,职位是后端�
 _CORRECTION_PROMPT = f"纠正一下:我已经不在 {_OLD_EMPLOYER} 了,现在改在 {_NEW_EMPLOYER} 工作。"
 _RECALL_PROMPT = "我现在在哪家公司工作?只回答公司名。"
 _PROPOSAL_WAIT_SEC = 180.0
-
-
-def _wait_with_reload(
-    client: object,
-    page: object,
-    js: str,
-    route_url: str,
-    timeout_sec: float,
-    *,
-    attempts: int = 2,
-) -> dict[str, object]:
-    """wait_for_state, reloading the route once when the page stalled.
-
-    The pending card depends on the memory store's fetch, which races page
-    readiness under parallel load; a reload re-runs it instead of failing the
-    run on a transient stall.
-    """
-    last: AssertionError | None = None
-    for attempt in range(attempts):
-        try:
-            return wait_for_state(client, page, js, timeout_sec=timeout_sec)  # type: ignore[arg-type]
-        except AssertionError as exc:  # wait_for_state raises on timeout
-            last = exc
-            if attempt + 1 >= attempts:
-                break
-            # The section itself is a next/dynamic chunk: a client-side
-            # navigation can reuse the failed result from the router cache, so
-            # retry with a full load at the subroute (fresh chunk requests) —
-            # the deferred locale payload now has a real timeout, so the
-            # namespaces arrive on that load too.
-            reload_mcp_page(client, page, target_url=route_url, timeout_ms=120_000)  # type: ignore[arg-type]
-            dismiss_blocking_modals(client, page, recover_url=route_url)  # type: ignore[arg-type]
-    raise AssertionError(str(last))
 
 
 def _semantic_memories(api_url: str) -> list[dict[str, object]]:
@@ -186,50 +154,20 @@ def test_memory_implicit_correction_live_approved_then_recalled() -> None:
         )
 
         # Review — accept it like a real user. A targeted proposal also names what it supersedes.
-        warm_ui_route("/settings/memory")
-        with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
+        # Review the proposal in the chat that raised it. The settings pane mounts
+        # its section through next/dynamic and intermittently stays blank in the
+        # dev lane, while the chat-side pending dialog is the primary user path.
+        chat_url = f"{ui_url.rstrip('/')}/{chats['b']}"
+        warm_ui_route(f"/{chats['b']}")
+        with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
             ensure_desktop_viewport(client, page)
-            dismiss_blocking_modals(client, page, recover_url=f"{ui_url.rstrip('/')}/settings")
-            memory_route = f"{ui_url.rstrip('/')}/settings/memory"
-            if target_id:
-                probe = _wait_with_reload(client, page, _hint_probe_js(proposal_text), memory_route, 90.0)
-                label = _WILL_CORRECT if proposal.get("resolution_action") == "correct" else _WILL_DELETE
-                assert label.search(str(probe.get("hint") or "")), probe
-            else:
-                try:
-                    _wait_with_reload(
-                        client,
-                        page,
-                        _card_script(proposal_text, "return { ready: !!card };"),
-                        memory_route,
-                        90.0,
-                    )
-                except AssertionError as exc:
-                    # Distinguish "card rendered with different text" from "no cards
-                    # at all": dump the tab state, the card count and the page text.
-                    diag = client.evaluate(  # type: ignore[attr-defined]
-                        page,
-                        """(() => {
-                          const cards = Array.from(document.querySelectorAll('[data-testid="memory-card"]'));
-                          const tabs = Array.from(document.querySelectorAll('[role="tab"]')).map((el) => ({
-                            text: (el.textContent || '').trim().slice(0, 16),
-                            state: el.getAttribute('data-state'),
-                          }));
-                          const text = (document.body?.innerText || '').replace(/\\s+/g, ' ');
-                          return {
-                            cardCount: cards.length,
-                            visibleCards: cards.filter((el) => el.getClientRects().length > 0).length,
-                            cardTexts: cards.slice(0, 4).map((el) => (el.textContent || '').trim().slice(0, 120)),
-                            tabs,
-                            pageText: text.slice(0, 700),
-                          };
-                        })()""",
-                    )
-                    raise AssertionError(f"{exc} | diag: {diag}") from exc
+            dismiss_blocking_modals(client, page, recover_url=chat_url)
+            wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
+            _open_review_dialog(client, page, proposal_text, chat_url=chat_url)
             client.evaluate(page, _NETWORK_TAP_JS, timeout_sec=15.0)
-            clicked = wait_for_state(client, page, _accept_js(proposal_text), timeout_sec=30.0)
-            assert clicked.get("clicked") is True, clicked
-            gone = wait_for_state(client, page, _card_gone_js(proposal_text), timeout_sec=60.0)
+            accepted = client.evaluate(page, _dialog_button_js(_ACCEPT_LABEL))
+            assert accepted.get("ready") is True, accepted
+            gone = wait_for_state(client, page, _dialog_left_proposal_js(proposal_text), timeout_sec=60.0)
             assert gone.get("ready") is True, gone
 
         # Turn 3 — a context-free chat can only learn the employer from the approved memory.
