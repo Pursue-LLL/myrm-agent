@@ -505,7 +505,16 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
             started = client.evaluate(page, _CLICK_CONFIRM_START_JS)
             assert started.get("ok") is True, started
 
-            inflight = wait_for_state(client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0)
+            try:
+                inflight = wait_for_state(client, page, _MEMORY_AB_RUNNING_JS, timeout_sec=120.0)
+            except AssertionError as exc:
+                # wait_for_state raises on timeout; surface the page's own message
+                # (toast/validation) so a stalled start stays diagnosable.
+                page_text = client.evaluate(
+                    page,
+                    "(() => (document.body?.innerText || '').replace(/\\s+/g, ' ').slice(0, 600))()",
+                )
+                raise AssertionError(f"{exc} | page: {page_text}") from exc
             assert inflight.get("ready") is True, inflight
 
             stopped = client.evaluate(page, _CLICK_STOP_JS)
