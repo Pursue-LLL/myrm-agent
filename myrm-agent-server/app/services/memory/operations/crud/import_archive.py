@@ -22,9 +22,11 @@ from app.services.memory.operations.crud.import_confirm_flow import (  # noqa: F
     confirm_import_memories,
 )
 from app.services.memory.operations.crud.import_dry_run import (  # noqa: F401
+    dry_run_import_memories,
+)
+from app.services.memory.operations.crud.import_dry_run_preview import (  # noqa: F401
     _COMPETITOR_AVG_SKILL_TOKENS,
     _MYRM_AVG_INDEX_TOKENS,
-    dry_run_import_memories,
 )
 from app.services.memory.operations.crud.import_rollback_flow import (  # noqa: F401
     dry_run_rollback_import_memories,
