@@ -6,7 +6,7 @@
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import { auditCitationMarkers, resolveSourceCountForAudit } from '@/lib/citations/auditCitationMarkers';
-import type { Message } from '@/store/chat/types';
+import { applyDisclosureMetadata } from '../disclosure';
 import { readLastMessage } from '../lastMessage';
 import * as H from './handlerDeps';
 
@@ -151,15 +151,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
           }
 
           // Per-turn disclosure: evidence tier badge and auto-staged deliverable drafts.
-          const rawDeliverableTier = (data as { deliverable_tier?: unknown }).deliverable_tier;
-          if (rawDeliverableTier && typeof rawDeliverableTier === 'object') {
-            state.messages[messageIndex].deliverableTier = rawDeliverableTier as Message['deliverableTier'];
-          }
-
-          const rawStagedArtifacts = (data as { staged_artifacts?: unknown }).staged_artifacts;
-          if (Array.isArray(rawStagedArtifacts) && rawStagedArtifacts.length > 0) {
-            state.messages[messageIndex].stagedArtifacts = rawStagedArtifacts as Message['stagedArtifacts'];
-          }
+          applyDisclosureMetadata(state.messages[messageIndex], data);
 
           if (data.consensus_meta) {
             state.messages[messageIndex].consensusMeta = data.consensus_meta;
