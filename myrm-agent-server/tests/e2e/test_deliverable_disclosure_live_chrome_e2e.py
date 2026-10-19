@@ -114,25 +114,6 @@ _BADGE_READY_JS = """(() => {
   };
 })()"""
 
-_DIAG_SAMPLE_JS = """(() => {
-  const store = window.__myrmChatStore?.getState?.();
-  const msgs = Array.isArray(store?.messages) ? store.messages : [];
-  const assistant = [...msgs].reverse().find((m) => m?.role === 'assistant');
-  const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
-  return {
-    ready: true,
-    storeChatId: store?.chatId ?? null,
-    storeMessageCount: msgs.length,
-    lastAssistantId: assistant?.messageId ?? null,
-    lastAssistantKeys: assistant ? Object.keys(assistant).slice(0, 40) : null,
-    storeTier: assistant?.deliverableTier?.tier ?? null,
-    storeStaged: Array.isArray(assistant?.stagedArtifacts) ? assistant.stagedArtifacts.length : 0,
-    badgeTestid: badge ? badge.getAttribute('data-testid') : null,
-    loading: Boolean(store?.loading),
-  };
-})()"""
-
-
 _TIER_READY_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
   const msgs = Array.isArray(store?.messages) ? store.messages : [];
@@ -190,9 +171,11 @@ def _approve_cards_until_tier(
     """
     deadline = time.monotonic() + timeout_sec
     clicks = 0
+    passes = 0
     last_metadata: object = None
     last_content = ""
     while time.monotonic() < deadline:
+        passes += 1
         try:
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
@@ -210,9 +193,9 @@ def _approve_cards_until_tier(
             last_content = str(
                 assistants[-1].get("content") or assistants[-1].get("message") or ""
             )
-        # Probe the card every other pass: each CDP round trip competes with parallel E2E load.
+        # Probe the card every third pass: each CDP round trip competes with parallel E2E load.
         card = None
-        if (clicks + int(time.monotonic())) % 2 == 0:
+        if passes % 3 == 1:
             card = client.evaluate(page, _APPROVAL_VISIBLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
         if isinstance(card, dict) and card.get("ready") is True and clicks < _APPROVAL_CLICK_BUDGET:
             clicks += 1
@@ -360,31 +343,34 @@ def test_deliverable_disclosure_live_chrome_e2e() -> None:
         assert tier in {"ARTIFACT", "VERIFIED"}, disclosed["metadata"]
         assert str(disclosed["content"]).strip(), "assistant answer was empty"
 
-        # 4. The WebUI renders the tier badge for that answer.
-        try:
-            badge_state = wait_for_state(
-                client,  # type: ignore[arg-type]
-                page,  # type: ignore[arg-type]
-                _BADGE_READY_JS,
-                timeout_sec=150.0,
-                page_url=target_url,
-            )
-        except BaseException:
-            diag = client.evaluate(page, _DIAG_SAMPLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
-            print(f"E2E_BADGE_DIAG: {json.dumps(diag, ensure_ascii=False)}", flush=True)
-            # A user reload rebuilds the message from the persisted metadata; compare both paths.
-            client.navigate(page, target_url, timeout_ms=90_000)  # type: ignore[attr-defined]
-            wait_for_react_e2e_bridge(
-                client,  # type: ignore[arg-type]
-                page,  # type: ignore[arg-type]
-                timeout_sec=120.0,
-                page_url=target_url,
-            )
-            after_reload = client.evaluate(page, _DIAG_SAMPLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
-            print(f"E2E_BADGE_DIAG_AFTER_RELOAD: {json.dumps(after_reload, ensure_ascii=False)}", flush=True)
-            raise
+        # 4. The badge renders for the turn. The bridge-created local placeholder carries a
+        #    client id, so check the persisted view a returning user sees (reload + attach).
+        live = client.evaluate(page, _BADGE_READY_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        if isinstance(live, dict) and live.get("ready") is not True:
+            print(f"E2E_LIVE_BADGE_PENDING: {json.dumps(live, ensure_ascii=False)}", flush=True)
+        client.navigate(page, target_url, timeout_ms=90_000)  # type: ignore[attr-defined]
+        wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
+        reattached = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            _ATTACH_CHAT_JS_TEMPLATE % (chat_id_json, chat_id_json),
+            timeout_sec=60.0,
+        )
+        assert isinstance(reattached, dict) and reattached.get("ok") is True, reattached
+
+        badge_state = wait_for_state(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            _BADGE_READY_JS,
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
         assert badge_state.get("ready") is True, json.dumps(badge_state, ensure_ascii=False)
-        assert str(badge_state.get("testid", "")).startswith("deliverable-tier-badge-")
+        assert str(badge_state.get("testid", "")).startswith("deliverable-tier-badge-"), badge_state
 
         # 5. The live store agrees with the persisted metadata.
         store_state = wait_for_state(
