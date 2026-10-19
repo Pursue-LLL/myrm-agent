@@ -1,6 +1,7 @@
-# [INPUT] DeepExtractResult
-# [OUTPUT] SelectiveDeepExtractCleaner
-# [POS] Stage 2 selective deep web content cleanser, noise stripper, and markdown normalizer
+"""[INPUT] DeepExtractResult
+[OUTPUT] SelectiveDeepExtractCleaner
+[POS] Stage 2 selective deep web content cleanser, noise stripper, and markdown normalizer
+"""
 
 """Selective deep extract content cleaner stripping navigation, ads, and boilerplate noise."""
 

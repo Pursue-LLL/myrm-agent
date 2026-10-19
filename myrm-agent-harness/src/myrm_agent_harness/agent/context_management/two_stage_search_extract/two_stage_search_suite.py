@@ -1,6 +1,7 @@
-# [INPUT] RankedSnippetTriageEngine, SelectiveDeepExtractCleaner, SearchFetchSessionCache, FetchBudgetGovernor
-# [OUTPUT] TwoStageRankedSnippetAndSelectiveDeepExtractSuite
-# [POS] Unified facade suite for 2-stage search triage, selective deep extract, budget governance, and coalescing cache
+"""[INPUT] RankedSnippetTriageEngine, SelectiveDeepExtractCleaner, SearchFetchSessionCache, FetchBudgetGovernor
+[OUTPUT] TwoStageRankedSnippetAndSelectiveDeepExtractSuite
+[POS] Unified facade suite for 2-stage search triage, selective deep extract, budget governance, and coalescing cache
+"""
 
 """Unified facade suite orchestrating two-stage search triage and selective deep extraction."""
 

@@ -1,6 +1,7 @@
-# [INPUT] None (Foundational domain types for two-stage search triage and selective deep extract)
-# [OUTPUT] RankedSnippetItem, SnippetTriageResult, DeepExtractResult, FetchBudgetStatus, TwoStageSearchConfig, SearchExtractError, FetchBudgetExceededError
-# [POS] Domain data structures, config parameters, and error taxonomy for 2-stage search and context protection
+"""[INPUT] None (Foundational domain types for two-stage search triage and selective deep extract)
+[OUTPUT] RankedSnippetItem, SnippetTriageResult, DeepExtractResult, FetchBudgetStatus, TwoStageSearchConfig, SearchExtractError, FetchBudgetExceededError
+[POS] Domain data structures, config parameters, and error taxonomy for 2-stage search and context protection
+"""
 
 """Domain types and configuration for two-stage ranked snippet and selective deep extract."""
 

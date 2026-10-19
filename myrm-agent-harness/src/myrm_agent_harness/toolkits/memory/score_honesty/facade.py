@@ -2,6 +2,15 @@
 
 Provides an intuitive, high-level API for evaluating candidates, computing
 score breakdowns, applying dual-threshold gates, and diagnosing divergence.
+
+[INPUT]
+- Raw and ranked retrieval scores plus the configured policy.
+
+[OUTPUT]
+- RetrievalScoreHonestyService: compares raw against ranking scores under one policy.
+
+[POS]
+Keeps score transformation in one place so every caller reports the same honesty verdict.
 """
 
 from __future__ import annotations

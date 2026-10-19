@@ -1,6 +1,7 @@
-# [INPUT] FetchBudgetStatus, TwoStageSearchConfig
-# [OUTPUT] FetchBudgetGovernor
-# [POS] Concurrency and depth governor preventing runaway crawling and enforcing interim synthesis
+"""[INPUT] FetchBudgetStatus, TwoStageSearchConfig
+[OUTPUT] FetchBudgetGovernor
+[POS] Concurrency and depth governor preventing runaway crawling and enforcing interim synthesis
+"""
 
 """Fetch budget governor bounding concurrency and enforcing interim synthesis."""
 

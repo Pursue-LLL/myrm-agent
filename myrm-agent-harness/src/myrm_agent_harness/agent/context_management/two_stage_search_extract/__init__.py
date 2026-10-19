@@ -1,6 +1,7 @@
-# [INPUT] search_extract_types, snippet_triage_engine, deep_extract_cleaner, session_coalescing_cache, fetch_budget_governor, two_stage_search_suite
-# [OUTPUT] All public symbols of two_stage_search_extract package
-# [POS] Facade entry point for two-stage search triage, selective deep extract, and context protection
+"""[INPUT] search_extract_types, snippet_triage_engine, deep_extract_cleaner, session_coalescing_cache, fetch_budget_governor, two_stage_search_suite
+[OUTPUT] All public symbols of two_stage_search_extract package
+[POS] Facade entry point for two-stage search triage, selective deep extract, and context protection
+"""
 
 """Two-stage ranked snippet triage and selective deep extract subsystem."""
 

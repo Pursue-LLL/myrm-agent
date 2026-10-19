@@ -3,6 +3,15 @@
 Provides strongly-typed schemas for separating raw semantic vector similarity
 from multi-stage pipeline ranking scores, preventing threshold corruption and
 enabling white-box explainability.
+
+[INPUT]
+- No runtime input; pure data definitions.
+
+[OUTPUT]
+- Score-honesty enums and models shared by the facade and its pipeline.
+
+[POS]
+Shared vocabulary for score honesty. Pure data, no I/O.
 """
 
 from __future__ import annotations

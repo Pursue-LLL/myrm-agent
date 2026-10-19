@@ -2,6 +2,15 @@
 
 Physical interception, ephemeral AES-GCM vault isolation, and human release card support
 for inbound emails, messages, and webhooks containing OTPs, reset links, or credentials.
+
+[INPUT]
+- Package re-exports only; no runtime input.
+
+[OUTPUT]
+- The inbound quarantine gate, redaction and release-card entry points.
+
+[POS]
+Public surface of the zero-trust inbound quarantine suite.
 """
 
 from __future__ import annotations

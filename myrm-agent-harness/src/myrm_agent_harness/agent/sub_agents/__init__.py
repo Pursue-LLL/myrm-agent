@@ -8,6 +8,15 @@ Configuration Loading:
 - Business layer explicitly provides configuration directory path
 - Framework layer loads and validates YAML files
 - See business layer configs/subagents/_ARCH.md for format details
+
+[INPUT]
+- Package re-exports only; no runtime input.
+
+[OUTPUT]
+- Subagent configuration loading, lifecycle and cross-examination entry points.
+
+[POS]
+Public surface of the subagent subsystem.
 """
 
 from .cross_examination import (

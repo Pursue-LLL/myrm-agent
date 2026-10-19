@@ -1,6 +1,7 @@
-# [INPUT] RankedSnippetItem, SnippetTriageResult, TwoStageSearchConfig
-# [OUTPUT] RankedSnippetTriageEngine
-# [POS] Stage 1 lightweight snippet triage engine enforcing 500-token budget cap and meta-guidance
+"""[INPUT] RankedSnippetItem, SnippetTriageResult, TwoStageSearchConfig
+[OUTPUT] RankedSnippetTriageEngine
+[POS] Stage 1 lightweight snippet triage engine enforcing 500-token budget cap and meta-guidance
+"""
 
 """Ranked snippet triage engine strictly bounding Stage 1 context token usage."""
 
