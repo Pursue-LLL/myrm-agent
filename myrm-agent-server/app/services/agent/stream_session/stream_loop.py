@@ -770,6 +770,7 @@ async def iter_agent_stream_chunks(
 
             yield sse_chunk
     except Exception as stream_err:
+        lang = _stream_locale(getattr(session.params, "locale", None))
         if isinstance(stream_err, PrivacyFailClosedViolationError):
             logger.error(
                 "PrivacyFailClosedViolationError intercepted in stream_loop: level=%s, type=%s, target=%s",
@@ -794,7 +795,6 @@ async def iter_agent_stream_chunks(
                 "target_path": stream_err.target_path,
             }
             yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
-            lang = _stream_locale(getattr(session.params, "locale", None))
             privacy_copy = _PRIVACY_BLOCKED_FIELDS[lang]
             error_message = (
                 f"\n\n{_PRIVACY_BLOCKED_HEADER[lang]}\n\n"
