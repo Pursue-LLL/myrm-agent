@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from app.schemas.memory.archive import (
     CronMigrationSkippedPreviewItem,
+    MigrationLaneDetailPart,
     MigrationLanePreviewItem,
     TokenEconomicsComparison,
 )
@@ -25,6 +26,7 @@ from app.services.memory.operations.crud.import_dry_run_source import (
     SideChannels,
 )
 from app.services.migration.source.source_migration_types import (
+    LaneDetailPart,
     MigrationLanePreview,
     build_lane_previews,
 )
@@ -77,6 +79,7 @@ def build_lane_rows(
                 status="ready",
                 label="session_lane",
                 detail=f"{len(channels.sessions)} session(s) ready for resumption",
+                detail_parts=(LaneDetailPart("session_ready", {"count": len(channels.sessions)}),),
             ),
         )
     return lanes
@@ -98,13 +101,16 @@ def _cron_lane(cron_plan_raw: dict[str, object] | None) -> MigrationLanePreview:
             f"; {skipped_count} skipped" if skipped_count else ""
         )
         status = "ready"
+        parts = (LaneDetailPart("cron_importable", {"importable": importable_count, "skipped": skipped_count}),)
     elif skipped_count > 0:
         detail = f"{skipped_count} cron job(s) detected but not importable"
         status = "warning"
+        parts = (LaneDetailPart("cron_skipped", {"skipped": skipped_count}),)
     else:
         detail = "no cron jobs detected"
         status = "missing"
-    return MigrationLanePreview(lane="cron", status=status, label="cron_lane", detail=detail)
+        parts = (LaneDetailPart("cron_none"),)
+    return MigrationLanePreview(lane="cron", status=status, label="cron_lane", detail=detail, detail_parts=parts)
 
 
 def build_lane_response_rows(
@@ -116,19 +122,28 @@ def build_lane_response_rows(
 ) -> list[MigrationLanePreviewItem]:
     """Project lane previews into the API rows, folding the real memory outcome in."""
 
-    return [
-        MigrationLanePreviewItem(
-            lane=lane.lane,
-            status=memory_status if lane.lane == "memory" else lane.status,
-            label=lane.label,
-            detail=(
-                f"{memory_mapped} mapped item(s)" + (", episodic excluded" if episodic_excluded else "")
-                if lane.lane == "memory"
-                else lane.detail
+    rows: list[MigrationLanePreviewItem] = []
+    for lane in lanes:
+        if lane.lane == "memory":
+            status = memory_status
+            detail = f"{memory_mapped} mapped item(s)" + (", episodic excluded" if episodic_excluded else "")
+            parts: tuple[LaneDetailPart, ...] = (LaneDetailPart("memory_mapped", {"count": memory_mapped}),)
+            if episodic_excluded:
+                parts = (*parts, LaneDetailPart("memory_episodic_excluded"))
+        else:
+            status = lane.status
+            detail = lane.detail
+            parts = lane.detail_parts
+        rows.append(
+            MigrationLanePreviewItem(
+                lane=lane.lane,
+                status=status,
+                label=lane.label,
+                detail=detail,
+                detail_parts=[MigrationLaneDetailPart(code=part.code, params=part.params) for part in parts],
             ),
         )
-        for lane in lanes
-    ]
+    return rows
 
 
 def build_session_preview(sessions: list[dict[str, object]]) -> list[dict[str, object]]:

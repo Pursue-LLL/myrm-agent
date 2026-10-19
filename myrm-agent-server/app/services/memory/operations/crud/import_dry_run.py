@@ -50,6 +50,7 @@ from app.services.migration.source.source_payload_loader import is_source_discov
 from app.services.migration.source.source_secrets_importer import (
     external_source_providers_configured,
 )
+from app.services.migration.workspace_bind_candidates import to_api_candidates
 
 
 async def dry_run_import_memories(
@@ -91,15 +92,7 @@ async def dry_run_import_memories(
         session_preview = build_session_preview(channels.sessions)
         cron_skipped = skipped_cron_preview(channels.cron_plan_raw)
         instruction_total_chars = instruction_char_total(loaded.instruction_plan)
-        workspace_bind_candidates = [
-            WorkspaceBindCandidate(
-                path=item.path,
-                label=item.label,
-                has_obsidian_config=item.has_obsidian_config,
-                markdown_file_count=item.markdown_file_count,
-            )
-            for item in channels.bind_candidates
-        ]
+        workspace_bind_candidates = to_api_candidates(channels.bind_candidates)
         lanes = build_lane_rows(
             loaded=loaded,
             channels=channels,

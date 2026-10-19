@@ -316,6 +316,11 @@ async def test_dry_run_previews_every_competitor_lane_and_binds_metadata(
     memory_lane = next(row for row in response.migration_lanes if row.lane == "memory")
     assert memory_lane.status == "ready"
     assert memory_lane.detail == "2 mapped item(s)"
+    assert [(part.code, part.params) for part in memory_lane.detail_parts] == [
+        ("memory_mapped", {"count": 2}),
+    ]
+    instruction_lane = next(row for row in response.migration_lanes if row.lane == "instruction")
+    assert [part.code for part in instruction_lane.detail_parts] == ["instruction_persona", "instruction_rules"]
     assert response.mcp_servers_preview[0]["name"] == "filesystem"
     assert [(row.name, row.reason) for row in response.cron_skipped] == [("Watchdog", "no_agent_script")]
     assert len(response.session_preview) == 1
@@ -396,8 +401,8 @@ async def test_diagnostic_failure_is_recorded_instead_of_raised(db_session: Asyn
 @pytest.mark.asyncio
 async def test_readiness_persistence_failure_does_not_raise() -> None:
     from app.services.memory.imports.import_sessions import ImportReadinessRecheckFacts
+    from app.services.memory.imports.readiness import build_import_readiness
     from app.services.memory.operations.crud.import_confirm_followups import persist_readiness
-    from app.services.memory.operations.crud.import_readiness import build_import_readiness
 
     class _FailingSessionService:
         async def save_post_import_readiness(self, **kwargs: object) -> None:

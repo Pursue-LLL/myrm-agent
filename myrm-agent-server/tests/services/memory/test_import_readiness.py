@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.memory.operations.crud.import_readiness import build_import_readiness
+from app.services.memory.imports.readiness import build_import_readiness
 
 
 def test_build_import_readiness_ready_without_issues() -> None:
@@ -82,7 +82,7 @@ def test_build_import_readiness_populates_issue_settings_path() -> None:
 
 
 def test_resolve_readiness_issue_action_maps_known_codes() -> None:
-    from app.services.memory.operations.crud.import_readiness import (
+    from app.services.memory.imports.readiness import (
         resolve_readiness_issue_action,
     )
 
@@ -93,7 +93,7 @@ def test_resolve_readiness_issue_action_maps_known_codes() -> None:
 
 def test_pick_primary_readiness_issue_prefers_critical() -> None:
     from app.schemas.memory.archive import MemoryImportReadinessIssue
-    from app.services.memory.operations.crud.import_readiness import (
+    from app.services.memory.imports.readiness import (
         pick_primary_readiness_issue,
     )
 

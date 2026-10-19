@@ -37,6 +37,8 @@ def test_build_lane_previews_marks_large_instruction_as_warning() -> None:
     instruction = next(item for item in lanes if item.lane == "instruction")
     assert instruction.status == "warning"
     assert "chars total" in instruction.detail
+    assert [part.code for part in instruction.detail_parts] == ["instruction_persona", "instruction_large"]
+    assert instruction.detail_parts[0].params == {"chars": INSTRUCTION_CHAR_WARN_THRESHOLD + 1}
 
 
 def test_build_lane_previews_marks_credentials_critical_without_providers() -> None:

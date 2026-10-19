@@ -21,5 +21,4 @@
 | `import_confirm_followups.py` | 辅助 | confirm 后续车道：cron 暂停导入、会话落库、导入后诊断（失败降级）、readiness 聚合与持久化（含 recheck facts） | ✅ |
 | `import_side_effects.py` | 辅助 | confirm 之后的副作用：MCP 配置迁移、模型迁移搬运、`POST /import/readiness-recheck` 用当前 provider 状态重算 readiness | ✅ |
 | `import_rollback_flow.py` | 核心 | 导入回滚预演与执行（读 confirm 写入的账本条目） | ✅ |
-| `import_readiness.py` | 辅助 | 导入后运行就绪合同聚合（provider/diagnostic/MCP/rules → ready/warning/critical + issue codes）；`build_readiness_issue` 填充 issue.settings_path；issue→settings_path SSOT 与 gap 文案 | ✅ |
 | `preferences.py` | 核心 | 偏好摘要、偏好列表、pin/forget/unpin/unforget | ✅ |

@@ -31,6 +31,7 @@
 | `import_plur.py` | 辅助 | PLUR 竞品导入解析器。按 Open Engram Standard v1 解析 `engrams.yaml`（statement/type/status/scope/domain），active 之外的状态按理由跳过，时间戳不臆造 | ✅ |
 | `import_trae.py` | 辅助 | TRAE 竞品导入解析器。解析 TRAE project/user rules 与 settings，映射到 procedural 与 profile 记忆分桶（Memory Center 手动导入层） | ✅ |
 | `import_windsurf.py` | 辅助 | Windsurf 竞品导入解析器。解析 Windsurf cascade memories 与 settings，映射到 semantic 与 profile 记忆分桶（Memory Center 手动导入层） | ✅ |
+| `readiness.py` | 核心 | 导入后运行就绪合同聚合（provider/diagnostic/MCP/rules → ready/warning/critical + issue codes）；`build_readiness_issue` 填充 issue.settings_path；issue→settings_path SSOT 与 gap 文案；供确认车道、审查会话与 agent stream preflight 共用 | ✅ |
 | `secret_scrubber.py` | 辅助 | 敏感凭据过滤管道。在外部会话建索前脱敏 API Key、Bearer Token、AWS 秘钥和私钥；粘贴导入同样先过该管道 | ✅ |
 | `external_transcript_sync.py` | 核心 | 外部 Agent 转录增量同步服务。管理 Watermark 游标，驱动隐身会话存储与 ConversationRecall FTS5 建索 | ✅ |
 | `import_rollback.py` | 核心 | 记忆导入回滚辅助。封装账本条目分类、profile revision 并发冲突检测、结构化 warning 生成、普通记忆 exact mutation refs 回滚和 profile 乐观回滚 | ✅ |

@@ -30,7 +30,7 @@ from app.services.memory.imports.import_sessions import (
     MemoryImportSessionError,
     MemoryImportSessionService,
 )
-from app.services.memory.operations.crud.import_readiness import build_import_readiness
+from app.services.memory.imports.readiness import build_import_readiness
 
 
 class _FakeMemoryManager:

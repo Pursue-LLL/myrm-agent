@@ -139,10 +139,10 @@ def test_hermes_loader_includes_cron_plan(
 def test_build_import_readiness_emits_hermes_gate_warnings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.services.memory.operations.crud.import_readiness import build_import_readiness
+    from app.services.memory.imports.readiness import build_import_readiness
 
     monkeypatch.setattr(
-        "app.services.memory.operations.crud.import_readiness._migration_feature_enabled",
+        "app.services.memory.imports.readiness._migration_feature_enabled",
         lambda _feature_id: False,
     )
 

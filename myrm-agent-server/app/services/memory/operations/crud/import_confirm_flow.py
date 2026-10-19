@@ -25,7 +25,6 @@ from app.schemas.memory.archive import (
     MemoryImportConfirmRequest,
     MemoryImportConfirmResponse,
     MemoryImportReadiness,
-    WorkspaceBindCandidate,
 )
 from app.services.memory.imports.import_sessions import (
     ImportReadinessRecheckFacts,
@@ -47,7 +46,7 @@ from app.services.memory.operations.crud.import_instruction_lane import (
 from app.services.migration.source.source_secrets_importer import (
     external_source_providers_configured,
 )
-from app.services.migration.workspace_bind_candidates import candidates_from_metadata
+from app.services.migration.workspace_bind_candidates import candidates_from_metadata, to_api_candidates
 
 
 async def confirm_import_memories(
@@ -149,15 +148,7 @@ async def confirm_import_memories(
         workspace_rules_written=lanes.result.workspace_rules_written if lanes.result else 0,
         workspace_rules_skipped=lanes.result.workspace_rules_skipped if lanes.result else 0,
         readiness=readiness,
-        workspace_bind_candidates=[
-            WorkspaceBindCandidate(
-                path=item.path,
-                label=item.label,
-                has_obsidian_config=item.has_obsidian_config,
-                markdown_file_count=item.markdown_file_count,
-            )
-            for item in candidates_from_metadata(metadata.get("workspace_bind_candidates"))
-        ],
+        workspace_bind_candidates=to_api_candidates(candidates_from_metadata(metadata.get("workspace_bind_candidates"))),
         cron_import_summary=cron_import_summary,
         imported_session_count=imported_session_count,
         imported_chat_ids=imported_chat_ids,

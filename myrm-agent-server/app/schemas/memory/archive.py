@@ -104,6 +104,13 @@ class MemoryArchiveRestoreRollbackResponse(BaseModel):
     result: MemoryArchiveRestoreRollbackResult
 
 
+class MigrationLaneDetailPart(BaseModel):
+    """One localizable fragment of a lane detail line."""
+
+    code: str
+    params: dict[str, int | str] = Field(default_factory=dict)
+
+
 class MigrationLanePreviewItem(BaseModel):
     """Content-safe four-lane migration preview row."""
 
@@ -111,6 +118,7 @@ class MigrationLanePreviewItem(BaseModel):
     status: str
     label: str
     detail: str
+    detail_parts: list[MigrationLaneDetailPart] = Field(default_factory=list)
 
 
 class MemoryImportMigrationOptions(BaseModel):
