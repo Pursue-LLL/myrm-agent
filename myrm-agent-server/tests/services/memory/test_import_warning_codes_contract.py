@@ -1,9 +1,12 @@
 """Contract test: every emitted import warning code is declared in the SSOT.
 
-Emitters live in the import adapters, their parsers and the source loaders. The
-scanner below walks those modules and collects the codes they can attach to a
-dry-run result — ``WARNING_*`` constants, ``warnings=[...]`` payloads,
-``warnings.append/extend`` calls and ``warning``/``refusal`` helper arguments.
+Emitters live in the import adapters, their parsers and the migration source
+loaders, so the scanner walks ``app/services/memory/imports`` and
+``app/services/migration`` recursively and collects the codes those modules can
+attach to a dry-run result — ``WARNING_*`` constants, ``warnings=[...]``
+payloads, ``warnings.append/extend`` calls and ``warning``/``refusal`` helper
+arguments. Archive-restore and rollback codes belong to their own review
+surfaces and therefore stay out of this vocabulary.
 A new code that is not declared in ``app.schemas.memory.import_warning_codes``
 fails here, which is what keeps the six-language copy mapping complete.
 """
@@ -19,7 +22,7 @@ from app.schemas.memory.import_warning_codes import IMPORT_WARNING_CODES
 _SERVER_ROOT = Path(__file__).resolve().parents[3]
 _SCAN_ROOTS = (
     _SERVER_ROOT / "app" / "services" / "memory" / "imports",
-    _SERVER_ROOT / "app" / "services" / "migration" / "source",
+    _SERVER_ROOT / "app" / "services" / "migration",
 )
 _HELPER_MARKERS = ("warning", "refusal")
 
@@ -27,7 +30,9 @@ _HELPER_MARKERS = ("warning", "refusal")
 def _module_files() -> list[Path]:
     files: list[Path] = []
     for root in _SCAN_ROOTS:
-        files.extend(sorted(path for path in root.glob("*.py") if path.name != "__init__.py"))
+        files.extend(
+            sorted(path for path in root.rglob("*.py") if path.name != "__init__.py" and "__pycache__" not in path.parts),
+        )
     return files
 
 
