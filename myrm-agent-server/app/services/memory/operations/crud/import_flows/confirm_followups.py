@@ -30,7 +30,7 @@ from app.services.memory.imports.import_sessions import (
     MemoryImportSessionService,
 )
 from app.services.memory.imports.readiness import build_import_readiness
-from app.services.memory.operations.crud.import_side_effects import (
+from app.services.memory.operations.crud.import_flows.side_effects import (
     _resolve_post_import_moa_overlay_configured,
 )
 

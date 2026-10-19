@@ -25,17 +25,17 @@ from app.services.memory.operations.crud.import_archive import (
     _COMPETITOR_AVG_SKILL_TOKENS,
     _MYRM_AVG_INDEX_TOKENS,
 )
-from app.services.memory.operations.crud.import_confirm_flow import confirm_import_memories
-from app.services.memory.operations.crud.import_confirm_followups import (
+from app.services.memory.operations.crud.import_flows.confirm_flow import confirm_import_memories
+from app.services.memory.operations.crud.import_flows.confirm_followups import (
     resolve_migration_competitor,
 )
-from app.services.memory.operations.crud.import_dry_run_preview import (
+from app.services.memory.operations.crud.import_flows.dry_run_preview import (
     build_instruction_preview,
     build_lane_response_rows,
     build_token_economics,
     skipped_cron_preview,
 )
-from app.services.memory.operations.crud.import_instruction_lane import (
+from app.services.memory.operations.crud.import_flows.instruction_lane import (
     mcp_configs_from_metadata,
     options_from_metadata,
     plan_from_metadata,
@@ -101,7 +101,7 @@ async def test_confirm_still_imports_sessions_when_instructions_are_skipped(
 
     with (
         patch(
-            "app.services.memory.operations.crud.import_confirm_flow.get_session",
+            "app.services.memory.operations.crud.import_flows.confirm_flow.get_session",
             _session_context(db_session),
         ),
         patch(
@@ -124,7 +124,7 @@ async def test_confirm_maps_session_errors_to_http_status(db_session: AsyncSessi
 
     with (
         patch(
-            "app.services.memory.operations.crud.import_confirm_flow.get_session",
+            "app.services.memory.operations.crud.import_flows.confirm_flow.get_session",
             _session_context(db_session),
         ),
         patch(
@@ -285,7 +285,7 @@ async def test_dry_run_previews_every_competitor_lane_and_binds_metadata(
 
     from app.database.models.memory import MemoryImportDryRunModel
     from app.schemas.memory.archive import MemoryImportDryRunRequest
-    from app.services.memory.operations.crud.import_dry_run import dry_run_import_memories
+    from app.services.memory.operations.crud.import_flows.dry_run import dry_run_import_memories
 
     loaded = _hermes_loaded_payload()
     request = MemoryImportDryRunRequest(payload={"competitor": "hermes", "root": "/tmp/hermes"})
@@ -296,11 +296,11 @@ async def test_dry_run_previews_every_competitor_lane_and_binds_metadata(
             return_value=loaded,
         ),
         patch(
-            "app.services.memory.operations.crud.import_dry_run.get_session",
+            "app.services.memory.operations.crud.import_flows.dry_run.get_session",
             _session_context(db_session),
         ),
         patch(
-            "app.services.memory.operations.crud.import_dry_run.external_source_providers_configured",
+            "app.services.memory.operations.crud.import_flows.dry_run.external_source_providers_configured",
             return_value=True,
         ),
     ):
@@ -344,7 +344,7 @@ async def test_dry_run_previews_every_competitor_lane_and_binds_metadata(
 @pytest.mark.asyncio
 async def test_dry_run_native_payload_skips_competitor_introspection(db_session: AsyncSession) -> None:
     from app.schemas.memory.archive import MemoryImportDryRunRequest
-    from app.services.memory.operations.crud.import_dry_run import dry_run_import_memories
+    from app.services.memory.operations.crud.import_flows.dry_run import dry_run_import_memories
 
     request = MemoryImportDryRunRequest(
         payload={"data": {"semantic": [{"content": "Native exports still preview.", "metadata": {}}]}},
@@ -352,11 +352,11 @@ async def test_dry_run_native_payload_skips_competitor_introspection(db_session:
 
     with (
         patch(
-            "app.services.memory.operations.crud.import_dry_run.get_session",
+            "app.services.memory.operations.crud.import_flows.dry_run.get_session",
             _session_context(db_session),
         ),
         patch(
-            "app.services.memory.operations.crud.import_dry_run.external_source_providers_configured",
+            "app.services.memory.operations.crud.import_flows.dry_run.external_source_providers_configured",
             return_value=False,
         ),
     ):
@@ -374,7 +374,7 @@ async def test_dry_run_native_payload_skips_competitor_introspection(db_session:
 
 @pytest.mark.asyncio
 async def test_diagnostic_failure_is_recorded_instead_of_raised(db_session: AsyncSession) -> None:
-    from app.services.memory.operations.crud.import_confirm_followups import DiagnosticOutcome, run_post_import_diagnostic
+    from app.services.memory.operations.crud.import_flows.confirm_followups import DiagnosticOutcome, run_post_import_diagnostic
 
     saved: list[dict[str, object]] = []
 
@@ -402,7 +402,7 @@ async def test_diagnostic_failure_is_recorded_instead_of_raised(db_session: Asyn
 async def test_readiness_persistence_failure_does_not_raise() -> None:
     from app.services.memory.imports.import_sessions import ImportReadinessRecheckFacts
     from app.services.memory.imports.readiness import build_import_readiness
-    from app.services.memory.operations.crud.import_confirm_followups import persist_readiness
+    from app.services.memory.operations.crud.import_flows.confirm_followups import persist_readiness
 
     class _FailingSessionService:
         async def save_post_import_readiness(self, **kwargs: object) -> None:
@@ -433,7 +433,7 @@ async def test_readiness_persistence_failure_does_not_raise() -> None:
 
 
 def test_lane_response_rows_mark_excluded_episodic_as_a_part() -> None:
-    from app.services.memory.operations.crud.import_dry_run_preview import build_lane_response_rows
+    from app.services.memory.operations.crud.import_flows.dry_run_preview import build_lane_response_rows
     from app.services.migration.source.source_migration_types import LaneDetailPart, MigrationLanePreview
 
     lane = MigrationLanePreview(

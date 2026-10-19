@@ -3,7 +3,7 @@
 [INPUT]
 app.services.migration.instruction_writer (POS: 指令车道写入)
 app.services.memory.imports.import_ledger (POS: 导入账本)
-app.services.memory.operations.crud.import_side_effects (POS: 导入后副作用)
+app.services.memory.operations.crud.import_flows.side_effects (POS: 导入后副作用)
 
 [OUTPUT]
 InstructionLaneOutcome: the applied instruction result plus the counts and
@@ -94,7 +94,7 @@ async def apply_instruction_lane(
     """Write instructions, MCP configs and model migration, then record the rollback facts."""
 
     from app.services.memory.imports.import_ledger import MemoryImportLedgerService
-    from app.services.memory.operations.crud.import_side_effects import (
+    from app.services.memory.operations.crud.import_flows.side_effects import (
         _apply_model_migration,
         _write_migrated_mcp_configs,
     )

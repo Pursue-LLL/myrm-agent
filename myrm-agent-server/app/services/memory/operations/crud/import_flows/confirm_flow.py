@@ -1,8 +1,8 @@
 """Memory import confirm handler.
 
 [INPUT]
-app.services.memory.operations.crud.import_instruction_lane (POS: 指令/MCP/模型车道)
-app.services.memory.operations.crud.import_confirm_followups (POS: cron/会话/就绪车道)
+app.services.memory.operations.crud.import_flows.instruction_lane (POS: 指令/MCP/模型车道)
+app.services.memory.operations.crud.import_flows.confirm_followups (POS: cron/会话/就绪车道)
 app.services.memory.imports.import_sessions (POS: 记忆导入审查会话)
 
 [OUTPUT]
@@ -31,7 +31,7 @@ from app.services.memory.imports.import_sessions import (
     MemoryImportSessionError,
     MemoryImportSessionService,
 )
-from app.services.memory.operations.crud.import_confirm_followups import (
+from app.services.memory.operations.crud.import_flows.confirm_followups import (
     apply_cron_lane,
     apply_session_lane,
     build_readiness,
@@ -39,7 +39,7 @@ from app.services.memory.operations.crud.import_confirm_followups import (
     resolve_migration_competitor,
     run_post_import_diagnostic,
 )
-from app.services.memory.operations.crud.import_instruction_lane import (
+from app.services.memory.operations.crud.import_flows.instruction_lane import (
     InstructionLaneOutcome,
     apply_instruction_lane,
 )

@@ -11,14 +11,5 @@
 | `item_mutations.py` | 核心 | 单条记忆更新/删除的唯一实现（用户保护语义：显式请求时锁定程序性规则/固定语义情景记忆，编辑程序性规则内容默认锁定；语义/情景软删除；异常映射 404/400）；记忆中心与学习时间线共用 | ✅ |
 | `trash.py` | 核心 | 回收站列表、恢复、永久删除 | ✅ |
 | `import_archive.py` | 门面 | re-export 导出/导入/回滚相态模块的全部 handler 与 token 基线常量，供 `crud_handlers.py` 与 token 经济测试保持单一导入点 | ✅ |
-| `memory_export_flow.py` | 核心 | 导出（JSON + Markdown ZIP）、归档、规则安全导出与预览 | ✅ |
-| `import_dry_run.py` | 核心 | 导入 dry-run 编排：模型车道 → 竞品来源归一化 → 审查会话哈希绑定 → 响应装配 | ✅ |
-| `import_dry_run_source.py` | 辅助 | 竞品来源只读一次：载荷加载、技能截断（上限 500）、指令计划、MCP/模型/cron/会话旁路，以及 confirm 重放所需的 session metadata | ✅ |
-| `import_dry_run_preview.py` | 辅助 | 预览行组装：instruction/memory/skill/credential/cron/session 车道、会话样例、指令预览（persona 截断 1200）、token 经济估算、cron 跳过原因 | ✅ |
-| `import_paste_lane.py` | 辅助 | 粘贴文本的模型车道：40k 字符预算内单次抽取，未配置模型/超预算/抽取失败一律回退确定性解析；不写库也不跳过审查 | ✅ |
-| `import_confirm_flow.py` | 核心 | 导入 confirm 编排：写入记忆 → 按审阅顺序重放车道 → 诊断 → readiness → 响应（`workspace_bind_candidates` 与账本条目供回滚重放） | ✅ |
-| `import_instruction_lane.py` | 核心 | confirm 写入车道：指令计划（persona/全局/规则）+ MCP 配置 + 模型迁移（Hermes `moa`→Agent `moa_overlay`，经 `hermes_moa_migrator`）+ `instruction_rollback` 账本；MCP 写入失败不推翻已生效的指令车道 | ✅ |
-| `import_confirm_followups.py` | 辅助 | confirm 后续车道：cron 暂停导入、会话落库、导入后诊断（失败降级）、readiness 聚合与持久化（含 recheck facts） | ✅ |
-| `import_side_effects.py` | 辅助 | confirm 之后的副作用：MCP 配置迁移、模型迁移搬运、`POST /import/readiness-recheck` 用当前 provider 状态重算 readiness | ✅ |
-| `import_rollback_flow.py` | 核心 | 导入回滚预演与执行（读 confirm 写入的账本条目） | ✅ |
+| `import_flows/` | 子模块 | 导入/导出/回滚相态实现（门面 `import_archive.py` 在本目录，路由只经门面引用）；见 [`import_flows/_ARCH.md`](import_flows/_ARCH.md) | ✅ |
 | `preferences.py` | 核心 | 偏好摘要、偏好列表、pin/forget/unpin/unforget | ✅ |

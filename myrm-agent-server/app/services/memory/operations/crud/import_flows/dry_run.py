@@ -1,9 +1,9 @@
 """Memory import dry-run handler (migration wizard review).
 
 [INPUT]
-app.services.memory.operations.crud.import_dry_run_source (POS: 竞品来源归一化)
-app.services.memory.operations.crud.import_dry_run_preview (POS: 预览行组装)
-app.services.memory.operations.crud.import_paste_lane (POS: 粘贴模型车道)
+app.services.memory.operations.crud.import_flows.dry_run_source (POS: 竞品来源归一化)
+app.services.memory.operations.crud.import_flows.dry_run_preview (POS: 预览行组装)
+app.services.memory.operations.crud.import_flows.paste_lane (POS: 粘贴模型车道)
 
 [OUTPUT]
 dry_run_import_memories: review session with mappings, bounded preview samples,
@@ -25,7 +25,7 @@ from app.schemas.memory.archive import (
 from app.services.memory.imports.import_sessions import (
     MemoryImportSessionService,
 )
-from app.services.memory.operations.crud.import_dry_run_preview import (
+from app.services.memory.operations.crud.import_flows.dry_run_preview import (
     build_instruction_preview,
     build_lane_response_rows,
     build_lane_rows,
@@ -33,12 +33,12 @@ from app.services.memory.operations.crud.import_dry_run_preview import (
     build_token_economics,
     skipped_cron_preview,
 )
-from app.services.memory.operations.crud.import_dry_run_source import (
+from app.services.memory.operations.crud.import_flows.dry_run_source import (
     build_session_metadata,
     build_side_channels,
     load_competitor_source,
 )
-from app.services.memory.operations.crud.import_paste_lane import (
+from app.services.memory.operations.crud.import_flows.paste_lane import (
     _is_paste_payload,
     _with_model_extracted_paste_items,
 )
