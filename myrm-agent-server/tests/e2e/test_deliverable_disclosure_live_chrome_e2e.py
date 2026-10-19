@@ -515,7 +515,7 @@ def test_plain_chat_shows_no_tier_badge_live_chrome_e2e() -> None:
         assert isinstance(badge_state, dict) and badge_state.get("badgeTestid") is None, badge_state
 
 
-_MOBILE_AUDIT_JS = """(async () => {
+_MOBILE_MOUNT_JS = """(() => {
   const url = %s;
   const existing = document.getElementById('__e2e_mobile_frame__');
   if (existing) existing.remove();
@@ -525,37 +525,79 @@ _MOBILE_AUDIT_JS = """(async () => {
   frame.style.cssText =
     'position:fixed;top:0;left:0;width:375px;height:812px;border:0;z-index:2147483647;background:#fff';
   document.body.appendChild(frame);
-  const deadline = Date.now() + 45000;
-  while (Date.now() < deadline) {
-    const win = frame.contentWindow;
-    const doc = frame.contentDocument;
-    if (win && doc) {
-      const badge = doc.querySelector('[data-testid^="deliverable-tier-badge-"]');
-      const notice = doc.querySelector('[data-testid="staged-artifacts-notice"]');
-      if (badge && notice) {
-        const viewport = win.innerWidth;
-        const audit = (el, label) => {
-          const rect = el.getBoundingClientRect();
-          return {
-            label,
-            width: Math.round(rect.width),
-            left: Math.round(rect.left),
-            right: Math.round(rect.right),
-            inside: rect.width > 0 && rect.right <= viewport + 1 && rect.left >= -1,
-          };
-        };
-        return {
-          ready: true,
-          viewport,
-          badge: audit(badge, 'badge'),
-          notice: audit(notice, 'notice'),
-          noticeText: (notice.textContent || '').trim().slice(0, 160),
-        };
-      }
+  return { ok: true };
+})()"""
+
+
+_MOBILE_WAIT_JS = """(async () => {
+  const budgetMs = Number(%s);
+  const read = () => {
+    const frame = document.getElementById('__e2e_mobile_frame__');
+    const win = frame ? frame.contentWindow : null;
+    const doc = frame ? frame.contentDocument : null;
+    const out = {
+      ready: false,
+      href: doc?.location?.href ?? null,
+      domMessages: doc ? doc.querySelectorAll('[data-message-id]').length : 0,
+      storeMessages: null,
+      storeTier: null,
+      viewport: win ? win.innerWidth : null,
+      hasBridge: Boolean(win?.__MYRM_E2E_CHAT__?.attachToChat),
+      hasBadge: false,
+      hasNotice: false,
+      noticeText: '',
+    };
+    if (!win || !doc) {
+      return out;
     }
+    const store = win.__myrmChatStore?.getState?.();
+    const msgs = Array.isArray(store?.messages) ? store.messages : [];
+    out.storeMessages = msgs.length;
+    const assistant = [...msgs].reverse().find((m) => m?.role === 'assistant');
+    out.storeTier = assistant?.deliverableTier?.tier ?? null;
+    const badge = doc.querySelector('[data-testid^="deliverable-tier-badge-"]');
+    const notice = doc.querySelector('[data-testid="staged-artifacts-notice"]');
+    out.hasBadge = Boolean(badge);
+    out.hasNotice = Boolean(notice);
+    if (badge && notice) {
+      const viewport = win.innerWidth;
+      const audit = (el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          width: Math.round(rect.width),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          inside: rect.width > 0 && rect.right <= viewport + 1 && rect.left >= -1,
+        };
+      };
+      out.viewport = viewport;
+      out.badge = audit(badge);
+      out.notice = audit(notice);
+      out.noticeText = (notice.textContent || '').trim().slice(0, 160);
+      out.ready = true;
+    }
+    return out;
+  };
+  const deadline = Date.now() + (Number.isFinite(budgetMs) ? budgetMs : 15000);
+  let state = read();
+  while (!state.ready && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 500));
+    state = read();
   }
-  return { ready: false };
+  return state;
+})()"""
+
+
+_MOBILE_ATTACH_JS = """(async () => {
+  const chatId = %s;
+  const frame = document.getElementById('__e2e_mobile_frame__');
+  const bridge = frame?.contentWindow?.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  bridge.__mobile_attached__ = true;
+  await bridge.attachToChat(chatId);
+  return { ok: true };
 })()"""
 
 
@@ -584,12 +626,27 @@ def test_disclosure_surfaces_fit_a_phone_viewport_chrome_e2e() -> None:
             page_url=chat_url,
         )
 
-        audit = client.evaluate(  # type: ignore[attr-defined]
+        mounted = client.evaluate(  # type: ignore[attr-defined]
             page,
-            _MOBILE_AUDIT_JS % json.dumps(chat_url),
-            timeout_sec=90.0,
+            _MOBILE_MOUNT_JS % json.dumps(chat_url),
+            timeout_sec=15.0,
         )
-        assert isinstance(audit, dict) and audit.get("ready") is True, audit
+        assert isinstance(mounted, dict) and mounted.get("ok") is True, mounted
+
+        audit: dict[str, object] = {}
+        state_call = _MOBILE_WAIT_JS % json.dumps("15000")
+        raw = client.evaluate(page, state_call, timeout_sec=30.0)  # type: ignore[attr-defined]
+        audit = raw if isinstance(raw, dict) else {}
+        if audit.get("ready") is not True and audit.get("hasBridge") is True:
+            attached_mobile = client.evaluate(  # type: ignore[attr-defined]
+                page,
+                _MOBILE_ATTACH_JS % json.dumps(chat_id),
+                timeout_sec=45.0,
+            )
+            assert isinstance(attached_mobile, dict) and attached_mobile.get("ok") is True, attached_mobile
+            raw = client.evaluate(page, state_call, timeout_sec=30.0)  # type: ignore[attr-defined]
+            audit = raw if isinstance(raw, dict) else {}
+        assert audit.get("ready") is True, audit
         assert audit.get("viewport") == 375, audit
         badge = audit.get("badge")
         notice = audit.get("notice")
