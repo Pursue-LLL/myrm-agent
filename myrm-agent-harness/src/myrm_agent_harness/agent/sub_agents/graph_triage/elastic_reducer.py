@@ -1,3 +1,15 @@
+"""Elastic concurrency reducer driven by budget pressure.
+
+[INPUT]
+- BudgetStatus / ExecutionSpendState from `.types`
+
+[OUTPUT]
+- ElasticConcurrencyReducer: lowers parallelism as budget pressure rises.
+
+[POS]
+Trades throughput for headroom so a run finishes inside its cap instead of being killed.
+"""
+
 from myrm_agent_harness.agent.sub_agents.graph_triage.types import (
     BudgetStatus,
     ExecutionSpendState,

@@ -1,3 +1,15 @@
+"""Graph applicability gate.
+
+[INPUT]
+- GraphTriageDecision / TriageFeatureVector / TaskComplexityCategory from `.types`
+
+[OUTPUT]
+- GraphApplicabilityTriageGate: decides whether a task belongs in a graph at all.
+
+[POS]
+Runs before any node starts, so an unsuitable task never pays the graph setup cost.
+"""
+
 import re
 
 from myrm_agent_harness.agent.sub_agents.graph_triage.types import (

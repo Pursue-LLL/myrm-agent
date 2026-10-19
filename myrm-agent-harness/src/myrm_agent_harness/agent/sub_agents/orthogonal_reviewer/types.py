@@ -1,3 +1,15 @@
+"""Review perspective and verdict models.
+
+[INPUT]
+- No runtime input; pure data definitions.
+
+[OUTPUT]
+- ReviewerPerspective enum plus finding and verdict models.
+
+[POS]
+Shared vocabulary for both reviewers and the arbiter. Pure data, no I/O.
+"""
+
 from enum import StrEnum
 
 from pydantic import BaseModel, Field

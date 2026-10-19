@@ -1,3 +1,17 @@
+"""Multi-gateway connection registry and health tracking.
+
+[INPUT]
+- GatewayNode / GatewayStatus / GatewayTelemetry from `.types`
+
+[OUTPUT]
+- MultiGatewayConnectionPool: register_gateway(), unregister_gateway(), liveness lookups
+- FleetRouterError with GatewayNotFoundError / GatewayOfflineError / DuplicateGatewayError
+
+[POS]
+Owns which gateways exist and whether they are reachable. Does not decide routing policy; it
+only answers what is available so the caller can choose.
+"""
+
 import time
 import uuid
 

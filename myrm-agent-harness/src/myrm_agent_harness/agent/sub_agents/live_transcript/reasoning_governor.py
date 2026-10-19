@@ -4,6 +4,15 @@
 Dynamically allocates reasoning intensity (low, medium, max, ultra) and token
 budgets across different Mixture-of-Agents (MoA) roles to optimize output quality
 while keeping token consumption strictly governed.
+
+[INPUT]
+- Task signals and the requested reasoning intensity.
+
+[OUTPUT]
+- ReasoningEffortGovernor: allocates low / medium / max / ultra intensity and its token budget.
+
+[POS]
+Reasoning effort is a budget, not a label: each intensity maps to a concrete token allocation.
 """
 
 from threading import Lock

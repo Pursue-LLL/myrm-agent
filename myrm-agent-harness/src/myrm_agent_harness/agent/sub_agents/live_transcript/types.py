@@ -2,6 +2,15 @@
 """Data types for Subagent Live Transcript, Persistent Delegation, and Smart Approvals.
 
 Aligned with Hermes v0.19 delegation transparency, persistent ledger, and MoA reasoning.
+
+[INPUT]
+- No runtime input; pure data definitions.
+
+[OUTPUT]
+- Data types shared by the transcript, ledger, governor and approvals gate.
+
+[POS]
+Shared vocabulary for delegation transparency. Pure data, no I/O.
 """
 
 from enum import Enum

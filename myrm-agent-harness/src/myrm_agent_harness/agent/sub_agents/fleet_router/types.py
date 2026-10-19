@@ -1,3 +1,18 @@
+"""Gateway, fleet-profile and cross-gateway artifact models.
+
+[INPUT]
+- (none)
+
+[OUTPUT]
+- Enums: GatewayStatus, GatewayPlatform
+- Models: GatewayTelemetry, GatewayNode, FleetProfile, OfflineBufferedCommand,
+  CrossGatewayArtifactEnvelope, FleetTopologySnapshot
+
+[POS]
+Shared vocabulary for the fleet router. Pure data: no I/O, no policy, so the pool, injector and
+relay can be tested against plain objects.
+"""
+
 from enum import StrEnum
 
 from pydantic import BaseModel, Field

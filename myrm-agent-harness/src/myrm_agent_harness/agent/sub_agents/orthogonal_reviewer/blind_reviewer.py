@@ -1,3 +1,15 @@
+"""Blind clean-context reviewer.
+
+[INPUT]
+- Finding and verdict models from `.types`
+
+[OUTPUT]
+- BlindCleanContextReviewer: reviews work in a context that never contained the author rationale.
+
+[POS]
+Blindness is structural, not instructed: the rationale is absent rather than deprecated.
+"""
+
 import re
 import time
 import uuid

@@ -1,3 +1,15 @@
+"""Predictive budget guard for graph runs.
+
+[INPUT]
+- BudgetCapConfig / BudgetStatus / ExecutionSpendState from `.types`
+
+[OUTPUT]
+- PredictiveBudgetGuard: projects remaining spend and stops a run before the cap is exceeded.
+
+[POS]
+Projects spend instead of only measuring it, so a run can be stopped while a useful partial result is still producible.
+"""
+
 from myrm_agent_harness.agent.sub_agents.graph_triage.types import (
     BudgetCapConfig,
     BudgetStatus,

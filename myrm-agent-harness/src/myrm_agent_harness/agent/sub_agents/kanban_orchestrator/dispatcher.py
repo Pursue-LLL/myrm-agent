@@ -1,4 +1,14 @@
-"""Kanban Card Lifecycle Dispatcher with Card-Scoped Sandboxes and Auto-Unblock Cascades."""
+"""Kanban Card Lifecycle Dispatcher with Card-Scoped Sandboxes and Auto-Unblock Cascades.
+
+[INPUT]
+- Card and lifecycle models from `.types`
+
+[OUTPUT]
+- KanbanCardLifecycleDispatcher: card transitions, card-scoped sandboxes, auto-unblock cascades.
+
+[POS]
+Sandboxes are card-scoped so one card cannot leak into a sibling workspace.
+"""
 
 from __future__ import annotations
 

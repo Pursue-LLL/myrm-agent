@@ -1,3 +1,15 @@
+"""Intent reviewer.
+
+[INPUT]
+- Finding and verdict models from `.types`
+
+[OUTPUT]
+- Reviews the change against the stated intent.
+
+[POS]
+Covers the perspective the blind reviewer deliberately cannot see.
+"""
+
 import time
 import uuid
 

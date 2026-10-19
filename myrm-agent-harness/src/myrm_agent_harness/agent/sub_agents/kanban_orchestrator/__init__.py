@@ -1,4 +1,14 @@
-"""Multi-Agent Kanban Orchestrator and Card Lifecycle Dispatcher module."""
+"""Multi-Agent Kanban Orchestrator and Card Lifecycle Dispatcher module.
+
+[INPUT]
+- Package re-exports only; no runtime input.
+
+[OUTPUT]
+- KanbanTaskDagEngine, KanbanCardLifecycleDispatcher and card models.
+
+[POS]
+Public surface only; the dispatcher drives card transitions.
+"""
 
 from myrm_agent_harness.agent.sub_agents.kanban_orchestrator.dag_engine import (
     KanbanTaskDagEngine,

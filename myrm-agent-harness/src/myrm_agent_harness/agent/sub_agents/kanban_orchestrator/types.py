@@ -1,4 +1,14 @@
-"""Type definitions and domain models for Multi-Agent Kanban Orchestrator and Card Lifecycle Dispatcher."""
+"""Type definitions and domain models for Multi-Agent Kanban Orchestrator and Card Lifecycle Dispatcher.
+
+[INPUT]
+- No runtime input; pure data definitions.
+
+[OUTPUT]
+- Card, dependency and lifecycle enums and models used by the DAG engine and dispatcher.
+
+[POS]
+Shared vocabulary for the orchestrator. Pure data, no I/O.
+"""
 
 from __future__ import annotations
 

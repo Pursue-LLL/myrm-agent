@@ -1,3 +1,15 @@
+"""Reconciles two orthogonal review verdicts.
+
+[INPUT]
+- BlindCleanContextReviewer and the intent reviewer (POS: the two perspectives being reconciled)
+
+[OUTPUT]
+- OrthogonalReviewArbiter: combines both verdicts into one final decision.
+
+[POS]
+Two perspectives, one verdict: neither reviewer can unilaterally approve.
+"""
+
 from myrm_agent_harness.agent.sub_agents.orthogonal_reviewer.blind_reviewer import (
     BlindCleanContextReviewer,
 )

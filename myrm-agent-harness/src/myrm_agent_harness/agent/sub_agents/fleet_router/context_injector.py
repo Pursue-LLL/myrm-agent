@@ -1,3 +1,17 @@
+"""Gateway-scoped context injection for routed subagents.
+
+[INPUT]
+- MultiGatewayConnectionPool (POS: resolves the gateway a profile is bound to)
+- FleetProfile from `.types`
+
+[OUTPUT]
+- HostGatewayContextInjector: inject_host_context(), format_host_badge()
+
+[POS]
+Prepends the host-gateway facts a subagent needs when it runs on a non-default endpoint, so
+the model knows which machine and profile it is acting on.
+"""
+
 
 from myrm_agent_harness.agent.sub_agents.fleet_router.connection_pool import (
     MultiGatewayConnectionPool,

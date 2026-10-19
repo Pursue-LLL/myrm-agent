@@ -1,3 +1,18 @@
+"""Content-addressed artifact hand-off between gateways.
+
+[INPUT]
+- MultiGatewayConnectionPool (POS: gateway registry and liveness used to pick a target)
+- CrossGatewayArtifactEnvelope / OfflineBufferedCommand from `.types`
+
+[OUTPUT]
+- CrossGatewayArtifactRelayService: relay_artifact(), verify_artifact_integrity(),
+  get_artifact(), list_relayed_artifacts()
+
+[POS]
+Moves the payload of a delegated task from the gateway that produced it to the gateway that
+consumes it. Hashes content so the same artifact relayed twice is stored once.
+"""
+
 import hashlib
 import time
 import uuid

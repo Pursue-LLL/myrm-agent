@@ -1,3 +1,17 @@
+"""Fleet-wide profile rail and multi-gateway router package.
+
+[INPUT]
+- (none: package re-exports only)
+
+[OUTPUT]
+- MultiGatewayConnectionPool, HostGatewayContextInjector, CrossGatewayArtifactRelayService
+- Gateway and artifact models from `.types`
+
+[POS]
+Public surface of the fleet router. Keeps the pool, injector and relay importable from one
+package name so callers do not reach into the modules directly.
+"""
+
 from myrm_agent_harness.agent.sub_agents.fleet_router.artifact_relay import (
     CrossGatewayArtifactRelayService,
 )

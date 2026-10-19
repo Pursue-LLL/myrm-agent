@@ -1,3 +1,15 @@
+"""Dual orthogonal review package.
+
+[INPUT]
+- Package re-exports only; no runtime input.
+
+[OUTPUT]
+- The arbiter, blind reviewer, intent reviewer and models.
+
+[POS]
+Public surface only; the arbiter owns the reconciliation.
+"""
+
 from myrm_agent_harness.agent.sub_agents.orthogonal_reviewer.arbiter import (
     OrthogonalReviewArbiter,
 )

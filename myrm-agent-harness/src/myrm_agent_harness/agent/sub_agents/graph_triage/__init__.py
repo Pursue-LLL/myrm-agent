@@ -1,3 +1,15 @@
+"""Graph applicability triage package.
+
+[INPUT]
+- Package re-exports only; no runtime input.
+
+[OUTPUT]
+- The triage gate, predictive budget guard, elastic reducer and their models.
+
+[POS]
+Public surface only; the gate decides applicability before a graph run starts.
+"""
+
 from myrm_agent_harness.agent.sub_agents.graph_triage.budget_guard import (
     PredictiveBudgetGuard,
 )

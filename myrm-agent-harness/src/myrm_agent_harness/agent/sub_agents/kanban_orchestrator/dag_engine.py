@@ -1,4 +1,14 @@
-"""DAG dependency calculation and topological analysis for Multi-Agent Kanban Orchestrator."""
+"""DAG dependency calculation and topological analysis for Multi-Agent Kanban Orchestrator.
+
+[INPUT]
+- KanbanCardDTO and dependency models from `.types`
+
+[OUTPUT]
+- KanbanTaskDagEngine: dependency graph construction and topological ordering.
+
+[POS]
+One DAG per board, so a card cannot be dispatched before its dependencies are done.
+"""
 
 from __future__ import annotations
 

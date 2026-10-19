@@ -3,6 +3,15 @@
 
 Emits human-readable structured telemetry for delegated subagents,
 eliminating black-box wait times and enabling real-time UI tree rendering.
+
+[INPUT]
+- Subagent events and the delegation context they belong to.
+
+[OUTPUT]
+- SubagentTranscriptEmitter: human-readable structured telemetry for delegated subagents.
+
+[POS]
+The transcript is what makes a delegation observable while it runs, not only after it fails.
 """
 
 import time

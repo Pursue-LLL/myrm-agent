@@ -3,6 +3,15 @@
 
 Provides crash-resilient storage, status lifecycle tracking, and orphan task
 recovery for background delegated subagents, guaranteeing task durability.
+
+[INPUT]
+- Delegation records from `.types`; a writable state directory.
+
+[OUTPUT]
+- DelegationLedger: crash-resilient persistence, status lifecycle tracking, orphan task detection.
+
+[POS]
+The ledger survives a crash, so a restart can tell a lost delegation from a running one.
 """
 
 import json

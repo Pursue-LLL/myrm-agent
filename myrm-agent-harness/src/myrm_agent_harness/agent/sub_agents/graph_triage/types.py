@@ -1,3 +1,15 @@
+"""Triage, budget and partial-result models.
+
+[INPUT]
+- No runtime input; pure data definitions.
+
+[OUTPUT]
+- Enums TaskComplexityCategory / TriageVerdict; models GraphTriageDecision, TriageFeatureVector, BudgetCapConfig, BudgetStatus, ExecutionSpendState, PartialNodeOutput, PartialReduceReport
+
+[POS]
+Shared vocabulary for triage and budgeting. Pure data, no I/O.
+"""
+
 from enum import StrEnum
 
 from pydantic import BaseModel, Field

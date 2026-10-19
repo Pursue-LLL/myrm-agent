@@ -3,6 +3,15 @@
 
 Provides isolated single-command review, risk scoring, custom deny rules,
 and interactive /deny feedback remediation to keep subagents safe and aligned.
+
+[INPUT]
+- A single command and the configured deny rules.
+
+[OUTPUT]
+- SmartApprovalsGate: isolated single-command review, risk scoring, custom deny rules.
+
+[POS]
+Approvals are per command, so approval of one command never implies approval of the next.
 """
 
 import hashlib
