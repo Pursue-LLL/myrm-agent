@@ -100,12 +100,38 @@ _SEND_TURN_JS_TEMPLATE = """(async () => {
 
 _BADGE_READY_JS = """(() => {
   const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = Array.isArray(store?.messages) ? store.messages : [];
+  const assistant = [...msgs].reverse().find((m) => m?.role === 'assistant');
   return {
-    ready: Boolean(badge),
+    ready: Boolean(badge) && Boolean(assistant?.deliverableTier) && !store?.loading,
     testid: badge ? badge.getAttribute('data-testid') : null,
     text: badge ? (badge.textContent || '').trim() : '',
+    storeMessageCount: msgs.length,
+    assistantId: assistant?.messageId ?? null,
+    storeTier: assistant?.deliverableTier?.tier ?? null,
+    loading: Boolean(store?.loading),
   };
 })()"""
+
+_DIAG_SAMPLE_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = Array.isArray(store?.messages) ? store.messages : [];
+  const assistant = [...msgs].reverse().find((m) => m?.role === 'assistant');
+  const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
+  return {
+    ready: true,
+    storeChatId: store?.chatId ?? null,
+    storeMessageCount: msgs.length,
+    lastAssistantId: assistant?.messageId ?? null,
+    lastAssistantKeys: assistant ? Object.keys(assistant).slice(0, 40) : null,
+    storeTier: assistant?.deliverableTier?.tier ?? null,
+    storeStaged: Array.isArray(assistant?.stagedArtifacts) ? assistant.stagedArtifacts.length : 0,
+    badgeTestid: badge ? badge.getAttribute('data-testid') : null,
+    loading: Boolean(store?.loading),
+  };
+})()"""
+
 
 _TIER_READY_JS = """(() => {
   const store = window.__myrmChatStore?.getState?.();
@@ -149,7 +175,7 @@ _APPROVAL_VISIBLE_JS = """(() => {
 _APPROVAL_CLICK_BUDGET = 20
 
 
-def _approve_cards_until_reply(
+def _approve_cards_until_tier(
     client: object,
     page: object,
     chat_id: str,
@@ -157,29 +183,53 @@ def _approve_cards_until_reply(
     *,
     timeout_sec: float = 420.0,
 ) -> dict[str, object]:
-    """Approve every tool-approval card the run parks behind, as the user would."""
+    """Approve every tool-approval card the run parks behind until its tier is stored.
+
+    The persisted tier is the anchor that proves the turn finished (message_end
+    carries it) and that the harness published the disclosure for this turn.
+    """
     deadline = time.monotonic() + timeout_sec
     clicks = 0
+    last_metadata: object = None
+    last_content = ""
     while time.monotonic() < deadline:
         try:
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
-        assistant = next(
-            (m for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "assistant"),
-            None,
-        )
-        if isinstance(assistant, dict) and str(assistant.get("content") or "").strip():
-            return assistant
-        card = client.evaluate(page, _APPROVAL_VISIBLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        assistants = [
+            m for m in messages if isinstance(m, dict) and m.get("role") == "assistant"
+        ]
+        for candidate in reversed(assistants):
+            metadata = candidate.get("metadata")
+            last_metadata = metadata
+            if isinstance(metadata, dict) and isinstance(metadata.get("deliverableTier"), dict):
+                content = str(candidate.get("content") or candidate.get("message") or "")
+                return {"metadata": metadata, "content": content}
+        if assistants:
+            last_content = str(
+                assistants[-1].get("content") or assistants[-1].get("message") or ""
+            )
+        # Probe the card every other pass: each CDP round trip competes with parallel E2E load.
+        card = None
+        if (clicks + int(time.monotonic())) % 2 == 0:
+            card = client.evaluate(page, _APPROVAL_VISIBLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
         if isinstance(card, dict) and card.get("ready") is True and clicks < _APPROVAL_CLICK_BUDGET:
             clicks += 1
             print(f"E2E_APPROVE_CLICK: n={clicks} chat={chat_id}", flush=True)
-            click_approve(client, page)  # type: ignore[arg-type]
+            try:
+                click_approve(client, page)  # type: ignore[arg-type]
+            except AssertionError:
+                # The card was consumed between the probe and the click.
+                pass
             time.sleep(1.0)
             continue
-        time.sleep(4.0)
-    pytest.fail(f"assistant reply not received within {timeout_sec}s for chat {chat_id} (approval clicks={clicks})")
+        time.sleep(3.0)
+    keys = sorted(last_metadata.keys()) if isinstance(last_metadata, dict) else None
+    pytest.fail(
+        f"deliverableTier never landed within {timeout_sec}s for chat {chat_id} (approval clicks={clicks}); "
+        f"metadata_keys={keys} content={last_content[:200]!r}"
+    )
 
 
 def _entries_from_listing(listing: object) -> list[object]:
@@ -215,75 +265,6 @@ def _workspace_file_present(api_url: str, workspace_dir: str, filename: str) -> 
         return False
 
     return _walk(entries)
-
-
-def _wait_for_probe_file(api_url: str, workspace_dir: str, timeout_sec: float = 240.0) -> None:
-    deadline = time.monotonic() + timeout_sec
-    last_listing: object = None
-    query = urlencode({"path": workspace_dir, "depth": "2"})
-    while time.monotonic() < deadline:
-        if _workspace_file_present(api_url, workspace_dir, _PROBE_FILENAME):
-            return
-        try:
-            last_listing = http_json("GET", f"{api_url}/api/v1/files/browse/files?{query}")
-        except Exception as exc:  # noqa: BLE001 - surface the last failure in the final assert
-            last_listing = str(exc)
-        time.sleep(3.0)
-    pytest.fail(
-        f"agent did not write {_PROBE_FILENAME} within {timeout_sec}s; "
-        f"last listing={json.dumps(last_listing, ensure_ascii=False)[:600]}"
-    )
-
-
-_DIAG_SAMPLE_JS = """(() => {
-  const store = window.__myrmChatStore?.getState?.();
-  const msgs = Array.isArray(store?.messages) ? store.messages : [];
-  const assistant = [...msgs].reverse().find((m) => m?.role === 'assistant');
-  const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
-  return {
-    ready: true,
-    storeTier: assistant?.deliverableTier?.tier ?? null,
-    storeStaged: Array.isArray(assistant?.stagedArtifacts) ? assistant.stagedArtifacts.length : 0,
-    badgeTestid: badge ? badge.getAttribute('data-testid') : null,
-    loading: Boolean(store?.loading),
-  };
-})()"""
-
-
-def _wait_assistant_disclosure(
-    chat_id: str,
-    api_url: str,
-    *,
-    timeout_sec: float = 240.0,
-) -> dict[str, object]:
-    """Poll the persisted messages until the assistant turn carries the disclosure tier."""
-    deadline = time.monotonic() + timeout_sec
-    last_metadata: object = None
-    last_content = ""
-    while time.monotonic() < deadline:
-        try:
-            messages = fetch_chat_messages(chat_id, api_url=api_url)
-        except OSError:
-            messages = []
-        assistant = next(
-            (m for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "assistant"),
-            None,
-        )
-        if isinstance(assistant, dict):
-            last_content = str(assistant.get("content") or assistant.get("message") or "")
-            metadata = assistant.get("metadata")
-            last_metadata = metadata
-            if isinstance(metadata, dict) and isinstance(metadata.get("deliverableTier"), dict):
-                tier = metadata["deliverableTier"].get("tier")
-                if isinstance(tier, str) and tier.strip():
-                    return {"metadata": metadata, "content": last_content}
-        time.sleep(3.0)
-    keys = sorted(last_metadata.keys()) if isinstance(last_metadata, dict) else None
-    pytest.fail(
-        "assistant turn never carried deliverableTier within "
-        f"{timeout_sec}s for chat {chat_id}; metadata_keys={keys} "
-        f"metadata={json.dumps(last_metadata, ensure_ascii=False)[:400]} content={last_content[:200]}"
-    )
 
 
 @pytest.mark.chrome_e2e(
@@ -346,37 +327,62 @@ def test_deliverable_disclosure_live_chrome_e2e() -> None:
         )
         assert isinstance(sent, dict) and sent.get("ok") is not False, sent
 
-        # 1. The live model answered the turn.
-        reply = _approve_cards_until_reply(client, page, chat_id, api_url)
+        # 1. Approve the cards the run parks behind until its disclosure tier is stored.
+        disclosed = _approve_cards_until_tier(client, page, chat_id, api_url)
 
-        # 2. The real turn actually writes the file through its tools.
+        # 2. The real turn actually wrote the file through its tools.
         if not _workspace_file_present(api_url, workspace_dir, _PROBE_FILENAME):
             page_state = client.evaluate(page, _PAGE_SAMPLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
             pytest.fail(
-                f"agent did not write {_PROBE_FILENAME}; reply={_reply_excerpt(reply.get('content'))!r} "
+                f"agent did not write {_PROBE_FILENAME}; reply={_reply_excerpt(disclosed.get('content'))!r} "
                 f"page={json.dumps(page_state, ensure_ascii=False)[:700]}"
             )
-        _wait_for_probe_file(api_url, workspace_dir, timeout_sec=120.0)
 
         # 3. The persisted assistant message carries the harness disclosure payload.
-        try:
-            disclosed = _wait_assistant_disclosure(chat_id, api_url)
-        except BaseException:
-            diag = client.evaluate(page, _DIAG_SAMPLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
-            print(f"E2E_DISCLOSURE_DIAG: {json.dumps(diag, ensure_ascii=False)}", flush=True)
-            raise
+        api_messages = fetch_chat_messages(chat_id, api_url=api_url)
+        api_assistant = next(
+            (m for m in reversed(api_messages) if isinstance(m, dict) and m.get("role") == "assistant"),
+            None,
+        )
+        print(
+            "E2E_API_ASSISTANT: "
+            + json.dumps(
+                {
+                    "chat_id": chat_id,
+                    "assistant_id": (api_assistant or {}).get("messageId"),
+                    "metadata_keys": sorted(((api_assistant or {}).get("metadata") or {}).keys()),
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
         tier = str(disclosed["metadata"]["deliverableTier"].get("tier"))  # type: ignore[index]
         assert tier in {"ARTIFACT", "VERIFIED"}, disclosed["metadata"]
         assert str(disclosed["content"]).strip(), "assistant answer was empty"
 
         # 4. The WebUI renders the tier badge for that answer.
-        badge_state = wait_for_state(
-            client,  # type: ignore[arg-type]
-            page,  # type: ignore[arg-type]
-            _BADGE_READY_JS,
-            timeout_sec=90.0,
-            page_url=target_url,
-        )
+        try:
+            badge_state = wait_for_state(
+                client,  # type: ignore[arg-type]
+                page,  # type: ignore[arg-type]
+                _BADGE_READY_JS,
+                timeout_sec=150.0,
+                page_url=target_url,
+            )
+        except BaseException:
+            diag = client.evaluate(page, _DIAG_SAMPLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+            print(f"E2E_BADGE_DIAG: {json.dumps(diag, ensure_ascii=False)}", flush=True)
+            # A user reload rebuilds the message from the persisted metadata; compare both paths.
+            client.navigate(page, target_url, timeout_ms=90_000)  # type: ignore[attr-defined]
+            wait_for_react_e2e_bridge(
+                client,  # type: ignore[arg-type]
+                page,  # type: ignore[arg-type]
+                timeout_sec=120.0,
+                page_url=target_url,
+            )
+            after_reload = client.evaluate(page, _DIAG_SAMPLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+            print(f"E2E_BADGE_DIAG_AFTER_RELOAD: {json.dumps(after_reload, ensure_ascii=False)}", flush=True)
+            raise
         assert badge_state.get("ready") is True, json.dumps(badge_state, ensure_ascii=False)
         assert str(badge_state.get("testid", "")).startswith("deliverable-tier-badge-")
 
