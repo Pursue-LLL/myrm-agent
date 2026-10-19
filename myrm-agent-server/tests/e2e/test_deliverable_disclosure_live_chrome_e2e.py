@@ -613,3 +613,101 @@ def test_deliverable_disclosure_verified_execution_live_chrome_e2e() -> None:
         )
         assert badge_state.get("ready") is True, json.dumps(badge_state, ensure_ascii=False)
         assert str(badge_state.get("testid", "")).startswith("deliverable-tier-badge-"), badge_state
+
+
+_NARROW_CONTAINER_JS = """(() => {
+  const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
+  const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
+  const box = notice ? notice.closest('[data-message-id]') : null;
+  const card = box || (notice ? notice.parentElement : null);
+  if (!card) {
+    return { ok: false, err: 'message-card-not-found' };
+  }
+  card.style.width = '355px';
+  card.style.maxWidth = '355px';
+  card.style.overflowX = 'hidden';
+  return {
+    ok: true,
+    cardWidth: Math.round(card.getBoundingClientRect().width),
+    hasBadge: Boolean(badge),
+    hasNotice: Boolean(notice),
+  };
+})()"""
+
+
+_NARROW_AUDIT_JS = """(() => {
+  const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
+  const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
+  if (!badge || !notice) {
+    return { ready: false };
+  }
+  const card = notice.closest('[data-message-id]') || notice.parentElement;
+  const cardRect = card.getBoundingClientRect();
+  const limit = cardRect.right + 1;
+  const audit = (el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      width: Math.round(rect.width),
+      left: Math.round(rect.left),
+      right: Math.round(rect.right),
+      inside: rect.width > 0 && rect.right <= limit && rect.left >= cardRect.left - 1,
+    };
+  };
+  return {
+    ready: true,
+    cardWidth: Math.round(cardRect.width),
+    overflowsX: card.scrollWidth > Math.round(cardRect.width) + 1,
+    badge: audit(badge),
+    notice: audit(notice),
+    noticeText: (notice.textContent || '').trim().slice(0, 160),
+  };
+})()"""
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.integration
+@pytest.mark.timeout(240)
+def test_disclosure_surfaces_fit_a_narrow_card_chrome_e2e() -> None:
+    """The badge and the staged notice stay inside a 355px-wide message card."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-deliverable-link-fixture")
+    assert isinstance(seeded, dict), seeded
+    chat_id = str(seeded.get("chat_id") or "")
+    assert chat_id.startswith("e2edeliv"), seeded
+
+    chat_url = f"{ui_url.rstrip('/')}/{chat_id}"
+    warm_ui_route("/")
+    with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=120.0,
+            page_url=chat_url,
+        )
+
+        surfaces = wait_for_state(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            _AUDIT_SURFACES_READY_JS,
+            timeout_sec=90.0,
+            page_url=chat_url,
+        )
+        assert surfaces.get("ready") is True, surfaces
+
+        narrowed = client.evaluate(page, _NARROW_CONTAINER_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        assert isinstance(narrowed, dict) and narrowed.get("ok") is True, narrowed
+        assert narrowed.get("cardWidth") == 355, narrowed
+
+        audit = client.evaluate(page, _NARROW_AUDIT_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        audit = audit if isinstance(audit, dict) else {}
+        assert audit.get("ready") is True, audit
+        assert audit.get("overflowsX") is False, audit
+        badge = audit.get("badge")
+        notice = audit.get("notice")
+        assert isinstance(badge, dict) and badge.get("inside") is True, badge
+        assert isinstance(notice, dict) and notice.get("inside") is True, notice
+        assert ".myrm/staged_artifacts/" in str(audit.get("noticeText") or ""), audit
