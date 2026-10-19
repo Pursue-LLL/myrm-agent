@@ -45,7 +45,7 @@ def client(db_session: AsyncSession) -> TestClient:
     with (
         patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
         patch("app.database.connection.get_session", _session_override),
-        patch("app.services.memory.operations.crud.import_archive.get_session", _session_override),
+        patch("app.services.memory.operations.crud.import_side_effects.get_session", _session_override),
     ):
         yield TestClient(app)
     app.dependency_overrides.pop(get_deploy_identity, None)

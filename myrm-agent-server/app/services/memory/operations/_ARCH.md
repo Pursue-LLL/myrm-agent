@@ -13,7 +13,7 @@
 | `crud/list_write.py` | 核心 | 列表、创建、更新、纠正、删除、搜索、统计、评分、状态变更 | ✅ |
 | `crud/item_mutations.py` | 核心 | 单条记忆更新/删除的唯一实现，记忆中心与学习时间线共用（保护语义、软删除、404/400 映射；详见 `crud/_ARCH.md`） | ✅ |
 | `crud/trash.py` | 核心 | 回收站列表、恢复、永久删除 | ✅ |
-| `crud/import_archive.py` | 核心 | 导出、归档、导入 dry-run/confirm、回滚预演与执行 | ✅ |
+| `crud/import_archive.py` | 门面 | re-export 导出/导入/回滚相态模块 handler 与 token 基线常量（相态拆分见 `crud/_ARCH.md`） | ✅ |
 | `crud/import_readiness.py` | 核心 | 导入就绪契约构建（`MemoryImportReadiness` 状态 + issue 码 SSOT，供 stream preflight 与设置深链） | ✅ |
 | `crud/preferences.py` | 核心 | 偏好摘要、偏好列表、pin/forget/unpin/unforget | ✅ |
 
