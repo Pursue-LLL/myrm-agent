@@ -93,16 +93,12 @@ export const MemoryArchiveRestoreDialog = memo<MemoryArchiveRestoreDialogProps>(
 
             {preview && (
               <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                   <SummaryTile label={t('total')} value={preview.plan.total_items.toLocaleString()} />
                   <SummaryTile label={t('restorable')} value={preview.plan.restorable_items.toLocaleString()} />
                   <SummaryTile label={t('skipped')} value={preview.plan.skipped_items.toLocaleString()} />
                   <SummaryTile label={t('conflicts')} value={preview.plan.conflict_items.toLocaleString()} />
                   <SummaryTile label={t('blocked')} value={preview.plan.blocked_items.toLocaleString()} />
-                  <SummaryTile label={t('planHash')} value={preview.plan.plan_hash.slice(0, 12)} />
-                </div>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <SummaryTile label={t('payloadHash')} value={preview.payload_hash.slice(0, 12)} />
                   <SummaryTile label={t('journalMode')} value={t('journalModeValue')} />
                 </div>
 

@@ -71,6 +71,9 @@ describe('MemoryImportReviewDialog', () => {
     expect(screen.getByText('Knowledge')).toBeInTheDocument();
     expect(screen.getByText('Prefers dark mode in every editor')).toBeInTheDocument();
     expect(screen.getByText('Pasted memory')).toBeInTheDocument();
+    expect(
+      screen.getByText('Entries whose content already exists in memory are merged or skipped during import.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Jan 2, 2026')).toBeInTheDocument();
     expect(screen.queryByText('2026-01-02T00:00:00Z')).toBeNull();
   });

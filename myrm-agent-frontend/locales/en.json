@@ -5696,8 +5696,10 @@
       "plur_no_engrams_found": "No PLUR engrams were found in the store file.",
       "trae_empty_payload": "No TRAE rules were found in this export.",
       "unsupported_source": "This source cannot be imported yet.",
-      "windsurf_empty_payload": "No Windsurf memories were found in this export."
+      "windsurf_empty_payload": "No Windsurf memories were found in this export.",
+      "pasted_model_extraction_failed": "The model could not organize this text, so it was parsed line by line instead."
     },
+    "importDedupeHint": "Entries whose content already exists in memory are merged or skipped during import.",
     "migrationWizard": {
       "title": "Import from Other AI Assistants",
       "description": "Scan Hermes, OpenClaw, Claude Code, or Codex — persona goes to a new agent, facts to global memory, rules to workspace",
@@ -5849,7 +5851,8 @@
           "claim": "Verified",
           "task_digest": "Task summaries",
           "integration": "Integrations"
-        }
+        },
+        "pendingSkillsTruncated": "Only the first {kept} of {total} skills are imported; the rest are left out."
       },
       "result": {
         "title": "Import Complete",
@@ -5964,10 +5967,13 @@
         "copied": "Copied",
         "promptLabel": "View the export prompt",
         "placeholder": "Paste the code block your old assistant produced…",
+        "modelLabel": "Organize with a model",
+        "modelDescription": "The text goes to the model configured for this agent; the result still needs your review before anything is saved.",
         "previewButton": "Parse and preview",
         "previewing": "Parsing…",
         "previewFailed": "Could not parse the pasted text — fetch it again with the export prompt.",
-        "promptText": "Export my memory so I can import it into another assistant. Output exactly one code block. List every memory or fact you have stored about me, plus long-term context you learned from our conversations. Put each entry on its own line as: [YYYY-MM-DD] - entry (start the line with '- entry' when you do not know the date). Group entries under these four English headings, in this order: ## RULES (instructions about how to answer: tone, format, always/never), ## PROFILE (name, location, job, family, interests), ## FACTS (projects, tools, languages, recurring topics), ## PREFERENCES (corrections I made and habits I asked you to keep). Preserve my words verbatim; do not summarise, merge, or omit entries. Never include passwords, API keys, or access tokens. After the code block, state whether this is the complete list."
+        "promptText": "Export my memory so I can import it into another assistant. Output exactly one code block. List every memory or fact you have stored about me, plus long-term context you learned from our conversations. Put each entry on its own line as: [YYYY-MM-DD] - entry (start the line with '- entry' when you do not know the date). Group entries under these four English headings, in this order: ## RULES (instructions about how to answer: tone, format, always/never), ## PROFILE (name, location, job, family, interests), ## FACTS (projects, tools, languages, recurring topics), ## PREFERENCES (corrections I made and habits I asked you to keep). Preserve my words verbatim; do not summarise, merge, or omit entries. Never include passwords, API keys, or access tokens. After the code block, state whether this is the complete list.",
+        "sizeHint": "Up to 4 MB per paste. Longer exports can be split into several pastes."
       }
     },
     "pendingReview": {

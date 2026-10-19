@@ -171,13 +171,17 @@ function CloudUploadZone({
 function PasteImportLane({
   text,
   pasting,
+  modelExtraction,
   onTextChange,
+  onModelExtractionChange,
   onPreview,
   t,
 }: {
   text: string;
   pasting: boolean;
+  modelExtraction: boolean;
   onTextChange: (value: string) => void;
+  onModelExtractionChange: (value: boolean) => void;
   onPreview: () => void;
   t: TranslationFn;
 }) {
@@ -228,6 +232,22 @@ function PasteImportLane({
         spellCheck={false}
         className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       />
+      <p className="text-[11px] text-muted-foreground/70">{t('paste.sizeHint')}</p>
+      <label className="flex items-start gap-2 rounded-lg border border-border/40 bg-background/60 px-3 py-2">
+        <input
+          type="checkbox"
+          data-testid="migration-paste-model-toggle"
+          checked={modelExtraction}
+          onChange={(event) => onModelExtractionChange(event.target.checked)}
+          className="mt-0.5 rounded border-border"
+        />
+        <span className="min-w-0">
+          <span className="block text-xs font-medium text-foreground">{t('paste.modelLabel')}</span>
+          <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
+            {t('paste.modelDescription')}
+          </span>
+        </span>
+      </label>
       <Button
         size="sm"
         className="h-8 gap-1.5 text-xs"
@@ -289,7 +309,9 @@ export function ScanStep({
   onPreview,
   pasteText,
   pasting,
+  pasteModelExtraction,
   onPasteTextChange,
+  onPasteModelExtractionChange,
   onPastePreview,
   t,
 }: {
@@ -308,7 +330,9 @@ export function ScanStep({
   onPreview: (source: ExternalSource) => void;
   pasteText: string;
   pasting: boolean;
+  pasteModelExtraction: boolean;
   onPasteTextChange: (value: string) => void;
+  onPasteModelExtractionChange: (value: boolean) => void;
   onPastePreview: () => void;
   t: TranslationFn;
 }) {
@@ -400,7 +424,9 @@ export function ScanStep({
       <PasteImportLane
         text={pasteText}
         pasting={pasting}
+        modelExtraction={pasteModelExtraction}
         onTextChange={onPasteTextChange}
+        onModelExtractionChange={onPasteModelExtractionChange}
         onPreview={onPastePreview}
         t={t}
       />
@@ -677,6 +703,7 @@ export function PreviewStep({
   const { result } = dryRun;
   const { summary, mappings, warnings } = result;
   const tWarning = useTranslations('memory.importWarnings');
+  const tMemory = useTranslations('memory');
   const [exportingBackup, setExportingBackup] = useState(false);
   const [trustedSourceConfirmed, setTrustedSourceConfirmed] = useState(false);
 
@@ -813,9 +840,16 @@ export function PreviewStep({
 
       {dryRun.pending_skills && dryRun.pending_skills.length > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
-          {t('preview.pendingSkillsHint', { count: dryRun.pending_skills.length })}
+          {(dryRun.pending_skills_total ?? dryRun.pending_skills.length) > dryRun.pending_skills.length
+            ? t('preview.pendingSkillsTruncated', {
+                kept: dryRun.pending_skills.length,
+                total: dryRun.pending_skills_total,
+              })
+            : t('preview.pendingSkillsHint', { count: dryRun.pending_skills.length })}
         </div>
       )}
+
+      {summary.mapped_items > 0 && <p className="text-xs text-muted-foreground">{tMemory('importDedupeHint')}</p>}
 
       {mappings.length > 0 && (
         <div className="space-y-2">

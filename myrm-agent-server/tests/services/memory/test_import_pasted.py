@@ -6,6 +6,7 @@ from app.services.memory.imports.import_pasted import (
     MAX_PASTED_ENTRIES,
     MAX_PASTED_TEXT_CHARS,
     dry_run_pasted_memory,
+    dry_run_pasted_model_items,
 )
 
 _PROMPT_SHAPED_TEXT = """Here is the export you asked for:
@@ -113,3 +114,44 @@ def test_localized_headings_are_recognized() -> None:
     result = dry_run_pasted_memory({"text": text})
     assert result.normalized_data["procedural"][0]["content"] == "永远使用中文回复"
     assert result.normalized_data["profile"][0]["content"] == "住在台中"
+
+
+class TestModelAssistedPasteItems:
+    """Model-extracted items land in the same buckets with their own keys."""
+
+    def test_profile_items_keep_their_key_and_value(self) -> None:
+        result = dry_run_pasted_model_items(
+            [
+                {
+                    "content": "Prefers concise answers",
+                    "bucket": "profile",
+                    "profile_key": "tone",
+                    "profile_value": "concise",
+                },
+                {"content": "Run tests before merge", "bucket": "procedural", "trigger": "deploy"},
+                {"content": "Shipped the migration fix", "bucket": "episodic", "importance": 0.6},
+            ],
+        )
+
+        profile_item = result.normalized_data["profile"][0]
+        assert profile_item["key"] == "tone"
+        assert profile_item["value"] == "concise"
+        assert result.normalized_data["procedural"][0]["trigger_keywords"] == ["deploy"]
+        assert result.normalized_data["episodic"][0]["importance"] == 0.6
+        assert result.summary.mapped_items == 3
+
+    def test_unknown_buckets_downgrade_to_semantic(self) -> None:
+        result = dry_run_pasted_model_items([{"content": "Uses Postgres 17", "bucket": "unknown_kind"}])
+
+        assert set(result.normalized_data) == {"semantic"}
+
+    def test_extraction_failure_is_reported_on_the_result(self) -> None:
+        result = dry_run_pasted_model_items([{"content": "Uses Postgres 17"}], extraction_failed=True)
+
+        assert result.warnings == ["pasted_model_extraction_failed"]
+
+    def test_empty_model_output_is_refused_with_a_reason(self) -> None:
+        result = dry_run_pasted_model_items([])
+
+        assert result.summary.mapped_items == 0
+        assert result.warnings == ["pasted_empty"]

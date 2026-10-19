@@ -287,6 +287,7 @@ export interface MemoryImportDryRunResponse {
   expires_at: string;
   result: MemoryImportDryRunResult;
   pending_skills: MemoryImportPendingSkill[];
+  pending_skills_total: number;
   coverage_items: MemoryImportCoverageItem[];
   migration_lanes: MigrationLanePreviewItem[];
   token_economics?: TokenEconomicsComparison | null;
@@ -541,6 +542,7 @@ export const dryRunImportMemories = async (
   payload: Record<string, unknown>,
   source: MemoryImportSource = 'auto',
   migration?: MemoryImportMigrationOptions,
+  useModelExtraction = false,
 ): Promise<MemoryImportDryRunResponse> => {
   return apiRequest<MemoryImportDryRunResponse>('/memory/import/dry-run', {
     method: 'POST',
@@ -548,6 +550,7 @@ export const dryRunImportMemories = async (
       source,
       payload,
       skip_duplicates: true,
+      use_model_extraction: useModelExtraction,
       migration: migration ?? {
         clone_from_agent_id: 'builtin-general',
         include_episodic: false,

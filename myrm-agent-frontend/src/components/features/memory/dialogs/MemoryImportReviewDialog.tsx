@@ -102,6 +102,7 @@ export const MemoryImportReviewDialog = memo<MemoryImportReviewDialogProps>(
     const locale = useLocale();
     const tType = useTranslations('memory.types');
     const tWarning = useTranslations('memory.importWarnings');
+    const tMemory = useTranslations('memory');
     const expiresLabel = expiresAt ? new Date(expiresAt).toLocaleString() : t('notAvailable');
     const previewBuckets = dryRun ? collectPreviewBuckets(dryRun.normalized_data) : [];
     const previewCount = previewBuckets.reduce((total, group) => total + group.entries.length, 0);
@@ -193,6 +194,7 @@ export const MemoryImportReviewDialog = memo<MemoryImportReviewDialogProps>(
                           ? t('previewTruncated', { shown: previewCount, total: dryRun.summary.mapped_items })
                           : t('previewHint')}
                       </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{tMemory('importDedupeHint')}</p>
                     </div>
                     <div className="max-h-64 space-y-3 overflow-y-auto px-3 py-3">
                       {previewBuckets.map(({ bucket, entries }) => (

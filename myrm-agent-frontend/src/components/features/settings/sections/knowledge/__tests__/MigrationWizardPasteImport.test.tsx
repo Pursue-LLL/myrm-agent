@@ -57,7 +57,9 @@ const renderScan = (overrides: Partial<Parameters<typeof ScanStep>[0]> = {}) => 
     onPreview: vi.fn(),
     pasteText: '',
     pasting: false,
+    pasteModelExtraction: false,
     onPasteTextChange: vi.fn(),
+    onPasteModelExtractionChange: vi.fn(),
     onPastePreview: vi.fn(),
     t,
     ...overrides,
@@ -84,6 +86,7 @@ const dryRun: MemoryImportDryRunResponse = {
     normalized_data: { conversation: [{ content: 'We settled on Postgres 17' }] },
   },
   pending_skills: [],
+  pending_skills_total: 0,
   coverage_items: [],
   migration_lanes: [],
 };
@@ -101,6 +104,29 @@ describe('migration wizard paste lane', () => {
     expect(previewButton).toBeEnabled();
     fireEvent.click(previewButton);
     expect(props.onPastePreview).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps model-assisted extraction opt-in and reports the choice', () => {
+    const props = renderScan();
+    const toggle = screen.getByTestId('migration-paste-model-toggle');
+
+    expect(toggle).not.toBeChecked();
+    expect(
+      screen.getByText(
+        'The text goes to the model configured for this agent; the result still needs your review before anything is saved.',
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(props.onPasteModelExtractionChange).toHaveBeenCalledWith(true);
+  });
+
+  it('states the paste size budget next to the textarea', () => {
+    renderScan();
+
+    expect(
+      screen.getByText('Up to 4 MB per paste. Longer exports can be split into several pastes.'),
+    ).toBeInTheDocument();
   });
 
   it('keeps the preview action disabled while nothing is pasted', () => {
@@ -158,5 +184,37 @@ describe('migration wizard preview copy', () => {
     expect(screen.queryByText('pasted_entries_over_limit')).toBeNull();
     expect(screen.getByText('Dialogue')).toBeInTheDocument();
     expect(screen.getByText('We settled on Postgres 17')).toBeInTheDocument();
+    expect(
+      screen.getByText('Entries whose content already exists in memory are merged or skipped during import.'),
+    ).toBeInTheDocument();
+  });
+
+  it('says how many skills the import leaves out when the source exceeds the review cap', () => {
+    render(
+      <PreviewStep
+        source={{
+          competitor: 'claude',
+          root: '/home/user/.claude',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 4,
+          skill_count: 3,
+          has_api_keys: false,
+        }}
+        dryRun={{
+          ...dryRun,
+          pending_skills: [{ name: 'review', content: 'Review code' }],
+          pending_skills_total: 3,
+        }}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    expect(screen.getByText('Only the first 1 of 3 skills are imported; the rest are left out.')).toBeInTheDocument();
   });
 });

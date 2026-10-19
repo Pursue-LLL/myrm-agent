@@ -89,6 +89,7 @@ const MigrationWizardSection = memo(
     const [retryingSkills, setRetryingSkills] = useState(false);
     const [workspaceBindCandidates, setWorkspaceBindCandidates] = useState<MigrationWorkspaceBindCandidate[]>([]);
     const [pasteText, setPasteText] = useState('');
+    const [pasteModelExtraction, setPasteModelExtraction] = useState(false);
     const [pasting, setPasting] = useState(false);
 
     const persistWorkspaceBindCandidates = useCallback((raw: MigrationWorkspaceBindCandidate[] | undefined) => {
@@ -247,6 +248,7 @@ const MigrationWizardSection = memo(
             include_episodic: false,
             apply_global_instructions: false,
           },
+          pasteModelExtraction,
         );
         const pastedSource: ExternalSource = {
           competitor: PASTED_MEMORY_COMPETITOR_ID,
@@ -266,7 +268,7 @@ const MigrationWizardSection = memo(
       } finally {
         setPasting(false);
       }
-    }, [pasteText, persistWorkspaceBindCandidates, targetAgentId, t]);
+    }, [pasteModelExtraction, pasteText, persistWorkspaceBindCandidates, targetAgentId, t]);
 
     const handleConfirmImport = useCallback(async () => {
       if (!dryRunResult || !selectedSource) {
@@ -409,7 +411,9 @@ const MigrationWizardSection = memo(
             onPreview={handlePreview}
             pasteText={pasteText}
             pasting={pasting}
+            pasteModelExtraction={pasteModelExtraction}
             onPasteTextChange={setPasteText}
+            onPasteModelExtractionChange={setPasteModelExtraction}
             onPastePreview={() => void handlePastePreview()}
             t={t}
           />

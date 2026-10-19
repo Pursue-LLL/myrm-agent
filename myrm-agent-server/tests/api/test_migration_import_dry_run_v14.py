@@ -533,3 +533,94 @@ class TestSourceAccessAndSkillBudget:
         body = resp.json()
         assert body["pending_skills_total"] == 2
         assert len(body["pending_skills"]) == 1
+
+
+class TestPasteModelLane:
+    """Model-assisted pastes reuse the review pipeline and degrade to parsing."""
+
+    def test_extracted_items_shape_the_review(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractedMemory, ExtractionResult
+        from myrm_agent_harness.toolkits.memory.types import MemoryType
+
+        async def _resolver(_agent_id: str | None) -> object:
+            return object()
+
+        async def _extract(_messages: object, _llm_func: object, *_args: object, **_kwargs: object) -> ExtractionResult:
+            return ExtractionResult(
+                memories=[
+                    ExtractedMemory(
+                        memory_type=MemoryType.PROFILE,
+                        content="Prefers concise answers",
+                        confidence=0.9,
+                        importance=0.8,
+                        profile_key="tone",
+                        profile_value="concise",
+                    ),
+                    ExtractedMemory(
+                        memory_type=MemoryType.PROCEDURAL,
+                        content="Run tests before merge",
+                        confidence=0.8,
+                        importance=0.7,
+                        trigger="deploy",
+                    ),
+                    ExtractedMemory(
+                        memory_type=MemoryType.EPISODIC,
+                        content="Shipped the migration fix",
+                        confidence=0.7,
+                        importance=0.6,
+                    ),
+                ],
+            )
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _resolver,
+        )
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_memories_from_conversation",
+            _extract,
+        )
+
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": "I prefer concise answers and want tests before merge."},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "pasted_memory"
+        assert body["result"]["summary"]["mapped_items"] == 3
+        assert set(body["result"]["normalized_data"]) == {"profile", "procedural", "episodic"}
+        assert body["result"]["normalized_data"]["profile"][0]["content"] == "Prefers concise answers"
+        assert body["result"]["warnings"] == []
+
+    def test_falls_back_to_parsing_without_a_model(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _no_model(_agent_id: str | None) -> None:
+            return None
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _no_model,
+        )
+
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": "## FACTS\n- Uses Postgres 17"},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "pasted_model_extraction_failed" in body["result"]["warnings"]
+        assert body["result"]["summary"]["mapped_items"] == 1

@@ -385,6 +385,7 @@ describe('PreviewStep trusted source disclosure gate', () => {
     },
     coverage_items: [],
     migration_lanes: [],
+    pending_skills_total: 2,
     pending_skills: [
       {
         name: 'test-skill',

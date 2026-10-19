@@ -4355,6 +4355,7 @@
       "unknown": "Unbekannter Fehler",
       "hook_blocked": "Durch Regel blockiert",
       "estop": "Not-Aus",
+      "output_limit": "Ausgabelimit",
       "loop_guard": "Schleifenlimit",
       "sandbox_boundary": "Grenzgrenze",
       "frequency_guard": "Begrenzter Preis",
@@ -5695,8 +5696,10 @@
       "plur_no_engrams_found": "Im PLUR-Speicher wurden keine Engramme gefunden.",
       "trae_empty_payload": "In diesem Export wurden keine TRAE-Regeln gefunden.",
       "unsupported_source": "Diese Quelle kann noch nicht importiert werden.",
-      "windsurf_empty_payload": "In diesem Export wurden keine Windsurf-Erinnerungen gefunden."
+      "windsurf_empty_payload": "In diesem Export wurden keine Windsurf-Erinnerungen gefunden.",
+      "pasted_model_extraction_failed": "Das Modell konnte diesen Text nicht aufbereiten; er wurde stattdessen zeilenweise ausgewertet."
     },
+    "importDedupeHint": "Einträge, deren Inhalt bereits im Speicher vorhanden ist, werden beim Import zusammengeführt oder übersprungen.",
     "migrationWizard": {
       "title": "Import aus anderen KI-Assistenten",
       "description": "Hermes, OpenClaw, Claude Code oder Codex scannen – Persona geht an einen neuen Agenten, Fakten in den globalen Speicher, Regeln in den Arbeitsbereich",
@@ -5848,7 +5851,8 @@
           "claim": "Verifiziert",
           "task_digest": "Aufgabenzusammenfassungen",
           "integration": "Integrationen"
-        }
+        },
+        "pendingSkillsTruncated": "Es werden nur die ersten {kept} von {total} Skills importiert; der Rest entfällt."
       },
       "result": {
         "title": "Import abgeschlossen",
@@ -5963,10 +5967,13 @@
         "copied": "Kopiert",
         "promptLabel": "Export-Prompt anzeigen",
         "placeholder": "Fügen Sie den Codeblock Ihrer alten KI hier ein…",
+        "modelLabel": "Mit Modell aufbereiten",
+        "modelDescription": "Der Text geht an das für diesen Agenten konfigurierte Modell; das Ergebnis muss weiterhin geprüft werden, bevor etwas gespeichert wird.",
         "previewButton": "Analysieren und Vorschau",
         "previewing": "Analyse läuft…",
         "previewFailed": "Der eingefügte Text konnte nicht analysiert werden. Holen Sie ihn erneut mit dem Export-Prompt.",
-        "promptText": "Exportieren Sie mein Gedächtnis, damit ich es in einen anderen Assistenten importieren kann. Geben Sie genau einen Codeblock aus. Listen Sie alle Erinnerungen und Fakten auf, die Sie über mich gespeichert haben, sowie langfristigen Kontext aus unseren Gesprächen. Schreiben Sie jeden Eintrag in eine eigene Zeile im Format: [YYYY-MM-DD] - Eintrag (beginnen Sie mit '- Eintrag', wenn das Datum unbekannt ist). Gruppieren Sie die Einträge unter diesen vier englischen Überschriften in dieser Reihenfolge: ## RULES (Anweisungen zur Antwort: Ton, Format, immer/niemals), ## PROFILE (Name, Ort, Beruf, Familie, Interessen), ## FACTS (Projekte, Werkzeuge, Sprachen, wiederkehrende Themen), ## PREFERENCES (Korrekturen von mir und Gewohnheiten, die ich beibehalten möchte). Bewahren Sie meine Formulierungen wörtlich; fassen Sie nicht zusammen, führen Sie nichts zusammen und lassen Sie nichts weg. Fügen Sie keine Passwörter, API-Schlüssel oder Zugriffstoken ein. Sagen Sie nach dem Codeblock, ob die Liste vollständig ist."
+        "promptText": "Exportieren Sie mein Gedächtnis, damit ich es in einen anderen Assistenten importieren kann. Geben Sie genau einen Codeblock aus. Listen Sie alle Erinnerungen und Fakten auf, die Sie über mich gespeichert haben, sowie langfristigen Kontext aus unseren Gesprächen. Schreiben Sie jeden Eintrag in eine eigene Zeile im Format: [YYYY-MM-DD] - Eintrag (beginnen Sie mit '- Eintrag', wenn das Datum unbekannt ist). Gruppieren Sie die Einträge unter diesen vier englischen Überschriften in dieser Reihenfolge: ## RULES (Anweisungen zur Antwort: Ton, Format, immer/niemals), ## PROFILE (Name, Ort, Beruf, Familie, Interessen), ## FACTS (Projekte, Werkzeuge, Sprachen, wiederkehrende Themen), ## PREFERENCES (Korrekturen von mir und Gewohnheiten, die ich beibehalten möchte). Bewahren Sie meine Formulierungen wörtlich; fassen Sie nicht zusammen, führen Sie nichts zusammen und lassen Sie nichts weg. Fügen Sie keine Passwörter, API-Schlüssel oder Zugriffstoken ein. Sagen Sie nach dem Codeblock, ob die Liste vollständig ist.",
+        "sizeHint": "Bis zu 4 MB pro Einfügen. Längere Exporte lassen sich auf mehrere Einfügevorgänge aufteilen."
       }
     },
     "pendingReview": {

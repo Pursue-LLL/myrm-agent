@@ -144,6 +144,10 @@ class MemoryImportDryRunRequest(BaseModel):
         None,
         description="External assistant migration binding (instruction/memory lanes)",
     )
+    use_model_extraction: bool = Field(
+        False,
+        description="Paste lane only: let the configured model distill free text before the review",
+    )
 
 
 class TokenEconomicsComparison(BaseModel):

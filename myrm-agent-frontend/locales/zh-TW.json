@@ -5696,8 +5696,10 @@
       "plur_no_engrams_found": "PLUR 儲存檔案中找不到任何 engram。",
       "trae_empty_payload": "這份匯出檔中找不到 TRAE 規則。",
       "unsupported_source": "暫不支援匯入這個來源。",
-      "windsurf_empty_payload": "這份匯出檔中找不到 Windsurf 記憶。"
+      "windsurf_empty_payload": "這份匯出檔中找不到 Windsurf 記憶。",
+      "pasted_model_extraction_failed": "模型未能整理這段文字，已改為逐行解析。"
     },
+    "importDedupeHint": "與資料庫中既有內容相同的項目會在匯入時自動合併或略過。",
     "migrationWizard": {
       "title": "從其他 AI 助手匯入",
       "description": "掃描 Hermes、OpenClaw、Claude Code、Codex —— 人設寫入新智慧體，事實進全域性記憶，規則進工作區",
@@ -5849,7 +5851,8 @@
           "claim": "已驗證",
           "task_digest": "任務摘要",
           "integration": "整合資料"
-        }
+        },
+        "pendingSkillsTruncated": "本次僅匯入前 {kept} 個技能（共 {total} 個），其餘未納入。"
       },
       "result": {
         "title": "匯入完成",
@@ -5964,10 +5967,13 @@
         "copied": "已複製",
         "promptLabel": "查看匯出提示詞",
         "placeholder": "貼上舊 AI 輸出的程式碼區塊…",
+        "modelLabel": "用模型幫我整理",
+        "modelDescription": "文字會傳送給該智慧體設定的模型，結果仍需你審閱後才會入庫。",
         "previewButton": "解析並預覽",
         "previewing": "解析中…",
         "previewFailed": "貼上內容解析失敗——請用匯出提示詞重新取得。",
-        "promptText": "請把我的記憶匯出，方便我匯入到另一個助理。只輸出一個程式碼區塊。請列出你儲存的關於我的全部記憶或事實，以及你從我們的對話中學到的長期背景。每條單獨一行，格式為：[YYYY-MM-DD] - 內容（不確定日期時，請以「- 內容」開頭）。請依下列順序使用這四個英文標題分組：## RULES（如何回答的指令：語氣、格式、一律/禁止），## PROFILE（姓名、所在地、職業、家庭、興趣），## FACTS（專案、工具、語言、反覆出現的主題），## PREFERENCES（我對你的糾正與要求你保持的習慣）。請逐字保留我的原話，不要總結、合併或省略條目。不要包含密碼、金鑰或存取權杖。程式碼區塊之後，說明是否已完整列出。"
+        "promptText": "請把我的記憶匯出，方便我匯入到另一個助理。只輸出一個程式碼區塊。請列出你儲存的關於我的全部記憶或事實，以及你從我們的對話中學到的長期背景。每條單獨一行，格式為：[YYYY-MM-DD] - 內容（不確定日期時，請以「- 內容」開頭）。請依下列順序使用這四個英文標題分組：## RULES（如何回答的指令：語氣、格式、一律/禁止），## PROFILE（姓名、所在地、職業、家庭、興趣），## FACTS（專案、工具、語言、反覆出現的主題），## PREFERENCES（我對你的糾正與要求你保持的習慣）。請逐字保留我的原話，不要總結、合併或省略條目。不要包含密碼、金鑰或存取權杖。程式碼區塊之後，說明是否已完整列出。",
+        "sizeHint": "單次最多貼上 4MB，過長的匯出可分成幾次貼上。"
       }
     },
     "pendingReview": {
