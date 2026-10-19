@@ -146,7 +146,7 @@ _APPROVAL_VISIBLE_JS = """(() => {
   return { ready: hasApprove && queueLen > 0, queueLen, hasApprove };
 })()"""
 
-_APPROVAL_CLICK_BUDGET = 12
+_APPROVAL_CLICK_BUDGET = 20
 
 
 def _approve_cards_until_reply(
