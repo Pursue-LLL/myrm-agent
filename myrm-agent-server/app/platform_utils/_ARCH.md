@@ -153,31 +153,29 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 - 管理用户认证和任务队列
 - 为每个用户创建 `myrm-runtime` 云电脑实例（镜像由 CP 契约 `DEFAULT_AGENT_SERVER_IMAGE` 指定；容器 / microVM 由供给后端决定）+ per-user 持久化卷
 - 注入环境变量（`DEPLOY_MODE=sandbox`、`MYRM_DATA_DIR` 等）
-- 管理云电脑生命周期（sleep/wake/destroy）
+- 管理沙箱生命周期（sleep/wake/destroy）
 - Sleep 前自动备份持久化卷
 
 控制服务的部署与版本发布由运维侧单独维护（不在本仓库）。
 
 ### 控制平面与 myrm-agent-server 的通信方式
 
-`myrm-agent-server` 的核心业务请求链仍以“环境变量注入 + HTTP 反向代理”为主，不要求业务层自己维护一个强耦合的控制平面客户端；但在当前 `sandbox` 架构下，系统已经存在辅助实时通道和上行遥测适配器，因此此处应按真实代码拆分理解：
+`myrm-agent-server` 的核心业务请求链仍以“环境变量注入 + HTTP 反向代理”为主，不要求业务层自己维护一个强耦合的控制平面客户端；但在当前 `sandbox` 架构下，系统存在上行遥测与下次唤醒上报两个适配器，因此此处应按真实代码拆分理解：
 
 | 通信方向 | 方式 | 说明 |
 |---------|------|------|
-| 控制平面 → myrm-agent-server | 环境变量注入（创建时一次性） | 创建沙箱时注入 `DEPLOY_MODE`、`MYRM_DATA_DIR` 等配置 |
+| 控制平面 → myrm-agent-server | 环境变量注入（创建时一次性） | 创建云电脑时注入 `DEPLOY_MODE`、`MYRM_DATA_DIR` 等配置 |
 | 用户 → agent-server | HTTP/WS（`/proxy/me/*` 或 `/proxy/{sandbox_id}/*`） | CP 反向代理 + HMAC 验签头注入；SaaS 前端 `NEXT_PUBLIC_API_BASE_URL=https://<cp>/proxy/me/api/v1` |
-| 控制平面 ↔ 沙箱辅助运行时 | WebSocket 辅助通道 | `sandbox_runtime` / WebSocket Gateway 负责资源上报、heartbeat、控制命令、token request；这是 `sandbox` 专属基础设施，不属于业务语义层 |
-| 控制平面 → 容器 | Docker/K8s API | 容器生命周期管理（pause/unpause/rm），`myrm-agent-server` 业务逻辑本身不参与 |
-| myrm-agent-server / 沙箱 → 控制平面 | stdout 日志采集 + 可选 HTTP 遥测上报 | 结构化日志被动采集；少量 `sandbox` 专属指标可通过显式适配器上报控制平面 |
+| 控制平面 → 云电脑 | Docker / Fly / E2B API（按后端） | 云电脑生命周期管理（pause/stop/rm），`myrm-agent-server` 业务逻辑本身不参与 |
+| myrm-agent-server / 云电脑 → 控制平面 | stdout 日志采集 + 可选 HTTP 遥测上报 + 下次唤醒时刻上报 | 结构化日志被动采集；少量 `sandbox` 专属指标可通过显式适配器上报控制平面；`services/sandbox_wake` 把 goal/cron/看板的下一次必须运行时间 `PUT` 给 CP（`/api/internal/sandboxes/{id}/wake-schedule`），CP 到点唤醒已暂停的云电脑 |
 
 **per-user 模型下的通信流程**（当前真实实现）：
 
 ```
-1. 控制平面为用户创建容器（注入 env vars）
+1. 控制平面为用户创建云电脑（注入 env vars）
 2. 用户浏览器 → CP `/proxy/me/*`（JWT）→ HMAC 签名 → agent-server:25808/api/v1/...
 3. myrm-agent-server 作为 HTTP 服务持续运行，接收多次用户请求
-4. `sandbox_runtime` 通过 WebSocket 辅助通道向控制平面上报资源、接收控制命令和申请 one-time token
-5. 空闲时被控制平面 pause（Docker pause），用户回来时 unpause
+4. 空闲且无在途工作时被控制平面暂停/休眠（Docker pause；Fly 停机器）；goal/cron/看板顺延到未来时，云电脑上报下次唤醒时刻，CP 到点唤醒，用户回来时同样唤醒
 ```
 
 **为什么是 per-user 云电脑**：
@@ -185,12 +183,12 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 | 模型 | 分配粒度 | 生命周期 | 通信模式 |
 |------|---------|---------|---------|
 | 临时任务沙箱 | 每个任务一个沙箱 | 任务结束回收 | 一次性注入，沙箱内自循环 |
-| **MyrmAgent（per-user 云电脑）** | 每个用户一台 | 长期持久，空闲休眠 / 唤醒 | HTTP 主通道 + `sandbox` 辅助 WebSocket / 遥测通道 |
+| **MyrmAgent（per-user 云电脑）** | 每个用户一台 | 长期持久，空闲休眠 / 唤醒 | HTTP 主通道 + 遥测 / 下次唤醒上报（HTTP） |
 
 结论上应区分两层含义：
 
 1. `myrm-agent-server` 的核心业务处理仍然不依赖一个强耦合的控制平面 SDK 或 RPC 协议。
-2. 但当前 `sandbox` 体系已经真实存在辅助 WebSocket 通道与显式遥测适配器，因此文档不应再描述为“完全无实时直连”。
+2. 但当前 `sandbox` 体系已经真实存在显式遥测与下次唤醒上报适配器（均为 HTTP，无 WebSocket 辅助通道），因此文档不应再描述为“完全无控制平面通信”。
 
 ### 控制平面职责边界
 
@@ -201,7 +199,7 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 | 云电脑创建/销毁 | 控制平面 | 容器 / microVM 生命周期管理（按供给后端） |
 | 请求路由 | 控制平面 | 反向代理，将用户请求转发到对应云电脑 |
 | 日志采集 | 控制平面 | 被动采集 myrm-agent-server stdout 日志 |
-| Agent 执行逻辑 | myrm-agent-server（沙箱内） | 本地进程执行，不感知外部 |
+| Agent 执行逻辑 | myrm-agent-server（云电脑内） | 本地进程执行，不感知外部 |
 | 数据库、认证选择 | myrm-agent-server 的 platform_utils 层 | 根据 DEPLOY_MODE 自动适配 |
 | 框架层工具包 | myrm-agent-harness | 浏览器、代码执行、搜索等 |
 
