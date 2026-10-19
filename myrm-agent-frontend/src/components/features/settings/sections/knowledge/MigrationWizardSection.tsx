@@ -50,7 +50,9 @@ import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/servi
 
 import useAgentStore from '@/store/useAgentStore';
 
-import { ScanStep, PreviewStep, ResultStep } from './MigrationWizardSteps';
+import { PreviewStep } from './memory-migration-wizard/PreviewStep';
+import { ResultStep } from './memory-migration-wizard/ResultStep';
+import { ScanStep } from './memory-migration-wizard/ScanStep';
 
 type WizardStep = 'scan' | 'preview' | 'result';
 

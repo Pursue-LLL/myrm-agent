@@ -120,7 +120,6 @@ src/components/features/settings/sections/integration/integrations/IntegrationCo
 src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
 src/components/features/settings/sections/knowledge/MemorySection.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSection.tsx
-src/components/features/settings/sections/knowledge/MigrationWizardSteps.tsx
 src/components/features/settings/sections/knowledge/RemoteBackupSection.tsx
 src/components/features/settings/sections/knowledge/WikiDuplicateReviewPanel.tsx
 src/components/features/settings/sections/knowledge/WikiSection.tsx

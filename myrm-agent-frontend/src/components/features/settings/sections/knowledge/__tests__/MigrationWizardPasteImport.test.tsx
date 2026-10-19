@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 /**
  * [INPUT]
- * ../MigrationWizardSteps::ScanStep, PreviewStep (POS: 迁移向导扫描与预览步骤)
+ * ../memory-migration-wizard/ScanStep (POS: 迁移向导扫描步骤)
+ * ../memory-migration-wizard/PreviewStep (POS: 迁移向导预览步骤)
  * ../../../../../locales/en.json (POS: 英文文案 SSOT)
  *
  * [OUTPUT]
@@ -18,7 +19,9 @@ const en = (await import('../../../../../../../locales/en.json')).default;
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
-import { PreviewStep, ScanStep, type TranslationFn } from '../MigrationWizardSteps';
+import { PreviewStep } from '../memory-migration-wizard/PreviewStep';
+import { ScanStep } from '../memory-migration-wizard/ScanStep';
+import type { TranslationFn } from '../memory-migration-wizard/wizardShared';
 
 const wizardMessages = en.memory.migrationWizard as unknown as Record<string, unknown>;
 
