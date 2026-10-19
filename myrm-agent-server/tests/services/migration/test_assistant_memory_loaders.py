@@ -222,3 +222,39 @@ def test_sandbox_payload_loading_allows_upload_root_only(tmp_path: Path, monkeyp
             if child.is_file():
                 child.unlink()
         upload_root.rmdir()
+
+
+def test_sandbox_payload_loading_ignores_files_outside_the_upload_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Client-provided ``files`` must not reach host paths outside the archive."""
+
+    monkeypatch.setattr(
+        "app.services.migration.source.source_payload_loader.is_local_mode",
+        lambda: False,
+    )
+    upload_root = Path(tempfile.mkdtemp(prefix="myrm_migration_"))
+    outside_home = tmp_path / "real_home"
+    outside_home.mkdir()
+    (outside_home / ".env").write_text("OPENAI_API_KEY=sk-secret\n", encoding="utf-8")
+    (outside_home / "MEMORY.md").write_text("- Outside host memory\n", encoding="utf-8")
+    inside_memory = upload_root / "MEMORY.md"
+    inside_memory.write_text("- Memory from the uploaded archive\n", encoding="utf-8")
+
+    try:
+        loaded = load_source_payload(
+            {
+                "competitor": "hermes",
+                "root": str(upload_root),
+                "files": [str(outside_home / ".env"), str(outside_home / "MEMORY.md"), str(inside_memory)],
+            },
+        )
+
+        assert loaded.get("memory_md") == "- Memory from the uploaded archive\n"
+        assert "env_keys" not in loaded
+    finally:
+        for child in sorted(upload_root.rglob("*"), reverse=True):
+            if child.is_file():
+                child.unlink()
+        upload_root.rmdir()

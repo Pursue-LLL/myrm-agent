@@ -159,7 +159,8 @@ class TestCompetitorPayloadLoader:
         loaded = load_source_payload(
             {"competitor": "claude", "root": str(root), "files": []},
         )
-        assert isinstance(loaded.get("semantic"), list)
+        assert loaded.get("claude_md") == "Project rules here."
+        assert "semantic" not in loaded
         assert isinstance(loaded.get("claude_settings"), dict)
         skills = loaded.get("skills")
         assert isinstance(skills, list)

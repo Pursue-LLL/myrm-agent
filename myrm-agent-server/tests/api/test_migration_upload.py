@@ -86,7 +86,6 @@ async def test_upload_empty_zip_returns_empty_sources(client: AsyncClient):
         "claude",
         "codex",
         "chatgpt",
-        "gemini",
         "gbrain",
         "pi",
         "plur",
@@ -167,3 +166,29 @@ async def test_upload_downgrades_authoritative_when_manifest_incomplete(client: 
     data = resp.json()
     assert data["source_manifest_authoritative"] is False
     assert [item["id"] for item in data["source_manifest"]] == ["hermes"]
+
+
+@pytest.mark.asyncio
+async def test_upload_plur_store_detected(client: AsyncClient):
+    payload = _make_zip(
+        {
+            ".plur/engrams.yaml": (
+                "engrams:\n"
+                "  - id: ENG-2026-05-06-001\n"
+                '    statement: "Deploys wait for migrations"\n'
+                "    type: architectural\n"
+                "    status: active\n"
+                "    scope: global\n"
+            )
+        }
+    )
+
+    resp = await client.post(
+        "/api/v1/migration/upload",
+        files={"file": ("plur.zip", payload, "application/zip")},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [source["competitor"] for source in data["sources"]] == ["plur"]
+    assert data["sources"][0]["memory_count_estimate"] == 1

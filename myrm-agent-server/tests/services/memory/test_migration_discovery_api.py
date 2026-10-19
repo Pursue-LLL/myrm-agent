@@ -63,7 +63,6 @@ class TestDiscoveryEndpointLocalMode:
             "claude",
             "codex",
             "chatgpt",
-            "gemini",
             "gbrain",
             "pi",
             "plur",

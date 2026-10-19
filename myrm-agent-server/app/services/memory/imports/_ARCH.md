@@ -19,6 +19,7 @@
 | `import_codex.py` | 辅助 | Codex 竞品导入解析器。解析 Codex instructions、memories（MEMORY.md/memory_summary.md）和 settings 到原生记忆类型 | ✅ |
 | `import_cursor.py` | 辅助 | Cursor 竞品导入解析器。解析 Cursor rules 和 settings 到原生记忆类型 | ✅ |
 | `import_gbrain.py` | 辅助 | gbrain 竞品导入解析器。解析 gbrain export 的 Markdown+YAML frontmatter 页面，按 page type 映射到 profile/episodic/semantic 三桶 | ✅ |
+| `import_gemini.py` | 辅助 | Gemini 竞品导入解析器。解析 Gemini `conversations`/`chats` 导出结构到 episodic 分桶；迁移向导来源清单不声明该来源（上传通道没有对应检测器），由 Memory Center 手动导入或 `auto` 探测命中时使用 | ✅ |
 | `import_hermes.py` | 辅助 | Hermes 记忆车道解析器。MEMORY.md/USER.md → semantic/profile；SOUL/AGENTS 由 migration 指令车道处理 | ✅ |
 | `import_ledger.py` | 核心 | 记忆导入批次/条目事务账本服务。维护 confirmed/rollback_in_progress/rolled_back/partial/rollback_failed 批次状态和 imported/skipped/rolled_back/conflict/missing/rollback_failed 条目状态，保存内容盲回滚事实、结构化 warning code、rollback health counter 和自动诊断摘要 | ✅ |
 | `import_mem0.py` | 辅助 | Mem0 竞品导入解析器。将 Mem0 扁平 memory 列表映射为原生 semantic 桶 | ✅ |

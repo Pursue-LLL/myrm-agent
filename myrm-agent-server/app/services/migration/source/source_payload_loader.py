@@ -55,19 +55,24 @@ def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
 
     Sandbox deployments may only read inside a migration ZIP extraction
     directory (``myrm_migration_*`` under the system temp root): the archive is
-    the user's own upload, while any other host path stays off limits. Local and
-    Tauri deployments keep unrestricted reads because the user owns the machine.
+    the user's own upload, while any other host path stays off limits, and
+    client-provided ``files`` paths are dropped unless they resolve inside that
+    directory. Local and Tauri deployments keep unrestricted reads because the
+    user owns the machine.
     """
 
     competitor = str(payload.get("competitor", "")).strip().lower()
     root_raw = payload.get("root")
     root = Path(str(root_raw)) if isinstance(root_raw, str) and root_raw else Path()
-    if not is_local_mode() and not is_migration_upload_path(root):
+    sandbox_upload = not is_local_mode()
+    if sandbox_upload and not is_migration_upload_path(root):
         msg = "External source payload loading requires local or Tauri deployment mode"
         raise ValueError(msg)
 
     files_raw = payload.get("files")
     file_paths = [str(item) for item in files_raw if isinstance(item, str)] if isinstance(files_raw, list) else []
+    if sandbox_upload:
+        file_paths = _keep_upload_contained_paths(file_paths, root)
 
     loaders = {
         "hermes": load_hermes,
@@ -197,3 +202,26 @@ def is_migration_upload_path(path: Path) -> bool:
             continue
         return True
     return False
+
+
+def _keep_upload_contained_paths(file_paths: list[str], root: Path) -> list[str]:
+    """Drop discovery file paths that escape the uploaded archive directory.
+
+    ``files`` arrives from the client, and the loaders read those paths as-is,
+    so a sandbox request could otherwise name any host file whose basename looks
+    like a known asset (``.env``, ``MEMORY.md``, ...). Only paths inside the
+    validated upload root survive.
+    """
+
+    try:
+        resolved_root = root.resolve()
+    except OSError:
+        return []
+    contained: list[str] = []
+    for raw in file_paths:
+        try:
+            Path(raw).resolve().relative_to(resolved_root)
+        except (OSError, ValueError):
+            continue
+        contained.append(raw)
+    return contained

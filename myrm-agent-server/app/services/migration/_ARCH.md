@@ -6,15 +6,16 @@
 
 ### 支持范围策略（封闭集合）
 
-**Wizard 自动发现的来源（本地 filesystem scan）固定为 5 种：**
+**Wizard 自动发现的来源（本地 filesystem scan）固定为 6 种：**
 
 | id | 产品名 | 发现方式 |
 |----|--------|----------|
 | `hermes` | Hermes | 本地 scan |
 | `openclaw` | OpenClaw | 本地 scan |
-| `claude` | Claude Code | 本地 scan |
-| `codex` | Codex | 本地 scan |
+| `claude` | Claude Code | 本地 scan（含 `projects/*/memory` 自动记忆与设置里的 `autoMemoryDirectory`） |
+| `codex` | Codex | 本地 scan（含 `memories/MEMORY.md` / `memories/memory_summary.md`） |
 | `pi` | Pi | 本地 scan |
+| `plur` | PLUR | 本地 scan（`PLUR_PATH` / `~/.plur` / `engrams.yaml`）+ ZIP upload |
 
 **ZIP upload 检测的来源（Cloud/SaaS 与 Local 均可）：**
 
@@ -22,6 +23,7 @@
 |----|--------|----------|
 | `chatgpt` | ChatGPT | ZIP upload 内检测 conversations.json |
 | `gbrain` | gbrain | ZIP upload 内检测 ≥3 个含 YAML frontmatter `type:` 字段的 .md 文件 |
+| `plur` | PLUR | ZIP upload 内检测 Open Engram Standard 的 `engrams.yaml` |
 
 **政策**：不添加 Cowork、Cursor、Windsurf、Trae、QwenPaw 或其他工具的 Wizard 扫描/导入。Memory Center 手动导入（如 `cursor_rules`、`mem0`、归档 JSON）与 Wizard discover **解耦**，不受此政策限制。ChatGPT 属于 upload-only 类型，不扩展 filesystem probe。
 
@@ -56,7 +58,7 @@ source/
 ├── __init__.py               # 聚合门面，统一 re-export 9 个模块公共符号
 ├── source_discovery.py       # 数据类 + discover_external_sources 编排入口
 ├── source_manifest.py        # 迁移来源 SSOT（display name / import map / discover / deep-link）
-├── source_probes.py          # 5 源 filesystem probe（hermes/claude/openclaw/codex/pi）
+├── source_probes.py          # 6 源 filesystem probe（hermes/claude/openclaw/codex/pi/plur）
 ├── source_payload_loader.py  # 公共 API：load_source_payload / build_coverage_items / extract_pending_skills
 ├── source_payload_loaders_impl.py # 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw/pi
 ├── source_payload_split.py   # payload 拆分为 instruction 与 memory 两路
