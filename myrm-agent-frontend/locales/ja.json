@@ -5874,7 +5874,8 @@
           "cron_importable": "スケジュールタスク {importable} 件を一時停止でインポートします{skipped, plural, =0 {} other {（# 件スキップ）}}",
           "cron_skipped": "スケジュールタスク {skipped} 件はインポートできません",
           "cron_none": "スケジュールタスクは見つかりません",
-          "session_ready": "{count} 件のセッションを再開できます"
+          "session_ready": "{count} 件のセッションを再開できます",
+          "session_skipped": "インポートしない"
         },
         "importSessionsLabel": "過去のチャット {count} 件もインポート",
         "importSessionsHint": "オフにすると記憶とアセットのみをインポートし、チャットは元のエージェントに残ります。"

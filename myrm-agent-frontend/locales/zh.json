@@ -5874,7 +5874,8 @@
           "cron_importable": "{importable} 个定时任务将以暂停状态导入{skipped, plural, =0 {} other {，另有 # 个跳过}}",
           "cron_skipped": "{skipped} 个定时任务无法导入",
           "cron_none": "未检测到定时任务",
-          "session_ready": "{count} 个会话可恢复"
+          "session_ready": "{count} 个会话可恢复",
+          "session_skipped": "不导入"
         },
         "importSessionsLabel": "同时导入 {count} 条历史会话",
         "importSessionsHint": "关闭后仅导入记忆与资产，历史会话仍保留在原助手中。"

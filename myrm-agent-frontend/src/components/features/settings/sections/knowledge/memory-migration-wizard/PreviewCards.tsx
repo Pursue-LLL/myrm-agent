@@ -31,6 +31,7 @@ const LANE_DETAIL_CODES = new Set([
   'cron_skipped',
   'cron_none',
   'session_ready',
+  'session_skipped',
 ]);
 
 function laneDetailText(lane: MigrationLanePreviewItem, t: TranslationFn): string {

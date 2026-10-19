@@ -5874,7 +5874,8 @@
           "cron_importable": "{importable} 個排程任務將以暫停狀態匯入{skipped, plural, =0 {} other {，另有 # 個略過}}",
           "cron_skipped": "{skipped} 個排程任務無法匯入",
           "cron_none": "未偵測到排程任務",
-          "session_ready": "{count} 個會話可恢復"
+          "session_ready": "{count} 個會話可恢復",
+          "session_skipped": "不匯入"
         },
         "importSessionsLabel": "同時匯入 {count} 條歷史會話",
         "importSessionsHint": "關閉後僅匯入記憶與資產，歷史會話仍保留在原本的助手中。"

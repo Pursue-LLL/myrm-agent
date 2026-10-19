@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - WorkspaceBindCandidate list for migration wizard handoff (pre-fill Mount UI)
+- to_api_candidates: project the list into the API model shared by the import handlers
 
 [POS]
 Server business layer only. Does not register Harness tools or alter agent prompts.

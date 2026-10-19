@@ -5874,9 +5874,10 @@
           "cron_importable": "{importable, plural, one {# geplante Aufgabe} other {# geplante Aufgaben}} werden pausiert importiert{skipped, plural, =0 {} other { · # übersprungen}}",
           "cron_skipped": "{skipped, plural, one {# geplante Aufgabe} other {# geplante Aufgaben}} können nicht importiert werden",
           "cron_none": "Keine geplanten Aufgaben gefunden",
-          "session_ready": "{count, plural, one {# Sitzung} other {# Sitzungen}} zum Fortsetzen bereit"
+          "session_ready": "{count, plural, one {# Sitzung} other {# Sitzungen}} zum Fortsetzen bereit",
+          "session_skipped": "nicht importiert"
         },
-        "importSessionsLabel": "Auch {count} frühere Chats importieren",
+        "importSessionsLabel": "Auch {count, plural, one {# früheren Chat} other {# frühere Chats}} importieren",
         "importSessionsHint": "Ausschalten, um nur Erinnerungen und Assets zu übernehmen; die Chats bleiben beim Quell-Agenten."
       },
       "result": {

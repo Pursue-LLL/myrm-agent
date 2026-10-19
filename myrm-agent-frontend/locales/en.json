@@ -5874,9 +5874,10 @@
           "cron_importable": "{importable, plural, one {# scheduled task} other {# scheduled tasks}} will import paused{skipped, plural, =0 {} other { · # skipped}}",
           "cron_skipped": "{skipped, plural, one {# scheduled task} other {# scheduled tasks}} cannot be imported",
           "cron_none": "No scheduled tasks detected",
-          "session_ready": "{count, plural, one {# session} other {# sessions}} ready to resume"
+          "session_ready": "{count, plural, one {# session} other {# sessions}} ready to resume",
+          "session_skipped": "not imported"
         },
-        "importSessionsLabel": "Also import {count} historical chats",
+        "importSessionsLabel": "Also import {count, plural, one {# historical chat} other {# historical chats}}",
         "importSessionsHint": "Turn off to bring over memories and assets only; your chats stay in the source agent."
       },
       "result": {

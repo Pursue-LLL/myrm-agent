@@ -5874,7 +5874,8 @@
           "cron_importable": "예약 작업 {importable}개를 일시 중지 상태로 가져옵니다{skipped, plural, =0 {} other {(#개 건너뜀)}}",
           "cron_skipped": "예약 작업 {skipped}개를 가져올 수 없습니다",
           "cron_none": "예약 작업을 찾지 못했습니다",
-          "session_ready": "세션 {count}개를 이어갈 수 있습니다"
+          "session_ready": "세션 {count}개를 이어갈 수 있습니다",
+          "session_skipped": "가져오지 않음"
         },
         "importSessionsLabel": "지난 대화 {count}개도 가져오기",
         "importSessionsHint": "끄면 기억과 자산만 가져오며 대화는 원래 에이전트에 남습니다."

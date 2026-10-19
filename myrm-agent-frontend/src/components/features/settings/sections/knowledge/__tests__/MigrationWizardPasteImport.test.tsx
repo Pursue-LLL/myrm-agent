@@ -318,6 +318,15 @@ describe('migration wizard preview copy', () => {
     const onImportSessionsChange = vi.fn();
     const withSessions: MemoryImportDryRunResponse = {
       ...dryRun,
+      migration_lanes: [
+        {
+          lane: 'session',
+          status: 'ready',
+          label: 'session_lane',
+          detail: '1 session(s) ready for resumption',
+          detail_parts: [{ code: 'session_ready', params: { count: 1 } }],
+        },
+      ],
       session_preview: [
         {
           session_id: 'session-1',
@@ -355,6 +364,8 @@ describe('migration wizard preview copy', () => {
     const toggle = screen.getByTestId('migration-import-sessions');
     expect(toggle).not.toBeChecked();
     expect(screen.queryByText('Debug the importer')).toBeNull();
+    expect(screen.getByText('Session Lane (Full Transcripts)')).toBeInTheDocument();
+    expect(screen.getByText('not imported')).toBeInTheDocument();
 
     fireEvent.click(toggle);
     expect(onImportSessionsChange).toHaveBeenCalledWith(true);
