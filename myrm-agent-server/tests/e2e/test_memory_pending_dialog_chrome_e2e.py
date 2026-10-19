@@ -37,6 +37,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
     open_mcp_page,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
@@ -99,8 +100,32 @@ def _dialog_left_proposal_js(proposal: str) -> str:
 }})()"""
 
 
-def _open_review_dialog(client: ChromeMcpClient, page: McpPage, proposal: str) -> None:
-    wait_for_state(client, page, _open_dialog_js(proposal), timeout_sec=90.0)
+def _open_review_dialog(
+    client: ChromeMcpClient,
+    page: McpPage,
+    proposal: str,
+    *,
+    chat_url: str,
+    attempts: int = 2,
+) -> None:
+    """Wait for the review dialog, reloading once when the page stalled.
+
+    The badge depends on the memory store's pending fetch, which races page
+    readiness under parallel load; a full reload re-runs it instead of failing
+    the run on a transient stall.
+    """
+    last: AssertionError | None = None
+    for attempt in range(attempts):
+        try:
+            wait_for_state(client, page, _open_dialog_js(proposal), timeout_sec=90.0)
+            return
+        except AssertionError as exc:  # wait_for_state raises on timeout
+            last = exc
+            if attempt + 1 >= attempts:
+                break
+            reload_mcp_page(client, page, target_url=chat_url, timeout_ms=120_000)
+            dismiss_blocking_modals(client, page, recover_url=chat_url)
+    raise AssertionError(str(last))
 
 
 def _press(client: ChromeMcpClient, page: McpPage, label: re.Pattern[str]) -> None:
@@ -156,7 +181,7 @@ def test_memory_pending_dialog_edit_then_accept_chrome_e2e() -> None:
         chat_url, page_ctx = _open_chat_page(get_e2e_ui_url(), chat_id)
         with page_ctx as (client, page):
             _attach(client, page, chat_url, chat_id)
-            _open_review_dialog(client, page, proposal_text)
+            _open_review_dialog(client, page, proposal_text, chat_url=chat_url)
             _press(client, page, _EDIT)
             typed = wait_for_state(client, page, _type_into_dialog_js(edited_text), timeout_sec=30.0)
             assert typed.get("ready") is True, typed
@@ -197,7 +222,7 @@ def test_memory_pending_dialog_reject_keeps_target_chrome_e2e() -> None:
         chat_url, page_ctx = _open_chat_page(get_e2e_ui_url(), chat_id)
         with page_ctx as (client, page):
             _attach(client, page, chat_url, chat_id)
-            _open_review_dialog(client, page, proposal_text)
+            _open_review_dialog(client, page, proposal_text, chat_url=chat_url)
             _press(client, page, _REJECT)
             closed = wait_for_state(client, page, _dialog_left_proposal_js(proposal_text), timeout_sec=60.0)
             assert closed.get("ready") is True, closed
