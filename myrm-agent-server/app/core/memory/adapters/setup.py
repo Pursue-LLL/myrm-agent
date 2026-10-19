@@ -307,7 +307,6 @@ def resolve_context_binding(
     bundle_id: str | None = None,
     task_workspace_root: str | None = None,
 ) -> ResolvedContextBinding:
-    from myrm_agent_harness.toolkits.context_bundle import AgentContextOverlay
 
     normalized_shared_context_ids = list(
         dict.fromkeys(context_id.strip() for context_id in (shared_context_ids or []) if context_id.strip())
@@ -323,9 +322,6 @@ def resolve_context_binding(
         conversation_id=conversation_id,
         task_id=task_id,
         memory_policy=memory_policy,
-    )
-    overlay = (
-        AgentContextOverlay(task_workspace_root=task_workspace_root, memory_scenes_pinned=True) if task_workspace_root else None
     )
     return ResolvedContextBinding(
         agent_id=resolved_agent_id or "default",
@@ -346,7 +342,6 @@ def resolve_context_binding(
         task_id=resolved_task_id,
         project_id=project_id.strip() if project_id else None,
         bundle_id=bundle_id or DEFAULT_BUNDLE_ID,
-        agent_overlay=overlay,
     )
 
 
