@@ -2,6 +2,7 @@
 
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -590,6 +591,10 @@ async def test_custom_agent_factory_build_rebinds_memory_search_tool(monkeypatch
     monkeypatch.setattr(
         "app.services.agent.platform_config.load_platform_retrieval_configs",
         fake_load_platform_retrieval_configs,
+    )
+    monkeypatch.setattr(
+        "app.services.memory.extract_retry.resolve_chat_extraction_llm.get_platform_dedup_llm",
+        AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
         "app.platform_utils.get_storage_provider",

@@ -4370,6 +4370,7 @@
       "unknown": "Unknown Error",
       "hook_blocked": "Blocked by Rule",
       "estop": "Emergency Stop",
+      "output_limit": "Output Limit",
       "loop_guard": "Loop Limit",
       "sandbox_boundary": "Boundary Limit",
       "frequency_guard": "Rate Limited",

@@ -373,12 +373,6 @@ def _oauth_entry(token: str, *, expires_in: float) -> dict[str, object]:
     }
 
 
-@pytest.fixture(autouse=True)
-def mock_load_user_configs() -> Iterator[None]:
-    """Run the real loader: the suite-wide autouse mock would hide everything tested here."""
-    yield
-
-
 @pytest.fixture
 def fresh_config_cache() -> Iterator[None]:
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache

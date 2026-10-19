@@ -11,6 +11,6 @@ def test_agent_middlewares_public_exports_exclude_auto_session_recall() -> None:
     assert "two_layer_context_middleware" in exported
     assert "memory_context_middleware" in exported
     assert "user_instructions_middleware" in exported
-    assert "project_scoped_workspace_middleware" in exported
+    assert "project_roadmap_middleware" in exported
     assert "widget_capability_middleware" in exported
     assert "auto_session_recall_middleware" not in exported

@@ -4355,6 +4355,7 @@
       "unknown": "未知錯誤",
       "hook_blocked": "規則攔截",
       "estop": "緊急停止",
+      "output_limit": "輸出上限",
       "loop_guard": "循環限制",
       "sandbox_boundary": "邊界限制",
       "frequency_guard": "頻率限制",

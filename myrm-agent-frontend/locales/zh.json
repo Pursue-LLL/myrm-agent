@@ -4370,6 +4370,7 @@
       "unknown": "未知错误",
       "hook_blocked": "规则拦截",
       "estop": "紧急停止",
+      "output_limit": "输出上限",
       "loop_guard": "循环限制",
       "sandbox_boundary": "边界限制",
       "frequency_guard": "频率限制",

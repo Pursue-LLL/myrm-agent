@@ -25,7 +25,7 @@ from app.core.cron.push_store import PushLevel, push
 @pytest.mark.asyncio
 async def test_realtime_tool_catalog_includes_reminder_tools():
     """Verify set_reminder, cancel_reminder, list_reminders are always declared in Realtime tools."""
-    ctx = VoiceMemoryContext(enable_memory=True, allow_wiki=True, allow_sessions=True)
+    ctx = VoiceMemoryContext(enable_memory=True, enable_wiki=True, enable_conversation_search=True)
     tools = build_realtime_tools(enabled_builtin_tools=(), memory_context=ctx)
     tool_names = {t.name for t in tools}
 
@@ -39,7 +39,7 @@ async def test_gemini_live_includes_reminder_tools():
     """Verify Gemini Live tool declarations include reminder tools."""
     from app.api.voice.gemini_live import _build_gemini_tools
 
-    ctx = VoiceMemoryContext(enable_memory=True, allow_wiki=False, allow_sessions=False)
+    ctx = VoiceMemoryContext(enable_memory=True, enable_wiki=False, enable_conversation_search=False)
     tools = _build_gemini_tools(enabled_builtin_tools=(), memory_context=ctx)
     tool_names = {t.name for t in tools}
 

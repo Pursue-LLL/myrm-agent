@@ -4355,6 +4355,7 @@
       "unknown": "不明なエラー",
       "hook_blocked": "ルールで制限",
       "estop": "緊急停止",
+      "output_limit": "出力上限",
       "loop_guard": "ループ制限",
       "sandbox_boundary": "境界制限",
       "frequency_guard": "頻度制限",

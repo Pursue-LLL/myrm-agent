@@ -53,3 +53,24 @@ def test_invalid_personality_preserves_locale() -> None:
     assert result is not None
     assert "conversational" in result
     assert "**Communication Style**" not in result
+
+
+def test_renderer_failure_is_fail_open(monkeypatch) -> None:
+    """风格渲染抛错时必须 fail-open：保留原指令、不注入风格块、不向上抛异常。"""
+    import app.ai_agents.personality_templates as personality_templates
+
+    def _boom(_style: str | None) -> str | None:
+        raise RuntimeError("render boom")
+
+    monkeypatch.setattr(personality_templates, "render_personality_block", _boom)
+
+    result = apply_profile_output_suffixes("Base", personality_style="concise", agent_id="agent-x")
+
+    assert result == "Base"
+
+
+def test_default_style_without_locale_returns_input_unchanged() -> None:
+    """默认风格且无 locale 策略时原样返回（覆盖 elif 的 False 分支）。"""
+    result = apply_profile_output_suffixes("Base", personality_style="professional")
+
+    assert result == "Base"

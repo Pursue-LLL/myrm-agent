@@ -8,6 +8,7 @@ import logging
 import os
 import random
 import sys
+from collections.abc import Iterator
 from importlib import import_module
 from pathlib import Path
 from typing import Optional
@@ -316,9 +317,27 @@ async def setup_test_database(tmp_path: Path):
         await engine.dispose()
 
 
+_AGENT_API_TEST_DIR = Path(__file__).resolve().parent
+
+
 @pytest.fixture(autouse=True)
-def mock_load_user_configs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    """Mock load_user_configs 避免真实 DB 查询"""
+def mock_load_user_configs(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> Iterator[AsyncMock | None]:
+    """Serve canned user configs to this directory only.
+
+    The root ``conftest.py`` registers this module in ``pytest_plugins``, which
+    promotes every fixture here to session scope. Unguarded, the stub would patch
+    a production loader for unrelated suites, whose callers then read canned
+    configs (built from the developer's ``.env.test`` credentials) instead of the
+    rows they seeded, so their assertions would pass or fail by test order.
+    """
+    if not request.path.is_relative_to(_AGENT_API_TEST_DIR):
+        yield None
+        return
+
     memory_path = tmp_path / "memory"
     memory_path.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("MEMORY_BASE_PATH", str(memory_path))
