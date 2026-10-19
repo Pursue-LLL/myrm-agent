@@ -84,8 +84,18 @@ def _wait_with_reload(
             last = exc
             if attempt + 1 >= attempts:
                 break
-            reload_mcp_page(client, page, target_url=route_url, timeout_ms=120_000)  # type: ignore[arg-type]
-            dismiss_blocking_modals(client, page, recover_url=route_url)  # type: ignore[arg-type]
+            # Nested settings routes must be entered through /settings: a direct
+            # load of /settings/memory leaves the SettingsLayout sidebar mounted
+            # but the memory pane empty (verified: cardCount 0, tabs []).
+            parent = route_url.rstrip("/")
+            if "/settings/" in parent:
+                parent = parent.split("/settings/", 1)[0] + "/settings"
+            reload_mcp_page(client, page, target_url=parent, timeout_ms=120_000)  # type: ignore[arg-type]
+            dismiss_blocking_modals(client, page, recover_url=parent)  # type: ignore[arg-type]
+            if parent != route_url.rstrip("/"):
+                client.navigate(page, route_url)  # type: ignore[attr-defined]
+                time.sleep(1.0)
+                dismiss_blocking_modals(client, page, recover_url=route_url)  # type: ignore[arg-type]
     raise AssertionError(str(last))
 
 
@@ -177,13 +187,36 @@ def test_memory_implicit_correction_live_approved_then_recalled() -> None:
             label = _WILL_CORRECT if proposal.get("resolution_action") == "correct" else _WILL_DELETE
             assert label.search(str(probe.get("hint") or "")), probe
         else:
-            _wait_with_reload(
-                client,
-                page,
-                _card_script(proposal_text, "return { ready: !!card };"),
-                memory_route,
-                90.0,
-            )
+            try:
+                _wait_with_reload(
+                    client,
+                    page,
+                    _card_script(proposal_text, "return { ready: !!card };"),
+                    memory_route,
+                    90.0,
+                )
+            except AssertionError as exc:
+                # Distinguish "card rendered with different text" from "no cards
+                # at all": dump the tab state, the card count and the page text.
+                diag = client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    """(() => {
+                      const cards = Array.from(document.querySelectorAll('[data-testid="memory-card"]'));
+                      const tabs = Array.from(document.querySelectorAll('[role="tab"]')).map((el) => ({
+                        text: (el.textContent || '').trim().slice(0, 16),
+                        state: el.getAttribute('data-state'),
+                      }));
+                      const text = (document.body?.innerText || '').replace(/\\s+/g, ' ');
+                      return {
+                        cardCount: cards.length,
+                        visibleCards: cards.filter((el) => el.getClientRects().length > 0).length,
+                        cardTexts: cards.slice(0, 4).map((el) => (el.textContent || '').trim().slice(0, 120)),
+                        tabs,
+                        pageText: text.slice(0, 700),
+                      };
+                    })()""",
+                )
+                raise AssertionError(f"{exc} | diag: {diag}") from exc
         client.evaluate(page, _NETWORK_TAP_JS, timeout_sec=15.0)
         clicked = wait_for_state(client, page, _accept_js(proposal_text), timeout_sec=30.0)
         assert clicked.get("clicked") is True, clicked
