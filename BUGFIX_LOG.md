@@ -7831,3 +7831,39 @@ AssertionError: Browser state did not become ready:
 
 1. **就绪探针要探「目标元素」，不要探「外层容器」**：容器往往第一帧就在，拿它当 ready 等于把「页面开始加载」当成「页面已可用」；探针应命中真正要被操作的那个节点（这里是 `[data-section="skills"][data-active]`）。
 2. **桌面绿 ≠ 手机绿**：两个宽度跑同一条逻辑，但手机 iframe 会重新拉资源，落在骨架窗口里的概率更高——这正是此前「桌面两次通过、手机阶段未跑通」的成因，别把宽度差异当负载噪音。
+
+
+---
+
+## BUG-AGENT-2026-10-19-016: 缺语义拦截的用户提示分支引用了未绑定的 locale——错误路径自身抛 UnboundLocalError，结构化补救提示永远发不出去
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-19（跑 `tests/unit/services/agent/test_stream_loop_missing_semantics.py` 时两条用例同因失败） |
+| 修复日期 | 2026-10-19 |
+| 严重程度 | P2（用户可见：沙箱/安全依赖缺失时本该给出结构化补救提示，实际该路径直接抛 `UnboundLocalError`） |
+| 影响范围 | `myrm-agent-server/app/services/agent/stream_session/stream_loop.py`（`except` 段的错误提示构造） |
+| 出现次数 | 1（首次发现并一次性彻底修复） |
+| 关联 | 本地提交 `bcd614b37d`，未 push；用例 `tests/unit/services/agent/test_stream_loop_missing_semantics.py` |
+
+### 现象
+
+1. `./myrm test myrm-agent/myrm-agent-server/tests/unit/services/agent/ -q` → `44 passed, 2 failed`
+2. 失败栈：`UnboundLocalError: cannot access local variable 'lang' where it is not associated with a value`（`stream_loop.py` 的缺语义分支）
+3. 用户视角：缺少沙箱/安全组件时，本该收到 `missing_semantics_blocked` 的结构化错误卡片与补救提示，实际错误路径自身崩掉
+
+### 根因
+
+`lang = _stream_locale(getattr(session.params, "locale", None))` 只写在 `PrivacyFailClosedViolationError` 分支内；同一 `except` 段的 `MissingSemanticsBlockedError` 分支直接使用 `_GATE_BLOCKED_FIELDS[lang]`，进入该分支时变量从未绑定。
+
+### 修复
+
+把 locale 解析上移到 `except` 段首（两个分支共用），移除隐私分支内的重复赋值。
+
+### 回归
+
+`./myrm test myrm-agent/myrm-agent-server/tests/unit/services/agent/ -q` → **46 passed**（修前 44 passed + 2 failed）；`ruff check` 通过。
+
+### 踩坑经验
+
+错误处理段里的共享变量必须在段首绑定：只在某个分支里赋值、在另一个分支里使用，会让「兜底提示」这条最该靠谱的路径最不靠谱。
