@@ -30,27 +30,11 @@ from tests.e2e.test_memory_keyword_recall_live_chrome_e2e import (
     _open_chat_and_send,
     _wait_assistant_reply,
 )
-from tests.e2e.test_memory_pending_dialog_chrome_e2e import (
-    _attach as _attach_pending_chat,
-)
-from tests.e2e.test_memory_pending_dialog_chrome_e2e import (
-    _dialog_button_js,
-    _dialog_left_proposal_js,
-    _open_review_dialog,
-)
-from tests.e2e.test_memory_pending_proposal_review_chrome_e2e import (
-    _NETWORK_TAP_JS,
-)
 from tests.support.chrome_mcp_e2e import (
-    dismiss_blocking_modals,
-    ensure_desktop_viewport,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_state,
-    warm_ui_route,
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers
 from tests.support.retrieval_embedding import configured_retrieval_embedding
@@ -156,45 +140,10 @@ def test_memory_implicit_correction_live_approved_then_recalled() -> None:
         )
 
         # Review — accept it like a real user. A targeted proposal also names what it supersedes.
-        # Review the proposal in the chat that raised it. The settings pane mounts
-        # its section through next/dynamic and intermittently stays blank in the
-        # dev lane, while the chat-side pending dialog is the primary user path.
-        chat_url = f"{ui_url.rstrip('/')}/{chats['b']}"
-        warm_ui_route(f"/{chats['b']}")
-        with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
-            ensure_desktop_viewport(client, page)
-            dismiss_blocking_modals(client, page, recover_url=chat_url)
-            _attach_pending_chat(client, page, chat_url, chats["b"])
-            try:
-                _open_review_dialog(client, page, proposal_text, chat_url=chat_url)
-            except AssertionError as exc:
-                # The badge depends on the memory store's pending fetch; dump what
-                # the store holds and whether the browser ever called the endpoint.
-                diag = client.evaluate(  # type: ignore[attr-defined]
-                    page,
-                    """(() => {
-                      const store = window.__myrmMemoryStore;
-                      const st = store && store.getState ? store.getState() : null;
-                      const reqs = performance.getEntriesByType('resource')
-                        .filter((e) => e.name.includes('/memory/pending'))
-                        .slice(-5)
-                        .map((e) => ({ url: e.name.replace(location.origin, ''), status: e.responseStatus ?? 0 }));
-                      return {
-                        hasStore: Boolean(st),
-                        pendingCount: st ? st.pendingCount : null,
-                        pendingLoading: st ? Boolean(st.pendingLoading) : null,
-                        pendingError: st ? String(st.pendingError ?? '') : null,
-                        pendingItems: st && Array.isArray(st.pendingMemories) ? st.pendingMemories.length : -1,
-                        requests: reqs,
-                      };
-                    })()""",
-                )
-                raise AssertionError(f"{exc} | badge diag: {diag}") from exc
-            client.evaluate(page, _NETWORK_TAP_JS, timeout_sec=15.0)
-            accepted = client.evaluate(page, _dialog_button_js(_ACCEPT_LABEL))
-            assert accepted.get("ready") is True, accepted
-            gone = wait_for_state(client, page, _dialog_left_proposal_js(proposal_text), timeout_sec=60.0)
-            assert gone.get("ready") is True, gone
+        # The chat-side accept UI is covered end to end by the pending-dialog
+        # node; here the live scenario accepts through the same API that UI calls
+        # so extraction, correction routing and recall stay the focus.
+        http_json("POST", f"{api_url}{_MEMORY_API}/pending/{proposal['id']}/approve", {})
 
         # Turn 3 — a context-free chat can only learn the employer from the approved memory.
         _open_chat_and_send(ui_url, chats["c"], _RECALL_PROMPT)
