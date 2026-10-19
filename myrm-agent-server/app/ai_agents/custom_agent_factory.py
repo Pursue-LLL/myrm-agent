@@ -171,8 +171,11 @@ def _subagent_write_backend(config: SubagentConfig) -> SkillWriteBackend | None:
     if "skill_manage_tool" not in config.tools:
         return None
     from app.core.skills.creation.service import skill_creation_service
+    from app.core.skills.creation.version_persisting_backend import (
+        VersionPersistingSkillWriteBackend,
+    )
 
-    return skill_creation_service
+    return VersionPersistingSkillWriteBackend(skill_creation_service)
 
 
 class CustomAgentFactory:
@@ -369,26 +372,16 @@ class CustomAgentFactory:
         max_iterations = getattr(profile, "max_iterations", None) or 100
 
         # --- 4. Personality style suffix ---
-        from app.ai_agents.personality_templates import (
-            DEFAULT_PERSONALITY_STYLE,
-            PersonalityStyle,
-            get_personality_template,
-            is_valid_personality_style,
-        )
+        from app.ai_agents.personality_templates import render_personality_block
 
-        metadata: dict[str, object] = getattr(profile, "metadata", None) or {}
-        raw_style = metadata.get("personality_style", DEFAULT_PERSONALITY_STYLE)
-        personality_style = (
-            cast("PersonalityStyle", raw_style)
-            if isinstance(raw_style, str) and is_valid_personality_style(raw_style)
-            else DEFAULT_PERSONALITY_STYLE
-        )
-        if personality_style != DEFAULT_PERSONALITY_STYLE:
-            try:
-                template = get_personality_template(personality_style)
-                system_prompt += f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-            except Exception as e:
-                logger.warning("Failed to load personality template '%s': %s", personality_style, e)
+        raw_style = (getattr(profile, "metadata", None) or {}).get("personality_style")
+        try:
+            style_block = render_personality_block(raw_style if isinstance(raw_style, str) else None)
+        except Exception as exc:  # 防御：风格渲染异常绝不能阻断子 Agent 创建
+            style_block = None
+            logger.warning("Failed to render personality style '%s': %s", raw_style, exc)
+        if style_block:
+            system_prompt += f"\n\n{style_block}"
 
         # --- 5. Build AgentRuntimeSpec & create SkillAgent ---
         from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids

@@ -1,6 +1,7 @@
 """personality_templates 模块单元测试
 
-验证模板定义的一致性、查询 API 的正确性、与 dto.py 类型定义的同步性。
+验证模板定义的一致性、查询 API 的正确性、与 dto.py 类型定义的同步性，
+以及注入块（作用域不变量 + 风格本体）的渲染契约。
 """
 
 from __future__ import annotations
@@ -10,11 +11,13 @@ import pytest
 from app.ai_agents.personality_templates import (
     DEFAULT_PERSONALITY_STYLE,
     PERSONALITY_TEMPLATES,
+    STYLE_SCOPE_INVARIANT,
     PersonalityStyle,
     PersonalityTemplate,
     get_personality_template,
     is_valid_personality_style,
     list_all_personalities,
+    render_personality_block,
 )
 from app.database.dto import PersonalityStyleLiteral
 
@@ -44,6 +47,19 @@ class TestPersonalityTemplatesConsistency:
         """当前应有 17 种预置风格（8 实用 + 9 趣味）"""
         assert len(PERSONALITY_TEMPLATES) == 17
 
+    def test_category_split_matches_catalog_grouping(self) -> None:
+        """分类必须是 8 实用 + 9 趣味，且与前端九宫格分组一致"""
+        practical = [t for t in PERSONALITY_TEMPLATES.values() if t.category == "practical"]
+        fun = [t for t in PERSONALITY_TEMPLATES.values() if t.category == "fun"]
+        assert len(practical) == 8
+        assert len(fun) == 9
+
+    def test_icon_ids_are_unique_and_non_empty(self) -> None:
+        """GUI 图标标识必须非空且唯一，避免两个风格共用同一图标造成认知歧义"""
+        icon_ids = [t.icon_id for t in PERSONALITY_TEMPLATES.values()]
+        assert all(icon_id.strip() for icon_id in icon_ids)
+        assert len(set(icon_ids)) == len(icon_ids)
+
 
 class TestPersonalityTemplateFields:
     """模板字段完整性测试"""
@@ -56,10 +72,13 @@ class TestPersonalityTemplateFields:
         assert template.display_name, f"{style}: display_name is empty"
         assert template.display_name_zh, f"{style}: display_name_zh is empty"
         assert template.emoji, f"{style}: emoji is empty"
+        assert template.icon_id, f"{style}: icon_id is empty"
+        assert template.category in ("practical", "fun"), f"{style}: invalid category"
         assert template.system_prompt_suffix, f"{style}: system_prompt_suffix is empty"
         assert template.description, f"{style}: description is empty"
         assert template.description_zh, f"{style}: description_zh is empty"
         assert template.example_response, f"{style}: example_response is empty"
+        assert template.example_response_zh, f"{style}: example_response_zh is empty"
 
     def test_templates_are_frozen(self) -> None:
         """PersonalityTemplate 应该是不可变的"""
@@ -105,23 +124,80 @@ class TestQueryAPI:
 class TestConcisePromptQuality:
     """concise 模式 prompt 质量测试"""
 
-    def test_concise_has_precise_pattern(self) -> None:
-        """concise 的 prompt 应包含精确的输出模式指令"""
-        template = get_personality_template("concise")
-        suffix = template.system_prompt_suffix
-        assert "Pattern:" in suffix, "Missing precise output pattern"
+    def _block(self) -> str:
+        block = render_personality_block("concise")
+        assert block is not None
+        return block
+
+    def test_concise_keeps_answer_first_pattern(self) -> None:
+        """concise 的 prompt 应包含答案先行的输出结构"""
+        assert "Answer first" in self._block()
 
     def test_concise_has_safety_exception(self) -> None:
-        """concise 的 prompt 应包含安全降级规则"""
-        template = get_personality_template("concise")
-        suffix = template.system_prompt_suffix
-        assert "EXCEPTION" in suffix or "security" in suffix.lower(), "Missing safety exception rule"
+        """concise 的注入内容必须包含安全降级规则"""
+        block = self._block()
+        assert "Security warnings" in block or "security warning" in block.lower()
 
-    def test_concise_has_drop_list(self) -> None:
-        """concise 的 prompt 应明确列出要删除的内容"""
-        template = get_personality_template("concise")
-        suffix = template.system_prompt_suffix
-        assert "Drop:" in suffix or "drop" in suffix.lower(), "Missing explicit drop list"
+    def test_concise_has_explicit_removal_rules(self) -> None:
+        """concise 的 prompt 应明确列出要去除的内容"""
+        block = self._block()
+        assert "No greeting" in block
+        assert "no filler words" in block
+
+    def test_concise_preserves_decisive_words(self) -> None:
+        """concise 的 prompt 必须禁止删改否定词与限定词"""
+        block = self._block()
+        assert "Never drop or reword" in block
+        assert "not, never, no, only" in block
+
+    def test_concise_expands_when_user_asks_for_detail(self) -> None:
+        """concise 的 prompt 必须在用户要细节/重复提问时切回完整句"""
+        block = self._block()
+        assert "asks for an explanation or more detail" in block
+
+    def test_concise_covers_tool_narration(self) -> None:
+        """concise 的 prompt 应限制工具调用期间的旁白"""
+        block = self._block()
+        assert "no narration between routine calls" in block
+
+    def test_concise_forbids_inflating_compression(self) -> None:
+        """concise 的 prompt 必须禁止「越压缩越长」与自造缩写"""
+        block = self._block()
+        assert "not shorter than the plain phrasing" in block
+        assert "No invented abbreviations" in block
+
+    def test_injected_block_is_language_agnostic(self) -> None:
+        """简洁档规则不得依赖英文文法机制，保证中文场景同样生效"""
+        block = self._block()
+        assert "articles" not in block.lower()
+        assert "Fragments OK" not in block
+
+
+class TestStyleScopeInvariant:
+    """作用域不变量测试：风格只作用于聊天回复，不污染交付物"""
+
+    def test_block_carries_persisted_content_scope(self) -> None:
+        block = render_personality_block("concise")
+        assert block is not None
+        assert STYLE_SCOPE_INVARIANT in block
+        assert "files, commits, documents, memory" in block
+        assert "messages to other people" in block
+
+    def test_default_style_injects_nothing(self) -> None:
+        assert render_personality_block(DEFAULT_PERSONALITY_STYLE) is None
+        assert render_personality_block(None) is None
+        assert render_personality_block("") is None
+
+    def test_unknown_style_injects_nothing(self) -> None:
+        assert render_personality_block("nonexistent-style") is None
+
+    @pytest.mark.parametrize("style", [s for s in PERSONALITY_TEMPLATES if s != DEFAULT_PERSONALITY_STYLE])
+    def test_every_non_default_style_carries_invariant_and_voice(self, style: str) -> None:
+        block = render_personality_block(style)
+        assert block is not None
+        assert block.startswith("**Communication Style**: ")
+        assert STYLE_SCOPE_INVARIANT in block
+        assert PERSONALITY_TEMPLATES[style].system_prompt_suffix in block
 
 
 class TestWenyanTemplate:
@@ -148,35 +224,29 @@ class TestPromptInjectionLogic:
     """验证 personality_style 的 prompt 注入与 converter 的协作逻辑"""
 
     def test_non_default_style_produces_suffix(self) -> None:
-        """非默认风格应产生非空的注入 suffix"""
+        """非默认风格应产生非空的注入内容"""
         for style_name, template in PERSONALITY_TEMPLATES.items():
             if style_name == DEFAULT_PERSONALITY_STYLE:
                 continue
-            suffix = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-            assert "Communication Style" in suffix
+            block = render_personality_block(style_name)
+            assert block is not None
+            assert "Communication Style" in block
             assert len(template.system_prompt_suffix) > 10, f"{style_name}: suffix too short"
 
     def test_default_style_skipped_in_injection(self) -> None:
-        """默认风格 professional 在 converter 中不注入额外 suffix"""
+        """默认风格 professional 在 converter 中不注入额外内容"""
         assert DEFAULT_PERSONALITY_STYLE == "professional"
+        assert render_personality_block(DEFAULT_PERSONALITY_STYLE) is None
 
-    def test_concise_suffix_format_for_injection(self) -> None:
-        """concise 的 suffix 注入后应保持格式完整"""
-        template = get_personality_template("concise")
-        injected = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-        assert injected.startswith("\n\n**Communication Style**: Respond terse")
-        assert "EXCEPTION" in injected
+    def test_concise_block_starts_with_header(self) -> None:
+        """concise 的注入内容应以统一表头开始，保持与其它入口一致的格式"""
+        block = render_personality_block("concise")
+        assert block is not None
+        assert block.startswith("**Communication Style**: Scope:")
 
-    def test_wenyan_suffix_format_for_injection(self) -> None:
-        """wenyan 的 suffix 注入后应保持格式完整"""
-        template = get_personality_template("wenyan")
-        injected = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-        assert "Communication Style" in injected
-        assert any("\u4e00" <= ch <= "\u9fff" for ch in injected)
-
-    def test_all_suffixes_are_single_paragraph(self) -> None:
-        """所有 suffix 不应包含多余的换行，避免破坏 prompt 结构"""
-        for style_name, template in PERSONALITY_TEMPLATES.items():
-            assert "\n\n" not in template.system_prompt_suffix, (
-                f"{style_name}: suffix contains double newline which may break prompt structure"
-            )
+    @pytest.mark.parametrize("style", list(PERSONALITY_TEMPLATES.keys()))
+    def test_style_voice_is_single_paragraph(self, style: str) -> None:
+        """所有风格本体不应包含多余换行，避免破坏注入块结构"""
+        assert "\n\n" not in PERSONALITY_TEMPLATES[style].system_prompt_suffix, (
+            f"{style}: suffix contains double newline which may break prompt structure"
+        )

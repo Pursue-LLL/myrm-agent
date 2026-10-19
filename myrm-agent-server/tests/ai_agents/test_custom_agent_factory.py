@@ -1203,7 +1203,7 @@ async def test_custom_agent_factory_build_personality_template_failure_is_non_fa
 
     captured_spec: list[object] = []
 
-    def fake_get_personality_template(_style: str) -> SimpleNamespace:
+    def fake_render_personality_block(_style: object) -> SimpleNamespace:
         raise RuntimeError("template load failed")
 
     async def fake_create_skill_agent(**kwargs: object) -> SimpleNamespace:
@@ -1215,8 +1215,8 @@ async def test_custom_agent_factory_build_personality_template_failure_is_non_fa
     import myrm_agent_harness.api as api_module
 
     monkeypatch.setattr(
-        "app.ai_agents.personality_templates.get_personality_template",
-        fake_get_personality_template,
+        "app.ai_agents.personality_templates.render_personality_block",
+        fake_render_personality_block,
     )
     monkeypatch.setattr(api_module, "create_skill_agent", fake_create_skill_agent)
     monkeypatch.setattr(

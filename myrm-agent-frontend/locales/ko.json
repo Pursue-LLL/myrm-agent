@@ -660,6 +660,9 @@
     "personality": {
       "title": "커뮤니케이션 스타일",
       "description": "에이전트의 소통 방식을 선택합니다. 응답의 어조와 스타일에 영향을 줍니다.",
+      "loadFailed": "커뮤니케이션 스타일을 불러오지 못했습니다",
+      "retry": "다시 시도",
+      "exampleLabel": "답변 예시",
       "category": {
         "practical": "실용형",
         "fun": "재미 & 롤플레이"
@@ -4874,7 +4877,8 @@
       "deployMode": "배포 모드",
       "vectorStatus": "벡터 인덱스",
       "vectorPersistence": "벡터 저장 영속성",
-      "embeddingStatus": "임베딩", "retrievalMode": "기억 검색 모드",
+      "embeddingStatus": "임베딩",
+      "retrievalMode": "기억 검색 모드",
       "controlPlaneStatus": "컨트롤 플레인",
       "eventLedgerStatus": "이벤트 원장",
       "healthSnapshotStatus": "건강 스냅샷",
@@ -5410,7 +5414,9 @@
         "not_used": "사용 안 함",
         "proxied_by_sandbox": "샌드박스 프록시",
         "persistent": "영속적",
-        "memory_fallback": "메모리 모드 (재시작 시 손실)", "semantic": "시맨틱 검색", "keyword": "키워드 검색"
+        "memory_fallback": "메모리 모드 (재시작 시 손실)",
+        "semantic": "시맨틱 검색",
+        "keyword": "키워드 검색"
       },
       "coverageStatus": {
         "not_tracked": "외부 메모리 가져오기가 추적되지 않음",

@@ -660,6 +660,9 @@
     "personality": {
       "title": "Communication Style",
       "description": "Choose how the agent communicates. This affects the tone and style of responses.",
+      "loadFailed": "Failed to load communication styles",
+      "retry": "Retry",
+      "exampleLabel": "Example reply",
       "category": {
         "practical": "Practical",
         "fun": "Fun & Roleplay"
@@ -4874,7 +4877,8 @@
       "deployMode": "Deploy mode",
       "vectorStatus": "Vector index",
       "vectorPersistence": "Vector persistence",
-      "embeddingStatus": "Embedding", "retrievalMode": "Memory recall mode",
+      "embeddingStatus": "Embedding",
+      "retrievalMode": "Memory recall mode",
       "controlPlaneStatus": "Control plane",
       "eventLedgerStatus": "Event ledger",
       "healthSnapshotStatus": "Health snapshot",
@@ -5410,7 +5414,9 @@
         "not_used": "Not used",
         "proxied_by_sandbox": "Sandbox proxy",
         "persistent": "Persistent",
-        "memory_fallback": "Memory mode (lost on restart)", "semantic": "Semantic recall", "keyword": "Keyword recall"
+        "memory_fallback": "Memory mode (lost on restart)",
+        "semantic": "Semantic recall",
+        "keyword": "Keyword recall"
       },
       "coverageStatus": {
         "not_tracked": "No external memory imports tracked",

@@ -660,6 +660,9 @@
     "personality": {
       "title": "Kommunikationsstil",
       "description": "Wählen Sie den Kommunikationsstil des Agenten. Dies beeinflusst Ton und Stil der Antworten.",
+      "loadFailed": "Kommunikationsstile konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "exampleLabel": "Beispielantwort",
       "category": {
         "practical": "Praktisch",
         "fun": "Spaß & Rollenspiel"
@@ -4874,7 +4877,8 @@
       "deployMode": "Bereitstellungsmodus",
       "vectorStatus": "Vektorindex",
       "vectorPersistence": "Vektorpersistenz",
-      "embeddingStatus": "Einbetten", "retrievalMode": "Speicher-Abrufmodus",
+      "embeddingStatus": "Einbetten",
+      "retrievalMode": "Speicher-Abrufmodus",
       "controlPlaneStatus": "Kontrollebene",
       "eventLedgerStatus": "Ereignisbuch",
       "healthSnapshotStatus": "Gesundheitsmomentaufnahme",
@@ -5410,7 +5414,9 @@
         "not_used": "Nicht verwendet",
         "proxied_by_sandbox": "Sandbox-Proxy",
         "persistent": "Permanent",
-        "memory_fallback": "Speichermodus (geht bei Neustart verloren)", "semantic": "Semantische Suche", "keyword": "Schlüsselwort-Suche"
+        "memory_fallback": "Speichermodus (geht bei Neustart verloren)",
+        "semantic": "Semantische Suche",
+        "keyword": "Schlüsselwort-Suche"
       },
       "coverageStatus": {
         "not_tracked": "Es wurden keine externen Speicherimporte verfolgt",

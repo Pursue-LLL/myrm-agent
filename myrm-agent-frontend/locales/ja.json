@@ -660,6 +660,9 @@
     "personality": {
       "title": "コミュニケーションスタイル",
       "description": "エージェントのコミュニケーション方式を選択します。回答のトーンとスタイルに影響します。",
+      "loadFailed": "コミュニケーションスタイルを読み込めませんでした",
+      "retry": "再試行",
+      "exampleLabel": "返信例",
       "category": {
         "practical": "実用型",
         "fun": "ファン＆ロールプレイ"
@@ -4874,7 +4877,8 @@
       "deployMode": "デプロイモード",
       "vectorStatus": "ベクトルインデックス",
       "vectorPersistence": "ベクトルストレージの永続化",
-      "embeddingStatus": "エンベディングモデル", "retrievalMode": "記憶検索モード",
+      "embeddingStatus": "エンベディングモデル",
+      "retrievalMode": "記憶検索モード",
       "controlPlaneStatus": "制御平面",
       "eventLedgerStatus": "イベント台帳",
       "healthSnapshotStatus": "ヘルススナップショット",
@@ -5410,7 +5414,9 @@
         "not_used": "未使用",
         "proxied_by_sandbox": "サンドボックスプロキシ",
         "persistent": "永続化",
-        "memory_fallback": "メモリモード（再起動で消失）", "semantic": "意味検索", "keyword": "キーワード検索"
+        "memory_fallback": "メモリモード（再起動で消失）",
+        "semantic": "意味検索",
+        "keyword": "キーワード検索"
       },
       "coverageStatus": {
         "not_tracked": "外部メモリインポートの記録はありません",

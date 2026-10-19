@@ -19,6 +19,27 @@ export const DEFAULT_PERSONALITY_STYLE = 'professional' as const;
 /** 28 built-in presets exceed API default page_size=20. */
 export const AGENT_LIST_BUILTIN_PAGE_SIZE = 50;
 
+/**
+ * One communication style preset. The catalog is owned by the server
+ * (`GET /agents/personalities`); the editor renders whatever it returns.
+ */
+export interface PersonalityCatalogItem {
+  id: string;
+  displayName: string;
+  displayNameZh: string;
+  description: string;
+  descriptionZh: string;
+  exampleResponse: string;
+  exampleResponseZh: string;
+  iconId: string;
+  category: 'practical' | 'fun';
+}
+
+/** Load the built-in communication style presets. */
+export async function getPersonalityCatalog(): Promise<PersonalityCatalogItem[]> {
+  return apiRequest<PersonalityCatalogItem[]>('/agents/personalities', { method: 'GET', silent: true });
+}
+
 export interface AgentModelSelection {
   providerId: string;
   model: string;

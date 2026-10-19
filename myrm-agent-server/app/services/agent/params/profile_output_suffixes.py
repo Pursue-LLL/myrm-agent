@@ -1,8 +1,7 @@
 """Profile output suffix injection (personality + response locale).
 
 [INPUT]
-- app.database.dto::PersonalityStyleLiteral (POS: Agent personality style enum SSOT)
-- app.ai_agents.personality_templates::get_personality_template (POS: Personality suffix templates)
+- app.ai_agents.personality_templates::render_personality_block (POS: Personality style block renderer)
 - myrm_agent_harness.utils.response_locale::build_response_locale_suffix (POS: Agent output locale/formality suffix from engine_params)
 
 [OUTPUT]
@@ -18,11 +17,8 @@ Goal stream continuation entry points.
 from __future__ import annotations
 
 import logging
-from typing import cast
 
 from myrm_agent_harness.utils.response_locale import build_response_locale_suffix
-
-from app.database.dto import PersonalityStyleLiteral
 
 logger = logging.getLogger(__name__)
 
@@ -37,19 +33,28 @@ def apply_profile_output_suffixes(
     """Append personality and response-locale suffixes to user_instructions tail."""
     instructions = user_instructions
 
-    from app.ai_agents.personality_templates import (
-        DEFAULT_PERSONALITY_STYLE,
-        get_personality_template,
-    )
+    if personality_style:
+        from app.ai_agents.personality_templates import (
+            DEFAULT_PERSONALITY_STYLE,
+            render_personality_block,
+        )
 
-    if personality_style and personality_style != DEFAULT_PERSONALITY_STYLE:
         try:
-            template = get_personality_template(cast(PersonalityStyleLiteral, personality_style))
-            personality_suffix = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-            instructions = f"{instructions}{personality_suffix}" if instructions else personality_suffix.strip()
-        except Exception:
+            style_block = render_personality_block(personality_style)
+        except Exception as exc:  # 防御：风格渲染异常绝不能阻断 Agent 请求
+            style_block = None
             logger.warning(
-                "Invalid personality style '%s' for agent '%s'",
+                "Failed to render personality style '%s' for agent '%s': %s",
+                personality_style,
+                agent_id,
+                exc,
+            )
+
+        if style_block:
+            instructions = f"{instructions}\n\n{style_block}" if instructions else style_block
+        elif personality_style != DEFAULT_PERSONALITY_STYLE:
+            logger.warning(
+                "Unknown personality style '%s' for agent '%s'; no style block injected",
                 personality_style,
                 agent_id,
             )

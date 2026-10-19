@@ -3,52 +3,10 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
-import {
-  IconBriefcase,
-  IconZap,
-  IconBook,
-  IconGraduation,
-  IconPalette,
-  IconBrain,
-} from '@/components/features/icons/PremiumIcons';
 import { Switch } from '@/components/primitives/switch';
-import {
-  Anchor,
-  Cat,
-  Drama,
-  Eye,
-  Flame,
-  Heart,
-  MessageCircleHeartIcon,
-  Scroll,
-  Shield,
-  Smile,
-  Sparkles,
-  Unlock,
-  Waves,
-  X,
-  Zap,
-} from 'lucide-react';
+import { Shield, Unlock, X, Zap } from 'lucide-react';
 
-const PERSONALITY_STYLES: Array<{ value: string; emoji: React.ReactNode; category: 'practical' | 'fun' }> = [
-  { value: 'professional', emoji: <IconBriefcase className="w-5 h-5" />, category: 'practical' },
-  { value: 'friendly', emoji: <Smile className="w-5 h-5" />, category: 'practical' },
-  { value: 'concise', emoji: <IconZap className="w-5 h-5" />, category: 'practical' },
-  { value: 'detailed', emoji: <IconBook className="w-5 h-5" />, category: 'practical' },
-  { value: 'humorous', emoji: <MessageCircleHeartIcon className="w-5 h-5" />, category: 'practical' },
-  { value: 'academic', emoji: <IconGraduation className="w-5 h-5" />, category: 'practical' },
-  { value: 'creative', emoji: <IconPalette className="w-5 h-5" />, category: 'practical' },
-  { value: 'socratic', emoji: <IconBrain className="w-5 h-5" />, category: 'practical' },
-  { value: 'pirate', emoji: <Anchor className="w-5 h-5" />, category: 'fun' },
-  { value: 'shakespeare', emoji: <Drama className="w-5 h-5" />, category: 'fun' },
-  { value: 'noir', emoji: <Eye className="w-5 h-5" />, category: 'fun' },
-  { value: 'kawaii', emoji: <Sparkles className="w-5 h-5" />, category: 'fun' },
-  { value: 'catgirl', emoji: <Cat className="w-5 h-5" />, category: 'fun' },
-  { value: 'hype', emoji: <Flame className="w-5 h-5" />, category: 'fun' },
-  { value: 'uwu', emoji: <Heart className="w-5 h-5" />, category: 'fun' },
-  { value: 'surfer', emoji: <Waves className="w-5 h-5" />, category: 'fun' },
-  { value: 'wenyan', emoji: <Scroll className="w-5 h-5" />, category: 'fun' },
-];
+import { PersonalityStylePicker } from './PersonalityStylePicker';
 
 const MAX_SUGGESTION_PROMPTS = 8;
 
@@ -277,51 +235,7 @@ export function AgentBasicInfoTab({
           <p className="text-xs text-muted-foreground/80 italic">{t(`agent.promptMode.hints.${promptMode}`)}</p>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">{t('agent.personality.title')}</label>
-          <p className="text-xs text-muted-foreground">{t('agent.personality.description')}</p>
-          {(['practical', 'fun'] as const).map((category) => {
-            const styles = PERSONALITY_STYLES.filter((s) => s.category === category);
-            return (
-              <div key={category} className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground/70">
-                  {t(`agent.personality.category.${category}`)}
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {styles.map((style) => {
-                    const isSelected = personalityStyle === style.value;
-                    return (
-                      <button
-                        key={style.value}
-                        type="button"
-                        onClick={() => !isReadonly && onPersonalityChange(style.value)}
-                        disabled={isReadonly}
-                        className={cn(
-                          'flex flex-col items-center gap-1.5 p-3 rounded-xl',
-                          'border transition-all duration-200',
-                          isReadonly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
-                          isSelected
-                            ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
-                            : 'border-border/40 bg-background hover:border-border hover:bg-muted/30',
-                        )}
-                      >
-                        <span className="text-xl leading-none">{style.emoji}</span>
-                        <span
-                          className={cn(
-                            'text-xs font-medium leading-tight text-center',
-                            isSelected ? 'text-primary' : 'text-muted-foreground',
-                          )}
-                        >
-                          {t(`agent.personality.styles.${style.value}`)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <PersonalityStylePicker value={personalityStyle} onChange={onPersonalityChange} readonly={isReadonly} />
       </div>
     </div>
   );

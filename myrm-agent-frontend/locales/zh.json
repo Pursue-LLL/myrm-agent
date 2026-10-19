@@ -660,6 +660,9 @@
     "personality": {
       "title": "沟通风格",
       "description": "选择智能体的沟通方式，这会影响回复的语气和风格。",
+      "loadFailed": "沟通风格列表加载失败",
+      "retry": "重试",
+      "exampleLabel": "示例回复",
       "category": {
         "practical": "实用型",
         "fun": "趣味型"
@@ -4874,7 +4877,8 @@
       "deployMode": "部署模式",
       "vectorStatus": "向量索引",
       "vectorPersistence": "向量存储持久化",
-      "embeddingStatus": "嵌入模型", "retrievalMode": "记忆检索模式",
+      "embeddingStatus": "嵌入模型",
+      "retrievalMode": "记忆检索模式",
       "controlPlaneStatus": "控制平面",
       "eventLedgerStatus": "事件账本",
       "healthSnapshotStatus": "健康快照",
@@ -5410,7 +5414,9 @@
         "not_used": "未使用",
         "proxied_by_sandbox": "沙箱代理",
         "persistent": "持久化",
-        "memory_fallback": "内存模式（重启后丢失）", "semantic": "语义检索", "keyword": "关键词检索"
+        "memory_fallback": "内存模式（重启后丢失）",
+        "semantic": "语义检索",
+        "keyword": "关键词检索"
       },
       "coverageStatus": {
         "not_tracked": "暂无外部记忆导入记录",
