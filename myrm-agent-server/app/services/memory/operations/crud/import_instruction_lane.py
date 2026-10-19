@@ -1,4 +1,4 @@
-"""Instruction, MCP and model lanes applied by the import confirm handler.
+"""Instruction, MCP and model lane applied by the import confirm handler.
 
 [INPUT]
 app.services.migration.instruction_writer (POS: 指令车道写入)
@@ -6,8 +6,8 @@ app.services.memory.imports.import_ledger (POS: 导入账本)
 app.services.memory.operations.crud.import_side_effects (POS: 导入后副作用)
 
 [OUTPUT]
-InstructionLanes: the applied instruction result plus the counts and rollback
-metadata that the confirm response and ledger need.
+InstructionLaneOutcome: the applied instruction result plus the counts and
+rollback metadata that the confirm response and ledger need.
 
 [POS]
 First write lane of the confirm phase. Kept apart from the handler so the order of
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class InstructionLanes:
+class InstructionLaneOutcome:
     """What the instruction lane wrote, including the MCP and model side effects."""
 
     result: InstructionApplyResult | None
@@ -82,7 +82,7 @@ def mcp_configs_from_metadata(raw_plan: dict[str, object]) -> list[dict[str, obj
     return [item for item in mcp_configs_raw if isinstance(item, dict) and item.get("name")]
 
 
-async def apply_instruction_lanes(
+async def apply_instruction_lane(
     db: AsyncSession,
     *,
     import_batch_id: str,
@@ -90,7 +90,7 @@ async def apply_instruction_lanes(
     raw_options: object,
     metadata: dict[str, object],
     workspace_root: str | None,
-) -> InstructionLanes:
+) -> InstructionLaneOutcome:
     """Write instructions, MCP configs and model migration, then record the rollback facts."""
 
     from app.services.memory.imports.import_ledger import MemoryImportLedgerService
@@ -135,4 +135,4 @@ async def apply_instruction_lanes(
         import_batch_id,
         {"instruction_rollback": instruction_rollback_record_to_metadata(rollback_record)},
     )
-    return InstructionLanes(result=instruction_result, mcp_imported_disabled_count=mcp_imported_disabled_count)
+    return InstructionLaneOutcome(result=instruction_result, mcp_imported_disabled_count=mcp_imported_disabled_count)

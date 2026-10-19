@@ -29,16 +29,16 @@ from app.services.memory.operations.crud.import_confirm_flow import confirm_impo
 from app.services.memory.operations.crud.import_confirm_followups import (
     resolve_migration_competitor,
 )
-from app.services.memory.operations.crud.import_confirm_lanes import (
-    mcp_configs_from_metadata,
-    options_from_metadata,
-    plan_from_metadata,
-)
 from app.services.memory.operations.crud.import_dry_run_preview import (
     build_instruction_preview,
     build_lane_response_rows,
     build_token_economics,
     skipped_cron_preview,
+)
+from app.services.memory.operations.crud.import_instruction_lane import (
+    mcp_configs_from_metadata,
+    options_from_metadata,
+    plan_from_metadata,
 )
 from app.services.migration.source.source_migration_types import MigrationLanePreview
 from tests.services.memory.test_import_sessions import _FakeMemoryManager
@@ -365,3 +365,63 @@ async def test_dry_run_native_payload_skips_competitor_introspection(db_session:
     assert response.cron_skipped == []
     assert response.workspace_bind_candidates == []
     assert response.providers_configured is False
+
+
+@pytest.mark.asyncio
+async def test_diagnostic_failure_is_recorded_instead_of_raised(db_session: AsyncSession) -> None:
+    from app.services.memory.operations.crud.import_confirm_followups import DiagnosticOutcome, run_post_import_diagnostic
+
+    saved: list[dict[str, object]] = []
+
+    class _RecordingSessionService:
+        async def save_post_import_diagnostic(self, **kwargs: object) -> None:
+            saved.append(kwargs)
+
+    with patch(
+        "app.services.memory.command_center.command_center.MemoryCommandCenterService",
+        side_effect=RuntimeError("snapshot failed"),
+    ):
+        outcome = await run_post_import_diagnostic(
+            db_session,
+            manager=_FakeMemoryManager(),
+            session_service=_RecordingSessionService(),  # type: ignore[arg-type]
+            import_batch_id="memory-import-batch:test",
+        )
+
+    assert outcome == DiagnosticOutcome(status="failed", run_id=None, failed_count=1)
+    assert saved[-1]["diagnostic_run_id"] == "post-import-diagnostic:failed"
+    assert saved[-1]["failed_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_readiness_persistence_failure_does_not_raise() -> None:
+    from app.services.memory.imports.import_sessions import ImportReadinessRecheckFacts
+    from app.services.memory.operations.crud.import_confirm_followups import persist_readiness
+    from app.services.memory.operations.crud.import_readiness import build_import_readiness
+
+    class _FailingSessionService:
+        async def save_post_import_readiness(self, **kwargs: object) -> None:
+            raise RuntimeError("database is locked")
+
+    readiness = build_import_readiness(
+        providers_configured=True,
+        source_has_api_keys=False,
+        diagnostic_status="passed",
+        diagnostic_failed_count=0,
+        mcp_config_count=0,
+        workspace_rules_skipped=0,
+        migration_competitor=None,
+        moa_overlay_configured=None,
+    )
+    await persist_readiness(
+        _FailingSessionService(),  # type: ignore[arg-type]
+        import_batch_id="memory-import-batch:test",
+        readiness=readiness,
+        recheck_facts=ImportReadinessRecheckFacts(
+            source_has_api_keys=False,
+            diagnostic_status="passed",
+            diagnostic_failed_count=0,
+            mcp_config_count=0,
+            workspace_rules_skipped=0,
+        ),
+    )

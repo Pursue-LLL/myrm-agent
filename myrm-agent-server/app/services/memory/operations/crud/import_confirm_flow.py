@@ -1,7 +1,7 @@
 """Memory import confirm handler.
 
 [INPUT]
-app.services.memory.operations.crud.import_confirm_lanes (POS: 指令/MCP/模型车道)
+app.services.memory.operations.crud.import_instruction_lane (POS: 指令/MCP/模型车道)
 app.services.memory.operations.crud.import_confirm_followups (POS: cron/会话/就绪车道)
 app.services.memory.imports.import_sessions (POS: 记忆导入审查会话)
 
@@ -40,9 +40,9 @@ from app.services.memory.operations.crud.import_confirm_followups import (
     resolve_migration_competitor,
     run_post_import_diagnostic,
 )
-from app.services.memory.operations.crud.import_confirm_lanes import (
-    InstructionLanes,
-    apply_instruction_lanes,
+from app.services.memory.operations.crud.import_instruction_lane import (
+    InstructionLaneOutcome,
+    apply_instruction_lane,
 )
 from app.services.migration.source.source_secrets_importer import (
     external_source_providers_configured,
@@ -70,9 +70,9 @@ async def confirm_import_memories(
             )
             raw_plan = metadata.get("instruction_plan")
 
-            lanes = InstructionLanes(result=None, mcp_imported_disabled_count=0)
+            lanes = InstructionLaneOutcome(result=None, mcp_imported_disabled_count=0)
             if body.apply_instructions and isinstance(raw_plan, dict):
-                lanes = await apply_instruction_lanes(
+                lanes = await apply_instruction_lane(
                     db,
                     import_batch_id=result.import_batch_id,
                     raw_plan=raw_plan,
