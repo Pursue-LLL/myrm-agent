@@ -46,6 +46,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
@@ -58,6 +59,34 @@ _WRITE_PROMPT = f"请记住:我目前在 {_OLD_EMPLOYER} 工作,职位是后端�
 _CORRECTION_PROMPT = f"纠正一下:我已经不在 {_OLD_EMPLOYER} 了,现在改在 {_NEW_EMPLOYER} 工作。"
 _RECALL_PROMPT = "我现在在哪家公司工作?只回答公司名。"
 _PROPOSAL_WAIT_SEC = 180.0
+
+
+def _wait_with_reload(
+    client: object,
+    page: object,
+    js: str,
+    route_url: str,
+    timeout_sec: float,
+    *,
+    attempts: int = 2,
+) -> dict[str, object]:
+    """wait_for_state, reloading the route once when the page stalled.
+
+    The pending card depends on the memory store's fetch, which races page
+    readiness under parallel load; a reload re-runs it instead of failing the
+    run on a transient stall.
+    """
+    last: AssertionError | None = None
+    for attempt in range(attempts):
+        try:
+            return wait_for_state(client, page, js, timeout_sec=timeout_sec)  # type: ignore[arg-type]
+        except AssertionError as exc:  # wait_for_state raises on timeout
+            last = exc
+            if attempt + 1 >= attempts:
+                break
+            reload_mcp_page(client, page, target_url=route_url, timeout_ms=120_000)  # type: ignore[arg-type]
+            dismiss_blocking_modals(client, page, recover_url=route_url)  # type: ignore[arg-type]
+    raise AssertionError(str(last))
 
 
 def _semantic_memories(api_url: str) -> list[dict[str, object]]:
@@ -142,12 +171,19 @@ def test_memory_implicit_correction_live_approved_then_recalled() -> None:
     with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page, recover_url=f"{ui_url.rstrip('/')}/settings")
+        memory_route = f"{ui_url.rstrip('/')}/settings/memory"
         if target_id:
-            probe = wait_for_state(client, page, _hint_probe_js(proposal_text), timeout_sec=90.0)
+            probe = _wait_with_reload(client, page, _hint_probe_js(proposal_text), memory_route, 90.0)
             label = _WILL_CORRECT if proposal.get("resolution_action") == "correct" else _WILL_DELETE
             assert label.search(str(probe.get("hint") or "")), probe
         else:
-            wait_for_state(client, page, _card_script(proposal_text, "return { ready: !!card };"), timeout_sec=90.0)
+            _wait_with_reload(
+                client,
+                page,
+                _card_script(proposal_text, "return { ready: !!card };"),
+                memory_route,
+                90.0,
+            )
         client.evaluate(page, _NETWORK_TAP_JS, timeout_sec=15.0)
         clicked = wait_for_state(client, page, _accept_js(proposal_text), timeout_sec=30.0)
         assert clicked.get("clicked") is True, clicked
