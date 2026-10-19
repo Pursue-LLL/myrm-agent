@@ -5,8 +5,11 @@ export interface TranslationFn {
   (key: string, values?: Record<string, string | number>): string;
 }
 
-/** Coverage labels the backend may send as an i18n key; anything else is rendered verbatim. */
-export const COVERAGE_LABEL_KEYS = new Set([
+/**
+ * Coverage labels the backend may send as an i18n key; anything else is rendered
+ * verbatim. Mirrors the label vocabulary of build_coverage_items.
+ */
+export const COVERAGE_LABEL_KEYS = [
   'instruction_lane',
   'memory_lane',
   'session_lane',
@@ -20,7 +23,8 @@ export const COVERAGE_LABEL_KEYS = new Set([
   'no_importable_data',
   'cron_lane',
   'kanban_not_migrated',
-]);
+  'credential_pool_migration',
+] as const;
 
 /** Cron skip reasons with dedicated copy; unknown reasons fall back to the generic line. */
 export const CRON_SKIP_REASON_KEYS = new Set([

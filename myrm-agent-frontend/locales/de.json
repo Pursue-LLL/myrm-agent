@@ -5792,7 +5792,8 @@
           "agent_config_manual": "Agentenkonfiguration",
           "no_importable_data": "Importierbare Daten",
           "cron_lane": "Geplante Aufgaben (cron)",
-          "kanban_not_migrated": "Kanban-Boards"
+          "kanban_not_migrated": "Kanban-Boards",
+          "credential_pool_migration": "Migration des Anmeldedaten-Pools"
         },
         "pendingSkillsHint": "{count} Fähigkeit(en) erkannt – wird nach Ihrer Bestätigung zur Prüfung eingereicht",
         "mcpServersTitle": "MCP Server erkannt",

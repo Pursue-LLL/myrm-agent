@@ -5792,7 +5792,8 @@
           "agent_config_manual": "Agent 配置",
           "no_importable_data": "可导入数据",
           "cron_lane": "定时任务（Cron）",
-          "kanban_not_migrated": "看板任务"
+          "kanban_not_migrated": "看板任务",
+          "credential_pool_migration": "凭据池迁移"
         },
         "pendingSkillsHint": "检测到 {count} 个技能，确认导入后将提交审核队列",
         "mcpServersTitle": "检测到 MCP 服务",

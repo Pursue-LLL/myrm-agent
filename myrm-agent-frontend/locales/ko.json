@@ -5792,7 +5792,8 @@
           "agent_config_manual": "에이전트 구성",
           "no_importable_data": "가져오기 가능한 데이터",
           "cron_lane": "예약 작업 (크론)",
-          "kanban_not_migrated": "칸반 보드"
+          "kanban_not_migrated": "칸반 보드",
+          "credential_pool_migration": "자격 증명 풀 마이그레이션"
         },
         "pendingSkillsHint": "스킬 {count}개 감지됨 — 확인 후 검토를 위해 제출됩니다",
         "mcpServersTitle": "감지된 MCP 서버",

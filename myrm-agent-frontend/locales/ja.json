@@ -5792,7 +5792,8 @@
           "agent_config_manual": "Agent 設定",
           "no_importable_data": "可インポートデータ",
           "cron_lane": "スケジュールタスク（Cron）",
-          "kanban_not_migrated": "カンバンボード"
+          "kanban_not_migrated": "カンバンボード",
+          "credential_pool_migration": "資格情報プールの移行"
         },
         "pendingSkillsHint": "{count} 個のスキルを検出 — 確認後にレビューキューへ提出されます",
         "mcpServersTitle": "MCP サービスを検出",

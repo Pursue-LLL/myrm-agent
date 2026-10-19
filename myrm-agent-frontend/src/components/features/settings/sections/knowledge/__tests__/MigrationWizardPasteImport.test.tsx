@@ -22,9 +22,10 @@ import { useTranslations } from 'next-intl';
 
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
 import { LANE_DETAIL_CODES } from '../memory-migration-wizard/PreviewCards';
+import { MAPPING_STATUS_CODES } from '../memory-migration-wizard/PreviewPanels';
 import { PreviewStep } from '../memory-migration-wizard/PreviewStep';
 import { ScanStep } from '../memory-migration-wizard/ScanStep';
-import type { TranslationFn } from '../memory-migration-wizard/wizardShared';
+import { COVERAGE_LABEL_KEYS, type TranslationFn } from '../memory-migration-wizard/wizardShared';
 
 const wizardMessages = en.memory.migrationWizard as unknown as Record<string, unknown>;
 
@@ -327,6 +328,53 @@ describe('migration wizard preview copy', () => {
 
     expect(screen.getByText('120 chars of persona · 9000 chars total, above the recommended size')).toBeInTheDocument();
     expect(screen.queryByText('agent persona (120 chars), 9000 chars total (large)')).toBeNull();
+  });
+
+  it('has copy for every mapping status the adapter can emit', () => {
+    const mappingStatus = en.memory.migrationWizard.preview.mappingStatus as unknown as Record<string, string>;
+    const missing = MAPPING_STATUS_CODES.filter((status) => !(status in mappingStatus));
+
+    expect(missing).toEqual([]);
+  });
+
+  it('has copy for every coverage label the wizard localizes', () => {
+    const coverageLabels = en.memory.migrationWizard.preview.coverageLabels as unknown as Record<string, string>;
+    const missing = COVERAGE_LABEL_KEYS.filter((label) => !(label in coverageLabels));
+
+    expect(missing).toEqual([]);
+  });
+
+  it('localizes the credential pool coverage row', () => {
+    const withCredentialPool: MemoryImportDryRunResponse = {
+      ...dryRun,
+      coverage_items: [{ key: 'credential_pool', status: 'ready', label: 'credential_pool_migration' }],
+    };
+
+    render(
+      <PreviewStep
+        source={{
+          competitor: 'hermes',
+          root: '/home/user/.hermes',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 2,
+          skill_count: 0,
+          has_api_keys: true,
+        }}
+        dryRun={withCredentialPool}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        importSessions
+        onImportSessionsChange={vi.fn()}
+        onConfirm={vi.fn()}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    expect(screen.getByText('Credential pool migration')).toBeInTheDocument();
+    expect(screen.queryByText('credential_pool_migration')).toBeNull();
   });
 
   it('renders plural lane fragments through the real translator', () => {

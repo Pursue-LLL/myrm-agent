@@ -13,11 +13,13 @@ import type {
 import { CollapsibleSection } from './CollapsibleSection';
 import { formatCronSkippedReason, type TranslationFn } from './wizardShared';
 
-/** Adapter statuses with user-facing copy; anything else is rendered as-is. */
-const MAPPING_STATUS_KEYS = new Set(['mapped', 'partially_mapped', 'unsupported', 'dropped']);
+/** Adapter mapping statuses with user-facing copy; anything else is rendered as-is. */
+export const MAPPING_STATUS_CODES = ['mapped', 'partially_mapped', 'unsupported', 'dropped'] as const;
+
+const LOCALIZED_MAPPING_STATUSES = new Set<string>(MAPPING_STATUS_CODES);
 
 function mappingStatusLabel(status: string, t: TranslationFn): string {
-  return MAPPING_STATUS_KEYS.has(status) ? t(`preview.mappingStatus.${status}`) : status;
+  return LOCALIZED_MAPPING_STATUSES.has(status) ? t(`preview.mappingStatus.${status}`) : status;
 }
 
 /**

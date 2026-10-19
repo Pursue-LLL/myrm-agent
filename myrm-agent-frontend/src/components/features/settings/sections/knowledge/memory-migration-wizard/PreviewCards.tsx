@@ -38,6 +38,7 @@ export const LANE_DETAIL_CODES = [
 ] as const;
 
 const LOCALIZED_LANE_DETAIL_CODES = new Set<string>(LANE_DETAIL_CODES);
+const LOCALIZED_COVERAGE_LABELS = new Set<string>(COVERAGE_LABEL_KEYS);
 
 function laneDetailText(lane: MigrationLanePreviewItem, t: TranslationFn): string {
   const parts = (lane.detail_parts ?? []).filter((part) => LOCALIZED_LANE_DETAIL_CODES.has(part.code));
@@ -69,7 +70,7 @@ export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]
             className={cn('rounded-lg border px-3 py-2.5 text-xs', statusStyles[item.status] ?? statusStyles.manual)}
           >
             <div className="font-medium">
-              {COVERAGE_LABEL_KEYS.has(item.label) ? t(`preview.coverageLabels.${item.label}`) : item.label}
+              {LOCALIZED_COVERAGE_LABELS.has(item.label) ? t(`preview.coverageLabels.${item.label}`) : item.label}
             </div>
             <div className="mt-0.5 opacity-80">{t(`preview.coverageStatus.${item.status}`)}</div>
           </div>
