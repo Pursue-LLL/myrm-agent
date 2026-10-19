@@ -51,6 +51,7 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers
+from tests.support.retrieval_embedding import configured_retrieval_embedding
 
 _MEMORY_API = "/api/v1/memory"
 _OLD_EMPLOYER = "Zephyrion Labs"
@@ -153,84 +154,86 @@ def test_memory_implicit_correction_live_approved_then_recalled() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
-    prepare_e2e_ui_session(api_url)
-    seed_live_e2e_providers(api_url)
-    if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+    with configured_retrieval_embedding(api_url):
 
-    suffix = uuid.uuid4().hex[:8]
-    agent_id = _create_agent(api_url, f"Memory Correction Probe {suffix}")
-    chats = {name: f"e2ecorrect{suffix}{name}" for name in ("a", "b", "c")}
-    for name, chat_id in chats.items():
-        _create_chat(api_url, chat_id, f"Memory Correction E2E {name}", agent_id)
+        prepare_e2e_ui_session(api_url)
+        seed_live_e2e_providers(api_url)
+        if not wait_e2e_provider_ready(timeout_sec=90.0):
+            pytest.fail("Provider not ready — run ./myrm ready --chrome")
 
-    # Turn 1 — state the fact; wait for the extraction write before correcting it.
-    _open_chat_and_send(ui_url, chats["a"], _WRITE_PROMPT)
-    _wait_assistant_reply(chats["a"], api_url, timeout_sec=120.0)
-    _await_memory_write_ledger(api_url, chats["a"], timeout_sec=120.0)
-    _old_employer_memory_id(api_url)
+        suffix = uuid.uuid4().hex[:8]
+        agent_id = _create_agent(api_url, f"Memory Correction Probe {suffix}")
+        chats = {name: f"e2ecorrect{suffix}{name}" for name in ("a", "b", "c")}
+        for name, chat_id in chats.items():
+            _create_chat(api_url, chat_id, f"Memory Correction E2E {name}", agent_id)
 
-    # Turn 2 — correct it in a fresh chat; the new fact must wait for the user's review.
-    _open_chat_and_send(ui_url, chats["b"], _CORRECTION_PROMPT)
-    _wait_assistant_reply(chats["b"], api_url, timeout_sec=120.0)
-    proposal = _await_employer_proposal(api_url)
-    proposal_text = str(proposal["content"])
-    target_id = proposal.get("target_memory_id")
-    print(
-        f"E2E_CORRECTION_PROPOSAL: id={proposal['id']} action={proposal.get('resolution_action')} "
-        f"target={target_id} content={proposal_text[:200]}",
-        flush=True,
-    )
+        # Turn 1 — state the fact; wait for the extraction write before correcting it.
+        _open_chat_and_send(ui_url, chats["a"], _WRITE_PROMPT)
+        _wait_assistant_reply(chats["a"], api_url, timeout_sec=120.0)
+        _await_memory_write_ledger(api_url, chats["a"], timeout_sec=120.0)
+        _old_employer_memory_id(api_url)
 
-    # Review — accept it like a real user. A targeted proposal also names what it supersedes.
-    warm_ui_route("/settings/memory")
-    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
-        ensure_desktop_viewport(client, page)
-        dismiss_blocking_modals(client, page, recover_url=f"{ui_url.rstrip('/')}/settings")
-        memory_route = f"{ui_url.rstrip('/')}/settings/memory"
-        if target_id:
-            probe = _wait_with_reload(client, page, _hint_probe_js(proposal_text), memory_route, 90.0)
-            label = _WILL_CORRECT if proposal.get("resolution_action") == "correct" else _WILL_DELETE
-            assert label.search(str(probe.get("hint") or "")), probe
-        else:
-            try:
-                _wait_with_reload(
-                    client,
-                    page,
-                    _card_script(proposal_text, "return { ready: !!card };"),
-                    memory_route,
-                    90.0,
-                )
-            except AssertionError as exc:
-                # Distinguish "card rendered with different text" from "no cards
-                # at all": dump the tab state, the card count and the page text.
-                diag = client.evaluate(  # type: ignore[attr-defined]
-                    page,
-                    """(() => {
-                      const cards = Array.from(document.querySelectorAll('[data-testid="memory-card"]'));
-                      const tabs = Array.from(document.querySelectorAll('[role="tab"]')).map((el) => ({
-                        text: (el.textContent || '').trim().slice(0, 16),
-                        state: el.getAttribute('data-state'),
-                      }));
-                      const text = (document.body?.innerText || '').replace(/\\s+/g, ' ');
-                      return {
-                        cardCount: cards.length,
-                        visibleCards: cards.filter((el) => el.getClientRects().length > 0).length,
-                        cardTexts: cards.slice(0, 4).map((el) => (el.textContent || '').trim().slice(0, 120)),
-                        tabs,
-                        pageText: text.slice(0, 700),
-                      };
-                    })()""",
-                )
-                raise AssertionError(f"{exc} | diag: {diag}") from exc
-        client.evaluate(page, _NETWORK_TAP_JS, timeout_sec=15.0)
-        clicked = wait_for_state(client, page, _accept_js(proposal_text), timeout_sec=30.0)
-        assert clicked.get("clicked") is True, clicked
-        gone = wait_for_state(client, page, _card_gone_js(proposal_text), timeout_sec=60.0)
-        assert gone.get("ready") is True, gone
+        # Turn 2 — correct it in a fresh chat; the new fact must wait for the user's review.
+        _open_chat_and_send(ui_url, chats["b"], _CORRECTION_PROMPT)
+        _wait_assistant_reply(chats["b"], api_url, timeout_sec=120.0)
+        proposal = _await_employer_proposal(api_url)
+        proposal_text = str(proposal["content"])
+        target_id = proposal.get("target_memory_id")
+        print(
+            f"E2E_CORRECTION_PROPOSAL: id={proposal['id']} action={proposal.get('resolution_action')} "
+            f"target={target_id} content={proposal_text[:200]}",
+            flush=True,
+        )
 
-    # Turn 3 — a context-free chat can only learn the employer from the approved memory.
-    _open_chat_and_send(ui_url, chats["c"], _RECALL_PROMPT)
-    reply = _wait_assistant_reply(chats["c"], api_url, timeout_sec=120.0)
-    text = str(reply.get("content") or reply.get("message") or "")
-    assert _NEW_EMPLOYER.split()[0].lower() in text.lower(), f"corrected employer missing from reply: {text[:400]}"
+        # Review — accept it like a real user. A targeted proposal also names what it supersedes.
+        warm_ui_route("/settings/memory")
+        with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
+            ensure_desktop_viewport(client, page)
+            dismiss_blocking_modals(client, page, recover_url=f"{ui_url.rstrip('/')}/settings")
+            memory_route = f"{ui_url.rstrip('/')}/settings/memory"
+            if target_id:
+                probe = _wait_with_reload(client, page, _hint_probe_js(proposal_text), memory_route, 90.0)
+                label = _WILL_CORRECT if proposal.get("resolution_action") == "correct" else _WILL_DELETE
+                assert label.search(str(probe.get("hint") or "")), probe
+            else:
+                try:
+                    _wait_with_reload(
+                        client,
+                        page,
+                        _card_script(proposal_text, "return { ready: !!card };"),
+                        memory_route,
+                        90.0,
+                    )
+                except AssertionError as exc:
+                    # Distinguish "card rendered with different text" from "no cards
+                    # at all": dump the tab state, the card count and the page text.
+                    diag = client.evaluate(  # type: ignore[attr-defined]
+                        page,
+                        """(() => {
+                          const cards = Array.from(document.querySelectorAll('[data-testid="memory-card"]'));
+                          const tabs = Array.from(document.querySelectorAll('[role="tab"]')).map((el) => ({
+                            text: (el.textContent || '').trim().slice(0, 16),
+                            state: el.getAttribute('data-state'),
+                          }));
+                          const text = (document.body?.innerText || '').replace(/\\s+/g, ' ');
+                          return {
+                            cardCount: cards.length,
+                            visibleCards: cards.filter((el) => el.getClientRects().length > 0).length,
+                            cardTexts: cards.slice(0, 4).map((el) => (el.textContent || '').trim().slice(0, 120)),
+                            tabs,
+                            pageText: text.slice(0, 700),
+                          };
+                        })()""",
+                    )
+                    raise AssertionError(f"{exc} | diag: {diag}") from exc
+            client.evaluate(page, _NETWORK_TAP_JS, timeout_sec=15.0)
+            clicked = wait_for_state(client, page, _accept_js(proposal_text), timeout_sec=30.0)
+            assert clicked.get("clicked") is True, clicked
+            gone = wait_for_state(client, page, _card_gone_js(proposal_text), timeout_sec=60.0)
+            assert gone.get("ready") is True, gone
+
+        # Turn 3 — a context-free chat can only learn the employer from the approved memory.
+        _open_chat_and_send(ui_url, chats["c"], _RECALL_PROMPT)
+        reply = _wait_assistant_reply(chats["c"], api_url, timeout_sec=120.0)
+        text = str(reply.get("content") or reply.get("message") or "")
+        assert _NEW_EMPLOYER.split()[0].lower() in text.lower(), f"corrected employer missing from reply: {text[:400]}"
