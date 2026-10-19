@@ -13,6 +13,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api.memory.operations.external_transcripts import (
+    get_external_transcript_sync_service,
+)
+from app.api.memory.operations.external_transcripts import (
     router as external_transcripts_router,
 )
 from app.database.connection import get_db
@@ -20,6 +23,7 @@ from app.database.models import Base
 from app.database.repositories.conversation_recall.sql import (
     CONVERSATION_RECALL_SCHEMA_SQL,
 )
+from app.services.memory.imports.external_transcript_sync import ExternalTranscriptSyncService
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "test_claude_code_transcript.jsonl"
 
@@ -48,6 +52,9 @@ def app_with_db(tmp_path: Path):
             yield session
 
     app.dependency_overrides[get_db] = _override_get_db
+    app.dependency_overrides[get_external_transcript_sync_service] = lambda: ExternalTranscriptSyncService(
+        watermark_path=tmp_path / "external_transcript_watermarks.json",
+    )
     try:
         with TestClient(app) as client:
             yield client
