@@ -4,12 +4,14 @@
 - storage_converters::{doc_to_*, semantic_to_doc, episodic_to_doc, _user_filter, ...} (POS: stateless conversion layer)
 - storage_by_type::{list_by_type, count_by_type, delete_by_type} (POS: per-type CRUD dispatch)
 - storage_search::{search_profile, search_semantic, search_episodic, ...} (POS: search-specific storage operations)
-- storage_conversation::{store_conversations_batch} (POS: dual-embedding conversation storage)
+- storage_conversation::{embed_conversations, store_conversations_batch} (POS: dual-embedding conversation storage)
 - storage_context::{load_context, WORKING_STATE_*} (POS: context loading for agent prompt)
+- bm25_sparse_index::is_sparse_authoritative (POS: embeddings-less content rewrites)
 - memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ...} (POS: memory data models)
 
 [OUTPUT]
 - store_semantic, store_episodic, store_conversations_batch: Vector storage write functions
+- embed_conversations: conversation vectors computed ahead of the write
 - doc_to_semantic, doc_to_episodic, doc_to_conversation: Vector → memory model converters
 - get_from_vector, delete_from_vector, list_by_type, count_by_type, load_context: Read/query functions
 - MemoryError, MemoryNotFoundError: Error types
@@ -25,6 +27,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import is_sparse_authoritative
 from myrm_agent_harness.toolkits.memory._internal.storage_by_type import (
     count_by_type,
     delete_by_type,
@@ -37,6 +40,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage_context import (
     load_context,
 )
 from myrm_agent_harness.toolkits.memory._internal.storage_conversation import (
+    embed_conversations,
     store_conversations_batch,
 )
 from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
@@ -112,6 +116,7 @@ __all__ = [
     # Converters
     "doc_to_semantic",
     "embed_batch",
+    "embed_conversations",
     # Embed
     "embed_single",
     "episodic_to_doc",
@@ -359,9 +364,10 @@ async def update_vector_memory(
     cache: EmbeddingCacheProtocol | None = None,
 ) -> SemanticMemory | EpisodicMemory:
     if content_changed:
-        if embedding is None:
+        if embedding is not None:
+            memory.embedding = await embed_single(memory.content, embedding, cache)
+        elif not is_sparse_authoritative(vector):
             raise MemoryError("Embedding backend required when content changed")
-        memory.embedding = await embed_single(memory.content, embedding, cache)
     if isinstance(memory, SemanticMemory):
         await vector.upsert(config.semantic_collection, [semantic_to_doc(memory)])
     else:

@@ -39,9 +39,16 @@ Generic, framework-agnostic toolkit collection. No agent coupling — each toolk
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    # Static mirror of ``_LAZY_IMPORTS``: type checkers resolve each lazy name to its real type.
+    from myrm_agent_harness.toolkits.acp.acp_agent_tools import create_invoke_acp_agent_tool
+    from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
+    from myrm_agent_harness.toolkits.cron.cron_agent_tools import create_cron_tools
     from myrm_agent_harness.toolkits.llms import ChatLiteLLM, LLMManager, create_litellm_model, llm_manager
+    from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
     from myrm_agent_harness.toolkits.retriever.engine import RetrieverManager
     from myrm_agent_harness.toolkits.web_fetch import FetchEngine, web_fetch_tools
+    from myrm_agent_harness.toolkits.web_fetch.web_fetch_agent_tools import create_web_fetch_tool
+    from myrm_agent_harness.toolkits.web_search.web_search_agent_tools import create_web_search_tool
 
 __all__ = [
     "ChatLiteLLM",
@@ -49,7 +56,6 @@ __all__ = [
     "LLMManager",
     "RetrieverManager",
     "create_browser_tools",
-    "create_conversation_search_tool",
     "create_cron_tools",
     "create_invoke_acp_agent_tool",
     "create_litellm_model",
@@ -73,10 +79,6 @@ _LAZY_IMPORTS = {
     "create_memory_tools": (
         "myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools",
         "create_memory_tools",
-    ),
-    "create_conversation_search_tool": (
-        "myrm_agent_harness.toolkits.memory.conversation_search",
-        "create_conversation_search_tool",
     ),
     "create_web_fetch_tool": ("myrm_agent_harness.toolkits.web_fetch.web_fetch_agent_tools", "create_web_fetch_tool"),
     "create_web_search_tool": (

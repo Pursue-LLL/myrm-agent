@@ -1,5 +1,9 @@
 # Myrm Agent Harness
 
+> **本仓库已归档，开发已迁入 [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) 的 `myrm-agent-harness/` 目录。**  
+> **This repository is archived. Development continues in [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) under `myrm-agent-harness/`.**  
+> 完整提交历史已原样导入新仓库（`git log` / `git blame` 按文件连续）；PyPI 包名 `myrm-agent-harness` 不变，发版从新仓库的 `harness-v*` tag 触发。
+
 **生产级 Agent 框架** - 基于 LangChain 构建，提供高级技能系统、MCP 集成和生产就绪的沙箱执行。
 
 > **许可**: MIT 开源（见 [LICENSE](LICENSE) 与 `pyproject.toml`）。框架层不与业务逻辑耦合，类似 LangChain 定位，供 `myrm-agent-server` 等业务项目引用。  
@@ -145,10 +149,10 @@ agent = await create_skill_agent(
 ### 使用技能后端
 
 ```python
-from myrm_agent_harness.backends.skills import SkillBackend
+from myrm_agent_harness.backends.skills import LocalSkillBackend
 
 # 创建技能后端（业务层）
-skill_backend = SkillBackend.local("./skills")
+skill_backend = LocalSkillBackend("./skills")
 
 agent = await create_skill_agent(
     spec,
@@ -306,7 +310,7 @@ myrm-agent-harness/          # 本仓库根（示意）
 │       ├── core/                    # 框架无关基础层（security, events, hooks, config）
 │       ├── agent/                   # Agent 核心（BaseAgent, SkillAgent, 技能, 中间件, 元工具）
 │       ├── runtime/                 # 单实例守护（checkpoint、context 生命周期、quota、doctor）
-│       ├── infra/                   # 基础设施（文件锁、消息投递、链路追踪）
+│       ├── infra/                   # 基础设施（消息投递持久化、链路追踪）
 │       ├── observability/           # 全局监控与诊断（Prometheus, Diagnostic Protocol）
 │       ├── backends/                # 后端抽象（skills, storage, profiles, secrets）
 │       ├── toolkits/                # 通用工具包（不与 agent/ 耦合，可独立使用）
@@ -397,15 +401,19 @@ class MyCodeExecutor(CodeExecutor):
 加载技能和技能内容：
 
 ```python
-from myrm_agent_harness.backends.skills import SkillBackend
+from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 class MySkillBackend(SkillBackend):
+    async def list_skills(self) -> list[SkillMetadata]:
+        ...
     async def load_skills(self, skill_ids: list[str]) -> list[SkillMetadata]:
         ...
     async def get_skill_content(self, skill_name: str) -> str:
         ...
     async def get_skill_resources(self, skill_name: str, path: str) -> bytes:
+        ...
+    async def list_skill_resources(self, skill_name: str) -> list[str]:
         ...
 ```
 

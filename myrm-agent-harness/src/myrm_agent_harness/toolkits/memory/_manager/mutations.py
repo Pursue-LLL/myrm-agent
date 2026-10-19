@@ -141,8 +141,9 @@ class MemoryManagerMutationsMixin:
         demoted.confidence = 0.1
         demoted.metadata = {**demoted.metadata, "corrected": True}
         demoted.updated_at = datetime.now(UTC)
-        v, e = self._vec()
-        await update_vector_memory(demoted, False, v, self._config, e, self._cache)
+        if self._vector is None:
+            raise MemoryError("Vector backend required")
+        await update_vector_memory(demoted, False, self._vector, self._config, self._embedding, self._cache)
 
         mutation_res = apply_sparse_mutation(existing.content, corrected_content)
         final_content = (
@@ -208,8 +209,9 @@ class MemoryManagerMutationsMixin:
             "sparse_appended_count": mutation_res.appended_count,
             "sparse_removed_count": mutation_res.removed_count,
         }
-        v, e = self._vec()
-        await update_vector_memory(updated, True, v, self._config, e, self._cache)
+        if self._vector is None:
+            raise MemoryError("Vector backend required")
+        await update_vector_memory(updated, True, self._vector, self._config, self._embedding, self._cache)
         return updated
 
     async def pin_memory(self, memory_id: str) -> AnyMemory:
@@ -330,7 +332,10 @@ class MemoryManagerMutationsMixin:
             updated.is_active = is_active
             updated.status = MemoryStatus.ACTIVE if is_active else MemoryStatus.DISABLED
         if metadata is not None:
-            updated.metadata = {**updated.metadata, **metadata}
+            # Callers pass the complete metadata they computed from the current one
+            # (dropping keys is how the consolidation rollback and the subsumption
+            # undo clear their markers), so this replaces it instead of merging.
+            updated.metadata = dict(metadata)
         if isinstance(updated, ProceduralMemory):
             if reasoning is not None:
                 updated.reasoning = reasoning
@@ -393,8 +398,8 @@ class MemoryManagerMutationsMixin:
                 raise MemoryError("Vector backend required")
             e: EmbeddingProtocol | None = None
             if content_changed:
-                _, e = self._vec()
-            return await update_vector_memory(
+                e = self._embedding
+            result = await update_vector_memory(
                 self._bind_scope(updated),
                 content_changed,
                 self._vector,
@@ -402,6 +407,9 @@ class MemoryManagerMutationsMixin:
                 e,
                 self._cache,
             )
+            if content_changed:
+                self._record_ephemeral_delta_for_memory(result)
+            return result
         if isinstance(updated, ProceduralMemory):
             return await self._rel().update_rule(memory_id, updated)
         raise ValueError(f"Cannot update memory type: {type(updated).__name__}")

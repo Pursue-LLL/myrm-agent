@@ -29,11 +29,11 @@ from myrm_agent_harness.api.skills import (
     compute_content_hash,
     parse_skill_frontmatter,
 )
-from myrm_agent_harness.toolkits.storage.paths import (
+from app.core.storage.paths import (
     get_skill_file_path,
     get_skill_metadata_path,
 )
-from myrm_agent_harness.toolkits.storage.types import SkillType
+from app.core.storage.types import SkillType
 
 from app.api.skills.schemas import SkillResponse, skill_to_response
 from app.core.skills.models import Skill

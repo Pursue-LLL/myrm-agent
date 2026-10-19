@@ -1,9 +1,9 @@
-# [INPUT] FetchBudgetStatus, TwoStageSearchConfig
-# [OUTPUT] FetchBudgetGovernor
-# [POS] Concurrency and depth governor preventing runaway crawling and enforcing interim synthesis
+"""Fetch budget governor bounding concurrency and enforcing interim synthesis.
 
-"""Fetch budget governor bounding concurrency and enforcing interim synthesis."""
-
+[INPUT] FetchBudgetStatus, TwoStageSearchConfig
+[OUTPUT] FetchBudgetGovernor
+[POS] Concurrency and depth governor preventing runaway crawling and enforcing interim synthesis
+"""
 from __future__ import annotations
 
 from myrm_agent_harness.agent.context_management.two_stage_search_extract.search_extract_types import (

@@ -2,12 +2,12 @@
 
 [INPUT]
 - backends.skills.scanning::ScanningSkillWriteBackend (POS: Framework-level security wrapper for SkillWriteBackend)
-- backends.skills.protocols::SkillBackend (POS: Skill backend protocol definition)
 - backends.skills.similarity::SkillSimilarityChecker (POS: Skill similarity checking protocol)
 - agent.context_management.context::extract_context_from_runnable_config (POS: Context extraction helper)
 - utils.fuzzy_match::fuzzy_replace (POS: Progressive fuzzy replace utility)
 
 [OUTPUT]
+- SkillContentSource: Where a patch reads the SKILL.md it edits
 - _extract_user_id: Extract user_id from RunnableConfig context
 - _validate_name: Skill name validation
 - _validate_frontmatter: YAML frontmatter format validation
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from langchain_core.runnables import RunnableConfig
 
@@ -35,7 +35,6 @@ from myrm_agent_harness.agent.context_management.context import (
 )
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.backends.skills.protocols import SkillBackend
     from myrm_agent_harness.backends.skills.scanning import (
         ScanningSkillWriteBackend,
     )
@@ -47,6 +46,7 @@ SKILL_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]*$")
 
 __all__ = [
     "SKILL_NAME_PATTERN",
+    "SkillContentSource",
     "_apply_patch",
     "_check_similarity",
     "_extract_user_id",
@@ -59,6 +59,12 @@ __all__ = [
     "_validate_frontmatter",
     "_validate_name",
 ]
+
+
+class SkillContentSource(Protocol):
+    """Where a patch reads the SKILL.md it edits; a skill the source does not have raises ``FileNotFoundError``."""
+
+    async def get_skill_content(self, skill_name: str) -> str: ...
 
 
 def _extract_user_id(config: RunnableConfig) -> str:
@@ -137,7 +143,7 @@ async def _check_similarity(
 
 async def _handle_patch(
     write_backend: ScanningSkillWriteBackend,
-    skill_backend: SkillBackend | None,
+    content_source: SkillContentSource | None,
     name: str,
     old_content: str,
     new_content: str,
@@ -148,11 +154,11 @@ async def _handle_patch(
     if not new_content:
         return "Error: 'new_content' is required for patch action. Provide the replacement fragment."
 
-    if skill_backend is None:
+    if content_source is None:
         return "Error: Cannot patch — skill backend is not configured."
 
     try:
-        current_content = await skill_backend.get_skill_content(name)
+        current_content = await content_source.get_skill_content(name)
     except FileNotFoundError:
         return f"Error: Skill '{name}' not found. Use 'save' action to create it first."
     except Exception as e:
@@ -261,6 +267,26 @@ async def _handle_evolution_lock(name: str, *, locked: bool) -> str:
         logger.error("Failed to %s skill '%s': %s", "lock" if locked else "unlock", name, e)
         action_word = "lock" if locked else "unlock"
         return f"Error: Failed to {action_word} skill '{name}': {e}"
+
+
+def _evolution_lock_state(name: str) -> bool | None:
+    """Whether the skill is evolution-locked right now; None when the evolution store is off or does not know it.
+
+    A batch reads this before it changes a lock, so that a failed batch can put the lock back as it found it.
+    """
+    try:
+        from myrm_agent_harness.agent.skills.evolution.infra.integration import (
+            get_global_evolution_integration,
+        )
+
+        evolution = get_global_evolution_integration()
+        if not evolution or not evolution.store:
+            return None
+        skill = evolution.store.get_skill(name)
+    except Exception:
+        logger.warning("Could not read the evolution lock of skill '%s'.", name, exc_info=True)
+        return None
+    return None if skill is None else skill.evolution_locked
 
 
 # ---------------------------------------------------------------------------

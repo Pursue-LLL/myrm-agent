@@ -158,7 +158,7 @@ Does your code need to import anything from agent/?
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | SECURITY_WRAPPER_GUIDE.md | L2 | Tool output security wrapping guide (`wrap_with_external_sources_tag` / `wrap_with_tool_output_tag`) | — |
-| __init__.py | Package | Toolkits package root — re-exports subpackages; each subpackage `__init__.py` exposes generic capability APIs (Protocols, engines, factories), not agent-only surfaces | ✅ |
+| __init__.py | Package | Toolkits package root — re-exports subpackages; each subpackage `__init__.py` exposes generic capability APIs (Protocols, engines, factories), not agent-only surfaces; the `TYPE_CHECKING` block mirrors `_LAZY_IMPORTS` so lazily resolved names keep their real types for type checkers (`tests/toolkits/test_lazy_exports.py`) | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|
@@ -169,14 +169,12 @@ Does your code need to import anything from agent/?
 | memory/proactive/ | Proactive follow-up tracking — implicit promise extraction; host implements `CommitmentStore`. See [COMMITMENT_SYSTEM.md](memory/proactive/COMMITMENT_SYSTEM.md). |
 | computer_use/ | System-wide desktop automation — screen capture + coordinate-based input (macOS/Linux). |
 | cron/ | Scheduled task framework — scheduling engine, CRUD manager, built-in strategies. |
-| context_bundle/ | Unified context bundle — volume layout, facade, index/lifecycle hook registration. |
+| context_bundle/ | Unified context bundle — volume layout, facade, index registration. |
 | file_parsers/ | File format parsers — PDF, DOCX, Excel, text, and structured data extraction. |
 | kanban/ | Durable multi-task scheduling — heartbeat, zombie detection, run/event audit trail. |
 | llms/ | LLM manager and adapters — 100+ provider support, citation extraction, image/video/tts generation and vision understanding (`llms/vision/`). |
 | mcp/ | MCP protocol support — client management, tool fetching, connection pooling. |
 | memory/ | Pluggable memory system — vector/relational/graph storage for AI agents; agent I/O in `memory/agent_surface/`. |
-| memory/graph_rrf/ | Hybrid Knowledge Graph & Vector RRF Memory Engine — SQLite graph store with BFS traversal, vector channel integration, and reciprocal rank fusion. |
-| memory/strategies/hindsight/ | Hindsight Experience Replay & Retrospective Reflection Buffer — trajectory scrubbing, counterfactual rule extraction, and proactive pre-execution warnings. |
 | openapi_bridge/ | OpenAPI Bridge — zero-code REST API integration via OpenAPI 3.x / Swagger 2.0 specs. |
 | retriever/ | Retrieval and reranking — multi-source document retrieval with scoring pipeline. |
 | storage/ | Storage abstraction layer — Protocol + local filesystem implementation. |

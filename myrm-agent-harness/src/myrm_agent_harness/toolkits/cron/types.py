@@ -326,7 +326,7 @@ class CronRunRecord:
     """Immutable record of a single job execution.
 
     ``metadata`` carries structured data collected during execution
-    (e.g. securityAudit, progressSteps, sources).
+    (e.g. blockedActions, progressSteps, sources).
 
     ``integrity_hash`` and ``prev_hash`` form a per-job Merkle chain
     that detects tampering of historical run records.
@@ -382,7 +382,6 @@ class JobResult:
     skipped: bool = False
     skip_reason: str | None = None
     circuit_broken: bool = False
-    circuit_break_reason: str | None = None
 
 
 # ---------------------------------------------------------------------------

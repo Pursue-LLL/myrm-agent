@@ -13,7 +13,8 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
-from myrm_agent_harness.toolkits.storage.paths import get_user_skill_config_path
+
+from app.core.storage.paths import get_user_skill_config_path
 
 from ..models import UserSkillConfig
 

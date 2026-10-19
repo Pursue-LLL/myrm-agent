@@ -24,10 +24,10 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.filesystem_suggest import WorkspaceSuggestionOptions, rank_basename, suggest_workspace_paths
-from myrm_agent_harness.toolkits.storage.types import FilePurpose
 from pydantic import BaseModel, Field
 
 from app.core.storage import files_service
+from app.core.storage.types import FilePurpose
 from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
 from app.services.chat.chat_service import ChatService
@@ -155,7 +155,7 @@ async def suggest_references(
             results.extend(_suggest_workspace(workspace, query, kind, limit))
 
     if kind != "directory" and source in ("all", "uploaded", "generated"):
-        results.extend(await _suggest_stored_files(chat_id, query, source))
+        results.extend(await _suggest_stored_files(chat_id.strip(), query, source))
 
     if kind != "directory" and source == "all":
         agent_id = chat.agent_id if chat is not None else None
@@ -243,7 +243,8 @@ async def _suggest_stored_files(
     for purpose in purposes:
         files = await files_service.list_files(purpose=purpose, include_expired=False)
         for file in files:
-            if purpose == FilePurpose.GENERATED and file.source_chat_id and file.source_chat_id != chat_id:
+            # A file bound to a chat (generated there, or uploaded in an incognito chat) is private to it.
+            if file.source_chat_id and file.source_chat_id != chat_id:
                 continue
             rank = rank_basename(file.filename, query)
             if rank is None:

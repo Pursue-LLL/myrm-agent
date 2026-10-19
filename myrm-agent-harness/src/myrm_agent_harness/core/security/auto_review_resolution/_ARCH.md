@@ -2,15 +2,17 @@
 
 ## Overview
 
-Strict typing applied: No `Any` types allowed. src/myrm_agent_harness/core/security/auto_review_resolution/__init__.py [INPUT] .diagnostic_reporter, .facade, .four_way_state_machine, .handover_deck_manager, .types [OUTPUT] Public API exports for auto-review denial resolution subsystem Strict typing applied: No `Any` types allowed.
+Diagnostic behind the message the model reads when a tool call is refused: a reason code, the lower-privilege alternatives that fit it, and the suggested one of four resolution branches (ask the user, try an alternative, hand over to the user, stop). Stateless: `agent/middlewares/approval/denial_diagnostic_bridge.py` renders each payload into the message and nothing here keeps it, so a long-lived process holds no per-denial state.
 
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Strict typing applied: No `Any` types allowed — src/myrm_agent_harness/core/security/auto_review_resolution/__init__.py [INPUT] .diagnostic_reporter, .facade, .four_way_state_machine, .handover_deck_manager, .types [OUTPUT] Public API exports for auto-review denial resolution subsystem Strict typing applied: No `Any` types allowed. | ✅ |
-| diagnostic_reporter.py | Core | Synthesizes structured, LLM-reflective Denial Diagnostic Payloads with actionable — src/myrm_agent_harness/core/security/auto_review_resolution/diagnostic_reporter.py [INPUT] time, uuid, typing, .types (DenialDiagnosticPayload, DenialReasonCodeEnum, ResolutionBranchEnum) [OUTPUT] DenialDiagnosticReporter Synthesizes structured, LLM-reflective Denial Diagnostic Payloads with actionable context, allowed security alternatives, and recommended resolution branches. Strict typing applied: No `Any` types allowed. | ✅ |
-| facade.py | Core | Unified Facade for Auto-Review Denial Four-Way Adaptive Resolution State Machine Suite — src/myrm_agent_harness/core/security/auto_review_resolution/facade.py [INPUT] threading, typing, .diagnostic_reporter, .four_way_state_machine, .handover_deck_manager, .types [OUTPUT] AutoReviewResolutionFacade Unified Facade for Auto-Review Denial Four-Way Adaptive Resolution State Machine Suite. Strict typing applied: No `Any` types allowed. | ✅ |
-| four_way_state_machine.py | Core | Manages four-way adaptive resolution state transitions and prevents isomorphic retry loops — src/myrm_agent_harness/core/security/auto_review_resolution/four_way_state_machine.py [INPUT] threading, time, typing, .types (DenialDiagnosticPayload, ResolutionBranchEnum, ResolutionDecisionRecord) [OUTPUT] FourWayResolutionStateMachine Manages four-way adaptive resolution state transitions and prevents isomorphic retry loops when agents encounter security auto-review denials. Strict typing applied: No `Any` types allowed. | ✅ |
-| handover_deck_manager.py | Core | Pre-stages contextual commands and actions into native human handover cards, — src/myrm_agent_harness/core/security/auto_review_resolution/handover_deck_manager.py [INPUT] threading, time, uuid, typing, .types (HandoverDeckPayload, HandoverStatusEnum) [OUTPUT] HandoverDeckManager Pre-stages contextual commands and actions into native human handover cards, enabling operators to review parameters and click-to-execute without deadlocks. Strict typing applied: No `Any` types allowed. | ✅ |
-| types.py | Core | Data structures and specifications for Auto-Review Denial Four-Way Adaptive Resolution State Machine Suite — src/myrm_agent_harness/core/security/auto_review_resolution/types.py [INPUT] dataclasses, enum, typing [OUTPUT] DenialReasonCodeEnum, ResolutionBranchEnum, HandoverStatusEnum, DenialDiagnosticPayload, HandoverDeckPayload, ResolutionDecisionRecord, AutoReviewResolutionMetrics Data structures and specifications for Auto-Review Denial Four-Way Adaptive Resolution State Machine Suite. Strict typing applied: No `Any` types allowed. | ✅ |
+| __init__.py | Package | Public API of the package. | ✅ |
+| diagnostic_reporter.py | Core | `DenialDiagnosticReporter.generate_diagnostic`: derives the allowed alternatives and the suggested branch from a reason code and returns the payload. | ✅ |
+| types.py | Core | `DenialReasonCodeEnum`, `ResolutionBranchEnum`, `DenialDiagnosticPayload`. | ✅ |
+
+## Key Dependencies
+
+- Standard library only.
+- Consumed by `agent/middlewares/approval/denial_diagnostic_bridge.py`.

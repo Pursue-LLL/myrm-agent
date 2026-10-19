@@ -5,6 +5,8 @@
 - toolkits.browser.tools._semantic_risk::classify_js_eval_risk (POS: JS eval risk)
 - langgraph.types::interrupt (POS: LangGraph HITL interrupt mechanism)
 - core.security.audit::record_decision (POS: Security decision audit trail)
+- core.context_vars::stash_approval_note (POS: The human's note on an approval, handed to the model)
+- core.security.hitl_decision::approval_guidance, is_approved, rejection_feedback (POS: 人工审批答复唯一解读)
 
 [OUTPUT]
 - enforce_semantic_interaction_guard: Gate click/dblclick on high-risk ARIA refs
@@ -33,20 +35,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _parse_interrupt_decision(user_response: object) -> bool:
-    if isinstance(user_response, dict):
-        return user_response.get("decision") == "approve"
-    if isinstance(user_response, str):
-        return user_response.lower() in ("approve", "allow", "yes", "y")
-    return False
-
-
-def _user_rejection_feedback(user_response: object) -> str:
-    if isinstance(user_response, dict):
-        return str(user_response.get("feedback", "") or "")
-    return ""
-
-
 async def _require_hitl_approval(
     *,
     session: BrowserSession,
@@ -58,11 +46,17 @@ async def _require_hitl_approval(
     """Return a block message when the user rejects; None when approved."""
     from langgraph.types import interrupt
 
+    from myrm_agent_harness.core.context_vars import stash_approval_note
     from myrm_agent_harness.core.security.audit import record_decision
+    from myrm_agent_harness.core.security.hitl_decision import (
+        approval_guidance,
+        is_approved,
+        rejection_feedback,
+    )
 
     page_url = ""
     try:
-        page_url = session.page.url
+        page_url = session.get_active_page().url
     except Exception:
         logger.debug("Failed to retrieve page URL for semantic DOM guard")
 
@@ -98,13 +92,13 @@ async def _require_hitl_approval(
             "chat so a human can approve it, or find an alternative approach."
         )
 
-    if not _parse_interrupt_decision(user_response):
+    if not is_approved(user_response):
         record_decision(
             tool_name,
             "USER_REJECTED",
             f"User rejected high-risk DOM action: {reason}",
         )
-        feedback = _user_rejection_feedback(user_response)
+        feedback = rejection_feedback(user_response)
         return (
             f"[BLOCKED] User rejected this action: {reason}."
             + (f" Feedback: {feedback}" if feedback else "")
@@ -116,6 +110,7 @@ async def _require_hitl_approval(
         "USER_APPROVED",
         f"User approved high-risk DOM action: {reason}",
     )
+    stash_approval_note(approval_guidance(user_response))
     return None
 
 

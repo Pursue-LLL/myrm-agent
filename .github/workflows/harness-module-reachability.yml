@@ -1,0 +1,60 @@
+name: Harness module reachability
+
+# The gate lives in the harness, but its workflow lives here as every other harness workflow does:
+# the monorepo already carries myrm-agent-server next to myrm-agent-harness, so the consumer
+# evidence needs no extra checkout, and the harness subtree keeps its standalone layout.
+on:
+  pull_request:
+    paths:
+      - 'myrm-agent-harness/src/myrm_agent_harness/**/*.py'
+      - 'myrm-agent-harness/pyproject.toml'
+      - 'myrm-agent-harness/scripts/check_module_reachability.py'
+      - 'myrm-agent-harness/scripts/module_reachability_*.py'
+      - 'myrm-agent-harness/tests/scripts/test_*module_reachability*.py'
+      - 'myrm-agent-server/app/**/*.py'
+      - '.github/workflows/harness-module-reachability.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-module-reachability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+defaults:
+  run:
+    working-directory: myrm-agent-harness
+
+jobs:
+  module-reachability:
+    name: No unit left without a production consumer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      # Diff mode compares against the merge-base, so the full history is required.
+      - name: Checkout code (full history for the merge-base)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
+        with:
+          version: "0.12.7"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      # Fails only for units this change leaves without a production consumer; there is no baseline
+      # or allowlist, and an unresolvable base is an error, never a pass.
+      - name: Check module reachability against the merge-base
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          uv run --no-project --python 3.13 python scripts/check_module_reachability.py \
+            --require-server --base "origin/${BASE_REF}"

@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
-from myrm_agent_harness.toolkits.storage.types import SkillType
+from app.core.storage.types import SkillType
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.skills.schemas import (

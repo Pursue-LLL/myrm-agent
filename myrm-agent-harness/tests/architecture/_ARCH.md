@@ -26,9 +26,11 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_arch_no_placeholder.py` | Gate | `_ARCH.md` 禁止「见源码」等占位语 | — |
 | `test_no_temp_docs_links.py` | Gate | tracked markdown 禁止链到 dev-shell `temp-docs/` | — |
 | `test_no_star_imports.py` | Gate | 禁止 star import | — |
+| `test_no_delta_channel.py` | Gate | AST：harness `src/` 不得使用 `DeltaChannel`（检查点历史剪枝会让其丢失状态；含检测器正反例自证） | — |
 | `test_event_bus_naming_boundary.py` | Gate | 禁止 stale `EventBus` import（pubsub/broadcast rename 回归） | — |
 | `test_manager_shared_barrel.py` | Gate | manager 共享 barrel 约束 | — |
 | `test_tool_registry.py` | Gate | tool registry 与 `_TOOL_LAYERS` 一致 | — |
+| `test_tool_registry_exemptions.py` | Gate | `LAYER_EXEMPT_TOOLS` 带到期日：未到期豁免才隐藏未挂载工具，过期后工具重新报缺；对应工具已删除或已登记的豁免按过期条目报错（合成 `ScanReport`，不扫源码） | — |
 | `test_mcp_routing_two_outcomes.py` | Gate | MCP 路由仅 direct/PTC 两结局；禁止 catalog_invoke 模块回归 | — |
 | `test_openapi_fail_loud_gate.py` | Gate | OpenAPI enabled 但 0 tools 须 fail-loud（`openapi_load_failed`）；预算 guard 回归 | — |
 | `test_skill_tool_boundary.py` | Gate | `skill_search_tool` ↔ `skill_market_tool` description 互指 + `<BoundSkills>` 运行时 XML 不回归（单元/集成覆盖） | — |

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Collection
 from contextvars import ContextVar
 from enum import StrEnum, unique
 
@@ -103,7 +104,12 @@ class TaintTracker:
         label: TaintLabel = TaintLabel.UNTRUSTED_INGRESS,
         source: str | None = None,
     ) -> None:
-        """Record taint from an external inbound message (e.g. untrusted A2A or channel webhook)."""
+        """Record taint from an external inbound message (e.g. untrusted A2A or channel webhook).
+
+        ``reset_all_guards`` rebuilds the tracker when an agent run starts, so a label recorded before
+        ``process_stream`` is gone before the first tool call; a host marks such a run with
+        ``set_untrusted_ingress`` instead.
+        """
         self.record(label, source)
 
     def record_tool_output(self, tool_name: str, tool_input: dict[str, object] | None = None) -> None:
@@ -144,7 +150,7 @@ class TaintTracker:
         self,
         tool_name: str,
         tool_input: dict[str, object] | None = None,
-        trusted_hosts: set[str] | frozenset[str] | None = None,
+        trusted_hosts: Collection[str] | None = None,
     ) -> dict[TaintLabel, set[str]] | None:
         """Check if calling this tool violates any taint policy.
 

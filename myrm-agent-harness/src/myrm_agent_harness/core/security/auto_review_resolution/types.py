@@ -1,10 +1,15 @@
-"""
-[POS] src/myrm_agent_harness/core/security/auto_review_resolution/types.py
-[INPUT] dataclasses, enum, typing
-[OUTPUT] DenialReasonCodeEnum, ResolutionBranchEnum, HandoverStatusEnum, DenialDiagnosticPayload, HandoverDeckPayload, ResolutionDecisionRecord, AutoReviewResolutionMetrics
+"""Data shapes of a denial diagnostic.
 
-Data structures and specifications for Auto-Review Denial Four-Way Adaptive Resolution State Machine Suite.
-Strict typing applied: No `Any` types allowed.
+[INPUT]
+- Standard library only (dataclasses, enum).
+
+[OUTPUT]
+- DenialReasonCodeEnum: normalized reason class of a security denial
+- ResolutionBranchEnum: the four ways the model may resolve a denial
+- DenialDiagnosticPayload: one denial's diagnostic (id, reason code, allowed alternatives, suggested branch)
+
+[POS]
+Shared vocabulary of the diagnostic reporter and the denial message.
 """
 
 from __future__ import annotations
@@ -33,15 +38,6 @@ class ResolutionBranchEnum(StrEnum):
     STOP_OPERATION = "STOP_OPERATION"
 
 
-class HandoverStatusEnum(StrEnum):
-    """Lifecycle status for human handover deck."""
-
-    STAGED = "STAGED"
-    EXECUTED_BY_USER = "EXECUTED_BY_USER"
-    DISMISSED_BY_USER = "DISMISSED_BY_USER"
-    EXPIRED = "EXPIRED"
-
-
 @dataclass(frozen=True)
 class DenialDiagnosticPayload:
     """Structured diagnostic report injected back into agent reflection loop when blocked."""
@@ -55,44 +51,3 @@ class DenialDiagnosticPayload:
     suggested_branch: ResolutionBranchEnum
     context_data: dict[str, str] = field(default_factory=dict)
     timestamp: float = 0.0
-
-
-@dataclass(frozen=True)
-class HandoverDeckPayload:
-    """Pre-staged contextual execution card handed over to the human user for one-click release."""
-
-    handover_id: str
-    session_id: str
-    task_description: str
-    prepared_command: str
-    parameters: dict[str, str]
-    guidance_notes: str
-    created_at: float
-    status: HandoverStatusEnum = HandoverStatusEnum.STAGED
-    executed_at: float | None = None
-
-
-@dataclass(frozen=True)
-class ResolutionDecisionRecord:
-    """Audit record capturing agent's chosen resolution branch in response to a denial."""
-
-    session_id: str
-    diagnostic_id: str
-    chosen_branch: ResolutionBranchEnum
-    decision_rationale: str
-    timestamp: float
-    alternative_attempted: str | None = None
-    handover_id: str | None = None
-
-
-@dataclass
-class AutoReviewResolutionMetrics:
-    """Cumulative telemetry metrics for auto-review denial resolution."""
-
-    total_denials_processed: int = 0
-    branch_ask_user_count: int = 0
-    branch_alternative_count: int = 0
-    branch_handover_count: int = 0
-    branch_stop_count: int = 0
-    handovers_executed_by_user: int = 0
-    handovers_dismissed_by_user: int = 0

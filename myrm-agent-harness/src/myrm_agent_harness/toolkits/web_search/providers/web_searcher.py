@@ -6,15 +6,14 @@ result caching, single-flight coalescing, and conversion to LangChain Documents.
 [INPUT]
 web_search.core.common::SearchResult (POS: Unified search result dataclass)
 web_search.core.error_handling::build_search_error_context, is_retryable_search_error (POS: Search error classification)
-web_search.core.exceptions::AllQueriesFailedError, ErrorContext, SearchAPIError, SearchConfigError (POS: Search exception types)
-web_search.core.metrics::WebSearchMetrics, web_search_metrics (POS: Search telemetry)
+web_search.core.exceptions::AllQueriesFailedError, ErrorContext, SearchAPIError (POS: Search exception types)
 web_search.coalescing.search_coalescing::await_coalesced_search, bucket_search_limit, build_search_cache_key (POS: Search cache coalescing)
 web_search.processing.search_results_processor::search_results_to_documents (POS: Search-result to Document converter)
-web_search.providers.litellm_search::LiteLLMSearch (POS: LiteLLM unified search client)
+web_search.providers.search_service_factory::SearchService, build_search_service, credential_scope_digest (POS: Provider client factory)
 
 [OUTPUT]
 WebSearcher: Configurable multi-provider web search with LRU cache, single-flight coalescing, limit bucketing, retry, and Document output
-SearchServiceType: Literal type alias enumerating supported search providers
+SearchServiceType: str alias naming a search provider slug (the provider catalog is owned by the host application)
 
 [POS]
 Web search orchestrator. Provides a unified interface for querying multiple search
@@ -25,7 +24,6 @@ providers (Perplexity, Tavily, Exa, etc.) with caching, coalescing, retry, and e
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,46 +38,23 @@ from myrm_agent_harness.toolkits.web_search.coalescing.search_coalescing import 
 from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
 from myrm_agent_harness.toolkits.web_search.core.error_handling import (
     build_search_error_context,
-    is_quota_or_rate_limit_error,
     is_retryable_search_error,
 )
 from myrm_agent_harness.toolkits.web_search.core.exceptions import (
     AllQueriesFailedError,
     ErrorContext,
     SearchAPIError,
-    SearchConfigError,
-)
-from myrm_agent_harness.toolkits.web_search.core.metrics import (
-    WebSearchMetrics,
-    web_search_metrics,
 )
 from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
     search_results_to_documents,
 )
-
-if TYPE_CHECKING:
-    pass
+from myrm_agent_harness.toolkits.web_search.providers.search_service_factory import (
+    SearchService,
+    build_search_service,
+    credential_scope_digest,
+)
 
 SearchServiceType = str
-
-NATIVE_SEARCH_SLUGS: frozenset[str] = frozenset({"volcengine_doubao"})
-
-# Known LiteLLM / native provider slugs (documentation SSOT; runtime accepts any non-empty str).
-KNOWN_SEARCH_PROVIDERS: frozenset[str] = frozenset(
-    {
-        "perplexity",
-        "tavily",
-        "exa_ai",
-        "parallel_ai",
-        "google_pse",
-        "dataforseo",
-        "firecrawl",
-        "searxng",
-        "brave",
-        "serper",
-        "volcengine_doubao",
-    }
-)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -126,92 +101,28 @@ SearchServiceConfig.model_rebuild()
 class WebSearcher:
     """Web search core implementation class, only responsible for basic search functionality"""
 
-    def __init__(self, config: SearchServiceConfig, metrics: WebSearchMetrics | None = None):
+    def __init__(self, config: SearchServiceConfig):
         """Initialize search tool
 
         Args:
             config: Search service configuration
-            metrics: Optional metrics sink (defaults to process-wide ``web_search_metrics``)
         """
         self.config = config
-        self._search_service = None
-        self._metrics = metrics if metrics is not None else web_search_metrics
+        self._search_service: SearchService | None = None
 
-    async def _get_search_service(self, bypass_gateway: bool = False) -> object:
-        """Get search service instance (native or LiteLLM-backed).
+    async def _get_search_service(self, bypass_gateway: bool = False) -> SearchService:
+        """Return the search client, caching the one that follows the configured routing.
 
         Args:
-            bypass_gateway: If True, force direct connection bypassing the gateway.
-
-        Returns:
-            Search service instance with async search() method
+            bypass_gateway: Connect to the provider directly; such a client is never cached because
+                the cached one may be routed through the gateway.
         """
-        # If we need to bypass gateway, we can't use the cached _search_service if it was using gateway
         if self._search_service is not None and not bypass_gateway:
             return self._search_service
 
-        logger.warning(f"Initializing search service: {self.config.search_service} (bypass_gateway={bypass_gateway})")
-
-        if self.config.search_service in NATIVE_SEARCH_SLUGS:
-            if self.config.search_service == "volcengine_doubao":
-                from myrm_agent_harness.toolkits.web_search.providers.volcengine_doubao_search import (
-                    VolcengineDoubaoSearch,
-                )
-
-                if not self.config.api_key:
-                    raise SearchConfigError(
-                        "volcengine_doubao search requires API key configuration",
-                        config_key="api_key",
-                    )
-                service = VolcengineDoubaoSearch(
-                    api_key=self.config.api_key,
-                    timeout_seconds=self.config.timeout_seconds,
-                    api_base=self.config.api_base,
-                )
-                if not bypass_gateway:
-                    self._search_service = service
-                logger.warning("Search service volcengine_doubao initialized successfully")
-                return service
-            raise SearchConfigError(
-                f"Native search provider '{self.config.search_service}' is not implemented",
-                config_key="search_service",
-            )
-
-        from myrm_agent_harness.toolkits.web_search.providers.litellm_search import LiteLLMSearch
-
-        if self.config.search_service == "searxng":
-            api_base = self.config.api_base
-            if not api_base:
-                raise SearchConfigError(
-                    "SearxNG search requires api_base in SearchServiceConfig (configure via WebUI Settings)",
-                    config_key="api_base",
-                )
-            api_key = self.config.api_key
-        else:
-            if not bypass_gateway and self.config.gateway_config and self.config.gateway_config.use_gateway:
-                # Use gateway routing: override api_base and inject auth_token as api_key
-                api_base = f"{self.config.gateway_config.gateway_url.rstrip('/')}/{self.config.search_service}"
-                api_key = self.config.gateway_config.auth_token
-            else:
-                api_base = self.config.api_base
-                api_key = self.config.api_key
-                if not api_key:
-                    raise SearchConfigError(
-                        f"{self.config.search_service} search requires API key configuration",
-                        config_key="api_key",
-                    )
-
-        service = LiteLLMSearch(
-            search_provider=self.config.search_service,
-            api_key=api_key,
-            api_base=api_base,
-            timeout_seconds=self.config.timeout_seconds,
-        )
-
+        service = build_search_service(self.config, bypass_gateway=bypass_gateway)
         if not bypass_gateway:
             self._search_service = service
-
-        logger.warning(f"Search service {self.config.search_service} initialized successfully")
         return service
 
     def _compute_search_total_timeout_seconds(self) -> float:
@@ -253,7 +164,6 @@ class WebSearcher:
                 self.config.provider_chain,
                 query,
                 num_results,
-                metrics=self._metrics,
                 extra_params_override=extra_params_override,
             )
             return results
@@ -277,6 +187,7 @@ class WebSearcher:
             query,
             bucketed_limit,
             extra_suffix,
+            credential_scope_digest(self.config),
         )
 
         async def fetch() -> list[SearchResult]:
@@ -301,7 +212,6 @@ class WebSearcher:
         bypass_gateway = False
 
         for attempt in range(max_attempts):
-            self._metrics.record_attempt()
             try:
                 search_service = await self._get_search_service(bypass_gateway=bypass_gateway)
                 if extra_params:
@@ -328,32 +238,10 @@ class WebSearcher:
                             "Gateway search failed (%s), falling back to direct provider API (BYOK)",
                             error_msg,
                         )
-                        try:
-                            from myrm_agent_harness.utils.event_utils import (
-                                dispatch_custom_event,
-                            )
-
-                            await dispatch_custom_event(
-                                "agent_status",
-                                {
-                                    "event": "tool_fallback",
-                                    "tool": "web_search_tool",
-                                    "fallback_type": "gateway_failover",
-                                    "message": f"统一网关异常，正在无缝回退至本地直连 ({provider})...",
-                                },
-                            )
-                        except Exception:
-                            pass
                         bypass_gateway = True
                         continue
 
                 if not is_retryable_search_error(exc) or attempt >= max_attempts - 1:
-                    self._metrics.record_terminal_failure()
-                    self._metrics.record_provider_search(
-                        provider,
-                        success=False,
-                        quota_exceeded=is_quota_or_rate_limit_error(exc),
-                    )
                     ctx = build_search_error_context(
                         exc,
                         query=query,
@@ -364,7 +252,6 @@ class WebSearcher:
                         f"Search request failed: {self._extract_key_error(exc)}",
                         context=ctx,
                     ) from exc
-                self._metrics.record_retry_scheduled()
                 delay = min(
                     self.config.retry_backoff_base_seconds * (2**attempt),
                     self.config.retry_backoff_max_seconds,
@@ -372,8 +259,6 @@ class WebSearcher:
                 await asyncio.sleep(delay)
                 continue
 
-            self._metrics.record_success()
-            self._metrics.record_provider_search(provider, success=True, quota_exceeded=False)
             return results
 
         msg = f"Search request failed after {max_attempts} attempts"
@@ -405,7 +290,7 @@ class WebSearcher:
         """
         total_timeout = self._compute_search_total_timeout_seconds()
         try:
-            logger.warning(f"Searching query: {query}")
+            logger.debug("Searching query: %s", query)
             search_results = await asyncio.wait_for(
                 self.search(
                     query=query,

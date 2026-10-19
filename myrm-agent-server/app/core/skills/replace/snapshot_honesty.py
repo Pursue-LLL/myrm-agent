@@ -14,9 +14,9 @@ Skill Change Contract honesty signal after market replace (non-text or uncapture
 from __future__ import annotations
 
 from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
-from myrm_agent_harness.toolkits.storage.paths import SKILL_METADATA_FILE
 
 from app.core.skills.replace.manifest_snapshot import _is_snapshot_candidate
+from app.core.storage.paths import SKILL_METADATA_FILE
 
 _SKIP_PATHS = frozenset({SKILL_METADATA_FILE, "origin.json", ".stats.json", ".replace_state.json"})
 

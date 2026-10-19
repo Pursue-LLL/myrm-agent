@@ -9,7 +9,6 @@
 - storage::StorageSkillBackend (POS: 存储技能后端，从存储桶加载)
 - memory::InMemorySkillBackend (POS: 内存技能后端，用于动态技能)
 - composite::CompositeSkillBackend (POS: 混合技能后端，组合多个后端)
-- factory::SkillBackend (POS: 技能后端工厂类，简化创建)
 - _runtime::evaluate_requires (POS: 技能依赖满足性判定纯函数)
 
 [OUTPUT]
@@ -26,7 +25,6 @@
 - StorageSkillBackend: 存储技能后端（生产环境首选）
 - InMemorySkillBackend: 内存技能后端（MCP 等动态技能）
 - CompositeSkillBackend: 混合技能后端（路由和回退）
-- SkillBackend: 工厂类（推荐使用）
 - evaluate_requires: 技能依赖判定（进程环境 + 调用方提供的 env）
 
 [POS]
@@ -47,7 +45,6 @@ from myrm_agent_harness.backends.skills.decorators import (
     VersionAwareSkillBackend,
     session_id_var,
 )
-from myrm_agent_harness.backends.skills.factory import SkillBackend
 from myrm_agent_harness.backends.skills.local import (
     LocalSkillBackend,
     scan_workspace_skills,
@@ -60,12 +57,6 @@ from myrm_agent_harness.backends.skills.market_protocols import (
     SkillSearchResult,
 )
 from myrm_agent_harness.backends.skills.memory import InMemorySkillBackend
-from myrm_agent_harness.backends.skills.model_resolver import (
-    DEFAULT_TIER_MODELS,
-    SkillModelResolutionResult,
-    SkillModelResolutionSource,
-    SkillModelResolver,
-)
 from myrm_agent_harness.backends.skills.permission_templates import (
     TEMPLATE_PERMISSIONS,
     PermissionTemplate,
@@ -110,7 +101,6 @@ from myrm_agent_harness.backends.skills.workflow_compiler import (
 
 __all__ = [
     "CompositeSkillBackend",
-    "DEFAULT_TIER_MODELS",
     "DependencyCheckItem",
     "DependencyStatus",
     "DesktopEvent",
@@ -122,16 +112,12 @@ __all__ = [
     "PrerequisiteReport",
     "QuarantineAwareSkillBackend",
     "ScanningSkillWriteBackend",
-    "SkillBackend",
     "SkillBackendProtocol",
     "SkillDeleteResult",
     "SkillFileDigest",
     "SkillInstallReceipt",
     "SkillInstallResult",
     "SkillMarketBackend",
-    "SkillModelResolutionResult",
-    "SkillModelResolutionSource",
-    "SkillModelResolver",
     "SkillPermission",
     "SkillPrerequisites",
     "SkillResourceWriteResult",

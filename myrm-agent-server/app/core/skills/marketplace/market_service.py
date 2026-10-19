@@ -48,9 +48,8 @@ class _AppSkillStore:
         user_id: str | None = None,
         skill_type: str | None = None,
     ) -> list[InstalledSkillInfo]:
-        from myrm_agent_harness.toolkits.storage.types import SkillType
-
         from app.core.skills.store.service import skills_service
+        from app.core.storage.types import SkillType
 
         st = SkillType(skill_type) if skill_type else None
         skills = await skills_service.list_skills(skill_type=st)

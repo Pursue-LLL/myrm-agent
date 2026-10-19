@@ -16,18 +16,6 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
     MemoryNotFoundError,
     PendingTargetChangedError,
 )
-from myrm_agent_harness.toolkits.memory.activity_compactor import (
-    ActivityActionType,
-    CompactorPipelineConfig,
-    HierarchicalActivityCompactorPipeline,
-    RawActivityEvent,
-)
-from myrm_agent_harness.toolkits.memory.auto_consolidation import (
-    AutoMemoryConsolidationOrchestrator,
-    AutoMemoryGatingConfig,
-    OverallGatingReport,
-    SixDimensionalMemoryArtifact,
-)
 from myrm_agent_harness.toolkits.memory.budget_packing import (
     BilledTokenBudget,
     BudgetRecallPackingOrchestrator,
@@ -48,66 +36,9 @@ from myrm_agent_harness.toolkits.memory.chunking import (
     MarkdownSlidingWindowChunker,
 )
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
-from myrm_agent_harness.toolkits.memory.conversation_search.lineage_defense import (
-    ConversationSourceKind,
-    LineageNode,
-    SourceDemotionPolicy,
-    run_lineage_defense_pipeline,
-)
 from myrm_agent_harness.toolkits.memory.domain_types import MemoryDomain, infer_domain_and_category
-from myrm_agent_harness.toolkits.memory.dreaming import (
-    CognitiveConsolidationReport,
-    DreamCognitiveAction,
-    DreamCognitivePipeline,
-    DreamSessionFragment,
-    GrowthDiaryEntry,
-)
-from myrm_agent_harness.toolkits.memory.experience_compounding import (
-    CompoundedExperienceItem,
-    ExperienceCompoundingSuite,
-)
-from myrm_agent_harness.toolkits.memory.four_tier_fts import (
-    DreamCompactionReport,
-    FourTierDreamCompactor,
-    FourTierMemoryItem,
-    FtsSearchResult,
-    MemoryScope,
-    SqliteFts5MemoryEngine,
-)
-from myrm_agent_harness.toolkits.memory.git_okf import (
-    OKFBundleLoader,
-    OKFConcept,
-    OKFDisclosureSummary,
-    OKFSearchResult,
-    OKFValidationReport,
-)
 from myrm_agent_harness.toolkits.memory.hermes_bridge import import_hermes_bundle
-from myrm_agent_harness.toolkits.memory.hybrid_engine import (
-    AdaptiveRrfConfig,
-    DenseVectorProvider,
-    DualDriveHybridMemoryEngine,
-    HybridEngineStats,
-    HybridMemoryItem,
-    HybridSearchResult,
-    RetrievalMode,
-)
-from myrm_agent_harness.toolkits.memory.job_compounding import (
-    CompoundedRule,
-    CompoundingMaturityTracker,
-    JobDescriptionBuilder,
-    JobDescriptionSpec,
-    PreferenceCompoundingEngine,
-    RuleType,
-)
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-from myrm_agent_harness.toolkits.memory.markdown_curator import (
-    CuratedMemoryCategory,
-    CuratedMemoryEntry,
-    CuratedMemoryStatus,
-    CuratorStudioSummary,
-    MarkdownSyncDelta,
-    MemoryCuratorStudio,
-)
 from myrm_agent_harness.toolkits.memory.mem_cube import (
     CubeMemoryRecord,
     CubeQueryRequest,
@@ -120,13 +51,6 @@ from myrm_agent_harness.toolkits.memory.mem_cube import (
     MountPolicy,
 )
 from myrm_agent_harness.toolkits.memory.metrics import get_search_metrics
-from myrm_agent_harness.toolkits.memory.migration import (
-    CompetitorAssetScanner,
-    MigrationRunReport,
-    MigrationSourceType,
-    MultiPlatformMigrationEngine,
-    MultiPlatformParserMatrix,
-)
 from myrm_agent_harness.toolkits.memory.observability import (
     MemoryInfluenceRef,
     MemoryOperationEvent,
@@ -142,49 +66,7 @@ from myrm_agent_harness.toolkits.memory.onboarding import (
     OnboardingSampleOptions,
     OnboardingSourceRegistry,
 )
-from myrm_agent_harness.toolkits.memory.peer_cognition import (
-    PeerCognitionGraphStore,
-    PeerCognitionProjection,
-    PeerIdentity,
-    PeerPersonaCard,
-    PeerPersonaCardEngine,
-    PeerRelationEdge,
-    PeerRelationKind,
-    PeerType,
-)
-from myrm_agent_harness.toolkits.memory.pitfall_alert import (
-    AlertSeverity,
-    PastPitfallRetriever,
-    ProactivePitfallAlertEngine,
-    ShadowDecisionIntentRecognizer,
-)
 from myrm_agent_harness.toolkits.memory.private_notebook import ModelPrivateNotebookManager
-from myrm_agent_harness.toolkits.memory.quadruple_retrieval import (
-    ParsedTaskGoal,
-    QuadrupleParallelRetriever,
-    QuadrupleRetrievalOrchestrator,
-    QuadrupleRetrievalReport,
-    RerankedMemoryHit,
-    TaskGoalParser,
-)
-from myrm_agent_harness.toolkits.memory.reconciliation import (
-    DiskMemoryFtsReconciler,
-    FtsReconciledHit,
-    MemoryWriteGate,
-    ReconciliationReport,
-    WriteGateCheckResult,
-    WriteGatePolicy,
-)
-from myrm_agent_harness.toolkits.memory.relational_backtrack import (
-    ActionSynonymNormalizer,
-    CrossSessionBacktrackEngine,
-    EntityTypeKind,
-    RelationalBacktrackHit,
-    RelationalBacktrackQuery,
-    RelationalBacktrackResult,
-    TemporalRelationTriplet,
-    TemporalTripletStore,
-)
 from myrm_agent_harness.toolkits.memory.reliability import (
     MemoryArchiveManifest,
     MemoryArchivePayload,
@@ -213,47 +95,13 @@ from myrm_agent_harness.toolkits.memory.reliability import (
     MemoryRepairExecutionResult,
     summarize_recall_benchmark,
 )
-from myrm_agent_harness.toolkits.memory.revocable_provenance import (
-    DreamDiaryRecorder,
-    ProvenanceDreamDiaryEntry,
-    ProvenanceMemoryStore,
-    ProvenanceMetadata,
-    ProvenanceQualifiedMemory,
-    RevocableForgetEngine,
-)
-from myrm_agent_harness.toolkits.memory.rule_cascade import (
-    CascadedRuleSet,
-    DeterministicRuleCascadeLoader,
-    DeterministicRuleEntry,
-    EvidencePermissionLevel,
-    EvidenceScopeKind,
-    EvidenceSourceKind,
-    FiveDimEvidenceMetadata,
-    FiveDimFilterSpec,
-    FiveDimPreFilterEngine,
-    PreFilteredEvidenceResult,
-    TimeDecayCalculator,
-)
-from myrm_agent_harness.toolkits.memory.screen_observation import ObservationPayload, ScreenObservationMemoryManager
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
 from myrm_agent_harness.toolkits.memory.strategies import (
     DynamicPreferenceFitter,
     DynamicPreferenceVector,
     PreferenceDimension,
 )
-from myrm_agent_harness.toolkits.memory.temporal_graph import (
-    SqliteTemporalGraphStore,
-    TemporalDecayScorer,
-    TemporalEntityNode,
-    TemporalFactConflictReconciler,
-    TemporalFactEdge,
-)
 from myrm_agent_harness.toolkits.memory.tool_guidance import ToolGuidanceItem, synthesize_tool_guidance
-from myrm_agent_harness.toolkits.memory.triad_trajectory import (
-    AntiLoopPromptInjector,
-    TaskTriadTrajectoryManager,
-    TrajectoryTaskStatus,
-)
 from myrm_agent_harness.toolkits.memory.two_layer_dialectic import (
     BaseContextPayload,
     DialecticConflictCandidate,
@@ -273,56 +121,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 )
 
 __all__ = [
-    "DenseVectorProvider",
-    "DualDriveHybridMemoryEngine",
-    "AdaptiveRrfConfig",
-    "HybridEngineStats",
-    "HybridMemoryItem",
-    "HybridSearchResult",
-    "RetrievalMode",
-    "OKFBundleLoader",
-    "OKFConcept",
-    "OKFDisclosureSummary",
-    "OKFSearchResult",
-    "OKFValidationReport",
-    "DiskMemoryFtsReconciler",
-    "FtsReconciledHit",
-    "MemoryWriteGate",
-    "ReconciliationReport",
-    "WriteGateCheckResult",
-    "WriteGatePolicy",
-    "SqliteTemporalGraphStore",
-    "TemporalDecayScorer",
-    "TemporalEntityNode",
-    "TemporalFactConflictReconciler",
-    "TemporalFactEdge",
-    "DreamCompactionReport",
-    "FourTierDreamCompactor",
-    "FourTierMemoryItem",
-    "FtsSearchResult",
-    "MemoryScope",
-    "SqliteFts5MemoryEngine",
-    "DreamDiaryRecorder",
-    "ProvenanceDreamDiaryEntry",
-    "ProvenanceMemoryStore",
-    "ProvenanceMetadata",
-    "ProvenanceQualifiedMemory",
-    "RevocableForgetEngine",
-    "CompoundedRule",
-    "CompoundingMaturityTracker",
-    "JobDescriptionBuilder",
-    "JobDescriptionSpec",
-    "PreferenceCompoundingEngine",
-    "RuleType",
     "ModelPrivateNotebookManager",
-    "ActivityActionType",
-    "CompactorPipelineConfig",
-    "HierarchicalActivityCompactorPipeline",
-    "RawActivityEvent",
-    "AntiLoopPromptInjector",
-    "TaskTriadTrajectoryManager",
-    "TrajectoryTaskStatus",
-    "DreamSessionFragment",
     "DynamicPreferenceFitter",
     "DynamicPreferenceVector",
     "EmbeddingCache",
@@ -375,30 +174,7 @@ __all__ = [
     "SemanticMemory",
     "ToolGuidanceItem",
     "synthesize_tool_guidance",
-    "ConversationSourceKind",
-    "LineageNode",
-    "SourceDemotionPolicy",
-    "run_lineage_defense_pipeline",
     "create_local_memory_manager",
-    "CascadedRuleSet",
-    "DeterministicRuleCascadeLoader",
-    "DeterministicRuleEntry",
-    "EvidencePermissionLevel",
-    "EvidenceScopeKind",
-    "EvidenceSourceKind",
-    "FiveDimEvidenceMetadata",
-    "FiveDimFilterSpec",
-    "FiveDimPreFilterEngine",
-    "PreFilteredEvidenceResult",
-    "TimeDecayCalculator",
-    "ActionSynonymNormalizer",
-    "CrossSessionBacktrackEngine",
-    "EntityTypeKind",
-    "RelationalBacktrackHit",
-    "RelationalBacktrackQuery",
-    "RelationalBacktrackResult",
-    "TemporalRelationTriplet",
-    "TemporalTripletStore",
     "get_scan_metrics",
     "get_search_metrics",
     "summarize_recall_benchmark",
@@ -407,33 +183,6 @@ __all__ = [
     "OnboardingInsightDistiller",
     "OnboardingSampleOptions",
     "OnboardingSourceRegistry",
-    "CognitiveConsolidationReport",
-    "DreamCognitiveAction",
-    "DreamCognitivePipeline",
-    "GrowthDiaryEntry",
-    "QuadrupleParallelRetriever",
-    "TaskGoalParser",
-    "CompetitorAssetScanner",
-    "MigrationRunReport",
-    "MigrationSourceType",
-    "MultiPlatformMigrationEngine",
-    "MultiPlatformParserMatrix",
-    "ObservationPayload",
-    "ScreenObservationMemoryManager",
-    "CuratedMemoryCategory",
-    "CuratedMemoryEntry",
-    "CuratedMemoryStatus",
-    "CuratorStudioSummary",
-    "MarkdownSyncDelta",
-    "MemoryCuratorStudio",
-    "PeerCognitionGraphStore",
-    "PeerCognitionProjection",
-    "PeerIdentity",
-    "PeerPersonaCard",
-    "PeerPersonaCardEngine",
-    "PeerRelationEdge",
-    "PeerRelationKind",
-    "PeerType",
     "BaseContextPayload",
     "DialecticConflictCandidate",
     "DialecticReconciliationConfig",
@@ -450,10 +199,6 @@ __all__ = [
     "RecallCandidate",
     "TokenAccountingReport",
     "estimate_tokens",
-    "AutoMemoryConsolidationOrchestrator",
-    "AutoMemoryGatingConfig",
-    "OverallGatingReport",
-    "SixDimensionalMemoryArtifact",
     "CubeMemoryRecord",
     "CubeQueryRequest",
     "CubeQueryResult",
@@ -463,20 +208,10 @@ __all__ = [
     "MemoryCube",
     "MemoryCubeOrchestrator",
     "MountPolicy",
-    "ParsedTaskGoal",
-    "QuadrupleRetrievalOrchestrator",
-    "QuadrupleRetrievalReport",
-    "RerankedMemoryHit",
     "ChunkSourceHydrator",
     "ChunkingConfig",
     "IncrementalDiffReport",
     "IncrementalIndexingPipeline",
     "MarkdownChunk",
     "MarkdownSlidingWindowChunker",
-    "AlertSeverity",
-    "PastPitfallRetriever",
-    "ProactivePitfallAlertEngine",
-    "ShadowDecisionIntentRecognizer",
-    "CompoundedExperienceItem",
-    "ExperienceCompoundingSuite",
 ]

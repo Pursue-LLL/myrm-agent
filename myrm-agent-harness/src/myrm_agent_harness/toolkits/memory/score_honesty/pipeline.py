@@ -2,6 +2,15 @@
 
 Evaluates raw vector similarity and multi-stage composite ranking scores
 independently, preventing threshold corruption and computing attribution breakdowns.
+
+[INPUT]
+- Raw and ranked scores with the active policy.
+
+[OUTPUT]
+- The staged comparison that produces a score-honesty verdict.
+
+[POS]
+Holds the pipeline stages; the facade owns the public call.
 """
 
 from __future__ import annotations

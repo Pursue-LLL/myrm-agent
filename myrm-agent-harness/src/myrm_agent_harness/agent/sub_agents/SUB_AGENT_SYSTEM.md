@@ -54,7 +54,7 @@
 | `agent/sub_agents/hitl_tool_policy.py` | HITL 工具策略 SSOT（`HitlToolPolicy`, `HITL_TOOL_POLICY`），供 subagent 能力清单读取，避免 `meta_tools` 包级循环导入 |
 | `agent/sub_agents/budget.py` | 委派运行树预算计数（max_descendants_per_run），防止递归/批量委派暴走 |
 | `agent/sub_agents/builder.py` | 子 agent 构建（async build_child_agent 支持 AgentFactory 委托、工具过滤、模型解析、结果截断、Token 合并） |
-| `agent/sub_agents/manager.py` | 核心执行器（spawn/cancel/wait/chain/merge + checkpoint save/resume） |
+| `agent/sub_agents/manager.py` | 核心执行器（spawn/cancel/wait/chain/merge + checkpoint save） |
 | `agent/sub_agents/checkpoint/saver.py` | 检查点保存/恢复（SubagentCheckpoint, SubagentCheckpointStorage, JSON后端） |
 | `agent/sub_agents/checkpoint/state_extractor.py` | 状态提取工具（extract_subagent_state_sync/async，从child agent提取context/stats/messages） |
 | `agent/sub_agents/config_loader.py` | YAML 配置加载器（SubagentConfigLoader, Pydantic 验证, 批量目录加载） |
@@ -192,7 +192,7 @@ Level 4: parent LLM (继承父 agent 的 LLM，兜底)
 
 ### 6. Force-Stop Checkpoint Save（自动中断恢复）
 
-**核心能力**：进程收到 SIGTERM/SIGINT 时自动保存所有运行中子Agent状态，支持后续恢复执行。
+**核心能力**：进程收到 SIGTERM/SIGINT 时自动保存所有运行中子Agent状态，重启后作为「被中断任务」呈现，由业务层按保存的任务描述重新发起（不按检查点续跑）。
 
 **架构组件**：
 - `GracefulShutdownManager`：单例模式，自动注册SIGTERM/SIGINT信号处理器
@@ -210,31 +210,20 @@ Level 4: parent LLM (继承父 agent 的 LLM，兜底)
    - ✅ last_tool：最后执行的工具名
    - ✅ 统一API接口，复用BaseAgent逻辑
 
-**Resume流程**：
-```python
-# 1. 从checkpoint恢复context
-checkpoint = await storage.load(task_id)
-# 2. 恢复runtime variables
-restored_context = checkpoint.variables
-# 3. 返回checkpoint_data给业务层，业务层可用messages创建新session
-result = SubAgentResult(checkpoint_data={...})
-```
+**重启后的呈现**：`OrphanRecoveryManager` 在启动时扫描检查点并通知 UI；用户在前端「重新发起」，用保存的 `task_description` 重跑任务。框架没有按检查点恢复子 agent 的入口，`SubagentCheckpointStorage.load` 只供 REST 读取与删除。
 
 **零侵入设计**：SubagentManager初始化时自动注册shutdown callback，用户无需修改代码。
 
-**REST API**：4个端点（list/resume/delete/cleanup）暴露checkpoint管理能力。
+**REST API**：3个端点（list/delete/cleanup）暴露checkpoint管理能力。
 
 **完整实现（10/10）**：
 - ✅ BaseAgent.get_checkpoint_state()统一API（异步提取messages+context+stats）
 - ✅ **异步checkpoint save**（asyncio.run()在signal handler中，完整提取messages）
-- ✅ **CheckpointMetrics**监控数据结构（save/resume成功率、平均耗时、.to_dict()导出）
-- ✅ **Resume返回完整checkpoint_data**（包括messages、variables、progress、last_tool）
-- ✅ 业务层可灵活使用messages创建新agent session
+- ✅ **CheckpointMetrics**监控数据结构（save/load成功率、平均耗时、.to_dict()导出）
 
 **设计理念**：
 框架提供数据结构和导出能力，业务层决定如何使用，符合FRAMEWORK_DESIGN_PRINCIPLES.md：
 - CheckpointMetrics：框架track，业务层monitoring
-- checkpoint_data：框架返回，业务层创建session
 
 **部署架构适配（Agent in Sandbox）**：
 - ✅ 每个用户一个独立沙箱容器（如Fly.io）
@@ -247,14 +236,15 @@ result = SubAgentResult(checkpoint_data={...})
 ### 7. Checkpointer 隔离与持久化
 
 子 agent 不继承父 agent 的 checkpointer（避免消息历史写入父线程造成状态污染），
-为支持跨重启的 HITL 审批与长任务自愈，所有子 agent 共享一个**持久化 Volume 级独立**的 SQLite Checkpointer（测试环境自适应内存）：
+为让停在 HITL 审批上的子 agent 与父线程隔离、暂停状态不占进程内存，所有子 agent 共享一个**持久化 Volume 级独立**的 SQLite Checkpointer（测试环境自适应内存）。线程会落盘，但审批不跨进程重启续跑：重启后 journal 清空，旧线程被清掉，由新子 agent 重新向用户提问（见下）：
 
 - `agent/sub_agents/checkpointer.py` 提供 `get_subagent_checkpointer()`（懒加载单例）、`close_subagent_checkpointer()`、`reset_subagent_checkpointer()` 与 `drop_subagent_checkpoint_if_terminal(task_id, status)`（终态线程卫生清理 SSOT 门禁）。
 - 默认落盘至 `{MYRM_DATA_DIR}/subagent_checkpoints.sqlite`，并通过 WAL 模式与 busy_timeout 进行并发安全加固；在 `CHECKPOINTER_MODE=memory`、单测环境或只读沙箱卷发生权限异常时自动平滑回退至 `:memory:` 确保任务不崩溃。
 - 每个子 agent 的 `thread_id == task_id`（context 中 `approval_session_key`），
-  线程彼此隔离；审批中的子 agent 通过 `Command(resume=...)` 从同一线程恢复，即使沙箱休眠或进程重启也能断点续跑。
+  线程彼此隔离；审批中的子 agent 通过 `Command(resume=...)` 从同一线程恢复（journal 所在的 manager 存活期间）；进程重启后不续跑。
 - `drop_subagent_checkpoint_if_terminal` 仅在子 agent 到达**终态（非 PENDING_APPROVAL）**时
   删除线程；PENDING_APPROVAL 线程持久保留供审批后 resume 通过。
+- 审批往返由 `approval_journal` 保证重放安全：`delegate_task` 因 `interrupt()` 每次都被 LangGraph 从头重执行，委派 id 由工具调用的 `checkpoint_ns` + 调用指纹派生（重执行前后一致），journal 记录每个 spawn/resume 步骤；重放只走过已答复的审批，仅在最前沿 spawn 或携带用户决定 resume，所以多次审批按序各到达一次，且不会重启子 agent、不会触发重复委派拦截；同一委派的各次审批共用 LangGraph 的一个中断 id，卡片编号因此带轮次（`<中断 id>.<轮次>`），每次审批各成一张卡，见 [STREAMING_SYSTEM.md](../streaming/STREAMING_SYSTEM.md) 的「并行中断与按卡片 id 作答」。journal 在内存里，随 manager（对话池化 agent）存活；manager 被回收（空闲回收默认 1800 秒）或进程重启后记录清空，丢失后的重执行没有任何步骤，LangGraph 重放给出的答复都发生在已不存在的子代理上：这些答复只计数（`stale_answers`）、不送给替代的新子代理，旧的暂停线程在新子代理 spawn 之前先清掉（`discard_stale_subagent_thread`），然后为新子代理的请求重新向用户提问，用户先前的同意永远不会落在没见过的请求上。审批超时（`SecurityConfig.approval_timeout_seconds` 默认 120 秒，服务端兜底 300 秒）通常先于空闲回收触发，所以丢失主要发生在进程重启，或超时被配置得比空闲回收更长时。批量/并行/裂变里的子委派在 `approvals_unanswerable()` 标记内运行（`parallel/runner.py`）：这些路径无法向用户展示审批，停在审批上的子代理以 `BLOCKED` 收尾并释放其暂停线程，错误文案提示该任务需要用户批准、应单独委派并等待结果（文案不含工具参数名，模型转述给用户时不会带出技术细节）；暂停后无人答复的记录留在 manager 内（每条至多一份工作区快照，上限 5000 个文件条目），随 manager 回收释放。同一条模型消息里两个单委派同时等审批时，每个待答中断是一张带 `interruptId` 的卡片，界面按 id 回传答复（`_internals/resume_addressing.py`，协议见 `streaming/STREAMING_SYSTEM.md`「并行中断与按 id 作答」）；不带 id 的普通值恢复（`Command(resume=value)`）在多个待答中断下仍被 LangGraph 拒绝（`langgraph/pregel/_loop.py:963`），IM 的 `/approve` 与超时计时器属此类：只有全局驳回会广播给全部待决中断，其余保持拒绝（失败关闭）。
 - 共享 saver 与父 agent 的 checkpointer 相互独立，父线程不被子线程污染。
 
 ### 8. 状态追踪与自动清理
@@ -324,7 +314,7 @@ result = SubAgentResult(checkpoint_data={...})
 当 `timeout_seconds` 显式设为正整数（≥ 30）时，启用两级超时：
 
 - **等待超时 (wait timeout)**：`config.timeout_seconds`，超时后返回 `SubAgentResult(status=TIMED_OUT, still_running=True)`，子 agent **继续后台运行**，不做 cancel。
-- **硬安全超时 (hard safety timeout)**：`config.timeout_seconds * 3`，作为最终安全网终止真正的 runaway agent。
+- **硬安全超时 (hard safety timeout)**：`config.timeout_seconds * 3`，作为最终安全网终止真正的 runaway agent；到期后结果为 `SubAgentResult(status=TIMED_OUT, error="Hard timeout after Ns")`（不带 `still_running`），而不是 `cancelled`；执行器在到期瞬间自己给出的失败或成功结果原样保留。
 - **LLM 决策权**：超时后 Parent Agent 可选择等待（`subagent_control_tool action=list`）、做别的事、或主动 cancel。
 - **`still_running` 字段**：`SubAgentResult.still_running: bool` 为 True 表示 agent 仍在后台运行。
 
@@ -394,7 +384,8 @@ Hook 异常不影响主流程（catch + warning 日志）。
 | Chain 可调试性 | 链式编排错误包含 step index/total |
 | 配置管理 | YAML 配置加载、Pydantic 校验和注册表优先级 |
 | 自动进度与日志 | 子 agent 事件转发为统一的进度和日志事件 |
-| 失败 partial 回传 | MyrmLLMError / BudgetExceeded / generic Exception 三条失败路径均返回结构化 `SubAgentResult(result=partial_output)`，截断保护防 context 爆炸，统一触发 `SUBAGENT_STOP` hook |
+| 失败 partial 回传 | 尝试内部超时（TimeoutError）/ MyrmLLMError / BudgetExceeded / generic Exception 四条失败路径经同一收尾函数返回结构化 `SubAgentResult(result=partial_output)`，截断保护防 context 爆炸；未发起任何尝试（`max_retries <= 0`）、硬安全超时被杀、取消三条出口不带 partial |
+| Hook 成对 | 每次 run（一次 `run_with_retry`）都以 `SUBAGENT_STOP` 收尾，与 `SUBAGENT_START` 成对：尝试返回的任何状态（成功 / 失败 / 让出 / 待审批）、超时 / MyrmLLMError / BudgetExceeded / generic Exception / 未发起任何尝试、取消，都由重试层的同一个收尾函数 `close_run` 发出；payload 含 `status`，成功带 `result`、失败带 `error`（取消为 `status=cancelled`、`error=Cancelled`）。STOP 投递是逐个 await 的，投递期间收到取消时，取消路径会再发一条 `status=cancelled` 的 STOP，单次取消下每个订阅者至少收到一条，最后一条是最终状态；第二次取消若落在取消路径自己的 hook 投递里，run 以 `CancelledError` 结束，不再发 STOP，订阅方需对未闭合的区间设兜底。硬安全超时杀掉的 run，STOP 是 `status=cancelled`（执行器自己观察到的终态），而返回给父 agent 的结果是 `timed_out`。待审批后的恢复是新的一次 run，各自成对 |
 
 ### 15. Cooperative Subagent Cancellation
 
@@ -518,7 +509,7 @@ config = SubagentConfig(
 3. **已完成结果保留**：`_cleanup_child` 把非 internal 终态结果（completed/failed/cancelled）写入强引用注册表 `COMPLETED_SUBAGENT_RESULTS`（TTL 1h / 上限 1000 条 FIFO）。`ACTIVE_SUBAGENTS` 是弱引用且 cleanup 时即 pop，若父 gateway 流已结束（`_session_info` 清除）且 manager 被 GC，仅靠 ACTIVE_SUBAGENTS 会丢失已完成子 agent 历史；强引用注册表保证 REST/SSE 列表在父流结束后仍能渲染 completed/failed/cancelled 节点。
 4. **cancel-all**：当前 gateway agent 的 `cancel_all_children()` **加上** `cancel_active_children_for_session(session_id)`（每消息新建 agent 时 orphan manager 仍可达）
 5. **cancel / steer 单任务**：直接查 `ACTIVE_SUBAGENTS[task_id]`（无需 gateway；已完成任务已移出，返回 404 属预期）
-6. **checkpoint 恢复**：框架层保留 `subagent_manager.resume_from_checkpoint`（仅 load 不执行，需 active gateway parent agent）；业务层不通过该路径恢复——中断任务以「重新发起」呈现（前端用保存的 `task_description` 重跑任务），`/checkpoint/resume` 与 subagents resume 端点不提供
+6. **checkpoint 恢复**：框架层不提供按检查点续跑的入口；中断任务以「重新发起」呈现（前端用保存的 `task_description` 重跑任务），`/checkpoint/resume` 与 subagents resume 端点不提供
 
 **与 OpenClaw 对齐点**：类似 `subagent-registry` + `killSubagentRunAdmin`——registry 独立于 parent turn 生命周期。
 

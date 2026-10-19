@@ -337,4 +337,3 @@ async def test_uninitialized_adelete_and_close_resilience(tmp_path: Path):
     # Delete subagent checkpoint when global is None is safe no-op
     reset_subagent_checkpointer()
     await delete_subagent_checkpoint("any_task")
-

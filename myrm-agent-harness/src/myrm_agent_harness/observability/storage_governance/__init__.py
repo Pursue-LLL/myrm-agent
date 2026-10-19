@@ -2,20 +2,19 @@
 
 [INPUT]
 - Path (POS: root data directory)
+- Mapping[StorageCategory, Iterable[Path]] (POS: where the application keeps each category)
 
 [OUTPUT]
-- StorageGovernanceInspector, StateStorageCompactor, StateSnapshotManager
-- StorageCategory, StorageCategoryBreakdown, StorageGovernanceReport, CompactionResult, StateSnapshotMetadata
+- StorageGovernanceInspector, StateSnapshotManager
+- StorageCategory, StorageCategoryBreakdown, StorageGovernanceReport, StateSnapshotMetadata
 
 [POS]
-Core storage governance and state longevity maintenance toolkit.
+Core storage governance toolkit for the agent's persistent state.
 """
 
-from .compactor import StateStorageCompactor
 from .inspector import StorageGovernanceInspector
 from .snapshot_manager import StateSnapshotManager
 from .types import (
-    CompactionResult,
     StateSnapshotMetadata,
     StorageCategory,
     StorageCategoryBreakdown,
@@ -23,10 +22,8 @@ from .types import (
 )
 
 __all__ = [
-    "CompactionResult",
     "StateSnapshotManager",
     "StateSnapshotMetadata",
-    "StateStorageCompactor",
     "StorageCategory",
     "StorageCategoryBreakdown",
     "StorageGovernanceInspector",

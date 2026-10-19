@@ -94,7 +94,7 @@ builtin_initializer                  BuiltIn Agent 不绑定 user 技能（skill
                                       预置体可用技能 = 用户全局启用的 prebuilt 集（agent 绑定不参与该判定）
 ```
 
-存储路径约定见 `myrm_agent_harness.toolkits.storage.paths`（`SKILL_METADATA_FILE = _metadata.json`）。
+存储路径约定见 `app.core.storage.paths`（`SKILL_METADATA_FILE = _metadata.json`）。
 
 ### 3.5 预置技能 vs Harness 工具（边界）
 

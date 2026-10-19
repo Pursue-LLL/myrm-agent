@@ -374,9 +374,15 @@ class TestProviderChain:
         )
 
         reset_search_coalescing_state_for_tests()
-        # The quota tracker is a process-wide singleton: a sibling test that marks a
-        # provider depleted would make these hops get skipped, leaving chain_hop_count
-        # at zero for reasons unrelated to the code under test.
+        # The quota tracker is a process-wide singleton: a provider left depleted by a sibling test would be skipped
+        # by these chains, so every test starts from, and leaves behind, a clean tracker.
+        default_quota_tracker.reset_all()
+
+    def teardown_method(self):
+        from myrm_agent_harness.toolkits.web_search.providers.chain import (
+            default_quota_tracker,
+        )
+
         default_quota_tracker.reset_all()
 
     def _chain_config(self, *hops: SearchServiceConfig) -> SearchServiceConfig:
@@ -390,14 +396,17 @@ class TestProviderChain:
 
     @pytest.mark.asyncio
     async def test_primary_quota_exceeded_chain_succeeds(self):
-        from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
+        from myrm_agent_harness.toolkits.web_search.providers.chain import (
+            ProviderQuotaStatus,
+            default_quota_tracker,
+            quota_tracker_key,
+        )
 
         cfg = self._chain_config(
             SearchServiceConfig(search_service="tavily", api_key="tvly-key"),
             SearchServiceConfig(search_service="perplexity", api_key="pplx-key"),
         )
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(cfg, metrics=metrics)
+        searcher = WebSearcher(cfg)
 
         primary_service = AsyncMock()
         primary_service.search.side_effect = _FakeAPIConnectionError(
@@ -421,18 +430,19 @@ class TestProviderChain:
 
         assert len(results) == 1
         assert results[0].title == "Fallback"
-        assert metrics.chain_hop_count >= 1
+        # A quota failure is not retried within the hop, and it parks the credential for later searches.
+        primary_service.search.assert_awaited_once()
+        fallback_service.search.assert_awaited_once()
+        scoped_key = quota_tracker_key(SearchServiceConfig(search_service="tavily", api_key="tvly-key"))
+        assert default_quota_tracker.get_status(scoped_key)[0] == ProviderQuotaStatus.DEPLETED
 
     @pytest.mark.asyncio
     async def test_primary_invalid_key_chain_succeeds(self):
-        from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
-
         cfg = self._chain_config(
             SearchServiceConfig(search_service="tavily", api_key="invalid-key"),
             SearchServiceConfig(search_service="searxng", api_base="http://localhost:8081"),
         )
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(cfg, metrics=metrics)
+        searcher = WebSearcher(cfg)
 
         primary_service = AsyncMock()
         primary_service.search.side_effect = _FakeAPIConnectionError(
@@ -456,7 +466,7 @@ class TestProviderChain:
 
         assert len(results) == 1
         assert results[0].title == "SearxNG"
-        assert metrics.chain_hop_count >= 1
+        primary_service.search.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_no_chain_raises_error(self):
@@ -476,14 +486,11 @@ class TestProviderChain:
 
     @pytest.mark.asyncio
     async def test_chain_all_fail_raises_error(self):
-        from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
-
         cfg = self._chain_config(
             SearchServiceConfig(search_service="tavily", api_key="tvly-key"),
             SearchServiceConfig(search_service="perplexity", api_key="pplx-key"),
         )
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(cfg, metrics=metrics)
+        searcher = WebSearcher(cfg)
 
         quota_error = _FakeAPIConnectionError(
             'TavilyException - {"detail":{"error":"This request exceeds your plan\'s set usage limit."}}'
@@ -498,29 +505,45 @@ class TestProviderChain:
         with patch.object(WebSearcher, "_get_search_service", mock_get_service), pytest.raises(AllQueriesFailedError):
             await searcher.search("test", 5)
 
-        assert metrics.chain_hop_count >= 1
+        # Quota failures are not retried within a hop: one call per provider, and the chain reached the last one.
+        assert service_mock.search.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_retryable_error_does_not_advance_chain(self):
-        from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
+    @pytest.mark.parametrize("query", ["weather", "how to raise aws service quota", "http 429 meaning"])
+    async def test_provider_outage_advances_chain_without_blacklisting(self, query: str):
+        from myrm_agent_harness.toolkits.web_search.providers.chain import (
+            ProviderQuotaStatus,
+            default_quota_tracker,
+            quota_tracker_key,
+        )
 
         cfg = self._chain_config(
-            SearchServiceConfig(search_service="tavily", api_key="tvly-key", search_max_retries=2),
+            SearchServiceConfig(
+                search_service="tavily", api_key="tvly-key", search_max_retries=2, retry_backoff_base_seconds=0.0
+            ),
             SearchServiceConfig(search_service="perplexity", api_key="pplx-key"),
         )
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(cfg, metrics=metrics)
+        searcher = WebSearcher(cfg)
 
         primary_service = AsyncMock()
         primary_service.search.side_effect = TimeoutError("Request timed out")
+        fallback_service = AsyncMock()
+        fallback_service.search.return_value = [
+            SearchResult(title="Fallback", link="https://fallback.com", snippet="Fallback result")
+        ]
 
-        with (
-            patch.object(WebSearcher, "_get_search_service", return_value=primary_service),
-            pytest.raises(AllQueriesFailedError, match="timeout"),
-        ):
-            await searcher.search("test", 5)
+        async def mock_get_service(instance, bypass_gateway=False):
+            return primary_service if instance.config.search_service == "tavily" else fallback_service
 
-        assert metrics.chain_hop_count == 0
+        with patch.object(WebSearcher, "_get_search_service", mock_get_service):
+            results = await searcher.search(query, 5)
+
+        assert results[0].title == "Fallback"
+        assert primary_service.search.await_count == 3  # the provider's own retries run before the chain hops
+        fallback_service.search.assert_awaited_once()
+        # An outage, even for a query that mentions quotas or 429, is not a quota event.
+        healthy_key = quota_tracker_key(SearchServiceConfig(search_service="tavily", api_key="tvly-key"))
+        assert default_quota_tracker.get_status(healthy_key)[0] == ProviderQuotaStatus.HEALTHY
 
     @pytest.mark.asyncio
     async def test_chain_tries_hops_in_order(self):
@@ -592,14 +615,3 @@ class TestProviderChain:
 
         assert result1 == result2
         assert fallback_service.search.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_metrics_snapshot_includes_chain_counters(self):
-        from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
-
-        metrics = WebSearchMetrics()
-        metrics.record_chain_hop(from_provider="tavily", to_provider="perplexity")
-
-        snapshot = metrics.snapshot()
-        assert "chain_hop_count" in snapshot
-        assert snapshot["chain_hop_count"] == 1

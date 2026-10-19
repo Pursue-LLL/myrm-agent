@@ -21,7 +21,7 @@ import logging
 from collections import OrderedDict, defaultdict
 
 from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
-from myrm_agent_harness.agent.file_snapshot.external_effect_detector import detect_external_effects
+from myrm_agent_harness.toolkits.code_execution.security.external_effect_detector import detect_external_effects
 from myrm_agent_harness.agent.file_snapshot.protocols import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 from myrm_agent_harness.api import (

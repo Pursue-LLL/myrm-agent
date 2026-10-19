@@ -24,12 +24,14 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | `observability/` | 单元 | 顶层 metrics/diagnostics/tracing · [observability/_ARCH.md](observability/_ARCH.md) |
 | `agent/streaming/broadcast/` | 单元 | ToolBroadcastBus / ToolCallBroadcaster · [agent/streaming/broadcast/_ARCH.md](agent/streaming/broadcast/_ARCH.md) |
 | `integration/` | 集成 | 跨模块集成（含浏览器 wait-strategies 等） |
-| `agent/skills/curator/test_curator_engine.py` | 单元 | SkillCurator 生命周期与 LRU 驱逐（勿用通用名 `test_engine.py`，会与 `agent/dynamic_workflow/test_engine.py` 触发 collect import mismatch） |
+| `dev/` | 单元 | vortexai 维护者脚本回归（`test_run_pytest_safe.py`） |
+| `agent/skills/curator/test_curator_engine.py` | 单元 | SkillCurator 生命周期与豁免规则（勿用通用名 `test_engine.py`，会与 `agent/dynamic_workflow/test_engine.py` 触发 collect import mismatch） |
 | `agent/skills/` | 单元 | 技能子系统测试树 · [agent/skills/_ARCH.md](agent/skills/_ARCH.md) |
 | `agent/_factory/test_mcp_routing_route.py` | 单元 | `route_mcp_servers` direct/PTC/aggregate demotion + compress 边界（mock connection） |
 | `agent/_factory/test_builder_compactor.py` | 单元 | `create_skill_agent` 上下文管道辅助压缩模型 `summarizer_llm` 注入装配 |
 | `agent/_factory/test_mcp_routing_real_stdio_integration.py` | 集成 | 真实 MCPServer stdio **160 tools**（超过 11250 token 阈值）→ PTC/Skill 路径（无 mock） |
 | `agent/meta_tools/skill_search/test_engine_mcp_index.py` | 单元 | MCP skill BM25 index enrichment（>3 tools） |
+| `agent/meta_tools/skill_manage/` | 单元 | `skill_manage_tool` 并发锁语义（同用户同技能串行、不同技能/用户并行、出错后释放；经批次入参）· 批次运行器的快照来源（快照读取器优先于轮次后端，缺省回退）、patch 的读取来源（先读写入侧存储：轮次后端看不到的技能也能 patch，且改的正是写入侧将要覆盖的正文；该存储没有的技能回退轮次后端）与删除终局（删除批次不调提交 hook、结果无批次 id/脚注/撤销提示，中英各一条）· lock/unlock 的批次语义（不进快照、文件操作全部成功后才执行；操作失败或持久化 hook 失败时各锁恢复到批次前状态，包括「已加锁再 lock」不被误解锁；只含 lock 的批次无撤销记录；混合批次的提示说明撤销不含锁，中英各一条；结果按列出顺序；工具描述向模型说明锁何时落地与撤销范围，中英各一条）· 共享假件 `batch_fakes.py`（假提交 hook、假写入后端、假读取器） |
 | `agent/skills/evolution/` | 单元 | Skill evolution pipeline tests (incl. trace analyzer takeover, variant generator) |
 
 ## Test file placement

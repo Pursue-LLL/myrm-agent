@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING
 from langchain_core.documents import Document
 
 from myrm_agent_harness.toolkits.retriever.splitter.splitter import TextChunker
-from myrm_agent_harness.toolkits.web_search.core.metrics import web_search_metrics
 from myrm_agent_harness.utils.text_utils import get_token_count
 
 if TYPE_CHECKING:
@@ -168,35 +167,29 @@ async def _precision_mode_search(
     # 2. BM25 filter candidate mapping per query (prunes cross-product pairs)
     bm25_start = time.perf_counter()
     query_doc_mapping: dict[str, list[tuple[Document, float]]] | None = None
-    if hasattr(retriever_manager, "bm25_retrieval_with_mapping"):
-        try:
-            res = retriever_manager.bm25_retrieval_with_mapping(
-                queries=questions,
-                documents=all_chunks,
-                top_k_per_query=min(tools._BM25_TOP_K_CHUNKS, 20),
-            )
-            if asyncio.iscoroutine(res):
-                res = await res
-            if isinstance(res, dict):
-                query_doc_mapping = res
-        except Exception as e:
-            logger.debug(f"bm25_retrieval_with_mapping failed, falling back: {e}")
-            query_doc_mapping = None
+    try:
+        query_doc_mapping = await retriever_manager.bm25_retrieval_with_mapping(
+            queries=questions,
+            documents=all_chunks,
+            top_k_per_query=min(tools._BM25_TOP_K_CHUNKS, 20),
+        )
+    except Exception:
+        logger.warning(
+            "bm25_retrieval_with_mapping failed, falling back to fused BM25 retrieval",
+            exc_info=True,
+        )
 
     seen_ids: set[int] = set()
     bm25_filtered: list[Document] = []
 
     if query_doc_mapping is not None:
         for pairs in query_doc_mapping.values():
-            if isinstance(pairs, list):
-                for item in pairs:
-                    if isinstance(item, tuple) and len(item) == 2:
-                        doc = item[0]
-                        if id(doc) not in seen_ids:
-                            seen_ids.add(id(doc))
-                            bm25_filtered.append(doc)
+            for doc, _score in pairs:
+                if id(doc) not in seen_ids:
+                    seen_ids.add(id(doc))
+                    bm25_filtered.append(doc)
 
-    if not bm25_filtered:
+    if query_doc_mapping is None or not bm25_filtered:
         # Fallback to bm25_retrieval_only if mapping unavailable or returned 0 hits
         bm25_filtered = await retriever_manager.bm25_retrieval_only(
             queries=questions, documents=all_chunks, top_k=tools._BM25_TOP_K_CHUNKS
@@ -233,21 +226,6 @@ async def _precision_mode_search(
             f"THIS IS A DEGRADED RESPONSE! Please check Reranker service health.",
             exc_info=True,
         )
-        try:
-            from myrm_agent_harness.utils.event_utils import dispatch_custom_event
-
-            await dispatch_custom_event(
-                "agent_status",
-                {
-                    "event": "tool_fallback",
-                    "tool": "web_search_tool",
-                    "fallback_type": "reranker_degraded",
-                    "message": "语义重排服务异常，已自动降级为 BM25 基础检索以保证结果返回...",
-                },
-            )
-        except Exception:
-            pass
-        web_search_metrics.record_reranker_degraded()
         reranked_chunks = bm25_filtered[: tools._RERANK_TOP_K]
         degraded = True
 

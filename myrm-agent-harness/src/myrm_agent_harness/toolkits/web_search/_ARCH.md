@@ -8,10 +8,10 @@ and the intent-aware search parameter optimizer.
 
 | Submodule | Role | Description |
 |-----------|------|-------------|
-| [core/](core/_ARCH.md) | Core | Shared types, exceptions, error handling, metrics |
+| [core/](core/_ARCH.md) | Core | Shared types, exceptions, error handling |
 | [providers/](providers/_ARCH.md) | Core | Provider adapters, WebSearcher orchestrator, failover chain |
 | [processing/](processing/_ARCH.md) | Core | Result dedup/sort, intent optimizer, citation resolver, explicit params |
-| [coalescing/](coalescing/_ARCH.md) | Core | Single-flight search API deduplication and LRU cache keys |
+| [coalescing/](coalescing/_ARCH.md) | Core | Single-flight search API deduplication and LRU cache keys scoped to the credential identity the factory owns |
 | [probe/](probe/_ARCH.md) | Core | SearXNG local discovery probes and region presets |
 
 ## Package Root Files
@@ -52,7 +52,8 @@ User query → LLM Query Rewriting → questions: list[str]
     → ELSE:
          providers.WebSearcher.search(query, extra_params_override=fused_override)
          (when provider_chain set → providers.chain search_provider_chain failover)
-         coalescing.await_coalesced_search deduplicates concurrent identical API keys
+         coalescing.await_coalesced_search deduplicates concurrent identical searches
+         (same provider, credential, query, limit and params)
          (TTL cache skipped when the provider payload has no usable URL results)
     → processing.combine_search_results_unified()
     → processing.apply_domain_diversity_sort()
@@ -65,7 +66,7 @@ User query → LLM Query Rewriting → questions: list[str]
 
 When precision mode is active (reranker configured, multi-query or long documents scenario):
 1. **Smart Chunking**: Split long docs (>1000 tokens) into 400-token chunks with 100-token overlap; keep short docs intact.
-2. **BM25 Candidate Mapping**: `bm25_retrieval_with_mapping()` filters relevant chunks per query, pruning cross-product candidate pairs.
+2. **BM25 Candidate Mapping**: `bm25_retrieval_with_mapping()` filters relevant chunks per query, pruning cross-product candidate pairs. When it raises (logged at WARNING) or finds no hit, the fused `bm25_retrieval_only()` result feeds the reranker instead.
 3. **Semantic Reranking**: Cross-Encoder scores candidates with `Autocut` adaptive score drop-off truncation (top-20 max, automatic degradation to BM25 on failure).
 4. **Intra-Document Order Restoration**: `_cap_chunks_per_doc()` keeps at most 3 chunks per URL, preserving URL-level relevance order while sorting intra-document chunks in ascending `chunk_index` order for narrative coherence.
 
