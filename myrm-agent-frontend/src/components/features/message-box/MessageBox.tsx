@@ -801,11 +801,6 @@ const MessageBox = ({
                 </div>
               )}
 
-            {/* 自动暂存的未落盘交付物草案通知条 */}
-            {!(isLast && loading) && message.stagedArtifacts && message.stagedArtifacts.length > 0 && (
-              <StagedArtifactsNotice stagedArtifacts={message.stagedArtifacts} />
-            )}
-
             {/* 建议 */}
             {isLast && <Suggestions message={message} loading={loading} />}
           </div>

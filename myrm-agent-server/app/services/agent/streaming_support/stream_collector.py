@@ -412,6 +412,7 @@ class StreamContentCollector:
         self._workspace_merge_truncated: int | None = None
         self._council_phases: list[dict[str, object]] = []
         self._staged_artifacts: list[dict[str, object]] = []
+        self._deliverable_tier: dict[str, object] | None = None
         self._pending_evicted: list[dict[str, object]] = []
         self._sibling_group_id: str | None = sibling_group_id
         self._tool_result_details: dict[str, object] | None = None
@@ -642,6 +643,9 @@ class StreamContentCollector:
             staged = event.get("staged_artifacts")
             if isinstance(staged, list):
                 self._staged_artifacts.extend(string_keyed_dicts(staged))
+            deliverable_tier = string_keyed_dict(event.get("deliverable_tier"))
+            if deliverable_tier is not None:
+                self._deliverable_tier = deliverable_tier
             usage = string_keyed_dict(event.get("usage"))
             if usage is not None:
                 self._usage = usage
@@ -1002,6 +1006,8 @@ class StreamContentCollector:
             result["planConfirmation"] = self._plan_confirmation
         if self._staged_artifacts:
             result["stagedArtifacts"] = self._staged_artifacts
+        if self._deliverable_tier is not None:
+            result["deliverableTier"] = self._deliverable_tier
         if self._kanban_tasks_created:
             result["kanban_tasks_created"] = list(self._kanban_tasks_created)
         if self._cron_job_result is not None:
