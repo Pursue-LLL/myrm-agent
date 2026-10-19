@@ -94,11 +94,14 @@ _REPO_ALIAS_DIRS = frozenset(
 _MD_SKIP_DIR_NAMES = frozenset({"prebuilt_skills"})
 # Docs whose backtick refs carry planning/benchmark semantics (competitor
 # comparison tables, candidate-placement verdicts) rather than assertions about
-# existing files.
+# existing files, plus the bug ledger, whose "code location" cells name the path
+# a defect lived at when it was filed and must not be rewritten when that code
+# later moves or is deleted.
 _MD_REF_SKIP_FILES = frozenset(
     {
         "src/myrm_agent_harness/agent/skills/SKILL_SYSTEM.md",
         "src/myrm_agent_harness/eval/_ARCH.md",
+        "BUGFIX_LOG.md",
     }
 )
 PRUNE_DIR_NAMES = frozenset({"__pycache__", "node_modules", ".git", ".venv", ".mypy_cache", ".myrm", "external_reference_project"})
