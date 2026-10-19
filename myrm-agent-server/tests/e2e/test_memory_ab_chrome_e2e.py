@@ -401,6 +401,29 @@ def _seeded_memory_ab_reports() -> object:
             latest_path.unlink(missing_ok=True)
 
 
+@contextlib.contextmanager
+def _open_eval_lab_page(ui_url: str):  # noqa: ANN202 - generator context manager
+    """Open the eval-lab page, retrying once when the route mounts blank.
+
+    The route intermittently hydrates as a ~192-character document with no E2E
+    bridge, which is indistinguishable from a dead page at the open step; a
+    second open reaches the dashboard instead of failing the whole scenario.
+    """
+    for attempt in range(2):
+        ctx = open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000)
+        try:
+            client, page = ctx.__enter__()
+        except Exception:  # noqa: BLE001 - prep failure only; the body never ran
+            if attempt == 1:
+                raise
+            continue
+        try:
+            yield client, page
+        finally:
+            ctx.__exit__(None, None, None)
+        return
+
+
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -411,7 +434,7 @@ def test_memory_ab_card_entry_and_confirm_dialog_chrome_e2e() -> None:
     prepare_e2e_ui_session(get_e2e_api_url())
     warm_ui_route(EVAL_LAB_PATH)
 
-    with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
+    with _open_eval_lab_page(ui_url) as (
         client,
         page,
     ):
@@ -448,7 +471,7 @@ def test_memory_ab_report_and_history_render_chrome_e2e() -> None:
     warm_ui_route(EVAL_LAB_PATH)
 
     with _seeded_memory_ab_reports():
-        with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
+        with _open_eval_lab_page(ui_url) as (
             client,
             page,
         ):
@@ -499,7 +522,7 @@ def test_memory_ab_real_run_starts_and_can_abort_chrome_e2e() -> None:
     try:
         put_config_value("retrieval", retrieval_config, api_url=api_url)
         put_config_value("retrieval", retrieval_config, api_url=shared_api)
-        with open_mcp_page(f"{ui_url}{EVAL_LAB_PATH}", timeout_ms=120_000) as (
+        with _open_eval_lab_page(ui_url) as (
             client,
             page,
         ):
