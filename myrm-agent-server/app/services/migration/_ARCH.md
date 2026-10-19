@@ -39,7 +39,8 @@
 | `hermes/`（子包） | 核心 | Hermes 迁移子域：cron 迁移（jobs.json → Myrm CronJob 映射 + dry-run plan + confirm 写入 CronManager 默认 paused + batch rollback）与 MoA 迁移（`moa.presets` → 目标 Agent `moa_overlay`）。3 个 `hermes_*` 模块聚合于此，`hermes/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loaders_pi.py` | 核心 | Pi loader（AGENTS.md、settings.json、auth.json、sessions/*.jsonl、skills/） | ✅ |
-| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
+| `_loaders_claude.py` | 核心 | Claude Code 车道：CLAUDE.md/CLAUDE.local.md 规则、`projects/*/memory` 自动记忆（索引仅作兜底）、settings/MCP 配置、skills 与 transcripts | ✅ |
+| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（load_usage_sidecar 读取 Hermes .usage.json、serialize_transcript 转录本序列化） | ✅ |
 | `obsidian_vault_hints.py` | 辅助 | Obsidian vault 路径发现（Codex/Claude settings → 规范化目录路径，供 workspace bind + wiki import 交接） | ✅ |
 | `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
@@ -60,7 +61,7 @@ source/
 ├── source_manifest.py        # 迁移来源 SSOT（display name / import map / discover / deep-link）
 ├── source_probes.py          # 6 源 filesystem probe（hermes/claude/openclaw/codex/pi/plur）
 ├── source_payload_loader.py  # 公共 API：load_source_payload / build_coverage_items / extract_pending_skills
-├── source_payload_loaders_impl.py # 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw/pi
+├── source_payload_loaders_impl.py # 基础 loaders（hermes/codex/chatgpt/gbrain）+ re-export 三个来源车道
 ├── source_payload_split.py   # payload 拆分为 instruction 与 memory 两路
 ├── source_migration_types.py # 四车道迁移 DTO
 ├── source_secrets_importer.py # opt-in 从竞品 .env 导入 API Key

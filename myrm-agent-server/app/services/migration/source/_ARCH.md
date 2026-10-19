@@ -15,7 +15,7 @@
 | `source_manifest.py` | SSOT | 迁移来源清单（display name / import map / discover mode / deep-link capability）与 authoritative 判定 | ✅ |
 | `source_probes.py` | 核心 | 6 源本地 filesystem probe（hermes/claude/openclaw/codex/pi/plur；claude 含 `projects/*/memory` 自动记忆与 `autoMemoryDirectory`，codex 含 `memories/MEMORY.md`） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills；上传临时目录策略（前缀常量、TTL 清扫、归档包含性校验） | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw/pi | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/chatgpt/gbrain）+ re-export 三个来源车道（`_loaders_claude.py` / `_loaders_openclaw.py` / `_loaders_pi.py`） | ✅ |
 | `source_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路（build_instruction_plan / extract_memory_payload） | ✅ |
 | `source_migration_types.py` | 核心 | 四车道迁移 DTO（MigrationLanePreview / SourceInstructionPlan / MigrationWizardOptions 等） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key（含 Vercel AI Gateway 等标准化网关凭据） | ✅ |
