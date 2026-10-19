@@ -6,7 +6,7 @@
 
 外部助手数据迁移业务层回归测试。覆盖五源 discover/load/split、e2e dry-run、instruction rollback、skills binding。与 `tests/architecture/test_migration_source_closure.py` 互补：本目录测行为，architecture 测 probe/loader 封闭集合同步。
 
-上级：`app/services/migration/_ARCH.md`（Wizard 封闭 4 源政策）。
+上级：`app/services/migration/_ARCH.md`（Wizard 本机 6 源 + ZIP 通道的封闭集合政策）。
 
 ---
 
