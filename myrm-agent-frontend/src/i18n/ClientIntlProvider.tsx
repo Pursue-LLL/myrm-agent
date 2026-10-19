@@ -22,7 +22,11 @@ import { getDefaultTimezone } from '@/i18n/timezone';
 
 const DEFERRED_FETCH_MAX_ATTEMPTS = 3;
 const DEFERRED_FETCH_RETRY_BASE_MS = 400;
-const DEFERRED_FETCH_TIMEOUT_MS = 8_000;
+// The deferred payload carries the namespaces the content panes translate
+// through; timing out too early degrades to shell messages and leaves those
+// panes without their keys (a blank segment under load). The dev server can
+// take ~9s to compile the payload, so allow a real margin.
+const DEFERRED_FETCH_TIMEOUT_MS = 20_000;
 const LOCALE_CONTENT_VERSION = process.env.NEXT_PUBLIC_LOCALE_VERSION ?? 'dev';
 
 interface ClientIntlProviderProps {
