@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Literal
 
 from app.database.dto import PersonalityStyleLiteral as PersonalityStyle
 
@@ -403,5 +403,19 @@ def render_personality_block(style: str | None) -> str | None:
     if style not in PERSONALITY_TEMPLATES:
         logger.warning("Unknown personality style '%s'; no communication style block injected", style)
         return None
-    template = PERSONALITY_TEMPLATES[cast(PersonalityStyle, style)]
+    template = PERSONALITY_TEMPLATES[style]
     return f"**Communication Style**: {STYLE_SCOPE_INVARIANT} {template.system_prompt_suffix}"
+
+
+__all__ = [
+    "DEFAULT_PERSONALITY_STYLE",
+    "PERSONALITY_TEMPLATES",
+    "STYLE_SCOPE_INVARIANT",
+    "PersonalityCategory",
+    "PersonalityStyle",
+    "PersonalityTemplate",
+    "get_personality_template",
+    "is_valid_personality_style",
+    "list_all_personalities",
+    "render_personality_block",
+]
