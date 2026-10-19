@@ -180,9 +180,7 @@ def _approve_cards_until_tier(
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
-        assistants = [
-            m for m in messages if isinstance(m, dict) and m.get("role") == "assistant"
-        ]
+        assistants = [m for m in messages if isinstance(m, dict) and m.get("role") == "assistant"]
         for candidate in reversed(assistants):
             metadata = candidate.get("metadata")
             last_metadata = metadata
@@ -190,9 +188,7 @@ def _approve_cards_until_tier(
                 content = str(candidate.get("content") or candidate.get("message") or "")
                 return {"metadata": metadata, "content": content}
         if assistants:
-            last_content = str(
-                assistants[-1].get("content") or assistants[-1].get("message") or ""
-            )
+            last_content = str(assistants[-1].get("content") or assistants[-1].get("message") or "")
         # Probe the card every third pass: each CDP round trip competes with parallel E2E load.
         card = None
         if passes % 3 == 1:
@@ -381,3 +377,225 @@ def test_deliverable_disclosure_live_chrome_e2e() -> None:
             page_url=target_url,
         )
         assert store_state.get("tier") == tier, json.dumps(store_state, ensure_ascii=False)
+
+
+_IDLE_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  return { ready: store?.loading !== true, loading: Boolean(store?.loading) };
+})()"""
+
+
+def _wait_turn_complete(
+    client: object,
+    page: object,
+    chat_id: str,
+    api_url: str,
+    *,
+    timeout_sec: float = 420.0,
+) -> dict[str, object]:
+    """Approve HITL cards until the turn stops streaming and its answer is stored."""
+    deadline = time.monotonic() + timeout_sec
+    clicks = 0
+    passes = 0
+    last_content = ""
+    while time.monotonic() < deadline:
+        passes += 1
+        try:
+            messages = fetch_chat_messages(chat_id, api_url=api_url)
+        except OSError:
+            messages = []
+        assistant = next(
+            (m for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "assistant"),
+            None,
+        )
+        if isinstance(assistant, dict):
+            last_content = str(assistant.get("content") or assistant.get("message") or "")
+            if last_content.strip():
+                idle = client.evaluate(page, _IDLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+                if isinstance(idle, dict) and idle.get("ready") is True:
+                    return assistant
+        card = None
+        if passes % 3 == 1:
+            card = client.evaluate(page, _APPROVAL_VISIBLE_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        if isinstance(card, dict) and card.get("ready") is True and clicks < _APPROVAL_CLICK_BUDGET:
+            clicks += 1
+            print(f"E2E_APPROVE_CLICK: n={clicks} chat={chat_id}", flush=True)
+            try:
+                click_approve(client, page)  # type: ignore[arg-type]
+            except AssertionError:
+                pass
+            time.sleep(1.0)
+            continue
+        time.sleep(3.0)
+    pytest.fail(f"turn did not finish within {timeout_sec}s for chat {chat_id} (clicks={clicks}) content={last_content[:200]!r}")
+
+
+def _seed_chat(api_url: str) -> tuple[str, str]:
+    seeded = http_json(
+        "POST",
+        f"{api_url}/api/v1/chats/test/seed-rich-media-preview-fixture",
+    )
+    assert isinstance(seeded, dict), seeded
+    chat_id = str(seeded.get("chat_id") or "")
+    workspace_dir = str(seeded.get("workspace_dir") or "")
+    assert chat_id.startswith("e2ermd"), seeded
+    assert workspace_dir, seeded
+    return chat_id, workspace_dir
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_deliverable_disclosure_verified_execution_live_chrome_e2e() -> None:
+    """Real model writes a script, runs it, and the turn discloses the tier for that work."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+    seed_live_e2e_providers(api_url)
+    if not wait_e2e_provider_ready(timeout_sec=90.0):
+        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+    pin_and_verify_hitl_mode(api_url)
+
+    chat_id, workspace_dir = _seed_chat(api_url)
+    target_url = f"{ui_url.rstrip('/')}/{chat_id}"
+    warm_ui_route("/")
+    warm_ui_route(f"/{chat_id}")
+
+    with open_mcp_page(target_url, timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
+        chat_id_json = json.dumps(chat_id)
+        attached = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            _ATTACH_CHAT_JS_TEMPLATE % (chat_id_json, chat_id_json),
+            timeout_sec=60.0,
+        )
+        assert isinstance(attached, dict) and attached.get("ok") is True, attached
+
+        prompt = (
+            "请在我的工作区创建文件 run_probe.py，内容为 print('tier probe ok')。"
+            "创建后请运行它，并把运行输出告诉我。请直接执行，不要询问确认。"
+        )
+        sent = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            _SEND_TURN_JS_TEMPLATE % json.dumps(prompt),
+            timeout_sec=60.0,
+        )
+        assert isinstance(sent, dict) and sent.get("ok") is not False, sent
+
+        disclosed = _approve_cards_until_tier(client, page, chat_id, api_url)
+        tier = str(disclosed["metadata"]["deliverableTier"].get("tier"))  # type: ignore[index]
+        assert tier in {"ARTIFACT", "VERIFIED"}, disclosed["metadata"]
+        assert _workspace_file_present(api_url, workspace_dir, "run_probe.py"), (
+            f"run_probe.py missing; answer={_reply_excerpt(disclosed.get('content'))!r}"
+        )
+        # The script really ran: its stdout is part of the business answer.
+        assert "tier probe ok" in str(disclosed.get("content") or ""), _reply_excerpt(disclosed.get("content"))
+        print(f"E2E_EXECUTION_TIER: {tier}", flush=True)
+
+        client.navigate(page, target_url, timeout_ms=90_000)  # type: ignore[attr-defined]
+        wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
+        reattached = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            _ATTACH_CHAT_JS_TEMPLATE % (chat_id_json, chat_id_json),
+            timeout_sec=60.0,
+        )
+        assert isinstance(reattached, dict) and reattached.get("ok") is True, reattached
+
+        badge_state = wait_for_state(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            _BADGE_READY_JS,
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
+        assert badge_state.get("ready") is True, json.dumps(badge_state, ensure_ascii=False)
+        assert str(badge_state.get("testid", "")).startswith("deliverable-tier-badge-"), badge_state
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_plain_chat_shows_no_tier_badge_live_chrome_e2e() -> None:
+    """Small talk stays clean: no completion claim means no tier badge and no metadata."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+    seed_live_e2e_providers(api_url)
+    if not wait_e2e_provider_ready(timeout_sec=90.0):
+        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+    pin_and_verify_hitl_mode(api_url)
+
+    chat_id, _workspace_dir = _seed_chat(api_url)
+    target_url = f"{ui_url.rstrip('/')}/{chat_id}"
+    warm_ui_route("/")
+    warm_ui_route(f"/{chat_id}")
+
+    with open_mcp_page(target_url, timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
+        chat_id_json = json.dumps(chat_id)
+        attached = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            _ATTACH_CHAT_JS_TEMPLATE % (chat_id_json, chat_id_json),
+            timeout_sec=60.0,
+        )
+        assert isinstance(attached, dict) and attached.get("ok") is True, attached
+
+        sent = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            _SEND_TURN_JS_TEMPLATE % json.dumps("你好，请用一句话介绍一下你自己。"),
+            timeout_sec=60.0,
+        )
+        assert isinstance(sent, dict) and sent.get("ok") is not False, sent
+
+        reply = _wait_turn_complete(client, page, chat_id, api_url)
+        assert str(reply.get("content") or "").strip(), "assistant answer was empty"
+        metadata = reply.get("metadata")
+        assert not (isinstance(metadata, dict) and metadata.get("deliverableTier")), metadata
+
+        client.navigate(page, target_url, timeout_ms=90_000)  # type: ignore[attr-defined]
+        wait_for_react_e2e_bridge(
+            client,  # type: ignore[arg-type]
+            page,  # type: ignore[arg-type]
+            timeout_sec=120.0,
+            page_url=target_url,
+        )
+        reattached = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            _ATTACH_CHAT_JS_TEMPLATE % (chat_id_json, chat_id_json),
+            timeout_sec=60.0,
+        )
+        assert isinstance(reattached, dict) and reattached.get("ok") is True, reattached
+
+        store_state = client.evaluate(page, _TIER_READY_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        assert isinstance(store_state, dict) and store_state.get("tier") is None, store_state
+        badge_state = client.evaluate(page, _BADGE_READY_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
+        assert isinstance(badge_state, dict) and badge_state.get("badgeTestid") is None, badge_state
