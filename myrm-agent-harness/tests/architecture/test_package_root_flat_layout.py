@@ -41,7 +41,7 @@ _RUNTIME_SUBPACKAGES = (
     "diagnostics",
     "survival",
     "paths",
-    "artifacts",
+    "checkpointing",
     "deps",
 )
 
@@ -54,7 +54,7 @@ def test_runtime_root_has_no_flat_implementation_modules() -> None:
     )
     assert not forbidden, (
         f"runtime/ root must not flat-spread modules: {forbidden}. "
-        "Move into diagnostics/, survival/, paths/, artifacts/, or deps/."
+        "Move into diagnostics/, survival/, paths/, checkpointing/, or deps/."
     )
 
 
@@ -78,6 +78,14 @@ def test_install_guard_subpackage_layout() -> None:
 
 
 @pytest.mark.architecture
-def test_client_facade_still_at_package_root() -> None:
-    client_path = _PACKAGE_ROOT / "client.py"
-    assert client_path.is_file(), "SDK facade client.py must remain at package root."
+def test_public_entry_is_the_api_package() -> None:
+    """`api/` is the one public entry; the client facade was removed on purpose."""
+    api_init = _PACKAGE_ROOT / "api" / "__init__.py"
+    assert api_init.is_file(), "Public entry must stay at api/__init__.py."
+    api_text = api_init.read_text(encoding="utf-8")
+    assert "create_skill_agent" in api_text, (
+        "api/__init__.py must keep exporting the stable factory create_skill_agent."
+    )
+    assert not (_PACKAGE_ROOT / "client.py").exists(), (
+        "client.py was removed (api/ is the public entry); do not reintroduce a second facade."
+    )
