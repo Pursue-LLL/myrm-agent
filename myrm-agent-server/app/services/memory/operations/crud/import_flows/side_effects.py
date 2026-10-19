@@ -177,9 +177,3 @@ async def _apply_model_migration(
                 logger.info("Model migration: OpenClaw default model → %s", migrated_model)
         except Exception as exc:
             logger.warning("OpenClaw default model migration failed (non-fatal): %s", exc)
-
-
-# Model extraction is a single LLM call, so the pasted text is only sent when it
-# fits a bounded budget; longer pastes keep the deterministic parser instead of
-# risking a failed or oversized call.
-_MODEL_EXTRACTION_MAX_CHARS = 40_000

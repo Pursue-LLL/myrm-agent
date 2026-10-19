@@ -24,9 +24,6 @@ logger = logging.getLogger(__name__)
 # fits a bounded budget; longer pastes keep the deterministic parser instead of
 # risking a failed or oversized call.
 _MODEL_EXTRACTION_MAX_CHARS = 40_000
-_COMPETITOR_AVG_SKILL_TOKENS = 500
-
-_MYRM_AVG_INDEX_TOKENS = 30
 
 
 def _is_paste_payload(payload: dict[str, object], source: str) -> bool:
