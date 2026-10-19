@@ -124,7 +124,11 @@ vi.mock('next/font/google', () => ({
 //      const stableT = (key: string) => key;
 //      vi.mock('next-intl', () => ({ useTranslations: () => stableT }));
 // 3. 自带的参数插值逻辑同样必须放进 stableT（参见测试文件中的自定义 stableT 模式）。
-export const stableT: (key: string) => string = (key) => key;
+// 4. `has` 也必须提供：组件用 t.has(code) 判断文案是否存在（未知码回退可读文本）。
+export const stableT: ((key: string) => string) & { has: (key: string) => boolean } = Object.assign(
+  (key: string) => key,
+  { has: (key: string) => key.trim().length > 0 },
+);
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
   useLocale: () => 'en',

@@ -161,26 +161,32 @@ export interface MemoryImportResponse {
   total_imported: number;
 }
 
-export type MemoryImportSource =
-  | 'auto'
-  | 'native_json'
-  | 'myrm_archive'
-  | 'agentmemory'
-  | 'gbrain'
-  | 'memweaver'
-  | 'claude_code_jsonl'
-  | 'hermes'
-  | 'openclaw'
-  | 'cursor_rules'
-  | 'codex'
-  | 'claude'
-  | 'windsurf'
-  | 'trae'
-  | 'mem0'
-  | 'pi'
-  | 'chatgpt'
-  | 'gemini'
-  | 'plur';
+/**
+ * Import source ids accepted by the server import pipeline, mirroring the
+ * server-side SSOT union in `app/schemas/memory/import_sources.py`.
+ */
+export const MEMORY_IMPORT_SOURCE_IDS = [
+  'native_json',
+  'myrm_archive',
+  'agentmemory',
+  'gbrain',
+  'plur',
+  'mem0',
+  'chatgpt',
+  'gemini',
+  'claude',
+  'claude_code_jsonl',
+  'cursor_rules',
+  'codex',
+  'windsurf',
+  'trae',
+  'hermes',
+  'openclaw',
+  'pi',
+  'pasted_memory',
+] as const;
+
+export type MemoryImportSource = 'auto' | (typeof MEMORY_IMPORT_SOURCE_IDS)[number];
 
 export interface MemoryImportMappingItem {
   source_bucket: string;

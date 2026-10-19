@@ -5290,14 +5290,6 @@
         }
       },
       "migrationTitle": "Migrationsbereitschaft",
-      "migrationAdapterStatusTitle": "Adapterbereitschaft",
-      "migrationAdapterStatus": {
-        "ready": "Bereit",
-        "planned": "Geplant",
-        "missing": "Nicht verfügbar"
-      },
-      "migrationAdapterMissingHint": "{source} ist noch nicht direkt verfügbar. Sie können im Migrationsassistenten mit den kompatiblen Importformaten fortfahren.",
-      "migrationAdapterOpenWizard": "Öffnen Sie den Importassistenten",
       "trackedImports": "{count} verfolgte Importe",
       "unmappedItems": "{count} nicht zugeordnete Elemente",
       "importCleanupPending": "{count} ausstehende Importüberprüfungen",
@@ -5542,7 +5534,9 @@
         },
         "backupHint": "Möchten Sie stattdessen die ganze App auf ein anderes Gerät übertragen?",
         "backupLink": "Sicherung und Wiederherstellung öffnen"
-      }
+      },
+      "migrationOpenWizard": "Erinnerungen importieren",
+      "migrationSourcesTitle": "Unterstützte Quellen"
     },
     "createDialog": {
       "title": "Speicher hinzufügen",
@@ -5626,7 +5620,6 @@
       "items": "Artikel",
       "status": "Zustand",
       "expiresAt": "Läuft ab um",
-      "reviewHash": "Überprüfen Sie Hash",
       "notAvailable": "Nicht verfügbar",
       "notMapped": "Nicht kartiert",
       "warnings": "Warnungen",
@@ -5638,7 +5631,6 @@
         "myrm_archive": "Myrm Memory Archive",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5647,8 +5639,17 @@
         "unknown": "Unbekannte Quelle",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "Eingefügte Erinnerungen"
       },
+      "previewTitle": "Analysierte Stichprobe ({count})",
+      "previewHint": "Hier wird nur eine Stichprobe angezeigt. Beim Bestätigen werden alle oben aufgeführten Inhalte importiert.",
+      "previewTruncated": "{shown} von {total} analysierten Einträgen werden angezeigt.",
       "statuses": {
         "ready": "Jedes erkannte Element ist zugeordnet und bereit zum Import.",
         "warning": "Einige Elemente können nicht zugeordnet werden. Überprüfen Sie die nicht abgedeckten Elemente, bevor Sie sie bestätigen.",
@@ -5660,34 +5661,41 @@
         "partially_mapped": "Teilweise",
         "unsupported": "Nicht unterstützt",
         "dropped": "Gefallen"
-      },
-      "warningMessages": {
-        "no_native_buckets": "Es wurde kein importierbarer nativer Speicher-Bucket gefunden.",
-        "myrm_archive_memory_section_missing": "Dieses Myrm-Archiv enthält keinen importierbaren Speicherabschnitt.",
-        "myrm_archive_non_memory_sections_review_only": "Dieser Importpfad schreibt nur den Speicherabschnitt. Verwenden Sie die Archivwiederherstellung für freigegebene Kontext-, Konversations-, Wiedergabe- und Prüfabschnitte.",
-        "agentmemory_version_unsupported": "Diese Exportversion des Agentenspeichers wurde nicht überprüft, daher ist der Import blockiert.",
-        "agentmemory_too_many_sessions": "Die Anzahl der Agentenspeichersitzungen überschreitet das Importlimit.",
-        "agentmemory_too_many_memories": "Die Speicheranzahl des Agentenspeichers überschreitet das Importlimit.",
-        "agentmemory_too_many_summaries": "Die Zusammenfassungsanzahl des Agentenspeichers überschreitet das Importlimit.",
-        "agentmemory_too_many_observations": "Die Beobachtungsanzahl des Agentenspeichers überschreitet das Importlimit.",
-        "agentmemory_graph_skipped": "Knoten und Kanten des Wissensgraphen sind noch nicht geschrieben; Unterstützte Beziehungsdetails werden als Metadaten gespeichert.",
-        "agentmemory_access_logs_skipped": "Zugriffsprotokolle sind betriebliche Telemetriedaten und werden nicht als Benutzerspeicher importiert.",
-        "claude_code_too_many_lines": "Das Claude-Code-Transkript überschreitet die maximale Zeilenbegrenzung. Es wird nur der erste Teil verarbeitet.",
-        "claude_code_too_many_entries": "Das Claude-Code-Transkript weist nach der Deduplizierung zu viele Einträge auf. Es wird nur der erste Teil verarbeitet.",
-        "claude_code_no_conversation_entries": "In diesem Claude Code-Transkript wurden keine Benutzer- oder Assistentennachrichten gefunden.",
-        "claude_code_no_lines": "Die Claude-Code-Transkriptdatei enthält keine analysierbaren Zeilen.",
-        "hermes_no_files": "Keine Hermes-Speicherdateien gefunden (SOUL.md / MEMORY.md / USER.md).",
-        "hermes_api_keys_detected": "API-Schlüssel in der Hermes-Konfiguration erkannt – für die manuelle Konfiguration markiert.",
-        "hermes_skills_detected": "Hermes-Fähigkeiten erkannt – Fähigkeiten werden über die Prüf-Pipeline der Fähigkeitsmigration verarbeitet.",
-        "openclaw_no_sessions": "Keine OpenClaw-Sitzungsdaten gefunden.",
-        "openclaw_no_memories": "Keine OpenClaw-Speicherdaten gefunden.",
-        "openclaw_skills_detected": "OpenClaw-Fähigkeiten erkannt – Fähigkeiten werden über die Prüf-Pipeline der Fähigkeitsmigration verarbeitet.",
-        "cursor_no_rules": "Es wurden keine Konfigurationsdateien für Cursorregeln gefunden.",
-        "cursor_empty_payload": "Cursor-Daten sind leer – keine importierbaren Regeln oder Einstellungen gefunden.",
-        "codex_no_instructions": "Keine Codex-Anweisungsdateien gefunden.",
-        "codex_empty_payload": "Codex-Daten sind leer – keine importierbaren Anweisungen oder Einstellungen gefunden.",
-        "unsupported_source": "Diese Quelle verfügt noch nicht über einen verifizierten Importadapter."
       }
+    },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "Zugriffsprotokolle sind Nutzungsdaten und keine Erinnerungen, daher werden sie nicht importiert.",
+      "agentmemory_graph_skipped": "Wissensgraph-Verknüpfungen werden noch nicht importiert; unterstützte Beziehungsdetails bleiben an der jeweiligen Erinnerung.",
+      "agentmemory_too_many_memories": "Die Speicheranzahl des Agentenspeichers überschreitet das Importlimit.",
+      "agentmemory_too_many_observations": "Die Beobachtungsanzahl des Agentenspeichers überschreitet das Importlimit.",
+      "agentmemory_too_many_sessions": "Die Anzahl der Agentenspeichersitzungen überschreitet das Importlimit.",
+      "agentmemory_too_many_summaries": "Die Zusammenfassungsanzahl des Agentenspeichers überschreitet das Importlimit.",
+      "agentmemory_version_unsupported": "Diese Exportversion des Agentenspeichers wurde nicht überprüft, daher ist der Import blockiert.",
+      "chatgpt_no_conversations": "In diesem ChatGPT-Export wurden keine Unterhaltungen gefunden.",
+      "claude_code_no_conversation_entries": "In diesem Claude Code-Transkript wurden keine Benutzer- oder Assistentennachrichten gefunden.",
+      "claude_code_no_lines": "Die Claude-Code-Transkriptdatei enthält keine analysierbaren Zeilen.",
+      "claude_code_too_many_entries": "Das Claude-Code-Transkript weist nach der Deduplizierung zu viele Einträge auf. Es wird nur der erste Teil verarbeitet.",
+      "claude_code_too_many_lines": "Das Claude-Code-Transkript überschreitet die maximale Zeilenbegrenzung. Es wird nur der erste Teil verarbeitet.",
+      "codex_empty_payload": "Codex-Daten sind leer – keine importierbaren Anweisungen oder Einstellungen gefunden.",
+      "cursor_empty_payload": "Cursor-Daten sind leer – keine importierbaren Regeln oder Einstellungen gefunden.",
+      "gbrain_no_pages": "In diesem Export wurden keine gbrain-Seiten gefunden.",
+      "gemini_no_conversations": "In diesem Google Gemini-Export wurden keine Unterhaltungen gefunden.",
+      "hermes_api_keys_detected": "API-Schlüssel in der Hermes-Konfiguration erkannt – für die manuelle Konfiguration markiert.",
+      "hermes_skills_detected": "Hermes-Fähigkeiten erkannt – Fähigkeiten werden über die Prüf-Pipeline der Fähigkeitsmigration verarbeitet.",
+      "mem0_no_memories_found": "In diesem Mem0-Export wurden keine Erinnerungen gefunden.",
+      "myrm_archive_memory_section_missing": "Dieses Myrm-Archiv enthält keinen importierbaren Speicherabschnitt.",
+      "myrm_archive_non_memory_sections_review_only": "Dieser Importpfad schreibt nur den Speicherabschnitt. Verwenden Sie die Archivwiederherstellung für freigegebene Kontext-, Konversations-, Wiedergabe- und Prüfabschnitte.",
+      "no_native_buckets": "In dieser Datei wurden keine importierbaren Erinnerungen gefunden.",
+      "openclaw_skills_detected": "OpenClaw-Fähigkeiten erkannt – Fähigkeiten werden über die Prüf-Pipeline der Fähigkeitsmigration verarbeitet.",
+      "pasted_empty": "Es konnte nichts analysiert werden. Nutze den Export-Prompt und füge den Codeblock ein.",
+      "pasted_entries_over_limit": "Eine Einfügung enthielt zu viele Einträge; teile den Export auf mehrere Einfügungen auf.",
+      "pasted_text_too_large": "Der eingefügte Text ist zu groß; teile den Export auf mehrere Einfügungen auf.",
+      "plur_inactive_skipped": "Engramme, die nicht aktiv sind, wurden übersprungen.",
+      "plur_invalid_engrams": "Engramme ohne Statement wurden übersprungen.",
+      "plur_no_engrams_found": "Im PLUR-Speicher wurden keine Engramme gefunden.",
+      "trae_empty_payload": "In diesem Export wurden keine TRAE-Regeln gefunden.",
+      "unsupported_source": "Diese Quelle kann noch nicht importiert werden.",
+      "windsurf_empty_payload": "In diesem Export wurden keine Windsurf-Erinnerungen gefunden."
     },
     "migrationWizard": {
       "title": "Import aus anderen KI-Assistenten",
@@ -5829,7 +5837,18 @@
         "sessionsTitle": "Sitzungsspur — {count} historische Sitzung(en) erkannt",
         "resumptionReady": "Bereit zur Fortsetzung",
         "sessionsDesc": "Vollständige Dialogprotokolle aus externem Assistenten extrahiert. Direkt in Ihre Chatliste importiert, unter Beibehaltung von Sandbox-Pfaden und Prompt-Cache-Affinität.",
-        "turnsCount": "{turns} Dialogrunden · {tools} Werkzeugaufrufe"
+        "turnsCount": "{turns} Dialogrunden · {tools} Werkzeugaufrufe",
+        "previewItemsTitle": "Beispiel der zu importierenden Einträge ({count})",
+        "previewBucket": {
+          "profile": "Profil",
+          "procedural": "Regeln",
+          "semantic": "Fakten",
+          "episodic": "Episoden",
+          "conversation": "Dialog",
+          "claim": "Verifiziert",
+          "task_digest": "Aufgabenzusammenfassungen",
+          "integration": "Integrationen"
+        }
       },
       "result": {
         "title": "Import abgeschlossen",
@@ -5932,7 +5951,22 @@
           },
           "applyFailed": "Second Brain-Voreinstellung konnte nicht angewendet werden",
           "vaultHint": "Wir haben diesen Obsidian-Tresor in Ihrem Codex-Setup entdeckt. Import Wiki verwendet diesen Pfad automatisch."
-        }
+        },
+        "verifyMemory": "Importierte Erinnerungen prüfen",
+        "verifyPrompt": "Was wissen Sie aus den gerade importierten Erinnerungen über mich? Fassen Sie die wichtigsten Punkte zusammen und markieren Sie alles, was falsch oder veraltet wirkt."
+      },
+      "paste": {
+        "sourceName": "Eingefügte Erinnerungen",
+        "title": "Aus beliebiger KI einfügen",
+        "description": "Für Assistenten ohne Export-Paket (Claude, Gemini, DeepSeek, Copilot und andere): Kopieren Sie den Prompt in Ihre alte KI und fügen Sie deren Antwort hier ein.",
+        "copyPrompt": "Export-Prompt kopieren",
+        "copied": "Kopiert",
+        "promptLabel": "Export-Prompt anzeigen",
+        "placeholder": "Fügen Sie den Codeblock Ihrer alten KI hier ein…",
+        "previewButton": "Analysieren und Vorschau",
+        "previewing": "Analyse läuft…",
+        "previewFailed": "Der eingefügte Text konnte nicht analysiert werden. Holen Sie ihn erneut mit dem Export-Prompt.",
+        "promptText": "Exportieren Sie mein Gedächtnis, damit ich es in einen anderen Assistenten importieren kann. Geben Sie genau einen Codeblock aus. Listen Sie alle Erinnerungen und Fakten auf, die Sie über mich gespeichert haben, sowie langfristigen Kontext aus unseren Gesprächen. Schreiben Sie jeden Eintrag in eine eigene Zeile im Format: [YYYY-MM-DD] - Eintrag (beginnen Sie mit '- Eintrag', wenn das Datum unbekannt ist). Gruppieren Sie die Einträge unter diesen vier englischen Überschriften in dieser Reihenfolge: ## RULES (Anweisungen zur Antwort: Ton, Format, immer/niemals), ## PROFILE (Name, Ort, Beruf, Familie, Interessen), ## FACTS (Projekte, Werkzeuge, Sprachen, wiederkehrende Themen), ## PREFERENCES (Korrekturen von mir und Gewohnheiten, die ich beibehalten möchte). Bewahren Sie meine Formulierungen wörtlich; fassen Sie nicht zusammen, führen Sie nichts zusammen und lassen Sie nichts weg. Fügen Sie keine Passwörter, API-Schlüssel oder Zugriffstoken ein. Sagen Sie nach dem Codeblock, ob die Liste vollständig ist."
       }
     },
     "pendingReview": {

@@ -25,8 +25,16 @@ from app.services.memory.imports.import_adapter_utils import (
 )
 
 
-def dry_run_native_json(payload: dict[str, object]) -> MemoryImportDryRunResult:
-    """Map a native JSON payload into memory buckets without persisting."""
+def dry_run_native_json(
+    payload: dict[str, object],
+    source: str = "native_json",
+) -> MemoryImportDryRunResult:
+    """Map a native JSON payload into memory buckets without persisting.
+
+    ``source`` labels the result for callers whose lane shares the native bucket
+    shape (for example Claude Code memory imports); it defaults to the generic
+    native-JSON source.
+    """
 
     version = str(payload.get("version") or "1")
     raw_data = payload.get("data")
@@ -75,7 +83,7 @@ def dry_run_native_json(payload: dict[str, object]) -> MemoryImportDryRunResult:
         warnings.append(WARNING_NO_NATIVE_BUCKETS)
 
     return build_result(
-        source="native_json",
+        source=source,
         version=version,
         normalized=normalized,
         mappings=mappings,

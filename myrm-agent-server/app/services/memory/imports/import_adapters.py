@@ -16,18 +16,16 @@ live in sibling ``import_*.py`` modules for single-responsibility compliance.
 
 from __future__ import annotations
 
-from typing import Literal
-
 from myrm_agent_harness.toolkits.memory import (
     MemoryImportDryRunResult,
     MemoryImportSource,
 )
 
+from app.schemas.memory.import_sources import ImportRequestSource
 from app.services.memory.imports.import_adapter_utils import (
     SUPPORTED_NATIVE_BUCKETS,
     WARNING_UNSUPPORTED_SOURCE,
     build_result,
-    to_memory_import_source,
     unsupported_result,
 )
 from app.services.memory.imports.import_agentmemory import dry_run_agentmemory
@@ -51,6 +49,7 @@ from app.services.memory.imports.import_myrm_archive import (
 )
 from app.services.memory.imports.import_native_json import dry_run_native_json
 from app.services.memory.imports.import_openclaw import dry_run_openclaw
+from app.services.memory.imports.import_pasted import dry_run_pasted_memory
 from app.services.memory.imports.import_plur import dry_run_plur, is_plur_payload
 from app.services.memory.imports.import_trae import dry_run_trae
 from app.services.memory.imports.import_windsurf import dry_run_windsurf
@@ -60,27 +59,7 @@ from app.services.migration.source.source_payload_loader import (
     load_source_payload,
 )
 
-RequestedImportSource = Literal[
-    "auto",
-    "native_json",
-    "myrm_archive",
-    "agentmemory",
-    "gbrain",
-    "memweaver",
-    "claude_code_jsonl",
-    "hermes",
-    "openclaw",
-    "cursor_rules",
-    "codex",
-    "claude",
-    "mem0",
-    "chatgpt",
-    "gemini",
-    "pi",
-    "plur",
-    "windsurf",
-    "trae",
-]
+RequestedImportSource = ImportRequestSource
 
 _MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
     source_id: import_source for source_id, import_source in migration_source_import_map().items()
@@ -97,6 +76,7 @@ _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
     "chatgpt": "chatgpt",
     "gemini": "gemini",
     "plur": "plur",
+    "pi": "pi",
     "windsurf": "windsurf",
     "trae": "trae",
 }
@@ -128,7 +108,7 @@ def build_memory_import_dry_run(
         return _instruction_only_source_dry_run(resolved_payload)
 
     if resolved_source == "claude":
-        return dry_run_native_json(resolved_payload)
+        return dry_run_native_json(resolved_payload, source="claude")
 
     detected = _detect_source(resolved_payload) if resolved_source == "auto" else resolved_source
     if detected == "native_json":
@@ -161,9 +141,11 @@ def build_memory_import_dry_run(
         return dry_run_windsurf(resolved_payload)
     if detected == "trae":
         return dry_run_trae(resolved_payload)
+    if detected == "pasted_memory":
+        return dry_run_pasted_memory(resolved_payload)
     if _is_pi_payload(resolved_payload):
         return _dry_run_pi(resolved_payload)
-    return unsupported_result(to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE)
+    return unsupported_result(detected if detected != "auto" else "unknown", WARNING_UNSUPPORTED_SOURCE)
 
 
 def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
@@ -231,13 +213,10 @@ def _instruction_only_source_dry_run(
 
     competitor = str(payload.get("_source", "")).strip().lower()
     adapter_source = resolve_migration_source(competitor)
-    raw_source = adapter_source if adapter_source not in {"auto"} else competitor
-    harness_source = to_memory_import_source(raw_source)
-    if harness_source == "unknown" and raw_source != "unknown":
-        harness_source = to_memory_import_source("hermes")
+    resolved_source = adapter_source if adapter_source != "auto" else (competitor or "unknown")
     return MemoryImportDryRunResult(
         summary=MemoryImportDryRunSummary(
-            source=harness_source,
+            source=resolved_source,
             version="1",
             total_items=0,
             mapped_items=0,
@@ -367,12 +346,13 @@ def _dry_run_pi(payload: dict[str, object]) -> MemoryImportDryRunResult:
                     source_bucket="pi_sessions",
                     target_bucket="episodic",
                     status="mapped",
-                    count=len(episodic_items),
+                    item_count=len(episodic_items),
+                    imported_count=len(episodic_items),
                 ),
             )
 
     return build_result(
-        source=to_memory_import_source("hermes"),
+        source="pi",
         version="1",
         normalized=normalized,
         mappings=mappings,

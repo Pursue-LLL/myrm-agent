@@ -14,6 +14,7 @@ both are re-exported from this module.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -23,11 +24,16 @@ from .._loader_utils import (
     find_file,
     load_skill_directories,
     load_usage_sidecar,
+    markdown_bullets_to_memory,
     path_by_kind,
     read_json,
     read_text,
     read_yaml,
 )
+from .source_probes import collect_claude_auto_memory_files
+
+_FRONTMATTER_BOUNDARY = "\n---"
+_CLAUDE_MEMORY_INDEX_NAME = "MEMORY.md"
 
 
 def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
@@ -94,9 +100,9 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
             if isinstance(pool_data, dict):
                 result["credential_pool"] = pool_data
                 raw_env_keys = result.get("env_keys")
-                existing_env_keys: list[dict[str, str]] = [
-                    item for item in raw_env_keys if isinstance(item, dict)
-                ] if isinstance(raw_env_keys, list) else []
+                existing_env_keys: list[dict[str, str]] = (
+                    [item for item in raw_env_keys if isinstance(item, dict)] if isinstance(raw_env_keys, list) else []
+                )
                 existing_names = {k.get("name") for k in existing_env_keys if isinstance(k, dict)}
                 for prov in pool_data:
                     norm = str(prov).strip().upper()
@@ -116,9 +122,7 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     session_files: list[Path] = [
         Path(fp)
         for fp in file_paths
-        if (fp.endswith(".json") or fp.endswith(".jsonl"))
-        and "session" in fp.lower()
-        and Path(fp).is_file()
+        if (fp.endswith(".json") or fp.endswith(".jsonl")) and "session" in fp.lower() and Path(fp).is_file()
     ]
     if not session_files and root.is_dir():
         for cand_dir in [root / "sessions", root / "history", root]:
@@ -197,6 +201,10 @@ def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
     if instructions_path:
         result["codex_instructions"] = read_text(instructions_path)
 
+    codex_memory = _load_codex_memory(root)
+    if codex_memory:
+        result["codex_memory"] = codex_memory
+
     for settings_name in ("config.json", "settings.json"):
         settings_path = path_by_kind(file_paths, settings_name) or find_file(root, settings_name)
         if settings_path:
@@ -239,6 +247,36 @@ def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
     return result
 
 
+def _load_codex_memory(root: Path) -> list[dict[str, object]]:
+    """Read Codex consolidated memory files into adapter-ready entries."""
+
+    entries: list[dict[str, object]] = []
+    for relative in ("memories/MEMORY.md", "memories/memory_summary.md"):
+        path = root / relative
+        if not path.is_file():
+            continue
+        content = read_text(path).strip()
+        if not content:
+            continue
+        entries.append({"content": content, "file": path.name})
+    return entries
+
+
+def load_plur(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load a PLUR engram store (``engrams.yaml``) into an adapter-ready payload."""
+
+    result: dict[str, object] = {}
+    engrams_path = path_by_kind(file_paths, "engrams.yaml") or find_file(root, "engrams.yaml")
+    if not engrams_path:
+        return result
+    parsed = read_yaml(engrams_path)
+    if isinstance(parsed, dict):
+        engrams = parsed.get("engrams")
+        if isinstance(engrams, list):
+            result["engrams"] = engrams
+    return result
+
+
 def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
     from myrm_agent_harness.runtime.context.transcripts import ClaudeTranscriptParser
 
@@ -246,18 +284,23 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
 
     result: dict[str, object] = {}
 
+    claude_md_sections: list[str] = []
     claude_md = path_by_kind(file_paths, "CLAUDE.md") or find_file(root, "CLAUDE.md")
     if claude_md:
         content = read_text(claude_md).strip()
         if content:
-            result["semantic"] = [
-                {
-                    "content": content,
-                    "importance": 0.75,
-                    "confidence": 0.75,
-                    "tags": ["claude_code", "CLAUDE.md"],
-                },
-            ]
+            claude_md_sections.append(content)
+    claude_local_md = path_by_kind(file_paths, "CLAUDE.local.md") or find_file(root, "CLAUDE.local.md")
+    if claude_local_md:
+        content = read_text(claude_local_md).strip()
+        if content:
+            claude_md_sections.append(content)
+    if claude_md_sections:
+        result["claude_md"] = "\n\n---\n\n".join(claude_md_sections)
+
+    memory_items = _load_claude_auto_memory(root)
+    if memory_items:
+        result["semantic"] = memory_items
 
     settings_path = path_by_kind(file_paths, "settings.json") or find_file(root, "settings.json")
     if settings_path:
@@ -286,9 +329,7 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
     # Discover and parse Claude Code session transcripts
     claude_sessions: list[dict[str, object]] = []
     claude_parser = ClaudeTranscriptParser()
-    session_files: list[Path] = [
-        Path(fp) for fp in file_paths if fp.endswith(".jsonl") and Path(fp).is_file()
-    ]
+    session_files: list[Path] = [Path(fp) for fp in file_paths if fp.endswith(".jsonl") and Path(fp).is_file()]
     if not session_files and root.is_dir():
         for cand_dir in [root / "sessions", root / "projects", root]:
             if cand_dir.is_dir():
@@ -313,6 +354,102 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
         result["sessions"] = claude_sessions
 
     return result
+
+
+def _load_claude_auto_memory(root: Path) -> list[dict[str, object]]:
+    """Read Claude Code auto-memory files into semantic memory items.
+
+    Individual memory files carry YAML frontmatter (``name`` / ``description`` /
+    ``metadata.type``); ``MEMORY.md`` is the link index and is only used as a
+    fallback when no individual memory file exists.
+    """
+
+    memory_files = collect_claude_auto_memory_files(root)
+    if not memory_files:
+        return []
+
+    items: list[dict[str, object]] = []
+    index_files: list[Path] = []
+    for path in memory_files:
+        if path.name == _CLAUDE_MEMORY_INDEX_NAME:
+            index_files.append(path)
+            continue
+        item = _parse_claude_memory_file(path)
+        if item is not None:
+            items.append(item)
+
+    if not items:
+        for index_path in index_files:
+            for entry in markdown_bullets_to_memory(read_text(index_path), category="claude_code_memory"):
+                content = str(entry.get("content", "")).strip()
+                if not content:
+                    continue
+                items.append(_claude_memory_item(content, {"file": index_path.name}, "index"))
+
+    return items
+
+
+def _parse_claude_memory_file(path: Path) -> dict[str, object] | None:
+    """Parse one Claude Code memory file (frontmatter + body) into an item."""
+
+    text = read_text(path).strip()
+    if not text:
+        return None
+
+    front: dict[str, object] = {}
+    body = text
+    if text.startswith("---"):
+        boundary = text.find(_FRONTMATTER_BOUNDARY, 3)
+        if boundary != -1:
+            raw_front = text[3:boundary].strip()
+            try:
+                parsed = yaml.safe_load(raw_front)
+            except yaml.YAMLError:
+                parsed = None
+            if isinstance(parsed, dict):
+                front = parsed
+                body = text[boundary + 4 :].strip()
+
+    description = str(front.get("description", "")).strip()
+    content = body or description
+    if not content:
+        return None
+
+    memory_type = ""
+    metadata_block = front.get("metadata")
+    if isinstance(metadata_block, dict):
+        memory_type = str(metadata_block.get("type", "")).strip().lower()
+
+    return _claude_memory_item(
+        content,
+        {
+            "file": path.name,
+            "name": str(front.get("name", "")).strip(),
+            "description": description[:200],
+            "type": memory_type,
+        },
+        memory_type or "memory",
+    )
+
+
+def _claude_memory_item(content: str, fields: dict[str, str], category: str) -> dict[str, object]:
+    """Build the semantic memory item for one Claude Code memory entry."""
+
+    tags = ["claude_code_memory"]
+    if category:
+        tags.append(category)
+    metadata: dict[str, str] = {"external_source": "claude"}
+    for key, value in fields.items():
+        if value:
+            metadata[f"external_{key}"] = value
+    return {
+        "content": content,
+        "importance": 0.7,
+        "confidence": 0.75,
+        "tags": tags,
+        "created_at": datetime.now(UTC).isoformat(),
+        "metadata": metadata,
+    }
 
 
 def load_chatgpt(root: Path, file_paths: list[str]) -> dict[str, object]:

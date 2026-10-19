@@ -5290,14 +5290,6 @@
         }
       },
       "migrationTitle": "メモリ移行",
-      "migrationAdapterStatusTitle": "アダプターの準備状態",
-      "migrationAdapterStatus": {
-        "ready": "準備完了",
-        "planned": "計画済み",
-        "missing": "利用不可"
-      },
-      "migrationAdapterMissingHint": "{source} はまだ直接利用できません。マイグレーションウィザードの互換インポート形式で続行できます。",
-      "migrationAdapterOpenWizard": "インポートウィザードを開く",
       "trackedImports": "{count} 個の追跡インポート",
       "unmappedItems": "{count} 個の未マッピング項目",
       "importCleanupPending": "{count} 個の未確認インポート審査",
@@ -5542,7 +5534,9 @@
         },
         "backupHint": "アプリ全体を別のデバイスへ移したい場合は、こちら。",
         "backupLink": "バックアップと復元を開く"
-      }
+      },
+      "migrationOpenWizard": "記憶をインポート",
+      "migrationSourcesTitle": "対応ソース"
     },
     "createDialog": {
       "title": "メモリを追加",
@@ -5626,7 +5620,6 @@
       "items": "プロジェクト",
       "status": "ステータス",
       "expiresAt": "有効期限至",
-      "reviewHash": "レビューハッシュ",
       "notAvailable": "利用不可",
       "notMapped": "未マッピング",
       "warnings": "注意事項",
@@ -5638,7 +5631,6 @@
         "myrm_archive": "Myrm メモリアーカイブ",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5647,8 +5639,17 @@
         "unknown": "不明なソース",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "貼り付けインポート"
       },
+      "previewTitle": "解析サンプル（{count} 件）",
+      "previewHint": "ここにはサンプルのみ表示しています。確定すると上に表示された内容をすべてインポートします。",
+      "previewTruncated": "解析結果 {total} 件のうち {shown} 件を表示しています。",
       "statuses": {
         "ready": "すべての認識済み項目がマッピングされ、インポート可能です。",
         "warning": "一部の項目をマッピングできません。確認前に未マッピングの項目を検査してください。",
@@ -5660,34 +5661,41 @@
         "partially_mapped": "部分マッピング",
         "unsupported": "サポートされていません",
         "dropped": "破棄済み"
-      },
-      "warningMessages": {
-        "no_native_buckets": "インポート可能なネイティブメモリバケットが見つかりません。",
-        "myrm_archive_memory_section_missing": "この Myrm アーカイブにはインポート可能な memory セクションが含まれていません。",
-        "myrm_archive_non_memory_sections_review_only": "このインポートパスは memory セクションのみ書き込みます。Shared Context、セッション、リプレイ、監査にはアーカイブ復元エントリを使用してください。",
-        "agentmemory_version_unsupported": "この agentmemory エクスポートのバージョンは未検証のため、インポートがブロックされました。",
-        "agentmemory_too_many_sessions": "agentmemory セッション数量超したインポート上限。",
-        "agentmemory_too_many_memories": "agentmemory メモリ数量超したインポート上限。",
-        "agentmemory_too_many_summaries": "agentmemory 要約数量超したインポート上限。",
-        "agentmemory_too_many_observations": "agentmemory observation 数量超したインポート上限。",
-        "agentmemory_graph_skipped": "ナレッジグラフのノードとエッジはまだ書き込まれません。サポートされている関係情報はメタデータとして保持されます。",
-        "agentmemory_access_logs_skipped": "アクセスログは運用テレメトリであり、ユーザーメモリとしてはインポートされません。",
-        "claude_code_too_many_lines": "Claude Code セッションファイルの行数が上限を超えています。最初の部分のみ処理されます。",
-        "claude_code_too_many_entries": "Claude Code の重複排除後のエントリ数が上限を超えています。最初の部分のみ処理されます。",
-        "claude_code_no_conversation_entries": "この Claude Code セッションファイルにユーザーまたはアシスタントメッセージが見つかりませんでした。",
-        "claude_code_no_lines": "Claude Code セッションファイルに解析可能な行がありません。",
-        "hermes_no_files": "Hermes メモリファイル（SOUL.md / MEMORY.md / USER.md）が見つかりません。",
-        "hermes_api_keys_detected": "Hermes 設定から API キーを検出 — 手動設定項目としてマークされました。",
-        "hermes_skills_detected": "Hermes スキルを検出 — スキルはスキル移行レビューパイプラインで処理されます。",
-        "openclaw_no_sessions": "OpenClaw セッションデータが見つかりません。",
-        "openclaw_no_memories": "OpenClaw メモリデータが見つかりません。",
-        "openclaw_skills_detected": "OpenClaw スキルを検出 — スキルはスキル移行レビューパイプラインで処理されます。",
-        "cursor_no_rules": "Cursor Rules 設定ファイルが見つかりません。",
-        "cursor_empty_payload": "Cursor データは空です — インポート可能なルールや設定が見つかりません。",
-        "codex_no_instructions": "Codex 指示設定ファイルが見つかりません。",
-        "codex_empty_payload": "Codex データは空です — インポート可能な命令や設定が見つかりません。",
-        "unsupported_source": "このソースには検証済みのインポートアダプターがまだありません。"
       }
+    },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "アクセスログは利用記録でありメモリではないため、インポートされません。",
+      "agentmemory_graph_skipped": "知識グラフのリンクはまだインポートされません。対応している関連情報は各メモリに残ります。",
+      "agentmemory_too_many_memories": "agentmemory メモリ数量超したインポート上限。",
+      "agentmemory_too_many_observations": "agentmemory observation 数量超したインポート上限。",
+      "agentmemory_too_many_sessions": "agentmemory セッション数量超したインポート上限。",
+      "agentmemory_too_many_summaries": "agentmemory 要約数量超したインポート上限。",
+      "agentmemory_version_unsupported": "この agentmemory エクスポートのバージョンは未検証のため、インポートがブロックされました。",
+      "chatgpt_no_conversations": "この ChatGPT エクスポートに会話が見つかりませんでした。",
+      "claude_code_no_conversation_entries": "この Claude Code セッションファイルにユーザーまたはアシスタントメッセージが見つかりませんでした。",
+      "claude_code_no_lines": "Claude Code セッションファイルに解析可能な行がありません。",
+      "claude_code_too_many_entries": "Claude Code の重複排除後のエントリ数が上限を超えています。最初の部分のみ処理されます。",
+      "claude_code_too_many_lines": "Claude Code セッションファイルの行数が上限を超えています。最初の部分のみ処理されます。",
+      "codex_empty_payload": "Codex データは空です — インポート可能な命令や設定が見つかりません。",
+      "cursor_empty_payload": "Cursor データは空です — インポート可能なルールや設定が見つかりません。",
+      "gbrain_no_pages": "このエクスポートに gbrain ページが見つかりませんでした。",
+      "gemini_no_conversations": "この Google Gemini エクスポートに会話が見つかりませんでした。",
+      "hermes_api_keys_detected": "Hermes 設定から API キーを検出 — 手動設定項目としてマークされました。",
+      "hermes_skills_detected": "Hermes スキルを検出 — スキルはスキル移行レビューパイプラインで処理されます。",
+      "mem0_no_memories_found": "この Mem0 エクスポートにメモリが見つかりませんでした。",
+      "myrm_archive_memory_section_missing": "この Myrm アーカイブにはインポート可能な memory セクションが含まれていません。",
+      "myrm_archive_non_memory_sections_review_only": "このインポートパスは memory セクションのみ書き込みます。Shared Context、セッション、リプレイ、監査にはアーカイブ復元エントリを使用してください。",
+      "no_native_buckets": "このファイルにはインポートできるメモリ項目が見つかりませんでした。",
+      "openclaw_skills_detected": "OpenClaw スキルを検出 — スキルはスキル移行レビューパイプラインで処理されます。",
+      "pasted_empty": "何も解析できませんでした。エクスポート用プロンプトを使い、そのコードブロックを貼り付けてください。",
+      "pasted_entries_over_limit": "1 回の貼り付けに項目が多すぎます。エクスポートを数回に分けてください。",
+      "pasted_text_too_large": "貼り付けたテキストが大きすぎます。エクスポートを数回に分けて貼り付けてください。",
+      "plur_inactive_skipped": "active 以外の engram はスキップしました。",
+      "plur_invalid_engrams": "statement のない engram はスキップしました。",
+      "plur_no_engrams_found": "PLUR ストアに engram が見つかりませんでした。",
+      "trae_empty_payload": "このエクスポートに TRAE ルールが見つかりませんでした。",
+      "unsupported_source": "このソースはまだインポートできません。",
+      "windsurf_empty_payload": "このエクスポートに Windsurf メモリが見つかりませんでした。"
     },
     "migrationWizard": {
       "title": "他の AI アシスタントからインポート",
@@ -5829,7 +5837,18 @@
         "sessionsTitle": "セッションレーン — {count} 件の過去セッションを検出",
         "resumptionReady": "即時再開可能",
         "sessionsDesc": "外部アシスタントから完全なトランスクリプトを忠実に抽出。チャットリストに直接インポートされ、サンドボックスパスと Prompt Cache 親和性を保持します。",
-        "turnsCount": "{turns} ターンの対話 · {tools} 回のツール呼び出し"
+        "turnsCount": "{turns} ターンの対話 · {tools} 回のツール呼び出し",
+        "previewItemsTitle": "取り込まれる内容のサンプル（{count} 件）",
+        "previewBucket": {
+          "profile": "プロフィール",
+          "procedural": "ルール",
+          "semantic": "事実",
+          "episodic": "エピソード",
+          "conversation": "対話メモリ",
+          "claim": "検証済み",
+          "task_digest": "タスク要約",
+          "integration": "インテグレーション"
+        }
       },
       "result": {
         "title": "インポート完了",
@@ -5932,7 +5951,22 @@
           },
           "applyFailed": "セカンドブレインプリセットを適用できませんでした",
           "vaultHint": "CodexセットアップからこのObsidianボールトを検出しました。Wikiインポートはこのパスを自動的に使用します。"
-        }
+        },
+        "verifyMemory": "取り込んだ記憶を確認",
+        "verifyPrompt": "たった今取り込んだ記憶から、私について何を覚えているか要約し、誤りや古くなっている点があれば指摘してください。"
+      },
+      "paste": {
+        "sourceName": "貼り付けた記憶",
+        "title": "任意の AI から貼り付け",
+        "description": "エクスポート機能がないアシスタント向けです（Claude、Gemini、DeepSeek、Copilot など）。プロンプトを以前の AI にコピーし、その回答をここに貼り付けてください。",
+        "copyPrompt": "エクスポート用プロンプトをコピー",
+        "copied": "コピーしました",
+        "promptLabel": "エクスポート用プロンプトを表示",
+        "placeholder": "以前の AI が出力したコードブロックを貼り付けてください…",
+        "previewButton": "解析してプレビュー",
+        "previewing": "解析中…",
+        "previewFailed": "貼り付けたテキストを解析できませんでした。エクスポート用プロンプトで再取得してください。",
+        "promptText": "私の記憶をエクスポートしてください。別のアシスタントに取り込むためです。コードブロックを1つだけ出力してください。あなたが保存している私に関するすべての記憶や事実と、これまでの会話から学んだ長期的な背景を列挙してください。各項目は1行ずつ、次の形式にしてください：[YYYY-MM-DD] - 内容（日付が不明な場合は「- 内容」で始めてください）。項目は次の4つの英語見出しで、この順に分類してください：## RULES（回答の指示：口調・形式・常に/禁止）、## PROFILE（氏名・場所・職業・家族・興味）、## FACTS（プロジェクト・ツール・言語・繰り返し話題になるテーマ）、## PREFERENCES（私が行った訂正と、守ってほしい習慣）。私の言葉はそのまま保持し、要約・統合・省略はしないでください。パスワード、APIキー、アクセストークンは含めないでください。コードブロックの後に、これで完全かどうかを伝えてください。"
       }
     },
     "pendingReview": {

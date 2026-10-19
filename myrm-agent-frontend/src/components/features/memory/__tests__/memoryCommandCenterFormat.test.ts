@@ -15,7 +15,6 @@ import {
   formatLiveStreamDescription,
   formatTime,
   isCoverageStatus,
-  isMigrationAdapterStatus,
   translateMemoryType,
   translateOperationKind,
   translateRecordStatus,
@@ -120,11 +119,9 @@ describe('formatLiveStreamDescription', () => {
 });
 
 describe('guards and time formatting', () => {
-  it('recognise only declared coverage and adapter statuses', () => {
+  it('recognise only declared coverage statuses', () => {
     expect(isCoverageStatus('partial')).toBe(true);
     expect(isCoverageStatus('half')).toBe(false);
-    expect(isMigrationAdapterStatus('missing')).toBe(true);
-    expect(isMigrationAdapterStatus('unknown')).toBe(false);
   });
 
   it('formats an ISO timestamp into a short locale string', () => {

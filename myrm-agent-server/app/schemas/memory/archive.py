@@ -28,6 +28,7 @@ from myrm_agent_harness.toolkits.memory import (
 from pydantic import BaseModel, Field
 
 from app.schemas.memory.crud import MEMORY_EXPORT_VERSION
+from app.schemas.memory.import_sources import ImportRequestSource
 
 MemoryImportReadinessIssueParam = str | int | float | bool
 
@@ -136,21 +137,7 @@ class MemoryImportMigrationOptions(BaseModel):
 class MemoryImportDryRunRequest(BaseModel):
     """Request to preview a memory import without persisting data."""
 
-    source: Literal[
-        "auto",
-        "native_json",
-        "myrm_archive",
-        "agentmemory",
-        "gbrain",
-        "memweaver",
-        "claude_code_jsonl",
-        "hermes",
-        "openclaw",
-        "cursor_rules",
-        "codex",
-        "claude",
-        "chatgpt",
-    ] = "auto"
+    source: ImportRequestSource = "auto"
     payload: dict[str, object] = Field(..., description="Raw memory export payload")
     skip_duplicates: bool = Field(True, description="Preview duplicate-safe import behavior")
     migration: MemoryImportMigrationOptions | None = Field(

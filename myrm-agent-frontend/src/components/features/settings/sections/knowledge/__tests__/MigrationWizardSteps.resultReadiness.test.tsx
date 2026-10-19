@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PreviewStep, ResultStep, type TranslationFn } from '../MigrationWizardSteps';
+import useChatStore from '@/store/useChatStore';
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
 
 const mockPush = vi.fn();
@@ -187,6 +188,29 @@ describe('ResultStep readiness gating', () => {
       readinessStatus: 'ready',
       targetAgentId: 'agent-123',
     });
+    expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('prefills a verification prompt into the composer and queues the imported agent', async () => {
+    render(
+      <ResultStep
+        result={baseResult}
+        skillSubmitResult={null}
+        skillSubmitFailed={false}
+        secretsImportMessage={null}
+        rollingBack={false}
+        onRollback={() => undefined}
+        onRetrySkillSubmit={() => undefined}
+        retryingSkills={false}
+        onDone={() => undefined}
+        t={t}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'result.verifyMemory' }));
+
+    expect(mockQueueMigrationChatAgent).toHaveBeenCalledWith('agent-123');
+    expect(useChatStore.getState().inputMessage).toBe('result.verifyPrompt');
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 

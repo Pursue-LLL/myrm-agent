@@ -6,7 +6,7 @@
  * MEMORY_TYPES / MemoryTranslation: 记忆类型清单与 memory 命名空间翻译函数类型。
  * translateMemoryType / translateSpaceKind / translateRecordStatus / translateRuntimeStatus / translateTimelineTitle / translateOperationKind: 枚举值翻译，未知值原样回显。
  * formatTime / formatLiveStreamDescription: 时间与实时流事件描述格式化。
- * isCoverageStatus / isMigrationAdapterStatus: 迁移覆盖与适配器状态守卫。
+ * isCoverageStatus: 迁移覆盖状态守卫。
  *
  * [POS]
  * 个人大脑指挥中心面板共用的枚举守卫与文案格式化：未知枚举值原样回显，已知值走 memory 命名空间翻译。
@@ -39,14 +39,12 @@ const RUNTIME_STATUSES = [
   'keyword',
 ] as const;
 const COVERAGE_STATUSES = ['not_tracked', 'partial', 'complete'] as const;
-const MIGRATION_ADAPTER_STATUSES = ['ready', 'planned', 'missing'] as const;
 
 export type MemoryTranslation = ReturnType<typeof useTranslations<'memory'>>;
 type SpaceKind = (typeof SPACE_KINDS)[number];
 type RecordStatus = (typeof RECORD_STATUSES)[number];
 type RuntimeStatus = (typeof RUNTIME_STATUSES)[number];
 type CoverageStatus = (typeof COVERAGE_STATUSES)[number];
-export type MigrationAdapterStatus = (typeof MIGRATION_ADAPTER_STATUSES)[number];
 
 export const formatTime = (value: string): string =>
   new Intl.DateTimeFormat(undefined, {
@@ -62,8 +60,6 @@ const isRecordStatus = (value: string): value is RecordStatus => RECORD_STATUSES
 const isRuntimeStatus = (value: string): value is RuntimeStatus => RUNTIME_STATUSES.includes(value as RuntimeStatus);
 export const isCoverageStatus = (value: string): value is CoverageStatus =>
   COVERAGE_STATUSES.includes(value as CoverageStatus);
-export const isMigrationAdapterStatus = (value: string): value is MigrationAdapterStatus =>
-  MIGRATION_ADAPTER_STATUSES.includes(value as MigrationAdapterStatus);
 
 export const translateMemoryType = (value: string, t: MemoryTranslation): string =>
   isMemoryType(value) ? t(`types.${value}`) : value;

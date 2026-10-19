@@ -136,6 +136,7 @@ def discover_external_sources(home_dir: str | None = None) -> DiscoveryResult:
         discover_hermes,
         discover_openclaw,
         discover_pi,
+        discover_plur,
     )
 
     home = Path(home_dir) if home_dir else None
@@ -148,6 +149,7 @@ def discover_external_sources(home_dir: str | None = None) -> DiscoveryResult:
         discover_openclaw,
         discover_codex,
         discover_pi,
+        discover_plur,
     ]
 
     for probe in probes:

@@ -5290,14 +5290,6 @@
         }
       },
       "migrationTitle": "Migration Readiness",
-      "migrationAdapterStatusTitle": "Adapter readiness",
-      "migrationAdapterStatus": {
-        "ready": "Ready",
-        "planned": "Planned",
-        "missing": "Not available"
-      },
-      "migrationAdapterMissingHint": "{source} is not directly available yet. You can continue through compatible import formats in the migration wizard.",
-      "migrationAdapterOpenWizard": "Open import wizard",
       "trackedImports": "{count} tracked imports",
       "unmappedItems": "{count} unmapped items",
       "importCleanupPending": "{count} pending import reviews",
@@ -5542,7 +5534,9 @@
         },
         "backupHint": "Want to move this whole app to another device instead?",
         "backupLink": "Open backup and restore"
-      }
+      },
+      "migrationOpenWizard": "Import memories",
+      "migrationSourcesTitle": "Supported sources"
     },
     "createDialog": {
       "title": "Add Memory",
@@ -5626,7 +5620,6 @@
       "items": "Items",
       "status": "Status",
       "expiresAt": "Expires At",
-      "reviewHash": "Review Hash",
       "notAvailable": "Unavailable",
       "notMapped": "Not mapped",
       "warnings": "Warnings",
@@ -5638,7 +5631,6 @@
         "myrm_archive": "Myrm Memory Archive",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5647,8 +5639,17 @@
         "unknown": "Unknown source",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "Pasted memory"
       },
+      "previewTitle": "Parsed sample ({count})",
+      "previewHint": "Only a sample is shown. Importing brings in everything listed above.",
+      "previewTruncated": "Showing {shown} of {total} parsed entries.",
       "statuses": {
         "ready": "Every recognized item is mapped and ready to import.",
         "warning": "Some items cannot be mapped. Review uncovered items before confirming.",
@@ -5660,34 +5661,41 @@
         "partially_mapped": "Partial",
         "unsupported": "Unsupported",
         "dropped": "Dropped"
-      },
-      "warningMessages": {
-        "no_native_buckets": "No importable native memory bucket was found.",
-        "myrm_archive_memory_section_missing": "This Myrm archive does not contain an importable memory section.",
-        "myrm_archive_non_memory_sections_review_only": "This import path only writes the memory section. Use archive restore for shared context, conversation, replay, and audit sections.",
-        "agentmemory_version_unsupported": "This agentmemory export version has not been verified, so import is blocked.",
-        "agentmemory_too_many_sessions": "The agentmemory session count exceeds the import limit.",
-        "agentmemory_too_many_memories": "The agentmemory memory count exceeds the import limit.",
-        "agentmemory_too_many_summaries": "The agentmemory summary count exceeds the import limit.",
-        "agentmemory_too_many_observations": "The agentmemory observation count exceeds the import limit.",
-        "agentmemory_graph_skipped": "Knowledge graph nodes and edges are not written yet; supported relationship details are kept as metadata.",
-        "agentmemory_access_logs_skipped": "Access logs are operational telemetry and are not imported as user memories.",
-        "claude_code_too_many_lines": "The Claude Code transcript exceeds the maximum line limit. Only the first portion will be processed.",
-        "claude_code_too_many_entries": "The Claude Code transcript has too many entries after deduplication. Only the first portion will be processed.",
-        "claude_code_no_conversation_entries": "No user or assistant messages were found in this Claude Code transcript.",
-        "claude_code_no_lines": "The Claude Code transcript file contains no parseable lines.",
-        "hermes_no_files": "No Hermes memory files found (SOUL.md / MEMORY.md / USER.md).",
-        "hermes_api_keys_detected": "API keys detected in Hermes config — marked for manual configuration.",
-        "hermes_skills_detected": "Hermes skills detected — skills are handled through the skill migration review pipeline.",
-        "openclaw_no_sessions": "No OpenClaw session data found.",
-        "openclaw_no_memories": "No OpenClaw memory data found.",
-        "openclaw_skills_detected": "OpenClaw skills detected — skills are handled through the skill migration review pipeline.",
-        "cursor_no_rules": "No Cursor Rules configuration files found.",
-        "cursor_empty_payload": "Cursor data is empty — no importable rules or settings found.",
-        "codex_no_instructions": "No Codex instruction files found.",
-        "codex_empty_payload": "Codex data is empty — no importable instructions or settings found.",
-        "unsupported_source": "This source does not have a verified import adapter yet."
       }
+    },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "Access logs are usage records, not memories, so they are not imported.",
+      "agentmemory_graph_skipped": "Knowledge-graph links are not imported yet; supported relationship details stay attached to each memory.",
+      "agentmemory_too_many_memories": "The agentmemory memory count exceeds the import limit.",
+      "agentmemory_too_many_observations": "The agentmemory observation count exceeds the import limit.",
+      "agentmemory_too_many_sessions": "The agentmemory session count exceeds the import limit.",
+      "agentmemory_too_many_summaries": "The agentmemory summary count exceeds the import limit.",
+      "agentmemory_version_unsupported": "This agentmemory export version has not been verified, so import is blocked.",
+      "chatgpt_no_conversations": "No conversations were found in this ChatGPT export.",
+      "claude_code_no_conversation_entries": "No user or assistant messages were found in this Claude Code transcript.",
+      "claude_code_no_lines": "The Claude Code transcript file contains no parseable lines.",
+      "claude_code_too_many_entries": "The Claude Code transcript has too many entries after deduplication. Only the first portion will be processed.",
+      "claude_code_too_many_lines": "The Claude Code transcript exceeds the maximum line limit. Only the first portion will be processed.",
+      "codex_empty_payload": "Codex data is empty — no importable instructions or settings found.",
+      "cursor_empty_payload": "Cursor data is empty — no importable rules or settings found.",
+      "gbrain_no_pages": "No gbrain pages were found in this export.",
+      "gemini_no_conversations": "No conversations were found in this Google Gemini export.",
+      "hermes_api_keys_detected": "API keys detected in Hermes config — marked for manual configuration.",
+      "hermes_skills_detected": "Hermes skills detected — skills are handled through the skill migration review pipeline.",
+      "mem0_no_memories_found": "No memories were found in this Mem0 export.",
+      "myrm_archive_memory_section_missing": "This Myrm archive does not contain an importable memory section.",
+      "myrm_archive_non_memory_sections_review_only": "This import path only writes the memory section. Use archive restore for shared context, conversation, replay, and audit sections.",
+      "no_native_buckets": "No importable memory entries were found in this file.",
+      "openclaw_skills_detected": "OpenClaw skills detected — skills are handled through the skill migration review pipeline.",
+      "pasted_empty": "Nothing could be parsed. Use the export prompt and paste its code block.",
+      "pasted_entries_over_limit": "One paste contained too many entries; split the export into several pastes.",
+      "pasted_text_too_large": "The pasted text is too large; split the export into several pastes.",
+      "plur_inactive_skipped": "Engrams that are not active were skipped.",
+      "plur_invalid_engrams": "Engrams without a statement were skipped.",
+      "plur_no_engrams_found": "No PLUR engrams were found in the store file.",
+      "trae_empty_payload": "No TRAE rules were found in this export.",
+      "unsupported_source": "This source cannot be imported yet.",
+      "windsurf_empty_payload": "No Windsurf memories were found in this export."
     },
     "migrationWizard": {
       "title": "Import from Other AI Assistants",
@@ -5829,7 +5837,18 @@
         "sessionsTitle": "Session Lane — {count} session(s) detected",
         "resumptionReady": "Ready for Resumption",
         "sessionsDesc": "Full conversational transcripts extracted from external assistant. Directly imported into your chat list, preserving sandbox paths and prompt cache affinity.",
-        "turnsCount": "{turns} turns · {tools} tool calls"
+        "turnsCount": "{turns} turns · {tools} tool calls",
+        "previewItemsTitle": "Sample of what will be imported ({count})",
+        "previewBucket": {
+          "profile": "Profile",
+          "procedural": "Rules",
+          "semantic": "Facts",
+          "episodic": "Episodes",
+          "conversation": "Dialogue",
+          "claim": "Verified",
+          "task_digest": "Task summaries",
+          "integration": "Integrations"
+        }
       },
       "result": {
         "title": "Import Complete",
@@ -5932,7 +5951,22 @@
           },
           "applyFailed": "Could not apply Second Brain preset",
           "vaultHint": "We detected this Obsidian vault from your Codex setup. Import Wiki will use this path automatically."
-        }
+        },
+        "verifyMemory": "Verify what was imported",
+        "verifyPrompt": "What do you remember about me from the memories that were just imported? Summarize the key points and flag anything that looks wrong or outdated."
+      },
+      "paste": {
+        "sourceName": "Pasted memory",
+        "title": "Paste from any AI",
+        "description": "For assistants without an export package (Claude, Gemini, DeepSeek, Copilot and others): copy the prompt into your old AI, then paste its answer here.",
+        "copyPrompt": "Copy export prompt",
+        "copied": "Copied",
+        "promptLabel": "View the export prompt",
+        "placeholder": "Paste the code block your old assistant produced…",
+        "previewButton": "Parse and preview",
+        "previewing": "Parsing…",
+        "previewFailed": "Could not parse the pasted text — fetch it again with the export prompt.",
+        "promptText": "Export my memory so I can import it into another assistant. Output exactly one code block. List every memory or fact you have stored about me, plus long-term context you learned from our conversations. Put each entry on its own line as: [YYYY-MM-DD] - entry (start the line with '- entry' when you do not know the date). Group entries under these four English headings, in this order: ## RULES (instructions about how to answer: tone, format, always/never), ## PROFILE (name, location, job, family, interests), ## FACTS (projects, tools, languages, recurring topics), ## PREFERENCES (corrections I made and habits I asked you to keep). Preserve my words verbatim; do not summarise, merge, or omit entries. Never include passwords, API keys, or access tokens. After the code block, state whether this is the complete list."
       }
     },
     "pendingReview": {

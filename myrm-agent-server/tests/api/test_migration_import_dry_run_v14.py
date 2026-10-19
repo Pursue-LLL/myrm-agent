@@ -373,3 +373,114 @@ class TestSourceImportDryRunApi:
         buckets = {m["source_bucket"] for m in result["mappings"]}
         assert "windsurf_memories" in buckets
         assert "windsurf_settings" in buckets
+
+    def test_pi_explicit_manifest_source_is_accepted(self, client: TestClient, tmp_path: Path) -> None:
+        """The wizard sends the manifest import_source verbatim; it must never 422."""
+
+        root = tmp_path / ".pi" / "agent"
+        sessions_dir = root / "sessions"
+        sessions_dir.mkdir(parents=True)
+        (root / "AGENTS.md").write_text("You are Pi.", encoding="utf-8")
+        (sessions_dir / "s1.jsonl").write_text(
+            json.dumps({"id": "m1", "role": "user", "content": "Plan the release"}) + "\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "pi",
+            "payload": {"competitor": "pi", "root": str(root), "files": []},
+            "migration": {"include_episodic": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "pi"
+
+    def test_plur_dry_run_uses_official_store_schema(self, client: TestClient, tmp_path: Path) -> None:
+        store = tmp_path / ".plur"
+        store.mkdir()
+        (store / "engrams.yaml").write_text(
+            "engrams:\n"
+            "  - id: ENG-2026-05-06-001\n"
+            '    statement: "Always use Pydantic v2 BaseModels with strict types"\n'
+            "    type: behavioral\n"
+            "    status: active\n"
+            "    scope: global\n"
+            "    domain: backend\n"
+            "  - id: ENG-2026-05-06-002\n"
+            '    statement: "Old deploy checklist superseded by the pipeline"\n'
+            "    type: procedural\n"
+            "    status: retired\n"
+            "    scope: global\n"
+            "    domain: ops\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "plur",
+            "payload": {"competitor": "plur", "root": str(store), "files": []},
+            "migration": {"include_episodic": False},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "plur"
+        assert result["summary"]["mapped_items"] == 1
+        assert result["summary"]["unmapped_items"] == 1
+        assert "plur_inactive_skipped" in result["warnings"]
+
+    def test_claude_dry_run_imports_auto_memory(self, client: TestClient, tmp_path: Path) -> None:
+        root = tmp_path / ".claude"
+        root.mkdir()
+        (root / "CLAUDE.md").write_text("Be precise.", encoding="utf-8")
+        memory_dir = root / "projects" / "p" / "memory"
+        memory_dir.mkdir(parents=True)
+        (memory_dir / "feedback_no_git_confirm.md").write_text(
+            "---\n"
+            "name: no-git-confirm\n"
+            'description: "Don\'t ask for confirmation on git commands"\n'
+            "metadata:\n"
+            "  type: feedback\n"
+            "---\n\n"
+            "Don't ask for confirmation on git commands - execute directly.\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "claude",
+            "payload": {"competitor": "claude", "root": str(root), "files": []},
+            "migration": {"apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "claude"
+        assert result["summary"]["mapped_items"] == 1
+        assert "Be precise." in (body.get("instruction_preview_persona") or "")
+
+    def test_pasted_memory_dry_run_parses_buckets(self, client: TestClient) -> None:
+        text = (
+            "```\n"
+            "## RULES\n"
+            "[2024-03-01] - Always answer in Chinese when I write in Chinese.\n"
+            "## PROFILE\n"
+            "[2024-01-15] - 我叫李雷，住在杭州。\n"
+            "## FACTS\n"
+            "- 项目 A 使用 React\n"
+            "```\n"
+        )
+        payload = {"source": "pasted_memory", "payload": {"_source": "pasted_memory", "text": text}}
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "pasted_memory"
+        assert result["summary"]["mapped_items"] == 3
+        assert set(result["normalized_data"]) <= {"profile", "procedural", "semantic"}
+        assert result["normalized_data"], "preview sample must reach the frontend"

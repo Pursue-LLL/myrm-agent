@@ -2,8 +2,8 @@
  * Migration assistant discovery client.
  *
  * [INPUT] lib/api::apiRequest (POS: authenticated HTTP client)
- * [OUTPUT] discoverMigrationSources, uploadMigrationZip, DiscoveryResponse
- * [POS] Frontend service for assistant data auto-discovery (local scan + cloud ZIP upload).
+ * [OUTPUT] discoverMigrationSources, uploadMigrationZip, DiscoveryResponse, PASTED_MEMORY_COMPETITOR_ID
+ * [POS] Frontend service for assistant data auto-discovery (local scan + cloud ZIP upload) and the pasted-memory lane id.
  */
 
 import { apiRequest } from '@/lib/api';
@@ -42,6 +42,8 @@ export interface DiscoveryResponse {
 }
 
 const DISCOVERY_CACHE_TTL_MS = 60_000;
+export const PASTED_MEMORY_COMPETITOR_ID = 'pasted';
+export const PASTED_MEMORY_IMPORT_SOURCE = 'pasted_memory';
 const DEFAULT_MIGRATION_SOURCE_MANIFEST: readonly MigrationSourceManifestItem[] = [
   {
     id: 'hermes',
@@ -79,16 +81,16 @@ const DEFAULT_MIGRATION_SOURCE_MANIFEST: readonly MigrationSourceManifestItem[] 
     deep_link_enabled: true,
   },
   {
-    id: 'chatgpt',
-    display_name: 'ChatGPT',
-    import_source: 'chatgpt',
-    discover_modes: ['zip_upload'],
+    id: 'plur',
+    display_name: 'PLUR',
+    import_source: 'plur',
+    discover_modes: ['local_scan', 'zip_upload'],
     deep_link_enabled: true,
   },
   {
-    id: 'gemini',
-    display_name: 'Google Gemini',
-    import_source: 'gemini',
+    id: 'chatgpt',
+    display_name: 'ChatGPT',
+    import_source: 'chatgpt',
     discover_modes: ['zip_upload'],
     deep_link_enabled: true,
   },

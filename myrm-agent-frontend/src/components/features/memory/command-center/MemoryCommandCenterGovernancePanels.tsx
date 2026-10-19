@@ -24,11 +24,9 @@ import type {
 import type { DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
 import {
   isCoverageStatus,
-  isMigrationAdapterStatus,
   translateMemoryType,
   translateRecordStatus,
   type MemoryTranslation,
-  type MigrationAdapterStatus,
 } from './memoryCommandCenterFormat';
 
 export const GovernanceRow = ({
@@ -92,27 +90,19 @@ export const MigrationPanel = ({
   const rollbackActionId = importBatchId ? `migration:rollback:${importBatchId}` : '';
   const rollbackPreviewActionId = importBatchId ? `migration:rollback-preview:${importBatchId}` : '';
   const rollbackBusy = actionId === rollbackActionId || actionId === rollbackPreviewActionId;
-  const adapterStatus = snapshot.migration.adapter_status;
-  const sourceOrder = Array.from(new Set([...snapshot.migration.supported_sources, ...Object.keys(adapterStatus)]));
-  const adapterEntries = sourceOrder.map((source) => {
-    const rawStatus = adapterStatus[source];
-    return {
-      source,
-      status: isMigrationAdapterStatus(rawStatus) ? rawStatus : 'missing',
-    };
-  });
-  const adapterStatusBadgeClass = (statusValue: MigrationAdapterStatus): string => {
-    if (statusValue === 'ready') {
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
-    }
-    if (statusValue === 'planned') {
-      return 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300';
-    }
-    return 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300';
-  };
+  const manifestSources = snapshot.migration.source_manifest ?? [];
   return (
     <div className="rounded-lg border border-border/50 bg-accent/20 p-3">
-      <div className="text-sm font-medium text-foreground">{t(`commandCenter.coverageStatus.${status}`)}</div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm font-medium text-foreground">{t(`commandCenter.coverageStatus.${status}`)}</div>
+        <button
+          type="button"
+          onClick={() => onOpenMigrationWizard('')}
+          className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+        >
+          {t('commandCenter.migrationOpenWizard')}
+        </button>
+      </div>
       <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
         <span>{t('commandCenter.trackedImports', { count: snapshot.migration.tracked_imports })}</span>
         <span>{t('commandCenter.unmappedItems', { count: snapshot.migration.unmapped_items })}</span>
@@ -127,52 +117,21 @@ export const MigrationPanel = ({
           })}
         </span>
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {snapshot.migration.supported_sources.map((source) => (
-          <span key={source} className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
-            {source}
-          </span>
-        ))}
-      </div>
-      {adapterEntries.length > 0 && (
-        <div className="mt-3 space-y-2">
-          <div className="text-xs font-medium text-foreground">{t('commandCenter.migrationAdapterStatusTitle')}</div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {adapterEntries.map(({ source, status: entryStatus }) => (
-              <div
-                key={`${source}:${entryStatus}`}
-                className="space-y-2 rounded-lg border border-border/60 bg-background/80 px-2.5 py-2"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate text-xs text-foreground">{source}</span>
-                  <span
-                    className={cn(
-                      'rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                      adapterStatusBadgeClass(entryStatus),
-                    )}
-                  >
-                    {t(`commandCenter.migrationAdapterStatus.${entryStatus}`)}
-                  </span>
-                </div>
-                {entryStatus === 'missing' && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] leading-5 text-muted-foreground">
-                      {t('commandCenter.migrationAdapterMissingHint', { source })}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => onOpenMigrationWizard(source)}
-                      className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
-                    >
-                      {t('commandCenter.migrationAdapterOpenWizard')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+      <div className="mt-3 space-y-1.5">
+        <div className="text-xs font-medium text-foreground">{t('commandCenter.migrationSourcesTitle')}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {manifestSources.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => onOpenMigrationWizard(entry.id)}
+              className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-foreground transition-colors hover:bg-accent"
+            >
+              {entry.display_name}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
       {(snapshot.migration.verification_recommended || importBatchId) && (
         <div className="mt-3 rounded-lg border border-border/60 bg-background/70 p-3">
           <div className="text-xs font-medium text-foreground">{t('commandCenter.importPostVerifyTitle')}</div>

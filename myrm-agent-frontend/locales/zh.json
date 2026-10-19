@@ -5290,14 +5290,6 @@
         }
       },
       "migrationTitle": "迁移准备度",
-      "migrationAdapterStatusTitle": "适配器就绪状态",
-      "migrationAdapterStatus": {
-        "ready": "已就绪",
-        "planned": "已规划",
-        "missing": "暂不可用"
-      },
-      "migrationAdapterMissingHint": "{source} 暂不支持直接导入，你可以在迁移向导中通过兼容格式继续迁移。",
-      "migrationAdapterOpenWizard": "打开迁移向导",
       "trackedImports": "{count} 个已追踪导入",
       "unmappedItems": "{count} 个未映射条目",
       "importCleanupPending": "{count} 个待确认导入审查",
@@ -5542,7 +5534,9 @@
         },
         "backupHint": "想把整个应用迁移到另一台设备？",
         "backupLink": "打开备份与恢复"
-      }
+      },
+      "migrationOpenWizard": "导入记忆",
+      "migrationSourcesTitle": "支持的来源"
     },
     "createDialog": {
       "title": "添加记忆",
@@ -5626,7 +5620,6 @@
       "items": "项目",
       "status": "状态",
       "expiresAt": "有效期至",
-      "reviewHash": "审查指纹",
       "notAvailable": "不可用",
       "notMapped": "未映射",
       "warnings": "注意事项",
@@ -5638,7 +5631,6 @@
         "myrm_archive": "Myrm 记忆归档",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5647,8 +5639,17 @@
         "unknown": "未知来源",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "粘贴导入"
       },
+      "previewTitle": "解析样例（{count} 条）",
+      "previewHint": "这里只展示样例，确认后会导入上方列出的全部内容。",
+      "previewTruncated": "已显示 {shown} / {total} 条解析结果。",
       "statuses": {
         "ready": "所有可识别项目都已映射，可安全导入。",
         "warning": "部分项目无法映射，确认前请检查未覆盖项目。",
@@ -5660,34 +5661,41 @@
         "partially_mapped": "部分映射",
         "unsupported": "不支持",
         "dropped": "已丢弃"
-      },
-      "warningMessages": {
-        "no_native_buckets": "未找到可导入的原生记忆分组。",
-        "myrm_archive_memory_section_missing": "该 Myrm 归档不包含可导入的 memory 分区。",
-        "myrm_archive_non_memory_sections_review_only": "该导入入口只写入 memory 分区；Shared Context、会话、回放和审计请使用归档恢复入口。",
-        "agentmemory_version_unsupported": "该 agentmemory 导出版本尚未验证，已阻止导入。",
-        "agentmemory_too_many_sessions": "agentmemory 会话数量超过导入上限。",
-        "agentmemory_too_many_memories": "agentmemory 记忆数量超过导入上限。",
-        "agentmemory_too_many_summaries": "agentmemory 摘要数量超过导入上限。",
-        "agentmemory_too_many_observations": "agentmemory observation 数量超过导入上限。",
-        "agentmemory_graph_skipped": "知识图谱节点和边暂不写入；可保留的关联信息会进入元数据。",
-        "agentmemory_access_logs_skipped": "访问日志属于运行遥测，不会作为用户记忆导入。",
-        "claude_code_too_many_lines": "Claude Code 会话文件行数超出限制，仅处理前部分内容。",
-        "claude_code_too_many_entries": "Claude Code 去重后条目数超出限制，仅处理前部分内容。",
-        "claude_code_no_conversation_entries": "该 Claude Code 会话文件中未找到用户或助手消息。",
-        "claude_code_no_lines": "Claude Code 会话文件中没有可解析的行。",
-        "hermes_no_files": "未找到 Hermes 记忆文件（SOUL.md / MEMORY.md / USER.md）。",
-        "hermes_api_keys_detected": "检测到 Hermes 配置中的 API Key，已标记为手动配置项。",
-        "hermes_skills_detected": "检测到 Hermes 技能，技能需通过技能迁移审查流程单独处理。",
-        "openclaw_no_sessions": "未找到 OpenClaw 会话数据。",
-        "openclaw_no_memories": "未找到 OpenClaw 记忆数据。",
-        "openclaw_skills_detected": "检测到 OpenClaw 技能，技能需通过技能迁移审查流程单独处理。",
-        "cursor_no_rules": "未找到 Cursor Rules 配置文件。",
-        "cursor_empty_payload": "Cursor 数据为空，未找到可导入的规则或设置。",
-        "codex_no_instructions": "未找到 Codex 指令配置文件。",
-        "codex_empty_payload": "Codex 数据为空，未找到可导入的指令或设置。",
-        "unsupported_source": "该来源还没有经过验证的导入适配器。"
       }
+    },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "访问日志属于使用记录而非记忆，因此不会导入。",
+      "agentmemory_graph_skipped": "知识图谱的连线暂不导入，支持的关系信息会保留在对应记忆上。",
+      "agentmemory_too_many_memories": "agentmemory 记忆数量超过导入上限。",
+      "agentmemory_too_many_observations": "agentmemory observation 数量超过导入上限。",
+      "agentmemory_too_many_sessions": "agentmemory 会话数量超过导入上限。",
+      "agentmemory_too_many_summaries": "agentmemory 摘要数量超过导入上限。",
+      "agentmemory_version_unsupported": "该 agentmemory 导出版本尚未验证，已阻止导入。",
+      "chatgpt_no_conversations": "这份 ChatGPT 导出包中未找到会话记录。",
+      "claude_code_no_conversation_entries": "该 Claude Code 会话文件中未找到用户或助手消息。",
+      "claude_code_no_lines": "Claude Code 会话文件中没有可解析的行。",
+      "claude_code_too_many_entries": "Claude Code 去重后条目数超出限制，仅处理前部分内容。",
+      "claude_code_too_many_lines": "Claude Code 会话文件行数超出限制，仅处理前部分内容。",
+      "codex_empty_payload": "Codex 数据为空，未找到可导入的指令或设置。",
+      "cursor_empty_payload": "Cursor 数据为空，未找到可导入的规则或设置。",
+      "gbrain_no_pages": "这份导出包中未找到 gbrain 页面。",
+      "gemini_no_conversations": "这份 Google Gemini 导出包中未找到会话记录。",
+      "hermes_api_keys_detected": "检测到 Hermes 配置中的 API Key，已标记为手动配置项。",
+      "hermes_skills_detected": "检测到 Hermes 技能，技能需通过技能迁移审查流程单独处理。",
+      "mem0_no_memories_found": "这份 Mem0 导出包中未找到任何记忆。",
+      "myrm_archive_memory_section_missing": "该 Myrm 归档不包含可导入的 memory 分区。",
+      "myrm_archive_non_memory_sections_review_only": "该导入入口只写入 memory 分区；Shared Context、会话、回放和审计请使用归档恢复入口。",
+      "no_native_buckets": "这个文件里没有可导入的记忆条目。",
+      "openclaw_skills_detected": "检测到 OpenClaw 技能，技能需通过技能迁移审查流程单独处理。",
+      "pasted_empty": "未能解析出任何内容，请使用导出提示词并粘贴其代码块。",
+      "pasted_entries_over_limit": "单次粘贴包含的条目过多，请把导出内容分几次粘贴。",
+      "pasted_text_too_large": "粘贴的文本过大，请把导出内容分几次粘贴。",
+      "plur_inactive_skipped": "非 active 状态的 engram 已跳过。",
+      "plur_invalid_engrams": "缺少 statement 的 engram 已跳过。",
+      "plur_no_engrams_found": "PLUR 存储文件中未找到任何 engram。",
+      "trae_empty_payload": "这份导出包中未找到 TRAE 规则。",
+      "unsupported_source": "暂不支持导入这个来源。",
+      "windsurf_empty_payload": "这份导出包中未找到 Windsurf 记忆。"
     },
     "migrationWizard": {
       "title": "从其他 AI 助手导入",
@@ -5829,7 +5837,18 @@
         "sessionsTitle": "会话车道 — 检测到 {count} 个历史会话",
         "resumptionReady": "可直接续聊",
         "sessionsDesc": "从外部助手高保真提取完整转录本，导入后直接落库会话列表，保留沙箱路径与 Prompt Cache 亲和性。",
-        "turnsCount": "{turns} 轮对话 · {tools} 次工具调用"
+        "turnsCount": "{turns} 轮对话 · {tools} 次工具调用",
+        "previewItemsTitle": "将导入的内容示例（{count} 条）",
+        "previewBucket": {
+          "profile": "画像",
+          "procedural": "规则",
+          "semantic": "事实",
+          "episodic": "情景",
+          "conversation": "对话记忆",
+          "claim": "已验证",
+          "task_digest": "任务摘要",
+          "integration": "集成数据"
+        }
       },
       "result": {
         "title": "导入完成",
@@ -5932,7 +5951,22 @@
           },
           "applyFailed": "无法应用 Second Brain 预设",
           "vaultHint": "已从 Codex 配置检测到该 Obsidian vault。「导入 Wiki」将自动使用该路径。"
-        }
+        },
+        "verifyMemory": "验证已迁移的记忆",
+        "verifyPrompt": "请总结你从刚刚导入的记忆中记住了关于我的哪些内容，并指出其中看起来有误或已过时的部分。"
+      },
+      "paste": {
+        "sourceName": "粘贴导入的记忆",
+        "title": "从任意 AI 粘贴导入",
+        "description": "适用于没有导出包的助手（Claude、Gemini、DeepSeek、Copilot 等）：把提示词复制到旧 AI，再把它的回答粘贴到这里。",
+        "copyPrompt": "复制导出提示词",
+        "copied": "已复制",
+        "promptLabel": "查看导出提示词",
+        "placeholder": "粘贴旧 AI 输出的代码块…",
+        "previewButton": "解析并预览",
+        "previewing": "解析中…",
+        "previewFailed": "粘贴内容解析失败——请用导出提示词重新获取。",
+        "promptText": "请把我的记忆导出，方便我导入到另一个助手。只输出一个代码块。请列出你保存的关于我的全部记忆或事实，以及你从我们的对话中学到的长期背景。每条单独一行，格式为：[YYYY-MM-DD] - 内容（不确定日期时，请以「- 内容」开头）。请按以下顺序使用这四个英文标题分组：## RULES（如何回答的指令：语气、格式、始终/禁止），## PROFILE（姓名、所在地、职业、家庭、兴趣），## FACTS（项目、工具、语言、反复出现的主题），## PREFERENCES（我对你的纠正和要求你保持的习惯）。请逐字保留我的原话，不要总结、合并或省略条目。不要包含密码、API 密钥或访问令牌。代码块之后，说明是否已完整列出。"
       }
     },
     "pendingReview": {

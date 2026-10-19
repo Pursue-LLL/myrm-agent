@@ -28,6 +28,8 @@ import {
   importMigrationSecrets,
   invalidateDiscoveryCache,
   uploadMigrationZip,
+  PASTED_MEMORY_COMPETITOR_ID,
+  PASTED_MEMORY_IMPORT_SOURCE,
   type ExternalSource,
   type DiscoveryResponse,
 } from '@/services/migrationDiscovery';
@@ -86,6 +88,8 @@ const MigrationWizardSection = memo(
     const [rollingBack, setRollingBack] = useState(false);
     const [retryingSkills, setRetryingSkills] = useState(false);
     const [workspaceBindCandidates, setWorkspaceBindCandidates] = useState<MigrationWorkspaceBindCandidate[]>([]);
+    const [pasteText, setPasteText] = useState('');
+    const [pasting, setPasting] = useState(false);
 
     const persistWorkspaceBindCandidates = useCallback((raw: MigrationWorkspaceBindCandidate[] | undefined) => {
       const normalized = raw ?? [];
@@ -227,6 +231,43 @@ const MigrationWizardSection = memo(
       [selectedSource],
     );
 
+    const handlePastePreview = useCallback(async () => {
+      const text = pasteText.trim();
+      if (!text) {
+        return;
+      }
+      setPasting(true);
+      try {
+        const result = await dryRunImportMemories(
+          { _source: PASTED_MEMORY_IMPORT_SOURCE, text },
+          PASTED_MEMORY_IMPORT_SOURCE,
+          {
+            target_agent_id: targetAgentId,
+            clone_from_agent_id: 'builtin-general',
+            include_episodic: false,
+            apply_global_instructions: false,
+          },
+        );
+        const pastedSource: ExternalSource = {
+          competitor: PASTED_MEMORY_COMPETITOR_ID,
+          root: '',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 0,
+          skill_count: 0,
+          has_api_keys: false,
+        };
+        setSelectedSource(pastedSource);
+        setDryRunResult(result);
+        persistWorkspaceBindCandidates(result.workspace_bind_candidates);
+        setStep('preview');
+      } catch {
+        toast.error(t('paste.previewFailed'));
+      } finally {
+        setPasting(false);
+      }
+    }, [pasteText, persistWorkspaceBindCandidates, targetAgentId, t]);
+
     const handleConfirmImport = useCallback(async () => {
       if (!dryRunResult || !selectedSource) {
         return;
@@ -366,6 +407,10 @@ const MigrationWizardSection = memo(
             onScan={() => handleScan(true)}
             onUpload={handleUpload}
             onPreview={handlePreview}
+            pasteText={pasteText}
+            pasting={pasting}
+            onPasteTextChange={setPasteText}
+            onPastePreview={() => void handlePastePreview()}
             t={t}
           />
         )}

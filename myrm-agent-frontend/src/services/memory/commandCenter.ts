@@ -321,13 +321,11 @@ export interface MemoryCommandDiagnosticRun {
 }
 
 export interface MemoryCommandMigrationProvenance {
-  supported_sources: string[];
   source_manifest?: MemoryCommandMigrationSourceManifestItem[];
   source_manifest_authoritative?: boolean;
   tracked_imports: number;
   unmapped_items: number;
   coverage_status: 'not_tracked' | 'partial' | 'complete';
-  adapter_status: Record<string, 'ready' | 'planned' | 'missing'>;
   last_import_batch_id?: string | null;
   verification_recommended: boolean;
   last_import_diagnostic_status?: string | null;

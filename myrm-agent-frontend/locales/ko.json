@@ -5290,14 +5290,6 @@
         }
       },
       "migrationTitle": "마이그레이션 준비 상태",
-      "migrationAdapterStatusTitle": "어댑터 준비 상태",
-      "migrationAdapterStatus": {
-        "ready": "준비됨",
-        "planned": "계획됨",
-        "missing": "사용 불가"
-      },
-      "migrationAdapterMissingHint": "{source}을(를) 아직 직접 사용할 수 없습니다. 마이그레이션 마법사의 호환 가능한 가져오기 형식을 통해 계속할 수 있습니다.",
-      "migrationAdapterOpenWizard": "가져오기 마법사 열기",
       "trackedImports": "추적된 가져오기 {count}건",
       "unmappedItems": "매핑되지 않은 항목 {count}건",
       "importCleanupPending": "가져오기 검토 대기 {count}건",
@@ -5542,7 +5534,9 @@
         },
         "backupHint": "앱 전체를 다른 기기로 옮기고 싶으신가요?",
         "backupLink": "백업 및 복원 열기"
-      }
+      },
+      "migrationOpenWizard": "기억 가져오기",
+      "migrationSourcesTitle": "지원 소스"
     },
     "createDialog": {
       "title": "메모리 추가",
@@ -5626,7 +5620,6 @@
       "items": "항목",
       "status": "상태",
       "expiresAt": "만료 시각",
-      "reviewHash": "검토 해시",
       "notAvailable": "사용 불가",
       "notMapped": "매핑되지 않음",
       "warnings": "경고",
@@ -5638,7 +5631,6 @@
         "myrm_archive": "Myrm 메모리 아카이브",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5647,8 +5639,17 @@
         "unknown": "알 수 없는 소스",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "붙여넣기 가져오기"
       },
+      "previewTitle": "분석된 샘플({count}개)",
+      "previewHint": "여기에는 샘플만 표시됩니다. 확인하면 위에 표시된 내용을 모두 가져옵니다.",
+      "previewTruncated": "분석된 항목 {total}개 중 {shown}개를 표시합니다.",
       "statuses": {
         "ready": "모든 인식된 항목이 매핑되어 가져올 준비가 되었습니다.",
         "warning": "일부 항목을 매핑할 수 없습니다. 확인 전에 미포함 항목을 검토하세요.",
@@ -5660,34 +5661,41 @@
         "partially_mapped": "부분",
         "unsupported": "지원 안 됨",
         "dropped": "제외됨"
-      },
-      "warningMessages": {
-        "no_native_buckets": "가져올 수 있는 네이티브 메모리 버킷이 없습니다.",
-        "myrm_archive_memory_section_missing": "이 Myrm 아카이브에 가져올 수 있는 메모리 섹션이 없습니다.",
-        "myrm_archive_non_memory_sections_review_only": "이 가져오기 경로는 메모리 섹션만 기록합니다. 공유 컨텍스트, 대화, 리플레이, 감사 섹션은 아카이브 복원을 사용하세요.",
-        "agentmemory_version_unsupported": "이 agentmemory 내보내기 버전이 검증되지 않아 가져오기가 차단되었습니다.",
-        "agentmemory_too_many_sessions": "agentmemory 세션 수가 가져오기 한도를 초과합니다.",
-        "agentmemory_too_many_memories": "agentmemory 메모리 수가 가져오기 한도를 초과합니다.",
-        "agentmemory_too_many_summaries": "agentmemory 요약 수가 가져오기 한도를 초과합니다.",
-        "agentmemory_too_many_observations": "agentmemory 관찰 수가 가져오기 한도를 초과합니다.",
-        "agentmemory_graph_skipped": "지식 그래프 노드와 엣지는 아직 기록되지 않습니다. 지원되는 관계 세부 정보는 메타데이터로 유지됩니다.",
-        "agentmemory_access_logs_skipped": "접근 로그는 운영 원격 측정이며 사용자 메모리로 가져오지 않습니다.",
-        "claude_code_too_many_lines": "Claude Code 대화록이 최대 줄 수를 초과합니다. 첫 부분만 처리됩니다.",
-        "claude_code_too_many_entries": "Claude Code 대화록에 중복 제거 후 항목이 너무 많습니다. 첫 부분만 처리됩니다.",
-        "claude_code_no_conversation_entries": "이 Claude Code 대화록에서 사용자 또는 어시스턴트 메시지가 없습니다.",
-        "claude_code_no_lines": "Claude Code 대화록 파일에 파싱 가능한 줄이 없습니다.",
-        "hermes_no_files": "Hermes 메모리 파일이 없습니다 (SOUL.md / MEMORY.md / USER.md).",
-        "hermes_api_keys_detected": "Hermes 구성에서 API 키가 감지되었습니다 — 수동 구성으로 표시되었습니다.",
-        "hermes_skills_detected": "Hermes 스킬이 감지되었습니다 — 스킬은 스킬 마이그레이션 검토 파이프라인을 통해 처리됩니다.",
-        "openclaw_no_sessions": "OpenClaw 세션 데이터가 없습니다.",
-        "openclaw_no_memories": "OpenClaw 메모리 데이터가 없습니다.",
-        "openclaw_skills_detected": "OpenClaw 스킬이 감지되었습니다 — 스킬은 스킬 마이그레이션 검토 파이프라인을 통해 처리됩니다.",
-        "cursor_no_rules": "Cursor Rules 구성 파일이 없습니다.",
-        "cursor_empty_payload": "Cursor 데이터가 비어 있습니다 — 가져올 수 있는 규칙이나 설정이 없습니다.",
-        "codex_no_instructions": "Codex 지침 파일이 없습니다.",
-        "codex_empty_payload": "Codex 데이터가 비어 있습니다 — 가져올 수 있는 지침이나 설정이 없습니다.",
-        "unsupported_source": "이 소스에는 검증된 가져오기 어댑터가 아직 없습니다."
       }
+    },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "접근 로그는 사용 기록일 뿐 기억이 아니므로 가져오지 않습니다.",
+      "agentmemory_graph_skipped": "지식 그래프 연결은 아직 가져오지 않으며, 지원되는 관계 정보는 각 메모리에 남습니다.",
+      "agentmemory_too_many_memories": "agentmemory 메모리 수가 가져오기 한도를 초과합니다.",
+      "agentmemory_too_many_observations": "agentmemory 관찰 수가 가져오기 한도를 초과합니다.",
+      "agentmemory_too_many_sessions": "agentmemory 세션 수가 가져오기 한도를 초과합니다.",
+      "agentmemory_too_many_summaries": "agentmemory 요약 수가 가져오기 한도를 초과합니다.",
+      "agentmemory_version_unsupported": "이 agentmemory 내보내기 버전이 검증되지 않아 가져오기가 차단되었습니다.",
+      "chatgpt_no_conversations": "이 ChatGPT 내보내기에서 대화를 찾지 못했습니다.",
+      "claude_code_no_conversation_entries": "이 Claude Code 대화록에서 사용자 또는 어시스턴트 메시지가 없습니다.",
+      "claude_code_no_lines": "Claude Code 대화록 파일에 파싱 가능한 줄이 없습니다.",
+      "claude_code_too_many_entries": "Claude Code 대화록에 중복 제거 후 항목이 너무 많습니다. 첫 부분만 처리됩니다.",
+      "claude_code_too_many_lines": "Claude Code 대화록이 최대 줄 수를 초과합니다. 첫 부분만 처리됩니다.",
+      "codex_empty_payload": "Codex 데이터가 비어 있습니다 — 가져올 수 있는 지침이나 설정이 없습니다.",
+      "cursor_empty_payload": "Cursor 데이터가 비어 있습니다 — 가져올 수 있는 규칙이나 설정이 없습니다.",
+      "gbrain_no_pages": "이 내보내기에서 gbrain 페이지를 찾지 못했습니다.",
+      "gemini_no_conversations": "이 Google Gemini 내보내기에서 대화를 찾지 못했습니다.",
+      "hermes_api_keys_detected": "Hermes 구성에서 API 키가 감지되었습니다 — 수동 구성으로 표시되었습니다.",
+      "hermes_skills_detected": "Hermes 스킬이 감지되었습니다 — 스킬은 스킬 마이그레이션 검토 파이프라인을 통해 처리됩니다.",
+      "mem0_no_memories_found": "이 Mem0 내보내기에서 메모리를 찾지 못했습니다.",
+      "myrm_archive_memory_section_missing": "이 Myrm 아카이브에 가져올 수 있는 메모리 섹션이 없습니다.",
+      "myrm_archive_non_memory_sections_review_only": "이 가져오기 경로는 메모리 섹션만 기록합니다. 공유 컨텍스트, 대화, 리플레이, 감사 섹션은 아카이브 복원을 사용하세요.",
+      "no_native_buckets": "이 파일에서 가져올 수 있는 메모리 항목을 찾지 못했습니다.",
+      "openclaw_skills_detected": "OpenClaw 스킬이 감지되었습니다 — 스킬은 스킬 마이그레이션 검토 파이프라인을 통해 처리됩니다.",
+      "pasted_empty": "아무것도 분석하지 못했습니다. 내보내기 프롬프트를 사용해 그 코드 블록을 붙여넣으세요.",
+      "pasted_entries_over_limit": "한 번에 붙여넣은 항목이 너무 많습니다. 내보내기를 여러 번에 나눠 주세요.",
+      "pasted_text_too_large": "붙여넣은 텍스트가 너무 큽니다. 내보내기를 여러 번에 나눠 붙여넣으세요.",
+      "plur_inactive_skipped": "active 상태가 아닌 engram은 건너뛰었습니다.",
+      "plur_invalid_engrams": "statement가 없는 engram은 건너뛰었습니다.",
+      "plur_no_engrams_found": "PLUR 저장소 파일에서 engram을 찾지 못했습니다.",
+      "trae_empty_payload": "이 내보내기에서 TRAE 규칙을 찾지 못했습니다.",
+      "unsupported_source": "이 소스는 아직 가져올 수 없습니다.",
+      "windsurf_empty_payload": "이 내보내기에서 Windsurf 메모리를 찾지 못했습니다."
     },
     "migrationWizard": {
       "title": "다른 AI 어시스턴트에서 가져오기",
@@ -5829,7 +5837,18 @@
         "sessionsTitle": "세션 레인 — {count}개의 이전 세션 감지됨",
         "resumptionReady": "즉시 재개 가능",
         "sessionsDesc": "외부 어시스턴트에서 완전한 대화록을 충실히 추출했습니다. 채팅 목록으로 직접 가져와 샌드박스 경로 및 Prompt Cache 선호도를 보존합니다.",
-        "turnsCount": "{turns}턴 대화 · {tools}회 도구 호출"
+        "turnsCount": "{turns}턴 대화 · {tools}회 도구 호출",
+        "previewItemsTitle": "가져올 내용 미리보기({count}건)",
+        "previewBucket": {
+          "profile": "프로필",
+          "procedural": "규칙",
+          "semantic": "사실",
+          "episodic": "에피소드",
+          "conversation": "대화",
+          "claim": "검증됨",
+          "task_digest": "작업 요약",
+          "integration": "통합 데이터"
+        }
       },
       "result": {
         "title": "가져오기 완료",
@@ -5932,7 +5951,22 @@
           },
           "applyFailed": "Second Brain 프리셋을 적용할 수 없습니다",
           "vaultHint": "Codex 설정에서 이 Obsidian 볼트를 감지했습니다. Wiki 가져오기가 이 경로를 자동으로 사용합니다."
-        }
+        },
+        "verifyMemory": "가져온 기억 확인",
+        "verifyPrompt": "방금 가져온 기억에서 저에 대해 무엇을 기억하는지 요약하고, 잘못되었거나 오래된 내용이 있으면 알려주세요."
+      },
+      "paste": {
+        "sourceName": "붙여넣은 기억",
+        "title": "모든 AI에서 붙여넣기",
+        "description": "내보내기 기능이 없는 어시스턴트용입니다(Claude, Gemini, DeepSeek, Copilot 등). 프롬프트를 이전 AI에 복사한 뒤 그 답변을 여기에 붙여넣으세요.",
+        "copyPrompt": "내보내기 프롬프트 복사",
+        "copied": "복사됨",
+        "promptLabel": "내보내기 프롬프트 보기",
+        "placeholder": "이전 AI가 출력한 코드 블록을 붙여넣으세요…",
+        "previewButton": "분석 후 미리보기",
+        "previewing": "분석 중…",
+        "previewFailed": "붙여넣은 텍스트를 분석하지 못했습니다. 내보내기 프롬프트로 다시 받아 주세요.",
+        "promptText": "제 기억을 내보내 주세요. 다른 어시스턴트로 가져오려고 합니다. 코드 블록 하나만 출력하세요. 저에 대해 저장한 모든 기억과 사실, 그리고 우리 대화에서 배운 장기적인 배경을 나열하세요. 각 항목은 한 줄씩 다음 형식으로 작성하세요: [YYYY-MM-DD] - 내용 (날짜를 모르면 '- 내용'으로 시작하세요). 항목은 다음 네 개의 영어 제목으로 이 순서대로 분류하세요: ## RULES (답변 지침: 어조, 형식, 항상/금지), ## PROFILE (이름, 거주지, 직업, 가족, 관심사), ## FACTS (프로젝트, 도구, 언어, 반복되는 주제), ## PREFERENCES (제가 한 교정과 유지해 달라고 한 습관). 제 표현을 그대로 유지하고 요약·통합·누락하지 마세요. 비밀번호, API 키, 액세스 토큰은 포함하지 마세요. 코드 블록 뒤에 이 목록이 완전한지 알려주세요."
       }
     },
     "pendingReview": {

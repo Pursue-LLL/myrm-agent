@@ -5290,14 +5290,6 @@
         }
       },
       "migrationTitle": "遷移準備度",
-      "migrationAdapterStatusTitle": "適配器就緒狀態",
-      "migrationAdapterStatus": {
-        "ready": "已就緒",
-        "planned": "已規劃",
-        "missing": "暫不可用"
-      },
-      "migrationAdapterMissingHint": "{source} 暫不支援直接導入，你可以在遷移嚮導中通過相容格式繼續遷移。",
-      "migrationAdapterOpenWizard": "打開遷移嚮導",
       "trackedImports": "{count} 個已追蹤匯入",
       "unmappedItems": "{count} 個未對映條目",
       "importCleanupPending": "{count} 個待確認匯入審查",
@@ -5542,7 +5534,9 @@
         },
         "backupHint": "想把整個應用遷移到另一台裝置？",
         "backupLink": "開啟備份與復原"
-      }
+      },
+      "migrationOpenWizard": "匯入記憶",
+      "migrationSourcesTitle": "支援的來源"
     },
     "createDialog": {
       "title": "新增記憶",
@@ -5626,7 +5620,6 @@
       "items": "專案",
       "status": "狀態",
       "expiresAt": "有效期至",
-      "reviewHash": "審查指紋",
       "notAvailable": "不可用",
       "notMapped": "未對映",
       "warnings": "注意事項",
@@ -5638,7 +5631,6 @@
         "myrm_archive": "Myrm 記憶歸檔",
         "agentmemory": "agentmemory",
         "gbrain": "gbrain",
-        "memweaver": "memweaver",
         "claude_code_jsonl": "Claude Code JSONL",
         "hermes": "Hermes",
         "openclaw": "OpenClaw",
@@ -5647,8 +5639,17 @@
         "unknown": "未知來源",
         "mem0": "Mem0",
         "chatgpt": "ChatGPT",
-        "claude": "Claude"
+        "claude": "Claude",
+        "gemini": "Google Gemini",
+        "pi": "Pi",
+        "plur": "PLUR",
+        "windsurf": "Windsurf",
+        "trae": "TRAE",
+        "pasted_memory": "貼上匯入"
       },
+      "previewTitle": "解析樣本（{count} 筆）",
+      "previewHint": "這裡只顯示樣本，確認後會匯入上方列出的全部內容。",
+      "previewTruncated": "已顯示 {shown} / {total} 筆解析結果。",
       "statuses": {
         "ready": "所有可識別專案都已對映，可安全匯入。",
         "warning": "部分專案無法對映，確認前請檢查未覆蓋專案。",
@@ -5660,34 +5661,41 @@
         "partially_mapped": "部分對映",
         "unsupported": "不支援",
         "dropped": "已丟棄"
-      },
-      "warningMessages": {
-        "no_native_buckets": "未找到可匯入的原生記憶分組。",
-        "myrm_archive_memory_section_missing": "該 Myrm 歸檔不包含可匯入的 memory 分割槽。",
-        "myrm_archive_non_memory_sections_review_only": "該匯入入口只寫入 memory 分割槽；Shared Context、會話、回放和審計請使用歸檔恢復入口。",
-        "agentmemory_version_unsupported": "該 agentmemory 匯出版本尚未驗證，已阻止匯入。",
-        "agentmemory_too_many_sessions": "agentmemory 會話數量超過匯入上限。",
-        "agentmemory_too_many_memories": "agentmemory 記憶數量超過匯入上限。",
-        "agentmemory_too_many_summaries": "agentmemory 摘要數量超過匯入上限。",
-        "agentmemory_too_many_observations": "agentmemory observation 數量超過匯入上限。",
-        "agentmemory_graph_skipped": "知識圖譜節點和邊暫不寫入；可保留的關聯資訊會進入後設資料。",
-        "agentmemory_access_logs_skipped": "訪問日誌屬於執行遙測，不會作為使用者記憶匯入。",
-        "claude_code_too_many_lines": "Claude Code 會話檔案行數超出限制，僅處理前部分內容。",
-        "claude_code_too_many_entries": "Claude Code 去重後條目數超出限制，僅處理前部分內容。",
-        "claude_code_no_conversation_entries": "該 Claude Code 會話檔案中未找到使用者或助手訊息。",
-        "claude_code_no_lines": "Claude Code 會話檔案中沒有可解析的行。",
-        "hermes_no_files": "未找到 Hermes 記憶檔案（SOUL.md / MEMORY.md / USER.md）。",
-        "hermes_api_keys_detected": "檢測到 Hermes 配置中的 API Key，已標記為手動配置項。",
-        "hermes_skills_detected": "檢測到 Hermes 技能，技能需透過技能遷移審查流程單獨處理。",
-        "openclaw_no_sessions": "未找到 OpenClaw 會話資料。",
-        "openclaw_no_memories": "未找到 OpenClaw 記憶資料。",
-        "openclaw_skills_detected": "檢測到 OpenClaw 技能，技能需透過技能遷移審查流程單獨處理。",
-        "cursor_no_rules": "未找到 Cursor Rules 配置檔案。",
-        "cursor_empty_payload": "Cursor 資料為空，未找到可匯入的規則或設定。",
-        "codex_no_instructions": "未找到 Codex 指令配置檔案。",
-        "codex_empty_payload": "Codex 資料為空，未找到可匯入的指令或設定。",
-        "unsupported_source": "該來源還沒有經過驗證的匯入介面卡。"
       }
+    },
+    "importWarnings": {
+      "agentmemory_access_logs_skipped": "存取日誌屬於使用紀錄而非記憶，因此不會匯入。",
+      "agentmemory_graph_skipped": "知識圖譜的連線暫不匯入，支援的關聯資訊會保留在對應記憶上。",
+      "agentmemory_too_many_memories": "agentmemory 記憶數量超過匯入上限。",
+      "agentmemory_too_many_observations": "agentmemory observation 數量超過匯入上限。",
+      "agentmemory_too_many_sessions": "agentmemory 會話數量超過匯入上限。",
+      "agentmemory_too_many_summaries": "agentmemory 摘要數量超過匯入上限。",
+      "agentmemory_version_unsupported": "該 agentmemory 匯出版本尚未驗證，已阻止匯入。",
+      "chatgpt_no_conversations": "這份 ChatGPT 匯出包中找不到對話紀錄。",
+      "claude_code_no_conversation_entries": "該 Claude Code 會話檔案中未找到使用者或助手訊息。",
+      "claude_code_no_lines": "Claude Code 會話檔案中沒有可解析的行。",
+      "claude_code_too_many_entries": "Claude Code 去重後條目數超出限制，僅處理前部分內容。",
+      "claude_code_too_many_lines": "Claude Code 會話檔案行數超出限制，僅處理前部分內容。",
+      "codex_empty_payload": "Codex 資料為空，未找到可匯入的指令或設定。",
+      "cursor_empty_payload": "Cursor 資料為空，未找到可匯入的規則或設定。",
+      "gbrain_no_pages": "這份匯出包中找不到 gbrain 頁面。",
+      "gemini_no_conversations": "這份 Google Gemini 匯出包中找不到對話紀錄。",
+      "hermes_api_keys_detected": "檢測到 Hermes 配置中的 API Key，已標記為手動配置項。",
+      "hermes_skills_detected": "檢測到 Hermes 技能，技能需透過技能遷移審查流程單獨處理。",
+      "mem0_no_memories_found": "這份 Mem0 匯出包中找不到任何記憶。",
+      "myrm_archive_memory_section_missing": "該 Myrm 歸檔不包含可匯入的 memory 分割槽。",
+      "myrm_archive_non_memory_sections_review_only": "該匯入入口只寫入 memory 分割槽；Shared Context、會話、回放和審計請使用歸檔恢復入口。",
+      "no_native_buckets": "這個檔案裡沒有可匯入的記憶條目。",
+      "openclaw_skills_detected": "檢測到 OpenClaw 技能，技能需透過技能遷移審查流程單獨處理。",
+      "pasted_empty": "未能解析出任何內容，請使用匯出提示詞並貼上其程式碼區塊。",
+      "pasted_entries_over_limit": "單次貼上的項目過多，請把匯出內容分幾次貼上。",
+      "pasted_text_too_large": "貼上的文字過大，請把匯出內容分幾次貼上。",
+      "plur_inactive_skipped": "非 active 狀態的 engram 已略過。",
+      "plur_invalid_engrams": "缺少 statement 的 engram 已略過。",
+      "plur_no_engrams_found": "PLUR 儲存檔案中找不到任何 engram。",
+      "trae_empty_payload": "這份匯出檔中找不到 TRAE 規則。",
+      "unsupported_source": "暫不支援匯入這個來源。",
+      "windsurf_empty_payload": "這份匯出檔中找不到 Windsurf 記憶。"
     },
     "migrationWizard": {
       "title": "從其他 AI 助手匯入",
@@ -5829,7 +5837,18 @@
         "sessionsTitle": "會話車道 — 檢測到 {count} 個歷史會話",
         "resumptionReady": "可直接續聊",
         "sessionsDesc": "從外部助手高保真提取完整轉錄本，匯入後直接落庫會話列表，保留沙箱路徑與 Prompt Cache 親和性。",
-        "turnsCount": "{turns} 輪對話 · {tools} 次工具調用"
+        "turnsCount": "{turns} 輪對話 · {tools} 次工具調用",
+        "previewItemsTitle": "將匯入的內容範例（{count} 筆）",
+        "previewBucket": {
+          "profile": "畫像",
+          "procedural": "規則",
+          "semantic": "事實",
+          "episodic": "情景",
+          "conversation": "對話記憶",
+          "claim": "已驗證",
+          "task_digest": "任務摘要",
+          "integration": "整合資料"
+        }
       },
       "result": {
         "title": "匯入完成",
@@ -5932,7 +5951,22 @@
           },
           "applyFailed": "無法應用 Second Brain 預設",
           "vaultHint": "已從 Codex 配置檢測到該 Obsidian vault。「導入 Wiki」將自動使用該路徑。"
-        }
+        },
+        "verifyMemory": "驗證已匯入的記憶",
+        "verifyPrompt": "請總結你從剛剛匯入的記憶中記住了關於我的哪些內容，並指出其中看起來有誤或已過時的部分。"
+      },
+      "paste": {
+        "sourceName": "貼上匯入的記憶",
+        "title": "從任意 AI 貼上匯入",
+        "description": "適用於沒有匯出包的助理（Claude、Gemini、DeepSeek、Copilot 等）：把提示詞複製到舊 AI，再把它的回答貼到這裡。",
+        "copyPrompt": "複製匯出提示詞",
+        "copied": "已複製",
+        "promptLabel": "查看匯出提示詞",
+        "placeholder": "貼上舊 AI 輸出的程式碼區塊…",
+        "previewButton": "解析並預覽",
+        "previewing": "解析中…",
+        "previewFailed": "貼上內容解析失敗——請用匯出提示詞重新取得。",
+        "promptText": "請把我的記憶匯出，方便我匯入到另一個助理。只輸出一個程式碼區塊。請列出你儲存的關於我的全部記憶或事實，以及你從我們的對話中學到的長期背景。每條單獨一行，格式為：[YYYY-MM-DD] - 內容（不確定日期時，請以「- 內容」開頭）。請依下列順序使用這四個英文標題分組：## RULES（如何回答的指令：語氣、格式、一律/禁止），## PROFILE（姓名、所在地、職業、家庭、興趣），## FACTS（專案、工具、語言、反覆出現的主題），## PREFERENCES（我對你的糾正與要求你保持的習慣）。請逐字保留我的原話，不要總結、合併或省略條目。不要包含密碼、金鑰或存取權杖。程式碼區塊之後，說明是否已完整列出。"
       }
     },
     "pendingReview": {

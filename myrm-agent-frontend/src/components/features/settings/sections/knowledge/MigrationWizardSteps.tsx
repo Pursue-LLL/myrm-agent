@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
   ArrowRightLeft,
   CheckCircle2,
+  ClipboardPaste,
+  Copy,
   Folder,
   Loader2,
   RefreshCw,
@@ -24,17 +26,20 @@ import { queueMigrationChatAgent, queueMigrationReadinessAnchor } from '@/lib/mi
 import { exportMemoryArchive, recheckImportReadiness } from '@/services/memory/archive';
 import { agentSettingsHref, teamAssetsHubHref } from '@/components/features/loadout/loadoutDeepLinks';
 import useConfigStore from '@/store/useConfigStore';
+import useChatStore from '@/store/useChatStore';
 
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   getMigrationSourceDisplayName,
+  PASTED_MEMORY_COMPETITOR_ID,
   type ExternalSource,
   type DiscoveryResponse,
 } from '@/services/migrationDiscovery';
 import type { AgentListItem } from '@/services/agent';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import { resolveImportWarning } from '@/lib/memory/importWarnings';
 import type {
   MemoryImportConfirmResponse,
   MemoryImportCoverageItem,
@@ -83,6 +88,10 @@ const CRON_SKIP_REASON_KEYS = new Set([
   'prompt_injection',
   'unsupported_job_type',
 ]);
+
+function resolveSourceDisplayName(competitor: string, t: TranslationFn): string {
+  return competitor === PASTED_MEMORY_COMPETITOR_ID ? t('paste.sourceName') : getMigrationSourceDisplayName(competitor);
+}
 
 function formatCronSkippedReason(t: TranslationFn, reason: string): string {
   const key = CRON_SKIP_REASON_KEYS.has(reason) ? reason : 'unsupported_job_type';
@@ -159,6 +168,79 @@ function CloudUploadZone({
   );
 }
 
+function PasteImportLane({
+  text,
+  pasting,
+  onTextChange,
+  onPreview,
+  t,
+}: {
+  text: string;
+  pasting: boolean;
+  onTextChange: (value: string) => void;
+  onPreview: () => void;
+  t: TranslationFn;
+}) {
+  const [copied, setCopied] = useState(false);
+  const promptText = t('paste.promptText');
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(promptText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }, [promptText]);
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border/50 bg-secondary/20 p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-accent/10 p-2.5">
+            <ClipboardPaste className="h-5 w-5 text-accent-foreground" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{t('paste.title')}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('paste.description')}</p>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5 text-xs" onClick={handleCopy}>
+          {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? t('paste.copied') : t('paste.copyPrompt')}
+        </Button>
+      </div>
+      <details className="group rounded-lg border border-border/40 bg-background/60">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground">
+          {t('paste.promptLabel')}
+        </summary>
+        <pre className="max-h-48 overflow-auto whitespace-pre-wrap px-3 pb-3 text-[11px] leading-relaxed text-muted-foreground">
+          {promptText}
+        </pre>
+      </details>
+      <textarea
+        data-testid="migration-paste-textarea"
+        value={text}
+        onChange={(event) => onTextChange(event.target.value)}
+        placeholder={t('paste.placeholder')}
+        rows={6}
+        spellCheck={false}
+        className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      />
+      <Button
+        size="sm"
+        className="h-8 gap-1.5 text-xs"
+        disabled={pasting || text.trim().length === 0}
+        onClick={onPreview}
+      >
+        {pasting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardPaste className="h-3.5 w-3.5" />}
+        {pasting ? t('paste.previewing') : t('paste.previewButton')}
+      </Button>
+    </div>
+  );
+}
+
 export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]; t: TranslationFn }) {
   if (items.length === 0) {
     return null;
@@ -205,6 +287,10 @@ export function ScanStep({
   onScan,
   onUpload,
   onPreview,
+  pasteText,
+  pasting,
+  onPasteTextChange,
+  onPastePreview,
   t,
 }: {
   discovery: DiscoveryResponse | null;
@@ -220,6 +306,10 @@ export function ScanStep({
   onScan: () => void;
   onUpload: (file: File) => void;
   onPreview: (source: ExternalSource) => void;
+  pasteText: string;
+  pasting: boolean;
+  onPasteTextChange: (value: string) => void;
+  onPastePreview: () => void;
   t: TranslationFn;
 }) {
   const locale = useLocale();
@@ -306,6 +396,14 @@ export function ScanStep({
       </div>
 
       <CloudUploadZone uploading={uploading} onUpload={onUpload} t={t} />
+
+      <PasteImportLane
+        text={pasteText}
+        pasting={pasting}
+        onTextChange={onPasteTextChange}
+        onPreview={onPastePreview}
+        t={t}
+      />
     </div>
   );
 }
@@ -578,11 +676,16 @@ export function PreviewStep({
 }) {
   const { result } = dryRun;
   const { summary, mappings, warnings } = result;
+  const tWarning = useTranslations('memory.importWarnings');
   const [exportingBackup, setExportingBackup] = useState(false);
   const [trustedSourceConfirmed, setTrustedSourceConfirmed] = useState(false);
 
   const isPiOrHasSkills =
     source.competitor === 'pi' || (source.skill_count ?? 0) > 0 || (dryRun.pending_skills?.length ?? 0) > 0;
+
+  const previewBuckets = Object.entries(result.normalized_data ?? {}).filter(
+    ([, entries]) => Array.isArray(entries) && entries.length > 0,
+  );
 
   const statusColors: Record<string, string> = {
     ready: 'text-emerald-600 dark:text-emerald-400',
@@ -598,7 +701,7 @@ export function PreviewStep({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2 className="text-lg font-semibold">
-          {t('preview.title', { source: getMigrationSourceDisplayName(source.competitor) })}
+          {t('preview.title', { source: resolveSourceDisplayName(source.competitor, t) })}
         </h2>
       </div>
 
@@ -618,6 +721,33 @@ export function PreviewStep({
       <CoverageMatrix items={dryRun.coverage_items ?? []} t={t} />
 
       <MigrationLaneMatrix lanes={dryRun.migration_lanes ?? []} t={t} />
+
+      {previewBuckets.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium">
+            {t('preview.previewItemsTitle', {
+              count: previewBuckets.reduce((total, [, entries]) => total + entries.length, 0),
+            })}
+          </h3>
+          <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-border/50 bg-background/60 p-3">
+            {previewBuckets.map(([bucket, entries]) => (
+              <div key={bucket} className="space-y-1.5">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {t(`preview.previewBucket.${bucket}`, { defaultValue: bucket })}
+                </div>
+                <ul className="space-y-1">
+                  {entries.map((entry, index) => (
+                    <li key={`${bucket}-${index}`} className="flex items-start gap-2 text-xs text-foreground/90">
+                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
+                      <span className="min-w-0 break-words">{String(entry.content ?? '')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <SessionPreviewCard sessions={dryRun.session_preview ?? []} t={t} />
 
@@ -643,7 +773,7 @@ export function PreviewStep({
       {dryRun.token_economics && (
         <TokenEconomicsCard
           data={dryRun.token_economics}
-          sourceName={getMigrationSourceDisplayName(source.competitor)}
+          sourceName={resolveSourceDisplayName(source.competitor, t)}
           t={t}
         />
       )}
@@ -733,7 +863,7 @@ export function PreviewStep({
           <ul className="list-disc pl-5 space-y-1">
             {warnings.map((w, i) => (
               <li key={i} className="text-xs text-amber-600 dark:text-amber-400">
-                {w}
+                {resolveImportWarning(w, tWarning)}
               </li>
             ))}
           </ul>
@@ -994,6 +1124,15 @@ export function ResultStep({
     }
   };
 
+  const handleVerifyMemories = () => {
+    if (!result.target_agent_id) {
+      return;
+    }
+    queueMigrationChatAgent(result.target_agent_id);
+    useChatStore.getState().setInputMessage(t('result.verifyPrompt'));
+    router.push('/');
+  };
+
   return (
     <div className="space-y-6 text-center max-w-lg mx-auto py-8">
       <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
@@ -1110,6 +1249,11 @@ export function ResultStep({
               : readinessIsCritical
                 ? t('result.startChatRecheck')
                 : t('result.startChat')}
+          </Button>
+        )}
+        {result.target_agent_id && result.total_imported > 0 && (
+          <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={handleVerifyMemories}>
+            {t('result.verifyMemory')}
           </Button>
         )}
         {skillSubmitFailed && (

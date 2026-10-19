@@ -24,6 +24,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
@@ -40,6 +41,7 @@ from app.services.migration.source.source_manifest import (
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,
 )
+from app.services.migration.source.source_probes import count_plur_engrams
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 logger = logging.getLogger(__name__)
@@ -132,6 +134,33 @@ def _count_md_files(directory: str) -> int:
     return count
 
 
+_PLUR_ENGRAM_PROBE_BYTES = 4096
+
+
+def _detect_plur_zip(tmpdir: str) -> str | None:
+    """Return path to engrams.yaml if this looks like a PLUR store export."""
+
+    for dirpath, _dirs, files in os.walk(tmpdir):
+        for fname in files:
+            if fname != "engrams.yaml":
+                continue
+            fpath = os.path.join(dirpath, fname)
+            if _is_plur_engrams_file(fpath):
+                return fpath
+    return None
+
+
+def _is_plur_engrams_file(path: str) -> bool:
+    """Probe an engrams.yaml header for the official store shape."""
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(_PLUR_ENGRAM_PROBE_BYTES)
+        return b"engrams:" in header and b"statement:" in header
+    except OSError:
+        return False
+
+
 def _resolve_manifest_authoritative(manifest: list[MigrationSourceManifestItemResponse]) -> bool:
     """Resolve authoritative flag with SSOT completeness guard."""
 
@@ -194,6 +223,10 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
     gbrain_result = _detect_gbrain_zip(tmpdir)
     if gbrain_result:
         return _build_gbrain_discovery(tmpdir, gbrain_result[1], manifest, manifest_authoritative)
+
+    plur_path = _detect_plur_zip(tmpdir)
+    if plur_path:
+        return _build_plur_discovery(plur_path, manifest, manifest_authoritative)
 
     result = discover_external_sources(home_dir=tmpdir)
 
@@ -275,6 +308,33 @@ def _build_gbrain_discovery(
         confidence="high",
         files=md_files,
         memory_count_estimate=page_count,
+    )
+    return DiscoveryResponse(
+        sources=[source],
+        scan_path="upload",
+        available=True,
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
+    )
+
+
+def _build_plur_discovery(
+    engrams_path: str,
+    manifest: list[MigrationSourceManifestItemResponse],
+    manifest_authoritative: bool,
+) -> DiscoveryResponse:
+    """Build a discovery response for a PLUR store export ZIP."""
+
+    try:
+        size_bytes = os.path.getsize(engrams_path)
+    except OSError:
+        size_bytes = 0
+    source = ExternalSourceResponse(
+        competitor="plur",
+        root=os.path.dirname(engrams_path),
+        confidence="high",
+        files=[DiscoveredFileResponse(path=engrams_path, kind="engrams", size_bytes=size_bytes)],
+        memory_count_estimate=count_plur_engrams(Path(engrams_path)),
     )
     return DiscoveryResponse(
         sources=[source],

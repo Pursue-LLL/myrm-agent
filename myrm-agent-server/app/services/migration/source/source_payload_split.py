@@ -31,6 +31,7 @@ def build_instruction_plan(loaded: dict[str, object]) -> SourceInstructionPlan:
     soul = _text(loaded, "soul_md")
     agents = _text(loaded, "agents_md")
     instructions = _text(loaded, "codex_instructions")
+    claude_md = _text(loaded, "claude_md")
 
     persona_parts: list[str] = []
     if soul:
@@ -39,6 +40,8 @@ def build_instruction_plan(loaded: dict[str, object]) -> SourceInstructionPlan:
 
     if agents:
         persona_parts.append(f"## Project instructions (from {competitor})\n\n{agents}")
+    if claude_md:
+        persona_parts.append(claude_md)
     if instructions:
         global_parts.append(f"## Tool instructions (from {competitor})\n\n{instructions}")
     rules = loaded.get("cursor_rules")
@@ -111,6 +114,7 @@ def extract_memory_payload(
     for key in (
         "soul_md",
         "agents_md",
+        "claude_md",
         "codex_instructions",
         "cursor_rules",
         "cursor_settings",
@@ -128,9 +132,6 @@ def extract_memory_payload(
     if not include_episodic:
         memory.pop("openclaw_sessions", None)
         memory.pop("pi_sessions", None)
-
-    if str(loaded.get("_source", "")).strip().lower() == "claude":
-        memory.pop("semantic", None)
 
     if str(loaded.get("_source", "")).strip().lower() == "codex":
         memory.pop("codex_settings", None)

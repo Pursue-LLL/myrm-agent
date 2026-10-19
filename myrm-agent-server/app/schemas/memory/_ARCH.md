@@ -8,6 +8,7 @@
 |------|------|------|-------|
 | `crud.py` | 核心 | Memory CRUD、偏好、评分、导出请求/响应模型 | ✅ |
 | `archive.py` | 核心 | 归档、导入、回滚请求/响应模型；`MemoryImportReadiness`/`MemoryImportReadinessIssue`（含可选 `settings_path` 深链） | ✅ |
+| `import_sources.py` | 核心 | 记忆导入来源词汇表 SSOT（`ImportSource`/`ImportRequestSource`/`IMPORT_SOURCE_IDS`/`import_source_label`）；API 请求白名单、适配器分发、迁移来源清单与命令中心投影全部由此派生 | ✅ |
 | `command_center.py` | 核心 | Memory Command Center 仪表盘 DTO；`MemoryCommandRuntimeStatus` 含 `vector_persistence`（persistent/memory_fallback/unavailable）；包含 Review-First `MemoryRecallBoundaryData`、`MemoryRecallScopeBoundary`、`MemoryFourPartitionSummary`、`MemoryCandidateRecord` 与 `MemoryApprovedRecord` | ✅ |
 | `radar.py` | 核心 | 动态偏好雷达状态响应、手动微调请求与隐式反馈记录 DTO 模型 | ✅ |
 | `tool_guidance.py` | 核心 | 工具规约与动态黄金指南 DTO 模型（条目、聚合组、列表与置顶请求） | ✅ |
