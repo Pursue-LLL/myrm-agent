@@ -41,11 +41,11 @@ from app.services.migration.source.source_manifest import (
     migration_source_manifest_authoritative,
     migration_source_manifest_authoritative_for_ids,
 )
-from app.services.migration.source.source_probes import count_plur_engrams
 from app.services.migration.source.source_payload_loader import (
     MIGRATION_UPLOAD_DIR_PREFIX,
     sweep_stale_migration_uploads,
 )
+from app.services.migration.source.source_probes import count_plur_engrams
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 logger = logging.getLogger(__name__)
