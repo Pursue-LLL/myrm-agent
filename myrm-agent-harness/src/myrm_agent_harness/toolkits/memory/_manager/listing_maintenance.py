@@ -1,33 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.memory.decay.lifecycle_manager import (
-        TieredStorageLifecycleManager,
-    )
-    from myrm_agent_harness.toolkits.memory.decay.types import (
-        DecayRerankItem,
-        TierMigrationReport,
-    )
-    from myrm_agent_harness.toolkits.memory.graph_rrf.dual_channel_retriever import (
-        VectorSearchFn,
-    )
-    from myrm_agent_harness.toolkits.memory.graph_rrf.graph_store import (
-        SQLiteGraphMemoryStore,
-    )
-    from myrm_agent_harness.toolkits.memory.graph_rrf.types import (
-        FusedMemoryHit,
-    )
-    from myrm_agent_harness.toolkits.memory.strategies.hindsight.reflection_buffer import (
-        HindsightReflectionBuffer,
-    )
-    from myrm_agent_harness.toolkits.memory.strategies.hindsight.types import (
-        FailureTurn,
-        HindsightRule,
-        PreExecutionWarning,
-    )
-
 from myrm_agent_harness.infra.cooperative_signals import (
     CooperativePauseSignal,
 )
@@ -36,6 +8,12 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
 )
 from myrm_agent_harness.toolkits.memory._internal.storage import (
     delete_by_type as _delete_by_type,
+)
+from myrm_agent_harness.toolkits.memory._manager.model_collections import (
+    current_collection,
+    family_lock,
+    memory_collections,
+    retire_if_drained,
 )
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AnyMemory,
@@ -46,6 +24,7 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
     MaintenanceConsolidationResult,
     MaintenanceReport,
     MemoryBackupStrategy,
+    MemoryError,
     MemorySnapshot,
     MemoryType,
     RestoreResult,
@@ -98,25 +77,51 @@ class MemoryManagerListingMaintenanceMixin:
             tag_filter=tag_filter,
         )
 
-    async def delete_by_type(self, memory_type: MemoryType) -> int:
+    async def delete_by_type(self, memory_type: MemoryType, *, include_previous_models: bool = True) -> int:
+        """Erase this owner's memories of one type, in every embedding model's collections.
+
+        ``include_previous_models=False`` limits it to the current model's collection, for a caller
+        that replaces what the user can see (a backup restore) and must not destroy memories that
+        no backup holds. The derived graph and the embedding cache are cleaned even when a previous
+        model's collection could not be emptied; that failure is raised afterwards so a deletion
+        that left memories behind never reports success.
+        """
+        filters = _user_filter(namespaces=self._namespaces, include_archived=True)
         cascade_ids: list[str] = []
-        if memory_type == MemoryType.EPISODIC and self._vector is not None and self._graph is not None:
-            # Claim Graph Evidence/Claim nodes reference episodic task digests, so a
-            # bulk clear must cascade-clean derived nodes — matching the single
-            # delete path. Collect owned ids first (they are gone after the wipe).
-            filters = _user_filter(namespaces=self._namespaces, include_archived=True)
-            cascade_ids = [
-                memory_id
-                for memory_id, owned in await self._collect_vector_ids(self._config.episodic_collection, filters)
-                if owned
-            ]
-        deleted = await _delete_by_type(
-            memory_type,
-            relational=self._relational,
-            vector=self._vector,
-            config=self._config,
-            namespaces=self._namespaces,
-        )
+        failed: list[str] = []
+        # Memories a model switch left in a previous model's collections are the same memories.
+        async with family_lock(self._vector, self._config):
+            collections = (
+                (await memory_collections(self._vector, self._config)).get(memory_type, [])
+                if self._vector is not None and memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC)
+                else []
+            )
+            if not include_previous_models:
+                collections = [c for c in collections if c == current_collection(self._config, memory_type)]
+            if memory_type == MemoryType.EPISODIC and self._graph is not None:
+                # Claim Graph Evidence/Claim nodes reference episodic task digests, so a
+                # bulk clear must cascade-clean derived nodes — matching the single
+                # delete path. Collect owned ids first (they are gone after the wipe).
+                for collection in collections:
+                    cascade_ids += [
+                        memory_id for memory_id, owned in await self._collect_vector_ids(collection, filters) if owned
+                    ]
+            deleted = await _delete_by_type(
+                memory_type,
+                relational=self._relational,
+                vector=self._vector,
+                config=self._config,
+                namespaces=self._namespaces,
+            )
+            for collection in collections:
+                if collection == current_collection(self._config, memory_type):
+                    continue
+                try:
+                    deleted += await self._vector.delete_by_filter(collection, filters)
+                    await retire_if_drained(self._vector, collection)
+                except Exception as e:
+                    logger.warning("Error deleting %s: %s", collection, e)
+                    failed.append(collection)
         for memory_id in cascade_ids:
             await self._cascade_clean_derived_graph_nodes(memory_id)
         if (
@@ -125,6 +130,8 @@ class MemoryManagerListingMaintenanceMixin:
             and memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC)
         ):
             await self._cache.clear()
+        if failed:
+            raise MemoryError(f"delete_by_type left memories behind in: {', '.join(failed)}")
         return deleted
 
     async def _collect_snapshot(self) -> MemorySnapshot | None:
@@ -335,146 +342,3 @@ class MemoryManagerListingMaintenanceMixin:
         if deleted:
             await self._cascade_clean_derived_graph_nodes(key_or_id)
         return deleted
-
-    def consolidate_session_events_four_layer(
-        self,
-        session_id: str,
-        events: list[dict[str, str | bool]],
-        *,
-        exposure_source_untrusted: bool = False,
-    ) -> tuple[list[object], list[object]]:
-        """Bridge Agent runtime events with Hermes-grade four-layer promotion strategy."""
-        from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
-            consolidate_session_events_four_layer,
-        )
-
-        return consolidate_session_events_four_layer(
-            session_id=session_id,
-            events=events,
-            exposure_source_untrusted=exposure_source_untrusted,
-        )
-
-    def evaluate_memory_lifecycle_decay(
-        self,
-        manager: TieredStorageLifecycleManager | None = None,
-        current_time: float | None = None,
-    ) -> TierMigrationReport:
-        """Evaluate Ebbinghaus memory temporal decay and execute hot/warm/cold tier migration."""
-        from myrm_agent_harness.toolkits.memory.decay import (
-            TieredStorageLifecycleManager,
-        )
-
-        mgr = manager or TieredStorageLifecycleManager()
-        return mgr.evaluate_and_migrate(current_time=current_time)
-
-    def rerank_memories_with_ebbinghaus_decay(
-        self,
-        candidates: list[tuple[str, str, float]],
-        lifecycle_manager: TieredStorageLifecycleManager,
-        decay_weight: float = 0.35,
-        exclude_cold: bool = True,
-        current_time: float | None = None,
-    ) -> list[DecayRerankItem]:
-        """Rerank search candidates by fusing semantic similarity with Ebbinghaus retention weights."""
-        from myrm_agent_harness.toolkits.memory.decay import (
-            DecayAwareReranker,
-        )
-
-        reranker = DecayAwareReranker(
-            lifecycle_manager=lifecycle_manager,
-            decay_weight=decay_weight,
-        )
-        return reranker.rerank(
-            candidates=candidates,
-            exclude_cold=exclude_cold,
-            current_time=current_time,
-        )
-
-    def search_hybrid_graph_rrf(
-        self,
-        query: str,
-        graph_store: SQLiteGraphMemoryStore,
-        seed_entity_names: list[str] | None = None,
-        vector_search_fn: VectorSearchFn | None = None,
-        top_k: int = 5,
-    ) -> list[FusedMemoryHit]:
-        """Recall memories via hybrid knowledge graph topology and vector RRF fusion."""
-        from myrm_agent_harness.toolkits.memory.graph_rrf import (
-            DualChannelRRFRetriever,
-            RRFConfig,
-        )
-
-        retriever = DualChannelRRFRetriever(
-            graph_store=graph_store,
-            vector_search_fn=vector_search_fn,
-            config=RRFConfig(top_k=top_k),
-        )
-        return retriever.search(
-            query=query,
-            seed_entity_names=seed_entity_names,
-            top_k=top_k,
-        )
-
-    def associate_memory_graph_entity(
-        self,
-        memory_id: str,
-        entity_id: str,
-        graph_store: SQLiteGraphMemoryStore,
-        content: str = "",
-    ) -> None:
-        """Associate a long-term memory record with a knowledge graph entity node."""
-        graph_store.associate_memory(
-            memory_id=memory_id,
-            entity_id=entity_id,
-            content=content,
-        )
-
-    def get_hindsight_pre_execution_warnings(
-        self,
-        task_goal: str,
-        intended_tools: list[str] | None = None,
-        buffer: HindsightReflectionBuffer | None = None,
-        top_k: int = 3,
-    ) -> list[PreExecutionWarning]:
-        """Query proactive cautionary warnings from hindsight reflection buffer before task execution."""
-        from myrm_agent_harness.toolkits.memory.strategies.hindsight import (
-            HindsightReflectionBuffer,
-        )
-
-        active_buffer = buffer or HindsightReflectionBuffer()
-        return active_buffer.match_warnings(
-            task_goal=task_goal,
-            intended_tools=intended_tools,
-            top_k=top_k,
-        )
-
-    def reflect_on_failed_task(
-        self,
-        task_id: str,
-        task_goal: str,
-        error_message: str,
-        turns: list[FailureTurn] | None = None,
-        buffer: HindsightReflectionBuffer | None = None,
-    ) -> HindsightRule:
-        """Perform retrospective reflection and counterfactual extraction on a failed task trajectory."""
-        from myrm_agent_harness.toolkits.memory.strategies.hindsight import (
-            CounterfactualRuleExtractor,
-            FailureTrajectory,
-            FailureTrajectoryScrubber,
-            HindsightReflectionBuffer,
-        )
-
-        active_buffer = buffer or HindsightReflectionBuffer()
-        trajectory = FailureTrajectory(
-            task_id=task_id,
-            task_goal=task_goal,
-            turns=turns or [],
-            terminal_error=error_message,
-        )
-        scrubber = FailureTrajectoryScrubber()
-        turning_point = scrubber.locate_turning_point(trajectory)
-
-        extractor = CounterfactualRuleExtractor()
-        rule = extractor.extract_rule(trajectory=trajectory, turning_point=turning_point)
-        return active_buffer.record_rule(rule)
-

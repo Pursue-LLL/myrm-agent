@@ -13,7 +13,8 @@ Design principles:
 
 [INPUT]
 - backends.skills.types::SkillMetadata, SkillLifecycleStatus (POS: 技能元数据类型定义)
-- backends.skills.forgetting_strategy::DefaultForgettingStrategy, CuratorConfig (POS: Skill forgetting / curator strategies)
+- backends.skills.curator_config::CuratorConfig (POS: Skill curator configuration.)
+- backends.skills.forgetting_strategy::DefaultForgettingStrategy (POS: Skill forgetting / curator strategies)
 - backends.skills.stats_collector::SkillStatsCollector (POS: Skill usage statistics and lifecycle state collector)
 - .consolidation::SkillConsolidator (POS: Skill consolidation orchestrator)
 
@@ -31,10 +32,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.backends.skills.forgetting_strategy import (
-    CuratorConfig,
-    DefaultForgettingStrategy,
-)
+from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
+from myrm_agent_harness.backends.skills.forgetting_strategy import DefaultForgettingStrategy
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus, SkillMetadata
 
@@ -110,6 +109,7 @@ class SkillCurator:
         *,
         force: bool = False,
         protected_names: frozenset[str] = frozenset(),
+        installed_names: frozenset[str] = frozenset(),
     ) -> CuratorRunResult:
         """Execute a single curator sweep over the provided skills.
 
@@ -123,7 +123,9 @@ class SkillCurator:
             skills: All skills to evaluate (caller handles which skills to include)
             force: If True, bypass the enabled check (for manual triggers)
             protected_names: Skills the caller depends on (e.g. bound by an automation).
-                They are exempt from every transition and do not count toward ``max_skills``.
+                They are exempt from every transition.
+            installed_names: Skills the caller knows were installed rather than authored here.
+                They are exempt in the same way while ``CuratorConfig.protect_installed_skills`` is on.
 
         Returns:
             CuratorRunResult with details of all transitions performed
@@ -131,17 +133,16 @@ class SkillCurator:
         if not force and not self._config.enabled:
             return CuratorRunResult()
 
+        exempt_names = self._exempt_names(protected_names, installed_names)
         result = CuratorRunResult(skills_scanned=len(skills))
         now = datetime.now(UTC)
 
         for skill in skills:
             try:
-                self._evaluate_skill(skill, now, result, protected_names)
+                self._evaluate_skill(skill, now, result, exempt_names)
             except Exception as e:
                 result.errors.append(f"{skill.name}: {e}")
                 logger.warning("Curator error evaluating skill '%s': %s", skill.name, e)
-
-        self._apply_lru_eviction([s for s in skills if s.name not in protected_names], now, result)
 
         if result.total_transitions > 0:
             logger.info(
@@ -168,6 +169,7 @@ class SkillCurator:
         force: bool = False,
         consolidation_dry_run: bool = True,
         protected_names: frozenset[str] = frozenset(),
+        installed_names: frozenset[str] = frozenset(),
     ) -> tuple[CuratorRunResult, ConsolidationPlan | ConsolidationReport | None]:
         """Execute a full curator sweep including optional consolidation.
 
@@ -176,28 +178,45 @@ class SkillCurator:
             force: If True, bypass the enabled check.
             consolidation_dry_run: If True, return consolidation plan without executing.
             protected_names: See ``run``. Protected skills are also kept out of consolidation,
-                which would archive them behind the caller's back.
+                which would archive them behind the caller's back, and no umbrella may take their names.
+            installed_names: See ``run``. Exempt installed skills are kept out of consolidation too,
+                and their names are reserved the same way.
 
         Returns:
             Tuple of (lifecycle_result, consolidation_result).
             consolidation_result is None if consolidation is disabled/unavailable.
         """
-        lifecycle_result = self.run(skills, force=force, protected_names=protected_names)
+        lifecycle_result = self.run(
+            skills, force=force, protected_names=protected_names, installed_names=installed_names
+        )
 
         consolidation_result: ConsolidationPlan | ConsolidationReport | None = None
         if self.consolidation_available:
-            mergeable = [s for s in skills if s.name not in protected_names]
-            consolidation_result = await self._run_consolidation(mergeable, dry_run=consolidation_dry_run)
+            exempt_names = self._exempt_names(protected_names, installed_names)
+            mergeable = [s for s in skills if s.name not in exempt_names]
+            consolidation_result = await self._run_consolidation(
+                mergeable, dry_run=consolidation_dry_run, reserved_names=exempt_names
+            )
 
         return lifecycle_result, consolidation_result
+
+    def _exempt_names(self, protected_names: frozenset[str], installed_names: frozenset[str]) -> frozenset[str]:
+        """Skills a sweep must leave alone: those the caller depends on, plus installed ones while protection is on."""
+        if self._config.protect_installed_skills:
+            return protected_names | installed_names
+        return protected_names
 
     async def _run_consolidation(
         self,
         skills: list[SkillMetadata],
         *,
         dry_run: bool = True,
+        reserved_names: frozenset[str] = frozenset(),
     ) -> ConsolidationPlan | ConsolidationReport | None:
-        """Run consolidation pass if dependencies are available."""
+        """Run consolidation pass if dependencies are available.
+
+        ``reserved_names`` are the skills left out of ``skills``; no umbrella may take their names.
+        """
         if not self.consolidation_available:
             return None
 
@@ -218,63 +237,23 @@ class SkillCurator:
         )
 
         try:
-            return await consolidator.run(skills, dry_run=dry_run)
+            return await consolidator.run(skills, dry_run=dry_run, reserved_names=reserved_names)
         except Exception as e:
             logger.error("Consolidation pass failed: %s", e)
             return None
-
-    def _apply_lru_eviction(self, skills: list[SkillMetadata], now: datetime, result: CuratorRunResult) -> None:
-        """Evict least-recently-used skills when active count exceeds max_skills."""
-        already_transitioned = {t.skill_name for t in result.transitions}
-        lru_candidates = self._strategy.select_lru_candidates(skills)
-        for reason in lru_candidates:
-            if reason.skill_name in already_transitioned:
-                continue
-
-            skill = next((s for s in skills if s.name == reason.skill_name), None)
-            if skill is None:
-                continue
-
-            skill_path = Path(skill.storage_path) if skill.storage_path else None
-            if skill_path is None:
-                result.errors.append(f"{skill.name}: no storage_path for LRU eviction")
-                continue
-
-            target = SkillLifecycleStatus(reason.target_status)
-            current_status = str(SkillLifecycleStatus(skill.usage_stats.lifecycle_status).value)
-            target_status = str(target.value)
-
-            self._stats.update_lifecycle_status(skill_path, target)
-            result.transitions.append(
-                CuratorTransition(
-                    skill_name=skill.name,
-                    skill_path=str(skill_path),
-                    from_status=current_status,
-                    to_status=target_status,
-                    reason_type=reason.reason_type,
-                    reason_message=reason.reason_message,
-                    timestamp=now,
-                )
-            )
-            logger.info(
-                "Curator LRU eviction: %s → %s for '%s'",
-                current_status,
-                target_status,
-                skill.name,
-            )
 
     def _evaluate_skill(
         self,
         skill: SkillMetadata,
         now: datetime,
         result: CuratorRunResult,
-        protected_names: frozenset[str],
+        exempt_names: frozenset[str],
     ) -> None:
         """Evaluate a single skill and apply transition if needed."""
         if skill.usage_stats.pinned:
             result.skipped_pinned += 1
             return
-        if skill.name in protected_names:
+        if skill.name in exempt_names:
             result.skipped_protected += 1
             return
 

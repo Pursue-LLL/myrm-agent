@@ -124,6 +124,57 @@ async def test_outlinks_report_the_cap_independently_of_backlinks() -> None:
     assert links["backlinks_has_more"] is False
 
 
+@pytest.mark.asyncio
+async def test_capped_backlinks_are_ordered_by_name_and_survive_an_edit() -> None:
+    """Every backlink ties on weight, so which 100 are listed must not depend on write order or on re-indexing."""
+    names = [f"notes/n{i:03d}" for i in range(MAX_CONCEPT_LINKS + 1)]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        structure = WikiStructure(Path(tmpdir))
+        structure.ensure_structure()
+        indexer = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+        await _write_page(structure, indexer, "hub", "# Hub\n\nThe hub.\n")
+        for name in reversed(names):
+            await _write_page(structure, indexer, name, "# N\n\nSee [[hub]].\n")
+
+        before = [b["name"] for b in indexer.get_concept_links("hub")["backlinks"]]
+        await _write_page(structure, indexer, names[0], "# N\n\nTypo fixed. See [[hub]].\n")
+        after = [b["name"] for b in indexer.get_concept_links("hub")["backlinks"]]
+
+    assert before == names[:MAX_CONCEPT_LINKS]
+    assert after == before
+
+
+@pytest.mark.asyncio
+async def test_capped_outlinks_are_ordered_by_name_whichever_index_the_planner_scans() -> None:
+    targets = [f"t{i:03d}" for i in range(MAX_CONCEPT_LINKS + 1)]
+    links = "\n".join(f"- [[{target}]]" for target in reversed(targets))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        structure = WikiStructure(Path(tmpdir))
+        structure.ensure_structure()
+        indexer = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+        # A source-only index makes SQLite read a page's edges in write order instead of the primary key's name order.
+        with indexer._get_conn() as conn:
+            conn.execute("CREATE INDEX idx_edges_source_only ON wiki_edges(source)")
+        await _write_page(structure, indexer, "catalog", f"# Catalog\n\n{links}\n")
+
+        outlinks = [link["name"] for link in indexer.get_concept_links("catalog")["outlinks"]]
+
+    assert outlinks == targets[:MAX_CONCEPT_LINKS]
+
+
+def test_weight_outranks_name_in_both_directions(tmp_path: Path) -> None:
+    """The name only breaks ties: a heavier link is listed before a lighter one that sorts first by name."""
+    structure = WikiStructure(tmp_path)
+    structure.ensure_structure()
+    indexer = WikiIndexer(structure, WikiConfig(enable_hybrid_search=False))
+    edges = [("hub", "a-light", 3.0), ("hub", "z-heavy", 3.5), ("a-light", "hub", 3.0), ("z-heavy", "hub", 3.5)]
+    with indexer._get_conn() as conn:
+        conn.executemany("INSERT INTO wiki_edges(source, target, weight) VALUES (?, ?, ?)", edges)
+    links = indexer.get_concept_links("hub")
+    assert [link["name"] for link in links["outlinks"]] == ["z-heavy", "a-light"]
+    assert [link["name"] for link in links["backlinks"]] == ["z-heavy", "a-light"]
+
+
 def test_extract_mention_record_edge_cases() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         base = Path(tmpdir)

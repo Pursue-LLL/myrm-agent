@@ -106,6 +106,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     ),
     "IntegrationProvider": ("myrm_agent_harness.api.protocols", "IntegrationProvider"),
     "KanbanStore": ("myrm_agent_harness.api.protocols", "KanbanStore"),
+    "InMemoryKanbanStore": ("myrm_agent_harness.toolkits.kanban.stores", "InMemoryKanbanStore"),
     "LLMConfig": ("myrm_agent_harness.api.config", "LLMConfig"),
     "LocalWorkingMemoryBlock": (
         "myrm_agent_harness.agent.context_management.working_memory",
@@ -252,7 +253,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.toolkits.memory.strategies.distillation_guards",
         "DistillationRejectionCode",
     ),
-    "EvidenceReference": ("myrm_agent_harness.toolkits.memory.strategies.distillation_guards", "EvidenceReference"),
+    "EvidenceReference": ("myrm_agent_harness.toolkits.memory.types", "EvidenceReference"),
     "SelfIdentityState": ("myrm_agent_harness.toolkits.memory.strategies.distillation_guards", "SelfIdentityState"),
     "check_distillable": ("myrm_agent_harness.toolkits.memory.strategies.distillation_guards", "check_distillable"),
     "filter_distillable_messages": (

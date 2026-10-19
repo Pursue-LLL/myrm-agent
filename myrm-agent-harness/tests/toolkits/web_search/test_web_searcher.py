@@ -21,7 +21,6 @@ from myrm_agent_harness.toolkits.web_search.core.exceptions import (
     SearchAPIError,
     SearchConfigError,
 )
-from myrm_agent_harness.toolkits.web_search.core.metrics import WebSearchMetrics
 from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
     SearchServiceConfig,
     WebSearcher,
@@ -248,14 +247,13 @@ class TestWebSearcherSearch:
 
 
 class TestWebSearcherRetryAndErrors:
-    """重试、结构化错误与指标"""
+    """重试与结构化错误"""
 
     @pytest.mark.asyncio
     async def test_retry_then_success(self):
         """可重试错误后成功应触发一次退避并最终成功"""
         config = SearchServiceConfig(search_service="tavily", api_key="test_key", search_max_retries=2)
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(config, metrics=metrics)
+        searcher = WebSearcher(config)
         mock_service = AsyncMock()
         ok = [SearchResult(link="https://ok.com", title="OK", snippet="S")]
         mock_service.search = AsyncMock(side_effect=[Exception("503 Service Unavailable"), ok])
@@ -266,17 +264,12 @@ class TestWebSearcherRetryAndErrors:
 
         assert len(results) == 1
         assert mock_service.search.call_count == 2
-        snap = metrics.snapshot()
-        assert snap["search_retry_scheduled"] == 1
-        assert snap["search_successes"] == 1
-        assert snap["search_terminal_failures"] == 0
 
     @pytest.mark.asyncio
     async def test_search_api_error_includes_context(self):
         """不可重试错误应立即失败并携带 ErrorContext"""
         config = SearchServiceConfig(search_service="tavily", api_key="test_key", search_max_retries=0)
-        metrics = WebSearchMetrics()
-        searcher = WebSearcher(config, metrics=metrics)
+        searcher = WebSearcher(config)
         mock_service = AsyncMock()
         mock_service.search = AsyncMock(side_effect=Exception("HTTP 401 Unauthorized"))
         searcher._search_service = mock_service
@@ -286,7 +279,7 @@ class TestWebSearcherRetryAndErrors:
 
         assert exc_info.value.context.query is not None
         assert exc_info.value.context.retryable is False
-        assert metrics.snapshot()["search_terminal_failures"] == 1
+        mock_service.search.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_all_queries_failed_primary_context(self):
@@ -479,10 +472,7 @@ class TestWebSearcherCoalescing:
             nonlocal call_count
             call_count += 1
             await asyncio.sleep(0.05)
-            return [
-                SearchResult(link=f"https://r{i}.com", title=f"R{i}", snippet=f"S{i}")
-                for i in range(num_results)
-            ]
+            return [SearchResult(link=f"https://r{i}.com", title=f"R{i}", snippet=f"S{i}") for i in range(num_results)]
 
         mock_service = AsyncMock()
         mock_service.search = slow_search
@@ -503,10 +493,7 @@ class TestWebSearcherCoalescing:
         config = SearchServiceConfig(search_service="tavily", api_key="test_key")
         searcher = WebSearcher(config)
 
-        mock_results = [
-            SearchResult(link=f"https://r{i}.com", title=f"R{i}", snippet=f"S{i}")
-            for i in range(10)
-        ]
+        mock_results = [SearchResult(link=f"https://r{i}.com", title=f"R{i}", snippet=f"S{i}") for i in range(10)]
         mock_service = AsyncMock()
         mock_service.search = AsyncMock(return_value=mock_results)
         searcher._search_service = mock_service
@@ -620,3 +607,58 @@ class TestWebSearcherIntegration:
         assert results[1][0] == "q2"
         assert len(results[0][1]) >= 1  # docs
         assert len(results[1][1]) >= 1
+
+
+class TestResultCacheCredentialScope:
+    """A cached payload belongs to the credential that produced it."""
+
+    @pytest.mark.asyncio
+    async def test_rotated_api_key_does_not_replay_the_old_payload(self):
+        counted = AsyncMock()
+        counted.search = AsyncMock(return_value=[SearchResult(title="T", link="https://ok.com", snippet="S")])
+
+        with patch.object(WebSearcher, "_get_search_service", AsyncMock(return_value=counted)):
+            await WebSearcher(SearchServiceConfig(search_service="tavily", api_key="old-key")).search("same query", 5)
+            await WebSearcher(SearchServiceConfig(search_service="tavily", api_key="new-key")).search("same query", 5)
+            # Same credential keeps hitting the cache: the key change is the only variable.
+            await WebSearcher(SearchServiceConfig(search_service="tavily", api_key="new-key")).search("same query", 5)
+
+        assert counted.search.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_searxng_ignores_gateway_routing_when_scoping_the_cache(self):
+        """SearxNG is always reached directly, so its own endpoint is its identity, not the gateway's."""
+        counted = AsyncMock()
+        counted.search = AsyncMock(return_value=[SearchResult(title="T", link="https://ok.com", snippet="S")])
+        gateway = ToolGatewayConfig(
+            use_gateway=True, gateway_url="https://gw.example/tool-relay", auth_token="vk-shared"
+        )
+
+        with patch.object(WebSearcher, "_get_search_service", AsyncMock(return_value=counted)):
+            await WebSearcher(
+                SearchServiceConfig(search_service="searxng", api_base="http://localhost:8081", gateway_config=gateway)
+            ).search("same query", 5)
+            await WebSearcher(
+                SearchServiceConfig(search_service="searxng", api_base="http://localhost:9999", gateway_config=gateway)
+            ).search("same query", 5)
+
+        assert counted.search.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_gateway_byok_fallback_scopes_the_cache_to_the_direct_key(self):
+        """A routed config that keeps its own provider key can fall back to it mid-request, so that key scopes too."""
+        counted = AsyncMock()
+        counted.search = AsyncMock(return_value=[SearchResult(title="T", link="https://ok.com", snippet="S")])
+        gateway = ToolGatewayConfig(
+            use_gateway=True, gateway_url="https://gw.example/tool-relay", auth_token="vk-shared"
+        )
+
+        with patch.object(WebSearcher, "_get_search_service", AsyncMock(return_value=counted)):
+            await WebSearcher(
+                SearchServiceConfig(search_service="tavily", api_key="account-a", gateway_config=gateway)
+            ).search("same query", 5)
+            await WebSearcher(
+                SearchServiceConfig(search_service="tavily", api_key="account-b", gateway_config=gateway)
+            ).search("same query", 5)
+
+        assert counted.search.await_count == 2

@@ -3,25 +3,36 @@
 [INPUT]
 - memory._manager.archival::MemoryManagerArchivalMixin (POS: memory lifecycle archiver)
 - memory._manager.queries::MemoryManagerQueriesMixin (POS: metadata and session query mixin)
+- memory._manager.model_collections::{current_collection, drop_from_previous_models, family_lock} (POS: per-model collections and the lock shared with the migration)
 - memory._internal.graph_cascade::cascade_clean_derived_graph_nodes (POS: cascade clean claim graph)
 
 [OUTPUT]
-- MemoryManagerDeletionMixin: ownership-gated delete by id/metadata/type with cascade clean
+- MemoryManagerDeletionMixin: ownership-gated delete by id with cascade clean, and the vector-id / ownership helpers the bulk deletions share
 
 [POS]
 Memory deletion mixin — owns vector/relational deletion, graph cascade, and embedding cache eviction.
+Deleting a memory removes every copy of it: the one the current model reads and the one an interrupted
+migration left in a previous model's collection (``delete_memories_by_ids`` is the exact-ref undo and
+touches the current collection only). Deleting a whole set at once lives in ``bulk_deletion``.
 """
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
+from myrm_agent_harness.toolkits.memory._internal.bm25_sparse_index import (
+    BM25SparseIndexStore,
+)
 from myrm_agent_harness.toolkits.memory._internal.graph_cascade import (
     cascade_clean_derived_graph_nodes,
 )
 from myrm_agent_harness.toolkits.memory._manager.archival import (
     MemoryManagerArchivalMixin,
+)
+from myrm_agent_harness.toolkits.memory._manager.model_collections import (
+    current_collection,
+    drop_from_previous_models,
+    family_lock,
 )
 from myrm_agent_harness.toolkits.memory._manager.queries import (
     MemoryManagerQueriesMixin,
@@ -32,7 +43,6 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
     MemoryMutationRef,
     MemoryMutationResult,
     MemoryType,
-    Sequence,
     VectorDocument,
     delete_from_vector,
     logger,
@@ -45,6 +55,7 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
     # Dynamic mixin attributes satisfied by MemoryManagerCore / StorageMixin
     _graph: Any
     _vector: Any
+    _embedding: Any
     _relational: Any
     _cache: Any
     _config: Any
@@ -60,66 +71,103 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
         """Remove Claim Graph nodes derived from a deleted/archived memory."""
         await cascade_clean_derived_graph_nodes(self._graph, memory_id)
 
+    # ── Embeddings-less sparse fallbacks ──
+
+    def _sparse_only_vector(self) -> BM25SparseIndexStore | None:
+        """The sparse mirror when this deployment is sparse-authoritative.
+
+        The wrapper itself routes reads/writes to the mirror in this mode;
+        this accessor only gates embedding-migration logic that has no
+        meaning without an embedding backend.
+        """
+        if not self._sparse_authoritative:
+            return None
+        vector = self._vector
+        if vector is not None and isinstance(vector, BM25SparseIndexStore):
+            return vector
+        return None
+
     # ── Delete ──
 
-    async def delete_memory(
-        self,
-        collection: str,
-        ids: list[str] | None = None,
-        *,
-        allow_protected: bool = True,
-    ) -> int:
+    async def delete_memory(self, collection: str, ids: list[str], *, allow_protected: bool = True) -> int:
+        """Delete the owned memories among ``ids`` from ``collection`` and from the previous models' collections.
+
+        A model switch can leave a memory in a previous model's collection as well (an interrupted
+        migration removes it there only after the current collection holds it), and the next
+        migration would bring a deleted memory back. Those copies go first: if one cannot be
+        removed this raises with the memory still in ``collection``, so it stays listed and the
+        deletion can be repeated.
+        """
         if self._vector is None:
             raise MemoryError("Vector backend is required but not provided")
-        evict_texts: list[str] = []
-        if ids:
-            docs = await self._vector.get(collection, ids) or []
-            owned_docs = [
-                doc
-                for doc in docs
-                if self._owns_vector_doc(doc) and (allow_protected or not doc.metadata.get("pinned"))
-            ]
-            if not owned_docs:
+        async with family_lock(self._vector, self._config):
+            docs = await self._owned_docs(collection, ids, allow_protected)
+            if not docs:
                 return 0
-            ids = [doc.id for doc in owned_docs]
-            evict_texts = [doc.content for doc in owned_docs if doc.content]
-        deleted = await delete_from_vector(collection, ids, self._vector)
-        for memory_id in ids or []:
-            await self._cascade_clean_derived_graph_nodes(memory_id)
-            if self._relational is not None and hasattr(self._relational, "delete_exact_fact"):
-                try:
-                    await self._relational.delete_exact_fact(memory_id)
-                except Exception as fact_err:
-                    logger.debug("Failed to cascade delete exact fact for %s: %s", memory_id, fact_err)
-        if self._cache is not None and evict_texts:
-            if hasattr(self._cache, "evict_batch"):
-                await self._cache.evict_batch(evict_texts)
-            elif hasattr(self._cache, "evict"):
-                for t in evict_texts:
-                    await self._cache.evict(t)
+            # Previous-model copies only exist under embedding-model migrations;
+            # an embeddings-less deployment has no previous models to clear.
+            if self._sparse_only_vector() is None:
+                failed = await drop_from_previous_models(self._vector, self._config, collection, [d.id for d in docs])
+                if failed:
+                    raise MemoryError(
+                        f"Memories left in previous embedding models' collections: {', '.join(failed)}; "
+                        f"nothing was deleted from {collection}"
+                    )
+            deleted = await delete_from_vector(collection, [doc.id for doc in docs], self._vector)
+        # Cleaning what was derived from them needs no lock: they are already gone from every collection.
+        await self._forget_derived(docs)
         return deleted
 
     async def delete_memory_by_id(self, memory_id: str) -> int:
-        """Delete a single owned memory, resolving its collection from its type.
+        """Delete a single owned memory, resolving its collection from the id.
 
         ``delete_memory`` requires the caller to know the vector collection up
         front. Governance and approval flows only hold a memory id, so this
-        probes the vector collections and delegates to the canonical typed-delete
-        path (ownership-gated, with graph/cache cascade).
+        probes the current model's vector collections and delegates to the
+        canonical delete path (ownership-gated, every model's copy, with graph/cache cascade).
         """
         if self._vector is None:
             return 0
-        for collection, memory_type in (
-            (self._config.semantic_collection, MemoryType.SEMANTIC),
-            (self._config.episodic_collection, MemoryType.EPISODIC),
-            (self._config.conversation_collection, MemoryType.CONVERSATION),
-        ):
-            docs = await self._vector.get(collection, [memory_id])
-            if not docs:
-                continue
-            result = await self.delete_memories_by_ids({memory_type.value: [memory_id]})
-            return len(result.deleted_refs)
+        for memory_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.CONVERSATION):
+            collection = current_collection(self._config, memory_type)
+            if await self._vector.get(collection, [memory_id]):
+                return await self.delete_memory(collection, [memory_id])
         return 0
+
+    async def _delete_owned(self, collection: str, ids: list[str]) -> int:
+        """Delete the owned memories among ``ids`` from ``collection`` only (the caller covers the other collections)."""
+        docs = await self._owned_docs(collection, ids, True)
+        if not docs:
+            return 0
+        deleted = await delete_from_vector(collection, [doc.id for doc in docs], self._vector)
+        await self._forget_derived(docs)
+        return deleted
+
+    async def _owned_docs(self, collection: str, ids: list[str], allow_protected: bool) -> list[VectorDocument]:
+        """The documents among ``ids`` this manager may delete: owned, and unpinned unless protected ones are allowed."""
+        if not ids:
+            return []
+        docs = await self._vector.get(collection, ids) or []
+        return [
+            doc for doc in docs if self._owns_vector_doc(doc) and (allow_protected or not doc.metadata.get("pinned"))
+        ]
+
+    async def _forget_derived(self, docs: list[VectorDocument]) -> None:
+        """Clean the claim graph, exact facts and embedding cache of memories whose documents were deleted."""
+        for doc in docs:
+            await self._cascade_clean_derived_graph_nodes(doc.id)
+            if self._relational is not None and hasattr(self._relational, "delete_exact_fact"):
+                try:
+                    await self._relational.delete_exact_fact(doc.id)
+                except Exception as e:
+                    logger.debug("Failed to delete exact fact for %s: %s", doc.id, e)
+        texts = [doc.content for doc in docs if doc.content]
+        if self._cache is not None and texts:
+            if hasattr(self._cache, "evict_batch"):
+                await self._cache.evict_batch(texts)
+            elif hasattr(self._cache, "evict"):
+                for text in texts:
+                    await self._cache.evict(text)
 
     async def delete_rule(self, rule_id: str, *, allow_protected: bool = True) -> bool:
         """Delete an owned procedural rule.
@@ -137,7 +185,7 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
             return False
         if not allow_protected and rule.is_user_protected:
             return False
-        deleted = await self._rel().delete_rule(rule_id)
+        deleted: bool = await self._rel().delete_rule(rule_id)
         if deleted:
             await self._cascade_clean_derived_graph_nodes(rule_id)
             evict_text = (
@@ -147,70 +195,13 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
                 await self._cache.evict(evict_text)
         return deleted
 
-    async def delete_memories_by_metadata(
-        self,
-        metadata_key: str,
-        metadata_value: str,
-        *,
-        memory_types: Sequence[MemoryType] | None = None,
-    ) -> dict[str, int]:
-        """Delete owned memories whose flat metadata contains an exact key/value pair.
-
-        User-initiated cascades (chat session purge) run with the user's
-        consent, so protected entries are deleted together with the rest.
-        """
-
-        selected_types = tuple(
-            memory_types
-            or (
-                MemoryType.SEMANTIC,
-                MemoryType.EPISODIC,
-                MemoryType.CONVERSATION,
-                MemoryType.PROCEDURAL,
-            )
-        )
-        counts: dict[str, int] = {}
-        vector_collections: dict[MemoryType, str] = {
-            MemoryType.SEMANTIC: self._config.semantic_collection,
-            MemoryType.EPISODIC: self._config.episodic_collection,
-            MemoryType.CONVERSATION: self._config.conversation_collection,
-        }
-
-        if self._vector is not None:
-            filters = {metadata_key: metadata_value}
-            for memory_type, collection in vector_collections.items():
-                if memory_type not in selected_types:
-                    continue
-                memory_ids = [doc_id for doc_id, owned in await self._collect_vector_ids(collection, filters) if owned]
-                deleted = await self.delete_memory(collection, memory_ids)
-                counts[memory_type.value] = deleted
-
-        if MemoryType.PROCEDURAL in selected_types and self._relational is not None:
-            matching_rule_ids: list[str] = []
-            offset = 0
-            while True:
-                rules = await self._relational.list_rules(
-                    active_only=False,
-                    limit=500,
-                    offset=offset,
-                    namespaces=self._namespaces,
-                )
-                if not rules:
-                    break
-                for rule in rules:
-                    if rule.metadata.get(metadata_key) == metadata_value:
-                        matching_rule_ids.append(rule.id)
-                offset += len(rules)
-            deleted_rules = 0
-            for rule_id in matching_rule_ids:
-                if await self.delete_rule(rule_id):
-                    deleted_rules += 1
-            counts[MemoryType.PROCEDURAL.value] = deleted_rules
-
-        return counts
-
     async def delete_memories_by_ids(self, memory_ids_by_type: dict[str, list[str]]) -> MemoryMutationResult:
-        """Delete owned memories by explicit type/id refs and return exact outcomes."""
+        """Delete owned memories by explicit type/id refs from the current model's collections, with exact outcomes.
+
+        This is the undo of a write (import / restore rollback): it removes precisely what that
+        write added and never reaches into the previous models' collections. Deleting a memory on
+        the user's behalf goes through ``delete_memory``.
+        """
 
         result = MemoryMutationResult()
         vector_collections: dict[str, str] = {
@@ -361,58 +352,11 @@ class MemoryManagerDeletionMixin(MemoryManagerArchivalMixin, MemoryManagerQuerie
                     )
                 )
 
-        for memory_id in deleted_ids:
-            result.deleted_refs.append(
-                MemoryMutationRef(memory_type=memory_type, memory_id=memory_id, backend=collection)
-            )
-            await self._cascade_clean_derived_graph_nodes(memory_id)
-            if self._relational is not None and hasattr(self._relational, "delete_exact_fact"):
-                try:
-                    await self._relational.delete_exact_fact(memory_id)
-                except Exception as ex:
-                    logger.debug("Failed to delete exact fact for %s: %s", memory_id, ex)
-
-        if self._cache is not None and deleted_ids:
-            evict_texts = [
-                docs_by_id[mid].content for mid in deleted_ids if mid in docs_by_id and docs_by_id[mid].content
-            ]
-            if evict_texts:
-                if hasattr(self._cache, "evict_batch"):
-                    await self._cache.evict_batch(evict_texts)
-                elif hasattr(self._cache, "evict"):
-                    for t in evict_texts:
-                        await self._cache.evict(t)
-
-    async def delete_all(self) -> dict[str, int]:
-        uid, counts = self._user_id, {}
-        if self._relational:
-            try:
-                counts["relational"] = await self._relational.delete_all()
-            except Exception as e:
-                logger.warning("Error deleting relational: %s", e)
-        if self._vector:
-            for coll in (
-                self._config.semantic_collection,
-                self._config.episodic_collection,
-            ):
-                try:
-                    counts[coll] = await self._vector.delete_by_filter(coll, {})
-                except Exception as e:
-                    logger.warning("Error deleting %s: %s", coll, e)
-        if self._graph is not None:
-            try:
-                counts["graph"] = await self._graph.delete_all_by_owner(uid)
-            except Exception as e:
-                logger.warning("Error deleting graph data: %s", e)
-        if self._cache is not None and hasattr(self._cache, "clear"):
-            try:
-                if asyncio.iscoroutinefunction(self._cache.clear):
-                    await self._cache.clear()
-                else:
-                    self._cache.clear()
-            except Exception as e:
-                logger.warning("Error clearing cache in delete_all: %s", e)
-        return counts
+        result.deleted_refs.extend(
+            MemoryMutationRef(memory_type=memory_type, memory_id=memory_id, backend=collection)
+            for memory_id in deleted_ids
+        )
+        await self._forget_derived([docs_by_id[memory_id] for memory_id in deleted_ids])
 
     async def _collect_vector_ids(self, collection: str, filters: FilterDict) -> list[tuple[str, bool]]:
         if self._vector is None:

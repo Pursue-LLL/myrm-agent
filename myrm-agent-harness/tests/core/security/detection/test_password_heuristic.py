@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.core.security.detection.password_heuristic import find_password_spans
+from myrm_agent_harness.core.security.detection.password_heuristic import (
+    PASSWORD_KEYWORD_RE,
+    find_keyword_password_spans,
+    find_password_spans,
+)
 
 
 def _secrets(text: str) -> list[str]:
@@ -317,3 +321,80 @@ class TestRecallMode:
     )
     def test_references_masks_and_prose_stay_out_of_recall_mode(self, text: str) -> None:
         assert find_password_spans(text, strict=False) == []
+
+
+class TestFindKeywordPasswordSpans:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "The OTP code is 582013 - enter it within 30 seconds.",
+            "你的验证码是 582013，请勿转发。",
+            "The staging PIN is 482913.",
+        ],
+        ids=["otp", "cjk-verification-code", "pin"],
+    )
+    def test_a_short_lived_numeric_code_is_not_a_password(self, text: str) -> None:
+        assert find_password_spans(text)
+        assert find_keyword_password_spans(text) == []
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "The staging password is Zk9#mango42 - remember it, we never rotate it.",
+            "帮我登录，账号 admin 密码是 Zk9#mango42",
+            "password: Zk9#mango42 and the OTP code is 582013",
+        ],
+        ids=["prose", "cjk-prose", "mixed-with-code"],
+    )
+    def test_a_password_gets_the_span_the_full_heuristic_gives_it(self, text: str) -> None:
+        keyword_spans = find_keyword_password_spans(text)
+        assert [text[start:end] for start, end in keyword_spans] == ["Zk9#mango42"]
+        assert set(keyword_spans) <= set(find_password_spans(text))
+
+    def test_the_strict_flag_means_what_it_means_for_the_full_heuristic(self) -> None:
+        assert find_keyword_password_spans("pwd=hunter2") == []
+        assert find_keyword_password_spans("pwd=hunter2", strict=False) == find_password_spans(
+            "pwd=hunter2", strict=False
+        )
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "DATABASE_URL=postgres://app:${DB_PASSWORD}@db:5432/app",
+            "postgres://app:$DB_PASSWORD@db:5432/app",
+            "curl -u admin:$PASSWORD https://example.com/a:b12345X",
+            "echo ${DB_PASSWORD:-changeme}",
+        ],
+        ids=["compose-braces", "shell-variable", "curl-user", "default-value"],
+    )
+    @pytest.mark.parametrize("strict", [True, False])
+    def test_a_variable_reference_anchors_no_value_in_the_text_around_it(self, text: str, strict: bool) -> None:
+        assert find_keyword_password_spans(text, strict=strict) == []
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "price is $5 and my password is Zk9#mango42",
+            "$ password: Zk9#mango42",
+            "export DB_PASSWORD=Zk9#mango42",
+        ],
+        ids=["dollar-amount", "shell-prompt", "export"],
+    )
+    def test_a_dollar_sign_near_a_real_password_does_not_hide_it(self, text: str) -> None:
+        assert [text[start:end] for start, end in find_keyword_password_spans(text)] == ["Zk9#mango42"]
+
+    def test_empty_text_has_no_spans(self) -> None:
+        assert find_keyword_password_spans("") == []
+
+
+class TestPasswordKeywordRe:
+    @pytest.mark.parametrize(
+        "text",
+        ["my password is x", "DB_PASSWORD=x", "密码是 x", "口令：x", "master password"],
+    )
+    def test_finds_a_credential_keyword(self, text: str) -> None:
+        assert PASSWORD_KEYWORD_RE.search(text)
+
+    @pytest.mark.parametrize("text", ["no credentials in here", "passwords differ", "password_hash column", "忘记了"])
+    def test_ignores_text_without_one(self, text: str) -> None:
+        assert PASSWORD_KEYWORD_RE.search(text) is None

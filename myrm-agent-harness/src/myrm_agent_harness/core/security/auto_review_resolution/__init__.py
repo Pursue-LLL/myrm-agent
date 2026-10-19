@@ -1,41 +1,28 @@
-"""
-[POS] src/myrm_agent_harness/core/security/auto_review_resolution/__init__.py
-[INPUT] .diagnostic_reporter, .facade, .four_way_state_machine, .handover_deck_manager, .types
-[OUTPUT] Public API exports for auto-review denial resolution subsystem
+"""Denial diagnostic package: reason codes, allowed alternatives and the four resolution branches behind a denial message.
 
-Strict typing applied: No `Any` types allowed.
+[INPUT]
+- .diagnostic_reporter::DenialDiagnosticReporter (POS: Builds the diagnostic of one denial.)
+- .types::DenialDiagnosticPayload, DenialReasonCodeEnum, ResolutionBranchEnum (POS: Data shapes of a denial diagnostic.)
+
+[OUTPUT]
+- DenialDiagnosticReporter, DenialDiagnosticPayload, DenialReasonCodeEnum, ResolutionBranchEnum: the package's public API
+
+[POS]
+Entry of the denial diagnostic package; keeps no state.
 """
 
 from __future__ import annotations
 
 from .diagnostic_reporter import DenialDiagnosticReporter
-from .facade import (
-    AutoReviewResolutionFacade,
-    get_auto_review_resolution_facade,
-)
-from .four_way_state_machine import FourWayResolutionStateMachine
-from .handover_deck_manager import HandoverDeckManager
 from .types import (
-    AutoReviewResolutionMetrics,
     DenialDiagnosticPayload,
     DenialReasonCodeEnum,
-    HandoverDeckPayload,
-    HandoverStatusEnum,
     ResolutionBranchEnum,
-    ResolutionDecisionRecord,
 )
 
 __all__ = [
-    "AutoReviewResolutionFacade",
-    "AutoReviewResolutionMetrics",
     "DenialDiagnosticPayload",
     "DenialDiagnosticReporter",
     "DenialReasonCodeEnum",
-    "FourWayResolutionStateMachine",
-    "HandoverDeckManager",
-    "HandoverDeckPayload",
-    "HandoverStatusEnum",
     "ResolutionBranchEnum",
-    "ResolutionDecisionRecord",
-    "get_auto_review_resolution_facade",
 ]

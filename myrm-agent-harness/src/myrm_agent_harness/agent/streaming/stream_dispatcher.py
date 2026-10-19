@@ -4,6 +4,8 @@
 - agent.streaming.event_handlers::process_messages_chunk, process_updates_chunk (POS: 事件处理器)
 - agent.streaming.artifact_events::collect_inline_artifacts, process_realtime_content_events (POS: Artifact 事件处理器)
 - agent.streaming.escalation_scrubber::EscalationScrubber (POS: 流式层升级标记检测)
+- agent.streaming.interrupt_events::interrupt_events (POS: 中断 → 带卡片 id 的流事件)
+- agent.streaming.interrupt_identity::announced_rounds (POS: 本次运行各中断所处的轮次)
 
 [OUTPUT]
 - StreamDispatcherMixin: dispatches events and forwards structured agent_status fields.
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
 
 from .artifact_events import collect_inline_artifacts, process_realtime_content_events
 from .event_handlers import process_messages_chunk, process_updates_chunk
+from .interrupt_events import interrupt_events
+from .interrupt_identity import announced_rounds
 
 if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
@@ -96,61 +100,8 @@ class StreamDispatcherMixin:
         if isinstance(data_dict, dict) and "__interrupt__" in data_dict:
             interrupts = data_dict["__interrupt__"]
             if interrupts and isinstance(interrupts, tuple):
-                interrupt_obj = interrupts[0]
-                interrupt_val = getattr(interrupt_obj, "value", None)
-                if isinstance(interrupt_val, dict):
-                    interrupt_type = interrupt_val.get("type")
-                    action_type = interrupt_val.get("action_type")
-                    if interrupt_type == "ask_question":
-                        logger.warning(" Agent execution suspended for clarification")
-                        await self._emit_event(
-                            {
-                                "type": AgentEventType.CLARIFICATION_REQUIRED.value,
-                                "data": interrupt_val,
-                                "messageId": ctx.message_id,
-                            },
-                            ctx,
-                        )
-                    elif interrupt_type == "directory_request":
-                        logger.warning(" Agent execution suspended for directory grant")
-                        await self._emit_event(
-                            {
-                                "type": AgentEventType.DIRECTORY_REQUEST_REQUIRED.value,
-                                "data": interrupt_val,
-                                "messageId": ctx.message_id,
-                            },
-                            ctx,
-                        )
-                    elif action_type == "swarm_fission":
-                        logger.warning(" Agent execution yielded for Swarm Fission")
-                        await self._emit_event(
-                            {
-                                "type": "swarm_fission",
-                                "data": interrupt_val,
-                                "messageId": ctx.message_id,
-                            },
-                            ctx,
-                        )
-                    elif isinstance(interrupt_val.get("actionRequests"), list) and interrupt_val["actionRequests"]:
-                        logger.warning(" Agent execution suspended for tool approval")
-                        await self._emit_event(
-                            {
-                                "type": AgentEventType.TOOL_APPROVAL_REQUEST.value,
-                                "data": interrupt_val,
-                                "messageId": ctx.message_id,
-                            },
-                            ctx,
-                        )
-                    else:
-                        logger.warning(" Agent execution suspended for approval")
-                        await self._emit_event(
-                            {
-                                "type": AgentEventType.APPROVAL_REQUIRED.value,
-                                "data": interrupt_val,
-                                "messageId": ctx.message_id,
-                            },
-                            ctx,
-                        )
+                for event in interrupt_events(interrupts, ctx.message_id, announced_rounds(ctx.agent_input)):
+                    await self._emit_event(event, ctx)
             return
 
         async for event in process_updates_chunk(
@@ -172,23 +123,9 @@ class StreamDispatcherMixin:
 
     async def _dispatch_messages(self, data: object, ctx: StreamContext) -> None:
         """Process 'messages' stream mode chunks."""
-        if ctx.ttsr_coordinator and isinstance(data, tuple) and len(data) >= 1:
-            message_chunk = data[0]
-            tool_call_chunks = getattr(message_chunk, "tool_call_chunks", None)
-            if tool_call_chunks and isinstance(tool_call_chunks, list):
-                for tc in tool_call_chunks:
-                    tc_args = tc.get("args") if isinstance(tc, dict) else getattr(tc, "args", None)
-                    if isinstance(tc_args, str) and tc_args:
-                        match = ctx.ttsr_coordinator.inspect_chunk("tool_args", tc_args, ctx.stats.node_execution_count)
-                        if match and ctx.ttsr_coordinator.interrupt_requested:
-                            return
-
         for event, is_tool_start in process_messages_chunk(
             cast("tuple[object, object]", data), ctx.stats, ctx.message_id
         ):
-            if ctx.ttsr_coordinator and ctx.ttsr_coordinator.interrupt_requested:
-                return
-
             if not is_tool_start and not self.streaming_final_answer:
                 self.streaming_final_answer = True
                 self._partial_text_buffer = ""
@@ -197,10 +134,6 @@ class StreamDispatcherMixin:
             if isinstance(event, dict) and event.get("type") == AgentEventType.MESSAGE.value:
                 content = event.get("data", "")
                 if isinstance(content, str):
-                    if ctx.ttsr_coordinator:
-                        match = ctx.ttsr_coordinator.inspect_chunk("assistant", content, ctx.stats.node_execution_count)
-                        if match and ctx.ttsr_coordinator.interrupt_requested:
-                            return
                     self._partial_text_buffer += content
                     forwarded = self._escalation_scrubber.process(content)
                     if forwarded is None:
@@ -221,15 +154,6 @@ class StreamDispatcherMixin:
                         forwarded = rep_checked
                     for scrubbed_type, scrubbed_text in self._reasoning_scrubber.process(forwarded):
                         if scrubbed_text:
-                            if ctx.ttsr_coordinator and (
-                                scrubbed_type == AgentEventType.REASONING
-                                or str(scrubbed_type) == AgentEventType.REASONING.value
-                            ):
-                                match = ctx.ttsr_coordinator.inspect_chunk(
-                                    "thinking", scrubbed_text, ctx.stats.node_execution_count
-                                )
-                                if match and ctx.ttsr_coordinator.interrupt_requested:
-                                    return
                             restored_text = self._restore_pseudonyms(scrubbed_text)
                             event_copy = dict(event)
                             event_copy["type"] = (
@@ -239,15 +163,6 @@ class StreamDispatcherMixin:
                             await self._emit_event(event_copy, ctx)
                 else:
                     await self._emit_event(event, ctx)
-            elif isinstance(event, dict) and event.get("type") == AgentEventType.REASONING.value:
-                reasoning_content = event.get("data", "")
-                if isinstance(reasoning_content, str) and ctx.ttsr_coordinator:
-                    match = ctx.ttsr_coordinator.inspect_chunk(
-                        "thinking", reasoning_content, ctx.stats.node_execution_count
-                    )
-                    if match and ctx.ttsr_coordinator.interrupt_requested:
-                        return
-                await self._emit_event(event, ctx)
             else:
                 await self._emit_event(event, ctx)
 

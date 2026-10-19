@@ -109,7 +109,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 ### 4.3 历史会话搜索（opt-in，由 memory_search_tool 承载）
 
-历史聊天检索通过 `memory_search_tool` 的 `corpus=sessions` ACL 启用（用户开启 `memoryEnableConversationSearch` 且非无痕）。`conversation_search/` 模块为 sessions corpus 执行后端；`create_conversation_search_tool` 工厂仅 harness 单元测试使用，非 Turn1 LLM 工具。
+历史聊天检索通过 `memory_search_tool` 的 `corpus=sessions` ACL 启用（用户开启 `memoryEnableConversationSearch` 且非无痕）。`conversation_search/` 模块为 sessions corpus 执行后端；框架不提供独立的 `conversation_search_tool`。
 
 ### 4.3 技能工具（有技能后端时加载）
 
@@ -201,8 +201,6 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 | 77 | desktop_snapshot_tool | 91 | `harness/toolkits/computer_use/desktop_agent_tools.py` | AX 树 + @dref，可选截图 |
 | 78 | desktop_interact_tool | 40 | `harness/toolkits/computer_use/desktop_agent_tools.py` | @dref 语义交互（含 set_value） |
 | 79 | desktop_vision_tool | 69 | `harness/toolkits/computer_use/desktop_agent_tools.py` | 显式截图/坐标回退 |
-
-移动端镜像工具（`harness/toolkits/mobile_adb/mobile_agent_tools.py`，仅 macOS + 启用 iPhone Mirroring 场景加载）：`mobile_snapshot_tool` / `mobile_interact_tool` / `mobile_global_tool`。
 
 ### 4.18 内部分类（非 LLM 工具，默认 GeneralAgent Turn1 = 0 token）
 

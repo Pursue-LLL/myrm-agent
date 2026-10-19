@@ -101,6 +101,7 @@ class MemoryManagerCore:
         embedding: EmbeddingProtocol | None = None,
         cache: EmbeddingCacheProtocol | None = None,
         approval_required: bool = False,
+        sparse_authoritative: bool = False,
         dedup_llm: object | None = None,
         consolidation_llm: BaseChatModel | None = None,
         fts5_searcher: FTS5SearcherFunc | None = None,
@@ -143,7 +144,11 @@ class MemoryManagerCore:
         # Wrap once at the single vector assignment so every consumer (writer,
         # search service, maintenance, recurrence) shares the same BM25 sparse
         # mirror; the wrapper is a pure pass-through until the index warms up.
-        self._vector = wrap_with_bm25_sparse_index(vector)
+        # ``sparse_authoritative`` is an explicit deployment decision (see
+        # create_local_memory_manager), not "no embedding": a metadata-only
+        # manager can hold dense collections without an embedding backend.
+        self._sparse_authoritative = sparse_authoritative
+        self._vector = wrap_with_bm25_sparse_index(vector, sparse_authoritative=sparse_authoritative)
         self._graph = graph
         self._embedding = embedding
         self._cache = cache
@@ -172,14 +177,14 @@ class MemoryManagerCore:
             store_procedurals_batch_func=self._store_procedurals_batch,
             store_conversations_batch_func=self._store_conversations_batch,
             deduplicate_semantic_batch_func=build_semantic_deduplicator(
-                vector=vector,
+                vector=self._vector,
                 embedding=embedding,
                 config=config,
                 cache=cache,
                 deduplicator=self._deduplicator,
             ),
             deduplicate_episodic_batch_func=build_episodic_deduplicator(
-                vector=vector,
+                vector=self._vector,
                 embedding=embedding,
                 config=config,
                 cache=cache,
@@ -193,7 +198,7 @@ class MemoryManagerCore:
             namespaces=self._namespaces,
             current_channel_id=self._scope.channel_id,
             config=config,
-            vector=vector,
+            vector=self._vector,
             graph=graph,
             relational=relational,
             embedding=embedding,
@@ -321,6 +326,16 @@ class MemoryManagerCore:
         return self._vector is not None and self._embedding is not None
 
     @property
+    def has_vector_store(self) -> bool:
+        """Whether a vector backend backs this manager's memories.
+
+        Distinct from ``has_vector`` (dense capability): without an embedding
+        backend the BM25 sparse mirror is still a vector store, so semantic and
+        episodic memories are writable, countable and deletable.
+        """
+        return self._vector is not None
+
+    @property
     def vector_is_persistent(self) -> bool:
         """Whether vector memories survive process restarts.
 
@@ -340,7 +355,10 @@ class MemoryManagerCore:
         types: list[MemoryType] = []
         if self.has_relational:
             types.extend([MemoryType.PROFILE, MemoryType.PROCEDURAL])
-        if self.has_vector:
+        if self._vector is not None:
+            # Searchability, not dense capability: without an embedding
+            # backend semantic and episodic memories live in the BM25
+            # sparse mirror and stay retrievable through that channel.
             types.extend([MemoryType.SEMANTIC, MemoryType.EPISODIC])
         return types
 

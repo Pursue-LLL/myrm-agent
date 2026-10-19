@@ -33,12 +33,13 @@ from myrm_agent_harness.agent.security.path_security import (
 from myrm_agent_harness.agent.security.types import SecurityConfig
 from myrm_agent_harness.core.security.redact import redact_for_display
 
+from .guidance_delivery import bounded_note
 from .helpers import add_to_allowlist_if_needed, record_approval, record_denial
 
 logger = logging.getLogger(__name__)
 
 
-def _integration_mutation_blocks_allow_always(tool_call: dict[str, object]) -> bool:
+def _integration_mutation_blocks_allow_always(tool_call: ToolCall | dict[str, object]) -> bool:
     raw_args = tool_call.get("args", {})
     if not isinstance(raw_args, dict):
         return False
@@ -53,7 +54,7 @@ def _integration_mutation_blocks_allow_always(tool_call: dict[str, object]) -> b
 
 
 def _should_block_allow_always(
-    tool_call: dict[str, object],
+    tool_call: ToolCall | dict[str, object],
     extra_ctx: dict[str, Any] | None,
 ) -> bool:
     """Unified guard: returns True when allowAlways must be blocked."""
@@ -97,7 +98,7 @@ def _should_block_allow_always(
 
 
 async def _try_add_to_allowlist(
-    tool_call: dict[str, object],
+    tool_call: ToolCall | dict[str, object],
     extra_ctx: dict[str, Any] | None,
     allow_always: bool | dict[str, bool],
     permission_type: str,
@@ -316,7 +317,7 @@ def build_interrupt_payload(
     expires_at = time.time() + effective_timeout
     request_id = str(uuid.uuid4())
 
-    payload = {
+    payload: dict[str, Any] = {
         "actionRequests": action_requests,
         "reviewConfigs": review_configs,
         "extensions": {
@@ -666,7 +667,7 @@ async def apply_approval_decisions(
                     )
 
             else:
-                feedback = decision.get("feedback", "User rejected this action.")
+                feedback = str(decision.get("feedback") or "").strip() or "User rejected this action."
                 logger.warning("[SECURITY] Tool %s REJECTED by user: %s", tool_name, feedback)
                 record_decision(tool_name, "USER_REJECTED", feedback)
                 hint = record_denial(tool_name, session_key)
@@ -687,7 +688,7 @@ async def apply_approval_decisions(
                 )
                 guidance_messages.append(
                     HumanMessage(
-                        content=f"[User Guidance during approval of {tool_name}]: {guidance_text}",
+                        content=f"[User Guidance during approval of {tool_name}]: {bounded_note(guidance_text)}",
                         additional_kwargs={"approval_guidance": True},
                     )
                 )

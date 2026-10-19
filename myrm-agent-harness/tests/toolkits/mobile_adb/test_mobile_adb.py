@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.toolkits.mobile_adb.mobile_agent_tools import (
-    create_mobile_adb_tools,
-)
 from myrm_agent_harness.toolkits.mobile_adb.parser import MobileUIParser
 from myrm_agent_harness.toolkits.mobile_adb.session import MobileSession
 from myrm_agent_harness.toolkits.mobile_adb.types import (
@@ -53,18 +50,9 @@ def test_mobile_ui_parser_xml_tree() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mobile_session_and_tools_factory() -> None:
+async def test_mobile_session_default_target() -> None:
     session = MobileSession(default_device="192.168.1.100:5555")
     assert session.get_target() == "192.168.1.100:5555"
-
-    tools = create_mobile_adb_tools(session)
-    assert len(tools) == 3
-    tool_names = {t.name for t in tools}
-    assert tool_names == {
-        "mobile_snapshot_tool",
-        "mobile_interact_tool",
-        "mobile_global_tool",
-    }
 
 
 def test_mobile_safety_guard() -> None:
@@ -111,8 +99,13 @@ async def test_mobile_session_pair_and_connect_flow() -> None:
     session = MobileSession(default_device="")
     with pytest.MonkeyPatch.context() as mp:
         from unittest.mock import AsyncMock
-        mock_pair = AsyncMock(return_value=MobileActionResult(success=True, action="pair", message="Successfully paired"))
-        mock_connect = AsyncMock(return_value=MobileActionResult(success=True, action="connect", message="connected to 192.168.1.100:5555"))
+
+        mock_pair = AsyncMock(
+            return_value=MobileActionResult(success=True, action="pair", message="Successfully paired")
+        )
+        mock_connect = AsyncMock(
+            return_value=MobileActionResult(success=True, action="connect", message="connected to 192.168.1.100:5555")
+        )
         mp.setattr(session.driver, "pair", mock_pair)
         mp.setattr(session.driver, "connect", mock_connect)
 
@@ -203,7 +196,7 @@ async def test_swipe_invalid_offset_returns_invalid_param() -> None:
     from myrm_agent_harness.toolkits.mobile_adb.driver import AdbDeviceDriver
     from myrm_agent_harness.toolkits.mobile_adb.parser import MobileUIParser
 
-    elements, ref_map = MobileUIParser.parse_xml_tree(SAMPLE_UIAUTOMATOR_XML)
+    _elements, ref_map = MobileUIParser.parse_xml_tree(SAMPLE_UIAUTOMATOR_XML)
     driver = AdbDeviceDriver()
     driver._current_ref_map = ref_map
     driver._run_adb = AsyncMock(return_value=(0, "", ""))  # type: ignore[method-assign]
@@ -226,7 +219,6 @@ async def test_snapshot_settle_ms_capped_at_two_seconds() -> None:
     import asyncio
     from unittest.mock import AsyncMock, patch
 
-
     session = MobileSession(default_device="t")
     state = MobileDeviceState(
         device_id="t",
@@ -238,6 +230,3 @@ async def test_snapshot_settle_ms_capped_at_two_seconds() -> None:
     with patch.object(asyncio, "sleep", new=AsyncMock()) as nap:
         await session.snapshot(target="t", settle_ms=9000)
         nap.assert_awaited_once_with(2.0)
-
-
-

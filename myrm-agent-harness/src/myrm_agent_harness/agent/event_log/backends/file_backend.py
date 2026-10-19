@@ -7,7 +7,7 @@ deployment modes (local / sandbox) with identical semantics.
 - event_log.protocols::EventLogBackend, FlushableEventLogBackend (POS: Protocol contract. Framework provides FileEventLogBackend; business layer may extend with SQLite / PostgreSQL implementations.)
 
 [OUTPUT]
-- FileEventLogBackend: JSONL file storage implementation
+- FileEventLogBackend: JSONL file storage implementation (append, read, age-based cleanup, per-session removal)
 
 [POS]
 Built-in reference backend. Thread-safe via asyncio.Lock.
@@ -281,6 +281,29 @@ class FileEventLogBackend:
         """Return the filesystem path to the session's jsonl file if it exists, else None."""
         target = self._log_dir / f"{session_id}.jsonl"
         return target if target.exists() else None
+
+    async def remove_session_log(self, session_id: str) -> bool:
+        """Delete one session's jsonl file, e.g. when the conversation that produced it is permanently deleted.
+
+        Returns:
+            True when a file was removed, False when the session had none.
+
+        Raises:
+            ValueError: ``session_id`` resolves to a path outside the log directory.
+        """
+        target = self._log_dir / f"{session_id}.jsonl"
+        if target.resolve().parent != self._log_dir.resolve():
+            raise ValueError(f"Event log session id resolves outside the log directory: {session_id!r}")
+
+        async with self._lock:
+            try:
+                target.unlink()
+            except FileNotFoundError:
+                return False
+            if session_id == self._session_id:
+                # The file is gone, so sequences must be accepted from 1 again instead of being deduplicated away.
+                self._max_seq = 0
+        return True
 
     async def close(self) -> None:
         """End the current run: wait for in-flight appends, then reset the dedup watermark.

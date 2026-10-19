@@ -34,6 +34,16 @@ from myrm_agent_harness.toolkits.vector.qdrant.sparse import QdrantSparseMixin
 logger = logging.getLogger(__name__)
 
 
+def _is_missing_collection(exc: Exception) -> bool:
+    """Whether a read failed only because the collection does not exist.
+
+    Qdrant answers every read of an absent collection with ``ValueError("Collection X
+    not found")``. Collections are created lazily on their first write, so a fresh
+    install reads them before they exist: that is an empty result, not a failure.
+    """
+    return isinstance(exc, ValueError) and "not found" in str(exc).lower()
+
+
 class QdrantVectorStore(QdrantSparseMixin, VectorStore):
     """Qdrant implementation of VectorStore.
 
@@ -91,6 +101,8 @@ class QdrantVectorStore(QdrantSparseMixin, VectorStore):
             try:
                 return await self._execute(operation, *args, **kwargs)
             except Exception as e:
+                if "not found" in str(e).lower():  # waiting never creates a missing collection
+                    raise
                 last_exception = e
                 if attempt < self.MAX_RETRIES - 1:
                     delay = self.RETRY_BASE_DELAY * (2**attempt)
@@ -102,9 +114,7 @@ class QdrantVectorStore(QdrantSparseMixin, VectorStore):
                 else:
                     logger.warning(f"Qdrant operation failed after {self.MAX_RETRIES} attempts: {e}")
 
-        if last_exception:
-            raise last_exception
-        raise RuntimeError("Unexpected: no exception but operation failed")
+        raise last_exception or RuntimeError("Unexpected: no exception but operation failed")
 
     async def _execute(self, operation: object, *args: object, **kwargs: object) -> object:
         """Execute client operation, handling sync/async transparently."""
@@ -350,16 +360,21 @@ class QdrantVectorStore(QdrantSparseMixin, VectorStore):
     ) -> list[SearchResult]:
         query_filter = build_qdrant_filter(filters)
 
-        results = await self._with_retry(
-            self._client.query_points,  # type: ignore[attr-defined]
-            collection_name=collection,
-            query=query_vector,
-            query_filter=query_filter,
-            limit=limit,
-            score_threshold=score_threshold,
-            with_payload=True,
-            with_vectors=True,
-        )
+        try:
+            results = await self._with_retry(
+                self._client.query_points,  # type: ignore[attr-defined]
+                collection_name=collection,
+                query=query_vector,
+                query_filter=query_filter,
+                limit=limit,
+                score_threshold=score_threshold,
+                with_payload=True,
+                with_vectors=True,
+            )
+        except Exception as e:
+            if _is_missing_collection(e):
+                return []
+            raise
 
         return [
             SearchResult(document=self._point_to_document(point), score=point.score)
@@ -396,15 +411,20 @@ class QdrantVectorStore(QdrantSparseMixin, VectorStore):
             for vector_name, vector in named_vectors.items()
         ]
 
-        results = await self._with_retry(
-            self._client.query_points,  # type: ignore[attr-defined]
-            collection_name=collection,
-            prefetch=prefetch_list,
-            query=RrfQuery(rrf=Rrf()) if fusion.lower() == "rrf" else None,
-            limit=limit,
-            with_payload=True,
-            with_vectors=True,
-        )
+        try:
+            results = await self._with_retry(
+                self._client.query_points,  # type: ignore[attr-defined]
+                collection_name=collection,
+                prefetch=prefetch_list,
+                query=RrfQuery(rrf=Rrf()) if fusion.lower() == "rrf" else None,
+                limit=limit,
+                with_payload=True,
+                with_vectors=True,
+            )
+        except Exception as e:
+            if _is_missing_collection(e):
+                return []
+            raise
 
         return [
             SearchResult(document=self._point_to_document(point), score=point.score)
@@ -412,13 +432,18 @@ class QdrantVectorStore(QdrantSparseMixin, VectorStore):
         ]
 
     async def get(self, collection: str, ids: list[str]) -> list[VectorDocument]:
-        points = await self._with_retry(
-            self._client.retrieve,  # type: ignore[attr-defined]
-            collection_name=collection,
-            ids=ids,
-            with_payload=True,
-            with_vectors=True,
-        )
+        try:
+            points = await self._with_retry(
+                self._client.retrieve,  # type: ignore[attr-defined]
+                collection_name=collection,
+                ids=ids,
+                with_payload=True,
+                with_vectors=True,
+            )
+        except Exception as e:
+            if _is_missing_collection(e):
+                return []
+            raise
         return [self._point_to_document(point) for point in points]  # type: ignore[union-attr]
 
     async def delete(self, collection: str, ids: list[str]) -> int:
@@ -433,29 +458,33 @@ class QdrantVectorStore(QdrantSparseMixin, VectorStore):
         return count
 
     async def delete_by_filter(self, collection: str, filters: FilterDict) -> int:
+        from qdrant_client.models import Filter
+
         count = await self.count(collection, filters)
         if count > 0:
-            query_filter = build_qdrant_filter(filters)
-            await self._with_retry(
-                self._client.delete,  # type: ignore[attr-defined]
-                collection_name=collection,
-                points_selector=query_filter,
-            )
+            # No conditions means every point (as in search/count); the SDK rejects a bare ``None`` selector.
+            selector = build_qdrant_filter(filters) or Filter()
+            await self._with_retry(self._client.delete, collection_name=collection, points_selector=selector)  # type: ignore[attr-defined]
         return count
 
     async def count(self, collection: str, filters: FilterDict | None = None) -> int:
         query_filter = build_qdrant_filter(filters)
-        if query_filter:
-            result = await self._with_retry(
-                self._client.count,  # type: ignore[attr-defined]
-                collection_name=collection,
-                count_filter=query_filter,
-            )
-        else:
-            result = await self._with_retry(
-                self._client.count,  # type: ignore[attr-defined]
-                collection_name=collection,
-            )
+        try:
+            if query_filter:
+                result = await self._with_retry(
+                    self._client.count,  # type: ignore[attr-defined]
+                    collection_name=collection,
+                    count_filter=query_filter,
+                )
+            else:
+                result = await self._with_retry(
+                    self._client.count,  # type: ignore[attr-defined]
+                    collection_name=collection,
+                )
+        except Exception as e:
+            if _is_missing_collection(e):
+                return 0
+            raise
         return result.count  # type: ignore[union-attr]
 
     async def scroll(
@@ -489,10 +518,15 @@ class QdrantVectorStore(QdrantSparseMixin, VectorStore):
         else:
             kwargs["offset"] = offset
 
-        points, next_offset = await self._with_retry(
-            self._client.scroll,  # type: ignore[attr-defined]
-            **kwargs,
-        )
+        try:
+            points, next_offset = await self._with_retry(
+                self._client.scroll,  # type: ignore[attr-defined]
+                **kwargs,
+            )
+        except Exception as e:
+            if _is_missing_collection(e):
+                return [], None
+            raise
 
         documents = [self._point_to_document(point) for point in points]  # type: ignore[union-attr]
         next_cursor = str(next_offset) if next_offset is not None else None

@@ -22,6 +22,7 @@
 - push_tool_context() / pop_tool_context(): 工具归因栈操作
 - record_token_error(): 记录 LLM 调用失败
 - record_finish_reason(): 记录 LLM 调用的 finish_reason
+- record_turn_context(): 记录本轮上下文的组装方式（历史来源、技能目录投递），随成本快照导出为 ``turn_context``
 - get_pending_token_events(): 获取待发送的 token 事件（实时推送）
 - append_to_ledger(): 追加使用记录到审计日志（供适配器统一调用）
 
@@ -239,6 +240,9 @@ class TokenTracker:
     model_savings: dict[str, float] = field(default_factory=dict)
     tool_stack: list[str] = field(default_factory=list)
     tool_usage: dict[str, TokenUsage] = field(default_factory=dict)
+    # Facts about how the turn's context was assembled (history source, skill catalog delivery);
+    # persisted next to the cost snapshot so a cache-hit drop can be traced to a rebuild.
+    turn_context: dict[str, int | str] = field(default_factory=dict)
     tool_cost: dict[str, float] = field(default_factory=dict)
     call_durations_ms: list[float] = field(default_factory=list)
     call_ttft_ms: list[float] = field(default_factory=list)
@@ -434,6 +438,8 @@ class TokenTracker:
                 }
                 for tool, usage in self.tool_usage.items()
             }
+        if self.turn_context:
+            result["turn_context"] = dict(self.turn_context)
         return result
 
 
@@ -532,6 +538,13 @@ def record_token_error(error_message: str) -> None:
     tracker = _current_tracker.get()
     if tracker:
         tracker.record_error(error_message)
+
+
+def record_turn_context(facts: Mapping[str, int | str]) -> None:
+    """Record how this turn's context was assembled on the current tracker (last write wins per key)."""
+    tracker = _current_tracker.get()
+    if tracker:
+        tracker.turn_context.update(facts)
 
 
 def record_finish_reason(reason: str) -> None:
