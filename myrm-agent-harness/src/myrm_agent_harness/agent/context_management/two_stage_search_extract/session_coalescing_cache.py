@@ -1,10 +1,9 @@
-"""[INPUT] SnippetTriageResult, DeepExtractResult
+"""Session-level coalescing cache for search triage snippets and deep extracted documents.
+
+[INPUT] SnippetTriageResult, DeepExtractResult
 [OUTPUT] SearchFetchSessionCache, CacheStats
 [POS] In-memory session search-fetch coalescing and deduplication cache with TTL management
 """
-
-"""Session-level coalescing cache for search triage snippets and deep extracted documents."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
