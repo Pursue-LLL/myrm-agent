@@ -31,6 +31,9 @@ from tests.e2e.test_memory_keyword_recall_live_chrome_e2e import (
     _wait_assistant_reply,
 )
 from tests.e2e.test_memory_pending_dialog_chrome_e2e import (
+    _attach as _attach_pending_chat,
+)
+from tests.e2e.test_memory_pending_dialog_chrome_e2e import (
     _dialog_button_js,
     _dialog_left_proposal_js,
     _open_review_dialog,
@@ -46,7 +49,6 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -162,8 +164,32 @@ def test_memory_implicit_correction_live_approved_then_recalled() -> None:
         with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
             ensure_desktop_viewport(client, page)
             dismiss_blocking_modals(client, page, recover_url=chat_url)
-            wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
-            _open_review_dialog(client, page, proposal_text, chat_url=chat_url)
+            _attach_pending_chat(client, page, chat_url, chats["b"])
+            try:
+                _open_review_dialog(client, page, proposal_text, chat_url=chat_url)
+            except AssertionError as exc:
+                # The badge depends on the memory store's pending fetch; dump what
+                # the store holds and whether the browser ever called the endpoint.
+                diag = client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    """(() => {
+                      const store = window.__myrmMemoryStore;
+                      const st = store && store.getState ? store.getState() : null;
+                      const reqs = performance.getEntriesByType('resource')
+                        .filter((e) => e.name.includes('/memory/pending'))
+                        .slice(-5)
+                        .map((e) => ({ url: e.name.replace(location.origin, ''), status: e.responseStatus ?? 0 }));
+                      return {
+                        hasStore: Boolean(st),
+                        pendingCount: st ? st.pendingCount : null,
+                        pendingLoading: st ? Boolean(st.pendingLoading) : null,
+                        pendingError: st ? String(st.pendingError ?? '') : null,
+                        pendingItems: st && Array.isArray(st.pendingMemories) ? st.pendingMemories.length : -1,
+                        requests: reqs,
+                      };
+                    })()""",
+                )
+                raise AssertionError(f"{exc} | badge diag: {diag}") from exc
             client.evaluate(page, _NETWORK_TAP_JS, timeout_sec=15.0)
             accepted = client.evaluate(page, _dialog_button_js(_ACCEPT_LABEL))
             assert accepted.get("ready") is True, accepted
