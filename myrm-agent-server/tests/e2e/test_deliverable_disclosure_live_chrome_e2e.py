@@ -615,6 +615,17 @@ def test_deliverable_disclosure_verified_execution_live_chrome_e2e() -> None:
         assert str(badge_state.get("testid", "")).startswith("deliverable-tier-badge-"), badge_state
 
 
+_AUDIT_SURFACES_READY_JS = """(() => {
+  const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
+  const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
+  return {
+    ready: Boolean(badge) && Boolean(notice),
+    hasBadge: Boolean(badge),
+    hasNotice: Boolean(notice),
+  };
+})()"""
+
+
 _NARROW_CONTAINER_JS = """(() => {
   const badge = document.querySelector('[data-testid^="deliverable-tier-badge-"]');
   const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
