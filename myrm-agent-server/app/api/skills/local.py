@@ -13,7 +13,6 @@
 import logging
 
 from fastapi import APIRouter, HTTPException
-from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.schemas import (
@@ -33,6 +32,7 @@ from app.api.skills.schemas import (
     skill_to_response,
 )
 from app.core.skills.store.service import skills_service
+from app.core.storage.types import SkillType
 
 logger = logging.getLogger(__name__)
 

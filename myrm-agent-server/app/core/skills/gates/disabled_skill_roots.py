@@ -16,11 +16,10 @@ from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.toolkits.storage.types import SkillType
-
 from app.core.skills.models import Skill
 from app.core.skills.store.service import SkillsService
 from app.core.skills.store.user_config import UserSkillConfigManager
+from app.core.storage.types import SkillType
 from app.platform_utils import get_storage_provider
 
 logger = logging.getLogger(__name__)

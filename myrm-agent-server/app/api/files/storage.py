@@ -7,11 +7,11 @@ import logging
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import Response
-from myrm_agent_harness.toolkits.storage.types import FilePurpose
 from pydantic import BaseModel
 
 from app.core.storage import files_service
 from app.core.storage.models import File as FileModel
+from app.core.storage.types import FilePurpose
 
 logger = logging.getLogger(__name__)
 

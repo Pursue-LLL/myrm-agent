@@ -19,9 +19,8 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.storage.paths import SKILL_METADATA_FILE
-
 from app.core.skills.models import Skill, SkillType
+from app.core.storage.paths import SKILL_METADATA_FILE
 
 logger = logging.getLogger(__name__)
 

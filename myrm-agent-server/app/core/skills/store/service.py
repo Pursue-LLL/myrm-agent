@@ -21,7 +21,7 @@ from myrm_agent_harness.agent.skills.market.sanitizer import (
 )
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
-from myrm_agent_harness.toolkits.storage.paths import (
+from app.core.storage.paths import (
     SKILL_METADATA_FILE,
     get_skill_file_path,
     get_skill_metadata_path,
