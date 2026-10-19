@@ -166,6 +166,22 @@ class TestConcisePromptQuality:
         assert "not shorter than the plain phrasing" in block
         assert "No invented abbreviations" in block
 
+    def test_concise_preserves_the_users_language(self) -> None:
+        """concise 的 prompt 必须要求沿用用户语言（压缩的是风格不是语言）"""
+        block = self._block()
+        assert "compress the style, never the language" in block
+
+    def test_concise_keeps_vocabulary_stable_and_plain(self) -> None:
+        """concise 的 prompt 必须要求一义一词与主动语态，避免同义轮换与长句"""
+        block = self._block()
+        assert "Name each thing once" in block
+        assert "prefer active voice" in block
+
+    def test_concise_bounds_tool_narration_across_phases(self) -> None:
+        """concise 的 prompt 必须在阶段切换时也只写一行"""
+        block = self._block()
+        assert "one line at each phase change" in block
+
     def test_injected_block_is_language_agnostic(self) -> None:
         """简洁档规则不得依赖英文文法机制，保证中文场景同样生效"""
         block = self._block()
