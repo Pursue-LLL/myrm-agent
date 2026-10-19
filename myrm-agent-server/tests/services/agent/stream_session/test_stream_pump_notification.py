@@ -10,6 +10,7 @@ Validates that:
 
 from __future__ import annotations
 
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -35,10 +36,15 @@ def _make_session(
     session.had_fatal_error = False
     session.request.chat_id = chat_id
     session.request.message_id = message_id
+    session.request.multiplexed = False
     session.params.project_id = None
     session.collector = MagicMock()
+    session.collector.has_subscribers = False
     session.http_request.is_disconnected = AsyncMock(return_value=is_disconnected)
     session.registry.remove = AsyncMock()
+    # 0.0 means "start unknown": the pump then treats the turn as short unless it was flagged long-running.
+    session.stream_started_at_monotonic = 0.0
+    session.last_activity_monotonic = time.monotonic()
     return session
 
 
@@ -147,6 +153,36 @@ async def test_cancelled_task_no_notification():
 async def test_short_task_no_notification():
     """Non-long-running task → no notification created."""
     session = _make_session(is_long_running=False)
+    buf = _make_buffer()
+
+    async def _gen():
+        yield 'data: {"type": "message", "data": "hello"}\n\n'
+
+    mock_notif = await _run_pump(session, buf, _gen())
+    mock_notif.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_detached_turn_past_the_duration_threshold_notifies_without_the_long_running_flag():
+    """A client that left a turn running ≥30s is told when it ends, even without the long-running flag."""
+    session = _make_session(is_long_running=False)
+    session.stream_started_at_monotonic = time.monotonic() - 31.0
+    buf = _make_buffer()
+
+    async def _gen():
+        yield 'data: {"type": "message", "data": "hello"}\n\n'
+
+    mock_notif = await _run_pump(session, buf, _gen())
+
+    assert mock_notif.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_attached_listener_suppresses_the_offline_notification():
+    """A frontend listener still attached to the turn → no offline notification."""
+    session = _make_session(is_long_running=False)
+    session.stream_started_at_monotonic = time.monotonic() - 31.0
+    session.collector.has_subscribers = True
     buf = _make_buffer()
 
     async def _gen():

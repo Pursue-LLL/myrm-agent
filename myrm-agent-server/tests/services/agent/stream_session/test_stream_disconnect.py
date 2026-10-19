@@ -17,6 +17,7 @@ from app.services.agent.stream_session.stream_disconnect import (
     watch_client_disconnect,
 )
 from app.services.agent.stream_session.stream_session_types import (
+    ACTIVITY_STALE_SECONDS,
     GRACE_PERIOD_SECONDS,
     AgentStreamSession,
 )
@@ -30,8 +31,11 @@ def _session(
     disconnected: bool = True,
     has_subscribers: bool = False,
     long_running: bool = False,
-    disconnect_time: float | None = None,
+    disconnect_monotonic: float | None = None,
+    activity_age_seconds: float = 0.0,
 ) -> AgentStreamSession:
+    """Fake session: the grace clock is monotonic and cancellation also needs stale activity."""
+    now_mono = time.monotonic()
     return cast(
         AgentStreamSession,
         SimpleNamespace(
@@ -41,7 +45,9 @@ def _session(
             params=SimpleNamespace(message_id="msg-1"),
             cancel_token=CancellationToken(request_id="msg-1"),
             is_long_running_task=long_running,
-            disconnect_time=disconnect_time,
+            disconnect_monotonic=disconnect_monotonic,
+            disconnect_time=None if disconnect_monotonic is None else time.time(),
+            last_activity_monotonic=now_mono - activity_age_seconds,
         ),
     )
 
@@ -58,7 +64,7 @@ async def _until_cancelled(token: CancellationToken) -> None:
 
 @pytest.mark.asyncio
 async def test_connected_client_clears_the_grace_clock() -> None:
-    session = _session(disconnected=False, disconnect_time=time.time() - 30)
+    session = _session(disconnected=False, disconnect_monotonic=time.monotonic() - 30)
 
     assert await build_disconnect_checker(session)() is False
     assert session.disconnect_time is None
@@ -66,7 +72,7 @@ async def test_connected_client_clears_the_grace_clock() -> None:
 
 @pytest.mark.asyncio
 async def test_resubscribed_client_clears_the_grace_clock() -> None:
-    session = _session(disconnected=True, has_subscribers=True, disconnect_time=time.time() - 30)
+    session = _session(disconnected=True, has_subscribers=True, disconnect_monotonic=time.monotonic() - 30)
 
     assert await build_disconnect_checker(session)() is False
     assert session.disconnect_time is None
@@ -77,26 +83,40 @@ async def test_first_detected_disconnect_only_starts_the_grace_clock() -> None:
     session = _session()
 
     assert await build_disconnect_checker(session)() is False
+    assert session.disconnect_monotonic is not None
     assert session.disconnect_time is not None
 
 
 @pytest.mark.asyncio
 async def test_disconnect_within_the_grace_period_keeps_the_turn_running() -> None:
-    session = _session(disconnect_time=time.time() - (GRACE_PERIOD_SECONDS - 30))
+    session = _session(disconnect_monotonic=time.monotonic() - (GRACE_PERIOD_SECONDS - 30))
 
     assert await build_disconnect_checker(session)() is False
 
 
 @pytest.mark.asyncio
-async def test_disconnect_past_the_grace_period_cancels_the_turn() -> None:
-    session = _session(disconnect_time=time.time() - (GRACE_PERIOD_SECONDS + 1))
+async def test_disconnect_past_the_grace_period_only_cancels_stale_activity() -> None:
+    session = _session(
+        disconnect_monotonic=time.monotonic() - (GRACE_PERIOD_SECONDS + 1),
+        activity_age_seconds=ACTIVITY_STALE_SECONDS + 1,
+    )
 
     assert await build_disconnect_checker(session)() is True
 
 
 @pytest.mark.asyncio
+async def test_fresh_activity_defers_cancellation_past_the_grace_period() -> None:
+    session = _session(
+        disconnect_monotonic=time.monotonic() - (GRACE_PERIOD_SECONDS + 1),
+        activity_age_seconds=ACTIVITY_STALE_SECONDS - 1,
+    )
+
+    assert await build_disconnect_checker(session)() is False
+
+
+@pytest.mark.asyncio
 async def test_long_running_turn_is_never_cancelled_for_a_disconnect() -> None:
-    session = _session(long_running=True, disconnect_time=time.time() - (GRACE_PERIOD_SECONDS + 1))
+    session = _session(long_running=True, disconnect_monotonic=time.monotonic() - (GRACE_PERIOD_SECONDS + 1))
 
     assert await build_disconnect_checker(session)() is False
 
@@ -167,7 +187,7 @@ async def test_sustained_disconnect_cancels_the_turn_once_the_grace_period_ends(
 ) -> None:
     monkeypatch.setattr(stream_disconnect, "_CHECK_INTERVAL_SECONDS", _FAST_INTERVAL_SECONDS)
     monkeypatch.setattr(stream_disconnect, "GRACE_PERIOD_SECONDS", 5 * _FAST_INTERVAL_SECONDS)
-    session = _session()
+    session = _session(activity_age_seconds=ACTIVITY_STALE_SECONDS + 1)
 
     async with watch_client_disconnect(session):
         await asyncio.wait_for(_until_cancelled(session.cancel_token), timeout=2)
