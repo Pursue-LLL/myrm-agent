@@ -1,4 +1,4 @@
-"""Communication style catalog API.
+"""Communication style catalog endpoint.
 
 [INPUT]
 - app.ai_agents.personality_templates::list_all_personalities (POS: Personality template catalog SSOT)

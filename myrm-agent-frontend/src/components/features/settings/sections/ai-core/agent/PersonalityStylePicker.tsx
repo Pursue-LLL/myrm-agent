@@ -146,11 +146,10 @@ export function PersonalityStylePicker({ value, onChange, readonly = false }: Pe
           if (styles.length === 0) {
             return null;
           }
+          const categoryLabel = t(`agent.personality.category.${category}`);
           return (
-            <div key={category} className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground/70">
-                {t(`agent.personality.category.${category}`)}
-              </span>
+            <fieldset key={category} className="space-y-1.5 border-0 p-0">
+              <legend className="text-xs font-medium text-muted-foreground/70">{categoryLabel}</legend>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {styles.map((item) => {
                   const Icon = PERSONALITY_ICONS[item.iconId] ?? FALLBACK_ICON;
@@ -184,7 +183,7 @@ export function PersonalityStylePicker({ value, onChange, readonly = false }: Pe
                   );
                 })}
               </div>
-            </div>
+            </fieldset>
           );
         })}
 

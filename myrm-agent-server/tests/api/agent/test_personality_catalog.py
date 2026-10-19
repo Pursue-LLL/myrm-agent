@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.ai_agents.personality_templates import PERSONALITY_TEMPLATES
-from app.api.agents.personalities import router
+from app.api.agents.personality import router
 
 
 @pytest.fixture()
