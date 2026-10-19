@@ -100,10 +100,21 @@ def _semantic_memories(api_url: str) -> list[dict[str, object]]:
     return [item for item in listed["items"] if isinstance(item, dict)]
 
 
-def _old_employer_memory_id(api_url: str) -> str:
-    matches = [m for m in _semantic_memories(api_url) if _OLD_EMPLOYER.lower() in str(m.get("content", "")).lower()]
-    assert matches, f"the stated fact was not persisted as a semantic memory: {_semantic_memories(api_url)}"
-    return str(matches[0]["id"])
+def _old_employer_memory_id(api_url: str, *, timeout_sec: float = 120.0) -> str:
+    """Wait for the background extraction to persist the stated employer fact.
+
+    The assistant reply lands first; the memory extraction that stores the fact
+    is asynchronous, so an immediate read races it (observed: an empty list).
+    """
+    deadline = time.monotonic() + timeout_sec
+    last: list[dict[str, object]] = []
+    while time.monotonic() < deadline:
+        last = _semantic_memories(api_url)
+        matches = [m for m in last if _OLD_EMPLOYER.lower() in str(m.get("content", "")).lower()]
+        if matches:
+            return str(matches[0]["id"])
+        time.sleep(2.0)
+    raise AssertionError(f"the stated fact was not persisted as a semantic memory: {last}")
 
 
 def _await_employer_proposal(api_url: str) -> dict[str, object]:
