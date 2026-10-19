@@ -55,17 +55,13 @@ def _skip_ledger():
 
 
 async def _store_knowledge(manager, content: str, *, tags: list[str] | None = None) -> SemanticMemory:
-    return await manager.store(
-        SemanticMemory(id=str(uuid4()), user_id="sandbox_user", content=content, tags=tags or [])
-    )
+    return await manager.store(SemanticMemory(id=str(uuid4()), user_id="sandbox_user", content=content, tags=tags or []))
 
 
 async def test_search_memories_returns_scored_results(keyword_manager) -> None:
     memory = await _store_knowledge(keyword_manager, "搜索校验：TypeScript strict 模式")
 
-    response = await search_memories(
-        query="TypeScript", memory_types=None, limit=10, session_id=None, manager=keyword_manager
-    )
+    response = await search_memories(query="TypeScript", memory_types=None, limit=10, session_id=None, manager=keyword_manager)
 
     assert [item.id for item in response.results] == [memory.id]
     assert response.scores == [pytest.approx(response.scores[0])]
@@ -123,9 +119,7 @@ async def test_create_memory_procedural_branch(keyword_manager) -> None:
 async def test_update_memory_status_archives_and_rejects_unknown(keyword_manager) -> None:
     memory = await _store_knowledge(keyword_manager, "状态校验：TypeScript")
 
-    archived = await update_memory_status(
-        memory.id, UpdateMemoryStatusRequest(status="archived"), manager=keyword_manager
-    )
+    archived = await update_memory_status(memory.id, UpdateMemoryStatusRequest(status="archived"), manager=keyword_manager)
     assert archived.id == memory.id
 
     with pytest.raises(HTTPException) as excinfo:
