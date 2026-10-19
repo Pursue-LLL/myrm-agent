@@ -166,7 +166,7 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 |---------|------|------|
 | 控制平面 → myrm-agent-server | 环境变量注入（创建时一次性） | 创建云电脑时注入 `DEPLOY_MODE`、`MYRM_DATA_DIR` 等配置 |
 | 用户 → agent-server | HTTP/WS（`/proxy/me/*` 或 `/proxy/{sandbox_id}/*`） | CP 反向代理 + HMAC 验签头注入；SaaS 前端 `NEXT_PUBLIC_API_BASE_URL=https://<cp>/proxy/me/api/v1` |
-| 控制平面 → 云电脑 | Docker / Fly API（按后端） | 云电脑生命周期管理（pause/stop/rm），`myrm-agent-server` 业务逻辑本身不参与 |
+| 控制平面 → 云电脑 | Docker / Fly / E2B API（按后端） | 云电脑生命周期管理（pause/stop/rm），`myrm-agent-server` 业务逻辑本身不参与 |
 | myrm-agent-server / 云电脑 → 控制平面 | stdout 日志采集 + 可选 HTTP 遥测上报 + 下次唤醒时刻上报 | 结构化日志被动采集；少量 `sandbox` 专属指标可通过显式适配器上报控制平面；`services/sandbox_wake` 把 goal/cron/看板的下一次必须运行时间 `PUT` 给 CP（`/api/internal/sandboxes/{id}/wake-schedule`），CP 到点唤醒已暂停的云电脑 |
 
 **per-user 模型下的通信流程**（当前真实实现）：
