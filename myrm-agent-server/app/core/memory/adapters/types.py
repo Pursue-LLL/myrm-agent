@@ -1,6 +1,6 @@
 """
 [INPUT]
-myrm_agent_harness.toolkits.context_bundle.spec::AgentContextOverlay, IncognitoPolicy (POS: context bundle specification)
+myrm_agent_harness.toolkits.context_bundle.spec::ContextBundleSpec (POS: context bundle specification)
 myrm_agent_harness.toolkits.memory.config::AgentMemoryPolicy (POS: 记忆策略配置)
 
 [OUTPUT]
@@ -18,10 +18,7 @@ from dataclasses import dataclass
 from myrm_agent_harness.toolkits.context_bundle.spec import (
     CONTEXT_BUNDLE_SCHEMA_VERSION,
     DEFAULT_BUNDLE_ID,
-    DEFAULT_SCENES,
     VOLUME_LAYOUT_VERSION,
-    AgentContextOverlay,
-    IncognitoPolicy,
 )
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
@@ -39,6 +36,3 @@ class ResolvedContextBinding:
     bundle_id: str = DEFAULT_BUNDLE_ID
     schema_version: int = CONTEXT_BUNDLE_SCHEMA_VERSION
     volume_layout_version: int = VOLUME_LAYOUT_VERSION
-    active_scenes: tuple[str, ...] = tuple(scene.value for scene in DEFAULT_SCENES)
-    incognito: IncognitoPolicy | None = None
-    agent_overlay: AgentContextOverlay | None = None
