@@ -54,6 +54,17 @@ const CATALOG: PersonalityCatalogItem[] = [
     iconId: 'unknown-icon',
     category: 'fun',
   },
+  {
+    id: 'system-lab',
+    displayName: 'System Lab',
+    displayNameZh: '系统实验',
+    description: 'Experimental preset served under a category the UI does not know yet',
+    descriptionZh: '未知分类下的实验风格',
+    exampleResponse: 'Experimental reply.',
+    exampleResponseZh: '实验性回复。',
+    iconId: 'beaker',
+    category: 'experimental',
+  },
 ];
 
 describe('PersonalityStylePicker', () => {
@@ -71,6 +82,17 @@ describe('PersonalityStylePicker', () => {
     });
     expect(screen.getByRole('button', { name: /agent.personality.styles.concise/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /agent.personality.styles.zen-custom/ })).toBeInTheDocument();
+  });
+
+  it('renders presets of an unknown category instead of dropping them', async () => {
+    const onChange = vi.fn();
+    render(<PersonalityStylePicker value="professional" onChange={onChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /agent.personality.styles.system-lab/ })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /agent.personality.styles.system-lab/ }));
+    expect(onChange).toHaveBeenCalledWith('system-lab');
   });
 
   it('reports the picked style id', async () => {

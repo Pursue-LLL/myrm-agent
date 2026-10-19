@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   Anchor,
@@ -50,7 +50,8 @@ const PERSONALITY_ICONS: Record<string, PersonalityIcon> = {
   scroll: Scroll,
 };
 
-const PERSONALITY_CATEGORIES = ['practical', 'fun'] as const;
+/** Presentation order for the categories the server ships today; others render after them. */
+const KNOWN_CATEGORY_ORDER: readonly string[] = ['practical', 'fun'];
 
 const FALLBACK_ICON: PersonalityIcon = Sparkles;
 
@@ -110,6 +111,31 @@ export function PersonalityStylePicker({ value, onChange, readonly = false }: Pe
     [prefersChinese, t],
   );
 
+  const categoryLabelFor = useCallback(
+    (category: string) => {
+      const key = `agent.personality.category.${category}`;
+      return t.has(key) ? t(key) : category;
+    },
+    [t],
+  );
+
+  // Groups come from the catalog itself (known categories first), so a category the
+  // server adds later still renders instead of silently dropping its presets.
+  const groups = useMemo(() => {
+    if (!catalog) {
+      return [];
+    }
+    const order: string[] = [...KNOWN_CATEGORY_ORDER];
+    for (const item of catalog) {
+      if (!order.includes(item.category)) {
+        order.push(item.category);
+      }
+    }
+    return order
+      .map((category) => ({ category, styles: catalog.filter((item) => item.category === category) }))
+      .filter((group) => group.styles.length > 0);
+  }, [catalog]);
+
   const selected = catalog?.find((item) => item.id === value);
 
   return (
@@ -132,60 +158,58 @@ export function PersonalityStylePicker({ value, onChange, readonly = false }: Pe
 
       {!catalog &&
         !loadFailed &&
-        PERSONALITY_CATEGORIES.map((category) => (
-          <div key={category} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {Array.from({ length: 4 }, (_, index) => (
-              <div key={index} className="h-[74px] animate-pulse rounded-xl border border-border/40 bg-muted/20" />
-            ))}
+        KNOWN_CATEGORY_ORDER.map((category) => (
+          <div key={category} className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground/70">{categoryLabelFor(category)}</span>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="h-[74px] animate-pulse rounded-xl border border-border/40 bg-muted/20" />
+              ))}
+            </div>
           </div>
         ))}
 
-      {catalog &&
-        PERSONALITY_CATEGORIES.map((category) => {
-          const styles = catalog.filter((item) => item.category === category);
-          if (styles.length === 0) {
-            return null;
-          }
-          const categoryLabel = t(`agent.personality.category.${category}`);
-          return (
-            <fieldset key={category} className="space-y-1.5 border-0 p-0">
-              <legend className="text-xs font-medium text-muted-foreground/70">{categoryLabel}</legend>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {styles.map((item) => {
-                  const Icon = PERSONALITY_ICONS[item.iconId] ?? FALLBACK_ICON;
-                  const isSelected = value === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => !readonly && onChange(item.id)}
-                      disabled={readonly}
-                      aria-pressed={isSelected}
+      {groups.map(({ category, styles }) => {
+        const categoryLabel = categoryLabelFor(category);
+        return (
+          <fieldset key={category} className="space-y-1.5 border-0 p-0">
+            <legend className="text-xs font-medium text-muted-foreground/70">{categoryLabel}</legend>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {styles.map((item) => {
+                const Icon = PERSONALITY_ICONS[item.iconId] ?? FALLBACK_ICON;
+                const isSelected = value === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => !readonly && onChange(item.id)}
+                    disabled={readonly}
+                    aria-pressed={isSelected}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-3 rounded-xl',
+                      'border transition-all duration-200',
+                      readonly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
+                      isSelected
+                        ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                        : 'border-border/40 bg-background hover:border-border hover:bg-muted/30',
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span
                       className={cn(
-                        'flex flex-col items-center gap-1.5 p-3 rounded-xl',
-                        'border transition-all duration-200',
-                        readonly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
-                        isSelected
-                          ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
-                          : 'border-border/40 bg-background hover:border-border hover:bg-muted/30',
+                        'text-xs font-medium leading-tight text-center',
+                        isSelected ? 'text-primary' : 'text-muted-foreground',
                       )}
                     >
-                      <Icon className="w-5 h-5" />
-                      <span
-                        className={cn(
-                          'text-xs font-medium leading-tight text-center',
-                          isSelected ? 'text-primary' : 'text-muted-foreground',
-                        )}
-                      >
-                        {labelFor(item)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-          );
-        })}
+                      {labelFor(item)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        );
+      })}
 
       {selected && (
         <div className="space-y-2 rounded-xl border border-border/40 bg-muted/20 p-3">

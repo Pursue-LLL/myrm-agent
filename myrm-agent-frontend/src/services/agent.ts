@@ -32,7 +32,8 @@ export interface PersonalityCatalogItem {
   exampleResponse: string;
   exampleResponseZh: string;
   iconId: string;
-  category: 'practical' | 'fun';
+  /** Server-owned category id (known: practical, fun); new ids render as extra groups. */
+  category: string;
 }
 
 /** Load the built-in communication style presets. */
