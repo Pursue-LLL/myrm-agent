@@ -12,7 +12,7 @@
 |------|------------------|------|------|
 | **myrm-agent** | `myrm-agent/` | MIT 开源 | 单机业务 server、Web UI、Tauri 桌面 |
 | **myrm-agent-harness** | `myrm-agent-harness/` | MIT 开源 | Agent 执行引擎（类 LangChain）；PyPI 分发 |
-| **myrm-control-plane** | `myrm-control-plane/` | 闭源 | SaaS/企业：调度**每用户独立沙箱 + Volume**（非传统多租户 DB） |
+| **myrm-control-plane** | `myrm-control-plane/` | 闭源 | SaaS/企业：调度**每用户独立云电脑（容器 / microVM）+ Volume**（非传统多租户 DB） |
 | **myrm-agent-brand** | `myrm-agent-brand/` | 闭源 | 官网 `myrm-website/`、文档 `myrm-docs/` |
 
 **依赖铁律**
@@ -31,7 +31,7 @@
 |------|--------------|-----------------|-------------|
 | **本地 WebUI** | `curl\|bash` / `irm\|iex` → `myrm start` 或 monorepo `myrm setup` + `./myrm ready`（`./myrm test` / `./myrm restart`） | 本机 :8080 | 否 |
 | **Tauri 桌面** | GitHub Releases 安装包 | 内嵌 Python sidecar（默认 :8080） | 否 |
-| **SaaS 云托管** | `app.myrmagent.ai` | CP 分配的**独立沙箱**内 server | 是（调度/Volume/ingress） |
+| **SaaS 云托管** | `app.myrmagent.ai` | CP 分配的**独立云电脑**内 server | 是（调度/Volume/ingress） |
 
 - 本地/桌面：单机或用户自有沙箱，数据在本地 SQLite + Qdrant + 文件系统。
 - SaaS：CP 注入 [S] 层环境变量（见 server `ARCHITECTURE.md` §0.06）；前端 `NEXT_PUBLIC_CP_BASE_URL` / `lib/cp-base-url.ts` 仅在该构建形态启用。
