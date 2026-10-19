@@ -84,18 +84,13 @@ def _wait_with_reload(
             last = exc
             if attempt + 1 >= attempts:
                 break
-            # Nested settings routes must be entered through /settings: a direct
-            # load of /settings/memory leaves the SettingsLayout sidebar mounted
-            # but the memory pane empty (verified: cardCount 0, tabs []).
-            parent = route_url.rstrip("/")
-            if "/settings/" in parent:
-                parent = parent.split("/settings/", 1)[0] + "/settings"
-            reload_mcp_page(client, page, target_url=parent, timeout_ms=120_000)  # type: ignore[arg-type]
-            dismiss_blocking_modals(client, page, recover_url=parent)  # type: ignore[arg-type]
-            if parent != route_url.rstrip("/"):
-                client.navigate(page, route_url)  # type: ignore[attr-defined]
-                time.sleep(1.0)
-                dismiss_blocking_modals(client, page, recover_url=route_url)  # type: ignore[arg-type]
+            # The section itself is a next/dynamic chunk: a client-side
+            # navigation can reuse the failed result from the router cache, so
+            # retry with a full load at the subroute (fresh chunk requests) —
+            # the deferred locale payload now has a real timeout, so the
+            # namespaces arrive on that load too.
+            reload_mcp_page(client, page, target_url=route_url, timeout_ms=120_000)  # type: ignore[arg-type]
+            dismiss_blocking_modals(client, page, recover_url=route_url)  # type: ignore[arg-type]
     raise AssertionError(str(last))
 
 
