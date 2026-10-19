@@ -15,13 +15,14 @@ openclaw in _loaders_openclaw.py; pi in _loaders_pi.py.
 
 from __future__ import annotations
 
+import shutil
 import tempfile
+import time
 from pathlib import Path
 from typing import TypedDict
 
 from app.config.deploy_mode import is_local_mode
 
-from .source_manifest import migration_source_local_scan_ids
 from .source_payload_loaders_impl import (
     load_chatgpt,
     load_claude,
@@ -33,8 +34,16 @@ from .source_payload_loaders_impl import (
     load_plur,
 )
 
-_MIGRATION_UPLOAD_DIR_PREFIX = "myrm_migration_"
-_SUPPORTED_SOURCES = migration_source_local_scan_ids()
+MIGRATION_UPLOAD_DIR_PREFIX = "myrm_migration_"
+MIGRATION_UPLOAD_TTL_SECONDS = 6 * 3600
+# Skill bundles travel to the client and back (the wizard submits them to the
+# skill review pipeline), so the review payload is capped; the response reports
+# the real total so the UI can say how many were left out.
+MAX_PENDING_SKILLS = 500
+
+
+class MigrationSourceAccessError(ValueError):
+    """Raised when a discovery payload asks for a path the deployment forbids."""
 
 
 class SourceDiscoveryPayload(TypedDict, total=False):
@@ -66,8 +75,8 @@ def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
     root = Path(str(root_raw)) if isinstance(root_raw, str) and root_raw else Path()
     sandbox_upload = not is_local_mode()
     if sandbox_upload and not is_migration_upload_path(root):
-        msg = "External source payload loading requires local or Tauri deployment mode"
-        raise ValueError(msg)
+        msg = "External source files can only be read from the archive uploaded in this session"
+        raise MigrationSourceAccessError(msg)
 
     files_raw = payload.get("files")
     file_paths = [str(item) for item in files_raw if isinstance(item, str)] if isinstance(files_raw, list) else []
@@ -179,12 +188,6 @@ def extract_pending_skills(payload: dict[str, object]) -> list[dict[str, object]
     return []
 
 
-def supported_source_ids() -> frozenset[str]:
-    """Return the closed set of wizard-discoverable migration source ids."""
-
-    return _SUPPORTED_SOURCES
-
-
 def is_migration_upload_path(path: Path) -> bool:
     """True when ``path`` lives inside a migration ZIP extraction directory."""
 
@@ -194,7 +197,7 @@ def is_migration_upload_path(path: Path) -> bool:
         return False
     temp_root = Path(tempfile.gettempdir()).resolve()
     for candidate in (resolved, *resolved.parents):
-        if not candidate.name.startswith(_MIGRATION_UPLOAD_DIR_PREFIX):
+        if not candidate.name.startswith(MIGRATION_UPLOAD_DIR_PREFIX):
             continue
         try:
             candidate.relative_to(temp_root)
@@ -202,6 +205,36 @@ def is_migration_upload_path(path: Path) -> bool:
             continue
         return True
     return False
+
+
+def sweep_stale_migration_uploads(*, now: float | None = None) -> int:
+    """Delete expired migration extraction directories and return how many went.
+
+    The review session keeps its extraction directory readable for the whole
+    dry-run window, so the TTL is far larger than a session's lifetime; anything
+    older than that belongs to an abandoned upload and only occupies disk.
+    """
+
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    cutoff = (time.time() if now is None else now) - MIGRATION_UPLOAD_TTL_SECONDS
+    try:
+        entries = list(temp_root.iterdir())
+    except OSError:
+        return 0
+    removed = 0
+    for entry in entries:
+        if not entry.name.startswith(MIGRATION_UPLOAD_DIR_PREFIX) or entry.is_symlink():
+            continue
+        if not entry.is_dir():
+            continue
+        try:
+            if entry.stat().st_mtime >= cutoff:
+                continue
+        except OSError:
+            continue
+        shutil.rmtree(entry, ignore_errors=True)
+        removed += 1
+    return removed
 
 
 def _keep_upload_contained_paths(file_paths: list[str], root: Path) -> list[str]:

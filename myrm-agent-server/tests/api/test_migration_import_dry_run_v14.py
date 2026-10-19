@@ -484,3 +484,52 @@ class TestSourceImportDryRunApi:
         assert result["summary"]["mapped_items"] == 3
         assert set(result["normalized_data"]) <= {"profile", "procedural", "semantic"}
         assert result["normalized_data"], "preview sample must reach the frontend"
+
+
+class TestSourceAccessAndSkillBudget:
+    @pytest.fixture(autouse=True)
+    def _local_mode(self) -> None:
+        with patch(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            return_value=True,
+        ):
+            yield  # type: ignore[misc]
+
+    def test_sandbox_host_path_is_rejected_with_422(self, client: TestClient, tmp_path: Path) -> None:
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "hermes", "root": str(tmp_path), "files": []},
+        }
+        with patch(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            return_value=False,
+        ):
+            resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 422
+        assert "archive" in resp.json()["detail"].lower()
+
+    def test_skill_payload_is_capped_and_reports_the_total(
+        self,
+        client: TestClient,
+        claude_fixture: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        second = claude_fixture / "skills" / "second"
+        second.mkdir(parents=True)
+        (second / "SKILL.md").write_text("---\nname: second\n---\nSecond skill", encoding="utf-8")
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.MAX_PENDING_SKILLS",
+            1,
+        )
+
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "claude", "root": str(claude_fixture), "files": []},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["pending_skills_total"] == 2
+        assert len(body["pending_skills"]) == 1

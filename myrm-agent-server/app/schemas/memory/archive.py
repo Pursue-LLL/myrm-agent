@@ -187,6 +187,7 @@ class MemoryImportDryRunResponse(BaseModel):
     expires_at: datetime
     result: MemoryImportDryRunResult
     pending_skills: list[dict[str, object]] = Field(default_factory=list)
+    pending_skills_total: int = Field(default=0, description="Total skills found before the import cap")
     coverage_items: list[dict[str, str]] = Field(default_factory=list)
     migration_lanes: list[MigrationLanePreviewItem] = Field(default_factory=list)
     token_economics: TokenEconomicsComparison | None = Field(

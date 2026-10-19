@@ -227,6 +227,8 @@ async def dry_run_import_memories(
         instruction_char_total,
     )
     from app.services.migration.source.source_payload_loader import (
+        MAX_PENDING_SKILLS,
+        MigrationSourceAccessError,
         build_coverage_items,
         extract_pending_skills,
         is_source_discovery_payload,
@@ -242,6 +244,7 @@ async def dry_run_import_memories(
     )
 
     pending_skills: list[dict[str, object]] = []
+    pending_skills_total = 0
     coverage_items: list[dict[str, str]] = []
     migration_lanes: list[MigrationLanePreviewItem] = []
     import_payload = body.payload
@@ -256,8 +259,14 @@ async def dry_run_import_memories(
     session_preview: list[dict[str, object]] = []
 
     if is_competitor:
-        loaded_payload = load_source_payload(body.payload)
+        try:
+            loaded_payload = load_source_payload(body.payload)
+        except MigrationSourceAccessError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         pending_skills = extract_pending_skills(loaded_payload)
+        pending_skills_total = len(pending_skills)
+        if pending_skills_total > MAX_PENDING_SKILLS:
+            pending_skills = pending_skills[:MAX_PENDING_SKILLS]
         coverage_items = build_coverage_items(loaded_payload)
 
         migration_opts = (
@@ -357,7 +366,7 @@ async def dry_run_import_memories(
             instruction=instruction_plan,
             memory_mapped=0,
             memory_status="pending",
-            skill_count=len(pending_skills),
+            skill_count=pending_skills_total or len(pending_skills),
             has_api_keys=source_has_api_keys,
             providers_ready=providers_configured,
             include_episodic=migration_opts.include_episodic,
@@ -457,8 +466,8 @@ async def dry_run_import_memories(
                         instruction_preview_rule_names.append(name)
 
     token_economics: TokenEconomicsComparison | None = None
-    if is_competitor and pending_skills:
-        skill_count = len(pending_skills)
+    if is_competitor and pending_skills_total:
+        skill_count = pending_skills_total
         source_tokens = skill_count * _COMPETITOR_AVG_SKILL_TOKENS
         myrm_tokens = skill_count * _MYRM_AVG_INDEX_TOKENS
         savings = round((1 - myrm_tokens / source_tokens) * 100, 1) if source_tokens > 0 else 0.0
@@ -475,6 +484,7 @@ async def dry_run_import_memories(
         expires_at=expires_at,
         result=result,
         pending_skills=pending_skills,
+        pending_skills_total=pending_skills_total,
         coverage_items=coverage_items,
         migration_lanes=migration_lanes,
         token_economics=token_economics,

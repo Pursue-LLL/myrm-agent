@@ -66,7 +66,6 @@ from app.services.migration.source.source_payload_loader import (
     extract_pending_skills,
     is_source_discovery_payload,
     load_source_payload,
-    supported_source_ids,
 )
 from app.services.migration.source.source_payload_loaders_impl import (
     load_chatgpt,
@@ -146,5 +145,4 @@ __all__ = [
     "migration_source_manifest_entries",
     "migration_source_manifest_ids",
     "migration_source_manifest_payload",
-    "supported_source_ids",
 ]

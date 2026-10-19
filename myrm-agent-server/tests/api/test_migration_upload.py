@@ -192,3 +192,39 @@ async def test_upload_plur_store_detected(client: AsyncClient):
     data = resp.json()
     assert [source["competitor"] for source in data["sources"]] == ["plur"]
     assert data["sources"][0]["memory_count_estimate"] == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_archive_that_expands_beyond_budget(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A small compressed archive must not be able to fill the volume when expanded."""
+
+    monkeypatch.setattr("app.api.migration.upload.MAX_UNCOMPRESSED_BYTES", 4096)
+    payload = _make_zip({"big.txt": "0" * 8192})
+
+    resp = await client.post(
+        "/api/v1/migration/upload",
+        files={"file": ("data.zip", payload, "application/zip")},
+    )
+
+    assert resp.status_code == 400
+    assert "expands beyond" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_single_oversized_member(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr("app.api.migration.upload.MAX_UNCOMPRESSED_FILE_BYTES", 1024)
+    payload = _make_zip({"huge.bin": "x" * 4096})
+
+    resp = await client.post(
+        "/api/v1/migration/upload",
+        files={"file": ("data.zip", payload, "application/zip")},
+    )
+
+    assert resp.status_code == 400
+    assert "huge.bin" in resp.json()["detail"]

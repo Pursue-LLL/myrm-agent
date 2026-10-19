@@ -12,16 +12,11 @@ from app.services.migration.source.source_manifest import (
     migration_source_manifest_ids,
     migration_source_manifest_payload,
 )
-from app.services.migration.source.source_payload_loader import supported_source_ids
 
 
 def test_manifest_ids_match_expected_sources() -> None:
     ids = [item.id for item in migration_source_manifest_entries()]
     assert ids == ["hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi", "plur"]
-
-
-def test_local_scan_ids_match_loader_closed_set() -> None:
-    assert migration_source_local_scan_ids() == supported_source_ids()
 
 
 def test_import_map_covers_upload_only_chatgpt() -> None:

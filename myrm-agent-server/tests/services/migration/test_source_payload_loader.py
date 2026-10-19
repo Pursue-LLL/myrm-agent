@@ -3,15 +3,23 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import tempfile
+import time
 from pathlib import Path
 
 import pytest
 
 from app.services.memory.imports.import_adapters import build_memory_import_dry_run
 from app.services.migration.source.source_payload_loader import (
+    MIGRATION_UPLOAD_DIR_PREFIX,
+    MIGRATION_UPLOAD_TTL_SECONDS,
+    MigrationSourceAccessError,
     build_coverage_items,
     is_source_discovery_payload,
     load_source_payload,
+    sweep_stale_migration_uploads,
 )
 
 
@@ -185,3 +193,38 @@ class TestCompetitorPayloadLoader:
         assert result.summary.source == "hermes"
         assert result.summary.mapped_items > 0
         assert result.summary.status in {"ready", "warning"}
+
+
+class TestMigrationUploadHygiene:
+    """Expired upload directories are reclaimed; live ones are left alone."""
+
+    @staticmethod
+    def _make_upload_dir(*, age_seconds: float) -> Path:
+        path = Path(tempfile.mkdtemp(prefix=MIGRATION_UPLOAD_DIR_PREFIX))
+        (path / "payload.txt").write_text("data", encoding="utf-8")
+        stamp = time.time() - age_seconds
+        os.utime(path, (stamp, stamp))
+        return path
+
+    def test_sweep_removes_only_expired_upload_dirs(self) -> None:
+        expired = self._make_upload_dir(age_seconds=MIGRATION_UPLOAD_TTL_SECONDS + 60)
+        fresh = self._make_upload_dir(age_seconds=60)
+        unrelated = Path(tempfile.mkdtemp(prefix="myrm_other_"))
+        try:
+            removed = sweep_stale_migration_uploads()
+
+            assert removed >= 1
+            assert not expired.exists()
+            assert fresh.exists()
+            assert unrelated.exists()
+        finally:
+            for path in (expired, fresh, unrelated):
+                shutil.rmtree(path, ignore_errors=True)
+
+    def test_sandbox_access_error_is_typed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            lambda: False,
+        )
+        with pytest.raises(MigrationSourceAccessError):
+            load_source_payload({"competitor": "hermes", "root": str(tmp_path), "files": []})

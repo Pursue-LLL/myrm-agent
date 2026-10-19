@@ -42,18 +42,44 @@ from app.services.migration.source.source_manifest import (
     migration_source_manifest_authoritative_for_ids,
 )
 from app.services.migration.source.source_probes import count_plur_engrams
+from app.services.migration.source.source_payload_loader import (
+    MIGRATION_UPLOAD_DIR_PREFIX,
+    sweep_stale_migration_uploads,
+)
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 logger = logging.getLogger(__name__)
 
-MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MB
+MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MB compressed
 MAX_EXTRACTED_FILES = 5000
+MAX_UNCOMPRESSED_BYTES = 500 * 1024 * 1024  # 500 MB expanded
+MAX_UNCOMPRESSED_FILE_BYTES = 50 * 1024 * 1024  # 50 MB per member
 
 
 def _is_safe_path(member_name: str) -> bool:
     """Reject path-traversal attempts (../ or absolute paths)."""
     normalized = os.path.normpath(member_name)
     return not normalized.startswith(("../", "..\\", "/")) and ".." not in normalized.split(os.sep)
+
+
+def _oversized_member(members: list[zipfile.ZipInfo]) -> str | None:
+    """Return the member that breaks the expansion budget, if any.
+
+    ``member.file_size`` is the declared uncompressed size, so the whole archive
+    is refused before a single byte touches disk — a highly compressible archive
+    cannot fill the sandbox volume or the host temp drive.
+    """
+
+    expanded = 0
+    for member in members:
+        if member.is_dir():
+            continue
+        if member.file_size > MAX_UNCOMPRESSED_FILE_BYTES:
+            return member.filename
+        expanded += member.file_size
+        if expanded > MAX_UNCOMPRESSED_BYTES:
+            return member.filename
+    return None
 
 
 _CHATGPT_HEADER_PROBE_BYTES = 4096
@@ -205,12 +231,24 @@ async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
         archive.close()
         raise HTTPException(status_code=400, detail=f"ZIP contains too many files (max {MAX_EXTRACTED_FILES})")
 
+    oversized = _oversized_member(members)
+    if oversized:
+        archive.close()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"ZIP expands beyond the {MAX_UNCOMPRESSED_BYTES // (1024 * 1024)} MB limit "
+                f"({oversized}); exclude caches, model weights, or logs from the archive"
+            ),
+        )
+
     unsafe = [m.filename for m in members if not _is_safe_path(m.filename)]
     if unsafe:
         archive.close()
         raise HTTPException(status_code=400, detail="ZIP contains unsafe paths")
 
-    tmpdir = tempfile.mkdtemp(prefix="myrm_migration_")
+    sweep_stale_migration_uploads()
+    tmpdir = tempfile.mkdtemp(prefix=MIGRATION_UPLOAD_DIR_PREFIX)
     archive.extractall(tmpdir)
     archive.close()
     manifest = build_source_manifest_response()
