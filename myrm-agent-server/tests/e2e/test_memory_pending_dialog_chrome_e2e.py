@@ -150,8 +150,20 @@ def _attach(client: ChromeMcpClient, page: McpPage, chat_url: str, chat_id: str)
     dismiss_blocking_modals(client, page, recover_url=chat_url)
     bridge = wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
     assert bridge.get("ready") is True, json.dumps(bridge, ensure_ascii=False)
-    attached = wait_for_state(client, page, _attach_probe_js(chat_id), timeout_sec=90.0, page_url=chat_url)
-    assert attached.get("ready") is True, json.dumps(attached, ensure_ascii=False)
+    last: dict[str, object] = {}
+    for attempt in range(2):
+        try:
+            last = wait_for_state(client, page, _attach_probe_js(chat_id), timeout_sec=90.0, page_url=chat_url)
+            assert last.get("ready") is True, json.dumps(last, ensure_ascii=False)
+            return
+        except AssertionError:
+            if attempt == 1:
+                break
+            # The chat history load can stall right after a cold route mount;
+            # reload the route once and let the store attach again.
+            reload_mcp_page(client, page, target_url=chat_url, timeout_ms=120_000)
+            dismiss_blocking_modals(client, page, recover_url=chat_url)
+    assert last.get("ready") is True, f"attach stalled after reload: {json.dumps(last, ensure_ascii=False)}"
 
 
 # exclusive_backend reason: configured_retrieval_embedding mutates global /api/v1/config/retrieval and polls instance-wide /api/v1/memory/pending + semantic memory store.
