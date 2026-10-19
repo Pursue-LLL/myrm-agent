@@ -573,3 +573,44 @@ async def test_recheck_import_readiness_uses_current_provider_state(
 
     assert readiness.status == "ready"
     assert readiness.issues == []
+
+
+@pytest.mark.asyncio
+async def test_dry_run_preview_exposes_bounded_sample(db_session: AsyncSession) -> None:
+    """The review preview must show a bounded sample of what will be imported."""
+
+    service = MemoryImportSessionService(db_session)
+    payload = {"semantic": [{"content": f"fact {index}"} for index in range(40)]}
+
+    _dry_run_id, preview, _payload_hash, _expires_at = await service.create_dry_run(payload, "native_json")
+
+    sampled = sum(len(entries) for entries in preview.normalized_data.values())
+    assert sampled == 12
+    assert preview.normalized_data["semantic"][0]["content"] == "fact 0"
+
+
+@pytest.mark.asyncio
+async def test_content_only_profile_entries_import_through_derived_keys(db_session: AsyncSession) -> None:
+    """Profile entries without a key must import instead of being reported and skipped."""
+
+    service = MemoryImportSessionService(db_session)
+    payload = {"profile": [{"content": "Prefers dark mode"}]}
+
+    dry_run_id, preview, _payload_hash, _expires_at = await service.create_dry_run(payload, "native_json")
+    assert preview.summary.mapped_items == 1
+
+    stored = (
+        await db_session.execute(
+            select(MemoryImportDryRunModel.normalized_data_json).where(MemoryImportDryRunModel.id == dry_run_id)
+        )
+    ).scalar_one()
+    stored_entries = stored["profile"]
+    derived_key = stored_entries[0]["key"]
+    assert derived_key.startswith("imported_native_json_")
+    assert stored_entries[0]["value"] == "Prefers dark mode"
+
+    manager = _FakeMemoryManager()
+    confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+
+    assert confirm.total_imported == 1
+    assert manager.profile_values[derived_key] == "Prefers dark mode"
