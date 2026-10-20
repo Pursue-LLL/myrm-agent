@@ -89,7 +89,7 @@ RUN /app/.venv/bin/python -m myrm_agent_harness.runtime.install_guard.verify --m
     && rm -rf /tmp/_mpl_verify.png /tmp/matplotlib
 
 WORKDIR /app
-RUN mkdir -p /home/myrm/.myrm-agent && chown -R myrm:myrm /home/myrm /app
+RUN mkdir -p /home/myrm/.myrm && chown -R myrm:myrm /home/myrm /app
 
 ENV PATH="/app/.venv/bin:$PATH" VIRTUAL_ENV="/app/.venv"
 
