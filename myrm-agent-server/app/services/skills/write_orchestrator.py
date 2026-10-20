@@ -10,8 +10,7 @@
 - note_skill_content_hash / skill_content_hashes_for_ids: execution-cache fingerprint inputs
 
 [POS]
-Single write orchestrator for SKILL.md (and other skill files). Version history SSOT is server DB,
-not harness JSONL HistoryTrackingSkillWriteBackend.
+Single write orchestrator for SKILL.md (and other skill files). Version history SSOT is server DB.
 """
 
 from __future__ import annotations
