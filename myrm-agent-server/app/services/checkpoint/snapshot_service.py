@@ -6,6 +6,7 @@ myrm_agent_harness.agent.file_snapshot::FileSnapshotProtocol (POS: Protocol for 
 myrm_agent_harness.agent.file_snapshot.types::SnapshotTrigger (POS: Snapshot trigger enum.)
 myrm_agent_harness.api::PrivacyFailClosedLadder (POS: 3-level privacy ladder.)
 myrm_agent_harness.toolkits.code_execution.interceptor::ExecutionInterceptor (POS: Protocol for intercepting code execution actions.)
+app.services.checkpoint.task_airbag_service::get_task_airbag_service (POS: Airbag that external effects are attributed to.)
 
 [OUTPUT]
 SnapshotInterceptor: Server-layer business orchestration for workspace snapshots.
@@ -14,6 +15,9 @@ SnapshotInterceptor: Server-layer business orchestration for workspace snapshots
 Server-layer snapshot interceptor. Handles per-turn dedup, SSE events,
 and multi-agent metadata binding. Delegates actual storage to harness-layer
 FileSnapshotProtocol implementations (ShadowGit or LocalFile) via factory.
+External effects reported by the harness are attributed to the session's task airbag
+on every call, because a turn that is snapshotted once may still reach outside the
+workspace many times; only file-mutating actions are snapshotted.
 """
 
 import asyncio
@@ -21,7 +25,6 @@ import logging
 from collections import OrderedDict, defaultdict
 
 from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
-from myrm_agent_harness.agent.file_snapshot.external_effect_detector import detect_external_effects
 from myrm_agent_harness.agent.file_snapshot.protocols import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 from myrm_agent_harness.api import (
@@ -30,6 +33,8 @@ from myrm_agent_harness.api import (
     PrivacyScope,
 )
 from myrm_agent_harness.toolkits.code_execution.interceptor import ExecutionInterceptor
+
+from app.services.checkpoint.task_airbag_service import get_task_airbag_service
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +101,12 @@ class SnapshotInterceptor(ExecutionInterceptor):
         if not session_id:
             return
 
+        external_effects = [str(effect) for effect in payload.get("external_effects") or ()]
+        if external_effects:
+            get_task_airbag_service().record_session_external_effects(str(session_id), external_effects)
+        if not payload.get("destructive", True):
+            return
+
         from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
             get_bound_message_id,
         )
@@ -110,11 +121,8 @@ class SnapshotInterceptor(ExecutionInterceptor):
             return
 
         metadata: dict[str, object] = {"agent_id": agent_id}
-        if action_type == "bash":
-            command = payload.get("command", "")
-            effects = detect_external_effects(command)
-            if effects:
-                metadata["external_effects"] = effects
+        if external_effects:
+            metadata["external_effects"] = external_effects
 
         # Fail-closed privacy ladder evaluation before snapshotting
         target_file = str(payload.get("path") or workspace_path)
