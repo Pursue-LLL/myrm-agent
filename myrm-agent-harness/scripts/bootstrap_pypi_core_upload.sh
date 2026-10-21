@@ -15,7 +15,7 @@ ONLY_PLATFORMS=""
 usage() {
   echo "Usage: PYPI_API_TOKEN=... $0 [--only win32-arm64,win32-x64] <wheel-dir>" >&2
   echo "  wheel-dir: dir with core-wheel-*/ *.whl (e.g. .pypi-bootstrap)" >&2
-  echo "  Or: gh run download <run-id> --repo Pursue-LLL/myrm-agent-harness \\" >&2
+  echo "  Or: gh run download <run-id> --repo Pursue-LLL/myrm-agent \\" >&2
   echo "        --pattern 'core-wheel-*' -D /tmp/wheels" >&2
 }
 
