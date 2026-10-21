@@ -163,8 +163,22 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
         let frontend_state = app_handle.state::<NextJSFrontend>();
 
+        let frontend_port = frontend_config.port;
         match start_frontend(app_handle.clone(), frontend_state, frontend_config).await {
-            Ok(msg) => println!("✅ {}", msg),
+            Ok(msg) => {
+                println!("✅ {}", msg);
+                let target = format!("http://127.0.0.1:{frontend_port}/");
+                match target.parse::<tauri::Url>() {
+                    Ok(url) => {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            if let Err(e) = window.navigate(url) {
+                                eprintln!("❌ Failed to navigate main window: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => eprintln!("❌ Invalid frontend URL {}: {}", target, e),
+                }
+            }
             Err(e) => {
                 eprintln!("❌ Failed to auto-start frontend: {}", e);
                 let tooltip = "MyrmAgent - UI failed to start. Restart the app or change the WebUI port in Settings.".to_string();
