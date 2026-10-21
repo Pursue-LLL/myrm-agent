@@ -82,7 +82,18 @@ def _is_formal_chrome_e2e(item_or_request: pytest.Item | pytest.FixtureRequest) 
         return True
     if node.get_closest_marker("e2e") is None:
         return False
-    return Path(node.fspath).resolve().is_relative_to(_E2E_TEST_ROOT)
+    return _item_path(node).resolve().is_relative_to(_E2E_TEST_ROOT)
+
+
+def _item_path(node: pytest.Item | pytest.FixtureRequest) -> Path:
+    """Filesystem path of a collected item.
+
+    pytest 9 removed ``fspath``; ``path`` is the supported accessor since pytest 7.
+    """
+    path = getattr(node, "path", None)
+    if path is not None:
+        return Path(str(path))
+    return Path(str(getattr(node, "fspath", "")))
 
 
 def _prepend_monorepo_pythonpath() -> None:
@@ -319,7 +330,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:
     """Return whether a test may touch the GlobalBrowserPool singleton."""
-    item_path = Path(request.fspath).resolve()
+    item_path = _item_path(request).resolve()
     if item_path.is_relative_to(_INTEGRATION_TEST_ROOT):
         return True
     if item_path.is_relative_to(_E2E_TEST_ROOT):
