@@ -51,7 +51,37 @@ jobs:
         run: uv sync --python 3.13 --locked --extra all --group dev
 
       - name: Run unit tests
-        run: uv run --no-sync pytest -n 2 --dist=loadscope -q --tb=short tests/
+        run: >-
+          uv run --no-sync pytest -n 2 --dist=loadscope -q --tb=short tests/
+          --junitxml=/tmp/unit.xml
+
+      # Surface which tests failed without downloading the whole job log: the summary is
+      # written to the step summary, which is readable from the run page and the API.
+      - name: Report failed tests
+        if: failure()
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import glob, xml.etree.ElementTree as ET
+          rows = []
+          for path in glob.glob("/tmp/*.xml"):
+              try:
+                  root = ET.parse(path).getroot()
+              except ET.ParseError:
+                  continue
+              for case in root.iter("testcase"):
+                  for tag in ("failure", "error"):
+                      node = case.find(tag)
+                      if node is not None:
+                          msg = (node.get("message") or "").strip().splitlines()[:3]
+                          rows.append((case.get("classname"), case.get("name"), msg))
+          print("## Failed tests")
+          if not rows:
+              print("No failures recorded in the junit report.")
+          for cls, name, msg in rows:
+              print(f"- `{cls}::{name}`")
+              for line in msg:
+                  print(f"  - {line}")
+          EOF
 
   browser-integration:
     name: Browser integration (serial Chromium)
@@ -84,3 +114,30 @@ jobs:
         run: >-
           uv run --no-sync pytest -n0 -v --tb=short tests/
           -m "integration or e2e" --timeout=120 --timeout-method=thread -o faulthandler_timeout=100
+          --junitxml=/tmp/browser.xml
+
+      - name: Report failed tests
+        if: failure()
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import glob, xml.etree.ElementTree as ET
+          rows = []
+          for path in glob.glob("/tmp/*.xml"):
+              try:
+                  root = ET.parse(path).getroot()
+              except ET.ParseError:
+                  continue
+              for case in root.iter("testcase"):
+                  for tag in ("failure", "error"):
+                      node = case.find(tag)
+                      if node is not None:
+                          msg = (node.get("message") or "").strip().splitlines()[:3]
+                          rows.append((case.get("classname"), case.get("name"), msg))
+          print("## Failed tests")
+          if not rows:
+              print("No failures recorded in the junit report.")
+          for cls, name, msg in rows:
+              print(f"- `{cls}::{name}`")
+              for line in msg:
+                  print(f"  - {line}")
+          EOF
