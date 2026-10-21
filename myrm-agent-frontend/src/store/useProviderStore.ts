@@ -10,6 +10,10 @@
  * 1. 初始化时从 ConfigSyncManager 加载
  * 2. 修改时乐观更新本地状态 + 通知 ConfigSyncManager
  * 3. ConfigSyncManager 负责防抖同步到后端
+ *
+ * 写回闸门：服务端配置加载完成前，本地 providers 还是内置种子默认值（全部未启用）。
+ * 此时写回服务端等于用默认值覆盖真实配置（已启用的提供商与默认模型被清空），
+ * 因此加载完成前只更新本地状态、不触发同步。
  */
 
 import { create } from 'zustand';
@@ -107,12 +111,26 @@ interface ProviderState {
   getEnabledModels: () => Array<{ providerId: string; providerName: string; model: string }>;
 }
 
+/**
+ * 服务端 provider 配置是否已经加载回来。
+ * 只有加载完成后才允许把本地状态写回服务端——否则写回去的是种子默认值，
+ * 会把服务端已启用的提供商与默认模型清空（本地配置被静默抹掉）。
+ */
+let providersHydrated = false;
+
 function syncToManager(
   providers: ProviderConfig[],
   defaultModelConfig: DefaultModelConfig,
   customModelInfo: Record<string, CustomModelInfo>,
 ): void {
   const value = normalizeProviders({ providers, defaultModelConfig, customModelInfo });
+  if (!providersHydrated) {
+    // 服务端配置还没加载回来，此时 providers 还是种子默认值。推送它会用默认值覆盖
+    // 服务端真实配置（已启用的提供商、默认模型被清空）。加载完成后本地状态本来也会被
+    // 服务端状态替换，所以这里只放弃这次推送，不丢服务端数据。
+    console.warn('[ProviderStore] Provider config is not loaded yet; skipping server sync.');
+    return;
+  }
   getConfigSyncManager().set('providers', value);
 }
 
@@ -154,6 +172,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
           isInitialized: true,
           initError: null,
         });
+        providersHydrated = true;
       } else if (manager.status === 'offline') {
         set({
           providers: getInitialProviders(),
@@ -170,6 +189,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
               initError: null,
             });
             isStoreInitialized = true;
+            providersHydrated = true;
           });
           providersSubscribeRegistered = true;
         }
@@ -211,6 +231,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
   retryInit: async () => {
     isStoreInitialized = false;
+    providersHydrated = false;
     set({ isInitialized: false, initError: null });
     await get().initProviders();
   },
