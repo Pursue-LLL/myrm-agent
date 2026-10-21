@@ -28,14 +28,30 @@ def _driver_of(parent: psutil.Process) -> psutil.Process:
     return next(proc for proc in parent.children(recursive=True) if "run-driver" in " ".join(proc.cmdline()))
 
 
+def _browser_processes(driver: psutil.Process) -> list[psutil.Process]:
+    """Live Chromium processes under the driver, or under this process when the driver spawns none.
+
+    On macOS the driver forks the browser, so the driver's children are the browser tree. A Linux
+    container may instead launch the browser beside the driver, where the driver has no children at
+    all; looking only below it would then sample an empty set.
+    """
+    found = [proc for proc in driver.children(recursive=True) if _is_alive(proc)]
+    if found:
+        return found
+    return [
+        proc
+        for proc in psutil.Process().children(recursive=True)
+        if _is_alive(proc) and _is_chromium_process(proc)
+    ]
+
+
 async def _wait_for_browser_processes(driver: psutil.Process) -> list[psutil.Process]:
     """The browser main process and at least one helper; Chromium starts its helpers right after the main process."""
     deadline = time.monotonic() + _HELPER_STARTUP_TIMEOUT_S
     while True:
-        processes = driver.children(recursive=True)
-        alive = [proc for proc in processes if _is_alive(proc)]
-        if len(alive) >= 2 or time.monotonic() >= deadline:
-            return alive
+        processes = _browser_processes(driver)
+        if len(processes) >= 2 or time.monotonic() >= deadline:
+            return processes
         await asyncio.sleep(0.1)
 
 
