@@ -824,10 +824,16 @@ class TestPostRunEventsDisclosure:
 
     @pytest.mark.asyncio
     async def test_attaches_disclosure_payload_once(self) -> None:
+        from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
+            set_current_message_id,
+        )
         from myrm_agent_harness.agent.middlewares.completion.completion_guard_state import (
             publish_disclosure,
         )
 
+        # Bind an explicit turn id: the unbound slot is process-wide and any earlier test may
+        # have left a payload there, which would make this assertion depend on test ordering.
+        set_current_message_id("msg-disclosure-once")
         publish_disclosure(
             deliverable_tier={"tier": "VERIFIED", "evidence": {"verification_count": 1}},
             staged_artifacts=[{"filename": "draft.py", "relative_path": ".myrm/staged_artifacts/draft.py"}],
@@ -838,8 +844,8 @@ class TestPostRunEventsDisclosure:
             "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.format_mutation_failures",
             return_value=None,
         ):
-            events = [e async for e in post_run_events(stats, "", {}, False, None)]
-            again = [e async for e in post_run_events(stats, "", {}, False, None)]
+            events = [e async for e in post_run_events(stats, "msg-disclosure-once", {}, False, None)]
+            again = [e async for e in post_run_events(stats, "msg-disclosure-once", {}, False, None)]
 
         message_end = next(e for e in events if e["type"] == AgentEventType.MESSAGE_END.value)
         assert message_end["deliverable_tier"]["tier"] == "VERIFIED"

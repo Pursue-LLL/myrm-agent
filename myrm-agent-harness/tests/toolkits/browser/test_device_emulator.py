@@ -48,9 +48,13 @@ class FakePage:
         self.context = FakeContext(cdp)
         self._ua = ua
         self.closed = False
+        self.reloads = 0
 
     async def evaluate(self, expression: str) -> str:
         return self._ua
+
+    async def reload(self) -> None:
+        self.reloads += 1
 
     def is_closed(self) -> bool:
         return self.closed
