@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.llms.fallback.health_check import HealthProbeResult
 
 from tests.support.minimal_app import build_minimal_app
 
@@ -105,7 +106,7 @@ class TestVerifyLLMConnection:
 
 
 class TestCheckModelReachability:
-    """check-reachability: cache hit, probe success/failure."""
+    """check-reachability: cache hit, probe success/failure, failure classification."""
 
     def _post(self, client: TestClient, **overrides: object) -> dict:
         payload = {
@@ -127,13 +128,14 @@ class TestCheckModelReachability:
                 new=AsyncMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-                new=AsyncMock(return_value=True),
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.probe_llm_health",
+                new=AsyncMock(return_value=HealthProbeResult(ok=True, error_kind="none", latency_ms=42)),
             ),
         ):
             data = self._post(client)
         assert data["reachable"] is True
-        assert data["latency_ms"] is not None
+        assert data["latency_ms"] == 42
+        assert data["error_kind"] == "none"
         assert data["cached"] is False
         _reachability_cache.clear()
 
@@ -148,13 +150,50 @@ class TestCheckModelReachability:
                 new=AsyncMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-                new=AsyncMock(return_value=False),
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.probe_llm_health",
+                new=AsyncMock(
+                    return_value=HealthProbeResult(
+                        ok=False,
+                        error_kind="provider_error",
+                        error="AuthenticationError: invalid api key",
+                        latency_ms=120,
+                    )
+                ),
             ),
         ):
             data = self._post(client)
         assert data["reachable"] is False
         assert data["error"] is not None
+        assert data["error_kind"] == "provider_error"
+        assert "invalid api key" in data["error"]
+        _reachability_cache.clear()
+
+    def test_probe_timeout_is_classified_and_explained(self, client: TestClient) -> None:
+        """A probe that ran out of time reports 'timeout' instead of a generic no-response."""
+        from app.api.integrations.llms import _reachability_cache
+
+        _reachability_cache.clear()
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
+                new=AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.probe_llm_health",
+                new=AsyncMock(
+                    return_value=HealthProbeResult(
+                        ok=False,
+                        error_kind="timeout",
+                        error="No response within 15s",
+                        latency_ms=15000,
+                    )
+                ),
+            ),
+        ):
+            data = self._post(client)
+        assert data["reachable"] is False
+        assert data["error_kind"] == "timeout"
+        assert "No response" in (data["error"] or "")
         _reachability_cache.clear()
 
     def test_probe_exception_reports_unreachable(self, client: TestClient) -> None:
@@ -168,13 +207,14 @@ class TestCheckModelReachability:
                 new=AsyncMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.probe_llm_health",
                 new=AsyncMock(side_effect=ConnectionError("timeout")),
             ),
         ):
             data = self._post(client)
         assert data["reachable"] is False
         assert "timeout" in (data["error"] or "")
+        assert data["error_kind"] == "provider_error"
         _reachability_cache.clear()
 
     def test_cached_result_returned(self, client: TestClient) -> None:
@@ -188,8 +228,8 @@ class TestCheckModelReachability:
                 new=AsyncMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-                new=AsyncMock(return_value=True),
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.probe_llm_health",
+                new=AsyncMock(return_value=HealthProbeResult(ok=True, error_kind="none", latency_ms=7)),
             ),
         ):
             first = self._post(client)
@@ -210,8 +250,8 @@ class TestCheckModelReachability:
                 new=AsyncMock(),
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
-                new=AsyncMock(return_value=True),
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.probe_llm_health",
+                new=AsyncMock(return_value=HealthProbeResult(ok=True, error_kind="none", latency_ms=5)),
             ) as health_check,
         ):
             response = client.post(

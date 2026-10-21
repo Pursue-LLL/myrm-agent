@@ -362,13 +362,13 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
         {reachabilityState === 'done' && reachabilityResult && (
           <div
             className={cn(
-              'flex items-center gap-1.5 text-xs',
+              'flex items-start gap-1.5 text-xs',
               reachabilityResult.reachable ? 'text-green-600' : 'text-destructive',
             )}
           >
             {reachabilityResult.reachable ? (
               <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <CheckCircle2 className="mt-px w-3.5 h-3.5 shrink-0" />
                 <span>
                   {t('reachable')}
                   {reachabilityResult.latency_ms !== null &&
@@ -379,9 +379,9 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
               </>
             ) : (
               <>
-                <XCircle className="w-3.5 h-3.5" />
-                <span className="truncate max-w-sm">
-                  {t('unreachable')}
+                <XCircle className="mt-px w-3.5 h-3.5 shrink-0" />
+                <span className="min-w-0 break-words">
+                  {reachabilityResult.error_kind === 'timeout' ? t('probeTimeout') : t('unreachable')}
                   {reachabilityResult.error ? `: ${reachabilityResult.error}` : ''}
                 </span>
               </>

@@ -17137,6 +17137,7 @@
       "checking": "檢測中...",
       "reachable": "可連通",
       "unreachable": "不可達",
+      "probeTimeout": "連線逾時",
       "egressProxy": "出網代理",
       "egressProxyPlaceholder": "例如：http://127.0.0.1:7890 或 socks5://127.0.0.1:1080",
       "egressProxyDescription": "為此供應商配置專屬出網代理，實現出口 IP 隔離與防封禁保護。",

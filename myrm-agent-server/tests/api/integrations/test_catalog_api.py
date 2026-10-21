@@ -40,7 +40,19 @@ class TestCatalogListEndpoint:
         payload = data["data"]
         assert payload["total"] >= 14
         assert len(payload["entries"]) >= 14
-        assert len(payload["categories"]) == 9
+        # The category set is curated: a new catalog category file must land here as well.
+        assert set(payload["categories"]) == {
+            "api",
+            "browser",
+            "communication",
+            "data_storage",
+            "design",
+            "development",
+            "docs",
+            "productivity",
+            "social",
+            "web_search",
+        }
 
     def test_list_with_category_filter(self, client: TestClient) -> None:
         response = client.get("/api/v1/integrations/catalog?category=development")

@@ -73,10 +73,14 @@ export const validateLLM = async (config: ModelConfig): Promise<ValidationResult
   }
 };
 
+export type ReachabilityErrorKind = 'none' | 'timeout' | 'provider_error';
+
 export interface ReachabilityResult {
   reachable: boolean;
   latency_ms: number | null;
   error: string | null;
+  /** Failure classification: 'timeout' (probe deadline elapsed) or 'provider_error' (upstream rejected the call). */
+  error_kind?: ReachabilityErrorKind | null;
   cached: boolean;
 }
 
@@ -120,10 +124,11 @@ export const checkModelReachability = async (config: ModelConfig): Promise<Reach
       reachable: res.reachable ?? false,
       latency_ms: res.latency_ms ?? null,
       error: res.error ?? null,
+      error_kind: res.error_kind ?? null,
       cached: res.cached ?? false,
     };
   } catch {
-    return { reachable: false, latency_ms: null, error: 'Network request failed', cached: false };
+    return { reachable: false, latency_ms: null, error: 'Network request failed', error_kind: null, cached: false };
   }
 };
 
@@ -356,6 +361,10 @@ export interface MCPOptionsResponse {
   allowStdio: boolean;
   allowSse: boolean;
   allowedTypes: string[];
+  // Security posture the server reports; the offline fallback below cannot know it, so it omits them.
+  requireHttps?: boolean;
+  ssrfProtectionEnabled?: boolean;
+  verifyTimeout?: number;
 }
 
 /**

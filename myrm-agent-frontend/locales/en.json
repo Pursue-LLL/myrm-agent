@@ -17137,6 +17137,7 @@
       "checking": "Checking...",
       "reachable": "Reachable",
       "unreachable": "Unreachable",
+      "probeTimeout": "Connection timed out",
       "egressProxy": "Egress Proxy",
       "egressProxyPlaceholder": "e.g. http://127.0.0.1:7890 or socks5://127.0.0.1:1080",
       "egressProxyDescription": "Configure a dedicated egress proxy for this provider to achieve IP isolation and anti-ban defense.",

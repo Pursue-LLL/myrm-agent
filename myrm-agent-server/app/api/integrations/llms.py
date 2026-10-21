@@ -345,10 +345,19 @@ class ReachabilityResult(BaseModel):
     reachable: bool = Field(..., description="Whether the model endpoint is reachable")
     latency_ms: int | None = Field(default=None, description="Round-trip latency in milliseconds")
     error: str | None = Field(default=None, description="Error message if unreachable")
+    error_kind: Literal["none", "timeout", "provider_error"] = Field(
+        default="none",
+        description="Failure classification: 'timeout' when the probe deadline elapsed, 'provider_error' when the "
+        "provider answered with an error, 'none' on success",
+    )
     cached: bool = Field(default=False, description="Whether result came from cache")
 
 
 _REACHABILITY_CACHE_TTL_S = 30.0
+# Probe deadline for the reachability test. Real providers need well above the harness' 5 s default before the
+# first token lands (a measured MiniMax M3.1 Flash reply took 7.3 s), and a deadline shorter than the provider's
+# own first-token latency reports a healthy endpoint as unreachable.
+_REACHABILITY_PROBE_TIMEOUT_S = 15.0
 _reachability_cache: dict[str, tuple[float, ReachabilityResult]] = {}
 
 
@@ -361,8 +370,10 @@ def _cache_key(request: LLMVerifyRequest) -> str:
 async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
     """Lightweight model reachability check using a single minimal prompt.
 
-    Faster and cheaper than /verify — uses ``lightweight_health_check``
-    which sends one minimal prompt and gives up after its deadline.
+    Faster and cheaper than /verify — uses ``probe_llm_health`` which sends one minimal prompt and gives up
+    after its deadline. The failure is classified (``timeout`` vs ``provider_error``) and the upstream reason is
+    preserved, so the caller can tell "the endpoint did not answer in time" apart from "the provider rejected
+    the request" instead of reading a generic "no response".
     Results are cached for 30 seconds to avoid redundant probes.
 
     Useful for local model (Ollama) configuration to quickly verify
@@ -385,25 +396,25 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
     try:
         from myrm_agent_harness.toolkits.llms import llm_manager as llm_tools
         from myrm_agent_harness.toolkits.llms.fallback.health_check import (
-            lightweight_health_check,
+            probe_llm_health,
         )
 
         await resolve_oauth_marker(kwargs)
         llm = await llm_tools.get_llm(**kwargs)
-        start = time.monotonic()
-        ok = await lightweight_health_check(llm, timeout_s=5.0)
-        elapsed_ms = int((time.monotonic() - start) * 1000)
+        probe = await probe_llm_health(llm, timeout_s=_REACHABILITY_PROBE_TIMEOUT_S)
 
         result = ReachabilityResult(
-            reachable=ok,
-            latency_ms=elapsed_ms if ok else None,
-            error=None if ok else "Health check returned no response",
+            reachable=probe.ok,
+            latency_ms=probe.latency_ms,
+            error=probe.error,
+            error_kind=probe.error_kind,
         )
 
     except Exception as e:
         result = ReachabilityResult(
             reachable=False,
-            error=f"{type(e).__name__}: {e!s}"[:200],
+            error=f"{type(e).__name__}: {e!s}"[:300],
+            error_kind="provider_error",
         )
 
     _reachability_cache[key] = (time.monotonic(), result)

@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.llms.fallback.health_check import HealthProbeResult
 
 from app.api.integrations.llms import _reachability_cache
 from app.services.agent.provider_oauth_tokens import OAUTH_KEY_MARKER
@@ -97,11 +98,11 @@ class TestCheckReachability:
 
     def test_stored_token_replaces_the_placeholder(self, client: TestClient) -> None:
         get_llm = AsyncMock(return_value=MagicMock())
-        health_check = "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check"
+        health_check = "myrm_agent_harness.toolkits.llms.fallback.health_check.probe_llm_health"
 
         with (
             patch(_GET_LLM, get_llm),
-            patch(health_check, AsyncMock(return_value=True)),
+            patch(health_check, AsyncMock(return_value=HealthProbeResult(ok=True, error_kind="none", latency_ms=1))),
             patch(_LOAD_STORED, AsyncMock(return_value=_stored_credential())),
         ):
             data = self._check(client)

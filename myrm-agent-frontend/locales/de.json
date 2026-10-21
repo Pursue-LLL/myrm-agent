@@ -17137,6 +17137,7 @@
       "checking": "Überprüfung...",
       "reachable": "Erreichbar",
       "unreachable": "Nicht erreichbar",
+      "probeTimeout": "Zeitüberschreitung bei der Verbindung",
       "egressProxy": "Ausgangs-Proxy",
       "egressProxyPlaceholder": "z. B. http://127.0.0.1:7890 oder socks5://127.0.0.1:1080",
       "egressProxyDescription": "Konfigurieren Sie einen dedizierten Ausgangs-Proxy für diesen Anbieter zur IP-Isolation und Kontoschutz.",

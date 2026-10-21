@@ -17137,6 +17137,7 @@
       "checking": "확인 중...",
       "reachable": "연결 가능",
       "unreachable": "연결 불가",
+      "probeTimeout": "연결 시간이 초과되었습니다",
       "egressProxy": "발신 프록시",
       "egressProxyPlaceholder": "예: http://127.0.0.1:7890 또는 socks5://127.0.0.1:1080",
       "egressProxyDescription": "이 제공업체를 위한 전용 발신 프록시를 구성하여 IP 격리 및 계정 차단 방지를 수행합니다.",
