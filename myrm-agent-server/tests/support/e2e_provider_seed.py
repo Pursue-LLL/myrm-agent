@@ -5,16 +5,21 @@
 
 from __future__ import annotations
 
+import atexit
 import json
+import os
+import tempfile
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 
 from tests.support.test_secrets import TestSecrets, load_test_secrets
 
 NONEXISTENT_MODEL_ID = "__e2e_nonexistent_model__"
 _LOCAL_GATEWAY_HOST = "localhost:20128"
+_SNAPSHOT_FILE_NAME = "e2e-provider-seed.json"
 
 
 @dataclass(frozen=True)
@@ -284,5 +289,108 @@ def seed_live_e2e_providers(api_url: str) -> ResolvedE2ELlmEndpoints:
         "defaultModelConfig": dmc,
         "customModelInfo": current.get("customModelInfo") or {},
     }
+    _remember_provider_config_for_restore(current, api_url=api_url)
     put_config_value("providers", merged, api_url=api_url)
     return endpoints
+
+
+# ---------------------------------------------------------------------------
+# Restore the developer's own provider config after the E2E lane finished.
+#
+# The LIVE Chrome E2E lane runs against the shared dev backend and has to own
+# the default model (live-agent tests send no modelSelection). Without a restore
+# the developer's own providers (including their API keys) stay replaced by the
+# E2E endpoints, and the local instance ends up with no usable model at all.
+#
+# The snapshot is reference-counted: the first seeding process snapshots the
+# current config, every seeding process counts in, and the last one out restores
+# it. Parallel E2E lanes therefore keep the seeded config until the last of them
+# exits.
+# ---------------------------------------------------------------------------
+
+
+def _snapshot_path(api_url: str) -> Path:
+    """Snapshot file for a runtime; isolated runtimes keep their own file."""
+    state_dir = Path(os.environ.get("MYRM_DATA_DIR", "~/.myrm")).expanduser()
+    return state_dir / _SNAPSHOT_FILE_NAME
+
+
+def _read_snapshot(path: Path) -> dict[str, object] | None:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _write_snapshot(path: Path, value: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False, suffix=".tmp") as handle:
+        json.dump(value, handle, ensure_ascii=False)
+        temp_path = Path(handle.name)
+    temp_path.replace(path)
+
+
+def _remember_provider_config_for_restore(current: dict[str, object], *, api_url: str) -> None:
+    """Snapshot the current provider config (first writer wins) and count this process in."""
+    path = _snapshot_path(api_url)
+    snapshot = _read_snapshot(path)
+    if snapshot is None:
+        snapshot = {
+            "api_url": api_url,
+            "holders": 0,
+            "providers": current,
+        }
+    snapshot["holders"] = int(snapshot.get("holders") or 0) + 1
+    _write_snapshot(path, snapshot)
+    atexit.register(_release_provider_config_restore, str(path))
+
+
+def _release_provider_config_restore(path_str: str) -> None:
+    """Count this process out; the last one out restores the developer's config."""
+    path = Path(path_str)
+    snapshot = _read_snapshot(path)
+    if snapshot is None:
+        return
+    holders = int(snapshot.get("holders") or 0) - 1
+    if holders > 0:
+        snapshot["holders"] = holders
+        _write_snapshot(path, snapshot)
+        return
+
+    api_url = str(snapshot.get("api_url") or "")
+    providers = snapshot.get("providers")
+    if isinstance(providers, dict) and api_url:
+        try:
+            from cdp_chat.support import put_config_value
+
+            put_config_value("providers", providers, api_url=api_url)
+        except Exception:  # noqa: BLE001 - restore is best effort, never fail the lane
+            pass
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
+def restore_provider_config(api_url: str) -> bool:
+    """Restore the snapshotted provider config now (used by explicit teardown paths)."""
+    path = _snapshot_path(api_url)
+    snapshot = _read_snapshot(path)
+    if snapshot is None:
+        return False
+    providers = snapshot.get("providers")
+    if not isinstance(providers, dict):
+        return False
+    from cdp_chat.support import put_config_value
+
+    put_config_value("providers", providers, api_url=api_url)
+    try:
+        path.unlink()
+    except OSError:
+        pass
+    return True

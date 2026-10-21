@@ -227,7 +227,10 @@ async def load_user_configs() -> UserConfigs:
         providers_dict = {}
 
     default_model_cfg = config_map.get("defaultModelConfig")
-    if isinstance(default_model_cfg, dict) and isinstance(providers_dict, dict):
+    # Legacy split row: it only wins when it actually carries a model. An empty leftover row must not
+    # shadow the canonical `providers` bundle — that would leave the whole instance without a default
+    # model ("No default model configured") even though the bundle defines one.
+    if isinstance(default_model_cfg, dict) and default_model_cfg and isinstance(providers_dict, dict):
         providers_dict["defaultModelConfig"] = default_model_cfg
 
     # Subscription tokens (xAI SuperGrok) stand in for API keys, so they must be

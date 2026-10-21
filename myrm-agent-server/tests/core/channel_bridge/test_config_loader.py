@@ -450,3 +450,29 @@ class TestLoadUserConfigsSubscriptionTokens:
 
         assert configs.model_cfg.api_key == "sk-user"
         refresh.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_an_empty_legacy_split_row_does_not_shadow_the_bundle(self) -> None:
+        """An empty leftover `defaultModelConfig` row must not disable the bundle's default model.
+
+        The legacy split row wins over the canonical `providers` bundle when it carries a model.
+        An empty one is a leftover: honouring it left the whole instance without a default model
+        ("No default model configured") even though the bundle defines one.
+        """
+        rows = [
+            _row(
+                "providers",
+                {
+                    "providers": [{"id": "minimax", "isEnabled": True, "apiKeys": [{"key": "sk-user", "isActive": True}]}],
+                    "defaultModelConfig": {
+                        "baseModel": {"primary": {"providerId": "minimax", "model": "MiniMax-M3"}},
+                    },
+                },
+            ),
+            _row("defaultModelConfig", {}),
+        ]
+
+        configs = await self._load(rows, AsyncMock())
+
+        assert configs.model_cfg.model == "minimax/MiniMax-M3"
+        assert configs.model_cfg.api_key == "sk-user"
