@@ -25,7 +25,15 @@ _HELPER_STARTUP_TIMEOUT_S = 10.0
 
 
 def _driver_of(parent: psutil.Process) -> psutil.Process:
-    return next(proc for proc in parent.children(recursive=True) if "run-driver" in " ".join(proc.cmdline()))
+    """The patchright driver child; reading a reaped child's cmdline raises instead of answering."""
+    for proc in parent.children(recursive=True):
+        try:
+            if "run-driver" in " ".join(proc.cmdline()):
+                return proc
+        except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
+            continue
+    msg = "patchright driver process not found"
+    raise LookupError(msg)
 
 
 def _browser_processes(driver: psutil.Process) -> list[psutil.Process]:
