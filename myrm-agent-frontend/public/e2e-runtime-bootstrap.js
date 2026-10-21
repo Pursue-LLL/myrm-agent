@@ -2,11 +2,7 @@
   'use strict';
 
   const PREFIX = 'myrm-e2e-v1:';
-  // The binding travels in the URL: the browser creates the page with its final URL in a single CDP
-  // call, so a window.name binding would always land after the first script has already run — and the
-  // runtime (private backend, health gate) would never be ready for the app's first requests.
-  const urlBinding = new URLSearchParams(location.search).get('__myrm_e2e_binding');
-  const raw = urlBinding ? PREFIX + urlBinding : window.name;
+  const raw = window.name;
   if (!raw.startsWith(PREFIX)) return;
 
   const isLoopback = (hostname) => hostname === '127.0.0.1' || hostname === 'localhost';

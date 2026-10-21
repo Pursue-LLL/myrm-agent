@@ -10,7 +10,6 @@ import os
 import subprocess
 import time
 import uuid
-import urllib.parse
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,7 +20,6 @@ from cdp_chat.support import (
     e2e_api_base_inject_js,
     e2e_private_api_ready_timeout_sec,
     e2e_page_binding_source,
-    e2e_runtime_binding,
     e2e_runtime_bootstrap_apply_js,
     get_open_page_api_url,
     wait_e2e_provider_ready,
@@ -30,29 +28,6 @@ from cdp_chat.support import (
 # OrchestratorWatchdog (§24 W3e): daemon ensure is at most once per window.
 ORCHESTRATOR_WATCHDOG_SPAWN_COOLDOWN_SEC = 15.0
 _orchestrator_watchdog_last_spawn_at: float = 0.0
-
-# Query parameter that carries the E2E runtime binding into the page's very first script.
-RUNTIME_BINDING_QUERY_PARAM = "__myrm_e2e_binding"
-
-
-def _with_runtime_binding_query(url: str) -> str:
-    """Carry the E2E runtime binding in the page URL.
-
-    The browser creates the page with its final URL in a single CDP call (a blank→navigate window
-    would let the idle-tab hygiene close the tab), so a window.name binding always arrives after the
-    first script has run. With the binding in the URL, the bootstrap script sees it before the app
-    boots and the private backend + health gate are ready for the app's very first requests.
-    """
-    binding = e2e_runtime_binding()
-    if binding is None:
-        return url
-    encoded = urllib.parse.quote(json.dumps(binding, separators=(",", ":")))
-    parts = urllib.parse.urlsplit(url)
-    query = f"{parts.query}&" if parts.query else ""
-    return urllib.parse.urlunsplit(
-        (parts.scheme, parts.netloc, parts.path, f"{query}{RUNTIME_BINDING_QUERY_PARAM}={encoded}", parts.fragment)
-    )
-
 
 def _route_binding_expression(extra_expression: str | None) -> str | None:
     """Bind a PRIVATE runtime before the final route can issue API requests."""
@@ -1387,8 +1362,8 @@ def open_app_route_page(
         route_binding_expression = _route_binding_expression(binding_expression)
         result = daemon.open_app_route(
             session_id,
-            url=_with_runtime_binding_query(url),
-            shell_path=_with_runtime_binding_query(f"{get_e2e_ui_url().rstrip('/')}{manifest.shell_path}"),
+            url=url,
+            shell_path=f"{get_e2e_ui_url().rstrip('/')}{manifest.shell_path}",
             hydration_probe=probe_js,
             hydrate_timeout_sec=hydrate_timeout_sec,
             binding_expression=route_binding_expression,
