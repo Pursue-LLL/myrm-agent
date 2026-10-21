@@ -53,6 +53,8 @@ describe('useProviderStore hydration guard', () => {
   });
 
   it('does not push the seed providers to the server before the config is loaded', async () => {
+    // 后端不可达 → 配置没加载回来，本地只有种子默认值
+    manager.status = 'offline';
     manager.stored = undefined;
 
     await useProviderStore.getState().retryInit();
@@ -61,6 +63,19 @@ describe('useProviderStore hydration guard', () => {
     useProviderStore.getState().updateProvider('openai', { isEnabled: true });
 
     expect(manager.set).not.toHaveBeenCalled();
+  });
+
+  it('allows the first provider write on a fresh instance without a server-side config', async () => {
+    // 服务端没有 providers 配置：种子默认值就是真实状态，首个配置必须能落库
+    manager.status = 'ready';
+    manager.stored = undefined;
+
+    await useProviderStore.getState().retryInit();
+    manager.set.mockClear();
+
+    useProviderStore.getState().updateProvider('openai', { isEnabled: true });
+
+    expect(manager.set).toHaveBeenCalledTimes(1);
   });
 
   it('pushes provider edits once the server config has been loaded', async () => {

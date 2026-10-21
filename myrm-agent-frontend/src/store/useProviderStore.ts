@@ -200,6 +200,8 @@ const useProviderStore = create<ProviderState>((set, get) => ({
         });
         return;
       } else {
+        // 服务端根本没有 providers 配置（全新实例）：种子默认值就是当前真实状态，
+        // 此时允许写回，首个提供商配置才能落库。
         set({
           providers: getInitialProviders(),
           defaultModelConfig: getInitialDefaultModelConfig(),
@@ -207,6 +209,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
           isInitialized: true,
           initError: null,
         });
+        providersHydrated = true;
       }
 
       if (!providersSubscribeRegistered) {
