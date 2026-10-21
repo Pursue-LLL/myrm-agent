@@ -2580,6 +2580,7 @@ web = [
 build = [
     { name = "build" },
     { name = "nuitka" },
+    { name = "pyyaml" },
 ]
 dev = [
     { name = "blockbuster" },
@@ -2669,6 +2670,7 @@ provides-extras = ["browser", "qdrant", "retrieval", "acp", "image-processing", 
 build = [
     { name = "build", specifier = ">=1.5.0" },
     { name = "nuitka", specifier = ">=4.1.2" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
 ]
 dev = [
     { name = "blockbuster", specifier = ">=1.5.26" },

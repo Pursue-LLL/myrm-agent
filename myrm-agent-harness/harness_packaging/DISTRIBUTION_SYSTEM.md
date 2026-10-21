@@ -86,9 +86,9 @@ docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/
 
 ## PyPI Publish
 
-Tag `v*` (e.g. `v0.1.0rc1`, aligned with `project.version`) in **myrm-agent-harness** triggers `.github/workflows/publish-pypi.yml`:
+Tag `harness-v*` (e.g. `harness-v0.1.0rc1`, aligned with `project.version`) on the **myrm-agent** repository triggers `myrm-agent-harness/.github/workflows/harness-publish.yml`: the `harness-v` prefix is what separates a harness release from the desktop release, which uses plain `v*`:
 
-0. `scripts/verify_release_tag.py` asserts `refs/tags/v{version}` matches `project.version` before any wheel build
+0. `scripts/verify_release_tag.py` asserts `refs/tags/harness-v{version}` matches `project.version` before any wheel build
 1. Matrix build eight `myrm-agent-harness-core-*` wheels
 2. Build stripped release wheel (`scripts/build_release_wheel.py`: strip manifest `.py` + inline artifact verify)
 3. `validate-wheels` job runs `scripts/validate_pypi_wheels.py` on release + all core wheels (count/version + zip artifact scan)
@@ -100,9 +100,9 @@ Alpine/musl deployments: use `compiled-core-musl` extra (or `install.sh` `reinst
 
 `[tool.uv] exclude-dependencies` (uv >= 0.9.8) in `pyproject.toml` lists the eight `myrm-agent-harness-core-*` packages, so `uv lock` / `uv sync` never resolve `compiled-core` or `compiled-core-musl`: their pins name versions that exist on PyPI only after the release is published. The published wheel metadata keeps the pins. A platform added to `harness_packaging/platforms.py` (`PUBLISH_PLATFORMS`) must be added to that list too, otherwise `uv lock` fails on the unsatisfiable pin.
 
-CI build jobs use `uv sync --only-group build --frozen` and `uv run --no-project` so the editable project is not installed before wheels exist on PyPI. CI test jobs (`test.yml`, `performance.yml`) install the project with `uv sync --python 3.13 --locked --extra all` (`test.yml` adds `--group dev` and runs `uv run --no-sync`). `--locked` fails on a stale lock, so run `UV_DEFAULT_INDEX=https://pypi.org/simple uv lock` and commit `uv.lock` after every `pyproject.toml` change, including the `project.version` bump of a release. The index is part of the command because uv records it, and every file URL it receives, in each lock entry: a plain `uv lock` behind a mirror rewrites every registry source and download URL in the lock to that mirror, and `tests/architecture/test_core_dependencies.py::test_uv_lock_resolves_from_pypi` rejects such a lock. The `build` group packages (`nuitka`, `build`, ...) that compile and package the release are whatever `uv.lock` pins: re-locking keeps them, `uv lock --upgrade` moves them, so review those entries in the lock diff or restore them with `--upgrade-package <name>==<version>`.
+CI build jobs use `uv sync --only-group build --frozen` and `uv run --no-project` so the editable project is not installed before wheels exist on PyPI. Because the project itself is not installed there, the `build` group must carry every third-party module the build scripts import at module scope (it lists `PyYAML` for the manifest loader for this reason). CI test jobs (`harness-test.yml`, `harness-performance.yml`) install the project with `uv sync --python 3.13 --locked --extra all` (`harness-test.yml` adds `--group dev` and runs `uv run --no-sync`). `--locked` fails on a stale lock, so run `UV_DEFAULT_INDEX=https://pypi.org/simple uv lock` and commit `uv.lock` after every `pyproject.toml` change, including the `project.version` bump of a release. The index is part of the command because uv records it, and every file URL it receives, in each lock entry: a plain `uv lock` behind a mirror rewrites every registry source and download URL in the lock to that mirror, and `tests/architecture/test_core_dependencies.py::test_uv_lock_resolves_from_pypi` rejects such a lock. The `build` group packages (`nuitka`, `build`, ...) that compile and package the release are whatever `uv.lock` pins: re-locking keeps them, `uv lock --upgrade` moves them, so review those entries in the lock diff or restore them with `--upgrade-package <name>==<version>`.
 
-Each PyPI project needs a GitHub publisher: Owner `Pursue-LLL`, repository `myrm-agent-harness`, workflow `publish-pypi.yml`, environment `pypi`.
+Each PyPI project needs a GitHub publisher: Owner `Pursue-LLL`, repository `myrm-agent`, workflow `harness-publish.yml`, environment `pypi`.
 
 One-time bootstrap for new core project names (OIDC cannot create projects): `scripts/bootstrap_pypi_core_upload.sh` with `PYPI_API_TOKEN`, then add Trusted Publisher on PyPI. After musl projects exist, `verify_pypi_publish.py` automatically requires musl wheels for that version.
 
@@ -110,10 +110,9 @@ One-time bootstrap for new core project names (OIDC cannot create projects): `sc
 
 | Workflow | Role |
 |----------|------|
-| `publish-pypi.yml` | Tag release → PyPI (OIDC upload for release + 8 core wheels; verify 6 + indexed musl); matrix from `.github/core-platform-matrix.json` |
-| `build-core-wheels.yml` | Dev/matrix core wheel artifacts (same shared matrix; optional `platform` input) |
+| `harness-publish.yml` | `harness-v*` tag release → PyPI (OIDC upload for release + 8 core wheels; verify 6 + indexed musl); matrix from `.github/core-platform-matrix.json` |
 | `boundary-check.yml` | Architecture + distribution tests (dual-wheel COMPILED e2e, manifest drift gate, wheel artifact zip scan via `validate_pypi_wheels.py`) |
-| `test.yml` | Unit suite (`-n 2`) and serial browser integration on push to `main` and PRs; locked source tree (`uv sync --locked`: `[all]` + `dev` group; `compiled-core*` excluded via `[tool.uv]`) |
+| `harness-test.yml` | Unit suite (`-n 2`) and serial browser integration on push to `main` and PRs; locked source tree (`uv sync --locked`: `[all]` + `dev` group; `compiled-core*` excluded via `[tool.uv]`) |
 
 ## References
 
