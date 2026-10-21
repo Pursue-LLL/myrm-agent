@@ -137,10 +137,12 @@ class TestMacOSProbe:
 class TestProbeFailureReporting:
     def test_nil_session_dictionary_reports_unknown(self) -> None:
         detector = ScreenDetector()
-        # CI exports CI=true, which makes the detector short-circuit to UNLOCKED before probing;
-        # this test is about the probe result, so pin the headless verdict off.
+        # CI exports CI=true, which makes the detector short-circuit to UNLOCKED before probing; and on a
+        # Linux runner the native probe would dispatch to _probe_linux. This test is about what a failed
+        # macOS probe reports, so pin both the headless verdict and the platform.
         with (
             patch.object(ScreenDetector, "is_headless", new_callable=PropertyMock, return_value=False),
+            patch.object(sys, "platform", "darwin"),
             patch.object(detector, "_probe_macos", return_value=ScreenLockState.UNKNOWN),
         ):
             assert detector.get_state(force_refresh=True) == ScreenLockState.UNKNOWN

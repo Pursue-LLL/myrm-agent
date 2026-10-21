@@ -41,14 +41,21 @@ async def _wait_for_browser_processes(driver: psutil.Process) -> list[psutil.Pro
 def _owner_states(processes: list[psutil.Process]) -> dict[int, OwnerState]:
     states: dict[int, OwnerState] = {}
     for proc in processes:
-        with contextlib.suppress(psutil.NoSuchProcess):
+        # A browser helper can be reaped between listing and reading: that is not a state to report.
+        with contextlib.suppress(psutil.NoSuchProcess, psutil.ZombieProcess):
             states[proc.pid] = read_owner_state(proc)
     return states
 
 
 def _not_recognised_as_chromium(processes: list[psutil.Process]) -> list[str]:
     """Names of the running processes the orphan check would take for something other than Chromium."""
-    return [proc.name() for proc in processes if proc.is_running() and not _is_chromium_process(proc)]
+    names: list[str] = []
+    for proc in processes:
+        # Reading a reaped or zombie child raises instead of answering; it is not a Chromium miss.
+        with contextlib.suppress(psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
+            if proc.is_running() and not _is_chromium_process(proc):
+                names.append(proc.name())
+    return names
 
 
 async def test_launched_chromium_is_stamped_and_nothing_else_is() -> None:
