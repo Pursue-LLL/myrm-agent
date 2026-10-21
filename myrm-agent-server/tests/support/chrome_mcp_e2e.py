@@ -2849,6 +2849,25 @@ def _orchestrator_shared_ui_contract_timeout_sec() -> float:
     return _resolve_bridge_ready_timeout_sec(request)
 
 
+def _load_scaled_bridge_wait_ceiling_sec() -> float:
+    """Ceiling for one page's bridge wait on a busy host.
+
+    A cold client bundle has to be compiled by the dev server before the page can boot, and a busy host
+    makes that take minutes (a single chunk was measured at 190s). The ceiling therefore scales with the
+    same host-load ratio the parallel lane already uses: a fixed 120s cut the wait short exactly when the
+    page needed the most time, and every chrome_e2e test failed together at ``wait_for_react_e2e_bridge``.
+    """
+    try:
+        from dev_gate.contract import host_load_ratio
+
+        ratio = max(0.0, float(host_load_ratio()))
+    except (ImportError, OSError, AttributeError, RuntimeError, ValueError):
+        ratio = 0.0
+    if ratio <= 0.0:
+        return 120.0
+    return min(300.0, 120.0 * max(1.0, ratio))
+
+
 def _react_bridge_wait_timeout_sec(requested: float) -> float:
     """Ceiling for one page's bridge wait; must not undercut the cap the caller already chose."""
     try:
@@ -2860,7 +2879,7 @@ def _react_bridge_wait_timeout_sec(requested: float) -> float:
             return min(max(requested, 90.0), _parallel_bridge_ready_cap_sec())
     except ImportError:
         pass
-    return min(max(requested, 60.0), 120.0)
+    return min(max(requested, 60.0), _load_scaled_bridge_wait_ceiling_sec())
 
 
 def wait_for_react_e2e_bridge(
