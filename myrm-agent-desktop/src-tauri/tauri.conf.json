@@ -21,9 +21,6 @@
       "icons/icon.ico",
       "icons/icon.icns"
     ],
-    "externalBin": [
-      "binaries/myrmagent-backend"
-    ],
     "copyright": "Copyright \u00a9 2026 MyrmAgent Team",
     "category": "Productivity",
     "fileAssociations": [
