@@ -60,8 +60,9 @@ jobs:
       - name: Report failed tests
         if: failure()
         run: |
-          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
-          import glob, xml.etree.ElementTree as ET
+          python3 - <<'EOF'
+          import glob, os, sys, xml.etree.ElementTree as ET
+
           rows = []
           for path in glob.glob("/tmp/*.xml"):
               try:
@@ -72,15 +73,28 @@ jobs:
                   for tag in ("failure", "error"):
                       node = case.find(tag)
                       if node is not None:
-                          msg = (node.get("message") or "").strip().splitlines()[:3]
+                          msg = (node.get("message") or "").strip().splitlines()[:2]
                           rows.append((case.get("classname"), case.get("name"), msg))
-          print("## Failed tests")
+
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as handle:
+                  handle.write("## Failed tests\n")
+                  if not rows:
+                      handle.write("No failures recorded in the junit report.\n")
+                  for cls, name, msg in rows:
+                      handle.write(f"- `{cls}::{name}`\n")
+                      for line in msg:
+                          handle.write(f"  - {line}\n")
+
+          # Annotations are the only part of a failed job an anonymous reader can fetch,
+          # so the failing test ids go there too.
+          for cls, name, msg in rows[:40]:
+              detail = " | ".join(msg).replace("\n", " ")[:180]
+              print(f"::error title={cls}::{name}::{detail}")
           if not rows:
-              print("No failures recorded in the junit report.")
-          for cls, name, msg in rows:
-              print(f"- `{cls}::{name}`")
-              for line in msg:
-                  print(f"  - {line}")
+              print("::error title=failed-tests::no junit entries were written")
+          sys.exit(0)
           EOF
 
   browser-integration:
@@ -119,8 +133,9 @@ jobs:
       - name: Report failed tests
         if: failure()
         run: |
-          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
-          import glob, xml.etree.ElementTree as ET
+          python3 - <<'EOF'
+          import glob, os, sys, xml.etree.ElementTree as ET
+
           rows = []
           for path in glob.glob("/tmp/*.xml"):
               try:
@@ -131,13 +146,26 @@ jobs:
                   for tag in ("failure", "error"):
                       node = case.find(tag)
                       if node is not None:
-                          msg = (node.get("message") or "").strip().splitlines()[:3]
+                          msg = (node.get("message") or "").strip().splitlines()[:2]
                           rows.append((case.get("classname"), case.get("name"), msg))
-          print("## Failed tests")
+
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as handle:
+                  handle.write("## Failed tests\n")
+                  if not rows:
+                      handle.write("No failures recorded in the junit report.\n")
+                  for cls, name, msg in rows:
+                      handle.write(f"- `{cls}::{name}`\n")
+                      for line in msg:
+                          handle.write(f"  - {line}\n")
+
+          # Annotations are the only part of a failed job an anonymous reader can fetch,
+          # so the failing test ids go there too.
+          for cls, name, msg in rows[:40]:
+              detail = " | ".join(msg).replace("\n", " ")[:180]
+              print(f"::error title={cls}::{name}::{detail}")
           if not rows:
-              print("No failures recorded in the junit report.")
-          for cls, name, msg in rows:
-              print(f"- `{cls}::{name}`")
-              for line in msg:
-                  print(f"  - {line}")
+              print("::error title=failed-tests::no junit entries were written")
+          sys.exit(0)
           EOF
