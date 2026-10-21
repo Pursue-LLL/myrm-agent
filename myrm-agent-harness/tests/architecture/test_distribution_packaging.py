@@ -45,6 +45,10 @@ _SKIP_WITHOUT_NUITKA = pytest.mark.skipif(
 
 _SLOW_ARCHITECTURE = pytest.mark.slow
 
+# Nuitka compiles 120 modules and the e2e installs both wheels into a fresh venv: these run for
+# minutes, so the suite-wide 300 s ceiling is too tight for them when the machine is busy.
+_SLOW_ARCHITECTURE_TIMEOUT = pytest.mark.timeout(900)
+
 
 @pytest.fixture(scope="module")
 def production_wheels() -> ProductionWheels:
@@ -163,6 +167,7 @@ def test_strip_manifest_in_place_preserves_pep427_name(tmp_path: Path) -> None:
 @_SKIP_UNDER_XDIST
 @_SKIP_WITHOUT_NUITKA
 @_SLOW_ARCHITECTURE
+@_SLOW_ARCHITECTURE_TIMEOUT
 def test_core_wheel_contains_compiled_artifacts(production_wheels: ProductionWheels) -> None:
     """Platform core wheel must ship Nuitka .so/.pyd for manifest modules."""
     core_wheel = production_wheels.core_wheel
@@ -182,6 +187,7 @@ _SLOW_ARCHITECTURE = pytest.mark.slow
 @pytest.mark.architecture
 @_SKIP_UNDER_XDIST
 @_SLOW_ARCHITECTURE
+@_SLOW_ARCHITECTURE_TIMEOUT
 @_SKIP_RUSTC_TOO_OLD
 def test_release_wheel_is_uv_installable(tmp_path: Path) -> None:
     """Release wheel filename must be PEP 427 compliant for uv pip install."""
@@ -215,6 +221,7 @@ def test_release_wheel_is_uv_installable(tmp_path: Path) -> None:
 @_SKIP_UNDER_XDIST
 @_SKIP_WITHOUT_NUITKA
 @_SLOW_ARCHITECTURE
+@_SLOW_ARCHITECTURE_TIMEOUT
 def test_dual_wheel_compiled_mode_e2e(tmp_path: Path, production_wheels: ProductionWheels) -> None:
     """Release + platform core wheels must install together and enter COMPILED mode."""
     wheels = production_wheels
