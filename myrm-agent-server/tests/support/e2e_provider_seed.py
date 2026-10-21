@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import atexit
+import hashlib
 import json
 import os
 import tempfile
@@ -310,9 +311,14 @@ def seed_live_e2e_providers(api_url: str) -> ResolvedE2ELlmEndpoints:
 
 
 def _snapshot_path(api_url: str) -> Path:
-    """Snapshot file for a runtime; isolated runtimes keep their own file."""
+    """Snapshot file for one runtime; a shared state dir keeps one file per backend.
+
+    The api_url is hashed into the file name so that a lane seeding an isolated runtime and a lane
+    seeding the shared backend never share (and overwrite) one snapshot file.
+    """
     state_dir = Path(os.environ.get("MYRM_DATA_DIR", "~/.myrm")).expanduser()
-    return state_dir / _SNAPSHOT_FILE_NAME
+    digest = hashlib.sha256(api_url.strip().encode()).hexdigest()[:12]
+    return state_dir / f"{_SNAPSHOT_FILE_NAME}.{digest}"
 
 
 def _read_snapshot(path: Path) -> dict[str, object] | None:
