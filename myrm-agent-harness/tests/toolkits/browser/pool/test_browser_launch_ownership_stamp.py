@@ -33,15 +33,25 @@ async def _wait_for_browser_processes(driver: psutil.Process) -> list[psutil.Pro
     deadline = time.monotonic() + _HELPER_STARTUP_TIMEOUT_S
     while True:
         processes = driver.children(recursive=True)
-        if len(processes) >= 2 or time.monotonic() >= deadline:
-            return processes
+        alive = [proc for proc in processes if _is_alive(proc)]
+        if len(alive) >= 2 or time.monotonic() >= deadline:
+            return alive
         await asyncio.sleep(0.1)
+
+
+def _is_alive(proc: psutil.Process) -> bool:
+    """A listed child may be reaped or turn into a zombie between listing and use."""
+    try:
+        return proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
+    except (psutil.NoSuchProcess, psutil.ZombieProcess, psutil.AccessDenied):
+        return False
 
 
 def _owner_states(processes: list[psutil.Process]) -> dict[int, OwnerState]:
     states: dict[int, OwnerState] = {}
     for proc in processes:
-        # A browser helper can be reaped between listing and reading: that is not a state to report.
+        # Only a process that vanished between listing and reading is skipped; an unreadable
+        # environment is a state (UNKNOWN) that read_owner_state already reports.
         with contextlib.suppress(psutil.NoSuchProcess, psutil.ZombieProcess):
             states[proc.pid] = read_owner_state(proc)
     return states
