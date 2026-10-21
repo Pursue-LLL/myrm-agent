@@ -33,6 +33,20 @@
   window.__MYRM_E2E_API_BASE__ = binding.apiBase;
   window.__MYRM_E2E_DIRECT_SSE__ = true;
 
+  // Capture client-side failures from the very first script.
+  // The bridge wait installs its own sink on the first poll, which is far too late for a hydration
+  // error: the app has already failed by then and the page only shows an empty shell, so the lane
+  // reports "bridge did not become ready" without ever saying why.
+  window.__MYRM_E2E_DIAG_ERRORS__ = [];
+  (() => {
+    const sink = window.__MYRM_E2E_DIAG_ERRORS__;
+    const push = (kind, msg) => {
+      if (sink.length < 12) sink.push(`${kind}: ${String(msg).slice(0, 240)}`);
+    };
+    window.addEventListener('error', (e) => push('error', e.message || e.filename));
+    window.addEventListener('unhandledrejection', (e) => push('rejection', e.reason?.message || e.reason));
+  })();
+
   const routeHttpUrl = (value) => {
     const url = new URL(value, location.origin);
     if (url.origin !== location.origin) return value;
