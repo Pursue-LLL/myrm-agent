@@ -1,8 +1,8 @@
 # Myrm Agent Harness
 
-> **本仓库已归档，开发已迁入 [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) 的 `myrm-agent-harness/` 目录。**  
-> **This repository is archived. Development continues in [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) under `myrm-agent-harness/`.**  
-> 完整提交历史已原样导入新仓库（`git log` / `git blame` 按文件连续）；PyPI 包名 `myrm-agent-harness` 不变，发版从新仓库的 `harness-v*` tag 触发。
+> **本目录是 Myrm Agent Harness 的唯一开发主干**（`myrm-agent/myrm-agent-harness/`）。原独立仓库仅作只读归档保留历史。
+> **This directory is the only development mainline for Myrm Agent Harness** (`myrm-agent/myrm-agent-harness/`). The former standalone repository is kept read-only for history.
+> 提交历史已原样导入本仓（`git log` / `git blame` 按文件连续）；PyPI 包名 `myrm-agent-harness` 不变，发版由本仓的 `harness-v*` tag 触发。
 
 **生产级 Agent 框架** - 基于 LangChain 构建，提供高级技能系统、MCP 集成和生产就绪的沙箱执行。
 
