@@ -1,6 +1,11 @@
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    sys.platform != "darwin", reason="macOS backend drives Quartz and the macOS input stack"
+)
 
 from myrm_agent_harness.toolkits.computer_use.backends.macos import (
     MacOSBackend,

@@ -25,7 +25,13 @@ def test_owner_stamp_env_names_this_process_by_pid_and_start_time() -> None:
 
     pid_text, start_text = stamp.split(":")
     assert int(pid_text) == os.getpid()
-    assert abs(int(start_text) - int(psutil.Process().create_time() * 1000)) <= 1
+    # Compare against the same normalized start the stamp uses: on Linux the value is
+    # relative to boot time (a wall-clock start time would move with NTP steps).
+    own = psutil.Process()
+    expected = int(own.create_time() * 1000)
+    if process_owner._START_TIMES_FOLLOW_WALL_CLOCK:
+        expected -= int(psutil.boot_time() * 1000)
+    assert abs(int(start_text) - expected) <= process_owner._START_TIME_TOLERANCE_MS
 
 
 def test_owner_stamp_env_is_empty_without_psutil() -> None:
@@ -109,7 +115,10 @@ def test_owner_that_cannot_be_inspected_is_unknown(stamped_processes: StampedPro
 
 def test_stamp_survives_a_wall_clock_second_of_slack(stamped_processes: StampedProcesses) -> None:
     """psutil derives start times per platform; sub-second drift must not turn a live owner into a leftover."""
+    # The stamp and this expectation must use the same base: Linux normalizes to boot time.
     now_ms = int(psutil.Process().create_time() * 1000)
+    if process_owner._START_TIMES_FOLLOW_WALL_CLOCK:
+        now_ms -= int(psutil.boot_time() * 1000)
     child = stamped_processes.spawn(f"{os.getpid()}:{now_ms + 400}")
 
     assert read_owner_state(psutil.Process(child.pid)) is OwnerState.OWNER_ALIVE

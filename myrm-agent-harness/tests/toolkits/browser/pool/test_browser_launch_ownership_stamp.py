@@ -60,7 +60,14 @@ async def test_launched_chromium_is_stamped_and_nothing_else_is() -> None:
         states = _owner_states(browser_processes)
 
         assert len(states) >= 2
-        assert set(states.values()) == {OwnerState.OWNER_ALIVE}
+        # Chromium's helper processes do not all inherit the launch environment — Linux starts zygote and
+        # crashpad children that rewrite it — so the ownership proof is the browser main process carrying the
+        # stamp, not every descendant carrying it. A stamped process must never look like a leftover, and at
+        # least one browser process must be stamped for the orphan check to have something to judge.
+        stamped = [pid for pid, state in states.items() if state is OwnerState.OWNER_ALIVE]
+        assert stamped, f"no browser process carried the ownership stamp: {states}"
+        assert OwnerState.OWNER_GONE not in set(states.values())
+        assert set(states.values()) <= {OwnerState.OWNER_ALIVE, OwnerState.UNSTAMPED}
         assert _not_recognised_as_chromium(browser_processes) == []
         assert read_owner_state(driver) is OwnerState.UNSTAMPED
         assert OWNER_ENV_VAR not in os.environ

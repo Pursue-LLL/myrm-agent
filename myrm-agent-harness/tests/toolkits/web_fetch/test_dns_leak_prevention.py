@@ -25,6 +25,21 @@ _scrapling_available = importlib.util.find_spec("scrapling") is not None
 _DOH_FLAG = "--dns-over-https-templates=https://cloudflare-dns.com/dns-query"
 
 
+@pytest.fixture(autouse=True)
+def _disable_ssrf_dns_pin():
+    """Keep these tests on DoH argument plumbing.
+
+    With the SSRF shield on, every fetch pins the target through a real DNS lookup. These
+    tests use documentation hostnames that do not resolve, so on a runner without network
+    the guard fails before the mocked fetch is ever called and the assertions never run.
+    """
+    with patch(
+        "myrm_agent_harness.toolkits.web_fetch.fetchers.stealth_fetcher.is_ssrf_shield_enabled",
+        return_value=False,
+    ):
+        yield
+
+
 def _make_mock_response(url: str = "https://example.com") -> MagicMock:
     resp = MagicMock()
     resp.body = b"<html></html>"
