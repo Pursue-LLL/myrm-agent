@@ -24,68 +24,43 @@ import re
 
 from langchain_core.tools import BaseTool
 
+from myrm_agent_harness.agent.skills.mcp.description import resolve_description
+from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
+    INSTRUCTIONS_TOKEN_LIMIT,
+    L2_MAX_TOKENS,
+    build_tool_section,
+    cap_instructions,
+    text_field,
+    tool_section_budget,
+)
 from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     TOOL_DOC_TEMPLATE,
     build_call_example,
     build_params_section,
     normalize_input_schema,
 )
+from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
+    build_tool_name_map,
+    resolve_mcp_tool_name,
+)
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.mcp import MCPConfig
 from myrm_agent_harness.toolkits.mcp.config import mcp_config_to_runtime_dict
+from myrm_agent_harness.utils.text_utils import get_token_count
 
 logger = logging.getLogger(__name__)
 
 type JsonDict = dict[str, object]
 
-USAGE_GUIDE_TOOL_THRESHOLD = 3
-
-
-def _text_field(schema: JsonDict, key: str, default: str) -> str:
-    """Return the string stored under *key* in a tool schema, or *default* when it is absent or not a string."""
-    value = schema.get(key)
-    return value if isinstance(value, str) else default
-
 
 SKILL_USAGE_TEMPLATE = """
-## Usage Guide (Must Follow)
+## Calling
 
-Above are only summaries without parameter details. **Get docs first, then call.**
+Import: `from skills.{skill_name} import <func_name>` (`skills.*` = MCP; `tools.*` = built-in; NOT interchangeable).
+Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is abbreviated (`…`) or the return shape matters.
 
-**All usage information is contained in this SOP and the function docs below. Proceed directly once docs are read — no additional lookups needed.**
-
-### Step 1: Read function docs via file_read_tool
-
-**First:** enumerate every MCP function needed to finish the user's request. **Then** batch-read **all** their docs in one `file_read_tool` call. Do NOT use bash/cat. Do NOT start bash until every needed doc is read.
-
-Path: `/mcp/{skill_name}/<function_name>.md`
-
-`{skill_name}` is the exact name in the "Skill Name" line above. Do NOT guess or abbreviate parameter names.
-
-### Step 2: ONE bash via bash_code_execute_tool (CRITICAL)
-
-After Step 1 batch-reads **all** docs needed this turn:
-- **ONE** bash only — serial/parallel `await` all MCP calls → end with **one** `[RESULT]`
-- **FORBIDDEN**: `[OBSERVATION]` for successful, known-value intermediate MCP returns — keep them in variables inside the same script
-- **FORBIDDEN**: guessing an undocumented return structure to force everything into one `[RESULT]` — if any needed function's return shape is not in the docs, end with `[OBSERVATION]` to observe it, then continue in the next bash
-- **FORBIDDEN**: calling `file_write_tool(...)` inside bash Python — use native tool separately
-
-Import: `from skills.{skill_name} import <func_name>` (`skills.*` = MCP; `tools.*` = built-in; NOT interchangeable)
-
-### Performance Rules (CRITICAL)
-
-1. **ONE bash = ONE complete task when all return structures are known** — default to serial/parallel in one bash → `[RESULT]`
-2. Independent → `asyncio.gather()` in one bash; Dependent + doc fields known → serial in one bash → `[RESULT]`
-3. **Scenario A** (no deps): one bash + `gather` → `[RESULT]`
-4. **Scenario B** (deps + doc fields known): one bash serial `await` → `[RESULT]` — default after docs read
-5. **Scenario C** (doc missing a needed return field / call failed): `[OBSERVATION]` to observe the real shape, next bash continues — do NOT guess
-6. **NEVER re-select this skill** — once loaded, stays for entire conversation
-7. **No duplicate calls** — reuse results; do NOT re-query to double-check
-8. **stdout is your answer** — `[RESULT]` for final data; `[OBSERVATION]` only to inspect an undocumented return structure, never for a known-value intermediate
-
-Returns are **parsed Python objects** — do NOT `json.loads()`; only access fields explicitly documented.
-If a tool doc declares a `timeout` parameter, set `timeout=120`; Python: `None`/`True`/`False` (not null/true/false).
-
+Run ONE `bash_code_execute_tool` per task: `await` every needed call, then emit one `[RESULT]`. Results are parsed Python objects — do NOT `json.loads()`; only access fields explicitly documented. If a return shape is undocumented, emit `[OBSERVATION]` first and continue next call.
+Python literals `None`/`True`/`False` (not null/true/false); set `timeout=120` when declared. Loaded once — do not re-select.
 """
 
 
@@ -136,6 +111,7 @@ class MCPSkillGenerator:
         )
 
         skills: list[SkillMetadata] = []
+        claimed_skill_names: dict[str, str] = {}
         for cfg, conn in zip(mcp_configs, conn_results, strict=True):
             if isinstance(conn, BaseException):
                 logger.warning("MCP skill gen: server '%s' connect failed: %s", cfg.name, conn)
@@ -149,7 +125,26 @@ class MCPSkillGenerator:
                 continue
 
             instructions = conn.instructions_by_server.get(cfg.name)
-            skill = self._create_skill_metadata(cfg.name, server_tools, config_desc_map.get(cfg.name, ""), instructions)
+            _, base_name = self._get_safe_names(cfg.name)
+            skill_name = self._dedupe_skill_name(base_name, claimed_skill_names)
+            if skill_name != base_name:
+                logger.warning(
+                    "MCP skill name collision: servers '%s' and '%s' both normalize to '%s'; "
+                    "renaming the latter to '%s' so both stay callable",
+                    claimed_skill_names[base_name],
+                    cfg.name,
+                    base_name,
+                    skill_name,
+                )
+            skill = self._create_skill_metadata(
+                cfg.name,
+                server_tools,
+                config_desc_map.get(cfg.name, ""),
+                instructions,
+                skill_name=skill_name,
+            )
+            claimed_skill_names[skill.name] = cfg.name
+
             if skill.mcp is not None:
                 skill.mcp.config = [mcp_config_to_runtime_dict(cfg)]
             skills.append(skill)
@@ -172,27 +167,48 @@ class MCPSkillGenerator:
         instructions = tool_schemas.get("__instructions__", {}).get("content", "")
 
         tool_count = len(skill_meta.mcp.tools)
-        tool_list = self._build_tool_list(skill_meta.mcp.tools, tool_schemas, tool_count)
+        # The registry matches on skill_meta.name, so L2 must advertise the same string:
+        # a server whose name collided was renamed, and recomputing from server_name
+        # here would print an import path that no skill answers to.
+        skill_name = skill_meta.name
+        tools = skill_meta.mcp.tools
+        tool_list, tier = build_tool_section(tools, tool_schemas, skill_name, tool_section_budget(instructions))
 
-        _, skill_name = self._get_safe_names(server_name)
-
-        usage_section = (
-            SKILL_USAGE_TEMPLATE.format(skill_name=skill_name) if tool_count > USAGE_GUIDE_TOOL_THRESHOLD else ""
-        )
+        usage_section = SKILL_USAGE_TEMPLATE.format(skill_name=skill_name)
+        index_note = {
+            "names": (
+                f"\nThis server exposes {tool_count} tools, so only names are listed. "
+                f"Read `/mcp/{skill_name}/<func_name>.md` with `file_read_tool` for the 1-2 tools "
+                "you will call, then write the call.\n"
+            ),
+            "required": (
+                "\nSignatures list required parameters only (`…` marks the omitted optionals); "
+                "read the tool doc when an optional parameter matters.\n"
+            ),
+        }.get(tier, "")
+        instructions = cap_instructions(instructions, skill_meta.name, INSTRUCTIONS_TOKEN_LIMIT)
 
         intro = f"{instructions}\n\n" if instructions else ""
         content = f"""# {server_name.replace("_", " ").replace("-", " ").title()} Skill
 
 {intro}**Skill Name**: `{skill_name}` (use this exact name in import paths and doc paths)
 
-## Available Functions Overview
+## Functions
 
 {tool_list}
-
+{index_note}
 {usage_section}
 """
 
         skill_meta.mcp.skill_content = content
+        tokens = get_token_count(content)
+        if tokens > L2_MAX_TOKENS:
+            logger.warning(
+                "MCP SKILL.md for '%s' is %d tokens (soft budget %d); server instructions may need trimming",
+                skill_meta.name,
+                tokens,
+                L2_MAX_TOKENS,
+            )
         return content
 
     # ========== Level 3: Tool Documentation ==========
@@ -201,10 +217,6 @@ class MCPSkillGenerator:
         """Generate single tool documentation on-demand (Level 3)."""
         if not skill_meta.mcp:
             return f"Error: Skill '{skill_meta.name}' is not an MCP skill."
-
-        from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
-            resolve_mcp_tool_name,
-        )
 
         mcp_tools = skill_meta.mcp.tools
         matched_tool_name = resolve_mcp_tool_name(tool_name, mcp_tools)
@@ -234,12 +246,17 @@ class MCPSkillGenerator:
     def _get_safe_names(server_name: str) -> tuple[str, str]:
         """Generate safe display name and skill name.
 
+        The skill name becomes a Python package segment (``from skills.<name> import``),
+        so every character outside ``[a-z0-9_]`` is folded to ``_``. Collisions produced
+        by that folding (``weather`` vs ``weather-skill``) are resolved by
+        :meth:`_dedupe_skill_name`, because dropping a server would make it unreachable.
+
         Returns:
             (display_name, skill_name) tuple
         """
         display_name = server_name.replace("_", " ").replace("-", " ").title()
 
-        skill_name = server_name.replace("-", "_").lower()
+        skill_name = re.sub(r"[^a-z0-9_]", "_", server_name.replace("-", "_").lower())
         if not skill_name.startswith("mcp_"):
             skill_name = f"mcp_{skill_name}"
         if not skill_name.endswith("_skill"):
@@ -247,84 +264,17 @@ class MCPSkillGenerator:
 
         return display_name, skill_name
 
-    # ========== Internal: Description Building ==========
+    @staticmethod
+    def _dedupe_skill_name(base: str, claimed: dict[str, str]) -> str:
+        """Return *base* or the first free ``base_<n>`` so every server keeps a skill."""
+        if base not in claimed:
+            return base
+        index = 2
+        while f"{base}_{index}" in claimed:
+            index += 1
+        return f"{base}_{index}"
 
-    def _resolve_description(
-        self,
-        user_description: str,
-        instructions: str | None,
-        tools: list[BaseTool],
-        server_name: str,
-    ) -> str:
-        """Resolve skill description with 3-tier priority.
-
-        Priority: user_description > instructions > auto-generated from tools
-        """
-        if user_description:
-            desc = user_description.strip()
-            if not re.search(r"(use when|whenever|必须|优先选择|选择本技能|触发)", desc, re.IGNORECASE):
-                desc = f"{desc}。当任务涉及相关功能时，必须首先选择本技能。"
-            return desc
-
-        if instructions:
-            clean = self._clean_markdown(instructions)
-            truncated = self._truncate_to_sentence(clean, max_len=200)
-            if not re.search(r"(use when|whenever|必须|优先选择|选择本技能|触发)", truncated, re.IGNORECASE):
-                truncated = f"{truncated}。当任务涉及相关功能时，必须首先选择本技能。"
-            return truncated
-
-        built = self._build_description_from_tools(tools, server_name)
-        if not re.search(r"(use when|whenever|必须|优先选择|选择本技能|触发)", built, re.IGNORECASE):
-            built = f"{built}。当任务涉及相关功能时，优先选择本技能。"
-        return built
-
-    def _build_description_from_tools(self, tools: list[BaseTool], server_name: str) -> str:
-        """Build a concise description from tool descriptions (for metadata)."""
-        functions: list[str] = []
-        for tool in tools:
-            desc = getattr(tool, "description", "")
-            if not desc:
-                continue
-            short = self._truncate_to_sentence(desc, max_len=80)
-            if short:
-                functions.append(short.rstrip("。."))
-
-        if not functions:
-            display = server_name.replace("_", " ").replace("-", " ").title()
-            return f"{display} ({len(tools)} tools available)"
-
-        joined = "; ".join(functions[:3])
-        suffix = f" and {len(functions) - 3} more" if len(functions) > 3 else ""
-        return f"MCP {server_name}: {joined}{suffix}"
-
-    # ========== Internal: Tool List & Documentation ==========
-
-    def _build_tool_list(self, tools: list[str], tool_schemas: dict[str, JsonDict], tool_count: int) -> str:
-        """Build tool list for SKILL.md.
-
-        Few tools (<=3): show full description with parameters.
-        Many tools (>3): truncate to sentence boundary.
-        """
-        lines = []
-        for tool_name in tools:
-            schema = tool_schemas.get(tool_name, {})
-            desc = _text_field(schema, "description", "No description available")
-            from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
-                mcp_tool_short_name,
-            )
-
-            python_func_name = mcp_tool_short_name(tool_name)
-
-            if tool_count <= USAGE_GUIDE_TOOL_THRESHOLD:
-                params_str = self._format_params_inline(normalize_input_schema(schema.get("inputSchema")))
-                full_desc = f"{desc}\n\n  **Parameters:**\n{params_str}" if params_str else desc
-                full_desc += "\n\n  **Returns:** parsed Python object (do NOT call `json.loads()` on it)"
-                lines.append(f"- **{python_func_name}**: {full_desc}")
-            else:
-                short_desc = self._truncate_to_sentence(desc, max_len=150)
-                lines.append(f"- **{python_func_name}**: {short_desc}")
-
-        return "\n\n".join(lines)
+    # ========== Internal: Tool Documentation ==========
 
     def _build_tool_detail_doc(
         self,
@@ -333,14 +283,10 @@ class MCPSkillGenerator:
         schema: JsonDict,
     ) -> str:
         """Build detailed tool documentation (Level 3)."""
-        tool_desc = _text_field(schema, "description", "No description available")
+        tool_desc = text_field(schema, "description", "No description available")
         input_schema = normalize_input_schema(schema.get("inputSchema"))
         params_section = build_params_section(input_schema)
-        from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
-            mcp_tool_short_name,
-        )
-
-        python_func_name = mcp_tool_short_name(tool_name)
+        python_func_name = build_tool_name_map(skill_meta.mcp.tools if skill_meta.mcp else [])[tool_name]
         call_example = build_call_example(input_schema)
 
         return TOOL_DOC_TEMPLATE.format(
@@ -351,70 +297,14 @@ class MCPSkillGenerator:
             call_example=call_example,
         )
 
-    # ========== Internal: Parameter Formatting ==========
-
-    @staticmethod
-    def _format_params_inline(input_schema: JsonDict) -> str:
-        """Format parameters as inline list for SKILL.md tool list.
-
-        Returns empty string if no parameters.
-        """
-        if not isinstance(input_schema, dict):
-            return ""
-
-        properties = input_schema.get("properties")
-        if not isinstance(properties, dict):
-            return ""
-        required = input_schema.get("required")
-        required_names = required if isinstance(required, list) else []
-
-        lines: list[str] = []
-        for name, info in properties.items():
-            if not isinstance(info, dict):
-                continue
-            ptype = info.get("type", "any")
-            pdesc = info.get("description", "")
-            req_tag = " **(required)**" if name in required_names else ""
-
-            hints: list[str] = []
-            if "enum" in info:
-                hints.append(f"enum: {info['enum']}")
-            if "pattern" in info:
-                hints.append(f"pattern: `{info['pattern']}`")
-            if "default" in info:
-                hints.append(f"default: `{info['default']}`")
-
-            hint_str = f" [{', '.join(hints)}]" if hints else ""
-            lines.append(f" - `{name}` ({ptype}){req_tag}: {pdesc}{hint_str}")
-
-        return "\n".join(lines)
-
-    # ========== Internal: Text Processing ==========
-
-    @staticmethod
-    def _truncate_to_sentence(text: str, max_len: int = 150) -> str:
-        """Truncate text at the first sentence boundary, or at max_len."""
-        match = re.search(r"[。.\n]", text)
-        if match and match.end() <= max_len:
-            return text[: match.end()].strip()
-        if len(text) > max_len:
-            return text[:max_len].strip() + "..."
-        return text
-
-    @staticmethod
-    def _clean_markdown(text: str) -> str:
-        """Strip markdown formatting from text."""
-        text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
-        text = re.sub(r"\*([^*]+)\*", r"\1", text)
-        text = re.sub(r"#+\s*", "", text)
-        return re.sub(r"\n+", " ", text).strip()
-
     def _create_skill_metadata(
         self,
         server_name: str,
         tools: list[BaseTool],
         user_description: str = "",
         instructions: str | None = None,
+        *,
+        skill_name: str | None = None,
     ) -> SkillMetadata:
         """Create SkillMetadata for a single MCP server.
 
@@ -425,11 +315,19 @@ class MCPSkillGenerator:
             tools: Tools from this server
             user_description: User-provided description (from MCPConfig.description)
             instructions: MCP server instructions (from initialize handshake)
+            skill_name: Final skill name when the caller already resolved a collision;
+                defaults to the name derived from ``server_name``
         """
         tool_names = [tool.name for tool in tools]
-        _, skill_name = self._get_safe_names(server_name)
+        if skill_name is None:
+            _, skill_name = self._get_safe_names(server_name)
 
-        skill_description = self._resolve_description(user_description, instructions, tools, server_name)
+        skill_description = resolve_description(user_description, instructions, tools, server_name)
+        # L1 is the only rendered text that bypassed the load-time scan L2 goes through.
+        from myrm_agent_harness.backends.skills.scanning.scanner import ScanSeverity, scan_skill_content
+
+        if any(f.severity >= ScanSeverity.HIGH for f in scan_skill_content(skill_name, skill_description).findings):
+            logger.warning("MCP L1 description for '%s' has high-risk scan findings", skill_name)
 
         tool_schemas: dict[str, dict[str, object]] = {}
         for tool in tools:
