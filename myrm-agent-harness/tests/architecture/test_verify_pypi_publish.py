@@ -78,7 +78,13 @@ def test_release_extra_missing_is_reported() -> None:
 
 
 def test_verify_published_succeeds_when_complete() -> None:
-    with patch("scripts.verify_pypi_publish.missing_packages", return_value=[]):
+    # ``missing_packages`` is patched, but the success path also counts the expected packages,
+    # and resolving that list asks PyPI whether the musl cores are indexed yet. Stub it too, or
+    # the test depends on a live network and fails on a TLS blip.
+    with (
+        patch("scripts.verify_pypi_publish.missing_packages", return_value=[]),
+        patch("scripts.verify_pypi_publish.verify_platform_keys", return_value=("linux-x64",)),
+    ):
         verify_published("0.1.0rc2", max_attempts=1, delay_seconds=0.0)
 
 
