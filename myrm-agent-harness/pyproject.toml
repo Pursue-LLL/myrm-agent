@@ -26,6 +26,9 @@ dependencies = [
   "aiosqlite>=0.22.1",                  # async SQLite (memory stores + checkpointer)
   "dill>=0.4.1",                        # checkpoint serde (ChatLiteLLM / complex objects)
   # --- LLM 多供应商适配 ---
+  # Floor capped by the server: every aioboto3 release pins aiobotocore 2.25.1, which caps
+  # boto3 below 1.40.62, while litellm >= 1.98 requires boto3 >= 1.43. 1.97 is the newest
+  # release both trees can install; it already ships search, RerankResponse and model_cost.
   "litellm>=1.90.2", # 统一 LLM API 代理 (100+ 供应商)
   # --- 数据验证与序列化 ---
   "pydantic>=2.13.5", # 数据模型验证
