@@ -2,13 +2,14 @@
 """Assert git tag version matches pyproject.toml project.version.
 
 [INPUT]
-- GITHUB_REF env (refs/tags/vX.Y.Z on tag push)
+- GITHUB_REF env (refs/tags/harness-vX.Y.Z on tag push)
 
 [OUTPUT]
-- main(): exit 0 when tag matches or push is not a version tag
+- main(): exit 0 when tag matches or push is not a harness release tag
 
 [POS]
-First gate in publish-pypi.yml before expensive core wheel builds.
+First gate in the monorepo harness publish workflow, before building and uploading the wheel.
+The pipeline is shared with the desktop release, so the harness prefix is what separates them.
 """
 
 from __future__ import annotations
@@ -22,18 +23,20 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 from harness_packaging.version import read_harness_version  # noqa: E402
 
+_TAG_PREFIX = "refs/tags/harness-v"
+
 
 def main() -> int:
     ref = os.environ.get("GITHUB_REF", "")
-    if not ref.startswith("refs/tags/v"):
-        print("Not a version tag push; skipping tag gate")
+    if not ref.startswith(_TAG_PREFIX):
+        print("Not a harness release tag push; skipping tag gate")
         return 0
 
-    tag_version = ref.removeprefix("refs/tags/v")
+    tag_version = ref.removeprefix(_TAG_PREFIX)
     pyproject_version = read_harness_version(_REPO_ROOT)
     if tag_version != pyproject_version:
         msg = (
-            f"Tag v{tag_version} does not match pyproject.toml version {pyproject_version}. "
+            f"Tag harness-v{tag_version} does not match pyproject.toml version {pyproject_version}. "
             "Bump project.version or retag before publishing."
         )
         print(msg, file=sys.stderr)
