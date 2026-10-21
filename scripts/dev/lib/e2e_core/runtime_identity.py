@@ -670,7 +670,6 @@ def frontend_source_fingerprint(frontend_dir: Path) -> str:
         "next.config.mjs",
         "package.json",
         "bun.lock",
-        "tsconfig.json",
         "postcss.config.mjs",
         "tailwind.config.ts",
         ".env.local",
@@ -725,7 +724,29 @@ def frontend_source_fingerprint(frontend_dir: Path) -> str:
             digest.update(path.read_bytes())
         except OSError:
             return ""
+    # tsconfig is hashed without its include/exclude globs: isolated Next builds rewrite them, and that
+    # noise must not look like a source change (it would invalidate the client warmth for nothing).
+    stable_tsconfig = _stable_tsconfig_fingerprint(frontend_dir)
+    if stable_tsconfig:
+        digest.update(b"tsconfig:")
+        digest.update(stable_tsconfig.encode("utf-8"))
     return digest.hexdigest()[:16]
+
+
+def _stable_tsconfig_fingerprint(frontend_dir: Path) -> str:
+    """Hash the tsconfig without the include/exclude globs Next rewrites during isolated builds."""
+    path = frontend_dir / "tsconfig.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    stable = {key: value for key, value in payload.items() if key not in {"include", "exclude"}}
+    try:
+        return hashlib.sha256(json.dumps(stable, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    except (TypeError, ValueError):
+        return ""
 
 
 def _fetch_cdp_version(port: int) -> dict[str, object]:

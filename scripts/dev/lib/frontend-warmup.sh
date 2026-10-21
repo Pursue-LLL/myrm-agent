@@ -244,10 +244,11 @@ if data.get('generation') != '${gen}':
 if data.get('client_hot') is not True:
     sys.exit(1)
 fp = '${source_fingerprint}'
-if data.get('source_fingerprint') != fp and fp:
-    # Next.js may rewrite tsconfig include during cold start; same dev-server generation is still valid.
-    data['source_fingerprint'] = fp
-    state.write_text(json.dumps(data, indent=2) + '\n')
+if fp and data.get('source_fingerprint') != fp:
+    # The frontend sources changed since the client was warmed: the client bundle is cold again and
+    # has to be recompiled before a page can boot. The tsconfig include/exclude globs are excluded
+    # from the fingerprint, so this only fires for a real source change.
+    sys.exit(1)
 sys.exit(0)
 " 2>/dev/null
 }
