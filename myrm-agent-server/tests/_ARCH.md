@@ -16,7 +16,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/session_mock_guard.py` | 辅助 | `restore_leaked_session_mocks(mock_get_session, mock_get_session_factory)`：列在 DB 会话 `patch` 之前的上下文守卫，退出时把「补丁生效期间首次 import 而捕获了 mock」的模块全局重绑回真实可调用对象（`patch` 只还原它点名的属性）；`tests/api/{agent,skills,companion,notifications,approvals}/conftest.py` 的会话夹具共用 |
 | `support/test_session_mock_guard.py` | 单元 | 守卫回归：补丁期间首次 import 的模块在无守卫时保留 mock（复现后续用例 `no such table: user_configs`），有守卫时重绑为真实函数 |
 | `support/fake_secrets.py` | 辅助 | 厂商格式假凭据夹具 SSOT：`stripe_live_key(body)`、`slack_bot_token(body)` 在调用时才拼出厂商前缀，源码里不出现完整 token（GitHub push protection 会拒绝含完整厂商 token 的推送，假值也不例外）；脱敏与泄漏检测类测试共用，由 `architecture/test_no_provider_shaped_secrets_in_tests.py` 守卫 |
-| `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（OmniRoute `:20128` preflight · fail-fast，无 silent fallback）、`seed_live_e2e_providers` |
+| `support/e2e_provider_seed.py` | 辅助 | LIVE E2E provider seed SSOT：`resolve_e2e_llm_endpoints`（OmniRoute `:20128` preflight · fail-fast，无 silent fallback）、`seed_live_e2e_providers`；seed 前快照当前 provider 配置、最后一个 seed 进程退出时恢复（引用计数，支持并行 lane），避免 E2E 把开发者自己的提供商与 Key 永久替换掉 |
 | `support/test_e2e_provider_seed.py` | 单元 | `resolve_e2e_llm_endpoints` keep/fallback 契约 |
 | `support/e2e_runtime_guard.py` | 辅助 | LIVE E2E runtime guard：immutable-wave lease 校验 · `assert_chrome_attach_health`（`e2e_core/runtime_identity.py` 子进程探针） |
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
