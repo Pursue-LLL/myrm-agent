@@ -249,3 +249,8 @@ class DeviceEmulator:
             )
         await cdp.send("Emulation.setTouchEmulationEnabled", {"enabled": False})
         self._injected_pages.discard(page)
+        # Clearing the metrics override does not relayout a document that already
+        # rendered at the emulated width; the page keeps the narrow mobile viewport
+        # until it navigates again. Reload so the tab really shows desktop geometry.
+        if not page.is_closed():
+            await page.reload()
