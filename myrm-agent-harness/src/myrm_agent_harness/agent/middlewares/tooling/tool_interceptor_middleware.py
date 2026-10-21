@@ -126,6 +126,16 @@ def get_loop_guard() -> LoopGuard:
     return _bind_loop_guard(_create_loop_guard())
 
 
+def clear_all_session_loop_guards_for_tests() -> None:
+    """Drop every cached session guard (test isolation only).
+
+    The cache is a module global keyed by session id, so a guard that spent its
+    iteration budget in one test is handed to the next test that reuses that
+    session id, which makes the later run fail with a stuck-tool interrupt.
+    """
+    _session_loop_guards.clear()
+
+
 def reset_loop_guard(
     *,
     is_resume: bool = False,

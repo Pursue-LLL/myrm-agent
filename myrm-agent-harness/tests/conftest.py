@@ -183,6 +183,50 @@ def _reset_approval_denial_state() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_security_reviewer() -> Iterator[None]:
+    """Isolate the process-global security reviewer between all tests.
+
+    ``register_security_reviewer`` stores the reviewer in a module global, and tests
+    register one inside the test body. A leftover reviewer makes ``evaluate_tool_batch``
+    auto-approve instead of pausing for approval, so unrelated approval tests that
+    expect a card see none.
+    """
+    with suppress(Exception):
+        from myrm_agent_harness.agent.middlewares.approval._batch_review import register_security_reviewer
+
+        register_security_reviewer(None)
+    yield
+    with suppress(Exception):
+        from myrm_agent_harness.agent.middlewares.approval._batch_review import register_security_reviewer
+
+        register_security_reviewer(None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_session_loop_guards() -> Iterator[None]:
+    """Isolate the module-global session loop-guard cache between all tests.
+
+    Each test gets its own event loop, so the guard bound through the ContextVar does
+    not survive; the lookup then falls back to a dict keyed by session id. A test that
+    spends the iteration budget under a session id leaves a stuck guard there, and the
+    next test reusing that id gets a stuck-tool interrupt instead of its own run.
+    """
+    with suppress(Exception):
+        from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
+            clear_all_session_loop_guards_for_tests,
+        )
+
+        clear_all_session_loop_guards_for_tests()
+    yield
+    with suppress(Exception):
+        from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware import (
+            clear_all_session_loop_guards_for_tests,
+        )
+
+        clear_all_session_loop_guards_for_tests()
+
+
+@pytest.fixture(autouse=True)
 def _reset_session_executor_stash() -> Iterator[None]:
     """Isolate the process-global session executor stash between all tests.
 

@@ -42,7 +42,18 @@ class MockRuntime:
 
 @pytest.fixture(autouse=True)
 def _isolation():
-    """Reset global state for test isolation."""
+    """Reset global state before and after each test.
+
+    The cleanup has to run as teardown too: several tests register a security reviewer
+    inside the test body, and a leftover reviewer makes unrelated approval tests
+    auto-approve their tool calls in the same worker.
+    """
+    _reset_approval_globals()
+    yield
+    _reset_approval_globals()
+
+
+def _reset_approval_globals() -> None:
     import myrm_agent_harness.agent.security.approval_flow as approval_flow
     from myrm_agent_harness.agent.middlewares.approval import get_approval_rate_limiter
     from myrm_agent_harness.agent.middlewares.approval.helpers import (

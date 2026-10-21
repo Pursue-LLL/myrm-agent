@@ -83,15 +83,24 @@ class TestDetectProvider:
 
 
 class TestComputeMinRecovery:
+    # ``remaining_seconds_now`` subtracts the wall clock elapsed since ``updated_at``, so the
+    # value moves between the two reads. Compare with an absolute tolerance that is far below
+    # a scheduler tick instead of the default relative one, which is tighter than real elapsed time.
+    _CLOCK_TOLERANCE_SECONDS = 0.5
+
     def test_rpm_exhausted_returns_remaining(self) -> None:
         state = _state(rpm_remaining=0, rpm_reset=30.0)
         expected = state.rpm.remaining_seconds_now  # type: ignore[union-attr]
-        assert _compute_min_recovery_seconds(state) == pytest.approx(expected)
+        assert _compute_min_recovery_seconds(state) == pytest.approx(
+            expected, abs=self._CLOCK_TOLERANCE_SECONDS
+        )
 
     def test_tpm_exhausted_returns_remaining(self) -> None:
         state = _state(tpm_remaining=999, tpm_reset=15.0)
         expected = state.tpm.remaining_seconds_now  # type: ignore[union-attr]
-        assert _compute_min_recovery_seconds(state) == pytest.approx(expected)
+        assert _compute_min_recovery_seconds(state) == pytest.approx(
+            expected, abs=self._CLOCK_TOLERANCE_SECONDS
+        )
 
     def test_min_across_buckets(self) -> None:
         state = _state(
