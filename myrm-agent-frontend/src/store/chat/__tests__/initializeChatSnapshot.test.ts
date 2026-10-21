@@ -1,0 +1,324 @@
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { AgentConfig, ChatState, Message } from '@/store/chat/types';
+import {
+  resetChatNavigationSnapshotsForTests,
+  saveChatNavigationSnapshot,
+} from '@/store/chat/chatNavigationSnapshotCache';
+import { initializeChat } from '@/store/chat/chatSessionInit';
+
+const getChatDetailMock = vi.hoisted(() => vi.fn());
+const getMessagesMock = vi.hoisted(() => vi.fn());
+const fetchAgentMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+
+vi.mock('@/store/useWorkspaceStore', () => ({
+  default: {
+    getState: () => ({ panes: [] }),
+  },
+}));
+
+vi.mock('@/services/chat', () => ({
+  getChatDetail: (...args: unknown[]) => getChatDetailMock(...args),
+  getMessages: (...args: unknown[]) => getMessagesMock(...args),
+  generateChatTitle: vi.fn(),
+  updateChatTitle: vi.fn(),
+  getContextPins: vi.fn().mockResolvedValue({ files: [] }),
+  listContextBranches: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('@/lib/api', () => ({
+  apiRequest: vi.fn().mockResolvedValue({ active: false }),
+  ApiError: class ApiError extends Error {
+    code: number;
+    constructor(code: number) {
+      super('api error');
+      this.code = code;
+    }
+  },
+}));
+
+const chatStoreMock = vi.hoisted(() => ({
+  chatId: 'chat-a',
+  agentConfig: null as AgentConfig | null,
+  securityPreset: 'hitl' as const,
+  setAgentConfig: vi.fn(),
+  setSandboxMode: vi.fn(),
+  setContextBranches: vi.fn(),
+  setContextPinnedFiles: vi.fn(),
+  setContextPinnedFilesLoadError: vi.fn(),
+  setContextBranchesLoadError: vi.fn(),
+  fetchTurnOutlines: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/store/useChatStore', () => ({
+  default: {
+    getState: () => chatStoreMock,
+    setState: (partial: Partial<typeof chatStoreMock>) => {
+      Object.assign(chatStoreMock, partial);
+    },
+  },
+}));
+
+vi.mock('@/store/skill', () => ({
+  useSkillStore: {
+    getState: () => ({
+      fetchMarketSkills: vi.fn().mockResolvedValue(undefined),
+      fetchLocalSkills: vi.fn().mockResolvedValue(undefined),
+    }),
+  },
+}));
+
+vi.mock('@/store/useAgentStore', () => ({
+  default: {
+    getState: () => ({ fetchAgent: (...args: unknown[]) => fetchAgentMock(...args) }),
+  },
+}));
+
+vi.mock('@/store/useConfigStore', () => ({
+  default: {
+    getState: () => ({}),
+  },
+}));
+
+vi.mock('@/store/useProjectStore', () => ({
+  useProjectStore: {
+    getState: () => ({ activeFilter: undefined }),
+  },
+}));
+
+vi.mock('@/services/uploadController', () => ({
+  abortCurrentUpload: vi.fn(),
+}));
+
+vi.mock('@/store/chat/messageRequest', () => ({
+  attachToChat: vi.fn().mockResolvedValue(false),
+  attachForHitlRecovery: vi.fn(),
+}));
+
+describe('initializeChat navigation snapshot', () => {
+  // initializeChat loads history through a dynamic import. Transforming that module graph on a busy machine
+  // takes seconds, far beyond the 1s default of vi.waitFor, so resolve it once before the timed assertions.
+  beforeAll(async () => {
+    await import('@/store/chat/messageManagement');
+  }, 60_000);
+
+  beforeEach(() => {
+    resetChatNavigationSnapshotsForTests();
+    vi.clearAllMocks();
+    chatStoreMock.chatId = 'chat-a';
+    chatStoreMock.agentConfig = null;
+    chatStoreMock.securityPreset = 'hitl';
+    getChatDetailMock.mockResolvedValue({
+      chat: {
+        actionMode: 'agent',
+        compacted_summary: null,
+        compacted_before_id: null,
+        workspace_dir: null,
+        session_loaded_skill_names: null,
+        is_incognito: false,
+        agent_id: null,
+      },
+    });
+    getMessagesMock.mockResolvedValue({
+      messages: [],
+      has_more: false,
+      next_cursor: null,
+    });
+  });
+
+  it('restores agentConfig and model selection when switching back via sidebar snapshot', () => {
+    const agentConfig = { agentId: 'agent-1', name: 'Test Agent' } as unknown as AgentConfig;
+    const messages = [{ id: 'm1', role: 'user', content: 'hello' } as unknown as Message];
+
+    saveChatNavigationSnapshot('chat-a', {
+      messages,
+      agentConfig,
+      actionMode: 'deep_research',
+      selectedModels: { base: 'gpt-4', vision: null, reasoning: null },
+      hasUserSelectedModel: true,
+      isMessagesLoaded: true,
+      loading: false,
+    });
+
+    let currentState = {
+      chatId: 'chat-b',
+      messages: [] as Message[],
+    } as unknown as ChatState;
+
+    const actions = {
+      setMessages: (updater: (state: ChatState) => void) => {
+        const draft = { ...currentState } as ChatState;
+        updater(draft);
+        currentState = draft;
+      },
+      clearCurrentSessionMessageId: vi.fn(),
+    };
+
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
+
+    expect(currentState.chatId).toBe('chat-a');
+    expect(currentState.agentConfig).toEqual(agentConfig);
+    expect(currentState.actionMode).toBe('deep_research');
+    expect(currentState.hasUserSelectedModel).toBe(true);
+    expect(currentState.selectedModels).toEqual({ base: 'gpt-4', vision: null, reasoning: null });
+    expect(currentState.isMessagesLoaded).toBe(false);
+  });
+
+  it('resets securityPreset to agent default when switching back via snapshot', () => {
+    const agentConfig = {
+      agentId: 'agent-1',
+      name: 'Test Agent',
+      defaultSecurityPreset: 'accept_edits',
+    } as unknown as AgentConfig;
+    const messages = [{ id: 'm1', role: 'user', content: 'hello' } as unknown as Message];
+
+    saveChatNavigationSnapshot('chat-a', {
+      messages,
+      agentConfig,
+      actionMode: 'agent',
+      isMessagesLoaded: true,
+      loading: false,
+    });
+
+    let currentState = {
+      chatId: 'chat-b',
+      messages: [] as Message[],
+      securityPreset: 'explore',
+    } as unknown as ChatState;
+
+    const actions = {
+      setMessages: (updater: (state: ChatState) => void) => {
+        const draft = { ...currentState } as ChatState;
+        updater(draft);
+        currentState = draft;
+      },
+      clearCurrentSessionMessageId: vi.fn(),
+    };
+
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
+
+    expect(currentState.securityPreset).toBe('accept_edits');
+  });
+
+  it('falls back securityPreset to hitl on snapshot restore when agent has no default', () => {
+    const agentConfig = { agentId: 'agent-1', name: 'Test Agent' } as unknown as AgentConfig;
+    const messages = [{ id: 'm1', role: 'user', content: 'hello' } as unknown as Message];
+
+    saveChatNavigationSnapshot('chat-a', {
+      messages,
+      agentConfig,
+      actionMode: 'agent',
+      isMessagesLoaded: true,
+      loading: false,
+    });
+
+    let currentState = {
+      chatId: 'chat-b',
+      messages: [] as Message[],
+      securityPreset: 'accept_edits',
+    } as unknown as ChatState;
+
+    const actions = {
+      setMessages: (updater: (state: ChatState) => void) => {
+        const draft = { ...currentState } as ChatState;
+        updater(draft);
+        currentState = draft;
+      },
+      clearCurrentSessionMessageId: vi.fn(),
+    };
+
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
+
+    expect(currentState.securityPreset).toBe('hitl');
+  });
+
+  it('keeps isMessagesLoaded true during silent background refresh', async () => {
+    saveChatNavigationSnapshot('chat-a', {
+      messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
+      isMessagesLoaded: true,
+      loading: false,
+    });
+
+    let currentState = {
+      chatId: 'chat-b',
+      messages: [] as Message[],
+      isMessagesLoaded: false,
+      loading: false,
+    } as unknown as ChatState;
+
+    const observedIsMessagesLoaded: boolean[] = [];
+    const actions = {
+      setMessages: (updater: (state: ChatState) => void) => {
+        const draft = { ...currentState } as ChatState;
+        updater(draft);
+        currentState = draft;
+        observedIsMessagesLoaded.push(currentState.isMessagesLoaded);
+      },
+      clearCurrentSessionMessageId: vi.fn(),
+    };
+
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
+
+    expect(currentState.isMessagesLoaded).toBe(true);
+
+    // History loading is deferred; wait for the whole silent refresh to finish.
+    await vi.waitFor(() => {
+      expect(chatStoreMock.fetchTurnOutlines).toHaveBeenCalled();
+    });
+
+    expect(observedIsMessagesLoaded.length).toBeGreaterThan(1);
+    expect(observedIsMessagesLoaded.every(Boolean)).toBe(true);
+  });
+
+  it('preserves actionMode during silent background refresh after snapshot restore', async () => {
+    saveChatNavigationSnapshot('chat-a', {
+      messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
+      actionMode: 'deep_research',
+      isMessagesLoaded: true,
+      loading: false,
+    });
+
+    getChatDetailMock.mockResolvedValue({
+      chat: {
+        actionMode: 'agent',
+        compacted_summary: null,
+        compacted_before_id: null,
+        workspace_dir: null,
+        session_loaded_skill_names: null,
+        is_incognito: false,
+        agent_id: 'agent-server',
+      },
+    });
+
+    let currentState = {
+      chatId: 'chat-b',
+      messages: [] as Message[],
+      actionMode: 'agent' as ChatState['actionMode'],
+      isMessagesLoaded: false,
+      loading: false,
+    } as unknown as ChatState;
+
+    const observedActionModes: ChatState['actionMode'][] = [];
+    const actions = {
+      setMessages: (updater: (state: ChatState) => void) => {
+        const draft = { ...currentState } as ChatState;
+        updater(draft);
+        currentState = draft;
+        observedActionModes.push(currentState.actionMode);
+      },
+      clearCurrentSessionMessageId: vi.fn(),
+    };
+
+    initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
+
+    expect(currentState.actionMode).toBe('deep_research');
+
+    // History loading is deferred; wait for the silent refresh and the DB-bound agent restore.
+    await vi.waitFor(() => {
+      expect(fetchAgentMock).toHaveBeenCalledWith('agent-server');
+    });
+
+    expect(observedActionModes.length).toBeGreaterThan(1);
+    expect(observedActionModes.every((mode) => mode === 'deep_research')).toBe(true);
+  });
+});

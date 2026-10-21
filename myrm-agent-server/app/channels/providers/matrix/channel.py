@@ -1,0 +1,410 @@
+"""Matrix channel — mautrix SDK with optional E2EE.
+
+[INPUT]
+- channels.core.base::BaseChannel (POS: Channel abstraction every provider implements)
+- channels.core.attachment_delivery::deliver_attachments (POS: per-attachment delivery with partial-failure reporting)
+- channels.providers.matrix.connection::MatrixConnectionMixin (POS: mautrix client setup, authentication, E2EE and sync-event wiring)
+- channels.providers.matrix.auth / handlers / html / media (POS: login and sync, inbound events, markdown payloads, uploads)
+- mautrix.client::Client (POS: Matrix client SDK, optional dependency)
+
+[OUTPUT]
+- MatrixChannel: lifecycle, text and media send, edit/delete, reactions, typing indicator and diagnostics for Matrix rooms
+
+[POS]
+Core Matrix channel class. Delegates to connection.py (client setup and event wiring over auth.py, handlers.py,
+crypto.py), html.py (markdown), media.py (uploads); this class owns the lifecycle entry points, outbound and diagnostics.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import logging
+import time
+from functools import partial
+
+from app.channels.core.attachment_delivery import deliver_attachments
+from app.channels.core.base import BaseChannel
+from app.channels.core.credentials import (
+    credential_field,
+    credential_spec,
+    parse_bool,
+)
+from app.channels.core.exceptions import ChannelSendError
+from app.channels.providers.matrix.auth import (
+    refresh_dm_cache,
+)
+from app.channels.providers.matrix.connection import MatrixConnectionMixin
+from app.channels.providers.matrix.handlers import (
+    auto_join,
+)
+from app.channels.providers.matrix.html import (
+    build_text_payload,
+    convert_matrix_mentions,
+)
+from app.channels.providers.matrix.media import (
+    send_media,
+)
+from app.channels.rendering.renderer import render
+from app.channels.types import (
+    ChannelCapabilities,
+    ChannelIssue,
+    ChannelStatus,
+    IssueKind,
+    IssueSeverity,
+    MediaAttachment,
+    OutboundMessage,
+    RenderStyle,
+)
+
+logger = logging.getLogger(__name__)
+
+_MAX_TEXT_LENGTH = 65536
+_SEND_TIMEOUT = 30.0
+_MEMBERS_CACHE_TTL = 300.0  # 5 minutes
+_MAUTRIX_AVAILABLE = False
+
+try:
+    from mautrix.client import Client as MautrixClient
+    from mautrix.types import EventType, RoomID
+
+    _MAUTRIX_AVAILABLE = True
+except ImportError:
+    MautrixClient = None  # type: ignore[assignment,misc]
+
+
+class MatrixChannel(MatrixConnectionMixin, BaseChannel):
+    """Matrix protocol channel using mautrix SDK with optional E2EE."""
+
+    name = "matrix"
+    credential_spec = credential_spec(
+        "matrixCredentials",
+        homeserver=credential_field("homeserverUrl", "MATRIX_HOMESERVER"),
+        access_token=credential_field("accessToken", "MATRIX_ACCESS_TOKEN", required=False),
+        user_id=credential_field("userId", "MATRIX_USER_ID", required=False),
+        password=credential_field("password", "MATRIX_PASSWORD", required=False, is_sensitive=True),
+        device_id=credential_field("deviceId", "MATRIX_DEVICE_ID", required=False),
+        encryption=credential_field("encryption", "MATRIX_ENCRYPTION", default="false", required=False),
+        proxy=credential_field("proxy", "MATRIX_PROXY", default="", required=False, is_sensitive=False),
+    )
+    capabilities = ChannelCapabilities(
+        text=True,
+        markdown=True,
+        media=True,
+        file_upload=True,
+        threads=True,
+        edit=True,
+        delete=True,
+        reactions=True,
+        max_text_length=_MAX_TEXT_LENGTH,
+    )
+    render_style = RenderStyle(
+        format="markdown",
+        max_text_length=_MAX_TEXT_LENGTH,
+    )
+
+    def __init__(
+        self,
+        homeserver: str,
+        access_token: str = "",
+        *,
+        user_id: str = "",
+        password: str = "",
+        device_id: str = "",
+        encryption: str = "false",
+        proxy: str = "",
+    ) -> None:
+        super().__init__()
+        self._homeserver = homeserver.rstrip("/")
+        self._access_token = access_token
+        self._user_id = user_id
+        self._password = password
+        self._device_id = device_id
+        self._encryption = parse_bool(encryption)
+        self._proxy = proxy
+
+        self._client: MautrixClient | None = None
+        self._sync_task: asyncio.Task[None] | None = None
+        self._dm_rooms: dict[str, bool] = {}
+        self._joined_rooms: set[str] = set()
+        self._room_members_cache: dict[str, dict[str, str]] = {}
+        self._room_members_ts: dict[str, float] = {}
+
+    # ── Lifecycle ──
+
+    async def start(self) -> None:
+        if not self._homeserver:
+            logger.info("Matrix credentials not configured; channel idle")
+            return
+
+        if not self._access_token and not self._password:
+            logger.info("Matrix: no access_token or password; channel idle")
+            return
+
+        if not _MAUTRIX_AVAILABLE:
+            logger.error("Matrix: mautrix not installed. Run: uv sync --extra matrix (add --extra matrix-e2ee for E2EE)")
+            self._status = ChannelStatus.ERROR
+            return
+
+        try:
+            await self._connect()
+        except Exception as exc:
+            logger.warning("MatrixChannel: startup failed: %s", exc)
+            self._status = ChannelStatus.ERROR
+            await self._cleanup_client()
+
+    async def stop(self) -> None:
+        self._set_connected(False)
+        self._status = ChannelStatus.STOPPED
+        if self._sync_task:
+            self._sync_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._sync_task
+        await self._cleanup_client()
+        logger.info("MatrixChannel: stopped")
+
+    async def _auto_join(self, client: object, room_id: str) -> None:
+        await auto_join(client, room_id)
+        self._joined_rooms.add(room_id)
+        await refresh_dm_cache(client, self._joined_rooms, self._dm_rooms)
+
+    # ── Health & Diagnostics ──
+
+    async def health_check(self) -> bool:
+        if self._status not in (ChannelStatus.RUNNING, ChannelStatus.DEGRADED):
+            return False
+        if not self._client:
+            return False
+        try:
+            await self._client.whoami()
+            return True
+        except Exception:
+            return False
+
+    def collect_issues(self) -> list[ChannelIssue]:
+        issues: list[ChannelIssue] = []
+        if not self._homeserver:
+            issues.append(
+                ChannelIssue(
+                    kind=IssueKind.CONFIG,
+                    severity=IssueSeverity.ERROR,
+                    message="homeserver URL not configured.",
+                )
+            )
+            return issues
+
+        if not self._access_token and not self._password:
+            issues.append(
+                ChannelIssue(
+                    kind=IssueKind.CONFIG,
+                    severity=IssueSeverity.ERROR,
+                    message="access_token or password not configured.",
+                )
+            )
+
+        if not _MAUTRIX_AVAILABLE:
+            issues.append(
+                ChannelIssue(
+                    kind=IssueKind.DEPENDENCY,
+                    severity=IssueSeverity.ERROR,
+                    message="mautrix not installed. Run: uv sync --extra matrix",
+                    fix="uv sync --extra matrix",
+                )
+            )
+
+        if self._encryption:
+            from app.channels.providers.matrix.crypto import (
+                check_e2ee_deps,
+            )
+
+            if not check_e2ee_deps():
+                issues.append(
+                    ChannelIssue(
+                        kind=IssueKind.DEPENDENCY,
+                        severity=IssueSeverity.ERROR,
+                        message=(
+                            "E2EE enabled but mautrix[encryption] not installed. "
+                            "Run: uv sync --extra matrix --extra matrix-e2ee "
+                            "(requires libolm C library)"
+                        ),
+                        fix="uv sync --extra matrix --extra matrix-e2ee",
+                    )
+                )
+            elif not self._device_id:
+                issues.append(
+                    ChannelIssue(
+                        kind=IssueKind.CONFIG,
+                        severity=IssueSeverity.WARNING,
+                        message=(
+                            "device_id not set. E2EE sessions won't persist across "
+                            "restarts. Set a stable device_id for key persistence."
+                        ),
+                    )
+                )
+
+        if self._status == ChannelStatus.ERROR:
+            issues.append(
+                ChannelIssue(
+                    kind=IssueKind.AUTH,
+                    severity=IssueSeverity.ERROR,
+                    message="Matrix authentication failed. Check credentials.",
+                )
+            )
+        return issues
+
+    # ── Outbound ──
+
+    async def send(self, msg: OutboundMessage) -> str | None:
+        if self._status != ChannelStatus.RUNNING or not self._client:
+            raise ChannelSendError("Matrix channel is not running", channel=self.name)
+
+        room_id = msg.recipient_id
+        last_event_id: str | None = None
+
+        if msg.content:
+            chunks = render(msg, self.render_style)
+            for chunk in chunks:
+                last_event_id = await self._send_text(room_id, chunk, msg.reply_to_id) or last_event_id
+
+        attachment_event_id = await deliver_attachments(
+            self.name,
+            msg.media,
+            partial(self._send_attachment, room_id),
+            text_delivered=bool(msg.content),
+        )
+        return last_event_id or attachment_event_id
+
+    async def _send_attachment(self, room_id: str, attachment: MediaAttachment) -> str | None:
+        return await send_media(self._client, room_id, attachment, self._encryption)
+
+    async def _send_text(
+        self,
+        room_id: str,
+        text: str,
+        reply_to_id: str | None = None,
+    ) -> str | None:
+        """Send one text event and return its id; raises ``ChannelSendError`` when the homeserver does not take it."""
+        if not self._client:
+            raise ChannelSendError("Matrix channel is not running", channel=self.name)
+
+        members = await self._get_room_members(room_id)
+        if members:
+            text = convert_matrix_mentions(text, members)
+
+        payload = build_text_payload(text)
+        if reply_to_id:
+            payload["m.relates_to"] = {"m.in_reply_to": {"event_id": reply_to_id}}
+
+        try:
+            event_id = await asyncio.wait_for(
+                self._client.send_message_event(
+                    RoomID(room_id),
+                    EventType.ROOM_MESSAGE,
+                    payload,
+                ),
+                timeout=_SEND_TIMEOUT,
+            )
+            return str(event_id) if event_id else None
+        except Exception as exc:
+            if not (self._encryption and getattr(self._client, "crypto", None)):
+                raise ChannelSendError(f"Matrix send failed: {exc}", channel=self.name) from exc
+            # Retry after sharing E2EE keys
+            try:
+                await self._client.crypto.share_keys()
+                event_id = await asyncio.wait_for(
+                    self._client.send_message_event(
+                        RoomID(room_id),
+                        EventType.ROOM_MESSAGE,
+                        payload,
+                    ),
+                    timeout=_SEND_TIMEOUT,
+                )
+                return str(event_id) if event_id else None
+            except Exception as retry_exc:
+                raise ChannelSendError(f"Matrix send failed after key share retry: {retry_exc}", channel=self.name) from retry_exc
+
+    async def edit_message(self, chat_id: str, message_id: str, text: str) -> None:
+        if not self._client:
+            return
+        new_content = build_text_payload(text)
+        payload: dict[str, object] = {
+            "msgtype": "m.text",
+            "body": f"* {text}",
+            "m.new_content": new_content,
+            "m.relates_to": {"rel_type": "m.replace", "event_id": message_id},
+        }
+        try:
+            await asyncio.wait_for(
+                self._client.send_message_event(
+                    RoomID(chat_id),
+                    EventType.ROOM_MESSAGE,
+                    payload,
+                ),
+                timeout=_SEND_TIMEOUT,
+            )
+        except Exception as exc:
+            logger.debug("Matrix edit failed: %s", exc)
+
+    async def delete_message(self, chat_id: str, message_id: str) -> None:
+        if not self._client:
+            return
+        try:
+            await self._client.redact(RoomID(chat_id), message_id, reason="deleted by bot")
+        except Exception as exc:
+            logger.debug("Matrix delete failed: %s", exc)
+
+    async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
+        if not self._client:
+            return
+        payload = {
+            "m.relates_to": {
+                "rel_type": "m.annotation",
+                "event_id": message_id,
+                "key": emoji,
+            },
+        }
+        try:
+            await self._client.send_message_event(
+                RoomID(chat_id),
+                EventType.find("m.reaction"),
+                payload,
+            )
+        except Exception as exc:
+            logger.debug("Matrix react failed: %s", exc)
+
+    async def start_typing(self, chat_id: str) -> None:
+        if self._client:
+            with contextlib.suppress(Exception):
+                await self._client.set_typing(RoomID(chat_id), timeout=30000)
+
+    async def stop_typing(self, chat_id: str) -> None:
+        if self._client:
+            with contextlib.suppress(Exception):
+                await self._client.set_typing(RoomID(chat_id), timeout=0)
+
+    # ── Helpers ──
+
+    async def _get_room_members(self, room_id: str) -> dict[str, str]:
+        """Get room members mapping: displayname -> qualified Matrix ID."""
+        now = time.monotonic()
+        cached_ts = self._room_members_ts.get(room_id, 0.0)
+        if room_id in self._room_members_cache and (now - cached_ts) < _MEMBERS_CACHE_TTL:
+            return self._room_members_cache[room_id]
+
+        if not self._client:
+            return {}
+
+        try:
+            members = await self._client.get_joined_members(RoomID(room_id))
+            result: dict[str, str] = {}
+            if isinstance(members, dict):
+                for user_id, info in members.items():
+                    displayname = getattr(info, "displayname", None) or getattr(info, "display_name", None)
+                    if displayname:
+                        result[displayname] = str(user_id)
+            self._room_members_cache[room_id] = result
+            self._room_members_ts[room_id] = now
+            return result
+        except Exception as exc:
+            logger.debug("Matrix get_room_members failed: %s", exc)
+            return {}

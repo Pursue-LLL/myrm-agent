@@ -1,0 +1,627 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { toast as appToast } from '@/lib/utils/toast';
+import { getNotificationStreamUrl } from '@/lib/deploy-mode';
+import { normalizeApprovalPayload } from '@/store/useApprovalStore';
+import useConfigStore from '@/store/useConfigStore';
+import { notificationService } from '@/services/notification';
+import { useBudgetExceededStore } from '@/store/useBudgetExceededStore';
+import { mutate as mutateSwr } from 'swr';
+
+import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
+import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
+import { showKanbanTaskToast } from '@/hooks/globalEvents/kanbanTaskToast';
+import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
+import { BACKUP_ALERT_COMPONENT, showBackupFailureToast } from '@/hooks/globalEvents/backupAlertToast';
+import { showMcpAuthRequiredToast, showOAuthReauthRequiredToast } from '@/hooks/globalEvents/reauthToasts';
+import { showSkillEvolvedToast, showSkillLearnedToast } from '@/hooks/globalEvents/skillGrowthToasts';
+import { showSubsumptionUndoToast } from '@/hooks/globalEvents/subsumptionUndoToast';
+import {
+  notifyBackgroundTasksChangedForShellJobFinish,
+  notifyBackgroundTasksChangedForVoiceJobFinish,
+} from '@/services/backgroundTasksRefresh';
+import { MANAGED_POLICY_UPDATED_EVENT } from '@/lib/managedPolicyEffectiveEvents';
+import { asRecord } from '@/lib/utils/typeUtils';
+import { syncBoundChatAgentConfig } from '@/hooks/globalEvents/syncBoundChatAgentConfig';
+
+interface SSEPayload {
+  type: string;
+  data: Record<string, unknown>;
+  timestamp: string;
+}
+
+const BC_CHANNEL = 'myrm-sse-events';
+const LEADER_KEY = 'myrm-sse-leader';
+const HEARTBEAT_INTERVAL = 3_000;
+const HEARTBEAT_TIMEOUT = 6_000;
+
+const PASSTHROUGH_EVENTS: ReadonlySet<string> = new Set([
+  'memory_history_updated',
+  'subagents_updated',
+  'cron_updated',
+  'budget_updated',
+  'skill_pool_updated',
+  'goal:branch_switched',
+]);
+
+/**
+ * Cross-tab SSE sharing via BroadcastChannel + leader election.
+ * Only the leader tab maintains the actual EventSource connection;
+ * followers receive events through BroadcastChannel, avoiding
+ * HTTP/1.1 connection pool exhaustion when multiple tabs are open.
+ */
+export function useGlobalEvents(): void {
+  const router = useRouter();
+  const t = useTranslations('notifications');
+  const tIdle = useTranslations('backgroundTasks.idleStatus');
+  const tKanban = useTranslations('kanban');
+  const enabled = useConfigStore((s) => s.enableWebNotifications);
+  const sourceRef = useRef<EventSource | null>(null);
+  const isLeaderRef = useRef(false);
+  const retryRef = useRef(0);
+  const tabId = useRef(crypto.randomUUID());
+  const debouncedRefetches = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const bc = new BroadcastChannel(BC_CHANNEL);
+    let disposed = false;
+    let reconciling = false;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const pushToast = {
+      info: (...args: Parameters<typeof appToast.info>) => {
+        if (enabled) {
+          appToast.info(...args);
+        }
+      },
+      success: (...args: Parameters<typeof appToast.success>) => {
+        if (enabled) {
+          appToast.success(...args);
+        }
+      },
+      warning: (...args: Parameters<typeof appToast.warning>) => {
+        if (enabled) {
+          appToast.warning(...args);
+        }
+      },
+      error: (...args: Parameters<typeof appToast.error>) => {
+        if (enabled) {
+          appToast.error(...args);
+        }
+      },
+      dismiss: appToast.dismiss.bind(appToast),
+    };
+
+    function notifyIfLeader(title: string, body?: string, onClick?: () => void) {
+      if (isLeaderRef.current && enabled) {
+        notificationService.notify(title, { body, fallbackToToast: false, onClick });
+      }
+    }
+
+    function handleEvent(payload: SSEPayload) {
+      const openSkillGrowth = () => router.push('/settings/evolutionPending');
+
+      if (payload.type === 'pairing_pending') {
+        const channel = String(payload.data.channel ?? '');
+        const senderId = String(payload.data.sender_id ?? '');
+        const displayName = payload.data.display_name ? String(payload.data.display_name) : '';
+        const sender = displayName || senderId;
+        const toastId = `pairing-pending-${channel}-${senderId}`;
+        pushToast.info(t('pairingPending', { channel, sender }), {
+          id: toastId,
+          duration: 30_000,
+          dismissible: true,
+          action: {
+            label: t('goToApproval'),
+            onClick: () => {
+              pushToast.dismiss(toastId);
+              router.push('/settings/channels');
+            },
+          },
+        });
+        window.dispatchEvent(new CustomEvent('pairings-updated'));
+      } else if (payload.type === 'channel_connected' || payload.type === 'channel_disconnected') {
+        window.dispatchEvent(
+          new CustomEvent('channel-status-change', {
+            detail: {
+              channel: String(payload.data.channel ?? ''),
+              status: String(payload.data.status ?? ''),
+              type: payload.type,
+            },
+          }),
+        );
+      } else if (payload.type === 'groups_updated') {
+        window.dispatchEvent(
+          new CustomEvent('groups-updated', {
+            detail: {
+              channel: String(payload.data.channel ?? ''),
+              count: Number(payload.data.count ?? 0),
+            },
+          }),
+        );
+      } else if (payload.type === 'message_dead_lettered') {
+        showMessageDeadLetteredToast(payload.data, { t, notifyIfLeader });
+      } else if (payload.type === 'approval_required') {
+        const actionType = String(payload.data.action_type ?? 'unknown');
+        const normalizedApproval = normalizeApprovalPayload(payload.data);
+        const openApprovalDialog = () => {
+          import('@/store/useApprovalStore').then((mod) => {
+            mod.default.getState().openApproval(normalizedApproval);
+          });
+        };
+        pushToast.info(t('approvalRequired', { actionType }), {
+          duration: 8_000,
+          dismissible: true,
+          action: {
+            label: t('reviewApproval'),
+            onClick: openApprovalDialog,
+          },
+        });
+        notifyIfLeader(t('approvalRequired', { actionType }), actionType, openApprovalDialog);
+        window.dispatchEvent(
+          new CustomEvent('approval-required', {
+            detail: normalizedApproval,
+          }),
+        );
+      } else if (payload.type === 'approval_resolved') {
+        const approvalId = String(payload.data.approval_id ?? '');
+        if (approvalId) {
+          import('@/store/useApprovalStore').then((mod) => {
+            mod.default.getState().closeApproval(approvalId);
+          });
+        }
+        window.dispatchEvent(new CustomEvent('approval_resolved', { detail: payload.data }));
+      } else if (payload.type === 'new_skill_draft') {
+        const name = String(payload.data.name ?? '');
+        pushToast.info(t('newSkillDraft', { name }), {
+          duration: 8_000,
+          dismissible: true,
+          action: {
+            label: t('reviewDraft'),
+            onClick: openSkillGrowth,
+          },
+        });
+        window.dispatchEvent(
+          new CustomEvent('skill-draft-created', {
+            detail: {
+              draftId: String(payload.data.draft_id ?? ''),
+              name,
+              draftType: String(payload.data.draft_type ?? ''),
+            },
+          }),
+        );
+      } else if (payload.type === 'skill_growth_updated') {
+        const name = String(payload.data.name ?? '');
+        const status = String(payload.data.status ?? '');
+
+        if (status === 'AUTO_APPLIED') {
+          showSkillLearnedToast(name, { t, pushToast, openSkillGrowth });
+        } else if (status === 'FAILED_SCAN') {
+          pushToast.error(t('skillGrowthFailedScan', { name }), {
+            duration: 10_000,
+            dismissible: true,
+            action: {
+              label: t('openSkillGrowth'),
+              onClick: openSkillGrowth,
+            },
+          });
+        } else if (status === 'BLOCKED_LOCKED') {
+          pushToast.warning(t('skillGrowthBlockedLocked', { name }), {
+            duration: 10_000,
+            dismissible: true,
+            action: {
+              label: t('openSkillGrowth'),
+              onClick: openSkillGrowth,
+            },
+          });
+        }
+
+        window.dispatchEvent(
+          new CustomEvent('skill-growth-updated', {
+            detail: {
+              caseId: String(payload.data.case_id ?? ''),
+              status,
+              draftType: String(payload.data.draft_type ?? ''),
+              name,
+            },
+          }),
+        );
+      } else if (payload.type === 'skill_evolved') {
+        const skillName = String(payload.data.skill_name ?? '');
+        const evolutionType = String(payload.data.evolution_type ?? 'new');
+
+        showSkillEvolvedToast(payload.data, { t, pushToast, openSkillGrowth });
+        window.dispatchEvent(
+          new CustomEvent('skill-evolved', {
+            detail: { skill_name: skillName, evolution_type: evolutionType },
+          }),
+        );
+      } else if (payload.type === 'idle_status') {
+        window.dispatchEvent(
+          new CustomEvent('idle-status', {
+            detail: payload.data,
+          }),
+        );
+        showSubsumptionUndoToast(payload.data, { t, tIdle, pushToast });
+      } else if (payload.type === 'run_digest_updated') {
+        const data = asRecord(payload.data);
+        const chatId = typeof data.chat_id === 'string' ? data.chat_id : '';
+        const digest = asRecord(data.digest);
+        window.dispatchEvent(
+          new CustomEvent('run-digest-updated', {
+            detail: { chat_id: chatId, digest: Object.keys(digest).length ? digest : undefined },
+          }),
+        );
+      } else if (payload.type === 'system_notification') {
+        const title = String(payload.data.title ?? '系统通知');
+        const message = String(payload.data.message ?? '');
+        const meta = asRecord(payload.data.meta_data);
+
+        // Dispatch a custom event so specific components (like ChatWindow) can handle it
+        window.dispatchEvent(new CustomEvent('system-notification', { detail: payload }));
+
+        if (meta.kind === 'background_job_finish' && typeof meta.chat_id === 'string' && meta.chat_id.trim()) {
+          void import('@/store/chat/goals/useGoalStore').then(({ useGoalStore }) => {
+            void useGoalStore.getState().refreshActiveGoal(meta.chat_id as string);
+          });
+          notifyBackgroundTasksChangedForShellJobFinish(meta);
+        }
+        if (meta.kind === 'voice_background_task_done') {
+          notifyBackgroundTasksChangedForVoiceJobFinish(meta);
+          const announceChatId = typeof meta.chat_id === 'string' ? meta.chat_id : '';
+          if (announceChatId) {
+            window.dispatchEvent(
+              new CustomEvent('voice-bg-done', {
+                detail: { title, message, chat_id: announceChatId },
+              }),
+            );
+          }
+        }
+
+        // Only show global toast if it's not a snapshot_created event
+        // (snapshot_created is handled specifically by ChatWindow with a custom icon)
+        if (meta.type !== 'snapshot_created') {
+          pushToast.success(title, {
+            description: message,
+            duration: 10_000,
+            dismissible: true,
+          });
+        }
+      } else if (payload.type === 'memory_operation') {
+        showMemoryOperationToasts(payload.data, { t, router });
+        window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
+      } else if (payload.type === 'locator_healed') {
+        showLocatorHealedToast(payload.data);
+        window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
+      } else if (payload.type === 'mcp_auth_required') {
+        showMcpAuthRequiredToast(payload.data, { t, router, toast: pushToast, notifyIfLeader });
+      } else if (payload.type === 'oauth_reauth_required') {
+        showOAuthReauthRequiredToast(payload.data, { t, router, toast: pushToast, notifyIfLeader });
+      } else if (PASSTHROUGH_EVENTS.has(payload.type)) {
+        window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
+      } else if (payload.type === 'workspace_file_changed') {
+        window.dispatchEvent(new CustomEvent('workspace-file-changed', { detail: payload.data }));
+      } else if (payload.type === 'async_agent_stream_chunk') {
+        window.dispatchEvent(
+          new CustomEvent('async-agent-stream-chunk', {
+            detail: payload.data,
+          }),
+        );
+      } else if (payload.type === 'health_alert') {
+        const component = String(payload.data.component ?? 'Unknown');
+        const status = String(payload.data.status ?? 'fail');
+        const message = String(payload.data.message ?? 'Health check failed');
+        const fixSuggestion = payload.data.fix_suggestion ? String(payload.data.fix_suggestion) : undefined;
+        const layer = String(payload.data.layer ?? 'system');
+
+        if (component === BACKUP_ALERT_COMPONENT && status === 'fail') {
+          showBackupFailureToast({ t, router, toast: pushToast, notifyIfLeader });
+        } else if (status === 'fail') {
+          pushToast.error(t('healthAlertFail', { component, layer }), {
+            description: `${message}${fixSuggestion ? `\n${t('healthAlertTip', { tip: fixSuggestion })}` : ''}`,
+            duration: 15_000,
+            dismissible: true,
+            action: {
+              label: t('viewHealthDashboard'),
+              onClick: () => router.push('/settings/system'),
+            },
+          });
+          notifyIfLeader(t('healthAlertFail', { component, layer }), message, () => router.push('/settings/system'));
+        }
+      } else if (payload.type === 'budget_alert') {
+        const budgetStatus = String(payload.data.status ?? 'warning');
+        const remaining = typeof payload.data.remaining === 'number' ? payload.data.remaining : 0;
+        const dimension = String(payload.data.dimension ?? '');
+        const remainingText = t('budgetRemaining', { dimension, remaining: remaining.toFixed(4) });
+
+        if (budgetStatus === 'exceeded') {
+          if (dimension === 'work_units') {
+            const required = typeof payload.data.today_cost === 'number' ? payload.data.today_cost : 0;
+            const limit = typeof payload.data.daily_limit === 'number' ? payload.data.daily_limit : remaining;
+            useBudgetExceededStore.getState().show(Math.round(required), Math.round(limit));
+            void mutateSwr((key) => Array.isArray(key) && key[0] === 'cp-entitlements');
+          } else {
+            pushToast.error(t('budgetExceeded'), {
+              description: remainingText,
+              duration: 15_000,
+              dismissible: true,
+            });
+            notifyIfLeader(t('budgetExceeded'), remainingText);
+          }
+        } else if (budgetStatus === 'finalization') {
+          pushToast.warning(t('budgetFinalization'), {
+            description: remainingText,
+            duration: 12_000,
+            dismissible: true,
+          });
+        } else {
+          const ecoActive = payload.data.eco_mode === true;
+          pushToast.warning(t('budgetWarning'), {
+            description: ecoActive ? `${remainingText}\n${t('ecoModeActive')}` : remainingText,
+            duration: 10_000,
+            dismissible: true,
+          });
+        }
+
+        window.dispatchEvent(new CustomEvent('budget_alert', { detail: payload.data }));
+      } else if (payload.type === 'kanban_task_updated') {
+        showKanbanTaskToast(payload.data, { t, tKanban, router, pushToast, notifyIfLeader });
+        window.dispatchEvent(new CustomEvent('kanban-task-updated', { detail: payload.data }));
+      } else if (payload.type === 'goal_terminal') {
+        const status = String(payload.data.status ?? '');
+        const objective = String(payload.data.objective ?? '').slice(0, 100);
+        const sessionId = String(payload.data.session_id ?? '');
+        const statusLabel =
+          status === 'complete'
+            ? t('goalCompleted') || 'Goal Completed'
+            : status === 'cancelled'
+              ? t('goalCancelled') || 'Goal Cancelled'
+              : status === 'budget_limited'
+                ? t('goalBudgetLimited') || 'Goal Budget Limited'
+                : status === 'needs_human_review'
+                  ? t('goalNeedsReview') || 'Goal Needs Review'
+                  : t('goalTerminal') || 'Goal Finished';
+        if (status === 'complete') {
+          pushToast.success(statusLabel, { description: objective, duration: 8_000, dismissible: true });
+        } else {
+          pushToast.warning(statusLabel, { description: objective, duration: 10_000, dismissible: true });
+        }
+        const navigateToGoal = sessionId ? () => router.push(`/chat/${sessionId}`) : undefined;
+        notifyIfLeader(statusLabel, objective, navigateToGoal);
+        window.dispatchEvent(new CustomEvent('goal_terminal', { detail: payload.data }));
+      } else if (payload.type === 'goal_dequeued') {
+        const objective = String(payload.data.objective ?? '').slice(0, 100);
+        const dqSessionId = String(payload.data.session_id ?? '');
+        const label = t('goalDequeued') || 'Next goal started';
+        pushToast.info(label, { description: objective, duration: 6_000, dismissible: true });
+        const navigateToDequeued = dqSessionId ? () => router.push(`/chat/${dqSessionId}`) : undefined;
+        notifyIfLeader(label, objective, navigateToDequeued);
+        if (dqSessionId) {
+          import('@/store/chat/goals/useGoalStore').then(({ useGoalStore }) => {
+            useGoalStore.getState().fetchQueue(dqSessionId);
+          });
+        }
+        window.dispatchEvent(new CustomEvent('goal_dequeued', { detail: payload.data }));
+      } else if (payload.type === 'extension_status_changed') {
+        window.dispatchEvent(new CustomEvent('extension-status-changed', { detail: payload.data }));
+      } else if (payload.type === 'subagent_stale') {
+        const taskId = String(payload.data.task_id ?? '');
+        const staleDuration =
+          typeof payload.data.stale_duration_seconds === 'number' ? payload.data.stale_duration_seconds : 0;
+        const wastedTokens = typeof payload.data.wasted_tokens === 'number' ? payload.data.wasted_tokens : 0;
+        const durationMin = Math.round(staleDuration / 60);
+        if (taskId) {
+          import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+            useSubagentStore.getState().markStale(taskId, staleDuration, wastedTokens);
+          });
+        }
+        pushToast.warning(t('subagentStale'), {
+          description: t('subagentStaleDescription', { minutes: durationMin, tokens: wastedTokens }),
+          duration: 15_000,
+          dismissible: true,
+        });
+        notifyIfLeader(t('subagentStale'), t('subagentStaleStats', { minutes: durationMin, tokens: wastedTokens }));
+      } else if (payload.type === 'subagent_rebind_required') {
+        pushToast.info(t('subagentRebindRequired'), {
+          duration: 10_000,
+        });
+      } else if (payload.type === 'agent_config_updated') {
+        const agentId = String(payload.data.agent_id ?? '');
+        const action = String(payload.data.action ?? 'updated');
+        if (agentId && (action === 'updated' || action === 'rollback' || action === 'force_push')) {
+          if (action === 'rollback') {
+            pushToast.success(t('agentProfileRollbackSuccess'));
+          } else if (action === 'force_push') {
+            pushToast.info(t('forcePushReceived'), {
+              description: t('forcePushRollbackHint'),
+              duration: 10_000,
+              dismissible: true,
+              action: {
+                label: t('viewAgent'),
+                onClick: () => router.push(`/?agent_id=${agentId}`),
+              },
+            });
+          }
+
+          if (debouncedRefetches.current[agentId]) {
+            clearTimeout(debouncedRefetches.current[agentId]);
+          }
+          debouncedRefetches.current[agentId] = setTimeout(() => {
+            void syncBoundChatAgentConfig(agentId).catch(() => {});
+            import('@/store/useAgentStore')
+              .then((mod) => {
+                const store = mod.default.getState();
+                store.fetchAgents(1, 20, true);
+                if (store.selectedAgent?.id === agentId) {
+                  store.fetchAgent(agentId);
+                }
+              })
+              .catch(() => {});
+            delete debouncedRefetches.current[agentId];
+          }, 500);
+        }
+        window.dispatchEvent(new CustomEvent('agent-config-updated', { detail: payload.data }));
+      } else if (payload.type === 'managed_policy_updated') {
+        window.dispatchEvent(new CustomEvent(MANAGED_POLICY_UPDATED_EVENT, { detail: payload.data }));
+      } else if (payload.type === 'skill_pool_updated') {
+        const skillId = String(payload.data.skill_id ?? '');
+        if (debouncedRefetches.current['skill_pool_updated']) {
+          clearTimeout(debouncedRefetches.current['skill_pool_updated']);
+        }
+        debouncedRefetches.current['skill_pool_updated'] = setTimeout(() => {
+          import('@/store/skill/useSkillStore')
+            .then((mod) => {
+              const store = mod.default.getState();
+              store.fetchLocalSkills();
+              store.fetchUserSkillConfig(true);
+            })
+            .catch(() => {});
+          delete debouncedRefetches.current['skill_pool_updated'];
+        }, 300);
+        window.dispatchEvent(new CustomEvent('skill_pool_updated', { detail: payload.data }));
+      }
+    }
+
+    function connectSSE() {
+      if (disposed || !isLeaderRef.current) {
+        return;
+      }
+      sourceRef.current?.close();
+
+      const es = new EventSource(getNotificationStreamUrl());
+      sourceRef.current = es;
+
+      es.onopen = async () => {
+        retryRef.current = 0;
+
+        window.dispatchEvent(new CustomEvent('app_resync_required'));
+        bc.postMessage({ kind: 'resync-pulse' });
+
+        if (reconciling) {
+          return;
+        }
+        reconciling = true;
+        try {
+          const { default: useChatStore } = await import('@/store/useChatStore');
+          const { chatId } = useChatStore.getState();
+          if (chatId) {
+            // A stream reconnecting mid-turn is exactly when this onopen fires; the refresh skips
+            // while a stream owns the store, so transient SSE fields are never overwritten.
+            const { refreshOpenChatTranscript } = await import('@/store/chat/chatTranscriptRefresh');
+            await refreshOpenChatTranscript(chatId);
+          }
+        } finally {
+          reconciling = false;
+        }
+      };
+
+      es.onmessage = (ev: MessageEvent<string>) => {
+        try {
+          const payload: SSEPayload = JSON.parse(ev.data);
+          bc.postMessage({ kind: 'sse-event', payload });
+          handleEvent(payload);
+        } catch {
+          /* malformed */
+        }
+      };
+
+      es.onerror = () => {
+        es.close();
+        sourceRef.current = null;
+        if (disposed || !isLeaderRef.current) {
+          return;
+        }
+        const delay = Math.min(1000 * 2 ** retryRef.current, 30_000);
+        retryRef.current += 1;
+        setTimeout(connectSSE, delay);
+      };
+    }
+
+    function becomeLeader() {
+      if (isLeaderRef.current) {
+        return;
+      }
+      isLeaderRef.current = true;
+      localStorage.setItem(LEADER_KEY, tabId.current);
+      connectSSE();
+      heartbeatTimer = setInterval(() => {
+        bc.postMessage({ kind: 'heartbeat', tabId: tabId.current });
+      }, HEARTBEAT_INTERVAL);
+    }
+
+    function stepDown() {
+      isLeaderRef.current = false;
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+      sourceRef.current?.close();
+      sourceRef.current = null;
+    }
+
+    function resetWatchdog() {
+      if (watchdogTimer) {
+        clearTimeout(watchdogTimer);
+      }
+      watchdogTimer = setTimeout(() => {
+        if (!disposed) {
+          becomeLeader();
+        }
+      }, HEARTBEAT_TIMEOUT);
+    }
+
+    bc.onmessage = (ev: MessageEvent<{ kind: string; payload?: SSEPayload; tabId?: string }>) => {
+      const msg = ev.data;
+      if (msg.kind === 'sse-event' && msg.payload && !isLeaderRef.current) {
+        handleEvent(msg.payload);
+      } else if (msg.kind === 'resync-pulse' && !isLeaderRef.current) {
+        window.dispatchEvent(new CustomEvent('app_resync_required'));
+      } else if (msg.kind === 'heartbeat' && msg.tabId !== tabId.current) {
+        if (isLeaderRef.current) {
+          stepDown();
+        }
+        resetWatchdog();
+      } else if (msg.kind === 'leader-claim' && msg.tabId !== tabId.current) {
+        if (isLeaderRef.current) {
+          stepDown();
+        }
+        resetWatchdog();
+      }
+    };
+
+    const existingLeader = localStorage.getItem(LEADER_KEY);
+    if (!existingLeader) {
+      becomeLeader();
+      bc.postMessage({ kind: 'leader-claim', tabId: tabId.current });
+    } else {
+      resetWatchdog();
+      bc.postMessage({ kind: 'leader-claim', tabId: tabId.current });
+      setTimeout(() => {
+        if (!disposed && !isLeaderRef.current) {
+          const current = localStorage.getItem(LEADER_KEY);
+          if (!current || current === tabId.current) {
+            becomeLeader();
+          }
+        }
+      }, HEARTBEAT_TIMEOUT);
+    }
+
+    return () => {
+      disposed = true;
+      stepDown();
+      if (watchdogTimer) {
+        clearTimeout(watchdogTimer);
+      }
+      if (isLeaderRef.current) {
+        localStorage.removeItem(LEADER_KEY);
+      }
+      bc.close();
+      Object.values(debouncedRefetches.current).forEach(clearTimeout);
+      debouncedRefetches.current = {};
+    };
+  }, [router, t, tIdle, tKanban, enabled]);
+}

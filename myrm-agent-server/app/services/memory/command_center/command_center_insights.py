@@ -1,0 +1,371 @@
+"""Memory command center insight builders.
+
+[INPUT]
+myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager and core facade)
+myrm_agent_harness.toolkits.memory::get_scan_metrics (POS: Global security scan metrics singleton)
+myrm_agent_harness.toolkits.memory::get_search_metrics (POS: Global search quality metrics singleton)
+app.database.models.memory::PendingMemory (POS: 待审批记忆 ORM)
+app.services.memory.command_center.command_center_influence::load_influence (POS: 消息引用记忆的影响力投影)
+app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
+
+[OUTPUT]
+MemoryCommandCenterInsights: influence, conflict, eval, connector, privacy, plane-summary, and migration projections.
+
+[POS]
+个人大脑指挥中心洞察服务。把可解释性、冲突、eval、连接器、隐私与迁移投影从主聚合服务中拆出，保持单一职责；
+回放/瀑布/时间线/健康/追踪等纯投影位于同目录的独立模块。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Literal
+
+from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType, get_scan_metrics, get_search_metrics
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.models.memory import PendingMemory
+from app.schemas.memory.command_center import (
+    MemoryCommandConflictItem,
+    MemoryCommandConnectorStatus,
+    MemoryCommandEvalMetric,
+    MemoryCommandInfluenceItem,
+    MemoryCommandMigrationProvenance,
+    MemoryCommandMigrationSourceManifestItem,
+    MemoryCommandPlaneSummary,
+    MemoryCommandPrivacySignal,
+    MemoryCommandTimelineEvent,
+)
+from app.services.memory.archive.restore.archive_restore import ArchiveRestoreHealth
+from app.services.memory.command_center.command_center_influence import load_influence
+from app.services.memory.command_center.command_center_projection_utils import eval_metric, preview_content
+from app.services.memory.imports.import_ledger import ImportRollbackHealth
+from app.services.memory.imports.import_sessions import (
+    DRY_RUN_RETENTION_DAYS,
+    DRY_RUN_STATUS_CONFIRMED,
+    DRY_RUN_STATUS_EXPIRED,
+    DRY_RUN_STATUS_PENDING,
+    DRY_RUN_STATUS_ROLLED_BACK,
+    MemoryImportSessionService,
+)
+from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+from app.services.migration.source.source_manifest import (
+    migration_source_manifest_authoritative,
+    migration_source_manifest_authoritative_for_ids,
+    migration_source_manifest_payload,
+)
+
+logger = logging.getLogger(__name__)
+
+_CONFLICT_LIMIT = 8
+_CONFLICT_SCAN_LIMIT = 80
+
+type ConnectorState = Literal["ready", "manual_config_required", "missing"]
+type CoverageStatus = Literal["not_tracked", "partial", "complete"]
+type ReadinessStatus = Literal["ready", "warning", "critical"]
+type FirstTurnOutcome = Literal["success", "failed", "no_output"]
+
+
+def _coverage_status(raw: object) -> CoverageStatus:
+    if isinstance(raw, str):
+        match raw:
+            case "not_tracked" | "partial" | "complete":
+                return raw
+    return "not_tracked"
+
+
+def _readiness_status(raw: object) -> ReadinessStatus | None:
+    if isinstance(raw, str):
+        match raw:
+            case "ready" | "warning" | "critical":
+                return raw
+    return None
+
+
+def _first_turn_outcome(raw: object) -> FirstTurnOutcome | None:
+    if isinstance(raw, str):
+        match raw:
+            case "success" | "failed" | "no_output":
+                return raw
+    return None
+
+
+class MemoryCommandCenterInsights:
+    """Builds derived command-center insight sections."""
+
+    def __init__(
+        self,
+        db: AsyncSession,
+        memory_manager: MemoryManager,
+        ledger: MemoryOperationLedgerService,
+    ) -> None:
+        self._db = db
+        self._memory_manager = memory_manager
+        self._ledger = ledger
+
+    async def build_influence(self) -> list[MemoryCommandInfluenceItem]:
+        return await load_influence(self._db)
+
+    async def build_conflicts(self) -> list[MemoryCommandConflictItem]:
+        items = await self._pending_conflicts()
+        for memory_type in (MemoryType.SEMANTIC, MemoryType.CLAIM):
+            try:
+                memories = await self._memory_manager.list_memories(memory_type, limit=_CONFLICT_SCAN_LIMIT)
+            except Exception as exc:
+                logger.warning("Memory conflict scan failed for %s: %s", memory_type.value, exc)
+                continue
+            for memory in memories:
+                corrected = bool(memory.metadata.get("corrected")) if hasattr(memory, "metadata") else False
+                correction_of = getattr(memory, "correction_of", None)
+                if correction_of:
+                    items.append(
+                        MemoryCommandConflictItem(
+                            id=f"correction:{memory.id}",
+                            kind="correction",
+                            status="resolved",
+                            memory_id=memory.id,
+                            related_memory_id=str(correction_of),
+                            title=memory_type.value,
+                            description=preview_content(memory.content),
+                            created_at=getattr(memory, "created_at", None),
+                        )
+                    )
+                elif corrected:
+                    items.append(
+                        MemoryCommandConflictItem(
+                            id=f"superseded:{memory.id}",
+                            kind="supersession",
+                            status="resolved",
+                            memory_id=memory.id,
+                            title=memory_type.value,
+                            description=preview_content(memory.content),
+                            created_at=getattr(memory, "created_at", None),
+                        )
+                    )
+                elif memory_type == MemoryType.CLAIM:
+                    items.append(
+                        MemoryCommandConflictItem(
+                            id=f"claim:{memory.id}",
+                            kind="claim",
+                            status="active",
+                            memory_id=memory.id,
+                            title=memory_type.value,
+                            description=preview_content(memory.content),
+                            created_at=getattr(memory, "created_at", None),
+                        )
+                    )
+                if len(items) >= _CONFLICT_LIMIT:
+                    return items
+        return items
+
+    async def _pending_conflicts(self) -> list[MemoryCommandConflictItem]:
+        """Pending memories flagged as conflicting with an existing one."""
+        statement = (
+            select(PendingMemory)
+            .where(PendingMemory.is_conflict.is_(True), PendingMemory.status == "pending")
+            .order_by(PendingMemory.created_at.desc())
+            .limit(_CONFLICT_LIMIT)
+        )
+        items: list[MemoryCommandConflictItem] = []
+        try:
+            for conflict in (await self._db.execute(statement)).scalars().all():
+                metadata = conflict.metadata_json or {}
+                existing_content = conflict.conflict_old_content or ""
+                candidate_content = conflict.content or ""
+                items.append(
+                    MemoryCommandConflictItem(
+                        id=f"conflict:{conflict.id}",
+                        kind="pending_conflict",
+                        status="pending",
+                        memory_id=conflict.conflict_old_memory_id,
+                        related_memory_id="",
+                        title=str(metadata.get("facet") or ""),
+                        description=f"{existing_content} ⟷ {candidate_content}",
+                        existing_content=existing_content,
+                        candidate_content=candidate_content,
+                        created_at=conflict.created_at,
+                    )
+                )
+        except Exception as exc:
+            logger.warning("Failed to query pending memory conflicts: %s", exc)
+        return items
+
+    def build_eval_metrics(
+        self,
+        *,
+        timeline: list[MemoryCommandTimelineEvent],
+        influence: list[MemoryCommandInfluenceItem],
+        conflicts: list[MemoryCommandConflictItem],
+        migration: MemoryCommandMigrationProvenance,
+    ) -> list[MemoryCommandEvalMetric]:
+        event_count = len(timeline)
+        influence_count = sum(len(item.influence_refs) for item in influence)
+        resolved_conflicts = sum(1 for item in conflicts if item.status == "resolved")
+
+        search_snap = get_search_metrics().snapshot()
+        cs_hits = search_snap.cross_session_hits
+        sourced_total = search_snap.total_sourced_hits
+        cs_pct = round(search_snap.cross_session_hit_rate * 100)
+
+        return [
+            eval_metric("event_coverage", event_count > 0, event_count >= 10, f"{event_count} memory events are visible."),
+            eval_metric(
+                "influence_coverage",
+                influence_count > 0,
+                influence_count >= 5,
+                f"{influence_count} cited memory references are attached to answers.",
+            ),
+            eval_metric(
+                "conflict_governance",
+                bool(conflicts),
+                resolved_conflicts == len(conflicts) and bool(conflicts),
+                f"{resolved_conflicts}/{len(conflicts)} visible conflicts are resolved.",
+            ),
+            eval_metric(
+                "migration_readiness",
+                migration.coverage_status != "not_tracked",
+                migration.coverage_status == "complete",
+                f"{migration.tracked_imports} imported memories, {migration.unmapped_items} unmapped items.",
+            ),
+            eval_metric(
+                "cross_session_transfer",
+                cs_hits > 0,
+                cs_hits >= 5,
+                f"{cs_pct}% of recalled memories come from previous conversations ({cs_hits} cross-session hits out of {sourced_total} sourced results).",
+            ),
+        ]
+
+    @staticmethod
+    def build_connectors() -> list[MemoryCommandConnectorStatus]:
+        from app.services.connect import PROFILES, ConnectorStatus, get_connect_service
+
+        service = get_connect_service()
+        states = {s.profile_id: s for s in service.list_all_states()}
+        status_map: dict[ConnectorStatus, ConnectorState] = {
+            ConnectorStatus.READY: "ready",
+            ConnectorStatus.CONFIGURED: "manual_config_required",
+            ConnectorStatus.MISSING: "missing",
+        }
+
+        result: list[MemoryCommandConnectorStatus] = []
+        for profile in PROFILES.values():
+            state = states.get(profile.id)
+            result.append(
+                MemoryCommandConnectorStatus(
+                    id=profile.id,
+                    label=profile.label,
+                    status=status_map.get(state.status if state else ConnectorStatus.MISSING, "missing"),
+                    supported_actions=["generate_config", "doctor", "revoke"],
+                    notes=profile.description,
+                )
+            )
+        return result
+
+    @staticmethod
+    def build_privacy_signals(timeline: list[MemoryCommandTimelineEvent]) -> list[MemoryCommandPrivacySignal]:
+        warning_count = sum(1 for event in timeline if event.status in {"warning", "error"})
+
+        scan = get_scan_metrics().snapshot()
+        security_events = scan.blocked + scan.redacted
+        if scan.total_scans == 0:
+            redaction_status: Literal["ready", "warning", "missing"] = "missing"
+        else:
+            redaction_status = "warning" if security_events > 0 else "ready"
+
+        return [
+            MemoryCommandPrivacySignal(
+                id="approval_gate",
+                label="Approval-gated writes",
+                status="ready",
+                evidence="Pending memories and shared-context proposals are actioned through the governance inbox.",
+                event_count=sum(1 for event in timeline if event.kind in {"approve", "reject"}),
+            ),
+            MemoryCommandPrivacySignal(
+                id="sensitive_event_visibility",
+                label="Sensitive event visibility",
+                status="warning" if warning_count else "ready",
+                evidence=f"{warning_count} warning or error events are visible in the memory ledger.",
+                event_count=warning_count,
+            ),
+            MemoryCommandPrivacySignal(
+                id="secret_redaction",
+                label="Secret redaction evidence",
+                status=redaction_status,
+                evidence=f"{security_events} blocked or redacted events out of {scan.total_scans} scans.",
+                event_count=security_events,
+            ),
+        ]
+
+    @staticmethod
+    def build_plane_summary(
+        *,
+        health_status: str,
+        timeline: list[MemoryCommandTimelineEvent],
+        governance_backlog: int,
+        import_rollback_health: ImportRollbackHealth,
+        archive_restore_health: ArchiveRestoreHealth,
+    ) -> MemoryCommandPlaneSummary:
+        failed_count = sum(1 for event in timeline if event.status in {"warning", "error"})
+        last_event = max((event.occurred_at for event in timeline), default=None)
+        return MemoryCommandPlaneSummary(
+            enabled=True,
+            content_visibility="not_shared",
+            health_status=health_status,
+            import_rollback_health_status=import_rollback_health.status,
+            archive_restore_health_status=archive_restore_health.status,
+            event_count=len(timeline),
+            failed_event_count=failed_count,
+            queue_backlog=governance_backlog,
+            import_rollback_in_progress=import_rollback_health.in_progress_batches,
+            import_rollback_failed=import_rollback_health.failed_batches,
+            import_rollback_partial=import_rollback_health.partial_batches,
+            import_rollback_missing_items=import_rollback_health.missing_items,
+            import_rollback_failed_items=import_rollback_health.failed_items,
+            archive_restore_in_progress=archive_restore_health.in_progress_batches,
+            archive_restore_failed=archive_restore_health.failed_batches,
+            archive_restore_partial=archive_restore_health.partial_batches,
+            archive_restore_rollback_in_progress=archive_restore_health.rollback_in_progress_batches,
+            archive_restore_rollback_failed=archive_restore_health.rollback_failed_batches,
+            archive_restore_missing_items=archive_restore_health.missing_items,
+            archive_restore_failed_items=archive_restore_health.failed_items,
+            last_event_at=last_event,
+            redaction_scope="metadata_only",
+            sandbox_isolation="local_or_per_user_sandbox",
+        )
+
+    async def build_migration(self) -> MemoryCommandMigrationProvenance:
+        tracked, unmapped, raw_coverage = await self._ledger.migration_summary()
+        latest = await self._ledger.latest_migration()
+        latest_metadata = latest.metadata_json if latest and isinstance(latest.metadata_json, dict) else {}
+        raw_batch_id = latest_metadata.get("import_batch_id")
+        raw_diagnostic_status = latest_metadata.get("diagnostic_status")
+        raw_diagnostic_run_id = latest_metadata.get("diagnostic_run_id")
+        session_metrics = await MemoryImportSessionService(self._db).session_metrics()
+        source_manifest_payload = migration_source_manifest_payload()
+        source_manifest = [MemoryCommandMigrationSourceManifestItem.model_validate(item) for item in source_manifest_payload]
+        source_manifest_authoritative = migration_source_manifest_authoritative_for_ids(
+            item["id"] for item in source_manifest_payload
+        )
+        if not source_manifest_authoritative and migration_source_manifest_authoritative():
+            logger.warning(
+                "Migration source manifest incomplete in command-center projection; authoritative flag downgraded",
+            )
+        return MemoryCommandMigrationProvenance(
+            source_manifest=source_manifest,
+            source_manifest_authoritative=source_manifest_authoritative,
+            tracked_imports=tracked,
+            unmapped_items=unmapped,
+            coverage_status=_coverage_status(raw_coverage),
+            last_import_batch_id=raw_batch_id if isinstance(raw_batch_id, str) else None,
+            verification_recommended=tracked > 0 and raw_diagnostic_status != "ready",
+            last_import_diagnostic_status=raw_diagnostic_status if isinstance(raw_diagnostic_status, str) else None,
+            last_import_diagnostic_run_id=raw_diagnostic_run_id if isinstance(raw_diagnostic_run_id, str) else None,
+            last_import_readiness_status=_readiness_status(latest_metadata.get("readiness_status")),
+            last_import_first_turn_outcome=_first_turn_outcome(latest_metadata.get("first_turn_outcome")),
+            cleanup_pending_sessions=session_metrics.get(DRY_RUN_STATUS_PENDING, 0),
+            cleanup_confirmed_sessions=session_metrics.get(DRY_RUN_STATUS_CONFIRMED, 0),
+            cleanup_expired_sessions=session_metrics.get(DRY_RUN_STATUS_EXPIRED, 0),
+            cleanup_rolled_back_sessions=session_metrics.get(DRY_RUN_STATUS_ROLLED_BACK, 0),
+            cleanup_retention_days=DRY_RUN_RETENTION_DAYS,
+        )

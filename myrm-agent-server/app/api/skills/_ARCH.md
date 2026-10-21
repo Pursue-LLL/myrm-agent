@@ -1,0 +1,36 @@
+# api/skills/
+
+## 架构概述
+
+技能 HTTP 层：CRUD、批量导入、权限、经验账本与增长投影。上级文档：[../_ARCH.md](../_ARCH.md)。
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | Skills management API module | ✅ |
+| `_deploy_capability.py` | 模块 | 部署能力门控：`require_local_skills_capability()` 供所有落盘本地技能的 install/import/export API 复用，沙箱模式 fail-closed。 | ✅ |
+| `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
+| `batch_import/`（子包） | 模块 | 批量导入 (GUI-First 技能迁移) 域：`batch_import.py`（`preview/confirm` 路由，错误统一输出 `detail={message,error_code}`）、`batch_import_execute.py`（落盘执行器 `execute_batch_import_confirm`，蓝绿原子写入 + DB 事务）、`batch_import_helpers.py`（错误映射助手）、`batch_import_schemas.py`（请求/响应 Pydantic 模型）。`batch_import/__init__.py` 为聚合门面（导出 `router`）。 | ✅ |
+| `config.py` | 模块 | User skill config CRUD；GET 返回 registry_presets + clawhub_registry_url；`POST /{skill_id}/disable` 支持依赖者校验（存在依赖者且非 force 时返回 409 DEPENDENTS_EXIST + impacted_dependents） | ✅ |
+| `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型。 | ✅ |
+| `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
+| `curator.py` | 模块 | Curator API：技能生命周期动作、清理策略配置、手动清理、运行历史、合并预览与执行、技能医生诊断（每条发现标明是否被 Agent、定时任务或看板任务绑定）与修复；运行与历史响应带 `skipped_pinned`/`skipped_protected`，界面据此解释"0 变化"的清理为何没动任何技能 | ✅ |
+| `desktop_recorder/`（子包） | 模块 | 桌面工作流录制域：`router.py`（`/desktop-recorder/*` 会话生命周期、事件收集、意图规划、技能编译与发布）、`schemas.py`（请求/响应模型 + `RecordingSessionState`）；会话语义委托给 `services/skills/desktop_recording/`。清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md) | ✅ |
+| `discovery/`（子包） | 模块 | 技能发现域：`discovery.py`（search/install/preview/update/sources 路由）+ `discovery_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`discovery/_ARCH.md`](discovery/_ARCH.md) | ✅ |
+| `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖）；approve skill_draft 落盘后，同名已归档的技能一并恢复（由 `draft_materialize.py` 完成）；reject 只写账本负向事件并发布刷新事件，不写记忆（没有读取方）；批准后的落地写入在 `draft_materialize.py`，草稿记录视图在 `draft_record.py` | ✅ |
+| `draft_materialize.py` | 模块 | 批准草稿的落地写入：新技能写盘（description 缺失时依次回退 trigger_condition、技能名，frontmatter 标量统一经 `core/skills/utils.yaml_scalar` 引号转义）、补丁 SEARCH/REPLACE 应用、语义记忆写入、批准后评测用例持久化 | ✅ |
+| `draft_record.py` | 模块 | 技能草稿记录视图 `SkillDraftRecord`：路由层 `drafts.py` 从审批记录构造，落地写入层 `draft_materialize.py` 只读取，两者共享同一份数据形状而互不依赖 | ✅ |
+| `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计；summary/detail 均携带 `impacted_dependents`（依赖本技能的库内技能 ID，经 core/skills/dependency_guard 查询） | ✅ |
+| `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
+| `local.py` | 模块 | Local skills management endpoints: 路径配置 CRUD、单路径 dry-run 预览 (`/preview`)、安全评分准入门禁原子采纳 (`/adopt`)、全量扫描与健康状态实时透出 (`path_statuses`)、严格防范路径穿越 (CWE-22) | ✅ |
+| `migrations.py` | 模块 | Controlled migration review API；approve skill_import 委托 `services/migration/skill_bundle_writer.py` 写 `~/.myrm/skills`，受本地技能能力门控（`MYRM_ALLOW_LOCAL_SKILLS=0` 时 403；延迟导入避免独立加载循环依赖） | ✅ |
+| `packaging.py` | 模块 | Skill packaging and upload endpoints；预览返回文件树摘要 `review_digest`，导出携带“忽略脱敏”决定时回传校验，技能预览后被改动则 409 `skill_changed_since_preview`；`export_format` 仅接受 `agent_plugin` / `raw_skill`，其余值 422 | ✅ |
+| `permissions.py` | 模块 | Skill Permission Management API | ✅ |
+| `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
+| `rescan/`（子包） | 模块 | 供应链重扫与公告治理域：`rescan.py`（`POST /rescan`、`GET /rescan/report`、公告 ack/unack）+ `rescan_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`rescan/_ARCH.md`](rescan/_ARCH.md) | ✅ |
+| `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |
+| `schemas.py` | 模块 | Skills API request/response schemas；`redaction_responses` 把逐文件脱敏发现映射成审阅对话框的 diff 形状（技能预览与专家导出预览共用）；每条发现带 `kinds`（`SecretKind` 稳定码，由前端按用户语言渲染） | ✅ |
+| `solidify_router.py` | 路由 | 交付物一键固化与隔离真机预览路由：`POST /solidify`（4合1资产打包）、`POST /preview`、`GET /preview/{preview_id}`（Relaxed CSP + no-referrer 放行） | ✅ |
+| `sync.py` | 模块 | Skill synchronization and backup protocol；export 打包 `manifest.json`（format/format_version/skills[].sha256+version），import 按 manifest 做完整性校验并返回 `imported/updated/unchanged/hash_mismatch` 恢复摘要；`_safe_extract` 逐成员校验路径（绝对路径/`..` 穿越/反斜杠分隔符归一化），恶意 ZIP 返回 400；import 受沙箱能力门控（export 只读天然安全） | ✅ |
+| `test_fixtures.py` | 测试 | Local-only E2E 夹具路由（非本地模式返回 404）：`POST /test/ensure-prebuilt-catalog` 同步内置技能；`POST /test/seed-skill-manage-mutation-batch` 把内置技能 `systematic-debugging` 写成 v1、经真实 `RollbackService.insert_mutation_batch_snapshot` 记下 `skill_mutation` 批次快照、再写成 v2，返回 `batch_id` 与两个内容标记，供 Task Steps 撤销回滚 Chrome E2E 使用 | ✅ |

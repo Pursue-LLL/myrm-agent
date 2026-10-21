@@ -1,0 +1,6 @@
+# This configuration file only overrides specific settings from the default
+# See https://github.com/searxng/searxng/blob/master/searx/limiter.toml
+
+[botdetection.ip_limit]
+# Activate link_token method for better bot detection (默认是false)
+link_token = true

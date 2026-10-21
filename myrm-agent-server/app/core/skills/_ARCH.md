@@ -1,0 +1,65 @@
+# core/skills 模块架构
+
+
+---
+
+## 架构概述
+
+技能存储与管理，连接业务层和框架层。提供技能模型、CRUD 服务、打包/解包、本地提供者及 SkillBackend 工厂。专注于「适配」而非「实现」。通用能力（打包、历史记录与统计）由 PyPI `myrm-agent-harness` 提供，Server 层仅保留适配包装代码。
+
+详细设计请参考 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)
+
+**Catalog vs Runtime（OAuth 集成技能）**：`gates/oauth_availability.py` 在 Skills HTTP API 与 `loader.create_skill_backend()` 外包 `IntegrationOAuthSkillBackend`，使 `google-workspace` 等在 OAuth 未连接时 Catalog 与 Agent preload WARNING 一致。`enabled_prebuilt_ids` 白名单过滤由 `loader.create_skill_backend()` 统一承载，GeneralAgent 与 CustomAgent 均按用户启用清单注入该白名单，保持 Catalog 与 Runtime 的 prebuilt 可见性契约一致。
+
+---
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|-----|------|------|-------|
+| `__init__.py` | 核心 | 模块入口，公共 API 导出 | — |
+| `models.py` | 核心 | Skill、UserSkillConfig、SkillType 等数据模型；`LOCAL_SKILLS_DIR`（本地技能主根，跟随 `MYRM_DATA_DIR`）与 `DEFAULT_LOCAL_SKILL_PATHS`（首项即该主根，创建服务写入、目录扫描、回滚共用同一处定义） | — |
+| `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）：`/prebuilt/` 路由是 `_EnabledPrebuiltBackend`，只列出并只读取已启用的 prebuilt（内容委托给完整 prebuilt 后端）。`/user/` 路由是 `_UserSkillBackend`：元数据经 `runtime_metadata.skill_to_runtime_metadata` 适配，按运行时名称与 `storage_skill_id` 双键定位，LOCAL 技能直接读取其磁盘目录（SKILL.md / 资源，路径受 `safe_join_path` 约束），其余技能经 StorageProvider 读取。版本路由（快照 / A/B）的存储查询按次开启短生命周期 session，后端不常驻持有数据库连接。 | ✅ |
+| `runtime_metadata.py` | 核心 | Catalog `Skill` → 运行时 `SkillMetadata` 的唯一适配器（`Skill.from_metadata` 的反向）：`/user/` 路由与 Turn1 预览共用；携带 requires / trust / allowed_tools / always / 调用开关 / env·OAuth 注入等运行时字段，availability 不复制、由运行时 gate 重算；仅存在于 SKILL.md 的字段（hooks、条件激活工具列表、contract、模型路由）不在 Catalog 记录内 | ✅ |
+| `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理；快照 `requires` 取自实际留存的 SKILL.md（用户改过则以用户副本为准），未重写的快照仅补丁 `requires` 字段；在线编辑 SKILL.md 后于下次同步对齐 | ✅ |
+| `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
+| `storage_adapters.py` | 核心 | SnapshotStore 协议适配器 | ✅ |
+| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name）；`yaml_scalar` 把模型生成文本渲染为 YAML 双引号标量，`render_skill_md` 以结构化字段组装 SKILL.md 文本（frontmatter 值全部经 `yaml_scalar`；插件闸门与批量导入的预检扫描共用），`resolve_skill_description` 给出 description 回退链（description → trigger_condition → 名称），自动与人工两条落盘路径共用 | — |
+| `store/__init__.py` | 子域 | 存储层聚合出口：CRUD 服务 + 用户配置 + 转发 harness sanitizer（`myrm_agent_harness.agent.skills.market.sanitizer`） | — |
+| `store/service.py` | 核心 | 技能 CRUD 服务 | — |
+| `store/reader.py` | 核心 | 技能读取 | — |
+| `store/evolution_store.py` | 核心 | 进化技能存储进程级单例（get/reset，热读路径复用） | ✅ |
+| `store/user_config.py` | 核心 | 用户技能配置（enabled/disabled prebuilt、本地路径） | ✅ |
+| `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配（转发 harness packer/validator） | — |
+| `packaging/_helpers.py` | 内部 | 打包内部辅助（`_load_evolution_record`/`_sync_skill_md_version`） | — |
+| `packaging/collect.py` | 核心 | 技能可导出文件树采集（单技能/专家导出共用） | — |
+| `packaging/redaction.py` | 核心 | 技能导出脱敏唯一通道 + 预览文件树摘要（单技能/专家/Marketplace 导出共用） | — |
+| `packaging/_models.py` | 内部 | 打包内部模型（Redaction 脱敏条目转发） | — |
+| `providers/local.py` | 核心 | 本地文件系统技能提供者 | — |
+| `creation/__init__.py` | 子域 | 技能创作域聚合出口 | — |
+| `creation/service.py` | 核心 | SkillCreationService（SkillWriteBackend 本地文件系统实现 + 单例） | ✅ |
+| `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
+| `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
+| `curator/__init__.py` | 子域 | 技能生命周期治理域聚合出口 | — |
+| `curator/service.py` | 核心 | Curator 业务服务 — sweep/配置/历史/后台任务编排；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
+| `curator/bound_skills.py` | 核心 | 找出被 Agent 档案 / 未完成 cron 任务 / 仍可运行的看板任务绑定的技能，作为 `protected_names` 交给 Curator（sweep 与合并均豁免）；技能医生与健康探针也读同一集合，保证「谁受豁免」口径一致（探针的 `bound` 豁免理由、医生的 `bound` 标记） | ✅ |
+| `curator/consolidation.py` | 核心 | 技能合并（umbrella merge）集成 — preview/execute，被引用的技能不参与合并，共享 sweep 锁 | ✅ |
+| `effective_skill_ids.py` | 核心 | 解析 Agent 显式 allowlist（所见即所得标准：空名单装配 0 技能；规范化 legacy local ID，按 `LOCAL_SKILLS_DIR` 解析） | ✅ |
+| `audit.py` | 核心 | 技能生命周期结构化审计日志（install/enable/disable 等 SKILL_AUDIT） | ✅ |
+| `discovery/` | 子域 | 技能发现聚合出口：`adopt`、`mount`、`autoupdate`；`agent_market_install`（chat market 安装后 mount/adopt） | ✅ |
+| `marketplace/` | 子域 | 市场聚合出口：`market_service`（GitHub 源分析、自定义源、ClawHub 镜像懒加载）、`clawhub_registry`（镜像 URL 持久化/apply，CLAWHUB_URL SSOT）、`clawhub_probe`（连通性探测）、`custom_source_config`（自定义源持久化） | ✅ |
+| `gates/` | 子域 | 集成 gate 聚合出口：`oauth_availability`（OAuth/xAI/env/CLI bins 凭证 gate）、`x_live_search_skill_enable`（xAI provider 保存后 auto-enable）、`disabled_skill_roots`（未启用技能 storage 根注入 runtime）、`dependency_guard`（依赖影响面查询）、`permission_logger`（权限使用日志） | ✅ |
+
+---
+
+## 依赖关系
+
+**内部依赖**：
+- `app/core/toolkits/storage/` — 对象存储抽象（如使用）
+
+**外部依赖**：
+- `myrm_agent_harness` — 底层通用 Agent 引擎及其技能生命周期能力（打包解包、用量历史统计）
+
+**被依赖**：
+- `app/api/skills/` — 技能 API
+- `app/ai_agents/` — Agent 技能工具

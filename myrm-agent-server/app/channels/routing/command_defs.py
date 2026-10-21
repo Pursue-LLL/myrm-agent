@@ -1,0 +1,328 @@
+"""Slash command data model and built-in system command definitions.
+
+[INPUT]
+- (none — leaf module)
+
+[OUTPUT]
+- CommandDef: Frozen dataclass describing a single slash command, including who may run it (any_sender, owner_only)
+- CommandAction: Enum of built-in system command action types
+- SYSTEM_COMMANDS: Tuple of all built-in system CommandDef instances
+
+[POS]
+Command definition module: data structures for the command registry.
+CommandDef is framework-level, business-agnostic; business-layer commands
+(Skill bindings, Agent routing aliases) are registered at runtime via
+CommandRegistry.register(). A system command is owner-only unless it opts in with
+any_sender, which it may do only when it stays inside the sender's own conversation.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum, unique
+
+
+@unique
+class CommandAction(Enum):
+    """Built-in system command actions dispatched by the router."""
+
+    STOP = "stop"
+    NEW_SESSION = "new"
+    COMPACT = "compact"
+    RETRY = "retry"
+    UNDO = "undo"
+    YOLO = "yolo"
+    PERSONALITY = "personality"
+    BIND = "bind"
+    UNBIND = "unbind"
+    TOPIC = "topic"
+    DRAFT = "draft"
+    APPROVE = "approve"
+    GOAL = "goal"
+    SUBGOAL = "subgoal"
+    STEER = "steer"
+    QUEUE = "queue"
+    BACKGROUND = "background"
+    HANDOFF = "handoff"
+    KANBAN = "kanban"
+    MEMORY = "memory"
+    LEARN = "learn"
+    STATUS = "status"
+    QUOTA = "quota"
+    BTW = "btw"
+    HELP = "help"
+
+
+@unique
+class CommandKind(Enum):
+    """Classification of how a command is dispatched."""
+
+    SYSTEM = "system"
+    SKILL = "skill"
+    AGENT_ROUTE = "agent_route"
+
+
+@dataclass(frozen=True, slots=True)
+class CommandDef:
+    """Definition of a single slash command.
+
+    Attributes:
+        name: Canonical name without the leading slash (e.g. "stop").
+        description: Human-readable description shown in /help.
+        kind: Classification for dispatch routing.
+        action: Built-in action enum (only for system commands).
+        aliases: Alternative names that resolve to this command.
+        args_pattern: Argument placeholder for help text (e.g. "<prompt>", "[name]").
+        category: Grouping label for /help display.
+        skill_ids: Bound skill IDs — single or bundle (only for CommandKind.SKILL).
+        instruction: Ephemeral guidance for bundles.
+        agent_id: Target agent ID (only for CommandKind.AGENT_ROUTE).
+        parse_args: Whether the command accepts trailing text as arguments.
+        any_sender: Whether a non-owner may run this system command. The router dispatches system commands before
+            the DM policy and the sender's identity are resolved, and they act on the owner's sandbox, so a command
+            opts in only if it stays inside the sender's own conversation and costs at most one turn.
+    """
+
+    name: str
+    description: str
+    kind: CommandKind = CommandKind.SYSTEM
+    action: CommandAction | None = None
+    aliases: tuple[str, ...] = ()
+    args_pattern: str = ""
+    category: str = "General"
+    skill_ids: tuple[str, ...] = ()
+    """Bound skill IDs (single or bundle)."""
+    instruction: str = ""
+    """Ephemeral guidance text injected alongside the SOP(s) for bundles."""
+    agent_id: str | None = None
+    parse_args: bool = False
+    any_sender: bool = False
+
+    @property
+    def owner_only(self) -> bool:
+        """Whether only the sandbox owner may run this command.
+
+        Skill and agent commands are submitted to the per-turn pipeline, which resolves the sender's identity itself.
+        """
+        return self.kind is CommandKind.SYSTEM and not self.any_sender
+
+
+SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
+    CommandDef(
+        name="stop",
+        description="Stop the currently running agent task",
+        action=CommandAction.STOP,
+        category="Session",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="new",
+        description="Start a new conversation session",
+        action=CommandAction.NEW_SESSION,
+        category="Session",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="compact",
+        description="Compress conversation context to reduce token cost",
+        action=CommandAction.COMPACT,
+        category="Session",
+        parse_args=True,
+        args_pattern="[focus_topic]",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="retry",
+        description="Retry the last message",
+        action=CommandAction.RETRY,
+        category="Session",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="undo",
+        description="Remove the last user/assistant exchange",
+        action=CommandAction.UNDO,
+        category="Session",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="yolo",
+        description="Toggle YOLO mode (skip tool approval prompts)",
+        action=CommandAction.YOLO,
+        category="Configuration",
+        parse_args=True,
+        args_pattern="[on|off|toggle|status] [timeout_seconds]",
+    ),
+    CommandDef(
+        name="personality",
+        description="Switch session personality style",
+        action=CommandAction.PERSONALITY,
+        category="Configuration",
+        parse_args=True,
+        args_pattern="[style_name|list]",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="bind",
+        description="Bind an agent to this topic or channel",
+        action=CommandAction.BIND,
+        category="Topic",
+        parse_args=True,
+        args_pattern="[agent_id]",
+    ),
+    CommandDef(
+        name="unbind",
+        description="Unbind agent from this topic or channel",
+        action=CommandAction.UNBIND,
+        category="Topic",
+    ),
+    CommandDef(
+        name="topic",
+        description="Show current topic/channel binding status",
+        action=CommandAction.TOPIC,
+        category="Topic",
+    ),
+    CommandDef(
+        name="draft",
+        description="Approve or reject a reply held for review",
+        action=CommandAction.DRAFT,
+        category="Topic",
+        parse_args=True,
+        args_pattern="approve <code>|reject <code>",
+    ),
+    CommandDef(
+        name="goal",
+        description="Set, manage, or check a persistent cross-turn goal",
+        action=CommandAction.GOAL,
+        category="Goals",
+        parse_args=True,
+        args_pattern="<objective>|status|pause|resume|clear|budget <N>",
+    ),
+    CommandDef(
+        name="subgoal",
+        description="Dynamically add/remove/list subgoals for the running goal",
+        action=CommandAction.SUBGOAL,
+        category="Goals",
+        parse_args=True,
+        args_pattern="<text>|list|remove <n>|clear",
+    ),
+    CommandDef(
+        name="steer",
+        description="Redirect the running agent mid-execution with a new instruction",
+        action=CommandAction.STEER,
+        category="Execution",
+        parse_args=True,
+        args_pattern="<new instruction>",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="queue",
+        description="Queue a task to run after the current agent task completes",
+        action=CommandAction.QUEUE,
+        category="Execution",
+        parse_args=True,
+        args_pattern="<task description>",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="background",
+        description="Run a task in a separate background session without blocking the current conversation",
+        action=CommandAction.BACKGROUND,
+        aliases=("bg",),
+        category="Execution",
+        parse_args=True,
+        args_pattern="<task>|list|cancel <id>|steer <id> <instruction>",
+    ),
+    CommandDef(
+        name="btw",
+        description="Ask an ephemeral side-channel question without polluting conversation context",
+        action=CommandAction.BTW,
+        category="Session",
+        parse_args=True,
+        args_pattern="<question>",
+    ),
+    CommandDef(
+        name="handoff",
+        description="Transfer this conversation to another platform/channel",
+        action=CommandAction.HANDOFF,
+        category="Session",
+        parse_args=True,
+        args_pattern="<target_channel>",
+    ),
+    CommandDef(
+        name="kanban",
+        description="Manage kanban board tasks without interrupting the agent",
+        action=CommandAction.KANBAN,
+        aliases=("kb",),
+        category="Tasks",
+        parse_args=True,
+        args_pattern="list|show <id>|create <title>|comment <id> <msg>|edit <id> title|desc <text>|complete <id>|block <id> [reason]|unblock <id>|archive <id>|stats",
+    ),
+    CommandDef(
+        name="memory",
+        description="Review pending memory writes (approve/reject)",
+        action=CommandAction.MEMORY,
+        category="Memory",
+        parse_args=True,
+        args_pattern="[pending|approve <id>|reject <id>|approve all]",
+    ),
+    CommandDef(
+        name="learn",
+        description="Teach the agent a new skill from a URL, file, or conversation",
+        action=CommandAction.LEARN,
+        category="Skills",
+        parse_args=True,
+        args_pattern="<URL|path|description>",
+    ),
+    CommandDef(
+        name="memo",
+        description="Deconstruct voice memo or meeting transcript into minutes, tasks, and memory",
+        kind=CommandKind.SKILL,
+        aliases=("meeting", "minutes"),
+        category="Productivity",
+        skill_ids=("voice-memo-synthesizer",),
+        parse_args=True,
+        args_pattern="[transcript|topic]",
+    ),
+    CommandDef(
+        name="review-week",
+        description="Synthesize weekly voice memos, meeting notes, and kanban blockers into an executive digest",
+        kind=CommandKind.SKILL,
+        aliases=("week-review", "weekly-digest", "extract-blockers"),
+        category="Productivity",
+        skill_ids=("voice-corpus-review",),
+        parse_args=True,
+        args_pattern="[timeframe|focus-area]",
+    ),
+    CommandDef(
+        name="design-image",
+        description="Synthesize commercial-grade images using structured Prompt-as-Code atomic visual schemas",
+        kind=CommandKind.SKILL,
+        aliases=("image-design", "prompt-image", "style-image"),
+        category="Creation",
+        skill_ids=("image-style-synthesizer",),
+        parse_args=True,
+        args_pattern="<prompt|brief>",
+    ),
+    CommandDef(
+        name="status",
+        description="Show current session status (tokens, model, agent state)",
+        action=CommandAction.STATUS,
+        category="Info",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="quota",
+        description="Show your daily message quota and usage status",
+        action=CommandAction.QUOTA,
+        category="Info",
+        any_sender=True,
+    ),
+    CommandDef(
+        name="help",
+        description="Show available commands",
+        action=CommandAction.HELP,
+        category="Info",
+        any_sender=True,
+    ),
+)

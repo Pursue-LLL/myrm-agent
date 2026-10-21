@@ -1,0 +1,272 @@
+/** @vitest-environment jsdom */
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import MemoryCitationsButton from '../MemoryCitationsButton';
+import type { SharedContext } from '@/services/memory/sharedContexts';
+
+const memoryApi = vi.hoisted(() => ({
+  listSharedContexts: vi.fn(),
+}));
+const translate = vi.hoisted(() => (key: string) => key);
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => translate,
+  useLocale: () => 'en',
+}));
+
+vi.mock('@/services/memory/sharedContexts', () => ({
+  listSharedContexts: memoryApi.listSharedContexts,
+}));
+
+const sharedContext = (overrides: Partial<SharedContext>): SharedContext => ({
+  id: 'customer-a',
+  namespace: 'shared:customer-a',
+  name: 'Customer A',
+  description: '',
+  status: 'active',
+  policy: {},
+  created_at: '2026-04-29T01:00:00Z',
+  updated_at: '2026-04-29T01:00:00Z',
+  ...overrides,
+});
+
+describe('MemoryCitationsButton', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    memoryApi.listSharedContexts.mockResolvedValue({
+      items: [sharedContext({})],
+      total: 1,
+    });
+  });
+
+  it('does not render without cited memory ids, references, or sources', () => {
+    const { container } = render(<MemoryCitationsButton />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders unified evidence when only message sources are present', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'conversation_history',
+            conversation_id: 'chat-history',
+            message_id: 'msg-1',
+            title: 'Prior decision',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+
+    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getByText('Prior decision')).toBeInTheDocument();
+  });
+
+  it('opens citation sheet and resolves shared context namespace labels', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryCitationsButton
+        memoryIds={['mem-2']}
+        references={[
+          {
+            id: 'mem-1',
+            memoryType: 'semantic',
+            content: 'Customer A prefers concise weekly summaries.',
+            score: 0.93,
+            primaryNamespace: 'shared:customer-a',
+            namespaces: ['global', 'shared:customer-a'],
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+
+    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getByText('Customer A prefers concise weekly summaries.')).toBeInTheDocument();
+    expect(screen.getByText('score')).toBeInTheDocument();
+    expect(screen.getByText('mem-2')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(memoryApi.listSharedContexts).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText('Customer A')).toBeInTheDocument();
+  });
+
+  it('renders degraded notice when recall degraded and no evidence', () => {
+    render(<MemoryCitationsButton degraded />);
+
+    expect(screen.getByText('degradedNotice')).toBeInTheDocument();
+  });
+
+  it('renders nothing when recall degraded but evidence exists', () => {
+    const { container } = render(
+      <MemoryCitationsButton
+        degraded
+        references={[
+          {
+            id: 'mem-1',
+            content: 'Customer A prefers concise weekly summaries.',
+            memoryType: 'semantic',
+            score: 0.92,
+            primaryNamespace: 'user',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('button')).toBeInTheDocument();
+    expect(container.querySelector('[title="degradedNoticeTitle"]')).toBeNull();
+  });
+
+  it('copies citations as markdown when clicking copy button', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'web_search',
+            title: 'Doc Alpha',
+            url: 'https://example.com/alpha',
+          },
+        ]}
+        references={[
+          {
+            id: 'mem-1',
+            memoryType: 'semantic',
+            content: 'Brand color is blue',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const copyBtn = screen.getByRole('button', { name: 'copyMarkdown' });
+    expect(copyBtn).toBeInTheDocument();
+
+    await user.click(copyBtn);
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    const copiedText = writeTextSpy.mock.calls[0][0];
+    expect(copiedText).toContain('### sectionMemories');
+    expect(copiedText).toContain('- [1] Brand color is blue');
+    expect(copiedText).toContain('### sectionSources');
+    expect(copiedText).toContain('- [1] [Doc Alpha](https://example.com/alpha)');
+  });
+
+  it('copies unified markdown without broken empty link syntax when source url is missing', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'knowledge',
+            title: 'Local Policy Guide',
+            url: '',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const copyBtn = screen.getByRole('button', { name: 'copyMarkdown' });
+    await user.click(copyBtn);
+
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    const copiedText = writeTextSpy.mock.calls[0][0];
+    expect(copiedText).toContain('### sectionSources');
+    expect(copiedText).toContain('- [1] Local Policy Guide');
+    expect(copiedText).not.toContain('[Local Policy Guide]()');
+  });
+
+  it('copies single source as markdown and normalizes generic titles', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'web_search',
+            title: 'source',
+            url: 'https://news.ycombinator.com/item?id=123',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const singleCopyBtn = screen.getByRole('button', { name: 'copyMarkdown [1]' });
+    expect(singleCopyBtn).toBeInTheDocument();
+
+    await user.click(singleCopyBtn);
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    expect(writeTextSpy).toHaveBeenCalledWith('[news.ycombinator.com](https://news.ycombinator.com/item?id=123)');
+  });
+
+  it('copies single memory reference and cleans newlines in bulk copy', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    render(
+      <MemoryCitationsButton
+        references={[
+          {
+            id: 'mem-multi-line',
+            content: 'Rule line 1\nRule line 2\n\nRule line 3',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const singleCopyBtn = screen.getByRole('button', { name: 'copyMarkdown [1]' });
+    expect(singleCopyBtn).toBeInTheDocument();
+
+    await user.click(singleCopyBtn);
+    expect(writeTextSpy).toHaveBeenCalledWith('Rule line 1 Rule line 2 Rule line 3');
+
+    // Test bulk copy also flattens newlines
+    writeTextSpy.mockClear();
+    const bulkCopyBtn = screen.getByRole('button', { name: 'copyMarkdown' });
+    await user.click(bulkCopyBtn);
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    const bulkCopiedText = writeTextSpy.mock.calls[0][0];
+    expect(bulkCopiedText).toContain('### sectionMemories');
+    expect(bulkCopiedText).toContain('- [1] Rule line 1 Rule line 2 Rule line 3');
+    expect(bulkCopiedText).not.toContain('\nRule line 2');
+  });
+
+  it('returns null when evidence count is zero and not degraded', () => {
+    const { container } = render(<MemoryCitationsButton sources={[]} references={[]} />);
+    expect(container.firstChild).toBeNull();
+  });
+});

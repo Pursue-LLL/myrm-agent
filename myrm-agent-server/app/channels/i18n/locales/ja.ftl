@@ -1,0 +1,410 @@
+mobile_hitl_open = モバイルで承認を開く
+web_continue_chat = ブラウザで続ける
+
+no_active_task_to_stop = ℹ 停止するアクティブなタスクがありません。
+execution_stopped =  実行を停止しました。
+placeholder_stopped =  実行を停止しました。
+no_pending_approval = ℹ 保留中の承認リクエストはありません。
+approval_processing =  承認を処理中...
+approval_always_processing =  承認を処理し、常時許可リストに追加中...
+approval_denial_processing =  拒否を処理中...
+approval_denial_with_reason_processing =  拒否を処理中：「{ $reason }」
+approval_batch_processing =  { $approve_count } 件の承認、{ $reject_count } 件の拒否を処理中...
+approval_batch_processing_always =  { $approve_count } 件の承認（{ $always_count } 件は常時許可）、{ $reject_count } 件の拒否を処理中...
+approval_already_handled = ℹ この承認はタイムアウトしたか、すでに別の場所で処理されました。操作不要です。
+permission_denied =  権限不足：`/{ $cmd }` には管理者権限が必要です。
+usage_steer = 使い方：`/steer <新しい指示>`
+steering_applied = 指示を適用しました：_{ $preview }_
+usage_queue = 使い方：`/queue <タスクの説明>`
+queue_queued = キューに追加しました。現在のタスク完了後に実行されます。
+queue_immediate = アクティブなタスクなし — 直ちに実行します。
+goal_system_not_configured =  この環境ではゴールシステムが設定されていません。
+goal_management_not_available = ゴール管理は利用できません。
+agent_is_running_goal = Agent は実行中です — 実行中は /goal status、/goal pause、/goal clear をご利用ください。新しいゴールを設定する前に /stop で Agent を停止してください。
+usage_goal = 使い方：`/goal <目標>`
+goal_set =
+    ゴールを設定しました：**{ $goal }**
+    Agent がこれから作業を開始します。
+goal_queued =
+    ゴールをキューに追加しました：**{ $goal }**
+    現在のゴール完了後に自動的に開始されます。
+goal_active_exists =
+    アクティブなゴールがあります：**{ $objective }**
+    先に `/goal clear` を使用するか、`/goal status` で進捗を確認してください。
+no_goal_is_set = ゴールが設定されていません。`/goal <目標>` で設定してください。
+no_active_goal_to_pause = 一時停止するアクティブなゴールがありません。
+no_active_goal_session = アクティブなゴールセッションが見つかりません。
+no_active_goal_subgoals = サブゴールを管理するアクティブなゴールがありません。
+goal_paused =
+    ゴールを一時停止しました：**{ $objective }**
+    `/goal resume` で再開できます。
+goal_wait =
+    ゴール待機中：**{ $objective }**
+    理由：{ $reason }
+    `/goal unwait` で再開できます。
+goal_unwait = ゴールを待機状態から再開しました：**{ $objective }**
+goal_not_waiting = ゴールは待機状態ではありません。
+goal_wait_not_supported = この環境では待機モードはサポートされていません。
+goal_resumed = ゴールを再開しました：**{ $objective }**
+goal_cleared = ゴールをクリアしました：**{ $objective }**
+goal_cannot_resume = 「{ $status }」状態のゴールは再開できません。
+goal_budget_set = 現在のゴールの予算を **{ $max_turns } ターン** に設定しました。
+goal_status_queued = キュー待ち
+goal_status_label = 実行中
+goal_status_paused = 一時停止
+goal_status_pending_approval = 承認待ち
+goal_status_budget_limited = 予算制限
+goal_status_wait = 待機中
+goal_status_complete = 完了
+goal_status_cancelled = キャンセル済み
+goal_status_needs_review = レビュー待ち
+goal_status_header = **ゴール：** { $objective }
+goal_status_line = **ステータス：** { $status }
+goal_budget_tokens = トークン：{ $used }/{ $max }
+goal_budget_turns = ターン数：{ $used }/{ $max }
+goal_budget_header = **予算：** { $parts }
+usage_subgoal_add = 使い方：`/subgoal add <テキスト>`
+subgoal_added = サブゴールを追加しました：**{ $text }**
+no_subgoals_defined = 現在のゴールにサブゴールは定義されていません。
+current_subgoals = **現在のサブゴール：**
+usage_subgoal_remove = 使い方：`/subgoal remove <インデックス>`
+subgoal_removed = サブゴールを削除しました：**{ $text }**
+subgoal_index_out_of_range = サブゴールインデックス { $index } は範囲外です。
+cleared_subgoals = { $count } 個のサブゴールをクリアしました。
+no_active_goal_constraint = ゴールが見つかりません。先に `/goal <目標>` でゴールを設定してください。
+no_constraints_set = 現在のゴールに制約は設定されていません。
+goal_constraint_added = 制約を追加しました：**{ $constraint }**
+goal_constraints_cleared = すべての制約をクリアしました。
+goal_status_constraints = **制約：** { $items }
+goal_status_criteria = **受け入れ基準：** { $items }
+goal_status_subgoals = **サブゴール：** { $items }
+no_goal_to_resume = 再開するゴールがありません。
+no_goal_to_clear = クリアするゴールがありません。
+no_active_goal_to_clear = クリアするアクティブなゴールがありません。
+no_active_goal_set_first = アクティブなゴールがありません。先に `/goal <目標>` でゴールを設定してください。
+no_active_goal_budget = 予算を設定するアクティブなゴールがありません。
+usage_goal_budget = 使い方：`/goal budget <最大ターン数>` — 例：`/goal budget 10`
+budget_at_least_one = 予算は 1 以上で指定してください。
+invalid_budget = 無効な予算値です。数値を指定してください。例：`/goal budget 10`
+background_tasks_not_available = バックグラウンドタスクは利用できません。
+usage_btw = 使い方：`/btw <タスク>` | `/btw list` | `/btw cancel <id>` | `/btw steer <id> <指示>`
+background_none = バックグラウンドタスクはありません。
+background_header = **バックグラウンドタスク**
+background_cancel_usage = 使い方：`/btw cancel <task_id>`
+background_steer_usage = 使い方：`/btw steer <task_id> <指示>`
+background_cancelled = タスク `{ $task_id }` をキャンセルしました。
+background_not_found = タスク `{ $task_id }` が見つからないか、既に終了しています。
+background_steer_ok = `{ $task_id }` に指示を適用しました。
+background_steer_fail = タスク `{ $task_id }` が見つからないか、既に終了しています。
+background_started =
+    バックグラウンドタスクを開始しました：`{ $task_id }`
+    完了したらお知らせします。
+background_completed =
+    ✅ バックグラウンドタスク完了："{ $title }"
+    { $result }
+background_failed =
+    ❌ バックグラウンドタスク失敗："{ $title }"
+    { $result }
+background_blocked =
+    ⚠️ バックグラウンドタスクがブロックされました："{ $title }"
+    { $result }
+background_pending_review =
+    ⏳ バックグラウンドタスクが承認待ちです："{ $title }"
+    { $result }
+background_rejected =
+    ↩️ バックグラウンドタスクが却下され、再処理されます："{ $title }"
+    { $result }
+bash_bg_finish_title = バックグラウンドタスク完了
+bash_bg_finish_success =
+    バックグラウンドタスクが完了しました (pid={ $pid })。
+    コマンド：{ $command }
+bash_bg_finish_with_error =
+    バックグラウンドタスクが異常終了しました：{ $error_category } (pid={ $pid }, status={ $status }, exit_code={ $exit_code })。
+    コマンド：{ $command }
+bash_bg_finish_generic =
+    バックグラウンドタスク { $status } (pid={ $pid }, exit_code={ $exit_code })。
+    コマンド：{ $command }
+goal_stream_failed_title = ゴールの確認が必要です
+goal_stream_failed_message =
+    自律タスクが予期せず停止しました。ゴールパネルを開いて確認・続行してください。
+goal_usage_limit_wait_title = 目標を一時停止しました（利用上限のリセット待ち）
+goal_usage_limit_wait_message =
+    リセット後に自動で再開します。操作は不要です。
+goal_usage_limit_resumed_title = 目標を再開しました
+goal_usage_limit_resumed_message =
+    利用上限がリセットされ、目標が再び実行されています。
+goal_usage_limit_paused_title = 利用上限により目標を一時停止しました
+goal_usage_limit_paused_message =
+    リセットまでの時間が長いため待機できません。準備ができたら目標パネルから再開してください。
+airbag_rolled_back_title = 変更を元に戻しました
+airbag_rolled_back_message =
+    ワークスペースのファイルを、目標の開始前の状態に戻しました。
+new_session_started =  新しい会話を開始しました。次のメッセージから新しいセッションになります。
+compact_not_configured = ℹ 圧縮が設定されていません。
+compact_success =  コンテキストを圧縮しました：{ $message_count } メッセージを要約、約 { $tokens_saved } トークンを節約。{ $topic_hint }
+compact_skipped = ℹ 圧縮をスキップしました：{ $reason }
+compact_failed =  圧縮に失敗しました：{ $error }
+retry_not_configured = ℹ リトライが設定されていません。
+retry_nothing = ℹ リトライするものがありません。
+retry_failed = ℹ リトライに失敗しました。
+retry_failed_error =  リトライに失敗しました：{ $error }
+retry_reverted = ↩ 再試行前に { $count } ファイルを元に戻しました。
+retry_files_not_revertible = ↩ 再試行前に { $count } 件のファイル変更は自動的に元に戻せません（ファイルが大きすぎるかバッファが満杯です）。
+undo_not_configured = ℹ 取り消しが設定されていません。
+undo_nothing = ℹ 取り消すものがありません。
+undo_failed = ℹ 取り消しに失敗しました。
+undo_failed_error =  取り消しに失敗しました：{ $error }
+undo_success = ↩ 取り消しました：{ $count } メッセージを削除しました。
+undo_reverted = ↩ { $count } ファイルを元に戻しました。
+undo_files_not_revertible = ↩ { $count } 件のファイル変更は自動的に元に戻せません（ファイルが大きすぎるかバッファが満杯です）。
+topic_not_configured = ℹ トピック管理が設定されていません。
+topic_search_agent_rejected =
+    検索エージェントはチャンネルにバインドできません。
+    General エージェントを使用してください。軽量検索には Web Fast モードを使用してください。
+topic_bound =
+     { $scope } をバインドしました{ $agent_label }{ $workspace_label }{ $identity_label }。
+    /unbind で解除できます。
+topic_identity_only = （アイデンティティ：{ $name }）
+topic_identity_revoked = （アイデンティティ凍結中、デフォルトAgentで応答）
+followup_receipt_done = ✅ 完了（所要時間{ $elapsed }）——修正が必要ならこのスレッドで返信してください。[AI プロアクティブ]
+followup_stall_nudge = 👋 フォローアップです——未完了の項目があるまま静かになっています。{ $mention }返信いただければ対応します。[AI プロアクティブ]
+topic_workspace_only = （ワークスペース：{ $workspace }）
+topic_workspace_unavailable =  ワークスペースのバインドに失敗しました：{ $error }
+topic_status_workspace = ワークスペース：{ $workspace }
+topic_status_workspace_default = ワークスペース：デフォルト
+topic_unbound =  { $scope } のバインドを解除しました。
+topic_no_binding = ℹ この { $scope } にバインドはありません。
+topic_status =
+     { $scope } ステータス
+    { $agent_label }
+    { $workspace_label }{ $identity_label }
+    ステータス：{ $status }{ $bound_label }
+topic_no_binding_defaults =  この { $scope } にバインドはありません（デフォルト設定を使用中）。
+topic_command_failed =  { $scope } コマンドが失敗しました：{ $error }
+topic_scope_topic = トピック
+topic_scope_channel = チャンネル
+topic_agent_switched = （エージェント：{ $from_agent } → { $to_agent }）
+topic_agent_only = （エージェント：{ $agent_id }）
+topic_status_agent = エージェント：{ $agent_id }
+topic_status_agent_default = エージェント：デフォルト
+topic_status_bound_at =
+    
+    バインド日時：{ $bound_at }
+topic_status_enabled = 有効
+topic_status_disabled = 無効
+yolo_off =  YOLO モードは **オフ** — ツール実行に承認が必要です
+yolo_on_expires =  YOLO モードは **オン** — { $seconds } 秒後に期限切れ
+yolo_off_expired =  YOLO モードは **オフ**（期限切れ）
+yolo_on_no_expiration =  YOLO モードは **オン**（期限なし）
+yolo_disabled =  YOLO モード **無効化** — ツール承認が復元されました
+yolo_activated =
+     { "**" }YOLO モードを有効化しました** — すべてのツール呼び出しが自動承認されます
+    
+     { "**" }警告**：すべてのセキュリティチェックがバイパスされます。慎重にご利用ください！
+yolo_activated_timeout =
+     { "**" }YOLO モードを有効化しました** — { $timeout } 秒後に期限切れ
+    
+     { "**" }警告**：すべてのツール呼び出しが自動承認されます。慎重にご利用ください！
+yolo_already_off = ℹ YOLO モードは既にオフです
+yolo_invalid =  無効な YOLO 操作です。使い方：/yolo [on|off|toggle|status]
+yolo_invalid_usage =  無効な /yolo コマンドです。使い方：`/yolo [on|off|toggle|status] [timeout_seconds]`
+personality_header =  **利用可能なパーソナリティスタイル**：
+personality_list_fallback =  利用可能なスタイル：
+personality_current =
+    
+    
+     現在のセッションスタイル：**{ $style }**
+personality_reset =  パーソナリティを **Professional**（デフォルト）にリセットしました
+personality_activated =
+    { $emoji } **{ $name }** を有効化しました！
+    
+    { $description }
+personality_set =  パーソナリティを **{ $style }** に設定しました
+personality_invalid =  無効なスタイル「{ $style }」。`/personality list` で利用可能なオプションを確認してください。
+status_header = **セッションステータス**
+status_session = • **セッション：** `{ $session_id }`
+status_title = • **タイトル：** { $title }
+status_created = • **作成日時：** { $created_at }
+status_last_activity = • **最終アクティビティ：** { $last_activity }
+status_model = • **モデル：** { $model_name }
+status_tokens = • **トークン：** { $total_tokens }
+status_cost = • **コスト：** ${ $total_usd }
+status_calls = • **呼び出し回数：** { $total_calls }
+status_no_session = • アクティブなセッションがありません
+status_budget_header = 📊 **チャンネル予算**
+status_budget_today = • 本日：${ $today_cost } / ${ $daily_limit }（{ $usage_pct }%）
+status_agent_running = • **Agent：** 実行中
+status_agent_idle = • **Agent：** 待機中
+status_queued = • **キュー：** { $count }
+status_yolo_on = • **YOLO：** オン
+status_yolo_expires = • **YOLO：** オン（{ $seconds } 秒後に期限切れ）
+help_header =  **利用可能なコマンド**
+skill_not_configured = ℹ スキルコマンド /{ $cmd } が設定されていません。
+skill_load_failed =  /{ $cmd } のスキルの読み込みに失敗しました。
+pairing_pending = アクセスリクエストは管理者の承認待ちです。
+pairing_submitted = アクセスリクエストを送信しました。管理者が近日中に審査します。
+daily_quota_exceeded = 1日の会話上限（{ $quota } 回/日）に達しました。毎日 00:00 UTC（日本時間 09:00 / 北京時間 08:00）に自動更新されます。/quota で残量や更新までの時間を確認するか、管理者に問い合わせてください。
+mute_confirm = ミュートしました。今後はメンション時のみ応答します。
+search_not_configured = このエージェントにはウェブ検索が必要ですが、検索サービスが設定されていません。先に設定で検索サービスを追加・有効化してください。
+analyzing_image = 画像を解析中...
+search_unreachable = 検索サービスは設定されていますが、現在接続できません。検索サービスが正常に動作しているか確認してから再試行してください。
+daily_budget_blocked = 日次予算の上限に達しました。実行がブロックされました。Web 設定で予算上限を調整してから再試行してください。
+channel_budget_blocked = このチャンネルの日次予算に達しました。他のチャンネルや Web セッションには影響しません。チャンネルオーナーが設定 > 予算で上限を調整できます。
+config_next_steps =
+    { "\u000A\u000A" }次のステップ：
+    { $steps }
+component_options_prefix = オプション
+component_quick_reply_instruction = ↩ 番号を入力して選択
+placeholder_thinking =  考え中...
+placeholder_no_response =  応答が生成されませんでした。
+draft_review_pending = ✏️ 返信の下書きが完了しました — 送信前にレビューをお待ちしています。
+draft_review_reason = AI 生成の返信はチャンネルに送信する前にレビューが必要です。
+approval_card_title = ⚠️ **承認が必要です：{ $action }**
+approval_card_severity = 重要度：`{ $severity }`
+approval_card_open_app = Myrm AI アプリを開いて内容を確認し、対応してください。
+approval_draft_title = ✏️ **返信のレビュー待ちです**
+approval_draft_incoming = **受信メッセージ**
+approval_draft_reply = **返信の下書き**
+approval_draft_attachments = **添付ファイル：**{ $names }
+approval_draft_expiry_discard = { $minutes } 分以内に誰も判断しない場合、この返信は破棄されます。
+approval_draft_expiry_send = { $minutes } 分以内に誰も判断しない場合、この返信は自動送信されます。
+approval_draft_commands = ここで判断するには、`/draft approve { $code }` で承認して送信、`/draft reject { $code }` で破棄します。
+approval_button_approve = 承認
+approval_button_deny = 拒否
+approval_resolved_approved = ✅ { $user } が承認しました
+approval_resolved_denied = 🚫 { $user } が拒否しました
+approval_requires_admin = この返信を判断できるのは管理者のみです。Myrm AI アプリで内容を確認してください。
+approval_already_resolved = このリクエストはすでに処理済みです。
+draft_not_sent_title = 返信を送信できませんでした
+draft_not_sent_body = 承認済みの返信を送信できませんでした。送信者に直接ご連絡ください。
+draft_cmd_usage = 使い方：`/draft approve <コード>` または `/draft reject <コード>`。コードはレビュー依頼に記載されています（6 文字以上）。
+draft_cmd_approved = ✅ 返信 `{ $code }` を承認しました。送信しています。
+draft_cmd_rejected = ❌ 返信 `{ $code }` を拒否しました。何も送信していません。
+draft_cmd_not_found = ℹ `{ $code }` に一致するレビュー待ちの返信はありません。すでに処理済みの可能性があります。
+draft_cmd_ambiguous = ℹ `{ $code }` に一致するレビュー待ちの返信が複数あります。コードをもう少し長く入力してください。
+draft_cmd_error = ❌ 処理できませんでした。しばらくしてからもう一度お試しください。
+placeholder_execution_error =  エラー：{ $error }
+placeholder_request_timeout =  リクエストがタイムアウトしました。
+placeholder_retrying =
+    
+    
+    { "[" }リトライ中... { $attempt }/{ $max_retries }]
+durable_outbound_recovered = 配信を復旧しました。重複メッセージが届く場合があります。
+error_rate_limit = API レート制限に達しました — モデルが応答を生成できませんでした。しばらくしてから再試行してください。
+error_overloaded = AI サービスが一時的に過負荷状態です。しばらくしてから再試行してください。
+error_billing = 設定の問題によりサービスが一時的に利用できません。管理者にお問い合わせください。
+error_auth = 設定の問題によりサービスが一時的に利用できません。管理者にお問い合わせください。
+error_timeout = リクエストがタイムアウトしました。再試行してください。
+error_context_overflow = 会話が長すぎます。新しいセッションを開始してください。
+error_format = AI が無効なフォーマットを生成しました。再試行してください。
+error_model_not_found = リクエストされたモデルは利用できません。別のモデルを選択してください。
+error_safety_block = リクエストがセーフティフィルターによりブロックされました。
+error_challenge_blocked = リクエストが上流のチャレンジまたはセキュリティ検証によってブロックされました。
+error_response_format = AI が無効なフォーマットを生成しました。再試行してください。
+error_unknown = リクエストの処理中に問題が発生しました。しばらくしてから再試行してください。
+error_billing_owner = AI プロバイダーのアカウントの残高またはクォータが尽きました。プロバイダー側でチャージしてから、もう一度メッセージを送信してください。
+error_billing_owner_platform = プランのクレジットが尽きました。Web アプリでチャージまたはプランをアップグレードしてから、もう一度メッセージを送信してください。
+error_auth_owner = AI プロバイダーが認証情報を拒否しました。設定 > モデルサービスで API キーを確認するか、設定 > 資格情報でアカウントを再認証してください。
+error_model_not_found_owner = 設定したモデルはプロバイダーで利用できません。設定 > モデルサービスで別のモデルを選択してください。
+cmd_stop = 実行中の Agent タスクを停止
+cmd_new = 新しい会話セッションを開始
+cmd_compact = 会話コンテキストを圧縮してトークンコストを削減
+cmd_retry = 最後のメッセージをリトライ
+cmd_undo = 最後のユーザー/アシスタントの対話を削除
+cmd_yolo = YOLO モードを切り替え（ツール承認をスキップ）
+cmd_personality = セッションのパーソナリティスタイルを切り替え
+cmd_bind = エージェントをこのトピックまたはチャンネルにバインド
+cmd_unbind = このトピック/チャンネルからエージェントのバインドを解除
+cmd_topic = 現在のトピック/チャンネルのバインド状態を表示
+cmd_draft = レビュー待ちの返信を承認または拒否する
+cmd_goal = ターンをまたぐ持続的なゴールを設定・管理・確認
+cmd_subgoal = 実行中のゴールのサブゴールを動的に追加/削除/一覧表示
+cmd_steer = 実行中の Agent に新しい指示を注入して方向修正
+cmd_queue = 現在のタスク完了後に実行するタスクをキューに追加
+cmd_background = 現在の会話をブロックせずに別のバックグラウンドセッションでタスクを実行
+cmd_status = 現在のセッション状態を表示（トークン、コスト、モデル、Agent 状態）
+cmd_quota = 本日の会話上限と利用状況を確認
+cmd_help = 利用可能なコマンドを表示
+cat_Session = セッション
+cat_Configuration = 設定
+cat_Topic = トピック
+cat_Goals = ゴール
+cat_Execution = 実行
+cat_Info = 情報
+cat_Tasks = タスク
+cmd_handoff = この会話を他のプラットフォーム/チャンネルに転送
+cmd_kanban = エージェントを中断せずにカンバンボードのタスクを管理
+handoff_success =
+     会話を **{ $target }** に転送しました。
+    { $target } でこの会話を続けることができます。
+handoff_no_target = 対象チャンネルを指定してください。使い方：`/handoff <対象チャンネル>`
+handoff_channel_not_found = チャンネル `{ $target }` が見つからないか、接続されていません。
+handoff_no_pairing = `{ $target }` でユーザーペアリングが見つかりません。先にそのチャンネルでメッセージを送信して接続を確立してください。
+handoff_same_channel = 既にこのチャンネルにいます — 転送は不要です。
+handoff_failed = ハンドオフに失敗しました：{ $error }
+help_alias = （エイリアス：{ $aliases }）
+kanban_not_available = カンバンタスク管理は利用できません。
+kanban_usage =
+    📋 **カンバンコマンド：**
+    `/kanban list` — タスク一覧
+    `/kanban show <id>` — タスク詳細
+    `/kanban create <タイトル>` — タスク作成
+    `/kanban comment <id> <メッセージ>` — コメント追加
+    `/kanban edit <id> title|desc <テキスト>` — タスク編集
+    `/kanban complete <id>` — 完了にする
+    `/kanban block <id> [理由]` — ブロック
+    `/kanban unblock <id>` — ブロック解除
+    `/kanban archive <id>` — アーカイブ
+    `/kanban stats` — ボード統計
+kanban_error = ❌ カンバンコマンドが失敗しました。構文を確認して再試行してください。
+session_reset_notify_idle = ℹ️ セッションを自動リセットしました：{ $minutes } 分間無操作。新しい会話です。
+session_reset_notify_daily = ℹ️ セッションを自動リセットしました：毎日 { $hour }:00 UTC 定時リセット。新しい会話です。
+memory_unavailable = ℹ メモリシステムは利用できません。
+memory_no_pending = ℹ 保留中のメモリはありません。
+memory_pending_header = 📋 **保留中のメモリ** ({ $count })：
+memory_pending_hint = `/memory approve <id>` または `/memory reject <id>` でレビューするか、`/memory approve all` で一括承認できます。
+memory_pending_correct = 置き換え対象：{ $target }
+memory_pending_trash = ごみ箱に移動：{ $target }
+memory_approved = ✅ メモリ `{ $id }` を承認しました。
+memory_rejected = ❌ メモリ `{ $id }` を拒否しました。
+memory_approved_all = ✅ { $count } 件の保留中メモリを承認しました。
+memory_target_changed = ℹ メモリ `{ $id }` は古くなっています：提案後に対象のメモリが変更されました。保留のまま残ります。`/memory reject { $id }` で却下するか、そのままにしてください。
+memory_approved_partial = ⚠ { $count } 件の保留中メモリを承認しました。{ $skipped } 件は承認できませんでした（対象のメモリが変更された、またはエラーが発生）。保留のまま残ります。`/memory pending` を確認してください。
+memory_not_found = ℹ `{ $id }` に一致する保留中のメモリが見つかりません。
+memory_error = ❌ メモリコマンドが失敗しました。再試行してください。
+cmd_memory = 保留中のメモリ書き込みを確認（承認/拒否）
+cmd_learn = URL、ファイル、または会話から Agent に新しいスキルを学習させる
+cat_Memory = メモリ
+cat_Skills = スキル
+learn_not_configured = ℹ この環境ではスキル学習が設定されていません。
+learn_failed = ❌ 学習プロンプトの構築に失敗しました。再試行してください。
+reassurance_still_running = ⏳ 作業中 — { $elapsed } 分（{ $steps } ステップ{ $stage }）
+busy_ack_queued = ✅ 受信しました！Agent がビジーです — メッセージはキューに追加されました（{ $position }/{ $max_pending }）。
+busy_ack_queue_full = ⚠️ キューが満杯です — メッセージは保存されませんでした。後ほど再送してください。
+agent_picker_no_agents = エージェントが設定されていません。
+agent_picker_select = エージェントを選択してください：
+agent_picker_switched = 切り替えました：{ $name }
+artifact_deep_link = インタラクティブページを表示
+artifact_deep_link_named = { $filename }
+goal_completed =
+    ✅ ゴール達成：「{ $objective }」
+    { $turns } ターン · { $duration } 分 · { $files } ファイル変更
+goal_failed =
+    ❌ ゴール終了：「{ $objective }」
+    { $turns } ターン · { $duration } 分 · { $files } ファイル変更
+deliverable_attached_only = 成果物が添付されました。
+deliverable_oversized_note = { $filename }（{ $size }）がチャンネルの添付ファイルサイズ上限を超えたため、添付されませんでした。
+deliverable_compressed_note = { $filename }（{ $size }）がチャンネルのサイズ制限を超えたため、圧縮版を送信しました。
+attachment_stripped_note = 添付ファイルを送信できなかったため、テキストのみ送信しました。
+attachment_omitted_note = 添付ファイルは送信されませんでした：{ $name }（このチャットは添付ファイルに対応していません）
+attachment_withheld_note = セキュリティ上の理由で添付ファイルを送信しませんでした：{ $name }（鍵や認証情報のファイルと思われます）
+attachment_failed_note = 次の添付ファイルを送信できませんでした：{ $names }
+bang_command_unsupported = ℹ️ セキュリティとサンドボックス保護のため、MyrmはIMチャンネルからのリモート「!」シェルコマンドの実行をサポートしていません。WebUI/デスクトップコンソールをご利用いただくか、自然言語でお問い合わせください。
+quota_header = [ クォータと使用状況 ]
+quota_user = • ユーザー: { $user }
+quota_role = • ロール: { $role }
+quota_usage = • 本日の利用量: { $used } / { $limit }{ $progress }
+quota_remaining = • 残り利用量: { $remaining }
+quota_reset_time = • 更新時間: 毎日 00:00 UTC（日本時間 09:00 / 北京時間 08:00）· 約 { $hours } 時間 { $minutes } 分後に更新
+quota_reset_time_static = • 更新時間: 毎日 00:00 UTC（日本時間 09:00 / 北京時間 08:00）に自動更新
+quota_unlimited = 無制限

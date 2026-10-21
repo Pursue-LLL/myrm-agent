@@ -1,0 +1,1172 @@
+"""Tests for implicit feedback detection and correction propagation.
+
+Covers: make_correction_propagation_callback, _run_correction_propagation,
+implicit_feedback pipeline (detect_implicit_feedback, plan_memory_corrections),
+and the composite _build_session_cleanup_callback.
+
+Integration tests use real LLM calls via LITE_MODEL environment variable.
+"""
+
+import inspect
+import os
+from typing import Any
+
+import pytest
+from dotenv import load_dotenv
+
+load_dotenv(override=False)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def lite_llm_func():
+    """Build a real LLM function using LITE_MODEL for integration tests."""
+    from myrm_agent_harness.api.hooks import (
+        create_extraction_llm_func,
+    )
+
+    api_key = os.getenv("LITE_API_KEY")
+    base_url = os.getenv("LITE_BASE_URL")
+    raw_model = os.getenv("LITE_MODEL")
+    if not api_key or not raw_model:
+        pytest.skip("LITE_API_KEY / LITE_MODEL not configured")
+
+    model = raw_model.split("/", 1)[-1] if "/" in raw_model else raw_model
+
+    from langchain_openai import ChatOpenAI
+
+    llm = ChatOpenAI(
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
+        temperature=0,
+        max_tokens=512,
+    )
+    return create_extraction_llm_func(llm)
+
+
+@pytest.fixture()
+def correction_messages() -> list[dict[str, str]]:
+    """Conversation where user corrects a factual mistake."""
+    return [
+        {"role": "user", "content": "Tell me about our company MindForge"},
+        {"role": "assistant", "content": "MindForce is an AI company that focuses on..."},
+        {"role": "user", "content": "That's wrong! Our company name is MindForge, not MindForce."},
+        {"role": "assistant", "content": "I apologize for the mistake. MindForge is..."},
+    ]
+
+
+@pytest.fixture()
+def implicit_correction_messages() -> list[dict[str, str]]:
+    """Conversation where user implicitly corrects without explicit negation."""
+    return [
+        {"role": "user", "content": "Can you help me with my work at ByteDance?"},
+        {"role": "assistant", "content": "Sure! Since you work at ByteDance, I can help with..."},
+        {"role": "user", "content": "Actually I left ByteDance last month. I'm at Google now."},
+        {"role": "assistant", "content": "Got it, let me help you with your Google work."},
+    ]
+
+
+@pytest.fixture()
+def no_correction_messages() -> list[dict[str, str]]:
+    """Normal conversation without corrections."""
+    return [
+        {"role": "user", "content": "What is Python?"},
+        {"role": "assistant", "content": "Python is a high-level programming language."},
+        {"role": "user", "content": "Thanks, that's helpful!"},
+    ]
+
+
+@pytest.fixture()
+def zh_correction_messages() -> list[dict[str, str]]:
+    """Chinese conversation where user corrects a mistake."""
+    return [
+        {"role": "user", "content": "介绍一下我们公司的产品 MindForge"},
+        {"role": "assistant", "content": "MindForce 是一款..."},
+        {"role": "user", "content": "你搞错了，是 MindForge 不是 MindForce"},
+        {"role": "assistant", "content": "抱歉，MindForge 是..."},
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Unit tests (no LLM / no DB)
+# ---------------------------------------------------------------------------
+
+
+class TestDetectCorrectionSignals:
+    """Test correction detection via Harness-layer detect_feedback_signals."""
+
+    def test_english_correction_detected(self, correction_messages: list[dict[str, str]]) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+
+        assert detect_feedback_signals(correction_messages) == FeedbackSignal.NEGATIVE
+
+    def test_chinese_correction_detected(self, zh_correction_messages: list[dict[str, str]]) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+
+        assert detect_feedback_signals(zh_correction_messages) == FeedbackSignal.NEGATIVE
+
+    def test_no_correction_returns_none(self, no_correction_messages: list[dict[str, str]]) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+
+        signal = detect_feedback_signals(no_correction_messages)
+        assert signal != FeedbackSignal.NEGATIVE
+
+    def test_positive_feedback_returns_positive(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+
+        messages = [
+            {"role": "user", "content": "Write a poem"},
+            {"role": "assistant", "content": "Roses are red..."},
+            {"role": "user", "content": "That's exactly right, perfect!"},
+        ]
+        assert detect_feedback_signals(messages) == FeedbackSignal.POSITIVE
+
+    def test_empty_messages_safe(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+
+        assert detect_feedback_signals([]) == FeedbackSignal.NONE
+
+    def test_single_message_safe(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+
+        assert detect_feedback_signals([{"role": "user", "content": "hello"}]) == FeedbackSignal.NONE
+
+
+class TestImplicitFeedbackUnit:
+    """Unit tests for the implicit_feedback module (no LLM)."""
+
+    @pytest.mark.asyncio
+    async def test_short_messages_return_none(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            detect_implicit_feedback,
+        )
+
+        async def dummy_llm(system: str, prompt: str) -> str:
+            raise AssertionError("Should not call LLM for short messages")
+
+        result = await detect_implicit_feedback([{"role": "user", "content": "hi"}], dummy_llm)
+        assert not result.has_implicit_contradiction
+        assert result.proposals == []
+
+    @pytest.mark.asyncio
+    async def test_regex_negative_skips_detection_llm(self, correction_messages: list[dict[str, str]]) -> None:
+        """When regex catches NEGATIVE, LLM detection is skipped (only planning runs)."""
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            detect_implicit_feedback,
+        )
+
+        call_count = {"detection": 0, "planning": 0}
+
+        async def tracking_llm(system: str, prompt: str) -> str:
+            if "implicit feedback analyst" in system:
+                call_count["detection"] += 1
+            else:
+                call_count["planning"] += 1
+            return "[]"
+
+        result = await detect_implicit_feedback(correction_messages, tracking_llm)
+        assert result.signal == FeedbackSignal.NEGATIVE
+        assert call_count["detection"] == 0, "Detection LLM should be skipped"
+        assert call_count["planning"] == 1, "Planning LLM should be called"
+
+    def test_parse_plan_response_handles_valid_json(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            _parse_plan_response,
+        )
+
+        raw = '[{"action":"update","memory_type":"semantic","content":"User works at Google","confidence":0.9,"reasoning":"User stated they moved to Google"}]'
+        proposals = _parse_plan_response(raw)
+        assert len(proposals) == 1
+        assert proposals[0].action == CorrectionAction.UPDATE
+        assert proposals[0].content == "User works at Google"
+        assert proposals[0].confidence == 0.9
+
+    def test_parse_plan_response_handles_invalid_json(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            _parse_plan_response,
+        )
+
+        proposals = _parse_plan_response("not json at all")
+        assert proposals == []
+
+    def test_parse_plan_response_skips_invalid_actions(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            _parse_plan_response,
+        )
+
+        raw = '[{"action":"invalid","memory_type":"semantic","content":"x","confidence":0.9,"reasoning":"y"}]'
+        proposals = _parse_plan_response(raw)
+        assert proposals == []
+
+
+class TestCallbackFactory:
+    """Test make_correction_propagation_callback factory."""
+
+    def test_returns_callable(self) -> None:
+        from app.ai_agents.general_agent.correction_propagation import make_correction_propagation_callback
+
+        async def dummy_llm(system: str, prompt: str) -> str:
+            return '{"has_contradiction": false, "signals": []}'
+
+        cb = make_correction_propagation_callback(agent_id="test-agent", llm_func=dummy_llm)
+        assert callable(cb)
+
+    @pytest.mark.asyncio
+    async def test_callback_handles_no_correction_gracefully(self) -> None:
+        """When no correction is detected, callback should return without error."""
+        from app.ai_agents.general_agent.correction_propagation import make_correction_propagation_callback
+
+        async def dummy_llm(system: str, prompt: str) -> str:
+            return '{"has_contradiction": false, "signals": []}'
+
+        cb = make_correction_propagation_callback(agent_id="test-agent", llm_func=dummy_llm)
+        messages: list[dict[str, str]] = [
+            {"role": "user", "content": "What is Python?"},
+            {"role": "assistant", "content": "Python is a programming language."},
+        ]
+        await cb(messages, "chat-123")
+
+    @pytest.mark.asyncio
+    async def test_callback_handles_exception_gracefully(self) -> None:
+        """Callback should catch exceptions and not propagate them."""
+        from app.ai_agents.general_agent.correction_propagation import make_correction_propagation_callback
+
+        async def failing_llm(system: str, prompt: str) -> str:
+            raise RuntimeError("LLM failure")
+
+        cb = make_correction_propagation_callback(agent_id="test-agent", llm_func=failing_llm)
+        messages: list[dict[str, str]] = [
+            {"role": "user", "content": "Tell me about X"},
+            {"role": "assistant", "content": "X is about..."},
+            {"role": "user", "content": "That's wrong! X is actually Y."},
+            {"role": "assistant", "content": "Sorry, Y..."},
+        ]
+        await cb(messages, "chat-456")
+
+
+class TestRunCorrectionPropagation:
+    """Test _run_correction_propagation with controlled inputs."""
+
+    @pytest.mark.asyncio
+    async def test_short_messages_returns_early(self) -> None:
+        from app.ai_agents.general_agent.correction_propagation import _run_correction_propagation
+
+        async def dummy_llm(system: str, prompt: str) -> str:
+            raise AssertionError("LLM should not be called for short messages")
+
+        await _run_correction_propagation(
+            [{"role": "user", "content": "hi"}],
+            agent_id="test",
+            llm_func=dummy_llm,
+            chat_id=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_no_negative_feedback_returns_early(self, no_correction_messages: list[dict[str, str]]) -> None:
+        from app.ai_agents.general_agent.correction_propagation import _run_correction_propagation
+
+        async def dummy_llm(system: str, prompt: str) -> str:
+            return '{"has_contradiction": false, "signals": []}'
+
+        await _run_correction_propagation(
+            no_correction_messages,
+            agent_id="test",
+            llm_func=dummy_llm,
+            chat_id=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_negative_signal_without_proposals_logs_and_returns(self, correction_messages: list[dict[str, str]]) -> None:
+        """A NEGATIVE signal with an empty plan must not raise, just bail out."""
+        from app.ai_agents.general_agent.correction_propagation import _run_correction_propagation
+
+        async def empty_plan_llm(system: str, prompt: str) -> str:
+            return "[]"
+
+        await _run_correction_propagation(
+            correction_messages,
+            agent_id="test",
+            llm_func=empty_plan_llm,
+            chat_id="chat-1",
+        )
+
+    @pytest.mark.asyncio
+    async def test_full_routing_with_manager_and_shared_contexts(
+        self, correction_messages: list[dict[str, str]], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """End-to-end wiring: detected proposals reach both personal and shared queues."""
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def planning_llm(system: str, prompt: str) -> str:
+            return (
+                '[{"action": "add", "memory_type": "semantic", '
+                '"content": "The company is MindForge", "confidence": 0.9, '
+                '"reasoning": "user corrected the name"}]'
+            )
+
+        recorded: list[object] = []
+
+        async def _personal(proposals, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            recorded.append(("personal", proposals))
+
+        async def _shared(proposals, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            recorded.append(("shared", proposals))
+
+        monkeypatch.setattr(mod, "_route_proposals_to_personal_memory", _personal)
+        monkeypatch.setattr(mod, "_route_proposals_to_shared_contexts", _shared)
+
+        await mod._run_correction_propagation(
+            correction_messages,
+            agent_id="agent-1",
+            llm_func=planning_llm,
+            chat_id="chat-1",
+            memory_manager=None,
+        )
+
+        kinds = [kind for kind, _ in recorded]
+        assert kinds == ["personal", "shared"]
+        assert all(
+            isinstance(proposal, CorrectionProposal) and proposal.action == CorrectionAction.ADD
+            for _, proposals in recorded
+            for proposal in proposals
+        )
+
+
+class TestPersonalMemoryRouting:
+    """Deterministic (no-LLM) coverage for harness approval-queue routing."""
+
+    @pytest.mark.asyncio
+    async def test_add_proposal_queues_store_action(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+        from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.ADD,
+            memory_type="semantic",
+            content="User works at Google",
+            confidence=0.9,
+            reasoning="User stated it",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+        )
+
+        assert len(manager.submitted) == 1
+        _, kwargs = manager.submitted[0]
+        assert kwargs["resolution_action"] == PendingResolutionAction.STORE
+        assert kwargs["target_memory_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_update_proposal_resolves_target_and_corrects(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+        from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="User works at Google",
+            confidence=0.9,
+            reasoning="User moved",
+            old_content="User works at ByteDance",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-old": "The user works at ByteDance as an engineer"},
+        )
+
+        assert len(manager.submitted) == 1
+        _, kwargs = manager.submitted[0]
+        assert kwargs["resolution_action"] == PendingResolutionAction.CORRECT
+        assert kwargs["target_memory_id"] == "mem-old"
+
+    @pytest.mark.asyncio
+    async def test_update_without_target_is_skipped(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="User works at Google",
+            confidence=0.9,
+            reasoning="User moved",
+            old_content="User works at ByteDance",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={},
+        )
+
+        assert manager.submitted == []
+
+    @pytest.mark.asyncio
+    async def test_delete_proposal_routes_delete_action(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+        from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.DELETE,
+            memory_type="semantic",
+            content="User no longer lives in Berlin",
+            confidence=0.9,
+            reasoning="Obsolete fact",
+            target_memory_id="mem-berlin",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-berlin": "User lives in Berlin"},
+        )
+
+        assert len(manager.submitted) == 1
+        _, kwargs = manager.submitted[0]
+        assert kwargs["resolution_action"] == PendingResolutionAction.DELETE
+        assert kwargs["target_memory_id"] == "mem-berlin"
+
+    @pytest.mark.asyncio
+    async def test_update_with_ambiguous_old_content_is_skipped(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="User works at Google",
+            confidence=0.9,
+            reasoning="User moved",
+            old_content="User",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-a": "User works at ByteDance", "mem-b": "User lives in Berlin"},
+        )
+
+        assert manager.submitted == []
+
+    @pytest.mark.asyncio
+    async def test_update_exact_old_content_match_wins(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+        from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="User works at Google",
+            confidence=0.9,
+            reasoning="User moved",
+            old_content="User works at ByteDance",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-a": "User works at ByteDance", "mem-b": "User works at ByteDance as an engineer"},
+        )
+
+        assert len(manager.submitted) == 1
+        _, kwargs = manager.submitted[0]
+        assert kwargs["resolution_action"] == PendingResolutionAction.CORRECT
+        assert kwargs["target_memory_id"] == "mem-a"
+
+    @pytest.mark.asyncio
+    async def test_hallucinated_explicit_id_falls_back_to_content_match(self) -> None:
+        """An explicit id outside the recalled set must not shadow the content match."""
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+        from myrm_agent_harness.toolkits.memory.types import PendingResolutionAction
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="Company uses Paddle",
+            confidence=0.9,
+            reasoning="User switched billing provider",
+            target_memory_id="11111111-2222-3333-4444-555555555555",
+            old_content="Company uses Stripe",
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-stripe": "Company uses Stripe"},
+        )
+
+        assert len(manager.submitted) == 1
+        _, kwargs = manager.submitted[0]
+        assert kwargs["resolution_action"] == PendingResolutionAction.CORRECT
+        # Resolved via the reliable content match, not the hallucinated id.
+        assert kwargs["target_memory_id"] == "mem-stripe"
+
+    @pytest.mark.asyncio
+    async def test_hallucinated_explicit_id_without_content_match_is_skipped(self) -> None:
+        """An id outside the candidate set with no fallback must not be trusted."""
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        manager = _RecordingMemoryManager()
+        proposal = CorrectionProposal(
+            action=CorrectionAction.UPDATE,
+            memory_type="semantic",
+            content="Company uses Paddle",
+            confidence=0.9,
+            reasoning="User switched billing provider",
+            target_memory_id="11111111-2222-3333-4444-555555555555",
+            old_content=None,
+        )
+
+        await _route_proposals_to_personal_memory(
+            [proposal],
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+            recalled={"mem-stripe": "Company uses Stripe"},
+        )
+
+        assert manager.submitted == []
+
+    @pytest.mark.asyncio
+    async def test_failed_submission_does_not_abort_remaining_proposals(self) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent.correction_propagation import _route_proposals_to_personal_memory
+
+        class _FlakyManager:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            async def submit_pending(self, memory: object, **kwargs: object) -> str:
+                self.calls += 1
+                if self.calls == 1:
+                    raise RuntimeError("queue unavailable")
+                return "pending-2"
+
+        manager = _FlakyManager()
+        proposals = [
+            CorrectionProposal(
+                action=CorrectionAction.ADD,
+                memory_type="semantic",
+                content="first",
+                confidence=0.9,
+                reasoning="r",
+            ),
+            CorrectionProposal(
+                action=CorrectionAction.ADD,
+                memory_type="semantic",
+                content="second",
+                confidence=0.9,
+                reasoning="r",
+            ),
+        ]
+
+        await _route_proposals_to_personal_memory(
+            proposals,
+            agent_id="agent-1",
+            chat_id="chat-1",
+            memory_manager=manager,  # type: ignore[arg-type]
+        )
+
+        assert manager.calls == 2
+
+    @pytest.mark.asyncio
+    async def test_recall_candidate_memories_gives_planner_targets(self) -> None:
+        from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType, SemanticMemory
+
+        from app.ai_agents.general_agent.correction_propagation import _recall_candidate_memories
+
+        memory = SemanticMemory(id="mem-1", content="User works at ByteDance")
+
+        class _SearchManager:
+            async def search(self, query: str, **kwargs: object) -> list[MemorySearchResult]:
+                assert kwargs.get("track_access") is False
+                return [MemorySearchResult(memory=memory, memory_type=MemoryType.SEMANTIC)]
+
+        recalled = await _recall_candidate_memories(
+            [{"role": "user", "content": "其实我上个月离开字节跳动了"}],
+            _SearchManager(),  # type: ignore[arg-type]
+        )
+
+        assert recalled == {"mem-1": "User works at ByteDance"}
+
+    @pytest.mark.asyncio
+    async def test_recall_returns_empty_without_manager(self) -> None:
+        from app.ai_agents.general_agent.correction_propagation import _recall_candidate_memories
+
+        recalled = await _recall_candidate_memories(
+            [{"role": "user", "content": "hello"}],
+            None,
+        )
+
+        assert recalled == {}
+
+
+class TestSharedContextRouting:
+    """Deterministic coverage for routing correction proposals to SharedContexts.
+
+    The routing function imports its collaborators lazily, so tests patch the
+    origin modules rather than the wrapper.
+    """
+
+    _RESOLVE = "app.services.memory.shared_context.shared_context.resolve_shared_context_ids"
+    _SERVICE = "app.services.memory.shared_context.shared_context.SharedContextService"
+    _MATERIALIZER = "app.services.memory.shared_context.shared_context_materializer.SharedContextProposalMaterializer"
+    _SESSION = "app.database.connection.get_session"
+
+    @staticmethod
+    def _proposal(content: str = "User now works at Google", memory_type: str = "semantic"):
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        return CorrectionProposal(
+            action=CorrectionAction.ADD,
+            memory_type=memory_type,
+            content=content,
+            confidence=0.9,
+            reasoning="user stated it",
+        )
+
+    @pytest.mark.asyncio
+    async def test_no_bound_context_is_a_noop(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from contextlib import asynccontextmanager
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def _no_contexts(*, agent_id: str) -> list[str]:
+            assert agent_id == "agent-1"
+            return []
+
+        @asynccontextmanager
+        async def _session():  # pragma: no cover - must not be reached
+            raise AssertionError("session must not open when no contexts are bound")
+            yield
+
+        monkeypatch.setattr(self._RESOLVE, _no_contexts)
+        monkeypatch.setattr(self._SESSION, _session)
+
+        await mod._route_proposals_to_shared_contexts([self._proposal()], agent_id="agent-1", chat_id="chat-1")
+
+    @pytest.mark.asyncio
+    async def test_delete_only_proposals_open_no_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from contextlib import asynccontextmanager
+
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            CorrectionAction,
+            CorrectionProposal,
+        )
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def _one_context(*, agent_id: str) -> list[str]:
+            return ["ctx-1"]
+
+        @asynccontextmanager
+        async def _session():  # pragma: no cover - must not be reached
+            raise AssertionError("session must not open when only DELETE proposals exist")
+            yield
+
+        monkeypatch.setattr(self._RESOLVE, _one_context)
+        monkeypatch.setattr(self._SESSION, _session)
+
+        delete_proposal = CorrectionProposal(
+            action=CorrectionAction.DELETE,
+            memory_type="semantic",
+            content="obsolete",
+            confidence=0.9,
+            reasoning="r",
+            target_memory_id="mem-1",
+        )
+
+        await mod._route_proposals_to_shared_contexts([delete_proposal], agent_id="agent-1", chat_id="chat-1")
+
+    @pytest.mark.asyncio
+    async def test_proposal_is_materialised_when_auto_approve(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from contextlib import asynccontextmanager
+        from types import SimpleNamespace
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def _one_context(*, agent_id: str) -> list[str]:
+            return ["ctx-1"]
+
+        created: list[dict[str, object]] = []
+        approved: list[str] = []
+
+        class _FakeService:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def get_context(self, context_id: str) -> object:
+                return SimpleNamespace(status="active", policy={}, name="Team KB")
+
+            async def create_write_proposal(self, **kwargs: object) -> object:
+                created.append(kwargs)
+                return SimpleNamespace(id="prop-1", status="pending")
+
+        class _FakeMaterializer:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def approve_write_proposal(self, proposal_id: str) -> None:
+                approved.append(proposal_id)
+
+        @asynccontextmanager
+        async def _session():
+            yield object()
+
+        monkeypatch.setattr(self._RESOLVE, _one_context)
+        monkeypatch.setattr(self._SERVICE, _FakeService)
+        monkeypatch.setattr(self._MATERIALIZER, _FakeMaterializer)
+        monkeypatch.setattr(self._SESSION, _session)
+
+        await mod._route_proposals_to_shared_contexts([self._proposal()], agent_id="agent-1", chat_id="chat-1")
+
+        assert len(created) == 1
+        assert created[0]["content"] == "User now works at Google"
+        assert created[0]["source_type"] == "implicit_feedback"
+        assert approved == ["prop-1"]
+
+    @pytest.mark.asyncio
+    async def test_memory_type_a_context_cannot_hold_is_skipped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A planner-emitted procedural proposal must not abort routing of the proposals after it."""
+        from contextlib import asynccontextmanager
+        from types import SimpleNamespace
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def _one_context(*, agent_id: str) -> list[str]:
+            return ["ctx-1"]
+
+        created: list[dict[str, object]] = []
+
+        class _FakeService:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def get_context(self, context_id: str) -> object:
+                return SimpleNamespace(status="active", policy={"correction_auto_approve": False}, name="KB")
+
+            async def create_write_proposal(self, **kwargs: object) -> object:
+                created.append(kwargs)
+                return SimpleNamespace(id="prop-3", status="pending")
+
+        class _FakeMaterializer:
+            def __init__(self, session: object) -> None:
+                pass
+
+        @asynccontextmanager
+        async def _session():
+            yield object()
+
+        monkeypatch.setattr(self._RESOLVE, _one_context)
+        monkeypatch.setattr(self._SERVICE, _FakeService)
+        monkeypatch.setattr(self._MATERIALIZER, _FakeMaterializer)
+        monkeypatch.setattr(self._SESSION, _session)
+
+        await mod._route_proposals_to_shared_contexts(
+            [self._proposal("Always run lint first", memory_type="procedural"), self._proposal()],
+            agent_id="agent-1",
+            chat_id="chat-1",
+        )
+
+        assert [(c["memory_type"], c["content"]) for c in created] == [("semantic", "User now works at Google")]
+
+    @pytest.mark.asyncio
+    async def test_auto_approve_disabled_leaves_proposal_pending(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from contextlib import asynccontextmanager
+        from types import SimpleNamespace
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def _one_context(*, agent_id: str) -> list[str]:
+            return ["ctx-1"]
+
+        approved: list[str] = []
+
+        class _FakeService:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def get_context(self, context_id: str) -> object:
+                return SimpleNamespace(status="active", policy={"correction_auto_approve": False}, name="KB")
+
+            async def create_write_proposal(self, **kwargs: object) -> object:
+                return SimpleNamespace(id="prop-2", status="pending")
+
+        class _FakeMaterializer:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def approve_write_proposal(self, proposal_id: str) -> None:  # pragma: no cover
+                approved.append(proposal_id)
+
+        @asynccontextmanager
+        async def _session():
+            yield object()
+
+        monkeypatch.setattr(self._RESOLVE, _one_context)
+        monkeypatch.setattr(self._SERVICE, _FakeService)
+        monkeypatch.setattr(self._MATERIALIZER, _FakeMaterializer)
+        monkeypatch.setattr(self._SESSION, _session)
+
+        await mod._route_proposals_to_shared_contexts([self._proposal()], agent_id="agent-1", chat_id="chat-1")
+
+        assert approved == []
+
+    @pytest.mark.asyncio
+    async def test_inactive_context_is_skipped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from contextlib import asynccontextmanager
+        from types import SimpleNamespace
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def _one_context(*, agent_id: str) -> list[str]:
+            return ["ctx-1"]
+
+        created: list[dict[str, object]] = []
+
+        class _FakeService:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def get_context(self, context_id: str) -> object:
+                return SimpleNamespace(status="archived", policy={}, name="KB")
+
+            async def create_write_proposal(self, **kwargs: object) -> object:  # pragma: no cover
+                created.append(kwargs)
+                return SimpleNamespace(id="prop-x", status="pending")
+
+        @asynccontextmanager
+        async def _session():
+            yield object()
+
+        monkeypatch.setattr(self._RESOLVE, _one_context)
+        monkeypatch.setattr(self._SERVICE, _FakeService)
+        monkeypatch.setattr(self._SESSION, _session)
+
+        await mod._route_proposals_to_shared_contexts([self._proposal()], agent_id="agent-1", chat_id="chat-1")
+
+        assert created == []
+
+    @pytest.mark.asyncio
+    async def test_already_resolved_proposal_is_skipped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from contextlib import asynccontextmanager
+        from types import SimpleNamespace
+
+        from app.ai_agents.general_agent import correction_propagation as mod
+
+        async def _one_context(*, agent_id: str) -> list[str]:
+            return ["ctx-1"]
+
+        approved: list[str] = []
+
+        class _FakeService:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def get_context(self, context_id: str) -> object:
+                return SimpleNamespace(status="active", policy={}, name="KB")
+
+            async def create_write_proposal(self, **kwargs: object) -> object:
+                # Idempotent replay: the proposal was already approved earlier.
+                return SimpleNamespace(id="prop-3", status="approved")
+
+        class _FakeMaterializer:
+            def __init__(self, session: object) -> None:
+                pass
+
+            async def approve_write_proposal(self, proposal_id: str) -> None:  # pragma: no cover
+                approved.append(proposal_id)
+
+        @asynccontextmanager
+        async def _session():
+            yield object()
+
+        monkeypatch.setattr(self._RESOLVE, _one_context)
+        monkeypatch.setattr(self._SERVICE, _FakeService)
+        monkeypatch.setattr(self._MATERIALIZER, _FakeMaterializer)
+        monkeypatch.setattr(self._SESSION, _session)
+
+        await mod._route_proposals_to_shared_contexts([self._proposal()], agent_id="agent-1", chat_id="chat-1")
+
+        assert approved == []
+
+
+class TestRecurrenceLlmFunc:
+    """The recurrence LLM adapter must return the extracted answer text."""
+
+    def test_returns_none_without_consolidation_llm(self) -> None:
+
+        from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+        manager = MemoryManager.__new__(MemoryManager)
+        manager._consolidation_llm = None  # type: ignore[attr-defined]
+
+        assert manager._build_recurrence_llm_func() is None
+
+    @pytest.mark.asyncio
+    async def test_extracts_answer_text_from_response(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+        manager = MemoryManager.__new__(MemoryManager)
+        llm = MagicMock()
+        llm.ainvoke = AsyncMock(return_value=MagicMock(content="consolidated summary"))
+        manager._consolidation_llm = llm  # type: ignore[attr-defined]
+
+        llm_func = manager._build_recurrence_llm_func()
+        assert llm_func is not None
+        result = await llm_func("system", "user")
+
+        assert result == "consolidated summary"
+        llm.ainvoke.assert_awaited_once()
+
+
+class _RecordingMemoryManager:
+    """Stand-in capturing `submit_pending` calls.
+
+    Arguments are bound against the real ``MemoryManager.submit_pending`` signature:
+    the producer swallows submission errors by design, so a drifted keyword would
+    otherwise pass here while queueing nothing in production.
+    """
+
+    def __init__(self) -> None:
+        self.submitted: list[tuple[object, dict[str, object]]] = []
+
+    async def submit_pending(self, memory: object, **kwargs: object) -> str:
+        from myrm_agent_harness.toolkits.memory import MemoryManager
+
+        inspect.signature(MemoryManager.submit_pending).bind(self, memory, **kwargs)
+        self.submitted.append((memory, kwargs))
+        return "pending-1"
+
+
+class TestDefaultPolicy:
+    """Test that _DEFAULT_POLICY includes correction_auto_approve."""
+
+    def test_correction_auto_approve_in_default_policy(self) -> None:
+        from app.services.memory.shared_context.shared_context import _DEFAULT_POLICY
+
+        assert "correction_auto_approve" in _DEFAULT_POLICY
+        assert _DEFAULT_POLICY["correction_auto_approve"] is True
+
+
+class TestCorrectionSourceId:
+    def test_build_correction_proposal_source_id_is_stable(self) -> None:
+        from app.ai_agents.general_agent.correction_propagation import build_correction_proposal_source_id
+
+        first = build_correction_proposal_source_id("chat-1", "API version is v3")
+        second = build_correction_proposal_source_id("chat-1", "API version is v3")
+        assert first == second
+        assert first.startswith("chat-1:")
+
+    def test_build_correction_proposal_source_id_varies_by_summary(self) -> None:
+        from app.ai_agents.general_agent.correction_propagation import build_correction_proposal_source_id
+
+        first = build_correction_proposal_source_id("chat-1", "Use gRPC")
+        second = build_correction_proposal_source_id("chat-1", "Use REST")
+        assert first != second
+
+
+# ---------------------------------------------------------------------------
+# Integration tests (real LLM, no mock)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not os.getenv("LITE_API_KEY"),
+    reason="LITE_API_KEY not configured for integration tests",
+)
+class TestImplicitFeedbackIntegration:
+    """Integration tests for implicit feedback detection with real LLM."""
+
+    @pytest.mark.asyncio
+    async def test_detects_explicit_correction_and_plans(
+        self, lite_llm_func: Any, correction_messages: list[dict[str, str]]
+    ) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            detect_implicit_feedback,
+        )
+
+        result = await detect_implicit_feedback(correction_messages, lite_llm_func)
+        assert result.signal == FeedbackSignal.NEGATIVE
+        assert len(result.proposals) > 0, "Should produce correction proposals"
+        lower_content = " ".join(p.content.lower() for p in result.proposals)
+        assert "mindforge" in lower_content or "mindforce" in lower_content
+
+    @pytest.mark.asyncio
+    async def test_detects_implicit_contradiction(
+        self, lite_llm_func: Any, implicit_correction_messages: list[dict[str, str]]
+    ) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            detect_implicit_feedback,
+        )
+
+        result = await detect_implicit_feedback(implicit_correction_messages, lite_llm_func)
+        assert result.signal == FeedbackSignal.NEGATIVE
+        assert result.has_implicit_contradiction is True
+        assert len(result.proposals) > 0
+
+    @pytest.mark.asyncio
+    async def test_no_false_positives_for_normal_conversation(
+        self, lite_llm_func: Any, no_correction_messages: list[dict[str, str]]
+    ) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            detect_implicit_feedback,
+        )
+
+        result = await detect_implicit_feedback(no_correction_messages, lite_llm_func)
+        assert result.signal != FeedbackSignal.NEGATIVE
+
+    @pytest.mark.asyncio
+    async def test_chinese_correction_plans(self, lite_llm_func: Any, zh_correction_messages: list[dict[str, str]]) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import FeedbackSignal
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            detect_implicit_feedback,
+        )
+
+        result = await detect_implicit_feedback(zh_correction_messages, lite_llm_func)
+        assert result.signal == FeedbackSignal.NEGATIVE
+        assert len(result.proposals) > 0
+
+
+@pytest.mark.skipif(
+    not os.getenv("LITE_API_KEY"),
+    reason="LITE_API_KEY not configured for integration tests",
+)
+class TestCorrectionPropagationEndToEnd:
+    """End-to-end test: correction detection → proposal planning."""
+
+    @pytest.mark.asyncio
+    async def test_full_pipeline_with_correction(self, lite_llm_func: Any, correction_messages: list[dict[str, str]]) -> None:
+        """Verify the full pipeline from detection to proposal generation."""
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+        from myrm_agent_harness.toolkits.memory.strategies.implicit_feedback import (
+            plan_memory_corrections,
+        )
+
+        signal = detect_feedback_signals(correction_messages)
+        assert signal == FeedbackSignal.NEGATIVE, "Should detect correction"
+
+        proposals = await plan_memory_corrections(correction_messages, lite_llm_func)
+        assert len(proposals) > 0, "Should produce correction proposals"
+        for p in proposals:
+            assert p.content.strip(), "Proposal content should not be empty"
+            assert p.confidence >= 0.5
+        print(f"\nCorrection proposals: {[p.content for p in proposals]}")
+
+    def test_full_pipeline_without_correction(self, no_correction_messages: list[dict[str, str]]) -> None:
+        """Verify the pipeline short-circuits when no correction is detected."""
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+            FeedbackSignal,
+            detect_feedback_signals,
+        )
+
+        signal = detect_feedback_signals(no_correction_messages)
+        assert signal != FeedbackSignal.NEGATIVE, "Should NOT detect correction"

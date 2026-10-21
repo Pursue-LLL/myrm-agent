@@ -1,0 +1,411 @@
+"""App-layer assembly: creates and caches framework MemoryManager instances via Harness local storage.
+
+[INPUT]
+myrm_agent_harness.toolkits.memory.setup::create_local_memory_manager (POS: 开箱即用的本地记忆工厂)
+
+[OUTPUT]
+resolve_context_binding: 统一解析业务侧上下文绑定合同
+create_memory_manager: 业务层记忆管理器工厂（dedup_llm=None 时使用平台 lite 单例；默认注入 on_conflict）
+create_memory_tools_for_user: 业务层记忆工具工厂
+create_conflict_callback: 冲突持久化回调工厂（importance>=0.9 写时分级：high_risk 不设 auto_resolve_at 永不静默保旧，低风险 72h 自动保留旧记忆；同源冲突去重）
+shutdown_cached_memory_managers: 释放进程级记忆管理器缓存（联动清理 harness 嵌入式 Qdrant 单例）
+evict_cached_memory_manager: 关闭并逐出指定 base_path 的 MemoryManager，联动释放对应嵌入式 Qdrant 单例（隔离评测卷专用）
+
+[POS]
+业务层记忆适配器入口。通过 ContextBundle volume 的 memory scene 路径统一管理存储，
+实现本地运行与沙箱挂载卷的无缝切换。Server 侧必须先解析出 `ResolvedContextBinding`，
+再交给本层创建 MemoryManager。
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol, cast
+
+from myrm_agent_harness.toolkits.context_bundle.spec import DEFAULT_BUNDLE_ID
+from myrm_agent_harness.toolkits.memory import (
+    MemoryManager,
+    create_local_memory_manager,
+)
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, RecallMode
+from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+
+from app.core.memory.adapters.conflict_callback import create_conflict_callback
+from app.core.memory.adapters.policy import (
+    derive_binding_namespaces,
+    resolve_scope_identifiers,
+)
+from app.core.memory.adapters.types import ResolvedContextBinding
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
+        ConflictCallback,
+        ConsolidationCompleteCallback,
+    )
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+
+logger = logging.getLogger(__name__)
+
+_SPARSE_ONLY_EMBEDDING_MODEL = "sparse-only"
+"""Cache-key marker for embeddings-less managers (mirrors the harness setup marker)."""
+
+# Conflicts whose importance reaches this threshold are treated as high-risk:
+# they are never auto-resolved (auto_resolve_at stays None) and always require
+# explicit user resolution, so critical preferences (stack moves, relocations,
+# allergy changes) cannot be silently reverted to the stale old memory.
+_HIGH_RISK_IMPORTANCE = 0.9
+_CONFLICT_AUTO_RESOLVE_HOURS = 72
+
+_memory_manager_cache: dict[tuple[object, ...], MemoryManager] = {}
+_memory_manager_cache_lock = asyncio.Lock()
+
+
+class _CreateMemoryTools(Protocol):
+    def __call__(self, manager: MemoryManager, *, recall_mode: RecallMode, **options: object) -> list[object]: ...
+
+
+def _memory_policy_signature(
+    memory_policy: AgentMemoryPolicy | None,
+) -> tuple[object, ...] | None:
+    if memory_policy is None:
+        return None
+    read_scopes = tuple(scope.value for scope in memory_policy.read_scopes) if memory_policy.read_scopes else ()
+    return (
+        memory_policy.agent_id,
+        memory_policy.channel_id,
+        memory_policy.conversation_id,
+        memory_policy.task_id,
+        read_scopes,
+        memory_policy.write_policy.value,
+    )
+
+
+def _dedup_llm_cache_token(dedup_llm: object | None) -> tuple[object, ...]:
+    """Stable cache token for dedup LLM (avoid splitting cache per object id)."""
+    if dedup_llm is None:
+        return ("platform_default",)
+    model_id = getattr(dedup_llm, "model_name", None) or getattr(dedup_llm, "model", None)
+    if isinstance(model_id, str) and model_id.strip():
+        return ("model", model_id.strip())
+    return ("object", id(dedup_llm))
+
+
+def _consolidation_llm_cache_token(consolidation_llm: object | None) -> tuple[object, ...]:
+    if consolidation_llm is None:
+        return ("none",)
+    model_id = getattr(consolidation_llm, "model_name", None) or getattr(consolidation_llm, "model", None)
+    if isinstance(model_id, str) and model_id.strip():
+        return ("model", model_id.strip())
+    return ("object", id(consolidation_llm))
+
+
+def _manager_cache_key(
+    *,
+    base_path: Path,
+    user_id: str,
+    approval_required: bool,
+    dedup_llm: object | None,
+    consolidation_llm: object | None = None,
+    embedding_config: EmbeddingConfig | None,
+    namespaces: list[str] | None,
+    agent_id: str | None,
+    channel_id: str | None,
+    conversation_id: str | None,
+    task_id: str | None,
+    memory_policy: AgentMemoryPolicy | None,
+    recall_mode: RecallMode,
+    time_decay_half_life_days: float | None = None,
+    reranker_config: RerankerConfig | None = None,
+) -> tuple[object, ...]:
+    return (
+        str(base_path.resolve()),
+        user_id,
+        approval_required,
+        recall_mode.value,
+        time_decay_half_life_days,
+        embedding_config.model if embedding_config is not None else _SPARSE_ONLY_EMBEDDING_MODEL,
+        embedding_config.api_key if embedding_config is not None else "",
+        embedding_config.api_base if embedding_config is not None else "",
+        reranker_config.model if reranker_config else None,
+        reranker_config.api_key if reranker_config else None,
+        reranker_config.api_base if reranker_config else None,
+        _dedup_llm_cache_token(dedup_llm),
+        _consolidation_llm_cache_token(consolidation_llm),
+        tuple(namespaces or ()),
+        agent_id,
+        channel_id,
+        conversation_id,
+        task_id,
+        _memory_policy_signature(memory_policy),
+    )
+
+
+async def create_memory_manager(
+    binding: ResolvedContextBinding,
+    embedding_config: EmbeddingConfig | None,
+    *,
+    approval_required: bool = False,
+    dedup_llm: object | None = None,
+    consolidation_llm: object | None = None,
+    recall_mode: RecallMode = RecallMode.HYBRID,
+    time_decay_half_life_days: float | None = None,
+    reranker_config: RerankerConfig | None = None,
+    on_conflict: ConflictCallback | None = None,
+    on_consolidation_complete: ConsolidationCompleteCallback | None = None,
+    base_path: str | Path | None = None,
+) -> MemoryManager:
+    """Create a MemoryManager wired to local/volume-backed storage.
+
+    Uses `settings.database.memory_base_path` (configurable via MEMORY_BASE_PATH env var).
+    In SaaS sandbox, the Control Plane injects the path (e.g., `/persistent/memory`).
+    Locally, it defaults to `{state_dir}/memory`.
+
+    ``base_path`` overrides the storage root when the caller needs an isolated
+    memory volume (e.g. evaluation runs that must never touch the user's real
+    memory). When set, an embedded vector store is created inside the override
+    directory so both relational and vector data stay fully isolated.
+
+    ``embedding_config=None`` selects the embeddings-less mode: semantic and
+    episodic memories persist through the BM25 sparse mirror and stay
+    retrievable by keyword until an embedding backend is configured.
+    """
+    from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
+
+    from app.config.settings import settings
+    from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
+        get_platform_dedup_llm,
+    )
+
+    if on_conflict is None:
+        on_conflict = create_conflict_callback(agent_id=binding.agent_id)
+
+    facade = ContextBundleFacade.from_state_dir(
+        settings.database.state_dir,
+        ensure_layout=False,
+    )
+    default_base_path = Path(facade.memory_path()).resolve()
+    base_path = default_base_path if base_path is None else Path(base_path).resolve()
+    cache_key = _manager_cache_key(
+        base_path=base_path,
+        user_id="sandbox_user",
+        approval_required=approval_required,
+        dedup_llm=dedup_llm,
+        consolidation_llm=consolidation_llm,
+        embedding_config=embedding_config,
+        namespaces=binding.namespaces,
+        agent_id=binding.agent_id,
+        channel_id=binding.channel_id,
+        conversation_id=binding.conversation_id,
+        task_id=binding.task_id,
+        memory_policy=binding.memory_policy,
+        recall_mode=recall_mode,
+        time_decay_half_life_days=time_decay_half_life_days,
+        reranker_config=reranker_config,
+    )
+
+    async with _memory_manager_cache_lock:
+        cached = _memory_manager_cache.get(cache_key)
+        if cached is not None:
+            is_closed = False
+            try:
+                rel = getattr(cached, "_rel", None)
+                if rel and getattr(rel(), "_closed", False):
+                    is_closed = True
+            except Exception:
+                pass
+            if not is_closed:
+                cached._on_conflict = on_conflict
+                cached._on_consolidation_complete = on_consolidation_complete
+                return cached
+            _memory_manager_cache.pop(cache_key, None)
+
+        effective_dedup_llm = dedup_llm
+        if effective_dedup_llm is None:
+            effective_dedup_llm = await get_platform_dedup_llm()
+
+        from app.core.retriever.vector.defaults import create_default_vector_store
+
+        # Isolated base_path (eval mode) → let harness embed vector store under
+        # the override dir; default path → reuse the global volume vector store.
+        is_isolated = base_path != default_base_path
+        store = None if is_isolated else await create_default_vector_store()
+
+        manager = await create_local_memory_manager(
+            base_path=base_path,
+            embedding_config=embedding_config,
+            user_id="sandbox_user",
+            approval_required=approval_required,
+            dedup_llm=effective_dedup_llm,
+            consolidation_llm=consolidation_llm,
+            namespaces=binding.namespaces,
+            agent_id=binding.agent_id,
+            channel_id=binding.channel_id,
+            conversation_id=binding.conversation_id,
+            task_id=binding.task_id,
+            memory_policy=binding.memory_policy,
+            recall_mode=recall_mode,
+            vector_store=store,
+            time_decay_half_life_days=time_decay_half_life_days,
+            reranker_config=reranker_config,
+            on_conflict=on_conflict,
+            on_consolidation_complete=on_consolidation_complete,
+        )
+
+        _memory_manager_cache[cache_key] = manager
+
+    enabled = manager.get_enabled_types()
+    dedup_status = "smart" if effective_dedup_llm else "simple"
+    logger.warning(
+        f"MemoryManager created: path={base_path}, types={[t.value for t in enabled]}, "
+        f"approval={approval_required}, dedup={dedup_status}"
+    )
+    return manager
+
+
+async def create_memory_tools_for_user(
+    binding: ResolvedContextBinding,
+    embedding_config: EmbeddingConfig | None,
+    *,
+    approval_required: bool = False,
+    dedup_llm: object | None = None,
+    recall_mode: RecallMode = RecallMode.HYBRID,
+    time_decay_half_life_days: float | None = None,
+    on_conflict: ConflictCallback | None = None,
+    search_policy: object | None = None,
+    search_backends: object | None = None,
+    description_locale: str | None = None,
+) -> tuple[MemoryManager, list[object]]:
+    """Create a MemoryManager and its agent tools in one call."""
+    from myrm_agent_harness.toolkits import create_memory_tools
+
+    create_memory_tools_fn = cast(_CreateMemoryTools, create_memory_tools)
+    manager = await create_memory_manager(
+        binding,
+        embedding_config,
+        approval_required=approval_required,
+        dedup_llm=dedup_llm,
+        recall_mode=recall_mode,
+        time_decay_half_life_days=time_decay_half_life_days,
+        on_conflict=on_conflict,
+    )
+    tool_options: dict[str, object] = {}
+    if search_policy is not None:
+        tool_options["search_policy"] = search_policy
+    if search_backends is not None:
+        tool_options["search_backends"] = search_backends
+    if description_locale is not None:
+        tool_options["description_locale"] = description_locale
+    tools = create_memory_tools_fn(manager, recall_mode=recall_mode, **tool_options)
+    return manager, tools
+
+
+def resolve_context_binding(
+    *,
+    namespaces: list[str] | None,
+    agent_id: str | None,
+    channel_id: str | None,
+    conversation_id: str | None,
+    task_id: str | None,
+    project_id: str | None = None,
+    shared_context_ids: list[str] | None = None,
+    memory_policy: AgentMemoryPolicy | None = None,
+    bundle_id: str | None = None,
+) -> ResolvedContextBinding:
+    normalized_shared_context_ids = list(
+        dict.fromkeys(context_id.strip() for context_id in (shared_context_ids or []) if context_id.strip())
+    )
+    (
+        resolved_agent_id,
+        resolved_channel_id,
+        resolved_conversation_id,
+        resolved_task_id,
+    ) = resolve_scope_identifiers(
+        agent_id=agent_id,
+        channel_id=channel_id,
+        conversation_id=conversation_id,
+        task_id=task_id,
+        memory_policy=memory_policy,
+    )
+    return ResolvedContextBinding(
+        agent_id=resolved_agent_id or "default",
+        namespaces=derive_binding_namespaces(
+            namespaces=namespaces,
+            shared_context_ids=normalized_shared_context_ids,
+            agent_id=agent_id,
+            channel_id=channel_id,
+            conversation_id=conversation_id,
+            task_id=task_id,
+            project_id=project_id,
+            memory_policy=memory_policy,
+        ),
+        shared_context_ids=normalized_shared_context_ids,
+        memory_policy=memory_policy,
+        channel_id=resolved_channel_id,
+        conversation_id=resolved_conversation_id,
+        task_id=resolved_task_id,
+        project_id=project_id.strip() if project_id else None,
+        bundle_id=bundle_id or DEFAULT_BUNDLE_ID,
+    )
+
+
+async def shutdown_cached_memory_managers() -> None:
+    """Close all cached MemoryManager instances and clear the cache."""
+    from myrm_agent_harness.toolkits.vector.qdrant import (
+        clear_embedded_stores,
+    )
+
+    from app.core.memory.adapters.cascade import shutdown_cascade_manager
+
+    async with _memory_manager_cache_lock:
+        managers = list(_memory_manager_cache.values())
+        _memory_manager_cache.clear()
+
+    await shutdown_cascade_manager()
+
+    results = await asyncio.gather(*(manager.close() for manager in managers), return_exceptions=True)
+    for result in results:
+        if isinstance(result, Exception):
+            logger.warning("Failed to close cached MemoryManager: %s", result)
+
+    # Embedded Qdrant stores are cached per path for process lifetime; the
+    # process-level shutdown must release them so no QdrantClient survives.
+    await clear_embedded_stores()
+
+
+async def evict_cached_memory_manager(base_path: str | Path) -> None:
+    """Close and evict any cached MemoryManager bound to ``base_path``.
+
+    Used after an isolated evaluation run so its throwaway memory volume
+    (SQLite + embedded vector store) is closed before the directory is removed.
+    """
+    from myrm_agent_harness.toolkits.vector.qdrant import (
+        evict_embedded_store,
+    )
+
+    resolved = str(Path(base_path).resolve())
+
+    async with _memory_manager_cache_lock:
+        keys_to_close = [key for key in _memory_manager_cache if isinstance(key, tuple) and key and key[0] == resolved]
+        managers_to_close = [_memory_manager_cache.pop(key) for key in keys_to_close]
+
+    results = await asyncio.gather(*(manager.close() for manager in managers_to_close), return_exceptions=True)
+    for result in results:
+        if isinstance(result, Exception):
+            logger.warning("Failed to close evicted MemoryManager: %s", result)
+
+    # The embedded Qdrant store created under the isolated volume lives in the
+    # harness per-path singleton cache; release it so the directory can be
+    # removed and no file handle is retained across evaluation runs.
+    await evict_embedded_store(str(Path(base_path).resolve() / "vector_store"))
+
+
+__all__ = [
+    "create_conflict_callback",
+    "create_memory_manager",
+    "create_memory_tools_for_user",
+    "evict_cached_memory_manager",
+    "resolve_context_binding",
+    "shutdown_cached_memory_managers",
+]

@@ -1,0 +1,185 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { toast } from '@/lib/utils/toast';
+import { markLocalBackendUnreachable } from '@/lib/backend-health';
+import { whenDatabaseReady } from '@/lib/platform-readiness';
+import { isLocalMode } from '@/lib/deploy-mode';
+import { API_BASE_URL } from '@/lib/api';
+import useApprovalStore, { normalizeApprovalPayload, type ApprovalPayload } from '@/store/useApprovalStore';
+import useChatStore from '@/store/useChatStore';
+
+const STARTUP_DELAY_MS = 200;
+const STARTUP_RECOVERY_MAX_ATTEMPTS = 3;
+const STARTUP_RECOVERY_RETRY_DELAY_MS = 500;
+const DEBOUNCE_WINDOW_MS = 2_000;
+const FETCH_LIMIT = 100;
+
+const recoveryState = {
+  lastFetchAt: 0,
+  inflight: null as Promise<number> | null,
+};
+
+interface ApprovalListResponse {
+  approvals?: Record<string, unknown>[];
+}
+
+export async function fetchPendingApprovals(): Promise<ApprovalPayload[]> {
+  if (isLocalMode()) {
+    const ready = await whenDatabaseReady();
+    if (!ready) {
+      return [];
+    }
+  }
+
+  const url = `${API_BASE_URL}/approvals?limit=${FETCH_LIMIT}&offset=0`;
+  const response = await fetch(url, { method: 'GET', credentials: 'include' });
+
+  // Next dev proxy returns 5xx when :8080 is down (ECONNREFUSED), not an approvals API error.
+  if (response.status >= 500) {
+    markLocalBackendUnreachable();
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch pending approvals: ${response.status}`);
+  }
+
+  const json = (await response.json()) as ApprovalListResponse;
+  const records = Array.isArray(json.approvals) ? json.approvals : [];
+
+  return records.map((record) => normalizeApprovalPayload(record));
+}
+
+/**
+ * Recover pending approvals from the server and enqueue them into the global
+ * approval store. The server excludes background growth drafts (see
+ * ApprovalRegistry.list_pending); this hook only receives inline HITL items.
+ * Deduplicates against in-memory queue (handled by openApproval) and debounces
+ * repeated calls within DEBOUNCE_WINDOW_MS to avoid request storms during SSE
+ * exponential reconnect.
+ *
+ * Returns the number of recovered approvals (after dedup with current queue).
+ */
+export async function recoverPendingApprovals(): Promise<number> {
+  const now = Date.now();
+  if (now - recoveryState.lastFetchAt < DEBOUNCE_WINDOW_MS) {
+    return 0;
+  }
+
+  if (recoveryState.inflight) {
+    return recoveryState.inflight;
+  }
+
+  recoveryState.lastFetchAt = now;
+
+  const task = (async () => {
+    try {
+      const approvals = await fetchPendingApprovals();
+      if (approvals.length === 0) {
+        return 0;
+      }
+
+      const store = useApprovalStore.getState();
+      const existingIds = new Set(store.queue.map((a) => a.approval_id));
+      let added = 0;
+
+      for (const approval of approvals) {
+        if (!approval.approval_id || existingIds.has(approval.approval_id)) {
+          continue;
+        }
+        store.openApproval(approval);
+        if (approval.chat_id) {
+          useChatStore.getState().setSessionStatus(approval.chat_id, 'awaiting_approval');
+        }
+        existingIds.add(approval.approval_id);
+        added += 1;
+      }
+      return added;
+    } catch (error) {
+      console.warn('[pending-approvals] recovery failed', error);
+      return 0;
+    } finally {
+      recoveryState.inflight = null;
+    }
+  })();
+
+  recoveryState.inflight = task;
+  return task;
+}
+
+/**
+ * Mount-time recovery + listener for SSE reconnect events.
+ *
+ * On startup, waits a short delay to let the app finish initialization before
+ * fetching the pending queue, then registers a listener for `app_resync_required`
+ * (emitted by useGlobalEvents when the SSE connection re-establishes) to keep
+ * the queue fresh after network blips.
+ */
+export function usePendingApprovalsRecovery(): void {
+  const t = useTranslations('notifications');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const runRecovery = async (showToast: boolean) => {
+      const added = await recoverPendingApprovals();
+      if (cancelled || added <= 0 || !showToast) {
+        return;
+      }
+      toast.info(t('approvalsRecovered', { count: added }), {
+        duration: 5_000,
+        dismissible: true,
+      });
+    };
+
+    const startupTimer = setTimeout(() => {
+      void (async () => {
+        if (cancelled) {
+          return;
+        }
+
+        if (isLocalMode()) {
+          const ready = await whenDatabaseReady();
+          if (!ready || cancelled) {
+            return;
+          }
+        }
+        if (cancelled) {
+          return;
+        }
+
+        for (let attempt = 0; attempt < STARTUP_RECOVERY_MAX_ATTEMPTS; attempt += 1) {
+          if (cancelled) {
+            return;
+          }
+
+          const added = await recoverPendingApprovals();
+          if (added > 0) {
+            toast.info(t('approvalsRecovered', { count: added }), {
+              duration: 5_000,
+              dismissible: true,
+            });
+            return;
+          }
+
+          if (attempt < STARTUP_RECOVERY_MAX_ATTEMPTS - 1) {
+            await new Promise((resolve) => setTimeout(resolve, STARTUP_RECOVERY_RETRY_DELAY_MS));
+          }
+        }
+      })();
+    }, STARTUP_DELAY_MS);
+
+    const handleResync = () => {
+      void runRecovery(false);
+    };
+    window.addEventListener('app_resync_required', handleResync);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(startupTimer);
+      window.removeEventListener('app_resync_required', handleResync);
+    };
+  }, [t]);
+}

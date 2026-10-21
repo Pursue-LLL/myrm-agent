@@ -1,0 +1,435 @@
+/**
+ * [INPUT]
+ * - @/services/kanban (POS: 运行记录、事件、依赖、诊断、评论、任务更新 API)
+ * - @/services/riskHeldToast::isRiskHeldError (POS: 被风控规则拦下的文字已有统一提示，失败提示据此跳过)
+ * - @/store/useAgentStore、@/components/agent/builtin-agent-i18n (POS: 本地化的 Agent 列表)
+ * - ./resolveTaskDepInfos (POS: 依赖任务摘要解析)
+ * - ./useKanbanTaskDrawerAttachments、./useKanbanTaskDrawerWorkflow (POS: 附件与状态流转两个子 hook)
+ *
+ * [OUTPUT]
+ * - useKanbanTaskDrawer: 抽屉的全部数据与操作：加载运行记录、事件、依赖、诊断，保存评论、依赖、验收标准、技能、超时、模型、结果、审批开关，指派 Agent；并合并 workflow 与 attachments 两个子 hook 的返回值
+ *
+ * [POS]
+ * 任务抽屉的状态层。抽屉打开时加载，收到同一 task_id 的 kanban-task-updated 事件时刷新。
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { useLocale } from 'next-intl';
+import type { KanbanTask, TaskRun, TaskEvent, TaskDiagnostic, TaskStatus } from '@/services/kanban';
+import {
+  listRuns,
+  listEvents,
+  listDependencies,
+  listDependents,
+  addComment,
+  addDependency,
+  removeDependency,
+  updateTask,
+  getTaskDiagnostics,
+} from '@/services/kanban';
+import { isRiskHeldError } from '@/services/riskHeldToast';
+import type { TaskDepInfo } from './kanban-styles';
+import useAgentStore from '@/store/useAgentStore';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import { resolveTaskDepInfos } from './resolveTaskDepInfos';
+import { useKanbanTaskDrawerAttachments } from './useKanbanTaskDrawerAttachments';
+import { useKanbanTaskDrawerWorkflow } from './useKanbanTaskDrawerWorkflow';
+
+interface UseKanbanTaskDrawerParams {
+  task: KanbanTask | null;
+  allTasks: KanbanTask[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onRefresh: () => void;
+  onRequestMove: (taskId: string, targetStatus: TaskStatus) => void;
+  t: (key: string) => string;
+}
+
+export function useKanbanTaskDrawer({
+  task,
+  allTasks,
+  open,
+  onOpenChange,
+  onRefresh,
+  onRequestMove,
+  t,
+}: UseKanbanTaskDrawerParams) {
+  const locale = useLocale();
+  const agents = useAgentStore((s) => s.agents);
+  const fetchAgents = useAgentStore((s) => s.fetchAgents);
+  const [runs, setRuns] = useState<TaskRun[]>([]);
+  const [events, setEvents] = useState<TaskEvent[]>([]);
+  const [parents, setParents] = useState<TaskDepInfo[]>([]);
+  const [children, setChildren] = useState<TaskDepInfo[]>([]);
+  const [diagnostics, setDiagnostics] = useState<TaskDiagnostic[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [showAddDep, setShowAddDep] = useState(false);
+  const [addingDep, setAddingDep] = useState(false);
+  const [editingCriteria, setEditingCriteria] = useState(false);
+  const [criteriaText, setCriteriaText] = useState('');
+  const [savingCriteria, setSavingCriteria] = useState(false);
+  const [editingSkills, setEditingSkills] = useState(false);
+  const [skillsText, setSkillsText] = useState('');
+  const [editingTimeout, setEditingTimeout] = useState(false);
+  const [timeoutValue, setTimeoutValue] = useState<number | null>(null);
+  const [editingModel, setEditingModel] = useState(false);
+  const [modelValue, setModelValue] = useState<string>('');
+  const [editingResult, setEditingResult] = useState(false);
+  const [resultText, setResultText] = useState('');
+  const [savingResult, setSavingResult] = useState(false);
+
+  const allTasksRef = useRef(allTasks);
+  allTasksRef.current = allTasks;
+  const commentInputRef = useRef<HTMLInputElement>(null);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+
+  const workflow = useKanbanTaskDrawerWorkflow({ task, onRefresh, onOpenChange, onRequestMove, t });
+  const attachments = useKanbanTaskDrawerAttachments({ task, open, onRefresh, t });
+
+  const loadDetails = useCallback(async (taskId: string) => {
+    setLoading(true);
+    try {
+      const [runsRes, eventsRes, depsRes, childRes, diagRes] = await Promise.all([
+        listRuns(taskId),
+        listEvents(taskId),
+        listDependencies(taskId),
+        listDependents(taskId),
+        getTaskDiagnostics(taskId),
+      ]);
+      setRuns(runsRes.items);
+      setEvents(eventsRes.items);
+      setDiagnostics(diagRes.diagnostics);
+
+      const currentTasks = allTasksRef.current;
+      const [parentInfos, childInfos] = await Promise.all([
+        resolveTaskDepInfos(depsRes.items, currentTasks),
+        resolveTaskDepInfos(childRes.items, currentTasks),
+      ]);
+      setParents(parentInfos);
+      setChildren(childInfos);
+    } catch {
+      /* silent */
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (open && task) {
+      loadDetails(task.task_id);
+      fetchAgents();
+      setCommentText('');
+      setShowAddDep(false);
+      setEditingCriteria(false);
+      setEditingTimeout(false);
+      setEditingModel(false);
+    } else {
+      setRuns([]);
+      setEvents([]);
+      setParents([]);
+      setChildren([]);
+      setDiagnostics([]);
+    }
+  }, [open, task, loadDetails, fetchAgents]);
+
+  useEffect(() => {
+    if (!open || !task) {
+      return;
+    }
+    const taskId = task.task_id;
+    const onEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { task_id?: string } | undefined;
+      if (detail?.task_id === taskId) {
+        loadDetails(taskId);
+      }
+    };
+    window.addEventListener('kanban-task-updated', onEvent);
+    return () => window.removeEventListener('kanban-task-updated', onEvent);
+  }, [open, task, loadDetails]);
+
+  const handleRemoveDep = useCallback(
+    async (parentId: string) => {
+      if (!task) {
+        return;
+      }
+      try {
+        await removeDependency(task.task_id, parentId);
+        setParents((prev) => prev.filter((p) => p.task_id !== parentId));
+        onRefresh();
+        toast.success(t('depRemoved'));
+      } catch {
+        toast.error(t('depRemoveError'));
+      }
+    },
+    [task, onRefresh, t],
+  );
+
+  const handleAddDep = useCallback(
+    async (parentId: string) => {
+      if (!task) {
+        return;
+      }
+      setAddingDep(true);
+      try {
+        await addDependency(task.task_id, parentId);
+        const parentTask = allTasksRef.current.find((tk) => tk.task_id === parentId);
+        if (parentTask) {
+          setParents((prev) => [...prev, { task_id: parentId, title: parentTask.title, status: parentTask.status }]);
+        }
+        setShowAddDep(false);
+        onRefresh();
+        toast.success(t('depAdded'));
+      } catch {
+        toast.error(t('depAddError'));
+      }
+      setAddingDep(false);
+    },
+    [task, onRefresh, t],
+  );
+
+  const handleSubmitComment = useCallback(async () => {
+    if (!task || !commentText.trim()) {
+      return;
+    }
+    setSubmittingComment(true);
+    try {
+      const ev = await addComment(task.task_id, commentText.trim());
+      setEvents((prev) => [...prev, ev]);
+      setCommentText('');
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held comment; the text stays in the box.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('addCommentError'));
+      }
+    }
+    setSubmittingComment(false);
+  }, [task, commentText, t]);
+
+  const handleSaveCriteria = useCallback(async () => {
+    if (!task) {
+      return;
+    }
+    setSavingCriteria(true);
+    try {
+      await updateTask(task.task_id, {
+        completion_criteria: criteriaText.trim(),
+      });
+      setEditingCriteria(false);
+      onRefresh();
+      toast.success(t('criteriaUpdated'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for held criteria; the editor stays open.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('criteriaUpdateError'));
+      }
+    }
+    setSavingCriteria(false);
+  }, [task, criteriaText, onRefresh, t]);
+
+  const handleSaveSkills = useCallback(async () => {
+    if (!task) {
+      return;
+    }
+    try {
+      const parsed = skillsText
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await updateTask(task.task_id, { extra_skill_ids: parsed });
+      setEditingSkills(false);
+      onRefresh();
+      toast.success(t('skillsUpdated'));
+    } catch {
+      toast.error(t('skillsUpdateError'));
+    }
+  }, [task, skillsText, onRefresh, t]);
+
+  const handleSaveTimeout = useCallback(
+    async (value: number | null) => {
+      if (!task) {
+        return;
+      }
+      try {
+        await updateTask(task.task_id, { max_runtime_seconds: value });
+        setEditingTimeout(false);
+        onRefresh();
+        toast.success(t('timeoutUpdated'));
+      } catch {
+        toast.error(t('timeoutUpdateError'));
+      }
+    },
+    [task, onRefresh, t],
+  );
+
+  const handleSaveModel = useCallback(
+    async (value: string | null) => {
+      if (!task) {
+        return;
+      }
+      try {
+        await updateTask(task.task_id, { model_override: value });
+        setEditingModel(false);
+        onRefresh();
+        toast.success(t('modelUpdated'));
+      } catch {
+        toast.error(t('modelUpdateError'));
+      }
+    },
+    [task, onRefresh, t],
+  );
+
+  const handleAgentChange = useCallback(
+    async (agentId: string | null) => {
+      if (!task) {
+        return;
+      }
+      try {
+        await updateTask(task.task_id, { agent_id: agentId });
+        onRefresh();
+      } catch {
+        toast.error(t('updateError'));
+      }
+    },
+    [task, onRefresh, t],
+  );
+
+  const handleSaveResult = useCallback(async () => {
+    if (!task) {
+      return;
+    }
+    setSavingResult(true);
+    try {
+      await updateTask(task.task_id, { result: resultText });
+      setEditingResult(false);
+      onRefresh();
+      toast.success(t('resultUpdated'));
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held result; the editor stays open.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('updateError'));
+      }
+    } finally {
+      setSavingResult(false);
+    }
+  }, [task, resultText, onRefresh, t]);
+
+  const handleRequireApprovalChange = useCallback(
+    async (value: boolean) => {
+      if (!task) {
+        return;
+      }
+      try {
+        await updateTask(task.task_id, { require_approval: value });
+        onRefresh();
+        toast.success(t('approvalUpdated'));
+      } catch {
+        toast.error(t('approvalUpdateError'));
+      }
+    },
+    [task, onRefresh, t],
+  );
+
+  const isTerminal = task?.status === 'completed' || task?.status === 'failed' || task?.status === 'archived';
+
+  const latestSummary = useMemo(() => {
+    for (let i = runs.length - 1; i >= 0; i--) {
+      if (runs[i].summary) {
+        return runs[i].summary;
+      }
+    }
+    return null;
+  }, [runs]);
+
+  const progressPill = useMemo(() => {
+    if (children.length > 0) {
+      const done = children.filter((c) => c.status === 'completed' || c.status === 'archived').length;
+      return { done, total: children.length };
+    }
+    if (task && task.children_total > 0) {
+      return { done: task.children_done, total: task.children_total };
+    }
+    return null;
+  }, [children, task]);
+
+  const localizedAgents = useMemo(
+    () => agents.map((a) => ({ ...a, name: getBuiltinAgentName(a.id, a.name, locale) })),
+    [agents, locale],
+  );
+
+  const assignedAgent = useMemo(() => {
+    if (!task?.agent_id) {
+      return null;
+    }
+    const agent = agents.find((a) => a.id === task.agent_id) ?? null;
+    if (!agent) {
+      return null;
+    }
+    return { ...agent, name: getBuiltinAgentName(agent.id, agent.name, locale) };
+  }, [task?.agent_id, agents, locale]);
+
+  const availableParents = useMemo(
+    () =>
+      task
+        ? allTasks.filter((tk) => tk.task_id !== task.task_id && !parents.some((p) => p.task_id === tk.task_id))
+        : [],
+    [task, allTasks, parents],
+  );
+
+  return {
+    agents: localizedAgents,
+    runs,
+    events,
+    parents,
+    children,
+    diagnostics,
+    loading,
+    commentText,
+    setCommentText,
+    submittingComment,
+    showAddDep,
+    setShowAddDep,
+    addingDep,
+    editingCriteria,
+    setEditingCriteria,
+    criteriaText,
+    setCriteriaText,
+    savingCriteria,
+    editingSkills,
+    setEditingSkills,
+    skillsText,
+    setSkillsText,
+    editingTimeout,
+    setEditingTimeout,
+    timeoutValue,
+    setTimeoutValue,
+    editingModel,
+    setEditingModel,
+    modelValue,
+    setModelValue,
+    ...workflow,
+    ...attachments,
+    editingResult,
+    setEditingResult,
+    resultText,
+    setResultText,
+    savingResult,
+    commentInputRef,
+    attachInputRef,
+    isTerminal,
+    latestSummary,
+    progressPill,
+    assignedAgent,
+    availableParents,
+    handleRemoveDep,
+    handleAddDep,
+    handleSubmitComment,
+    handleSaveCriteria,
+    handleSaveSkills,
+    handleSaveTimeout,
+    handleSaveModel,
+    handleAgentChange,
+    handleSaveResult,
+    handleRequireApprovalChange,
+  };
+}

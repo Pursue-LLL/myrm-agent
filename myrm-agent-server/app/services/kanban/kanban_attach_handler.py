@@ -1,0 +1,169 @@
+"""Kanban worker attach handler — persists task attachments via files service.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.protocols::KanbanStore (POS: Kanban persistence.)
+- app.services.kanban.task_attachment_ids (POS: Kanban task attachment ID persistence.)
+- app.services.kanban.task_runner::resolve_workspace (POS: Resolve effective workspace, creating a per-task worktree when branch isolation is set.)
+- myrm_agent_harness.toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Bidirectional container/local path resolver with intelligent workspace auto-detection.)
+- myrm_agent_harness.core.security.guards.ssrf::async_validate_url_for_ssrf (POS: Blocked URL errors.)
+- myrm_agent_harness.core.security.http.secure_fetch::secure_get / ContentTooLargeError (POS: SSRF-safe HTTP with manual redirect loop and size cap.)
+
+[OUTPUT]
+- create_kanban_attach_handler: Factory returning harness KanbanTaskAttachFn callback.
+
+[POS]
+Server-side implementation for kanban_attach LLM tool (SSRF-safe URL fetch + worktree-aware path ingest).
+"""
+
+from __future__ import annotations
+
+import logging
+import mimetypes
+import os
+from pathlib import Path
+from typing import Literal
+from urllib.parse import urlparse
+
+from myrm_agent_harness.api import KanbanStore
+from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
+from myrm_agent_harness.core.security.http.secure_fetch import (
+    ContentTooLargeError,
+    secure_get,
+)
+from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import (
+    WorkspacePathResolver,
+)
+from myrm_agent_harness.toolkits.kanban.kanban_agent_tools import KanbanTaskAttachFn
+from myrm_agent_harness.toolkits.kanban.types import KanbanTask
+
+from app.core.storage.models import File
+from app.services.kanban.task_runner import resolve_workspace
+
+logger = logging.getLogger(__name__)
+
+_MAX_ATTACHMENTS = 10
+_MAX_ATTACH_BYTES = 20 * 1024 * 1024
+
+
+def create_kanban_attach_handler(store: KanbanStore) -> KanbanTaskAttachFn:
+    """Build attach callback wired into harness create_kanban_tools(worker mode)."""
+
+    async def attach_task_file(
+        task_id: str,
+        source: Literal["path", "url"],
+        value: str,
+    ) -> dict[str, object]:
+        from app.services.kanban.task_attachment_ids import (
+            load_task_attachment_ids,
+            save_task_attachment_ids,
+        )
+
+        task = await store.get_task(task_id)
+        if task is None:
+            raise ValueError(f"Task {task_id} not found")
+
+        existing = await load_task_attachment_ids(task_id)
+        if len(existing) >= _MAX_ATTACHMENTS:
+            raise ValueError(f"Task already has the maximum of {_MAX_ATTACHMENTS} attachments")
+
+        if source == "path":
+            file_obj = await _attach_from_path(store, task_id, task, value)
+        else:
+            file_obj = await _attach_from_url(task_id, value)
+
+        updated_ids = [*existing, file_obj.id]
+        await save_task_attachment_ids(task_id, updated_ids)
+        return {
+            "file_id": file_obj.id,
+            "filename": file_obj.filename,
+            "mime_type": file_obj.content_type,
+            "size_bytes": file_obj.size,
+            "attachment_count": len(updated_ids),
+        }
+
+    return attach_task_file
+
+
+async def _attach_from_path(
+    store: KanbanStore,
+    task_id: str,
+    task: KanbanTask,
+    raw_path: str,
+) -> File:
+    from app.core.storage import files_service
+
+    workspace = await resolve_workspace(store, task)
+    if not workspace:
+        raise ValueError("Task has no workspace path — cannot attach local files")
+
+    workspace_resolved = Path(workspace).resolve()
+
+    # Normalize container-abstract paths (/workspace/...) to the task workspace,
+    # then resolve relative paths against it. This keeps path resolution
+    # consistent with the worker's cwd (worktree when branch isolation is on).
+    candidate = Path(raw_path).expanduser()
+    if WorkspacePathResolver.is_container_path(str(candidate)):
+        converted = WorkspacePathResolver.to_local_path(str(candidate), workspace_resolved)
+        if converted is not None:
+            candidate = converted
+    if not candidate.is_absolute():
+        candidate = workspace_resolved / candidate
+    candidate = candidate.resolve()
+
+    if not str(candidate).startswith(str(workspace_resolved) + os.sep) and candidate != workspace_resolved:
+        raise ValueError("Path must be inside the task workspace")
+
+    if not candidate.is_file():
+        raise ValueError(f"File not found: {raw_path}")
+
+    size = candidate.stat().st_size
+    if size > _MAX_ATTACH_BYTES:
+        raise ValueError(f"File exceeds {_MAX_ATTACH_BYTES} byte limit")
+
+    content = candidate.read_bytes()
+    filename = candidate.name
+    content_type, _ = mimetypes.guess_type(filename)
+    file_obj = await files_service.save_generated_file(
+        filename=filename,
+        content=content,
+        content_type=content_type,
+        source_chat_id=f"kanban:{task_id}",
+    )
+    logger.info("kanban_attach path task=%s file=%s bytes=%s", task_id[:8], file_obj.id, size)
+    return file_obj
+
+
+async def _attach_from_url(task_id: str, url: str) -> File:
+    from app.core.storage import files_service
+
+    parsed = urlparse(url)
+    if parsed.scheme.lower() != "https":
+        raise ValueError("Only HTTPS URLs are allowed for kanban_attach")
+
+    ssrf = await async_validate_url_for_ssrf(url)
+    if not ssrf.safe:
+        raise ValueError(ssrf.error or "URL blocked by SSRF policy")
+
+    try:
+        response = await secure_get(url, max_content_length=_MAX_ATTACH_BYTES)
+    except ContentTooLargeError as exc:
+        raise ValueError(f"Download exceeds {_MAX_ATTACH_BYTES} byte limit") from exc
+    if response.status_code >= 400:
+        raise ValueError(f"Failed to fetch URL (HTTP {response.status_code})")
+
+    content = response.content
+    filename = Path(parsed.path).name or "attachment.bin"
+    content_type = response.content_type or mimetypes.guess_type(filename)[0]
+    file_obj = await files_service.save_generated_file(
+        filename=filename,
+        content=content,
+        content_type=content_type,
+        source_chat_id=f"kanban:{task_id}",
+    )
+    logger.info(
+        "kanban_attach url task=%s file=%s bytes=%s",
+        task_id[:8],
+        file_obj.id,
+        len(content),
+    )
+    return file_obj

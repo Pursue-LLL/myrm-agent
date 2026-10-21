@@ -1,0 +1,50 @@
+[
+  {
+    "id": "postiz",
+    "name": "Postiz",
+    "name_zh": "Postiz",
+    "description": "Schedule and publish posts to 30+ overseas social platforms (X, LinkedIn, YouTube, TikTok and more). The agent prepares drafts first — nothing goes out until you review it.",
+    "description_zh": "把帖子排期发布到 X、领英、YouTube、TikTok 等 30+ 海外社交平台。智能体先建草稿，你终审后才会真正发出。",
+    "icon": "postiz",
+    "category": "social",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "postiz",
+      "type": "streamable_http",
+      "url": "https://mcp.postiz.com/mcp",
+      "headers": {
+        "Authorization": "{{POSTIZ_API_KEY}}"
+      },
+      "description": "Postiz social scheduling: list connected accounts, create draft or scheduled posts, upload media. Prefer drafts over immediate publishing.",
+      "post_connect_guide": "How it works: ask the agent to turn your content into platform-ready drafts and schedule them, then review everything in the Postiz calendar before it goes out. Supported: X, LinkedIn, YouTube, TikTok, Instagram, Threads, Reddit and 30+ other overseas platforms. Xiaohongshu, WeChat, Douyin and Bilibili are not supported. Local image or video files can be attached through the upload widget in chat, or via the Postiz CLI skill from the skill marketplace. Postiz's built-in AI image/video generation tools consume your Postiz plan credits — disable them in the agent's tool selection if you only need publishing. Self-hosted Postiz: add it manually under MCP settings using your instance's /mcp address with the same API key.",
+      "post_connect_guide_zh": "使用方式：让智能体把内容改成各平台的待发草稿并排好时间，再到 Postiz 日历里终审，确认后才会发出。支持 X、领英、YouTube、TikTok、Instagram、Threads、Reddit 等 30+ 海外平台；不支持小红书、微信、抖音、B站。本地图片或视频可通过聊天里的上传部件添加，或用技能市场里的 Postiz CLI 技能上传。Postiz 自带的 AI 图片/视频生成工具会消耗你的 Postiz 套餐额度，只需要发布时可在智能体的工具选择里关掉它们。自托管 Postiz：请在 MCP 设置里手动添加，填你实例的 /mcp 地址并使用同一 API Key。"
+    },
+    "auth": {
+      "type": "bearer",
+      "credential_fields": [
+        {
+          "key": "Authorization",
+          "label": "Postiz API Key",
+          "label_zh": "Postiz API Key",
+          "inject": "header"
+        }
+      ],
+      "help_url": "https://docs.postiz.com/general/settings/developers",
+      "help_text": "In Postiz, open Settings → Developers and copy your API key. Postiz Cloud starts at $29/mo with a 7-day free trial; self-hosted instances are free.",
+      "help_text_zh": "在 Postiz 里打开 设置 → 开发者，复制你的 API Key。Postiz 云端版 $29/月起、含 7 天试用；自托管版免费。"
+    },
+    "tags": [
+      "social-media",
+      "scheduling",
+      "publishing",
+      "x",
+      "linkedin",
+      "youtube",
+      "tiktok",
+      "社交媒体",
+      "排期",
+      "发布"
+    ],
+    "website": "https://postiz.com"
+  }
+]

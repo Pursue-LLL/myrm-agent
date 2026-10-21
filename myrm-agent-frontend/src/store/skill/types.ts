@@ -1,0 +1,357 @@
+/**
+ * Skill system type definitions
+ */
+
+export type SkillType = 'prebuilt' | 'local' | 'workspace';
+
+export type SkillLifecycleStatus = 'active' | 'stale' | 'archived';
+export type SkillLifecycleAction =
+  | 'pin'
+  | 'unpin'
+  | 'restore'
+  | 'archive'
+  | 'reset-to-default'
+  | 'accept-upstream'
+  | 'undo-last-replace';
+
+export type SkillCategory =
+  | 'development'
+  | 'research'
+  | 'creative'
+  | 'productivity'
+  | 'pipeline'
+  | 'design'
+  | 'social-media'
+  | 'media'
+  | 'content'
+  | 'automation'
+  | 'operations'
+  | 'workflow'
+  | 'data-science'
+  | 'data-collection'
+  | 'knowledge'
+  | 'other';
+
+export interface SkillRequires {
+  bins: string[];
+  env: string[];
+  config: string[];
+}
+
+export interface SecurityFinding {
+  threat_type: string;
+  severity: string;
+  description: string;
+  line_number: number | null;
+}
+
+export interface SecurityScanSummary {
+  score: number;
+  trust_recommendation: string;
+  finding_counts: Record<string, number>;
+  total_findings: number;
+  findings: SecurityFinding[];
+}
+
+export interface SkillVerificationStep {
+  step_id: string;
+  description: string;
+  expected_output: string;
+  validation_method: string;
+}
+
+export interface SkillEvalCase {
+  message?: string;
+  sandbox_assertions?: Array<{ type: string; target?: string }>;
+  [key: string]: unknown;
+}
+
+export interface Skill {
+  id: string;
+  type: SkillType;
+  name: string;
+  description: string;
+  storage_path: string;
+  version: string;
+  category: SkillCategory | string | null;
+  icon_url: string | null;
+  tags: string[];
+  token_cost?: number | null;
+
+  requires: SkillRequires;
+  available: boolean;
+  unavailable_reason: string | null;
+  oauth_issuer?: string | null;
+
+  trust: string;
+  author: string | null;
+  homepage: string | null;
+  always: boolean;
+
+  /** Whether the model can auto-select this skill */
+  model_invocable: boolean;
+  /** Whether the user can manually trigger this skill */
+  user_invocable: boolean;
+
+  /** Declared primary env var name for apiKey mapping (from SKILL.md frontmatter) */
+  primary_env: string | null;
+
+  /** Multi-connector dependencies: declared OAuth issuers and MCP server IDs */
+  required_oauth_issuers?: string[];
+  required_mcp_server_ids?: string[];
+
+  /** Required permissions (from SKILL.md frontmatter) */
+  required_permissions?: string[];
+  missing_credentials?: string[];
+
+  /** Allowed domains for outbound network requests (DLP protection) */
+  allowed_domains?: string[] | null;
+
+  security: SecurityScanSummary | null;
+  user_trusted: boolean;
+
+  evolution_locked: boolean;
+  scope_agent_id?: string | null;
+
+  /** JSON Schema for skill configuration (from SKILL.md frontmatter) */
+  config_schema?: Record<string, unknown> | null;
+
+  /** True when upstream has a newer version but user modifications were preserved */
+  has_upstream_update: boolean;
+
+  /** Provenance tracking for installed skills (e.g. source, url, version, installed_at) */
+  installed_from?: Record<string, unknown> | null;
+
+  /** Rollback batch id for undo after marketplace or upstream replace */
+  last_replace_batch_id?: string | null;
+
+  /** Managed installation receipt (immutable verification snapshot) */
+  receipt?: {
+    receipt_id: string;
+    skill_id: string;
+    skill_name: string;
+    source: string;
+    installed_at: string;
+    version?: string;
+    installed_skills?: string[];
+    declared_mcp_servers?: string[];
+    scan_score?: number;
+    security_verified?: boolean;
+    manifest_hash?: string;
+  } | null;
+
+  usage_stats?: {
+    call_count: number;
+    success_count: number;
+    failure_count: number;
+    last_used_at: string | null;
+    success_rate: number;
+    lifecycle_status: SkillLifecycleStatus;
+    pinned: boolean;
+  } | null;
+
+  verification_steps: SkillVerificationStep[];
+  eval_cases: SkillEvalCase[];
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SkillListResponse {
+  skills: Skill[];
+  total: number;
+}
+
+export interface UserSkillConfig {
+  user_id: string;
+  enabled_prebuilt_ids: string[];
+  disabled_prebuilt_ids?: string[];
+  local_skill_paths: string[];
+  enabled_local_skill_ids: string[];
+  evolution_strategy?: string;
+  clawhub_registry_url?: string;
+  registry_presets?: Array<{ id: string; url: string }>;
+  updated_at: string;
+}
+
+export interface LocalSkillPathsResponse {
+  paths: string[];
+  default_paths: string[];
+  path_statuses: LocalSkillPathStatus[];
+}
+
+export interface UpdateUserSkillConfigRequest {
+  enabled_prebuilt_ids?: string[];
+  evolution_strategy?: string;
+  clawhub_registry_url?: string;
+}
+
+export type SkillSortBy = 'name' | 'created_at' | 'updated_at' | 'token_cost';
+export type SkillSortOrder = 'asc' | 'desc';
+
+export interface SkillFilters {
+  search: string;
+  category: string | null;
+  tags: string[];
+  sortBy: SkillSortBy;
+  sortOrder: SkillSortOrder;
+}
+
+/** Source filter for installed tab */
+export type SkillSourceFilter = 'all' | 'prebuilt' | 'local' | 'workspace';
+
+/** Status filter for installed tab */
+export type SkillStatusFilter = 'all' | 'ready' | 'needs-setup' | 'disabled' | 'stale' | 'archived';
+
+export interface LocalSkillPathStatus {
+  path: string;
+  resolved_path: string;
+  exists: boolean;
+  is_directory: boolean;
+  skills_count: number;
+  skill_names: string[];
+  warning_message: string | null;
+}
+
+export interface SkillState {
+  isSandboxMode: boolean;
+  marketSkills: Skill[];
+  localSkills: Skill[];
+  enabledPrebuiltIds: string[];
+  localSkillPaths: string[];
+  localPathStatuses: LocalSkillPathStatus[];
+  enabledLocalSkillIds: string[];
+  defaultLocalPaths: string[];
+  evolutionStrategy: string;
+
+  isLoadingMarket: boolean;
+  isLoadingLocal: boolean;
+  isLoadingConfig: boolean;
+
+  filters: SkillFilters;
+  error: string | null;
+  lastFetchedConfigUserId: string | null;
+}
+
+export interface LocalSkillPreviewItem {
+  name: string;
+  description: string;
+  version: string;
+  author: string | null;
+  category: string | null;
+  tags: string[];
+  required_tools: string[];
+  relative_path: string;
+  skill_id: string;
+  is_conflicted: boolean;
+  conflict_reason: string | null;
+  is_safe: boolean;
+  threat_summary: string | null;
+  security_score?: number;
+  security?: SecurityScanSummary | null;
+}
+
+export interface LocalSkillPathPreviewResponse {
+  resolved_path: string;
+  exists: boolean;
+  is_directory: boolean;
+  total_discovered: number;
+  skills: LocalSkillPreviewItem[];
+  warning_message: string | null;
+}
+
+export interface LocalSkillPathAdoptResponse {
+  status: string;
+  path: string;
+  added_to_paths: boolean;
+  adopted_skills_count: number;
+  adopted_skill_ids: string[];
+  agent_adopted: boolean;
+  agent_id: string | null;
+}
+
+export interface SkillActions {
+  fetchMarketSkills: (forceRefresh?: boolean) => Promise<void>;
+  fetchUserSkillConfig: (forceRefresh?: boolean) => Promise<void>;
+  fetchLocalSkills: () => Promise<void>;
+  fetchLocalSkillPaths: () => Promise<void>;
+
+  enableSkill: (skillId: string, force?: boolean) => Promise<void>;
+  disableSkill: (skillId: string) => Promise<void>;
+  toggleSkill: (skillId: string) => Promise<void>;
+
+  updateLocalSkillPaths: (paths: string[]) => Promise<void>;
+  addLocalSkillPath: (path: string) => Promise<void>;
+  removeLocalSkillPath: (path: string) => Promise<void>;
+  previewLocalSkillPath: (path: string) => Promise<LocalSkillPathPreviewResponse>;
+  adoptLocalSkillPath: (
+    path: string,
+    selectedSkillIds: string[],
+    agentId?: string,
+    allowUntrusted?: boolean,
+  ) => Promise<LocalSkillPathAdoptResponse>;
+  updateEvolutionStrategy: (strategy: string) => Promise<void>;
+  scanLocalSkills: () => Promise<void>;
+  toggleLocalSkill: (skillId: string) => Promise<void>;
+
+  /** Batch enable/disable multiple skills */
+  batchToggleSkills: (skillIds: string[], enable: boolean) => Promise<void>;
+
+  setFilters: (filters: Partial<SkillFilters>) => void;
+  clearFilters: () => void;
+
+  isSkillEnabled: (skillId: string) => boolean;
+  getFilteredMarketSkills: () => Skill[];
+  getFilteredLocalSkills: () => Skill[];
+  getAllTags: () => string[];
+
+  reset: () => void;
+}
+
+export type SkillStore = SkillState & SkillActions;
+
+export interface CreateCustomSkillRequest {
+  name: string;
+  description: string;
+  category?: string;
+  tags?: string;
+  files: globalThis.File[];
+}
+
+/**
+ * Skill permission approval error
+ * 当Skill需要权限审批时抛出此错误
+ */
+export class SkillPermissionRequiredError extends Error {
+  constructor(
+    public skillId: string,
+    public skillName: string,
+    public requiredPermissions: string[],
+    public description: string = '',
+  ) {
+    super(`Skill ${skillName} requires permission approval`);
+    this.name = 'SkillPermissionRequiredError';
+  }
+}
+
+/**
+ * Skill blocked by security scan error
+ * 当Skill因安全扫描发现威胁被阻止时抛出此错误
+ */
+export interface ScanFinding {
+  threat_type: string;
+  severity: number;
+  description: string;
+  line_number: number | null;
+}
+
+export class SkillBlockedError extends Error {
+  constructor(
+    public skillId: string,
+    public skillName: string,
+    public scanFindings: ScanFinding[],
+  ) {
+    super(`Skill ${skillName} blocked by security scan: ${scanFindings.length} finding(s)`);
+    this.name = 'SkillBlockedError';
+  }
+}

@@ -1,0 +1,151 @@
+"""Tests for awaiting_approval status broadcast and HITL timeout detection in stream_loop."""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from app.services.agent.stream_session.stream_loop import (
+    ApprovalTimeoutHolder,
+    ClarificationTimeoutHolder,
+    iter_agent_stream_chunks,
+)
+from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+
+@pytest.fixture(autouse=True)
+def _reset_multiplexer():
+    WorkspaceMultiplexer._instance = None
+    yield
+    WorkspaceMultiplexer._instance = None
+
+
+def _make_session(chat_id: str = "test-chat") -> MagicMock:
+    session = MagicMock()
+    session.request.chat_id = chat_id
+    session.request.action_mode = "general"
+    session.request.use_workflow = False
+    session.request.workflow_template_id = None
+    session.request.workflow_template_args = None
+    session.request.blueprint_id = None
+    session.request.mention_references = None
+    session.request.resume_value = None
+    session.request.ephemeral_subagents = None
+    session.routing_tier = "complex"
+    session.params.message_id = "msg-1"
+    session.cancel_token.is_cancelled = False
+    session.goal_provider = None
+    session.collector = MagicMock()
+    return session
+
+
+def _tool_approval_request_chunk() -> str:
+    event = {
+        "type": "tool_approval_request",
+        "data": {
+            "tool_name": "shell",
+            "extensions": {"timeout": {"seconds": 120, "behavior": "deny"}},
+        },
+    }
+    return f"data: {json.dumps(event)}\n\n"
+
+
+def _clarification_required_chunk() -> str:
+    event = {
+        "type": "clarification_required",
+        "data": {"type": "ask_question", "form": {"questions": []}},
+    }
+    return f"data: {json.dumps(event)}\n\n"
+
+
+class TestApprovalStatusBroadcast:
+    @pytest.mark.asyncio
+    async def test_tool_approval_request_publishes_awaiting(self) -> None:
+        """When a tool_approval_request SSE event is detected, the multiplexer
+        should broadcast awaiting_approval status for the chat."""
+        session = _make_session()
+        approval = ApprovalTimeoutHolder()
+
+        chunks = [_tool_approval_request_chunk()]
+
+        async def _fake_stream(*_args, **_kwargs):
+            for c in chunks:
+                yield c
+
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+        original = mux.publish_session_status
+
+        def spy(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(status)
+            original(chat_id, status, agent_type)
+
+        with (
+            patch(
+                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+                side_effect=_fake_stream,
+            ),
+            patch.object(mux, "publish_session_status", side_effect=spy),
+        ):
+            collected = []
+            async for chunk in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
+                collected.append(chunk)
+
+        assert "awaiting_approval" in published
+
+    @pytest.mark.asyncio
+    async def test_no_broadcast_without_chat_id(self) -> None:
+        """If the session has no chat_id, no status should be broadcast for an approval request."""
+        session = _make_session(chat_id="")
+        session.request.chat_id = ""
+        approval = ApprovalTimeoutHolder()
+
+        chunks = [_tool_approval_request_chunk()]
+
+        async def _fake_stream(*_args, **_kwargs):
+            for c in chunks:
+                yield c
+
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+
+        def spy(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(status)
+
+        with (
+            patch(
+                "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+                side_effect=_fake_stream,
+            ),
+            patch.object(mux, "publish_session_status", side_effect=spy),
+        ):
+            async for _ in iter_agent_stream_chunks(session, approval, ClarificationTimeoutHolder()):
+                pass
+
+        assert published == []
+
+
+class TestClarificationTimeoutDetection:
+    @pytest.mark.asyncio
+    async def test_clarification_required_sets_pending_flag(self) -> None:
+        session = _make_session()
+        approval = ApprovalTimeoutHolder()
+        clarification = ClarificationTimeoutHolder()
+
+        chunks = [_clarification_required_chunk()]
+
+        async def _fake_stream(*_args, **_kwargs):
+            for c in chunks:
+                yield c
+
+        with patch(
+            "app.services.agent.stream_session.stream_loop.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ):
+            async for _ in iter_agent_stream_chunks(session, approval, clarification):
+                pass
+
+        assert clarification.pending is True
+        assert approval.value is None

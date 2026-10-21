@@ -1,0 +1,42 @@
+name: Repair Desktop Release Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Desktop release tag (e.g. v0.1.36)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  refinalize:
+    name: Regenerate latest.json + checksums
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Regenerate latest.json + checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64
+        run: bash scripts/ci/desktop-release/finalize-release.sh
+
+      - name: Verify release manifest and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          REQUIRE_MIN_OTA_PLATFORMS: '4'
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64
+          REQUIRED_INSTALLER_GLOBS: '*aarch64*.dmg *x64*.dmg *.msi'
+          REQUIRE_BARE_LINUX_APPIMAGE: '1'
+        run: bash scripts/ci/desktop-release/verify-release.sh

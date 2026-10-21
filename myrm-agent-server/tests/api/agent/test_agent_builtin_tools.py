@@ -1,0 +1,481 @@
+"""Agent 内置工具配置端到端测试
+
+验证 enabled_builtin_tools 在 Agent CRUD 和消息请求链路中的完整行为。
+"""
+
+import os
+
+import httpx
+import pytest
+
+BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8080")
+_E2E_TIMEOUT = httpx.Timeout(10.0)
+
+
+def _e2e_request(method: str, url: str, **kwargs: object) -> httpx.Response:
+    """Live E2E requests must bypass shell SOCKS proxy env (httpx trust_env)."""
+    with httpx.Client(trust_env=False, timeout=_E2E_TIMEOUT) as client:
+        return client.request(method, url, **kwargs)
+
+
+_skip_e2e = pytest.mark.skipif(
+    not os.getenv("RUN_E2E_TESTS"),
+    reason="Set RUN_E2E_TESTS=1 to run end-to-end tests against live server",
+)
+
+
+@pytest.fixture(scope="module")
+def auth_headers() -> dict[str, str]:
+    """Attempt login; return empty headers for local mode (no auth)."""
+    try:
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/auth/login",
+            json={
+                "username": os.getenv("TEST_USERNAME", "test"),
+                "password": os.getenv("TEST_PASSWORD", "test"),
+            },
+        )
+    except (httpx.TimeoutException, httpx.ConnectError):
+        return {}
+
+    if resp.status_code == 200:
+        token = resp.json().get("data", {}).get("access_token")
+        if token:
+            return {"Authorization": f"Bearer {token}"}
+    return {}
+
+
+@pytest.fixture
+def created_agent_id(auth_headers: dict[str, str]):
+    """Create an agent and return its ID; delete after test."""
+    payload = {
+        "name": "Test Builtin Tools Agent",
+        "description": "E2E test for enabled_builtin_tools",
+        "system_prompt": "You are a test agent.",
+        "mcp_ids": [],
+        "skill_ids": [],
+        "enabled_builtin_tools": ["web_search", "browser", "image_generation"],
+    }
+    resp = _e2e_request(
+        "POST",
+        f"{BASE_URL}/api/v1/user-agents",
+        json=payload,
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, f"Create agent failed: {resp.text}"
+    agent_id = resp.json()["data"]["id"]
+    yield agent_id
+    _e2e_request(
+        "DELETE",
+        f"{BASE_URL}/api/v1/user-agents/{agent_id}",
+        headers=auth_headers,
+    )
+
+
+@_skip_e2e
+class TestAgentBuiltinToolsCRUD:
+    """Test enabled_builtin_tools persistence through Agent CRUD."""
+
+    def test_create_agent_with_builtin_tools(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
+        """Create an agent with specific builtin tools and verify persistence."""
+        resp = _e2e_request(
+            "GET",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        agent = resp.json()["data"]
+        assert agent["enabled_builtin_tools"] == [
+            "web_search",
+            "browser",
+            "image_generation",
+        ]
+
+    def test_update_agent_builtin_tools(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
+        """Update agent's builtin tools and verify the change persists."""
+        update_payload = {
+            "enabled_builtin_tools": ["web_search", "video_generation"],
+        }
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json=update_payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+
+        resp = _e2e_request(
+            "GET",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        agent = resp.json()["data"]
+        assert set(agent["enabled_builtin_tools"]) == {"web_search", "video_generation"}
+
+    def test_create_agent_without_builtin_tools(self, auth_headers: dict[str, str]) -> None:
+        """Create an agent without specifying builtin tools — defaults to sandbox baseline."""
+        from app.services.agent.builtin_specs.builtin_tool_ids import (
+            DEFAULT_ENABLED_BUILTIN_TOOLS,
+            normalize_enabled_builtin_tools,
+        )
+
+        payload = {
+            "name": "No Builtin Tools Agent",
+            "system_prompt": "",
+            "mcp_ids": [],
+            "skill_ids": [],
+        }
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/user-agents",
+            json=payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        agent = resp.json()["data"]
+        agent_id = agent["id"]
+        assert normalize_enabled_builtin_tools(agent["enabled_builtin_tools"]) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+
+        _e2e_request(
+            "DELETE",
+            f"{BASE_URL}/api/v1/user-agents/{agent_id}",
+            headers=auth_headers,
+        )
+
+    def test_update_builtin_tools_to_empty(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
+        """Update builtin tools to empty list — agent should have no tools enabled."""
+        update_payload = {"enabled_builtin_tools": []}
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json=update_payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+
+        resp = _e2e_request(
+            "GET",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        agent = resp.json()["data"]
+        assert agent["enabled_builtin_tools"] == []
+
+    def test_create_agent_rejects_legacy_builtin_tool_id(self, auth_headers: dict[str, str]) -> None:
+        """Legacy image_gen must be rejected at API boundary with 422."""
+        payload = {
+            "name": "Legacy Builtin Tools Agent",
+            "system_prompt": "",
+            "mcp_ids": [],
+            "skill_ids": [],
+            "enabled_builtin_tools": ["web_search", "image_gen"],
+        }
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/user-agents",
+            json=payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("image_gen" in str(item.get("msg", "")) for item in detail)
+
+    def test_create_agent_rejects_legacy_web_crawl(self, auth_headers: dict[str, str]) -> None:
+        """Removed web_crawl product path must be rejected at API boundary with 422."""
+        payload = {
+            "name": "Legacy Web Crawl Agent",
+            "system_prompt": "",
+            "mcp_ids": [],
+            "skill_ids": [],
+            "enabled_builtin_tools": ["web_search", "web_crawl"],
+        }
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/user-agents",
+            json=payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("web_crawl" in str(item.get("msg", "")) for item in detail)
+
+    def test_create_agent_rejects_unknown_builtin_tool_id(self, auth_headers: dict[str, str]) -> None:
+        """Unknown tool IDs must be rejected at API boundary with 422."""
+        payload = {
+            "name": "Unknown Builtin Tools Agent",
+            "system_prompt": "",
+            "mcp_ids": [],
+            "skill_ids": [],
+            "enabled_builtin_tools": ["web_search", "not_a_real_tool"],
+        }
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/user-agents",
+            json=payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
+
+    def test_update_agent_rejects_legacy_builtin_tool_id(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
+        """Legacy task_tracking must be rejected on PUT with 422."""
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json={"enabled_builtin_tools": ["web_search", "task_tracking"]},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("task_tracking" in str(item.get("msg", "")) for item in detail)
+
+    def test_update_agent_rejects_legacy_web_crawl(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
+        """Removed web_crawl must be rejected on PUT with 422."""
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json={"enabled_builtin_tools": ["web_search", "web_crawl"]},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("web_crawl" in str(item.get("msg", "")) for item in detail)
+
+    def test_update_agent_rejects_unknown_builtin_tool_id(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
+        """Unknown tool IDs must be rejected on PUT with 422."""
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json={"enabled_builtin_tools": ["web_search", "not_a_real_tool"]},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
+
+    def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
+        """Gallery SSOT: visible built-in agents expose canonical tool matrices."""
+        from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
+        from app.services.agent.builtin_specs.builtin_tool_ids import normalize_enabled_builtin_tools
+        from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS
+
+        visible_specs = [spec for spec in _BUILTIN_AGENTS if spec.id not in HIDDEN_BUILTIN_AGENT_IDS]
+
+        resp = _e2e_request(
+            "GET",
+            f"{BASE_URL}/api/v1/user-agents?page=1&page_size=50",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        items = resp.json()["data"]["items"]
+        api_by_id = {item["id"]: item["enabled_builtin_tools"] for item in items if item.get("is_built_in")}
+        assert len(api_by_id) == len(visible_specs)
+        for spec in visible_specs:
+            assert normalize_enabled_builtin_tools(api_by_id[spec.id]) == list(spec.enabled_builtin_tools or ())
+
+        for hidden_id in HIDDEN_BUILTIN_AGENT_IDS:
+            hidden_resp = _e2e_request(
+                "GET",
+                f"{BASE_URL}/api/v1/user-agents/{hidden_id}",
+                headers=auth_headers,
+            )
+            assert hidden_resp.status_code == 200
+            hidden_spec = next(spec for spec in _BUILTIN_AGENTS if spec.id == hidden_id)
+            hidden_tools = hidden_resp.json()["data"]["enabled_builtin_tools"]
+            assert normalize_enabled_builtin_tools(hidden_tools) == list(hidden_spec.enabled_builtin_tools or ())
+
+
+class TestAgentConfigRequestBuiltinTools:
+    """Test enabled_builtin_tools in AgentConfigRequest model."""
+
+    def test_agent_config_request_default(self) -> None:
+        """Verify AgentConfigRequest defaults to sandbox baseline builtin tools."""
+        from app.services.agent.builtin_specs.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+        from app.services.agent.params import AgentConfigRequest
+
+        cfg = AgentConfigRequest()
+        assert cfg.enabled_builtin_tools == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+
+    def test_agent_config_request_custom(self) -> None:
+        """Verify AgentConfigRequest accepts custom builtin tools."""
+        from app.services.agent.params import AgentConfigRequest
+
+        cfg = AgentConfigRequest(enabled_builtin_tools=["browser", "image_generation"])
+        assert cfg.enabled_builtin_tools == ["browser", "image_generation"]
+
+    def test_agent_config_request_empty(self) -> None:
+        """Verify AgentConfigRequest accepts empty builtin tools."""
+        from app.services.agent.params import AgentConfigRequest
+
+        cfg = AgentConfigRequest(enabled_builtin_tools=[])
+        assert cfg.enabled_builtin_tools == []
+
+
+class TestGeneralAgentParamsEnableWiki:
+    """Test enable_wiki field in GeneralAgentParams and AgentFactory mapping."""
+
+    def test_enable_wiki_default_false(self) -> None:
+        """GeneralAgentParams.enable_wiki defaults to False."""
+        from app.ai_agents.agents import GeneralAgentParams
+        from app.core.types import ModelConfig
+
+        params = GeneralAgentParams(
+            query="test",
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+        )
+        assert params.enable_wiki is False
+
+    def test_enable_wiki_explicit_true(self) -> None:
+        """GeneralAgentParams.enable_wiki can be set to True."""
+        from app.ai_agents.agents import GeneralAgentParams
+        from app.core.types import ModelConfig
+
+        params = GeneralAgentParams(
+            query="test",
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+            enable_wiki=True,
+        )
+        assert params.enable_wiki is True
+
+    def test_wiki_in_enabled_builtin_tools_sets_enable_wiki(self) -> None:
+        """Verify 'wiki' in enabled_builtin_tools maps to enable_wiki=True."""
+        tools = ["web_search", "wiki", "file_ops"]
+        assert ("wiki" in tools) is True
+
+    def test_wiki_not_in_enabled_builtin_tools(self) -> None:
+        """Verify 'wiki' not in enabled_builtin_tools maps to enable_wiki=False."""
+        tools = ["web_search", "file_ops"]
+        assert ("wiki" in tools) is False
+
+    def test_all_builtin_tool_flags(self) -> None:
+        """Verify all builtin tool flags produce correct boolean values from a tool list."""
+        tools = [
+            "web_search",
+            "browser",
+            "computer_use",
+            "file_ops",
+            "code_execute",
+            "wiki",
+        ]
+
+        assert ("browser" in tools) is True
+        assert ("computer_use" in tools) is True
+        assert ("file_ops" in tools) is True
+        assert ("code_execute" in tools) is True
+        assert ("wiki" in tools) is True
+
+    def test_empty_builtin_tools_disables_all(self) -> None:
+        """Empty enabled_builtin_tools disables all optional tool flags."""
+        tools: list[str] = []
+
+        assert ("browser" in tools) is False
+        assert ("computer_use" in tools) is False
+        assert ("file_ops" in tools) is False
+        assert ("code_execute" in tools) is False
+        assert ("wiki" in tools) is False
+
+
+class TestResolveBuiltinToolFlagsStructuredClarify:
+    """Verify structured_clarify maps to enable_structured_clarify."""
+
+    def test_resolve_builtin_tool_flags_structured_clarify(self) -> None:
+        from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["structured_clarify"])
+        assert flags["enable_structured_clarify"] is True
+        assert flags["enable_browser"] is False
+
+    def test_factory_passes_enable_structured_clarify_to_agent(self) -> None:
+        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.core.types import ModelConfig
+        from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["structured_clarify"])
+        agent = AgentFactory.create_general_agent(
+            GeneralAgentParams(
+                query="test",
+                model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+                **flags,
+            )
+        )
+        assert agent.enable_structured_clarify is True
+
+
+class TestResolveBuiltinToolFlagsKanban:
+    """Verify kanban in enabled_builtin_tools maps to enable_kanban + orchestrator default."""
+
+    def test_resolve_builtin_tool_flags_kanban(self) -> None:
+        from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
+        assert flags["enable_kanban"] is True
+        assert flags["enable_wiki"] is False
+
+    def test_factory_passes_enable_kanban_and_orchestrator_default(self) -> None:
+        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.core.types import ModelConfig
+        from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
+        agent = AgentFactory.create_general_agent(
+            GeneralAgentParams(
+                query="test",
+                model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+                **flags,
+            )
+        )
+        assert agent.enable_kanban is True
+        assert agent.kanban_tool_mode == "orchestrator"
+        assert agent.kanban_current_task_id is None
+
+
+class TestGeneralAgentOptionalToolFlags:
+    """Verify GeneralAgent stores optional builtin tool flags from GeneralAgentParams."""
+
+    def test_general_agent_enable_wiki_false(self) -> None:
+        """GeneralAgent with enable_wiki=False."""
+        from app.ai_agents.general_agent.agent import GeneralAgent
+        from app.core.types import ModelConfig
+
+        agent = GeneralAgent(
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+            mcp_config=None,
+        )
+        assert agent.enable_wiki is False
+
+    def test_general_agent_enable_wiki_true(self) -> None:
+        """GeneralAgent with enable_wiki=True stores the flag."""
+        from app.ai_agents.general_agent.agent import GeneralAgent
+        from app.core.types import ModelConfig
+
+        agent = GeneralAgent(
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+            mcp_config=None,
+            enable_wiki=True,
+        )
+        assert agent.enable_wiki is True
+
+    def test_factory_passes_enable_wiki_to_agent(self) -> None:
+        """AgentFactory.create_general_agent passes enable_wiki to GeneralAgent."""
+        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.core.types import ModelConfig
+
+        params_with_wiki = GeneralAgentParams(
+            query="test",
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+            enable_wiki=True,
+        )
+        agent = AgentFactory.create_general_agent(params_with_wiki)
+        assert agent.enable_wiki is True
+
+        params_no_wiki = GeneralAgentParams(
+            query="test",
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+            enable_wiki=False,
+        )
+        agent2 = AgentFactory.create_general_agent(params_no_wiki)
+        assert agent2.enable_wiki is False

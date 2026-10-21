@@ -1,0 +1,235 @@
+'use client';
+
+/**
+ * [INPUT]
+ * @/store/useBrowserInspectorStore (POS: Browser Inspector state management; selectScopedBrowserViewData)
+ * @/store/useChatStore (POS: Active chat session identification)
+ * @/hooks/inspector/useClosePanelOnChatSwitch (POS: Panel auto-close on chat switch)
+ *
+ * [OUTPUT]
+ * BrowserLiveView: Live sandbox browser viewport panel with dynamic responsive scaling and element inspection overlay.
+ *
+ * [POS]
+ * Browser Inspector main surface. Renders real-time browser snapshots, element bounding box overlays, and instruction input.
+ */
+
+import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { cn } from '@/lib/utils/classnameUtils';
+import { Globe } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
+import useChatStore from '@/store/useChatStore';
+import type { BrowserRefInfo } from '@/store/chat/types';
+import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import { usePanelResize } from '@/hooks/inspector/usePanelResize';
+import InspectorToolbar from './InspectorToolbar';
+import ElementOverlay from './ElementOverlay';
+import InspectorInstructionInput from './InspectorInstructionInput';
+
+interface BrowserLiveViewProps {
+  onSendInstruction: (instruction: string, refId: string | null) => void;
+}
+
+const MIN_PANEL_WIDTH = 320;
+const MAX_PANEL_WIDTH = 960;
+const DEFAULT_PANEL_WIDTH = 520;
+const PANEL_WIDTH_KEY = 'browser-inspector-panel-width';
+
+const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) => {
+  const t = useTranslations('chat.browserInspector');
+  const {
+    isOpen,
+    mode,
+    viewData,
+    terminalViewData,
+    selectedElement,
+    instructionText,
+    isSnapshotLoading,
+    closePanel,
+    setMode,
+    selectElement,
+    clearSelection,
+    setInstructionText,
+    fetchSnapshot,
+  } = useBrowserInspectorStore();
+  const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
+  const scopedViewData = selectScopedBrowserViewData(viewData ?? terminalViewData, chatId);
+
+  useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
+
+  const { panelWidth, isResizing, separatorProps } = usePanelResize({
+    storageKey: PANEL_WIDTH_KEY,
+    minWidth: MIN_PANEL_WIDTH,
+    maxWidth: MAX_PANEL_WIDTH,
+    defaultWidth: DEFAULT_PANEL_WIDTH,
+  });
+  const [isMobile, setIsMobile] = useState(false);
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const naturalDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+
+  const recalculateImageSize = useCallback(() => {
+    const container = imageContainerRef.current;
+    const natural = naturalDimensionsRef.current;
+    if (!container || !natural || natural.width === 0 || natural.height === 0) {
+      return;
+    }
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    if (containerWidth === 0 || containerHeight === 0) {
+      return;
+    }
+
+    const scale = Math.min(containerWidth / natural.width, containerHeight / natural.height, 1);
+    setImageSize({
+      width: natural.width * scale,
+      height: natural.height * scale,
+    });
+  }, []);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    recalculateImageSize();
+  }, [panelWidth, recalculateImageSize]);
+
+  useEffect(() => {
+    const container = imageContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      recalculateImageSize();
+    });
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+    };
+  }, [recalculateImageSize]);
+
+  const handleImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget;
+      naturalDimensionsRef.current = {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      };
+      recalculateImageSize();
+    },
+    [recalculateImageSize],
+  );
+
+  const handleElementClick = useCallback(
+    (refId: string, info: BrowserRefInfo) => {
+      selectElement(refId, info);
+    },
+    [selectElement],
+  );
+
+  const handleSubmit = useCallback(
+    (instruction: string, refId: string | null) => {
+      onSendInstruction(instruction, refId);
+      clearSelection();
+    },
+    [onSendInstruction, clearSelection],
+  );
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div
+      ref={panelRef}
+      className={cn(
+        'fixed top-0 right-0 h-full z-40 flex',
+        'bg-background border-l border-border shadow-xl',
+        'transition-transform duration-200 ease-out',
+        isResizing && 'select-none',
+      )}
+      style={{ width: isMobile ? '100%' : `${panelWidth}px` }}
+    >
+      {/* Resize handle — hidden on mobile */}
+      <div
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-50 sm:block hidden',
+          'hover:bg-primary/20 active:bg-primary/30 transition-colors',
+          isResizing && 'bg-primary/30',
+        )}
+        {...separatorProps}
+        aria-label={t('resizePanel')}
+      />
+
+      <div className="flex flex-col w-full ml-1.5">
+        <InspectorToolbar
+          mode={mode}
+          onModeChange={setMode}
+          onClose={closePanel}
+          onRefresh={() => void fetchSnapshot(false)}
+          pageUrl={scopedViewData?.pageUrl}
+          pageTitle={scopedViewData?.pageTitle}
+          isLoading={isSnapshotLoading}
+        />
+
+        <div
+          ref={imageContainerRef}
+          className="flex-1 relative overflow-hidden bg-muted/30 flex items-center justify-center"
+        >
+          {scopedViewData ? (
+            <div className="relative" style={{ width: imageSize.width, height: imageSize.height }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`data:${scopedViewData.mimeType};base64,${scopedViewData.screenshotBase64}`}
+                alt={t('screenshotAlt')}
+                className="w-full h-full object-contain"
+                onLoad={handleImageLoad}
+                draggable={false}
+              />
+
+              {mode === 'inspect' && imageSize.width > 0 && (
+                <ElementOverlay
+                  refs={scopedViewData.refs}
+                  imageWidth={imageSize.width}
+                  imageHeight={imageSize.height}
+                  viewportWidth={scopedViewData.viewportWidth}
+                  viewportHeight={scopedViewData.viewportHeight}
+                  selectedRefId={selectedElement?.refId ?? null}
+                  onElementClick={handleElementClick}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 text-muted-foreground px-6 text-center">
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                <Globe className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm">{t('waitingForBrowser')}</p>
+              <p className="text-xs text-muted-foreground/60">{t('waitingHint')}</p>
+            </div>
+          )}
+        </div>
+
+        {mode === 'inspect' && (
+          <InspectorInstructionInput
+            selectedRefId={selectedElement?.refId ?? null}
+            selectedInfo={selectedElement?.info ?? null}
+            instructionText={instructionText}
+            onInstructionChange={setInstructionText}
+            onSubmit={handleSubmit}
+            onClearSelection={clearSelection}
+            disabled={!scopedViewData}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(BrowserLiveView);

@@ -1,0 +1,84 @@
+"""Control Plane → sandbox Org Model Policy sync endpoint.
+
+[INPUT]
+- CP pushes organization-level model policy (allowed patterns) via this internal API
+
+[OUTPUT]
+- POST /api/admin/org-model-policy-sync: Stores allowed patterns in UserConfig table
+- GET /api/v1/org-policy/allowed-models: Exposes patterns to frontend for model filtering (via frontend_router)
+
+[POS]
+Receives org model whitelist from Control Plane and persists locally.
+Bumps org_model_policy_revision and closes execution cache so pooled agents
+re-run `enforce_org_model_policy` on the next turn. Frontend reads patterns
+for model picker grey-out.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+from app.core.security.auth.control_plane_guard import verify_control_plane_token
+from app.services.agent.execution_cache import get_execution_cache
+from app.services.config.service import ConfigService
+from app.services.org_model_policy.normalize import normalize_org_model_policy_pattern
+from app.services.org_model_policy.revision import bump_org_model_policy_revision
+
+logger = logging.getLogger(__name__)
+router = APIRouter(dependencies=[Depends(verify_control_plane_token)])
+frontend_router = APIRouter()
+
+_ORG_MODEL_POLICY_KEY = "orgModelPolicy"
+
+
+class OrgModelPolicySyncRequest(BaseModel):
+    allowed_patterns: list[str]
+
+
+class OrgModelPolicySyncResponse(BaseModel):
+    status: str = "synced"
+    pattern_count: int = 0
+
+
+class AllowedModelsResponse(BaseModel):
+    allowed_patterns: list[str]
+    restricted: bool = False
+
+
+@router.post("/api/admin/org-model-policy-sync", response_model=OrgModelPolicySyncResponse)
+async def org_model_policy_sync(body: OrgModelPolicySyncRequest) -> OrgModelPolicySyncResponse:
+    """Receive org model policy from Control Plane and persist locally."""
+    config_svc = ConfigService()
+    await config_svc.set(
+        config_key=_ORG_MODEL_POLICY_KEY,
+        value={"allowed_patterns": body.allowed_patterns},
+        device_id="control_plane",
+    )
+
+    invalidate_user_configs_cache()
+    bump_org_model_policy_revision()
+    await get_execution_cache().close_all()
+    logger.info("Org model policy sync: %d patterns", len(body.allowed_patterns))
+    return OrgModelPolicySyncResponse(status="synced", pattern_count=len(body.allowed_patterns))
+
+
+@frontend_router.get("/org-policy/allowed-models", response_model=AllowedModelsResponse)
+async def get_allowed_models() -> AllowedModelsResponse:
+    """Frontend-facing: get org model policy for UI filtering."""
+    config_svc = ConfigService()
+    record = await config_svc.get(_ORG_MODEL_POLICY_KEY)
+    if record is None:
+        return AllowedModelsResponse(allowed_patterns=[], restricted=False)
+
+    patterns = record.value.get("allowed_patterns", []) if isinstance(record.value, dict) else []
+    if not patterns:
+        return AllowedModelsResponse(allowed_patterns=[], restricted=False)
+
+    return AllowedModelsResponse(
+        allowed_patterns=[normalize_org_model_policy_pattern(p) for p in patterns],
+        restricted=True,
+    )

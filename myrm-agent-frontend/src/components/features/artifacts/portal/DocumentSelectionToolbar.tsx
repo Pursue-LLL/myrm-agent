@@ -1,0 +1,408 @@
+'use client';
+
+/**
+ * [INPUT]
+ * DOM Selection API (window.getSelection());
+ * useSelectionAction (POS: 公共消息发送逻辑);
+ * [OUTPUT] DocumentSelectionToolbar: 文档预览模式下选中文本后的悬浮操作工具栏。
+ * [POS] DocumentPreview 的选中精准编辑 UX 增强，让非技术用户也能在 Preview 模式下与 Agent 交互。
+ */
+
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils/classnameUtils';
+import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { MOBILE_BREAKPOINT } from '@/lib/constants/artifact';
+import {
+  Edit04Icon,
+  InformationCircleIcon,
+  SparklesIcon,
+  Copy01Icon,
+  ArrowRight01Icon,
+  MessageAdd01Icon,
+  CommentAdd02Icon,
+} from 'hugeicons-react';
+import { useSelectionAction } from './useSelectionAction';
+import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
+import useChatStore from '@/store/useChatStore';
+import { useArtifactAnnotationStore } from '@/store/useArtifactAnnotationStore';
+import { buildAnchor } from '@/lib/artifacts/artifactAnnotations';
+
+interface DocumentSelectionToolbarProps {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  artifactId?: string;
+  /** Raw document text for line-anchored comments; falls back to selection-only anchors. */
+  content?: string;
+  versionId?: string;
+}
+
+type ActionType = 'modify' | 'explain' | 'optimize' | 'quote' | 'annotate';
+
+const TOOLBAR_DEBOUNCE_MS = 250;
+const TOOLBAR_HEIGHT_ESTIMATE = 48;
+
+const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
+  containerRef,
+  artifactId,
+  content,
+  versionId,
+}) => {
+  const t = useTranslations('artifacts.documentSelection');
+
+  const [visible, setVisible] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [selectedText, setSelectedText] = useState('');
+  const [showInput, setShowInput] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [inputMode, setInputMode] = useState<'modify' | 'annotate'>('modify');
+
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hideToolbar = useCallback(() => {
+    setVisible(false);
+    setShowInput(false);
+    setInputValue('');
+    setInputMode('modify');
+    setSelectedText('');
+  }, []);
+
+  const handleAnnotateSubmit = useCallback(() => {
+    const instruction = inputValue.trim();
+    if (!instruction || !selectedText || !artifactId) {
+      return;
+    }
+    const firstLine = selectedText.trim().split('\n')[0];
+    let start = -1;
+    let end = -1;
+    if (content) {
+      const index = content.indexOf(firstLine);
+      if (index >= 0) {
+        start = content.slice(0, index).split('\n').length;
+        end = start + selectedText.trim().split('\n').length - 1;
+      }
+    }
+    const source = content || selectedText.trim();
+    const anchor = start > 0 ? buildAnchor(source, start, end) : buildAnchor(source, 1, source.split('\n').length);
+    useArtifactAnnotationStore.getState().addAnnotation({
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      artifactId,
+      versionId: versionId || 'latest',
+      anchor,
+      intent: instruction,
+      status: 'open',
+      createdAt: new Date().toISOString(),
+    });
+    hideToolbar();
+  }, [inputValue, selectedText, artifactId, content, versionId, hideToolbar]);
+
+  const { sendAction } = useSelectionAction({ onSent: hideToolbar });
+
+  const computePosition = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount) {
+      hideToolbar();
+      return;
+    }
+
+    if (!container.contains(selection.anchorNode)) {
+      return;
+    }
+
+    const text = selection.toString().trim();
+    if (!text) {
+      hideToolbar();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const selectionRect = range.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    const relativeBottom = selectionRect.bottom - containerRect.top + container.scrollTop;
+    const relativeTop = selectionRect.top - containerRect.top + container.scrollTop;
+    const relativeLeft = selectionRect.left - containerRect.left;
+
+    const spaceBelow = container.scrollTop + container.clientHeight - relativeBottom;
+    const showAbove = spaceBelow < TOOLBAR_HEIGHT_ESTIMATE + 16;
+
+    setSelectedText(text);
+    setPosition({
+      top: showAbove ? relativeTop - TOOLBAR_HEIGHT_ESTIMATE - 8 : relativeBottom + 8,
+      left: Math.max(relativeLeft, 16),
+    });
+    setVisible(true);
+  }, [containerRef, hideToolbar]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleSelectionChange = () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(computePosition, TOOLBAR_DEBOUNCE_MS);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [containerRef, computePosition]);
+
+  useEffect(() => {
+    if (showInput && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showInput]);
+
+  const buildContext = useCallback(
+    (actionLabel: string, customInstruction?: string): string => {
+      if (!selectedText || !artifactId) {
+        return '';
+      }
+
+      let instruction = `[${actionLabel}]`;
+      if (customInstruction) {
+        instruction += `: ${customInstruction}`;
+      }
+
+      return `${instruction}\n\n<selection_context artifact_id="${artifactId}" format="document">\n${selectedText}\n</selection_context>`;
+    },
+    [selectedText, artifactId],
+  );
+
+  const executeAction = useCallback(
+    (action: ActionType, customInstruction?: string) => {
+      if (!selectedText) {
+        return;
+      }
+
+      const actionLabels: Record<ActionType, string> = {
+        modify: t('modify'),
+        explain: t('explain'),
+        optimize: t('rewrite'),
+        annotate: t('annotate'),
+        quote: t('quote'),
+      };
+
+      const message = buildContext(actionLabels[action], customInstruction);
+      if (!message) {
+        return;
+      }
+
+      sendAction({ message });
+    },
+    [selectedText, buildContext, sendAction, t],
+  );
+
+  const handleCopy = useCallback(async () => {
+    if (!selectedText) {
+      return;
+    }
+    await writeToClipboard(selectedText);
+    hideToolbar();
+  }, [selectedText, hideToolbar]);
+
+  const handleModifyClick = useCallback(() => {
+    setInputMode('modify');
+    setShowInput(true);
+  }, []);
+
+  const handleAnnotateClick = useCallback(() => {
+    setInputMode('annotate');
+    setShowInput(true);
+  }, []);
+
+  const handleModifySubmit = useCallback(() => {
+    if (!inputValue.trim()) {
+      return;
+    }
+    if (inputMode === 'annotate') {
+      handleAnnotateSubmit();
+      return;
+    }
+    executeAction('modify', inputValue.trim());
+  }, [inputValue, executeAction, inputMode, handleAnnotateSubmit]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleModifySubmit();
+      } else if (e.key === 'Escape') {
+        setShowInput(false);
+        setInputValue('');
+      }
+    },
+    [handleModifySubmit],
+  );
+
+  if (!visible || !selectedText) {
+    return null;
+  }
+  if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) {
+    return null;
+  }
+
+  const actions: { type: ActionType | 'copy'; icon: React.ReactNode; label: string; onClick: () => void }[] = [
+    {
+      type: 'modify',
+      icon: <Edit04Icon className="w-3.5 h-3.5" />,
+      label: t('modify'),
+      onClick: handleModifyClick,
+    },
+    {
+      type: 'annotate',
+      icon: <CommentAdd02Icon className="w-3.5 h-3.5" />,
+      label: t('annotate'),
+      onClick: handleAnnotateClick,
+    },
+    {
+      type: 'explain',
+      icon: <InformationCircleIcon className="w-3.5 h-3.5" />,
+      label: t('explain'),
+      onClick: () => executeAction('explain'),
+    },
+    {
+      type: 'optimize',
+      icon: <SparklesIcon className="w-3.5 h-3.5" />,
+      label: t('rewrite'),
+      onClick: () => executeAction('optimize'),
+    },
+    {
+      type: 'quote',
+      icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
+      label: t('quote') || '引用到输入框',
+      onClick: () => {
+        const activeTab = useArtifactPortalStore.getState().getActiveTab();
+        const artifactName = activeTab?.artifact?.filename || '文档工件';
+        const targetArtifactId = artifactId || activeTab?.artifact?.id || 'current';
+
+        // 1. 同步设置 ScopedArtifactStore，用于针对特定工件范围聚焦
+        useScopedArtifactStore.getState().setTarget({
+          artifactId: targetArtifactId,
+          artifactName,
+          kind: 'document',
+          scopeLabel: '所选段落',
+          selectedSnippet: selectedText,
+        });
+
+        // 2. 同时向全局会话输入框挂载上下文引用芯片（Context Chip）
+        useChatStore.getState().addMentionReference({
+          type: 'artifact_range',
+          label: artifactName,
+          artifactId: targetArtifactId,
+          range: '所选段落',
+          source: 'generated',
+          size: selectedText.length,
+          content: selectedText,
+        });
+
+        hideToolbar();
+        // 自动聚焦输入框
+        const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
+        chatInput?.focus();
+      },
+    },
+    {
+      type: 'copy',
+      icon: <Copy01Icon className="w-3.5 h-3.5" />,
+      label: t('copy'),
+      onClick: handleCopy,
+    },
+  ];
+
+  return (
+    <div
+      ref={toolbarRef}
+      role="toolbar"
+      aria-label="Selection toolbar"
+      tabIndex={-1}
+      className={cn('absolute z-50 animate-in fade-in-0 zoom-in-95 duration-150', 'flex flex-col gap-1')}
+      style={{
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        maxWidth: 'calc(100% - 32px)',
+      }}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <div
+        className={cn(
+          'flex items-center gap-0.5 px-1 py-0.5 rounded-lg',
+          'bg-popover/95 border border-border shadow-lg backdrop-blur-sm',
+        )}
+      >
+        {actions.map((action) => (
+          <button
+            key={action.type}
+            onClick={action.onClick}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium',
+              'text-popover-foreground/80 hover:text-popover-foreground',
+              'hover:bg-accent transition-colors duration-100',
+              action.type === 'modify' && showInput && inputMode === 'modify' && 'bg-accent text-popover-foreground',
+              action.type === 'annotate' &&
+                showInput &&
+                inputMode === 'annotate' &&
+                'bg-accent text-popover-foreground',
+            )}
+            title={action.label}
+          >
+            {action.icon}
+            <span className="hidden sm:inline">{action.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {showInput && (
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 rounded-lg',
+            'bg-popover/95 border border-border shadow-lg backdrop-blur-sm',
+          )}
+        >
+          <input
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={inputMode === 'annotate' ? t('annotatePlaceholder') : t('modifyPlaceholder')}
+            className={cn(
+              'flex-1 min-w-[200px] bg-transparent text-sm text-popover-foreground',
+              'placeholder:text-muted-foreground/60 outline-none',
+            )}
+          />
+          <button
+            onClick={handleModifySubmit}
+            disabled={!inputValue.trim()}
+            className={cn(
+              'flex items-center justify-center w-7 h-7 rounded-full',
+              'bg-primary text-primary-foreground',
+              'hover:bg-primary/90 transition-colors',
+              'disabled:opacity-40 disabled:cursor-not-allowed',
+            )}
+          >
+            <ArrowRight01Icon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DocumentSelectionToolbar;

@@ -1,0 +1,186 @@
+/**
+ * [INPUT]
+ * - ./kanban-styles::OUTCOME_STYLES, EVENT_KIND_STYLES, formatDuration, formatTime (POS: 结果与事件样式、时间格式化)
+ * - ./KanbanMarkdown (POS: 看板安全 Markdown 渲染)
+ * - @/services/kanban::TaskEvent, TaskRun (POS: 看板 API 类型定义)
+ *
+ * [OUTPUT]
+ * - KanbanRunHistory: 执行历史（每次运行的结果、耗时、token、费用、worker、摘要与错误）
+ * - KanbanEventTimeline: 事件时间线（按事件类型着色，附评论、心跳、分支切换等细节）
+ *
+ * [POS]
+ * 任务抽屉里的运行记录与事件流展示，纯展示组件，数据由抽屉传入。
+ */
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils/classnameUtils';
+import type { TaskEvent, TaskRun } from '@/services/kanban';
+import { OUTCOME_STYLES, EVENT_KIND_STYLES, formatDuration, formatTime } from './kanban-styles';
+import KanbanMarkdown from './KanbanMarkdown';
+
+interface KanbanRunHistoryProps {
+  runs: TaskRun[];
+}
+
+export function KanbanRunHistory({ runs }: KanbanRunHistoryProps) {
+  const t = useTranslations('kanban');
+
+  return (
+    <section>
+      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+        {t('executionHistory')}
+      </h4>
+      {runs.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground">{t('noRuns')}</p>
+      ) : (
+        <div className="space-y-1.5">
+          {runs.map((run) => (
+            <div key={run.run_id} className="rounded border bg-muted/20 px-2 py-1.5">
+              <div className="flex items-center gap-2 text-[10px]">
+                <span className={cn('font-medium', OUTCOME_STYLES[run.outcome ?? ''] ?? 'text-muted-foreground')}>
+                  {run.outcome ?? '...'}
+                </span>
+                <span className="text-muted-foreground">{formatDuration(run.duration_seconds)}</span>
+                {run.token_usage?.total_tokens ? (
+                  <span className="text-muted-foreground/90 font-mono text-[9px] bg-muted/60 px-1 py-0.5 rounded">
+                    {(run.token_usage.total_tokens / 1000).toFixed(1)}k tok
+                  </span>
+                ) : null}
+                {typeof run.cost_usd === 'number' && run.cost_usd > 0 ? (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono font-medium text-[9px] bg-emerald-500/10 px-1 py-0.5 rounded">
+                    ${run.cost_usd < 0.01 ? run.cost_usd.toFixed(4) : run.cost_usd.toFixed(3)}
+                  </span>
+                ) : null}
+                <span className="text-muted-foreground truncate max-w-[100px]" title={run.worker_id}>
+                  {run.worker_id.slice(0, 12)}
+                </span>
+              </div>
+              {run.summary && (
+                <KanbanMarkdown className="text-foreground/70 mt-0.5" maxLines={2}>
+                  {run.summary}
+                </KanbanMarkdown>
+              )}
+              {run.error && (
+                <p
+                  className="text-[10px] font-mono text-destructive mt-0.5 line-clamp-2 whitespace-pre-wrap"
+                  title={run.error}
+                >
+                  {run.error}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface KanbanEventTimelineProps {
+  events: TaskEvent[];
+}
+
+export function KanbanEventTimeline({ events }: KanbanEventTimelineProps) {
+  const t = useTranslations('kanban');
+
+  return (
+    <section>
+      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+        {t('eventTimeline')}
+      </h4>
+      {events.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground">{t('noEvents')}</p>
+      ) : (
+        <div className="space-y-1">
+          {events.map((ev) => (
+            <div key={ev.event_id} className="text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground shrink-0">{formatTime(ev.created_at)}</span>
+                <span
+                  className={cn(
+                    'px-1 py-0.5 rounded text-[9px] font-medium shrink-0',
+                    EVENT_KIND_STYLES[ev.kind] ?? 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {t(`eventKind.${ev.kind}` as Parameters<typeof t>[0])}
+                </span>
+                {ev.kind === 'user_comment' && ev.payload && (
+                  <span className="text-muted-foreground italic truncate">@{String(ev.payload.author ?? 'user')}</span>
+                )}
+              </div>
+              {ev.kind === 'user_comment' && typeof ev.payload?.body === 'string' && (
+                <div className="ml-[52px] mt-0.5">
+                  <KanbanMarkdown className="text-foreground/80">{ev.payload.body}</KanbanMarkdown>
+                </div>
+              )}
+              {ev.kind === 'heartbeat' && typeof ev.payload?.note === 'string' && (
+                <p className="ml-[52px] text-[10px] text-chart-4/80 mt-0.5">{ev.payload.note}</p>
+              )}
+              {ev.kind === 'branch_switched' && ev.payload && (
+                <p className="ml-[52px] text-[10px] text-blue-500/80 mt-0.5">
+                  <span className="font-medium text-blue-500">Branch:</span> {String(ev.payload.from || 'unknown')}{' '}
+                  &rarr; {String(ev.payload.to || 'unknown')}
+                  {ev.payload.migrated ? ' (Migrated)' : ' (Stashed)'}
+                </p>
+              )}
+              {ev.kind === 'merge_conflict' && ev.payload && (
+                <p className="ml-[52px] text-[10px] text-destructive/80 mt-0.5">
+                  {t('mergeConflictDetail', {
+                    branch: String(ev.payload.branch || 'unknown'),
+                  })}
+                  {Array.isArray(ev.payload.conflicts) && ev.payload.conflicts.length > 0 && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      {t('mergeConflictFileCount', {
+                        count: ev.payload.conflicts.length,
+                      })}
+                    </>
+                  )}
+                </p>
+              )}
+              {ev.kind === 'verification_failed' && typeof ev.payload?.reason === 'string' && (
+                <div className="ml-[52px] mt-0.5">
+                  <span className="text-[10px] font-medium text-chart-5">{t('verificationReason')}:</span>
+                  <KanbanMarkdown className="text-chart-5/80 mt-0.5" maxLines={4}>
+                    {String(ev.payload.reason)}
+                  </KanbanMarkdown>
+                </div>
+              )}
+              {ev.kind === 'timed_out' && ev.payload && (
+                <p className="ml-[52px] text-[10px] text-chart-5/80 mt-0.5">
+                  {t('timedOutDetail', {
+                    elapsed: Number(ev.payload.elapsed_seconds ?? 0),
+                    limit: Number(ev.payload.limit_seconds ?? 0),
+                  })}
+                </p>
+              )}
+              {ev.kind === 'approved' && ev.payload && (
+                <p className="ml-[52px] text-[10px] text-muted-foreground mt-0.5">
+                  {t('approvedBy', {
+                    approver: String(ev.payload.approver ?? 'human'),
+                  })}
+                </p>
+              )}
+              {ev.kind === 'rejected' && ev.payload && (
+                <div className="ml-[52px] mt-0.5">
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    {t('rejectedBy', {
+                      approver: String(ev.payload.approver ?? 'human'),
+                    })}
+                  </span>
+                  {typeof ev.payload.reason === 'string' && ev.payload.reason && (
+                    <KanbanMarkdown className="text-chart-5/80 mt-0.5" maxLines={4}>
+                      {ev.payload.reason}
+                    </KanbanMarkdown>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}

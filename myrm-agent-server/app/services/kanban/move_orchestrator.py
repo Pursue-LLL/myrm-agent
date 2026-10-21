@@ -1,0 +1,390 @@
+"""Kanban task move, reclaim, and execution cancel orchestration.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- dependency_ops (POS: Dependency graph operations.)
+- event_publisher (POS: Kanban SSE event publishing helpers.)
+- service_mixins.types (POS: Kanban service shared types.)
+- worktree_ops (POS: Task worktree lifecycle management; ``git_slot`` bounds the background git work.)
+
+[OUTPUT]
+- move_task, reclaim_task, cancel_task_execution, cleanup_task_worktree, merge_task_worktree (approve/reject live in review_ops)
+
+[POS]
+Task state transition orchestration: move, reclaim, cancel with dependency and event handling. COMPLETED triggers worktree merge back to the task branch; ARCHIVED triggers worktree cleanup. Both run in the background (git cost grows with repository size, so the request must not wait for it) — the same way the dispatcher merges tasks it completes. Dependents of a merged task are released only after the merge, because they branch off the repository when they start. Manual moves into or out of IN_REVIEW are rejected — the approval gate only resolves via approve/reject (review_ops).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+
+from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
+from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
+from myrm_agent_harness.toolkits.kanban.types import (
+    _TRIAGE_ALLOWED_TARGETS,
+    BlockKind,
+    KanbanTask,
+    TaskEventKind,
+    TaskRunOutcome,
+    TaskStatus,
+)
+
+from app.core.kanban.adapters import SqlAlchemyKanbanStore
+from app.services.kanban.dependency_ops import promote_dependents
+from app.services.kanban.event_publisher import publish_kanban_event, publish_task_event
+from app.services.kanban.service_mixins.types import (
+    STATUS_TO_EVENT_KIND,
+    SYNTHETIC_RUN_TARGETS,
+    TARGET_TO_RUN_OUTCOME,
+    DependencyUnmetError,
+    UnmetParentInfo,
+)
+from app.services.kanban.worktree_ops import (
+    cleanup_task_worktree,
+    git_slot,
+    merge_task_worktree,
+    record_merge_failure,
+    spawn_worktree_op,
+)
+
+logger = logging.getLogger(__name__)
+
+ValidateAgentId = Callable[[str], Awaitable[None]]
+WakeDispatcher = Callable[[str], None]
+
+
+async def synthesize_run(
+    store: SqlAlchemyKanbanStore,
+    task_id: str,
+    target_status: TaskStatus,
+    *,
+    result: str = "",
+    error: str = "",
+) -> str:
+    """Create a zero-duration synthetic TaskRun for unclaimed terminal transitions."""
+    run = await store.create_run(task_id, worker_id="manual")
+    outcome = TARGET_TO_RUN_OUTCOME[target_status]
+    await store.complete_run(
+        run.run_id,
+        outcome,
+        summary=result,
+        error=error,
+    )
+    return run.run_id
+
+
+async def _merge_then_release_dependents(
+    store: SqlAlchemyKanbanStore,
+    dispatchers: dict[str, KanbanDispatcher],
+    runner: TaskRunner | None,
+    task: KanbanTask,
+    wake_dispatcher: WakeDispatcher,
+) -> None:
+    """Merge a completed task's worktree, then let its dependents start.
+
+    Dependents create their worktree from the repository as it is when they start, so they must not be
+    released before the merge lands. They are released even when the merge fails, raises, or is cancelled by
+    shutdown: the failure is recorded as an event and the worktree is preserved, and
+    ``task_runner.worktree.landing_gate`` holds each dependent for the user when it is about to run. A
+    cancellation that arrives while the merge is still queued is recorded too, since nothing else would tell
+    the user the code never landed.
+    """
+    started = False
+    try:
+        async with git_slot():
+            started = True
+            await merge_task_worktree(runner, task, store)
+    except asyncio.CancelledError:
+        if not started:
+            await record_merge_failure(
+                store,
+                task,
+                "Task completed but its worktree merge did not run because the server was shutting down. "
+                "Merge the preserved worktree manually.",
+            )
+        raise
+    finally:
+        await promote_dependents(store, task.task_id)
+        if task.board_id in dispatchers:
+            wake_dispatcher(task.board_id)
+
+
+async def _cleanup_worktree_in_background(runner: TaskRunner | None, task: KanbanTask) -> None:
+    async with git_slot():
+        await cleanup_task_worktree(runner, task)
+
+
+async def move_task(
+    store: SqlAlchemyKanbanStore,
+    dispatchers: dict[str, KanbanDispatcher],
+    runner: TaskRunner | None,
+    task_id: str,
+    target_status: TaskStatus,
+    *,
+    force: bool = False,
+    block_kind: BlockKind | None = None,
+    blocked_reason: str | None = None,
+    scheduled_until: datetime | None = None,
+    result: str | None = None,
+    metadata: dict[str, object] | None = None,
+    assignee_agent_id: str | None = None,
+    wake_dispatcher: WakeDispatcher,
+) -> KanbanTask | None:
+    task = await store.get_task(task_id)
+    if task is None:
+        return None
+    if task.is_terminal and target_status != TaskStatus.ARCHIVED:
+        raise ValueError(f"Cannot move terminal task (status={task.status}) to {target_status}")
+    if task.status == TaskStatus.TRIAGE and target_status not in _TRIAGE_ALLOWED_TARGETS:
+        raise ValueError(f"TRIAGE task can only move to BACKLOG/READY/ARCHIVED, got {target_status}")
+    if target_status == TaskStatus.IN_REVIEW:
+        raise ValueError(
+            "IN_REVIEW is entered by the dispatcher when a require_approval task "
+            "passes verification; use the approve/reject endpoints to resolve it"
+        )
+    if task.status == TaskStatus.IN_REVIEW:
+        raise ValueError(
+            "IN_REVIEW tasks must be resolved via the approve/reject endpoints; manual moves out of review are not allowed"
+        )
+    old_status = task.status
+    task.status = target_status
+    unsatisfied_deps: list[str] = []
+    if target_status == TaskStatus.BLOCKED:
+        task.block_kind = block_kind or BlockKind.HUMAN
+        task.scheduled_until = scheduled_until
+        if blocked_reason:
+            task.blocked_reason = blocked_reason
+    if target_status == TaskStatus.READY:
+        task.blocked_reason = None
+        task.block_kind = None
+        task.scheduled_until = None
+        if old_status == TaskStatus.BLOCKED:
+            task.consecutive_failures = 0
+            task.error = ""
+        if not await store.are_dependencies_met(task_id):
+            if force:
+                unsatisfied_deps = await store.list_parents(task_id)
+            else:
+                parent_ids = await store.list_parents(task_id)
+                details: list[UnmetParentInfo] = []
+                for pid in parent_ids:
+                    parent = await store.get_task(pid)
+                    if parent and not parent.is_terminal:
+                        details.append(
+                            UnmetParentInfo(
+                                task_id=pid,
+                                title=parent.title,
+                                status=parent.status.value,
+                            )
+                        )
+                raise DependencyUnmetError(
+                    task_id,
+                    [d["task_id"] for d in details],
+                    unmet_details=details,
+                )
+    if result is not None:
+        task.result = result
+    if metadata is not None or assignee_agent_id is not None:
+        if task.metadata is None:
+            task.metadata = {}
+        handoff_data: dict[str, object] = dict(metadata or {})
+        if assignee_agent_id is not None:
+            handoff_data["from_agent_id"] = task.agent_id
+            handoff_data["to_agent_id"] = assignee_agent_id
+            task.agent_id = assignee_agent_id
+        if result:
+            handoff_data["summary"] = result
+        handoff_data["timestamp"] = datetime.now(UTC).isoformat()
+        task.metadata["handoff"] = handoff_data
+
+        raw_history = task.metadata.get("handoff_history")
+        history: list[dict[str, object]] = list(raw_history) if isinstance(raw_history, list) else []
+        history.append(handoff_data)
+        task.metadata["handoff_history"] = history
+    if target_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED):
+        task.completed_at = datetime.now(UTC)
+    if old_status == TaskStatus.RUNNING and not task.is_terminal:
+        task.last_heartbeat_at = None
+        task.progress_note = None
+    saved = await store.save_task(task)
+
+    synthetic_run_id: str | None = None
+
+    if old_status == TaskStatus.RUNNING and not saved.is_terminal:
+        await store.append_event(
+            task_id,
+            TaskEventKind.RECLAIMED,
+            payload={"from": old_status.value, "to": target_status.value},
+        )
+        runs = await store.list_runs(task_id)
+        for run in reversed(runs):
+            if not run.is_finished:
+                await store.complete_run(
+                    run.run_id,
+                    TaskRunOutcome.RECLAIMED,
+                    error="Manual reclaim via move_task",
+                )
+                break
+
+    needs_synthetic = old_status != TaskStatus.RUNNING and target_status in SYNTHETIC_RUN_TARGETS
+    if needs_synthetic:
+        synthetic_run_id = await synthesize_run(
+            store,
+            task_id,
+            target_status,
+            result=result or "",
+            error=blocked_reason or "",
+        )
+
+    event_kind = STATUS_TO_EVENT_KIND.get(saved.status)
+    if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
+        event_kind = TaskEventKind.UNBLOCKED
+    if old_status == TaskStatus.RUNNING and not saved.is_terminal:
+        event_kind = None
+    if event_kind:
+        event_payload: dict[str, object] = {
+            "from": old_status.value,
+            "to": target_status.value,
+        }
+        if saved.block_kind:
+            event_payload["block_kind"] = saved.block_kind.value
+        if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
+            event_payload["source"] = "manual"
+        await store.append_event(
+            task_id,
+            event_kind,
+            payload=event_payload,
+            run_id=synthetic_run_id,
+        )
+    if unsatisfied_deps:
+        await store.append_event(
+            task_id,
+            TaskEventKind.PROMOTED,
+            payload={
+                "forced": True,
+                "unsatisfied_deps": unsatisfied_deps,
+                "from": old_status.value,
+            },
+        )
+
+    merges_worktree = target_status == TaskStatus.COMPLETED and bool(saved.branch)
+    if target_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED) and not merges_worktree:
+        await promote_dependents(store, task_id)
+
+    if merges_worktree:
+        spawn_worktree_op(
+            _merge_then_release_dependents(store, dispatchers, runner, saved, wake_dispatcher),
+            lands=saved.task_id,
+        )
+    elif target_status == TaskStatus.ARCHIVED and saved.branch:
+        spawn_worktree_op(_cleanup_worktree_in_background(runner, saved))
+
+    if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
+        # If this is a goal-mode task, synchronize goal resumption in GoalRegistry
+        if saved.goal_mode:
+            try:
+                from myrm_agent_harness.agent.goals.types import GoalStatus
+
+                from app.services.agent.goals.goal_registry import GoalRegistry
+
+                session_id = f"kanban:{task_id}"
+                provider = GoalRegistry.get_or_create_provider(session_id)
+                latest_goal = await provider.get_latest_goal(session_id)
+                if latest_goal and latest_goal.status in (
+                    GoalStatus.PAUSED,
+                    GoalStatus.BUDGET_LIMITED,
+                    GoalStatus.WAIT,
+                    GoalStatus.NEEDS_HUMAN_REVIEW,
+                ):
+                    if latest_goal.status == GoalStatus.WAIT:
+                        await provider.exit_wait(latest_goal.goal_id)
+                    else:
+                        await provider.resume_goal(latest_goal.goal_id, reset_turns=False)
+                    logger.info("Goal %s resumed on kanban unblock", latest_goal.goal_id)
+            except Exception as exc:
+                logger.warning("Could not resume goal for unblocked task %s: %s", task_id[:8], exc)
+
+    if task.board_id in dispatchers:
+        wake_dispatcher(task.board_id)
+    publish_task_event("moved", saved)
+    return saved
+
+
+async def cancel_task_execution(
+    store: SqlAlchemyKanbanStore,
+    dispatchers: dict[str, KanbanDispatcher],
+    task_id: str,
+) -> bool:
+    """Cancel asyncio execution without modifying task state."""
+    task = await store.get_task(task_id)
+    if task is None:
+        return False
+    dispatcher = dispatchers.get(task.board_id)
+    if dispatcher:
+        return await dispatcher.cancel_execution(task_id)
+    return False
+
+
+async def reclaim_task(
+    store: SqlAlchemyKanbanStore,
+    dispatchers: dict[str, KanbanDispatcher],
+    task_id: str,
+    *,
+    reason: str | None = None,
+    new_agent_id: str | None = None,
+    validate_agent_id: ValidateAgentId,
+) -> KanbanTask | None:
+    """Manually reclaim a RUNNING task and optionally reassign agent."""
+    task = await store.get_task(task_id)
+    if task is None:
+        return None
+    if task.status != TaskStatus.RUNNING:
+        raise ValueError(f"Cannot reclaim task in status '{task.status.value}'; only RUNNING tasks can be reclaimed")
+
+    dispatcher = dispatchers.get(task.board_id)
+    if dispatcher:
+        await dispatcher.reclaim_task(task_id, reason)
+    else:
+        task.status = TaskStatus.READY
+        task.consecutive_failures = 0
+        task.error = ""
+        task.last_heartbeat_at = None
+        task.progress_note = None
+        await store.save_task(task)
+        await store.append_event(
+            task_id,
+            TaskEventKind.RECLAIMED,
+            payload={"manual": True, "reason": reason or "user request"},
+        )
+
+    if new_agent_id is not None:
+        if new_agent_id:
+            await validate_agent_id(new_agent_id)
+        task = await store.get_task(task_id)
+        if task is not None:
+            old_agent_id = task.agent_id
+            task.agent_id = new_agent_id or None
+            await store.save_task(task)
+            await store.append_event(
+                task_id,
+                TaskEventKind.ASSIGNED,
+                payload={
+                    "old_agent_id": old_agent_id,
+                    "new_agent_id": task.agent_id,
+                },
+            )
+
+    task = await store.get_task(task_id)
+    if task:
+        publish_kanban_event(
+            task.board_id,
+            task_id,
+            "reclaimed",
+            title=task.title,
+            detail=reason or "user request",
+        )
+    return task

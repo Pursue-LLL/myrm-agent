@@ -1,0 +1,199 @@
+"""Helper utilities for probing and dry-run previewing local skill paths.
+
+[INPUT]
+- raw_path: Local filesystem path string
+- existing_skills: Currently active skills list
+
+[OUTPUT]
+- preview_skill_path: Probed skill list and validation report
+
+[POS]
+- core/skills/providers/local_preview.py: Local skill discovery and dry-run diagnosis
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import re
+from pathlib import Path
+from typing import Callable
+
+import yaml
+from myrm_agent_harness.api.skills import parse_skill_frontmatter
+
+from ..models import Skill
+
+logger = logging.getLogger(__name__)
+
+SKILL_MD_FILE = "SKILL.md"
+_MAX_SKILL_FILE_SIZE = 1 * 1024 * 1024  # 1 MB
+
+
+def _extract_skill_preview(
+    skill_dir: Path,
+    rel_path: str,
+    existing_names: dict[str, Skill],
+    compute_id_fn: Callable[[str, str], str],
+) -> dict[str, object] | None:
+    skill_md = skill_dir / SKILL_MD_FILE
+    if not skill_md.is_file():
+        return None
+    try:
+        content = skill_md.read_text(encoding="utf-8")
+        if len(content.encode("utf-8")) > _MAX_SKILL_FILE_SIZE:
+            return None
+        frontmatter = parse_skill_frontmatter(content, skill_dir.name)
+    except Exception as e:
+        logger.debug("Failed to parse SKILL.md in %s: %s", skill_dir, e)
+        return None
+
+    skill_name = str(frontmatter.name or skill_dir.name)
+    description = str(frontmatter.description or "")
+    version = str(frontmatter.version or "1.0.0")
+    category = str(frontmatter.category) if frontmatter.category else None
+
+    # Try parsing raw YAML frontmatter to preserve structured types (e.g. lists for tags)
+    raw_yaml: dict[str, object] = {}
+    fm_match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+    if fm_match:
+        try:
+            loaded = yaml.safe_load(fm_match.group(1))
+            if isinstance(loaded, dict):
+                raw_yaml = loaded
+        except Exception:
+            pass
+
+    tags: list[str] = []
+    candidate_tags: object = raw_yaml.get("tags")
+    if candidate_tags is None and isinstance(raw_yaml.get("metadata"), dict):
+        candidate_tags = raw_yaml["metadata"].get("tags")
+    if candidate_tags is None and hasattr(frontmatter, "tags"):
+        candidate_tags = frontmatter.tags
+    if candidate_tags is None and isinstance(frontmatter.metadata, dict):
+        candidate_tags = frontmatter.metadata.get("tags")
+
+    if isinstance(candidate_tags, list):
+        tags = [str(t).strip().strip("'\"") for t in candidate_tags if str(t).strip()]
+    elif isinstance(candidate_tags, str):
+        cleaned = candidate_tags.strip().lstrip("[").rstrip("]")
+        tags = [t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")]
+
+    author: str | None = None
+    if raw_yaml.get("author"):
+        author = str(raw_yaml["author"])
+    elif isinstance(raw_yaml.get("metadata"), dict) and raw_yaml["metadata"].get("author"):
+        author = str(raw_yaml["metadata"]["author"])
+    elif isinstance(frontmatter.metadata, dict) and "author" in frontmatter.metadata:
+        author = str(frontmatter.metadata["author"])
+
+    required_tools: list[str] = []
+    if frontmatter.requires and hasattr(frontmatter.requires, "bins") and isinstance(frontmatter.requires.bins, list):
+        required_tools = [str(b) for b in frontmatter.requires.bins]
+
+    skill_id = compute_id_fn(skill_dir)
+
+    norm_name = skill_name.strip().lower()
+    is_conflicted = False
+    conflict_reason: str | None = None
+    if norm_name in existing_names:
+        is_conflicted = True
+        conflicted_skill = existing_names[norm_name]
+        conflict_reason = f"Conflicts with existing {conflicted_skill.type.value} skill '{conflicted_skill.name}'"
+
+    is_safe = True
+    threat_summary: str | None = None
+    security_score: int = 100
+    security_dict: dict[str, object] | None = None
+    try:
+        from myrm_agent_harness.backends.skills.scanning import (
+            compute_scan_summary,
+            scan_skill_directory,
+        )
+
+        scan_res = scan_skill_directory(skill_name, skill_dir)
+        scan_sum = compute_scan_summary(scan_res)
+        security_score = scan_sum.score
+        security_dict = scan_sum.to_dict()
+
+        if scan_sum.score < 50:
+            is_safe = False
+            threat_summary = f"Security score {scan_sum.score}/100 (< 50 threshold): {scan_res.summary}"
+        elif not scan_res.is_clean:
+            threat_summary = f"Security score {scan_sum.score}/100: {scan_res.summary}"
+    except Exception as scan_err:
+        logger.debug("Security scan skipped for %s: %s", skill_name, scan_err)
+
+    return {
+        "name": skill_name,
+        "description": description,
+        "version": version,
+        "author": author,
+        "category": category,
+        "tags": tags,
+        "required_tools": required_tools,
+        "relative_path": rel_path,
+        "skill_id": skill_id,
+        "is_conflicted": is_conflicted,
+        "conflict_reason": conflict_reason,
+        "is_safe": is_safe,
+        "threat_summary": threat_summary,
+        "security_score": security_score,
+        "security": security_dict,
+    }
+
+
+def preview_skill_path(
+    raw_path: str,
+    existing_skills: list[Skill] | None = None,
+    max_scan_entries: int = 100,
+    compute_id_fn: callable = None,
+) -> tuple[Path, bool, bool, list[dict[str, object]], str | None]:
+    """Dry-run probe a path for local skills without modifying provider state."""
+    raw_path_str = str(raw_path)
+    if ".." in raw_path_str:
+        return Path(raw_path_str), False, False, [], "Path traversal not allowed"
+
+    expanded_path = Path(os.path.expanduser(raw_path)).resolve()
+    if not expanded_path.exists():
+        return expanded_path, False, False, [], "Path does not exist"
+    if not expanded_path.is_dir():
+        return expanded_path, True, False, [], "Path is not a directory"
+
+    items: list[dict[str, object]] = []
+    warning_msg: str | None = None
+
+    existing_names: dict[str, Skill] = {}
+    if existing_skills:
+        for s in existing_skills:
+            existing_names[s.name.strip().lower()] = s
+
+    # Case 1: The path itself is directly a skill directory
+    if (expanded_path / SKILL_MD_FILE).is_file():
+        single_preview = _extract_skill_preview(expanded_path, ".", existing_names, compute_id_fn)
+        if single_preview:
+            items.append(single_preview)
+        return expanded_path, True, True, items, warning_msg
+
+    # Case 2: Parent directory containing skill subdirectories
+    count = 0
+    try:
+        for item in sorted(expanded_path.iterdir()):
+            count += 1
+            if count > max_scan_entries:
+                warning_msg = f"Directory exceeds maximum preview limit of {max_scan_entries} entries; partial results shown."
+                break
+
+            if not item.is_dir():
+                continue
+
+            sub_preview = _extract_skill_preview(item, item.name, existing_names, compute_id_fn)
+            if sub_preview:
+                items.append(sub_preview)
+    except PermissionError:
+        return expanded_path, True, True, [], "Permission denied accessing directory"
+    except Exception as e:
+        logger.warning("Failed to scan directory %s during preview: %s", expanded_path, e)
+        return expanded_path, True, True, [], f"Scan error: {e}"
+
+    return expanded_path, True, True, items, warning_msg

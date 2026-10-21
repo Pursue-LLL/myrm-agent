@@ -1,0 +1,44 @@
+# Local dev artifacts (subprojects have their own .gitignore)
+.DS_Store
+*.log
+*.pid
+.env
+.env.local
+.env.*.local
+
+# Editor / tooling
+.idea/
+.vscode/
+.cursor/
+.kiro/
+
+# Workflow runtime data
+.myrm/
+.myrm-dev-backend.*
+.myrm-dev-frontend.*
+scripts/dev/.myrm/
+scripts/dev/.benchmarks/
+.agent/  # harness workspace runtime ({workspace}/.agent/docs|vault); see myrm-agent-server/.gitignore
+
+# Debug screenshots at repo root
+*verifier*.png
+failed_test*.png
+
+# Python scratch at repo root only
+/test_*.py
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.benchmarks/
+scripts/dev/.pytest_cache/
+scripts/dev/.benchmarks/
+
+# Node leftovers at repo root
+node_modules/
+
+# Desktop orphan sidecar cache
+myrm-agent-desktop/agent-sidecar/
+.estop_state.json

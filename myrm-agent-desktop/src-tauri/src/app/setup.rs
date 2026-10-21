@@ -1,0 +1,287 @@
+//! Tauri `setup` 钩子：配置管理、快捷键注册、Sidecar 自启动（Python + Next 始终）；
+//! 以及应用级窗口事件策略（关闭到托盘、窗口销毁即退出编排；帷幕与审批高亮覆盖层豁免）。
+
+use std::sync::Mutex;
+use std::time::Duration;
+
+use tauri::{Emitter, Manager};
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+use super::{lifecycle, menu, tray};
+use crate::config::{BackendConfig, ConfigManager, FrontendConfig};
+use crate::runtime::{
+    start_backend_with_config, start_frontend, NextJSFrontend, ProductOrigin, PythonBackend,
+    SetupTokenState, APPSHOT_SHORTCUT_STR, INLINE_INPUT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
+};
+use crate::{commands, ipc_security, runtime, utils};
+
+pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    println!("🚀 Initializing MyrmAgent...");
+
+    match utils::updater_safety::check_updater_pubkey_safety() {
+        utils::updater_safety::UpdaterPubkeySafety::Safe => {
+            println!("🔐 Updater pubkey verified, OTA channel is secure");
+        }
+        utils::updater_safety::UpdaterPubkeySafety::PlaceholderDev => {}
+        utils::updater_safety::UpdaterPubkeySafety::PlaceholderProd => {
+            eprintln!("🚫 Production OTA disabled due to placeholder pubkey");
+        }
+        utils::updater_safety::UpdaterPubkeySafety::Invalid(reason) => {
+            eprintln!("🚫 Updater config invalid: {reason}");
+        }
+    }
+
+    let app_handle = app.handle().clone();
+    std::thread::spawn(move || {
+        if utils::quarantine::scan_and_silent_heal() {
+            println!("⚠️ 检测到 com.apple.quarantine 属性且静默移除失败，需要提权修复");
+            let _ = app_handle.emit("quarantine-detected", ());
+        } else {
+            println!("✅ 隔离属性检测通过或已静默修复");
+        }
+    });
+
+    let config_manager =
+        ConfigManager::new(app.handle()).expect("Failed to initialize config manager");
+
+    let system_config = config_manager.load();
+    println!("📋 Loaded config: {:?}", system_config);
+
+    // 产品页（发布版为 Next 回环页，Remote 来源）的 IPC 授权与须落到产品路由的窗口共用同一来源，
+    // 且须在任一产品页发起 IPC 之前就绪。
+    let frontend_config = FrontendConfig::from_system_config(&system_config);
+    let product_origin =
+        ProductOrigin::resolve(app.config().build.dev_url.as_ref(), frontend_config.port);
+    ipc_security::register_product_capabilities(app, &product_origin)?;
+    app.manage(product_origin);
+
+    register_shortcut_from_config(app, &system_config.global_shortcut, "Global", None)?;
+    register_shortcut_from_config(
+        app,
+        &system_config.appshot_shortcut,
+        "Appshot",
+        Some(&APPSHOT_SHORTCUT_STR),
+    )?;
+    register_shortcut_from_config(
+        app,
+        &system_config.voice_ptt_shortcut,
+        "Voice PTT",
+        Some(&VOICE_PTT_SHORTCUT_STR),
+    )?;
+    register_shortcut_from_config(
+        app,
+        &system_config.inline_input_shortcut,
+        "Inline input",
+        Some(&INLINE_INPUT_SHORTCUT_STR),
+    )?;
+
+    if system_config.enable_webui_mode {
+        if system_config.enable_remote_access {
+            println!("🌐 Running in WebUI Remote mode");
+        } else {
+            println!("🔒 Running in WebUI Local mode");
+        }
+    } else {
+        println!("🖥️  Running in Desktop mode");
+    }
+
+    let is_auto_launched = std::env::args().any(|a| a == "--auto-launched");
+    if is_auto_launched {
+        println!("🔄 Auto-launched at login, running in background (tray only)");
+    }
+
+    if system_config.auto_launch_at_login {
+        use tauri_plugin_autostart::ManagerExt;
+        if let Ok(autostart) = app.autolaunch().is_enabled() {
+            if !autostart {
+                let _ = app.autolaunch().enable();
+                println!("✅ Auto-launch enabled at login");
+            }
+        }
+    }
+
+    app.manage(config_manager);
+
+    app.manage(SetupTokenState {
+        token: Mutex::new(None),
+    });
+
+    let process_registry = runtime::ProcessRegistry::new();
+    app.manage(process_registry);
+
+    app.manage(PythonBackend::new());
+    app.manage(NextJSFrontend::new());
+
+    // 工位防窥帷幕 watcher：锁屏触发自动拉起帷幕（独立于后端生命周期的隐私层）。
+    commands::privacy_curtain_watcher::spawn_privacy_curtain_watcher(app.handle().clone());
+
+    if let Err(e) = tray::setup_tray(&app.handle().clone()) {
+        println!("⚠️ Failed to setup tray: {e}");
+    }
+
+    if let Err(e) = menu::setup_app_menu(&app.handle().clone()) {
+        println!("⚠️ Failed to setup app menu: {e}");
+    }
+
+    let backend_config = BackendConfig::from_system_config(&system_config);
+
+    let remote_deferred = runtime::is_remote_follow_deferred(app.handle());
+    if remote_deferred {
+        println!("🌐 Remote follow active, deferring local Python backend autostart");
+    }
+
+    let app_handle = app.handle().clone();
+    let system_config_clone = system_config.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        if runtime::is_remote_follow_deferred(&app_handle) {
+            println!("🌐 Remote follow active, local backend stays deferred");
+        } else {
+            let backend_state = app_handle.state::<PythonBackend>();
+            let backend_port = BackendConfig::from_system_config(&system_config_clone).port;
+            match start_backend_with_config(app_handle.clone(), backend_state, backend_config).await
+            {
+                Ok(msg) => {
+                    println!("✅ {}", msg);
+                    runtime::spawn_backend_monitors(&app_handle, backend_port);
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to auto-start backend: {}", e);
+                    let tooltip =
+                        "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
+                    tray::update_native_tray_status(&app_handle, "error", tooltip);
+                    let _ = app_handle.emit("backend-start-failed", e.clone());
+                }
+            }
+        }
+
+        // Release WebView loads frontend-shell → polls Next standalone; always start Next.
+        // enable_webui_mode only affects backend bind/port (see BackendConfig), not UI startup.
+        println!("🌐 Starting Next.js Server...");
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+
+        let frontend_state = app_handle.state::<NextJSFrontend>();
+
+        match start_frontend(app_handle.clone(), frontend_state, frontend_config).await {
+            Ok(msg) => println!("✅ {}", msg),
+            Err(e) => {
+                eprintln!("❌ Failed to auto-start frontend: {}", e);
+                let tooltip = "MyrmAgent - UI failed to start. Restart the app or change the WebUI port in Settings.".to_string();
+                tray::update_native_tray_status(&app_handle, "error", &tooltip);
+                let _ = app_handle.emit("frontend-start-failed", e.clone());
+            }
+        }
+    });
+
+    if let Some(window) = app.get_webview_window("main") {
+        if is_auto_launched {
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app
+                    .handle()
+                    .set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+
+    runtime::handle_startup_args(app.handle());
+
+    Ok(())
+}
+
+fn register_shortcut_from_config(
+    app: &mut tauri::App,
+    shortcut_config: &str,
+    label: &str,
+    store: Option<&std::sync::Mutex<String>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if shortcut_config.is_empty() {
+        return Ok(());
+    }
+    use std::str::FromStr;
+    match tauri_plugin_global_shortcut::Shortcut::from_str(shortcut_config) {
+        Ok(shortcut) => {
+            if let Some(mutex) = store {
+                if let Ok(mut guard) = mutex.lock() {
+                    *guard = format!("{shortcut}");
+                }
+            }
+            if let Err(e) = app.global_shortcut().register(shortcut) {
+                println!("⚠️ Failed to register {label} shortcut: {}", e);
+            } else {
+                println!("{label} shortcut registered: {shortcut_config}");
+            }
+        }
+        Err(_) => {
+            println!("⚠️ Invalid {label} shortcut format: {shortcut_config}");
+        }
+    }
+    Ok(())
+}
+
+/// 应用级窗口策略（关闭到托盘、退出编排）是否管辖该窗口。帷幕与审批高亮是按需建、用完即销的
+/// 覆盖层，并不承载应用：被关闭时，"关闭到托盘"会把它拦成永不销毁的隐藏窗并把应用切到
+/// Accessory（Dock 图标消失）；被销毁时，`Destroyed` 会被当作应用退出，把后端与前端一并停掉。
+fn governs_app_lifecycle(label: &str) -> bool {
+    !commands::privacy_curtain::is_curtain_label(label)
+        && !commands::visual_approval_overlay::is_overlay_label(label)
+}
+
+pub fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
+    if !governs_app_lifecycle(window.label()) {
+        return;
+    }
+    match event {
+        tauri::WindowEvent::CloseRequested { api, .. } => {
+            let config_manager = window.app_handle().state::<ConfigManager>();
+            let config = config_manager.load();
+
+            if config.close_to_tray {
+                let _ = window.hide();
+                api.prevent_close();
+
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = window
+                        .app_handle()
+                        .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                }
+            }
+        }
+        tauri::WindowEvent::Destroyed => {
+            let app_handle = window.app_handle().clone();
+            tauri::async_runtime::spawn(async move {
+                lifecycle::graceful_shutdown(app_handle).await;
+            });
+        }
+        _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::governs_app_lifecycle;
+
+    #[test]
+    fn overlay_surfaces_are_exempt_from_the_app_lifecycle_policy() {
+        for label in [
+            "privacy-curtain-1-0",
+            "privacy-curtain-7-2",
+            "visual-approval-overlay-0",
+            "visual-approval-overlay-31",
+        ] {
+            assert!(!governs_app_lifecycle(label), "{label}");
+        }
+    }
+
+    #[test]
+    fn every_other_window_stays_under_the_app_lifecycle_policy() {
+        for label in ["main", "pet-surface", "session-42"] {
+            assert!(governs_app_lifecycle(label), "{label}");
+        }
+    }
+}

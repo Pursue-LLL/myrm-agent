@@ -1,0 +1,270 @@
+/**
+ * [POS]
+ * Chat SSE event handler slice (completionEvents).
+ */
+
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import { done } from '../streamContext';
+import { auditCitationMarkers, resolveSourceCountForAudit } from '@/lib/citations/auditCitationMarkers';
+import { applyDisclosureMetadata } from '../disclosure';
+import { readLastMessage } from '../lastMessage';
+import * as H from './handlerDeps';
+
+export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
+  const { data, recievedMessage, state, actions } = ctx;
+  if (data.type === H.AgentEventType.GOAL_STATUS) {
+    const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
+    const goalState = H.normalizeGoalState(data.data);
+    useGoalStore.getState().setActiveGoal(H.resolveStreamChatId(state), goalState);
+    // A budget-limited goal ends the stream with no MESSAGE_END / ERROR /
+    // AGENT_CANCELLED terminal event, so release any engaged inspector here.
+    if (goalState.status === 'budget_limited') {
+      H.releaseInspectorControls(H.resolveStreamChatId(state));
+    }
+    return done(ctx);
+  }
+
+  if (data.type === H.AgentEventType.FILE_MUTATION_FAILED) {
+    if (data.data?.files) {
+      actions.setMessages((s) => {
+        const messageIndex = H.findAssistantMessageIndex(s.messages, data.messageId);
+        if (messageIndex !== -1) {
+          s.messages[messageIndex].fileMutationFailures = data.data.files;
+        }
+      });
+    }
+    return done(ctx);
+  }
+
+  if (data.type === H.AgentEventType.WORKSPACE_MERGE_FAILED) {
+    if (data.data?.errors) {
+      actions.setMessages((s) => {
+        const messageIndex = H.findAssistantMessageIndex(s.messages, data.messageId);
+        if (messageIndex === -1) {
+          return;
+        }
+        s.messages[messageIndex].workspaceMergeFailures = data.data.errors;
+        const failedCount = data.data.failed_count;
+        if (typeof failedCount === 'number' && failedCount > 0) {
+          s.messages[messageIndex].workspaceMergeFailedCount = failedCount;
+        }
+        const truncated = data.data.truncated;
+        if (typeof truncated === 'number' && truncated > 0) {
+          s.messages[messageIndex].workspaceMergeTruncated = truncated;
+        }
+      });
+    }
+    return done(ctx);
+  }
+
+  if (data.type === H.AgentEventType.MESSAGE_END) {
+    if (data.goal_status) {
+      const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
+      useGoalStore.getState().setActiveGoal(H.resolveStreamChatId(state), H.normalizeGoalState(data.goal_status));
+    }
+
+    // Release inspector "controlling" state (desktop + browser) engaged by this
+    // turn immediately on the terminal event, before the loading-settle delay
+    // below, so a fast next turn can never race this release. releaseTurnEngagement
+    // is a no-op unless the chat owns the engagement, so other panes' panels and
+    // manually opened panels stay put.
+    H.releaseInspectorControls(H.resolveStreamChatId(state));
+
+    setTimeout(() => {
+      actions.setMessages((state) => {
+        let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1 && (data.completion_status === 'budget_blocked' || Boolean(data.memory_brief_status))) {
+          state.messages.push({
+            content: '',
+            messageId: data.messageId,
+            chatId: H.resolveStreamChatId(ctx.state),
+            role: 'assistant',
+            createdAt: new Date(),
+            completionStatus: data.completion_status === 'budget_blocked' ? 'budget_blocked' : undefined,
+            memoryBriefStatus: data.memory_brief_status,
+            routingTier: ctx.meta?.routingTier,
+            routingSpecialty: ctx.meta?.routingSpecialty,
+            routingReason: ctx.meta?.routingReason,
+            modelTier: ctx.meta?.modelTier,
+          });
+          messageIndex = state.messages.length - 1;
+        }
+        if (messageIndex !== -1) {
+          state.messages[messageIndex].content = recievedMessage;
+
+          // Finalize reasoning duration if not already set (covers thinking_budget_exhausted edge case)
+          const msg = state.messages[messageIndex];
+          if (msg.reasoningStartedAt && !msg.reasoningDurationMs) {
+            msg.reasoningDurationMs = Date.now() - msg.reasoningStartedAt;
+          }
+
+          if (data.usage) {
+            state.messages[messageIndex].usage = data.usage;
+          }
+
+          if (data.token_economics) {
+            state.messages[messageIndex].tokenEconomics = data.token_economics;
+          }
+
+          if (data.cost_usd !== undefined) {
+            state.messages[messageIndex].costUsd = data.cost_usd;
+          }
+
+          if (data.stream_ttft_ms !== undefined) {
+            state.messages[messageIndex].streamTtftMs = data.stream_ttft_ms;
+          }
+
+          if (data.wu_consumed !== undefined) {
+            state.messages[messageIndex].wuConsumed = data.wu_consumed;
+          }
+
+          if (data.cost_status) {
+            state.messages[messageIndex].costStatus = data.cost_status;
+          }
+
+          if (data.completion_status) {
+            state.messages[messageIndex].completionStatus = data.completion_status;
+          }
+
+          if (data.model) {
+            state.messages[messageIndex].modelName = data.model;
+          }
+
+          if (data.context_budget) {
+            state.messages[messageIndex].contextBudget = data.context_budget;
+          }
+
+          if (data.citations) {
+            state.messages[messageIndex].citations = data.citations;
+          }
+
+          if (data.memoryBudget) {
+            state.messages[messageIndex].memoryBudget = data.memoryBudget;
+          }
+
+          if (data.memory_brief_snapshot_id) {
+            state.messages[messageIndex].memoryBriefSnapshotId = data.memory_brief_snapshot_id;
+          }
+
+          if (data.memory_brief_status) {
+            state.messages[messageIndex].memoryBriefStatus = data.memory_brief_status;
+          }
+
+          // Per-turn disclosure: evidence tier badge and auto-staged deliverable drafts.
+          applyDisclosureMetadata(state.messages[messageIndex], data);
+
+          if (data.consensus_meta) {
+            state.messages[messageIndex].consensusMeta = data.consensus_meta;
+          }
+
+          if (typeof data.execution_lane === 'string' && data.execution_lane) {
+            state.messages[messageIndex].executionLane = data.execution_lane;
+          }
+
+          if (typeof data.wiki_confidence_score === 'number') {
+            state.messages[messageIndex].wikiConfidenceScore = data.wiki_confidence_score;
+          }
+
+          if (typeof data.wiki_source_count === 'number') {
+            state.messages[messageIndex].wikiSourceCount = data.wiki_source_count;
+          }
+
+          const rawTurnLoaded =
+            (data as { turn_loaded_skills?: unknown }).turn_loaded_skills ??
+            (data as { turnLoadedSkills?: unknown }).turnLoadedSkills;
+          if (Array.isArray(rawTurnLoaded) && rawTurnLoaded.length > 0) {
+            state.messages[messageIndex].turnLoadedSkills = rawTurnLoaded
+              .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+              .map((item) => ({
+                name: String(item.name ?? ''),
+                id: String(item.id ?? item.name ?? ''),
+                content_hash:
+                  typeof item.content_hash === 'string'
+                    ? item.content_hash
+                    : typeof item.contentHash === 'string'
+                      ? item.contentHash
+                      : undefined,
+                version: typeof item.version === 'string' ? item.version : undefined,
+                partial: Boolean(item.partial),
+              }))
+              .filter((row) => row.name.length > 0);
+          }
+
+          const sources = state.messages[messageIndex].sources;
+          const sourceCount = sources ? resolveSourceCountForAudit(sources) : 0;
+          if (sourceCount > 0 && recievedMessage) {
+            const audit = auditCitationMarkers(recievedMessage, sourceCount);
+            if (audit) {
+              state.messages[messageIndex].citationAudit = audit;
+            }
+          }
+        }
+
+        state.loading = false;
+        state.messageAppeared = true;
+      });
+      // MESSAGE_END is the terminal event for this turn.  Clear the UI's
+      // active controller as soon as the terminal payload is applied; the
+      // transport may still take a tick to close (notably through multiplex).
+      // Do not abort it here: the reader still owns the stream teardown.
+      actions.clearActiveStream?.();
+
+      const lastMsg = readLastMessage(actions.setMessages);
+      if (lastMsg) {
+        actions._processSuggestions(lastMsg);
+      }
+
+      actions.scheduleAutoSave();
+
+      // Refresh per-chat workspace from API so Active Working Memory chips can open file
+      // previews when FILE_DIFF is absent but the session workspace exists (silent=true).
+      void import('@/services/chat').then(({ getChatDetail }) => {
+        const chatId = H.useChatStore.getState().chatId;
+        if (!chatId) {
+          return;
+        }
+        void getChatDetail(chatId, true)
+          .then((detail) => {
+            const dir = detail.chat.workspace_dir;
+            if (typeof dir === 'string' && dir.trim().length > 0) {
+              H.useChatStore.getState().setWorkspaceDir(dir.trim());
+            }
+          })
+          .catch(() => undefined);
+      });
+    }, 50);
+
+    if (H.useConfigStore.getState().enableCompletionSound) {
+      H.playCompletionSound();
+    }
+
+    H.dispatchPetSurfaceAwayCompletion();
+
+    if (H.useConfigStore.getState().enableWebNotifications) {
+      const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
+      const title = lang.startsWith('zh') ? 'Agent 回复已完成' : 'Agent response completed';
+      import('@/services/notification').then(({ notificationService }) => {
+        notificationService.notify(title, { fallbackToToast: false });
+      });
+    }
+
+    // Release the processing lock when message ends successfully
+    H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
+
+    // Clear stale plan steps that are still pending/in_progress after turn ends. The plan panel shows the open
+    // chat's plan only, so a background turn's end must not wipe it; the gate runs after the lazy import so a chat
+    // switch that happened while it loaded drops the clear instead of hitting the next chat's plan.
+    void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
+      if (H.isStreamForOpenChat(state)) {
+        usePlanStore.getState().clearActivePlan();
+      }
+    });
+
+    // Passive progression milestone detection
+    void import('@/lib/progression/tryMarkMilestone').then(({ tryMarkMilestone }) => {
+      tryMarkMilestone('first_chat');
+    });
+  }
+
+  return null;
+}

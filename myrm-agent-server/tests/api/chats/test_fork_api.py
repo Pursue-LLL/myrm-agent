@@ -1,0 +1,385 @@
+"""API integration tests for fork endpoint.
+
+Tests POST /api/v1/chats/{chat_id}/fork via ASGI transport.
+Covers: normal fork, -1 (last message) shorthand, validation errors.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+from unittest.mock import patch
+
+import httpx
+import pytest
+from httpx import ASGITransport
+
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="chats")
+
+
+@pytest.fixture
+async def async_client() -> httpx.AsyncClient:
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Content-Type": "application/json"},
+        timeout=60.0,
+    ) as client:
+        yield client
+
+
+async def _create_chat_with_messages(chat_id: str, message_count: int = 5) -> None:
+    from app.database.models import Chat, Message
+    from app.platform_utils import get_session_factory
+
+    factory = get_session_factory()
+    async with factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title=f"Test Chat {chat_id[:8]}",
+            source="web",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db.add(chat)
+        now = datetime.now(UTC)
+        for i in range(message_count):
+            db.add(
+                Message(
+                    id=str(uuid.uuid4()),
+                    chat_id=chat_id,
+                    role="user" if i % 2 == 0 else "assistant",
+                    content=f"Message {i}",
+                    sent_at=now,
+                    sent_timezone="UTC",
+                )
+            )
+        await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_fork_with_valid_index(async_client: httpx.AsyncClient) -> None:
+    """Fork at explicit valid message_index succeeds."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=5)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": 2},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["parent_chat_id"] == chat_id
+    assert data["fork_point"] == 2
+    assert data["new_chat_id"] is not None
+
+
+@pytest.mark.asyncio
+async def test_fork_with_minus_one_resolves_to_last(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """message_index=-1 resolves to last message index."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=8)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": -1},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["fork_point"] == 7  # 8 messages, last index = 7
+    assert data["new_chat_id"] is not None
+
+
+@pytest.mark.asyncio
+async def test_fork_minus_one_empty_chat_returns_400(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """message_index=-1 on empty chat returns validation error."""
+    from app.database.models.chat import Chat
+    from app.platform_utils import get_session_factory
+
+    chat_id = str(uuid.uuid4())
+    factory = get_session_factory()
+    async with factory() as db:
+        db.add(
+            Chat(
+                id=chat_id,
+                title="Empty",
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+        )
+        await db.commit()
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": -1},
+        )
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_fork_invalid_index_below_minus_one(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """message_index < -1 returns validation error."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=3)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": -2},
+        )
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_fork_index_out_of_range(async_client: httpx.AsyncClient) -> None:
+    """message_index >= total messages returns error."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=3)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": 10},
+        )
+
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_fork_nonexistent_chat(async_client: httpx.AsyncClient) -> None:
+    """Fork on non-existent chat returns 404."""
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{uuid.uuid4()}/fork",
+            json={"message_index": 0},
+        )
+
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_fork_with_custom_title(async_client: httpx.AsyncClient) -> None:
+    """Fork with custom new_title uses provided title."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=3)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": 1, "new_title": "My Custom Branch"},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["new_chat_id"] is not None
+
+    from sqlalchemy import select
+
+    from app.database.models.chat import Chat
+    from app.platform_utils import get_session_factory
+
+    factory = get_session_factory()
+    async with factory() as db:
+        child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
+        assert child.title == "My Custom Branch"
+
+
+@pytest.mark.asyncio
+async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> None:
+    """Fork from parent with active sandbox resets child workspace to original repo root."""
+    from sqlalchemy import select
+
+    from app.database.models.chat import Chat
+    from app.platform_utils import get_session_factory
+
+    chat_id = str(uuid.uuid4())
+    factory = get_session_factory()
+    async with factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title="Sandbox Parent",
+            source="web",
+            workspace_dir="/project/.sandboxes/sandbox-abc123",
+            sandbox_base_dir="/project",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db.add(chat)
+        from app.database.models import Message
+
+        now = datetime.now(UTC)
+        for i in range(3):
+            db.add(
+                Message(
+                    id=str(uuid.uuid4()),
+                    chat_id=chat_id,
+                    role="user" if i % 2 == 0 else "assistant",
+                    content=f"Sandbox msg {i}",
+                    sent_at=now,
+                    sent_timezone="UTC",
+                )
+            )
+        await db.commit()
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={"message_index": 1},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["new_chat_id"] is not None
+
+    async with factory() as db:
+        child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
+        assert child.workspace_dir == "/project", "Child should use original repo root, not parent's sandbox worktree"
+        assert child.sandbox_base_dir is None, "Child should have no active sandbox"
+
+
+async def test_fork_info_endpoint_returns_root_and_depth(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Verify /api/v1/chats/{chat_id}/fork-info returns root_chat_id and depth."""
+
+    root_id = str(uuid.uuid4())
+    await _create_chat_with_messages(root_id, 4)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        # 1. Fork B from Root
+        resp_b = await async_client.post(
+            f"/api/v1/chats/{root_id}/fork",
+            json={"message_index": 2},
+        )
+        assert resp_b.status_code == 200
+        b_id = resp_b.json()["data"]["new_chat_id"]
+
+        # 2. Fork C from B
+        resp_c = await async_client.post(
+            f"/api/v1/chats/{b_id}/fork",
+            json={"message_index": 1},
+        )
+        assert resp_c.status_code == 200
+        c_id = resp_c.json()["data"]["new_chat_id"]
+
+        # 3. Query fork-info for C
+        info_c_resp = await async_client.get(f"/api/v1/chats/{c_id}/fork-info")
+        assert info_c_resp.status_code == 200
+        info_c = info_c_resp.json()["data"]
+        assert info_c["parent_chat_id"] == b_id
+        assert info_c["root_chat_id"] == root_id
+        assert info_c["depth"] == 2
+
+
+@pytest.mark.asyncio
+async def test_fork_records_immutable_event_log_anchor(
+    async_client: httpx.AsyncClient,
+    tmp_path: Path,
+) -> None:
+    """Verify that conversation fork writes an immutable fork_point event to the EventLog."""
+    root_id = str(uuid.uuid4())
+    await _create_chat_with_messages(root_id, 4)
+
+    from app.config.settings import get_settings
+
+    settings = get_settings()
+
+    with (
+        patch.object(settings.database, "event_log_dir", str(tmp_path)),
+        patch("app.platform_utils.get_checkpointer", return_value=None),
+    ):
+        resp = await async_client.post(
+            f"/api/v1/chats/{root_id}/fork",
+            json={"message_index": 2},
+        )
+        assert resp.status_code == 200
+        new_chat_id = resp.json()["data"]["new_chat_id"]
+
+        from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+
+        backend = FileEventLogBackend(log_dir=tmp_path, session_id=root_id)
+        events = await backend.get_events(root_id)
+        assert len(events) >= 1
+        fork_ev = events[-1]
+        assert fork_ev.event_type == "fork_point"
+        assert fork_ev.data.get("parent_chat_id") == root_id
+        assert fork_ev.data.get("child_chat_id") == new_chat_id
+        assert fork_ev.data.get("fork_message_index") == 2
+
+
+@pytest.mark.asyncio
+async def test_fork_acceptance_verifier_mode(async_client: httpx.AsyncClient) -> None:
+    """Verify forking with acceptance_verifier mode injects audit prompt and sets title."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=4)
+
+    with patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/fork",
+            json={
+                "message_index": 3,
+                "fork_mode": "acceptance_verifier",
+                "acceptance_scope": "Verify all edge cases and ensure 100% tests pass.",
+            },
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    new_chat_id = data["new_chat_id"]
+
+    from sqlalchemy import select
+
+    from app.database.models import Chat, Message
+    from app.platform_utils import get_session_factory
+
+    factory = get_session_factory()
+    async with factory() as db:
+        child_chat = (await db.execute(select(Chat).where(Chat.id == new_chat_id))).scalar_one()
+        assert "[Audit] Acceptance:" in child_chat.title
+
+        messages = (
+            (await db.execute(select(Message).where(Message.chat_id == new_chat_id).order_by(Message.created_at))).scalars().all()
+        )
+        # 4 cloned messages + 1 audit prompt message
+        assert len(messages) == 5
+        audit_msg = messages[-1]
+        assert audit_msg.role == "user"
+        assert "[INDEPENDENT ACCEPTANCE AUDIT INITIATED]" in audit_msg.content
+        assert "Verify all edge cases and ensure 100% tests pass." in audit_msg.content
+        assert audit_msg.extra_data.get("is_acceptance_audit_prompt") is True
+
+
+@pytest.mark.asyncio
+async def test_get_chat_delivery_contracts(async_client: httpx.AsyncClient) -> None:
+    """Verify GET /api/v1/chats/{chat_id}/delivery-contracts returns 5-phase status snapshot."""
+    chat_id = str(uuid.uuid4())
+    await _create_chat_with_messages(chat_id, message_count=3)
+
+    resp = await async_client.get(f"/api/v1/chats/{chat_id}/delivery-contracts")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert "contracts" in data
+    assert "current_phase" in data
+    assert "overall_progress_pct" in data
+    assert "task_intent" in data["contracts"]
+    assert "scene_environment" in data["contracts"]
+    assert "action_execution" in data["contracts"]
+    assert "delivery_artifact" in data["contracts"]
+    assert "acceptance_verification" in data["contracts"]
+    assert data["contracts"]["task_intent"]["status"] == "satisfied"

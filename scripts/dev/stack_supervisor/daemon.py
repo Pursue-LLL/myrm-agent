@@ -1,0 +1,654 @@
+"""Dev stack supervisor daemon — single writer for ensure/reset, live watchdog.
+
+[INPUT]
+  stack_supervisor.paths::StackPaths (POS: dev 栈路径 SSOT)
+  stack_supervisor.probe::probe_stack (POS: live 探活)
+  stack_supervisor.state_gc::collect_stale_state (POS: 失效状态 GC)
+
+[OUTPUT]
+  SupervisorDaemon: Unix socket RPC 服务 + 看门狗 + 失温冷却自愈（intentional reset 清除自愈记忆）；wave pin 期间 shared API 宕机时 backend-only ensure；backend-only 与 full ensure 独立冷却（默认 30s / 300s）
+
+[POS]
+  本地 dev 栈单写者守护进程。串行化 ensure/reset，30s 探活 GC + 失温冷却自愈；并行 E2E 期间仅复活 shared Backend，不 reset frontend/Chrome。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TextIO
+
+import fcntl
+
+from stack_supervisor.paths import StackPaths, resolve_paths
+from stack_supervisor.probe import StackProbe, probe_stack, stack_warm
+from stack_supervisor.rpc_types import RpcCommand, RpcResponse
+from stack_supervisor.state_gc import (
+    collect_stale_state,
+    ensure_lock_active,
+    write_supervisor_state,
+)
+
+logger = logging.getLogger("stack_supervisor")
+WATCHDOG_INTERVAL_SEC = float(os.environ.get("MYRM_SUPERVISOR_WATCHDOG_SEC", "30"))
+HEAL_COOLDOWN_SEC = float(os.environ.get("MYRM_SUPERVISOR_HEAL_COOLDOWN_SEC", "300"))
+BACKEND_ONLY_HEAL_COOLDOWN_SEC = float(
+    os.environ.get("MYRM_SUPERVISOR_BACKEND_ONLY_HEAL_COOLDOWN_SEC", "30")
+)
+
+
+def _backend_only_ensure_rpc_timeout_sec() -> float:
+    raw = os.environ.get("MYRM_BACKEND_ONLY_ENSURE_TIMEOUT_SEC", "360")
+    try:
+        return max(90.0, float(raw))
+    except ValueError:
+        return 360.0
+
+
+@dataclass
+class SupervisorDaemon:
+    paths: StackPaths
+    _op_lock: threading.Lock
+    _stop_event: threading.Event
+    _watchdog_thread: threading.Thread | None
+    _last_stack_warm_at: float | None
+    _last_full_auto_heal_at: float
+    _last_backend_only_auto_heal_at: float
+
+    @classmethod
+    def create(cls, paths: StackPaths | None = None) -> SupervisorDaemon:
+        resolved = paths if paths is not None else resolve_paths()
+        return cls(
+            paths=resolved,
+            _op_lock=threading.Lock(),
+            _stop_event=threading.Event(),
+            _watchdog_thread=None,
+            _last_stack_warm_at=None,
+            _last_full_auto_heal_at=0.0,
+            _last_backend_only_auto_heal_at=0.0,
+        )
+
+    def _heal_cooldown_sec(self, backend_only_heal: bool) -> float:
+        if backend_only_heal:
+            return BACKEND_ONLY_HEAL_COOLDOWN_SEC
+        return HEAL_COOLDOWN_SEC
+
+    def _last_auto_heal_at(self, backend_only_heal: bool) -> float:
+        if backend_only_heal:
+            return self._last_backend_only_auto_heal_at
+        return self._last_full_auto_heal_at
+
+    def _mark_auto_heal_at(self, backend_only_heal: bool, when: float) -> None:
+        if backend_only_heal:
+            self._last_backend_only_auto_heal_at = when
+            return
+        self._last_full_auto_heal_at = when
+
+    def _auto_heal_on_cooldown(self, backend_only_heal: bool, now: float) -> bool:
+        last_heal = self._last_auto_heal_at(backend_only_heal)
+        cooldown_sec = self._heal_cooldown_sec(backend_only_heal)
+        elapsed = now - last_heal
+        if elapsed < cooldown_sec:
+            heal_kind = "backend-only ensure" if backend_only_heal else "full ensure"
+            remaining = cooldown_sec - elapsed
+            logger.info(
+                "Watchdog auto-heal: deferred — %s on cooldown (%.0fs remaining)",
+                heal_kind,
+                max(0.0, remaining),
+            )
+            return True
+        return False
+
+    def _dev_stack_env(self, overrides: dict[str, str] | None = None) -> dict[str, str]:
+        from e2e_core.stack_mutation_policy import _shared_stack_env  # noqa: PLC0415
+
+        env = _shared_stack_env()
+        env["MYRM_SUPERVISOR_BYPASS"] = "1"
+        env["AGENT_ROOT"] = str(self.paths.agent_root)
+        env["SERVER_DIR"] = str(self.paths.server_dir)
+        env["FRONTEND_DIR"] = str(self.paths.frontend_dir)
+        env["MYRM_DEV_STATE_DIR"] = str(self.paths.state_dir)
+        if overrides:
+            env.update(overrides)
+        return env
+
+    def _run_dev_stack(
+        self,
+        command: str,
+        timeout_sec: float,
+        env_overrides: dict[str, str] | None = None,
+        *,
+        subcommand: str | None = None,
+    ) -> RpcResponse:
+        if not self.paths.dev_stack_sh.is_file():
+            return RpcResponse(
+                ok=False,
+                exit_code=1,
+                stdout="",
+                stderr=f"Missing dev-stack.sh at {self.paths.dev_stack_sh}",
+            )
+        argv: list[str] = ["bash", str(self.paths.dev_stack_sh), command]
+        if subcommand is not None:
+            argv.append(subcommand)
+        try:
+            result = subprocess.run(
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout_sec,
+                check=False,
+                env=self._dev_stack_env(env_overrides),
+            )
+        except subprocess.TimeoutExpired as exc:
+            stdout = (
+                exc.stdout
+                if isinstance(exc.stdout, str)
+                else (exc.stdout or b"").decode("utf-8", errors="replace")
+            )
+            stderr = (
+                exc.stderr
+                if isinstance(exc.stderr, str)
+                else (exc.stderr or b"").decode("utf-8", errors="replace")
+            )
+            return RpcResponse(
+                ok=False,
+                exit_code=1,
+                stdout=stdout,
+                stderr=f"{stderr}\nTimeout running dev-stack {command}",
+            )
+        return RpcResponse(
+            ok=result.returncode == 0,
+            exit_code=result.returncode,
+            stdout=result.stdout,
+            stderr=result.stderr,
+        )
+
+    def _watchdog_once(self) -> None:
+        probe, gc_action = collect_stale_state(self.paths)
+        write_supervisor_state(self.paths, probe, gc_action)
+        self._reap_wave_leases()
+        if any(
+            (
+                gc_action.cleared_warmth,
+                gc_action.cleared_epoch,
+                gc_action.cleared_backend_pid,
+                gc_action.cleared_frontend_pid,
+            )
+        ):
+            logger.info("GC actions: %s", gc_action)
+        self._maybe_auto_heal(probe)
+
+    def _ensure_wave_pythonpath(self) -> None:
+        scripts_dev = self.paths.dev_stack_sh.parent
+        for p in (str(scripts_dev), str(scripts_dev / "lib")):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+
+    def _reap_wave_leases(self) -> None:
+        self._ensure_wave_pythonpath()
+        try:
+            from wave_orchestrator.core import reap
+
+            reap()
+        except Exception:
+            logger.warning("Wave lease reaper failed", exc_info=True)
+
+    def _maybe_auto_heal(self, probe: StackProbe) -> None:
+        now = time.monotonic()
+        if stack_warm(probe):
+            self._last_stack_warm_at = now
+            return
+        if self._last_stack_warm_at is None:
+            return
+        if probe.api_http_ok and probe.frontend_http_ok:
+            return
+        if ensure_lock_active(self.paths):
+            logger.info("Watchdog auto-heal: deferred — ensure in progress")
+            return
+        wave_write_allowed = self._wave_stack_write_allowed()
+        backend_only_heal = False
+        if not wave_write_allowed:
+            if probe.api_http_ok:
+                return
+            active_leases = self._wave_active_lease_count()
+            pending_drift = self._pending_stack_drift_exists()
+            if self._should_defer_supervisor_backend_heal(
+                active_leases=active_leases,
+                pending_drift=pending_drift,
+                api_http_ok=probe.api_http_ok,
+            ):
+                logger.info(
+                    "Watchdog auto-heal: deferred — pending stack drift with %s active leases",
+                    active_leases,
+                )
+                return
+            if not probe.frontend_http_ok and not probe.frontend_port_listening:
+                logger.info(
+                    "Watchdog auto-heal: deferred — wave pin and frontend unavailable"
+                )
+                return
+            backend_only_heal = True
+        if self._auto_heal_on_cooldown(backend_only_heal, now):
+            return
+        if not self._op_lock.acquire(blocking=False):
+            return
+        try:
+            now = time.monotonic()
+            if self._auto_heal_on_cooldown(backend_only_heal, now):
+                return
+            if backend_only_heal:
+                logger.info(
+                    "Watchdog auto-heal: shared API down during wave pin — backend-only ensure"
+                )
+                result = self._run_dev_stack(
+                    "backend-only",
+                    timeout_sec=_backend_only_ensure_rpc_timeout_sec(),
+                    subcommand="ensure",
+                )
+            else:
+                logger.info(
+                    "Watchdog auto-heal: stack lost warmth — running ensure once"
+                )
+                ensure_wait = float(
+                    os.environ.get("MYRM_STACK_FRONTEND_WAIT_SEC", "180")
+                )
+                result = self._run_dev_stack("ensure", timeout_sec=ensure_wait + 30.0)
+            self._mark_auto_heal_at(backend_only_heal, time.monotonic())
+            if result.ok:
+                if backend_only_heal:
+                    logger.info("Watchdog auto-heal: backend-only ensure succeeded")
+                else:
+                    logger.info("Watchdog auto-heal: ensure succeeded")
+                refreshed = probe_stack(self.paths)
+                if stack_warm(refreshed):
+                    self._last_stack_warm_at = time.monotonic()
+                elif refreshed.api_http_ok and refreshed.frontend_http_ok:
+                    self._last_stack_warm_at = time.monotonic()
+            else:
+                heal_kind = "backend-only ensure" if backend_only_heal else "ensure"
+                logger.warning(
+                    "Watchdog auto-heal: %s failed (rc=%s)",
+                    heal_kind,
+                    result.exit_code,
+                )
+        finally:
+            self._op_lock.release()
+
+    def _wave_stack_write_allowed(self) -> bool:
+        self._ensure_wave_pythonpath()
+        try:
+            from wave_orchestrator.core import check_stack_write_gate
+
+            result = check_stack_write_gate()
+            if result["allowed"]:
+                return True
+            blockers = result.get("blockers", [])
+            logger.info(
+                "Wave stack-write gate denied mutation: %d active blockers",
+                len(blockers),
+            )
+            return False
+        except Exception:
+            logger.warning("Wave stack-write gate unavailable; refusing stack mutation")
+            return False
+
+    def _monorepo_root(self) -> Path:
+        return self.paths.agent_root.parent
+
+    def _stack_mutation_policy_module(self) -> object:
+        lib_dir = self.paths.dev_stack_sh.parent / "lib"
+        lib_str = str(lib_dir)
+        if lib_str not in sys.path:
+            sys.path.insert(0, lib_str)
+        import e2e_core.stack_mutation_policy as stack_mutation_policy
+
+        return stack_mutation_policy
+
+    def _wave_active_lease_count(self) -> int:
+        policy = self._stack_mutation_policy_module()
+        return int(policy.wave_active_lease_count(self._monorepo_root()))
+
+    def _pending_stack_drift_exists(self) -> bool:
+        policy = self._stack_mutation_policy_module()
+        return bool(policy.pending_drift_exists(self.paths.state_dir))
+
+    def _should_defer_supervisor_backend_heal(
+        self,
+        *,
+        active_leases: int,
+        pending_drift: bool,
+        api_http_ok: bool,
+    ) -> bool:
+        policy = self._stack_mutation_policy_module()
+        return bool(
+            policy.should_defer_supervisor_backend_heal(
+                active_leases=active_leases,
+                pending_drift=pending_drift,
+                api_http_ok=api_http_ok,
+            )
+        )
+
+    def _watchdog_loop(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                self._watchdog_once()
+            except Exception:
+                logger.exception("Watchdog iteration failed")
+            if self._stop_event.wait(WATCHDOG_INTERVAL_SEC):
+                break
+
+    def start_watchdog(self) -> None:
+        if self._watchdog_thread is not None:
+            return
+        thread = threading.Thread(
+            target=self._watchdog_loop, name="stack-watchdog", daemon=True
+        )
+        thread.start()
+        self._watchdog_thread = thread
+
+    def stop_watchdog(self) -> None:
+        self._stop_event.set()
+        if self._watchdog_thread is not None:
+            self._watchdog_thread.join(timeout=2.0)
+
+    def handle(
+        self, command: RpcCommand, env_overrides: dict[str, str] | None = None
+    ) -> RpcResponse:
+        if command == "ping":
+            return RpcResponse(
+                ok=True,
+                exit_code=0,
+                stdout="SUPERVISOR_PONG\n",
+                stderr="",
+            )
+
+        if command == "shutdown":
+            return RpcResponse(
+                ok=True, exit_code=0, stdout="SUPERVISOR_SHUTDOWN_OK\n", stderr=""
+            )
+
+        if command == "status":
+            probe, gc_action = collect_stale_state(
+                self.paths,
+                advance_failure_streak=False,
+            )
+            write_supervisor_state(self.paths, probe, gc_action)
+            dev = self._run_dev_stack(
+                "status", timeout_sec=15.0, env_overrides=env_overrides
+            )
+            return RpcResponse(
+                ok=dev.ok,
+                exit_code=dev.exit_code,
+                stdout=dev.stdout,
+                stderr=dev.stderr,
+                state={
+                    "stack_warm": stack_warm(probe),
+                    "api_http_ok": probe.api_http_ok,
+                    "frontend_http_ok": probe.frontend_http_ok,
+                    "epoch": probe.epoch,
+                },
+            )
+
+        if command == "attach":
+            attach_wait = float(
+                (env_overrides or {}).get(
+                    "MYRM_STACK_ATTACH_WAIT_SEC",
+                    os.environ.get("MYRM_STACK_ATTACH_WAIT_SEC", "120"),
+                )
+            )
+            dev = self._run_dev_stack(
+                "attach",
+                timeout_sec=attach_wait + 5.0,
+                env_overrides=env_overrides,
+            )
+            probe = probe_stack(self.paths)
+            return RpcResponse(
+                ok=dev.ok,
+                exit_code=dev.exit_code,
+                stdout=dev.stdout,
+                stderr=dev.stderr,
+                state={"stack_warm": stack_warm(probe)},
+            )
+
+        with self._op_lock:
+            self._watchdog_once()
+            if command == "reset" and not self._wave_stack_write_allowed():
+                return RpcResponse(
+                    ok=False,
+                    exit_code=3,
+                    stdout="",
+                    stderr="WAVE_STACK_MUTATION_DENIED: open wave pin or active lease blocks stack reset",
+                )
+            if command == "reset":
+                dev = self._run_dev_stack(
+                    "reset", timeout_sec=120.0, env_overrides=env_overrides
+                )
+                self._watchdog_once()
+                if dev.ok:
+                    self._last_stack_warm_at = None
+                return dev
+            if command == "ensure":
+                if not self._wave_stack_write_allowed():
+                    probe = probe_stack(self.paths)
+                    if probe.api_http_ok:
+                        return RpcResponse(
+                            ok=True,
+                            exit_code=0,
+                            stdout="",
+                            stderr="STACK_ENSURE_DEFERRED: active wave leases, backend already healthy",
+                        )
+                    logger.info(
+                        "rpc ensure: wave pin active but backend down — backend-only ensure"
+                    )
+                    dev = self._run_dev_stack(
+                        "backend-only",
+                        timeout_sec=_backend_only_ensure_rpc_timeout_sec(),
+                        subcommand="ensure",
+                        env_overrides=env_overrides,
+                    )
+                    self._watchdog_once()
+                    if dev.ok:
+                        self._last_stack_warm_at = time.monotonic()
+                    return dev
+                ensure_wait = float(
+                    (env_overrides or {}).get(
+                        "MYRM_STACK_FRONTEND_WAIT_SEC",
+                        os.environ.get("MYRM_STACK_FRONTEND_WAIT_SEC", "180"),
+                    )
+                )
+                dev = self._run_dev_stack(
+                    "ensure",
+                    timeout_sec=ensure_wait + 30.0,
+                    env_overrides=env_overrides,
+                )
+                self._watchdog_once()
+                if dev.ok:
+                    self._last_stack_warm_at = time.monotonic()
+                return dev
+
+        return RpcResponse(
+            ok=False, exit_code=1, stdout="", stderr=f"Unknown command: {command}"
+        )
+
+    def serve_forever(self) -> None:
+        self.paths.state_dir.mkdir(parents=True, exist_ok=True)
+        self.paths.supervisor_sock.parent.mkdir(parents=True, exist_ok=True)
+        if self.paths.supervisor_sock.exists():
+            self.paths.supervisor_sock.unlink()
+
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server.bind(str(self.paths.supervisor_sock))
+        server.listen(16)
+        _write_pid_file(self.paths)
+        self.start_watchdog()
+        logger.info("Supervisor listening on %s", self.paths.supervisor_sock)
+
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    server.settimeout(1.0)
+                    conn, _ = server.accept()
+                except socket.timeout:
+                    continue
+                threading.Thread(
+                    target=self._handle_connection,
+                    args=(conn,),
+                    name="stack-supervisor-rpc",
+                    daemon=True,
+                ).start()
+        finally:
+            server.close()
+            if self.paths.supervisor_sock.exists():
+                self.paths.supervisor_sock.unlink()
+
+    def _handle_connection(self, conn: socket.socket) -> None:
+        with conn:
+            conn.settimeout(15.0)
+            raw = b""
+            try:
+                while not raw.endswith(b"\n"):
+                    block = conn.recv(4096)
+                    if not block:
+                        break
+                    raw += block
+                if not raw.strip():
+                    return
+                request = json.loads(raw.decode("utf-8"))
+            except (OSError, ValueError, socket.timeout):
+                return
+            command = request.get("cmd")
+            env_overrides = request.get("env")
+            if not isinstance(env_overrides, dict):
+                env_overrides = None
+            else:
+                env_overrides = {str(k): str(v) for k, v in env_overrides.items()}
+            if command not in (
+                "ensure",
+                "attach",
+                "reset",
+                "status",
+                "ping",
+                "shutdown",
+            ):
+                response = RpcResponse(
+                    ok=False, exit_code=1, stdout="", stderr=f"Invalid cmd: {command}"
+                )
+            else:
+                if command in ("ensure", "reset", "attach"):
+                    conn.settimeout(630.0)
+                response = self.handle(command, env_overrides=env_overrides)  # type: ignore[arg-type]
+
+            payload: dict[str, object] = {
+                "ok": response.ok,
+                "exit_code": response.exit_code,
+                "stdout": response.stdout,
+                "stderr": response.stderr,
+            }
+            if response.state is not None:
+                payload["state"] = response.state
+            shutdown_requested = command == "shutdown"
+            try:
+                conn.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+            except (BrokenPipeError, ConnectionResetError, OSError, socket.timeout):
+                logger.debug("RPC client disconnected before response")
+            finally:
+                if shutdown_requested:
+                    self.stop_watchdog()
+
+
+def _write_pid_file(paths: StackPaths) -> None:
+    paths.state_dir.mkdir(parents=True, exist_ok=True)
+    paths.supervisor_pid_file.write_text(f"{os.getpid()}\n", encoding="utf-8")
+
+
+def _remove_owned_pid_file(paths: StackPaths) -> None:
+    if not paths.supervisor_pid_file.is_file():
+        return
+    try:
+        recorded_pid = paths.supervisor_pid_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return
+    if recorded_pid == str(os.getpid()):
+        paths.supervisor_pid_file.unlink(missing_ok=True)
+
+
+def _acquire_daemon_lock(paths: StackPaths) -> TextIO | None:
+    paths.state_dir.mkdir(parents=True, exist_ok=True)
+    lock_file = paths.state_dir / "supervisor.lock"
+    handle = lock_file.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        return None
+    return handle
+
+
+def _daemonize() -> None:
+    if os.fork() > 0:
+        raise SystemExit(0)
+    os.setsid()
+    if os.fork() > 0:
+        raise SystemExit(0)
+    os.chdir("/")
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+
+def _apply_state_dir_argument() -> int:
+    if "--state-dir" not in sys.argv:
+        return 0
+    index = sys.argv.index("--state-dir")
+    if index + 1 >= len(sys.argv) or not sys.argv[index + 1].strip():
+        logger.error("--state-dir requires a path")
+        return 2
+    os.environ["MYRM_DEV_STATE_DIR"] = sys.argv[index + 1]
+    return 0
+
+
+def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    if _apply_state_dir_argument() != 0:
+        return 2
+    paths = resolve_paths()
+    daemonize_flag = "--daemonize" in sys.argv
+
+    if daemonize_flag:
+        _daemonize()
+
+    lock_handle = _acquire_daemon_lock(paths)
+    if lock_handle is None:
+        logger.info(
+            "Supervisor daemon already owns %s", paths.state_dir / "supervisor.lock"
+        )
+        return 0
+
+    def _on_signal(_signum: int, _frame: object) -> None:
+        daemon.stop_watchdog()
+        _remove_owned_pid_file(paths)
+        raise SystemExit(0)
+
+    daemon = SupervisorDaemon.create(paths)
+    signal.signal(signal.SIGTERM, _on_signal)
+    signal.signal(signal.SIGINT, _on_signal)
+
+    try:
+        daemon.serve_forever()
+    finally:
+        _remove_owned_pid_file(paths)
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+        lock_handle.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

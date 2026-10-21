@@ -1,0 +1,51 @@
+# Git
+.git/
+.gitignore
+.github/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+.build-metrics.csv
+benchmark-report.txt
+*.tar.gz
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Scripts (exclude from image, but keep in repo)
+build.sh
+benchmark.sh
+
+# Local config
+.env
+.env.local
+*.local
+
+# Old files (if any remain)
+requirements*.txt
+!pyproject.toml
+!uv.lock

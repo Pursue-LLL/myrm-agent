@@ -1,0 +1,259 @@
+"""Tests for ClientProjectBoundaryZeroLeakageSandboxSuite.
+
+Validates:
+1. Deterministic project-scoped namespace derivation (primary_namespace is project:{project_id})
+2. Cross-project memory zero-leakage immunity (foreign project:* namespaces stripped)
+3. One-way read inheritance from global scope
+4. Backward-compatible fallback when project_id is None
+5. MemoryManager isolated storage & retrieval between different projects
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from myrm_agent_harness.toolkits.context_bundle.spec import DEFAULT_BUNDLE_ID
+from myrm_agent_harness.toolkits.memory import create_local_memory_manager
+from myrm_agent_harness.toolkits.memory.config import (
+    AgentMemoryPolicy,
+    MemoryScopeLevel,
+    MemoryWritePolicy,
+)
+from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+
+from app.core.memory.adapters.policy import derive_binding_namespaces
+from app.core.memory.adapters.setup import resolve_context_binding
+
+
+def test_derive_binding_namespaces_project_isolation() -> None:
+    """Project A and Project B must receive distinct project-scoped namespaces."""
+    ns_a = derive_binding_namespaces(
+        namespaces=None,
+        shared_context_ids=None,
+        agent_id="developer",
+        channel_id="web_chat",
+        conversation_id="conv-1",
+        task_id=None,
+        project_id="project_alpha",
+        memory_policy=None,
+    )
+    ns_b = derive_binding_namespaces(
+        namespaces=None,
+        shared_context_ids=None,
+        agent_id="developer",
+        channel_id="web_chat",
+        conversation_id="conv-2",
+        task_id=None,
+        project_id="project_beta",
+        memory_policy=None,
+    )
+
+    # Primary namespace for Project A is project:project_alpha
+    assert ns_a[0] == "project:project_alpha"
+    assert "project:project_beta" not in ns_a
+    assert "global" in ns_a
+
+    # Primary namespace for Project B is project:project_beta
+    assert ns_b[0] == "project:project_beta"
+    assert "project:project_alpha" not in ns_b
+    assert "global" in ns_b
+
+
+def test_zero_leakage_strips_foreign_project_namespaces() -> None:
+    """Foreign project namespaces passed in incoming namespaces must be sanitized."""
+    contaminated_incoming = [
+        "project:foreign_secret_project",
+        "custom_label",
+        "shared:team_notes",
+    ]
+    sanitized = derive_binding_namespaces(
+        namespaces=contaminated_incoming,
+        shared_context_ids=None,
+        agent_id="developer",
+        channel_id=None,
+        conversation_id="conv-1",
+        task_id=None,
+        project_id="my_safe_project",
+        memory_policy=None,
+    )
+
+    assert "project:foreign_secret_project" not in sanitized
+    assert "project:my_safe_project" in sanitized
+    assert sanitized[0] == "project:my_safe_project"
+    assert "custom_label" in sanitized
+
+
+def test_project_memory_policy_one_way_inheritance() -> None:
+    """Project namespaces honor read_scopes while keeping project namespace as primary write target."""
+    policy = AgentMemoryPolicy(
+        read_scopes=(MemoryScopeLevel.GLOBAL,),
+        write_policy=MemoryWritePolicy.INHERIT,
+    )
+    ns = derive_binding_namespaces(
+        namespaces=None,
+        shared_context_ids=None,
+        agent_id="developer",
+        channel_id="web_chat",
+        conversation_id="conv-1",
+        task_id=None,
+        project_id="proj_shielded",
+        memory_policy=policy,
+    )
+
+    # project namespace is primary write target, global is inherited read scope
+    assert ns[0] == "project:proj_shielded"
+    assert "global" in ns
+    assert "agent:developer" not in ns
+
+
+def test_fallback_when_project_id_is_none() -> None:
+    """When project_id is None, namespace derivation falls back to standard multi-scope order."""
+    ns = derive_binding_namespaces(
+        namespaces=None,
+        shared_context_ids=None,
+        agent_id="developer",
+        channel_id="web_chat",
+        conversation_id="conv-default",
+        task_id=None,
+        project_id=None,
+        memory_policy=None,
+    )
+    assert "global" in ns
+    assert "agent:developer" in ns
+    assert not any(item.startswith("project:") for item in ns)
+
+
+def test_resolve_context_binding_carries_project_id() -> None:
+    """ResolvedContextBinding carries normalized project_id."""
+    binding = resolve_context_binding(
+        namespaces=None,
+        agent_id="developer",
+        channel_id="web_chat",
+        conversation_id="chat-abc",
+        task_id=None,
+        project_id="  proj_xyz  ",
+        bundle_id="custom_bundle",
+    )
+    assert binding.project_id == "proj_xyz"
+    assert binding.namespaces[0] == "project:proj_xyz"
+    assert binding.bundle_id == "custom_bundle"
+
+    # Default fallback
+    binding_none = resolve_context_binding(
+        namespaces=None,
+        agent_id="developer",
+        channel_id=None,
+        conversation_id=None,
+        task_id=None,
+        project_id=None,
+    )
+    assert binding_none.project_id is None
+    assert binding_none.bundle_id == DEFAULT_BUNDLE_ID
+
+
+@pytest.mark.asyncio
+async def test_cross_project_memory_manager_zero_leakage(tmp_path: Path) -> None:
+    """Memories stored in Project A must be invisible to Project B."""
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
+
+    binding_a = resolve_context_binding(
+        namespaces=None,
+        agent_id="general_agent",
+        channel_id="web_chat",
+        conversation_id="chat-a",
+        task_id=None,
+        project_id="project_finance",
+    )
+    binding_b = resolve_context_binding(
+        namespaces=None,
+        agent_id="general_agent",
+        channel_id="web_chat",
+        conversation_id="chat-b",
+        task_id=None,
+        project_id="project_health",
+    )
+
+    base_path_a = tmp_path / "proj_a_mem"
+    base_path_b = tmp_path / "proj_b_mem"
+
+    mgr_a = await create_local_memory_manager(
+        base_path=base_path_a,
+        embedding_config=embedding_config,
+        namespaces=binding_a.namespaces,
+        agent_id=binding_a.agent_id,
+        channel_id=binding_a.channel_id,
+        conversation_id=binding_a.conversation_id,
+        task_id=binding_a.task_id,
+    )
+    mgr_b = await create_local_memory_manager(
+        base_path=base_path_b,
+        embedding_config=embedding_config,
+        namespaces=binding_b.namespaces,
+        agent_id=binding_b.agent_id,
+        channel_id=binding_b.channel_id,
+        conversation_id=binding_b.conversation_id,
+        task_id=binding_b.task_id,
+    )
+
+    # Primary namespace verification: both managers scope to their respective project
+    assert mgr_a.scope.primary_namespace == "project:project_finance"
+    assert mgr_b.scope.primary_namespace == "project:project_health"
+
+    # Write a project profile attribute into Project A
+    await mgr_a.set_system_profile_attribute("project_secret", "finance_confidential_vault_token")
+
+    # Read back from Project A
+    val_a = await mgr_a.get_profile_attribute("project_secret")
+    assert val_a == "finance_confidential_vault_token"
+
+    # Project B reads the same key -> Zero-Leakage: must be None!
+    val_b = await mgr_b.get_profile_attribute("project_secret")
+    assert val_b is None
+
+    # Write a rule into Project A
+    await mgr_a.add_rule(
+        trigger="when logging finance events",
+        action="Audit requirements mandate full ledger hashing",
+    )
+
+    # Project A has the rule in its namespace
+    rules_a = await mgr_a._relational.list_rules(namespaces=mgr_a.namespaces)
+    assert len(rules_a) == 1
+    assert "ledger hashing" in rules_a[0].action
+
+    # Project B must not see Project A's rules -> Zero-Leakage!
+    rules_b = await mgr_b._relational.list_rules(namespaces=mgr_b.namespaces)
+    assert len(rules_b) == 0
+
+
+@pytest.mark.asyncio
+async def test_purge_project_memories_lifecycle() -> None:
+    """Test purge_project_memories orchestrates metadata deletion with safe namespace expansion."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.core.memory.adapters.cascade import purge_project_memories
+
+    # 1. Empty project_id boundary
+    assert await purge_project_memories("") == {}
+    assert await purge_project_memories("   ") == {}
+
+    # 2. Mock manager execution
+    mock_mgr = MagicMock()
+    mock_mgr._namespaces = ["global", "agent:default"]
+    mock_mgr.delete_memories_by_metadata = AsyncMock(
+        side_effect=[
+            {"semantic": 2, "episodic": 1},
+            {"conversation": 1},
+        ]
+    )
+
+    with patch("app.core.memory.adapters.cascade.get_cascade_memory_manager", AsyncMock(return_value=mock_mgr)):
+        res = await purge_project_memories("proj-abc")
+        assert res == {"semantic": 2, "episodic": 1, "conversation": 1}
+        # Verify namespaces safely restored
+        assert mock_mgr._namespaces == ["global", "agent:default"]
+        # Verify calls
+        assert mock_mgr.delete_memories_by_metadata.call_count == 2
+        mock_mgr.delete_memories_by_metadata.assert_any_call("primary_namespace", "project:proj-abc")
+        mock_mgr.delete_memories_by_metadata.assert_any_call("project_id", "proj-abc")

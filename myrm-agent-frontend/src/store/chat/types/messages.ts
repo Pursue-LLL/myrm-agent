@@ -1,0 +1,348 @@
+/**
+ * [INPUT]
+ * 多模块 Message 字段依赖（artifacts, tokens, agentStream 等）
+ *
+ * [OUTPUT]
+ * Message, File, ChatHistoryItem, MentionReference, PaginationInfo, Clarification*.
+ *
+ * [POS]
+ * 持久化与渲染用的聊天消息实体。
+ */
+
+import type { Artifact } from './artifacts';
+import type { CostStatus, ContextBudget } from './contextMetrics';
+import type { MemoryBriefData, MemoryBriefStatus, SensitivityLevel } from './agentStream/part2';
+import type { CompletionStatus } from './toolApproval';
+import type { CitedMemoryReference, FileMutationFailure, Source, WorkspaceMergeFailure } from './sources';
+import type { ProgressItem } from './progress';
+import type { TokenEconomicsSnapshot, TokenUsage } from './tokens';
+import type { ToolImageOutput } from './agentStream/part3';
+import type { PhaseTransitionPayload } from './agentStream/part1';
+
+export interface McpAppView {
+  resourceUri: string;
+  serverName: string;
+  structuredContent?: Record<string, unknown>;
+  toolName?: string;
+}
+
+export interface TurnLoadedSkillReceipt {
+  name: string;
+  id: string;
+  content_hash?: string;
+  version?: string;
+  partial?: boolean;
+}
+
+export interface ExactAnchorMeta {
+  commitShas?: string[];
+  filePaths?: string[];
+  errorSpans?: string[];
+  codeSymbols?: string[];
+  apiEndpoints?: string[];
+}
+
+export interface LastCompactionMeta {
+  tokensSaved: number;
+  snapshotPath?: string;
+  exactAnchors?: ExactAnchorMeta;
+}
+
+export interface StagedArtifactView {
+  artifact_id: string;
+  filename: string;
+  relative_path: string;
+  full_path: string;
+  language: string;
+  size_bytes: number;
+  line_count: number;
+  created_at: string;
+  original_hint?: string | null;
+}
+
+export interface CouncilOpinionView {
+  expert_id: string;
+  agent_type: string;
+  round_num: number;
+  content: string;
+  success: boolean;
+  duration_seconds?: number;
+}
+
+export interface CouncilResultView {
+  success: boolean;
+  synthesis: string;
+  consensus_points?: string[];
+  divergences?: string[];
+  action_items?: string[];
+  opinions?: CouncilOpinionView[];
+  rounds_completed?: number;
+  total_duration_seconds?: number;
+  error?: string;
+}
+
+export type Message = {
+  messageId: string;
+  /**
+   * 该消息所属回合的 request message id（`r-` 前缀，WebUI SSE 流请求 ID）。
+   * 实时流中等于 messageId；刷新后 hydrate 时 messageId 变为 DB 主键（assistant
+   * 为 UUID），此字段从 extra_data 恢复，供文件回退等按回合定位的 API 使用。
+   */
+  requestMessageId?: string;
+  chatId: string;
+  createdAt: Date;
+  content: string;
+  reasoning?: string;
+  reasoningStartedAt?: number;
+  reasoningDurationMs?: number;
+  role: 'user' | 'assistant' | 'system' | 'custom_message';
+  /** True while the assistant message is still streaming. */
+  loading?: boolean;
+  /** True for an assistant row the server appended on its own (background / voice task finished), not an answer to the turn. */
+  isSystemNotice?: boolean;
+  isCompactedSummaryView?: boolean;
+  suggestions?: string[];
+  sources?: Source[]; // 外部引用来源
+  citationAudit?: { totalMarkers: number; valid: number; unresolved: number };
+  progressSteps?: ProgressItem[];
+  searchItems?: string[];
+  readingItems?: string[];
+  thinkingItems?: string[];
+  usage?: TokenUsage; // Token 使用量统计（最终累计）
+  tokenEconomics?: TokenEconomicsSnapshot; // 细粒度成本与 Token 模型归因
+  costUsd?: number; // LLM 调用总成本（USD）
+  streamTtftMs?: number; // 端到端首 token 延迟（请求入站 -> 首个可见 token）
+  wuConsumed?: number; // 本轮 Work Unit 消耗（Sandbox 模式，由 MESSAGE_END 携带）
+  costStatus?: CostStatus; // 成本计算来源 (actual/estimated/unknown)
+  cacheBreakReason?: string; // Prompt cache break 归因原因
+  cacheSuggestedActions?: string; // Cache break 行动建议
+  mediaAnalysisStatus?: 'analyzing_image' | 'analyzing_video' | null;
+  visionBackend?: string | null;
+  consensusMeta?: {
+    models_used: number;
+    models_succeeded: number;
+    aggregator_model: string;
+    elapsed_seconds: number;
+  };
+  executionLane?: string;
+  phaseExecution?: PhaseTransitionPayload;
+  phaseHistory?: PhaseTransitionPayload[];
+  wikiConfidenceScore?: number;
+  wikiSourceCount?: number;
+  consensusRefs?: Array<{
+    model: string;
+    success: boolean;
+    elapsed: number;
+    content?: string;
+    source?: 'moa_overlay' | 'consensus';
+  }>;
+  consensusRefsExpected?: number;
+  modelName?: string; // 最后使用的模型名称
+  routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex' | 'code' | 'long_doc';
+  routingSpecialty?: 'code' | 'long_doc' | 'reasoning' | 'multimodal' | 'casual' | 'general';
+  routingReason?: string;
+  modelTier?: 'weak' | 'medium';
+  privacyLevel?: SensitivityLevel;
+  privacyAction?: string;
+  privacyRoute?: string;
+  completionStatus?: CompletionStatus; // LLM 回复完成状态
+  contextBudget?: ContextBudget;
+  memoryBudget?: {
+    used: number;
+    total: number;
+    /** Stable rules configured for this turn (before prompt-budget trimming). */
+    rulesConfigured?: number;
+    /** Stable rules that actually reached the model this turn. */
+    rulesInjected?: number;
+    /** True when the prompt budget dropped one or more configured rules. */
+    rulesTruncated?: boolean;
+  };
+  citations?: string[]; // 引用的记忆ID
+  memoryBrief?: MemoryBriefData; // 发送后、模型首 token 前的记忆简报
+  memoryBriefSnapshotId?: string; // 记忆简报快照ID（用于前后追踪）
+  memoryBriefStatus?: MemoryBriefStatus; // 记忆简报可用性状态（用于降级可观测）
+  artifacts?: Artifact[]; // 生成的工件
+  isFadingOut?: boolean; // 标记内容正在淡出（工具调用时清空中间内容）
+  files?: File[];
+  sendFailed?: boolean;
+  clarification?: {
+    question?: string;
+    answered: boolean;
+    options?: string[];
+    allowMultiple?: boolean;
+    title?: string;
+    form?: ClarificationForm;
+    isResumeMode?: boolean;
+    source?: string;
+    answerRecord?: HitlAnswerRecord;
+  };
+  planConfirmation?: {
+    plan: string;
+    /** `handled`: another client answered the plan first, so this client never learns which answer was given. */
+    status: 'waiting' | 'confirmed' | 'edited' | 'skipped' | 'handled';
+    planItems?: Array<{ id: string; content: string; status?: string }>;
+    totalItems?: number;
+    goal?: string;
+    source?: 'deep_research' | 'general_agent' | 'dynamic_workflow';
+    spawnCount?: number;
+    estimatedCostUsd?: number;
+    remainingBudgetUsd?: number;
+    costStatus?: string;
+  };
+  humanGate?: {
+    question: string;
+    options: string[];
+    timeoutSeconds: number;
+    defaultAction: string;
+    status: 'waiting' | 'resolved';
+    answer?: string;
+    timedOut?: boolean;
+    source?: string;
+  };
+  workflowSuggestion?: {
+    status: 'suggested' | 'accepted' | 'dismissed';
+  };
+  deliverableTier?: {
+    tier: 'VERIFIED' | 'ARTIFACT' | 'RESEARCH' | 'PLAN';
+    evidence?: {
+      verification_count?: number;
+      verification_categories?: string[];
+      files_written?: string[];
+      sources_count?: number;
+      gatekeeper_passed?: boolean;
+      details?: string;
+    };
+  };
+  stagedArtifacts?: StagedArtifactView[]; // 自动暂存的未落盘交付物草案列表
+  metadata?: Record<string, unknown>; // 消息元数据（如错误信息、配置提示等）
+  citedMemoryIds?: string[]; // 本条消息引用的记忆 ID（用于反馈评分）
+  citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）
+  turnLoadedSkills?: TurnLoadedSkillReceipt[]; // 本回复参考的工作技能（turn 级 receipt，metadata only）
+  memoryRetrievalDegraded?: boolean; // 本条回复期间记忆检索发生过降级（超时/后端错误）
+  fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
+  workspaceMergeFailures?: WorkspaceMergeFailure[]; // 本轮 workspace merge 失败
+  workspaceMergeFailedCount?: number; // merge 失败总数（可大于 failures 列表长度）
+  workspaceMergeTruncated?: number; // 未展示的额外错误条数
+  toolImages?: ToolImageOutput[]; // 工具输出的图片（如 computer_use 截屏）
+  councilResult?: CouncilResultView; // 多专家 Council 编排结构化会商与仲裁结果
+  mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
+  sessionRecording?: { filename: string; preview_url: string; content_type: string };
+  siblingGroupId?: string;
+  siblingCount?: number;
+  siblingIndex?: number;
+  asyncUserMessages?: Array<AsyncUserMessageEntry>;
+};
+
+export interface AsyncUserMessageEntry {
+  callId: string;
+  message: string;
+  category?: 'progress' | 'milestone' | 'question';
+  recommendation?: string | null;
+  suggested_replies?: string[];
+  suggestedReplies?: string[];
+  status?: 'pending' | 'resolved';
+  resolvedText?: string | null;
+}
+
+export interface File {
+  id?: string; // 文件 ID（StorageProvider 分配）
+  fileName: string;
+  fileExtension: string;
+  fileUrl?: string; // Sandbox 模式：服务器 URL
+  localPath?: string; // Tauri 模式：本地绝对路径
+  fileType: 'uploaded' | 'local_path';
+  contentHash?: string; // SHA-256 内容哈希，用于同会话去重
+  status?: 'uploading' | 'ready' | 'error'; // 媒体上传状态（延迟处理流水线）
+  previewUrl?: string; // 乐观本地预览 URL (URL.createObjectURL)
+  uploadPercent?: number; // 上传进度百分比 (0~100)
+  tempId?: string; // 临时客户端唯一标识
+}
+
+export interface ClarificationOption {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+/**
+ * How a clarification card was settled, kept on the card so the transcript still shows it.
+ * `already_handled` is written by the client alone, when the server refused a late answer without saying whether the
+ * timeout or another device settled the card. The server never sends it; a reload shows the record the server holds.
+ */
+export interface HitlAnswerRecord {
+  by: 'user' | 'timeout' | 'already_handled';
+  value: unknown;
+}
+
+export interface ClarificationQuestion {
+  id: string;
+  prompt: string;
+  options?: ClarificationOption[];
+  allowMultiple?: boolean;
+}
+
+export interface ClarificationForm {
+  title?: string | null;
+  requiresConfirmation?: boolean;
+  context?: string | null;
+  questions: ClarificationQuestion[];
+}
+
+export interface ChatHistoryItem {
+  id: string;
+  title: string;
+  firstMessage: string;
+  lastMessage: string;
+  actionMode: string;
+  source: string;
+  isCompacted?: boolean;
+  isPinned?: boolean;
+  pinOrder?: number;
+  projectId?: string | null;
+  updatedAt: Date;
+  createdAt: Date;
+}
+
+export type MentionReferenceType =
+  | 'workspace_file'
+  | 'workspace_folder'
+  | 'uploaded_file'
+  | 'generated_file'
+  | 'artifact_range'
+  | 'agent'
+  | 'git_diff'
+  | 'git_staged'
+  | 'url'
+  | 'codebase'
+  | 'wiki_concept'
+  | 'wiki_raw_file'
+  | 'prior_chat';
+
+export interface MentionReference {
+  type: MentionReferenceType;
+  label: string;
+  path?: string;
+  fileId?: string;
+  artifactId?: string;
+  sheetName?: string;
+  range?: string;
+  content?: string;
+  url?: string;
+  source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki' | 'agent';
+  size: number | null;
+  directory?: string;
+  startLine?: number;
+  endLine?: number;
+  conceptName?: string;
+  /** 是否通过输入框文本 @token 添加（@ 菜单选中）；文本删除时提交前失效 */
+  viaText?: boolean;
+}
+
+export interface PaginationInfo {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}

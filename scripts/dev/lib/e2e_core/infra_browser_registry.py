@@ -1,0 +1,192 @@
+"""Infra-only CDP target registry for dev warmup and AOS surfaces.
+
+[INPUT]
+- Owner PID from warmup/AOS creators
+- CDP HTTP close endpoint on dedicated E2E port
+
+[OUTPUT]
+- register_infra_target() / unregister_infra_target()
+- prune_infra_registry() for dead-owner exact targetId cleanup
+
+[POS]
+Infra browser target ledger. Wave orchestrator remains SSOT for test lease tabs.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import json
+import os
+import urllib.error
+import urllib.request
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from typing import TypedDict
+
+from e2e_core.real_user_home import real_user_home
+
+
+class InfraBrowserTarget(TypedDict):
+    targetId: str
+    ownerPid: int
+    ownerProcessStart: str
+    url: str
+
+
+def _state_dir() -> Path:
+    override = os.getenv("MYRM_DEV_STATE_DIR", "").strip()
+    return Path(override) if override else real_user_home() / ".local/state/myrm-dev"
+
+
+def _ledger_path(state_dir: Path | None = None) -> Path:
+    return (state_dir or _state_dir()) / "infra-browser-targets.json"
+
+
+@contextmanager
+def _locked_ledger(state_dir: Path | None = None) -> Iterator[Path]:
+    ledger = _ledger_path(state_dir)
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = ledger.with_suffix(".lock")
+    with lock_path.open("a+", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield ledger
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _read(path: Path) -> list[InfraBrowserTarget]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, list):
+        return []
+    result: list[InfraBrowserTarget] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        target_id = item.get("targetId")
+        owner_pid = item.get("ownerPid")
+        url = item.get("url")
+        if isinstance(target_id, str) and target_id and isinstance(owner_pid, int):
+            process_start = item.get("ownerProcessStart")
+            result.append(
+                {
+                    "targetId": target_id,
+                    "ownerPid": owner_pid,
+                    "ownerProcessStart": (
+                        process_start if isinstance(process_start, str) else ""
+                    ),
+                    "url": url if isinstance(url, str) else "",
+                }
+            )
+    return result
+
+
+def _write(path: Path, records: list[InfraBrowserTarget]) -> None:
+    if not records:
+        path.unlink(missing_ok=True)
+        return
+    temporary = path.with_suffix(".json.tmp")
+    temporary.write_text(
+        json.dumps(records, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+    os.replace(temporary, path)
+
+
+def register_infra_target(
+    target_id: str, url: str, *, owner_pid: int | None = None
+) -> None:
+    target = target_id.strip()
+    if not target:
+        raise ValueError("target_id is required")
+    pid = owner_pid if owner_pid is not None else os.getpid()
+    from dev_gate.owner_identity import capture_owner_process_start
+
+    process_start = capture_owner_process_start(pid)
+    with _locked_ledger() as ledger:
+        records = [item for item in _read(ledger) if item["targetId"] != target]
+        records.append(
+            {
+                "targetId": target,
+                "ownerPid": pid,
+                "ownerProcessStart": process_start,
+                "url": url,
+            }
+        )
+        _write(ledger, records)
+
+
+def unregister_infra_target(target_id: str) -> None:
+    target = target_id.strip()
+    with _locked_ledger() as ledger:
+        _write(ledger, [item for item in _read(ledger) if item["targetId"] != target])
+
+
+def _owner_stale(item: InfraBrowserTarget) -> bool:
+    from dev_gate.owner_identity import owner_process_matches
+
+    return not owner_process_matches(
+        pid=int(item["ownerPid"]),
+        expected_start=str(item.get("ownerProcessStart", "")),
+    )
+
+
+def close_exact_target(cdp_port: int, target_id: str) -> bool:
+    url = f"http://127.0.0.1:{cdp_port}/json/close/{target_id}"
+    try:
+        with urllib.request.urlopen(url, timeout=3) as response:
+            response.read()
+        return True
+    except urllib.error.HTTPError as exc:
+        return exc.code == 404
+    except (OSError, urllib.error.URLError):
+        return False
+
+
+def _chrome_port() -> int:
+    raw = os.environ.get("MYRM_CHROME_E2E_PORT", "9333").strip()
+    try:
+        return max(int(raw), 1)
+    except ValueError:
+        return 9333
+
+
+def prune_infra_registry(
+    cdp_port: int | None = None, *, state_dir: Path | None = None
+) -> tuple[int, int]:
+    port = cdp_port if cdp_port is not None else _chrome_port()
+    with _locked_ledger(state_dir) as ledger:
+        records = _read(ledger)
+        stale = [item for item in records if _owner_stale(item)]
+        closed_ids = {
+            item["targetId"]
+            for item in stale
+            if close_exact_target(port, item["targetId"])
+        }
+        _write(ledger, [item for item in records if item["targetId"] not in closed_ids])
+    return len(closed_ids), len(stale) - len(closed_ids)
+
+
+def list_infra_targets() -> list[InfraBrowserTarget]:
+    with _locked_ledger() as ledger:
+        return _read(ledger)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Prune stale infra-owned CDP targets.")
+    parser.add_argument("--prune", action="store_true")
+    parser.add_argument("--cdp-port", type=int, default=_chrome_port())
+    args = parser.parse_args()
+    if not args.prune:
+        parser.error("--prune is required")
+    closed, failed = prune_infra_registry(args.cdp_port)
+    print(f"MYRM_CHROME_PRUNE_OK: closed={closed} failed={failed}")
+    return 0 if failed == 0 else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

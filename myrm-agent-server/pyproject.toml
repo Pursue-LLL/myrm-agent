@@ -1,0 +1,247 @@
+[project]
+name = "MyrmAgentServer"
+version = "0.1.0"
+description = "MyrmAgent: Claw-class AI assistant backend with persistent agent capabilities, skills system, and multi-agent orchestration"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "MyrmAgent Contributors" }]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependency resolution issues on 3.14+
+dependencies = [
+  # --- Web 框架 ---
+  "fastapi>=0.141.1",         # Web API 框架 (54 文件)
+  "uvicorn>=0.52.4",          # ASGI 服务器，本地单进程模式 (run.py)
+  # --- 数据与配置 ---
+  "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
+  "pydantic-settings>=2.15.0", # 统一配置管理 (BaseSettings + .env)
+  "PyYAML>=6.0.3",             # YAML 解析配置 (配置迁移)
+  # --- HTTP & I/O ---
+  "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
+  "watchdog>=6.0.0", # Workspace vault file change detection (file_watch_service.py)
+  # --- Agent 框架 (litellm/langchain/langchain-core via harness; server 不重复 pin) ---
+  "myrm-agent-harness[browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core,computer-use]==0.1.0rc5",
+  # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
+  "aiohttp>=3.14.3",           # Matrix channel + alert notifier HTTP client
+  # --- 图片处理 ---
+  "pillow>=12.3.0",    # 图片处理/压缩 (qrcode + media/service)
+  # --- 数据库 ---
+  "sqlalchemy>=2.0.52", # ORM 框架，SQLite (170+ 文件)
+  # --- 工具库 ---
+  "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
+  "filelock>=3.32.3", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
+  # --- 安全与展示 ---
+  "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
+  "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
+  # --- 定时任务与加密 ---
+  "apscheduler>=4.0.0a6,<4.1.0",        # 后台任务调度器 (lifecycle/schedulers.py)
+  "defusedxml>=0.7.1",                  # 安全 XML 解析，防止 XXE/billion-laughs (wecom/wechat channels)
+  "cryptography>=50.0.0",               # AES-256-GCM 加密 (credentials_store + wecom/crypto)
+  "PyNaCl>=1.6.2",                # Curve25519 + NaCl box (remote_access E2EE)
+  # --- 事件循环 ---
+  "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)
+  "orjson>=3.12.0",                     # 高性能 JSON (sse_helpers + streaming + login)
+  "psutil>=7.2.2",                      # 系统监控 (server_lock + health)
+  "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
+  "websockets>=17.0.1",                   # WebSocket 通信 (11+ channels/voice)
+  "aioboto3>=15.5.0",                   # S3 异步客户端 (远程备份)
+  "tenacity>=9.1.4", # Vercel deploy retries (vercel_client.py)
+  "regex>=2026.4.4", # Risk-rule pattern engine: a per-match time budget that stdlib re lacks (services/risk/detection.py)
+  "pywebpush>=2.4.0", # Web Push (VAPID) notifications (core/web_push/)
+]
+
+[project.optional-dependencies]
+# Discord + Feishu SDKs (app/channels/providers/discord/, feishu/); GUI lazy-install or --extra channels-sdk
+channels-sdk = [
+  "discord-py[voice]>=2.7.1",
+  "lark-oapi>=1.7.3",
+]
+# Matrix channel (app/channels/providers/matrix/); SOCKS via auth.py + aiohttp-socks
+matrix = [
+  "mautrix>=0.21.1",
+  "aiohttp-socks>=0.12.0",
+]
+matrix-e2ee = [
+  "mautrix[encryption]>=0.21.1",
+]
+# WeChat iLink SILK voice codec (GPLv3 — optional; app/channels/providers/_ilink/silk.py)
+wechat-silk = [
+  "pilk>=0.2.4",
+]
+# WeChat article MD→HTML skill (assets/prebuilt_skills/wechat-article-formatter/scripts/md_to_wechat_html.py)
+wechat-formatter = [
+  "markdown>=3.10.3",
+  "pygments>=2.21.0",
+]
+# Edge TTS free fallback (GPL-3.0 — optional; app/channels/voice/tts.py)
+voice-tts = [
+  "edge-tts>=7.2.8",
+]
+# Local Whisper STT (CTranslate2; optional — app/channels/voice/stt.py lazy import)
+local-stt = [
+  "faster-whisper>=1.2.1",
+]
+# 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
+# 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
+data-viz = [
+  "matplotlib>=3.11.1", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
+  "pandas>=3.0.5",     # 表格/时间序列（2.x 稳定线，避开 yanked 的 3.0.4）
+]
+
+[tool.uv]
+index-url = "https://pypi.org/simple"
+# Universal lock: keep harness pin and compiled-core platform wheels aligned with uv.lock.
+# When bumping harness version, update this pin and regenerate uv.lock in the same change.
+prerelease = "allow"
+environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
+override-dependencies = [
+  "click>=8.4.2",
+  "patchright>=1.62.1",
+  "openai>=3.3.0",
+  "aiohttp>=3.13.5",
+  "opentelemetry-semantic-conventions>=0.61b0",
+  "websockets>=16.0",
+  "pynacl>=1.6.2",                # remote_access E2EE; override resolves discord-py[voice] upper bound
+  "mcp>=2.0.0",
+]
+
+# OSS CI consumes harness from PyPI via uv.lock (--frozen). Local monorepo dev may add
+# [tool.uv.sources] myrm-agent-harness editable override in a private overlay (not committed).
+
+# Desktop/commercial PyInstaller bundle (no GPL extras in shipped binary):
+#   uv sync --all-extras --no-group dev --no-extra matrix-e2ee --no-extra voice-tts --no-extra wechat-silk
+# wechat-formatter (MIT) is included in --all-extras; omit only for minimal server-only installs.
+# OSS dev default sync flags: scripts/lib/server_sync_flags.sh (setup.sh / myrm update / sync-server-venv.sh)
+# Local STT dev: uv sync --extra local-stt
+# (see scripts/ci/desktop-release/sync-server-venv.sh). Never include dev — pytest/ruff/mypy are not runtime.
+[dependency-groups]
+dev = [
+  "pytest>=9.1.1",
+  "ruff>=0.16.3",
+  "pytest-asyncio>=1.4.0",
+  "myrm-agent-harness[browser]", # 浏览器测试依赖
+  "langchain-openai>=1.5.2",     # LLM 集成测试依赖
+  "pytest-cov>=7.1.0",
+  "pytest-benchmark>=5.2.3",
+  "pytest-xdist>=3.8.0",         # 并行测试执行
+  "pytest-timeout>=2.4.0,<2.5",
+  "mypy>=2.3.1",
+  "pyright>=1.1.411",
+  "blockbuster>=1.5.27",
+  "jsonschema>=4.26.0",          # Agent Plugins 官方 schema 契约校验（tests/fixtures/agent_plugins/）
+]
+
+# Sandbox 沙箱模式专属依赖（全部为延迟导入或 CLI 工具，本地模式不安装也不影响启动）
+sandbox = [
+  # --- 系统监控 ---
+  "prometheus-fastapi-instrumentator>=8.1.0", # FastAPI Prometheus instrumentation (prometheus_setup.py)
+  # --- ASGI 服务器 ---
+  "granian>=2.8.1", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 130
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "S"]
+ignore = [
+  "B008", "E501",
+  # S 规则噪音抑制（与 harness 一致策略）
+  "S101",  # assert
+  "S104",  # bind 0.0.0.0 — 服务器应用绑定所有接口是刚需
+  "S105", "S106", "S107",  # hardcoded-password false positive
+  "S108",  # hardcoded-temp-file
+  "S110", "S112",  # try-except-pass/continue
+  "S311",  # non-cryptographic-random
+  "S324",  # hashlib-insecure
+  "S603", "S607",  # subprocess
+  "S608",  # hardcoded-sql
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "S101",
+  "S310",  # 测试基础设施访问本地 HTTP 端点（带 timeout 的 urlopen）
+  "INP001",
+  "E402",
+  "B011",
+] # Allow assert, imports after sys.path in tests
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["../../myrm-agent-harness/src", "."]
+addopts = "-m 'not e2e and not chrome_e2e and not performance' --timeout=300 --import-mode=importlib"
+markers = [
+  "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
+  "chrome_e2e: Formal real-Chrome MCP UI E2E with declared runtime resources",
+  "chrome_e2e_desktop: macOS desktop-control approval Chrome E2E (maintainer desktop phase only)",
+  "chrome_e2e_browser_takeover_live: LIVE_AGENT browser takeover banner E2E (nightly; excluded from default matrix)",
+  "e2e: End-to-end tests against running app (may require network or API keys)",
+  "performance: Performance and benchmark tests (excluded from default suite)",
+  "benchmark: pytest-benchmark tests (auto-remapped to performance in conftest)",
+  "allow_blocking_io: Opt out of the blockbuster blocking-IO gate for this test",
+  "e2e_search_policy(empty|hydrate_private): Shared UI session search policy for chrome_e2e (default hydrate_private)",
+  "requires_empty_search_services: Legacy alias for e2e_search_policy(empty)",
+]
+python_files = "test_*.py"
+filterwarnings = [
+  "ignore::DeprecationWarning",
+  "ignore::UserWarning:langsmith.schemas", # langsmith 的 Pydantic V1 兼容性警告
+  "ignore::Warning",
+]
+asyncio_default_fixture_loop_scope = "function"
+anyio_backends = ["asyncio"] # 只使用asyncio后端（项目不需要trio）
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+# SQLAlchemy async 通过 greenlet 桥接 asyncio，coverage 需同时跟踪
+# greenlet 与 thread 上下文，否则 await 之后的代码行不被记录。
+concurrency = ["greenlet", "thread"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+explicit_package_bases = true
+files = ["app"]
+exclude = [
+  "app/database/models/",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.database.models.*"
+follow_imports = "silent"
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+include = ["app"]
+venvPath = "."
+venv = ".venv"
+reportMissingImports = false
+reportMissingTypeStubs = false
+reportMissingModuleSource = false
+reportUnsupportedDunderAll = false
+# pyright 1.1.348+ 将 reportGeneralTypeIssues 拆分为细粒度规则。
+# LangChain/LiteLLM 等第三方库类型定义不完善产生大量噪音，逐个抑制（与 OpenAI Agents SDK 同等策略）。
+reportGeneralTypeIssues = false
+reportAttributeAccessIssue = false
+reportArgumentType = false
+reportCallIssue = false
+reportReturnType = false
+reportAssignmentType = false
+reportOperatorIssue = false
+reportInvalidTypeForm = false
+reportPrivateImportUsage = false
+reportInvalidTypeVarUse = false
+reportInvalidTypeArguments = false
+reportIndexIssue = false
+reportTypedDictNotRequiredAccess = false
+reportRedeclaration = false
+# 保留有价值的规则（默认 error）：Optional 家族 + UndefinedVariable 已证明能发现真实 bug。
+reportUnnecessaryTypeIgnoreComment = "warning"

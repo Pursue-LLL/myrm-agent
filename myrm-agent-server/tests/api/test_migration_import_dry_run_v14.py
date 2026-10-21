@@ -1,0 +1,661 @@
+"""API integration tests for external assistant import dry-run (v1.4 routing)."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="migrations_api")
+pytestmark = pytest.mark.xdist_group(name="migration_import_api")
+
+
+@pytest.fixture()
+def client() -> TestClient:
+    with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
+        yield TestClient(app)
+
+
+@pytest.fixture()
+def openclaw_fixture(tmp_path: Path) -> Path:
+    root = tmp_path / ".openclaw"
+    root.mkdir()
+    (root / "sessions.json").write_text(
+        json.dumps(
+            [
+                {
+                    "title": "Release",
+                    "summary": "Shipped migration fix",
+                    "created_at": "2024-06-01T00:00:00Z",
+                },
+            ],
+        ),
+        encoding="utf-8",
+    )
+    (root / "memory.json").write_text(
+        json.dumps([{"content": "User prefers concise answers"}]),
+        encoding="utf-8",
+    )
+    workspace = root / "workspace-main"
+    workspace.mkdir()
+    (workspace / "SOUL.md").write_text("Be concise.", encoding="utf-8")
+    (workspace / "MEMORY.md").write_text("- Workspace bullet fact", encoding="utf-8")
+    return root
+
+
+@pytest.fixture()
+def hermes_fixture(tmp_path: Path) -> Path:
+    root = tmp_path / ".hermes"
+    root.mkdir()
+    (root / "SOUL.md").write_text("Be precise.", encoding="utf-8")
+    memories = root / "memories"
+    memories.mkdir()
+    (memories / "MEMORY.md").write_text("- Prefers concise answers", encoding="utf-8")
+    return root
+
+
+@pytest.fixture()
+def claude_fixture(tmp_path: Path) -> Path:
+    root = tmp_path / ".claude"
+    root.mkdir()
+    (root / "CLAUDE.md").write_text("Always run tests before merge.", encoding="utf-8")
+    (root / "settings.json").write_text('{"model": "claude-sonnet"}', encoding="utf-8")
+    skills = root / "skills" / "review"
+    skills.mkdir(parents=True)
+    (skills / "SKILL.md").write_text("---\nname: review\n---\nReview code", encoding="utf-8")
+    return root
+
+
+class TestSourceImportDryRunApi:
+    @pytest.fixture(autouse=True)
+    def _local_mode(self) -> None:
+        with (
+            patch("app.api.migration.discovery.is_local_mode", return_value=True),
+            patch(
+                "app.services.migration.source.source_payload_loader.is_local_mode",
+                return_value=True,
+            ),
+        ):
+            yield  # type: ignore[misc]
+
+    def test_openclaw_dry_run_maps_sessions_and_memory(
+        self,
+        client: TestClient,
+        openclaw_fixture: Path,
+    ) -> None:
+        payload = {
+            "source": "auto",
+            "payload": {
+                "competitor": "openclaw",
+                "root": str(openclaw_fixture),
+                "files": [],
+            },
+            "migration": {
+                "include_episodic": True,
+                "apply_global_instructions": True,
+            },
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "openclaw"
+        assert body["result"]["summary"]["mapped_items"] >= 2
+        lanes = {lane["lane"]: lane for lane in body["migration_lanes"]}
+        assert "memory" in lanes
+        assert "episodic" not in lanes["memory"]["detail"] or "mapped" in lanes["memory"]["detail"]
+        mapping_buckets = {m["source_bucket"] for m in body["result"]["mappings"]}
+        assert "openclaw_sessions" in mapping_buckets
+
+    def test_hermes_dry_run_splits_instruction_and_memory(
+        self,
+        client: TestClient,
+        hermes_fixture: Path,
+    ) -> None:
+        payload = {
+            "source": "auto",
+            "payload": {
+                "competitor": "hermes",
+                "root": str(hermes_fixture),
+                "files": [],
+            },
+            "migration": {"apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "hermes"
+        assert body["result"]["summary"]["mapped_items"] >= 1
+        assert body.get("instruction_total_chars", 0) > 0
+        coverage_labels = {item["label"] for item in body.get("coverage_items", [])}
+        assert "mcp_manual" in coverage_labels
+        assert "channels_manual" in coverage_labels
+        assert "unsupported_source" not in body["result"]["warnings"]
+        assert body.get("token_economics") is None, "no skills → no token_economics"
+
+    def test_claude_dry_run_stages_skills(
+        self,
+        client: TestClient,
+        claude_fixture: Path,
+    ) -> None:
+        payload = {
+            "source": "claude",
+            "payload": {
+                "competitor": "claude",
+                "root": str(claude_fixture),
+                "files": [],
+            },
+            "migration": {"apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["status"] == "ready"
+        assert body["result"]["summary"]["source"] == "claude"
+        assert len(body["pending_skills"]) == 1
+        assert body["pending_skills"][0]["name"] == "review"
+        assert "unsupported_source" not in body["result"]["warnings"]
+
+        te = body.get("token_economics")
+        assert te is not None, "token_economics must be present when competitor has skills"
+        assert te["skill_count"] == 1
+        assert te["source_tokens_per_turn"] == 500
+        assert te["myrm_tokens_per_turn"] == 30
+        assert te["savings_percent"] == 94.0
+
+    def test_cursor_discovery_payload_not_in_wizard(self, client: TestClient, tmp_path: Path) -> None:
+        """Cursor is Memory Center manual import (cursor_rules), not wizard discovery."""
+        root = tmp_path / ".cursor"
+        root.mkdir()
+        rules = root / "rules"
+        rules.mkdir()
+        (rules / "style.md").write_text("Use TypeScript strict mode.", encoding="utf-8")
+
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "cursor", "root": str(root), "files": []},
+            "migration": {"apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        coverage_keys = {item["key"] for item in body["coverage_items"]}
+        assert "load_error" in coverage_keys
+        assert body["instruction_preview_rule_names"] == []
+        assert body["result"]["summary"]["mapped_items"] == 0
+
+    def test_pi_dry_run_full_pipeline(self, client: TestClient, tmp_path: Path) -> None:
+        root = tmp_path / ".pi" / "agent"
+        root.mkdir(parents=True)
+        (root / "AGENTS.md").write_text("You are a DevOps engineer.", encoding="utf-8")
+        (root / "settings.json").write_text(
+            json.dumps({"defaultProvider": "anthropic", "defaultModel": "claude-4-sonnet"}),
+            encoding="utf-8",
+        )
+        (root / "auth.json").write_text(
+            json.dumps({"anthropic": {"token": "sk-test"}}),
+            encoding="utf-8",
+        )
+        sessions_dir = root / "sessions"
+        sessions_dir.mkdir()
+        header = json.dumps(
+            {
+                "type": "session",
+                "version": 3,
+                "id": "s1",
+                "timestamp": "2025-07-01T12:00:00Z",
+                "cwd": "/tmp",
+            }
+        )
+        entry = json.dumps(
+            {
+                "id": "e1",
+                "type": "message",
+                "message": {"role": "user", "content": "Deploy to production"},
+            }
+        )
+        (sessions_dir / "s1.jsonl").write_text(f"{header}\n{entry}", encoding="utf-8")
+        skill_dir = root / "skills" / "ci"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("Run CI pipeline", encoding="utf-8")
+
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "pi", "root": str(root), "files": []},
+            "migration": {"include_episodic": True, "apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["mapped_items"] >= 1
+        assert body["result"]["summary"]["status"] == "ready"
+        assert body.get("instruction_total_chars", 0) > 0
+        assert "DevOps" in (body.get("instruction_preview_persona") or "")
+        assert len(body.get("pending_skills", [])) == 1
+        assert body["pending_skills"][0]["name"] == "ci"
+        coverage_labels = {item["label"] for item in body.get("coverage_items", [])}
+        assert "api_keys_manual" in coverage_labels
+
+    def test_codex_dry_run_instruction_lane(self, client: TestClient, tmp_path: Path) -> None:
+        root = tmp_path / ".codex"
+        root.mkdir()
+        (root / "instructions.md").write_text("Prefer small diffs.", encoding="utf-8")
+        (root / "config.json").write_text('{"model": "gpt-4o"}', encoding="utf-8")
+
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "codex", "root": str(root), "files": []},
+            "migration": {"apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "small diffs" in (body.get("instruction_preview_persona") or "").lower() or (
+            body.get("instruction_total_chars", 0) > 0
+        )
+
+    def test_mem0_dry_run_maps_flat_memories(self, client: TestClient) -> None:
+        """Mem0 export (memories/results) is auto-detected to the mem0 adapter."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "memories": [
+                    {
+                        "memory": "Prefers launchpad-style features",
+                        "tags": ["product", "taste"],
+                        "metadata": {"user_id": "u-1"},
+                    },
+                    {
+                        "memory": "Uses dark mode",
+                        "tags": ["ui"],
+                        "importance": 0.5,
+                    },
+                ]
+            },
+            "migration": {
+                "include_episodic": True,
+                "apply_global_instructions": True,
+            },
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "mem0"
+        assert result["summary"]["status"] == "ready"
+        assert result["summary"]["mapped_items"] == 2
+        assert result["summary"]["unmapped_items"] == 0
+        mapping_buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "memories" in mapping_buckets
+
+    def test_mem0_dry_run_drops_invalid_items(self, client: TestClient) -> None:
+        """Non-dict / empty entries are skipped and mapped_items only counts valid rows."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "memories": [
+                    "not-a-dict",
+                    {},
+                    {"memory": "", "tags": []},
+                    {"memory": "Valid entry"},
+                ]
+            },
+            "migration": {
+                "include_episodic": True,
+                "apply_global_instructions": True,
+            },
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "mem0"
+        assert result["summary"]["status"] == "warning"  # 1 mapped / 3 dropped → partial import
+        assert result["summary"]["mapped_items"] == 1
+        assert result["summary"]["unmapped_items"] == 3
+        mapping_buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "memories" in mapping_buckets
+
+    def test_trae_dry_run_full_api_chain(self, client: TestClient) -> None:
+        """TRAE rules and settings dry-run through the real API integration chain."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "trae_rules": [
+                    {
+                        "name": "Backend Guide",
+                        "content": "Follow PEP 8 and avoid Any",
+                        "scope": "project",
+                    }
+                ],
+                "trae_settings": {"preferredLanguage": "python"},
+            },
+            "migration": {"include_episodic": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "trae"
+        assert result["summary"]["status"] == "ready"
+        assert result["summary"]["mapped_items"] == 2
+        buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "trae_rules" in buckets
+        assert "trae_settings" in buckets
+
+    def test_windsurf_dry_run_full_api_chain(self, client: TestClient) -> None:
+        """Windsurf cascade memories and settings dry-run through the real API integration chain."""
+        payload = {
+            "source": "auto",
+            "payload": {
+                "windsurf_memories": [
+                    {
+                        "content": "User prefers concise launchpad features",
+                        "importance": 0.8,
+                        "confidence": 0.9,
+                    }
+                ],
+                "windsurf_settings": {"preferredLanguage": "typescript"},
+            },
+            "migration": {"include_episodic": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "windsurf"
+        assert result["summary"]["status"] == "ready"
+        assert result["summary"]["mapped_items"] == 2
+        buckets = {m["source_bucket"] for m in result["mappings"]}
+        assert "windsurf_memories" in buckets
+        assert "windsurf_settings" in buckets
+
+    def test_pi_explicit_manifest_source_is_accepted(self, client: TestClient, tmp_path: Path) -> None:
+        """The wizard sends the manifest import_source verbatim; it must never 422."""
+
+        root = tmp_path / ".pi" / "agent"
+        sessions_dir = root / "sessions"
+        sessions_dir.mkdir(parents=True)
+        (root / "AGENTS.md").write_text("You are Pi.", encoding="utf-8")
+        (sessions_dir / "s1.jsonl").write_text(
+            json.dumps({"id": "m1", "role": "user", "content": "Plan the release"}) + "\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "pi",
+            "payload": {"competitor": "pi", "root": str(root), "files": []},
+            "migration": {"include_episodic": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "pi"
+
+    def test_plur_dry_run_uses_official_store_schema(self, client: TestClient, tmp_path: Path) -> None:
+        store = tmp_path / ".plur"
+        store.mkdir()
+        (store / "engrams.yaml").write_text(
+            "engrams:\n"
+            "  - id: ENG-2026-05-06-001\n"
+            '    statement: "Always use Pydantic v2 BaseModels with strict types"\n'
+            "    type: behavioral\n"
+            "    status: active\n"
+            "    scope: global\n"
+            "    domain: backend\n"
+            "  - id: ENG-2026-05-06-002\n"
+            '    statement: "Old deploy checklist superseded by the pipeline"\n'
+            "    type: procedural\n"
+            "    status: retired\n"
+            "    scope: global\n"
+            "    domain: ops\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "plur",
+            "payload": {"competitor": "plur", "root": str(store), "files": []},
+            "migration": {"include_episodic": False},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "plur"
+        assert result["summary"]["mapped_items"] == 1
+        assert result["summary"]["unmapped_items"] == 1
+        assert "plur_inactive_skipped" in result["warnings"]
+
+    def test_claude_dry_run_imports_auto_memory(self, client: TestClient, tmp_path: Path) -> None:
+        root = tmp_path / ".claude"
+        root.mkdir()
+        (root / "CLAUDE.md").write_text("Be precise.", encoding="utf-8")
+        memory_dir = root / "projects" / "p" / "memory"
+        memory_dir.mkdir(parents=True)
+        (memory_dir / "feedback_no_git_confirm.md").write_text(
+            "---\n"
+            "name: no-git-confirm\n"
+            'description: "Don\'t ask for confirmation on git commands"\n'
+            "metadata:\n"
+            "  type: feedback\n"
+            "---\n\n"
+            "Don't ask for confirmation on git commands - execute directly.\n",
+            encoding="utf-8",
+        )
+
+        payload = {
+            "source": "claude",
+            "payload": {"competitor": "claude", "root": str(root), "files": []},
+            "migration": {"apply_global_instructions": True},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "claude"
+        assert result["summary"]["mapped_items"] == 1
+        assert "Be precise." in (body.get("instruction_preview_persona") or "")
+
+    def test_pasted_memory_dry_run_parses_buckets(self, client: TestClient) -> None:
+        text = (
+            "```\n"
+            "## RULES\n"
+            "[2024-03-01] - Always answer in Chinese when I write in Chinese.\n"
+            "## PROFILE\n"
+            "[2024-01-15] - 我叫李雷，住在杭州。\n"
+            "## FACTS\n"
+            "- 项目 A 使用 React\n"
+            "```\n"
+        )
+        payload = {"source": "pasted_memory", "payload": {"_source": "pasted_memory", "text": text}}
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        result = body["result"]
+        assert result["summary"]["source"] == "pasted_memory"
+        assert result["summary"]["mapped_items"] == 3
+        assert set(result["normalized_data"]) <= {"profile", "procedural", "semantic"}
+        assert result["normalized_data"], "preview sample must reach the frontend"
+
+
+class TestSourceAccessAndSkillBudget:
+    @pytest.fixture(autouse=True)
+    def _local_mode(self) -> None:
+        with patch(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            return_value=True,
+        ):
+            yield  # type: ignore[misc]
+
+    def test_sandbox_host_path_is_rejected_with_422(self, client: TestClient, tmp_path: Path) -> None:
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "hermes", "root": str(tmp_path), "files": []},
+        }
+        with patch(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            return_value=False,
+        ):
+            resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 422
+        assert "archive" in resp.json()["detail"].lower()
+
+    def test_skill_payload_is_capped_and_reports_the_total(
+        self,
+        client: TestClient,
+        claude_fixture: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        second = claude_fixture / "skills" / "second"
+        second.mkdir(parents=True)
+        (second / "SKILL.md").write_text("---\nname: second\n---\nSecond skill", encoding="utf-8")
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.MAX_PENDING_SKILLS",
+            1,
+        )
+
+        payload = {
+            "source": "auto",
+            "payload": {"competitor": "claude", "root": str(claude_fixture), "files": []},
+        }
+        resp = client.post("/api/v1/memory/import/dry-run", json=payload)
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["pending_skills_total"] == 2
+        assert len(body["pending_skills"]) == 1
+
+
+class TestPasteModelLane:
+    """Model-assisted pastes reuse the review pipeline and degrade to parsing."""
+
+    def test_extracted_items_shape_the_review(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractedMemory, ExtractionResult
+        from myrm_agent_harness.toolkits.memory.types import MemoryType
+
+        async def _resolver(_agent_id: str | None) -> object:
+            return object()
+
+        async def _extract(_messages: object, _llm_func: object, *_args: object, **_kwargs: object) -> ExtractionResult:
+            return ExtractionResult(
+                memories=[
+                    ExtractedMemory(
+                        memory_type=MemoryType.PROFILE,
+                        content="Prefers concise answers",
+                        confidence=0.9,
+                        importance=0.8,
+                        profile_key="tone",
+                        profile_value="concise",
+                    ),
+                    ExtractedMemory(
+                        memory_type=MemoryType.PROCEDURAL,
+                        content="Run tests before merge",
+                        confidence=0.8,
+                        importance=0.7,
+                        trigger="deploy",
+                    ),
+                    ExtractedMemory(
+                        memory_type=MemoryType.EPISODIC,
+                        content="Shipped the migration fix",
+                        confidence=0.7,
+                        importance=0.6,
+                    ),
+                ],
+            )
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _resolver,
+        )
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_memories_from_conversation",
+            _extract,
+        )
+
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": "I prefer concise answers and want tests before merge."},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["result"]["summary"]["source"] == "pasted_memory"
+        assert body["result"]["summary"]["mapped_items"] == 3
+        assert set(body["result"]["normalized_data"]) == {"profile", "procedural", "episodic"}
+        assert body["result"]["normalized_data"]["profile"][0]["content"] == "Prefers concise answers"
+        assert body["result"]["warnings"] == []
+
+    def test_long_paste_skips_the_model_call(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _resolver(_agent_id: str | None) -> object:
+            return object()
+
+        async def _extract(*_args: object, **_kwargs: object) -> object:
+            raise AssertionError("the model must not be called for oversized pastes")
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _resolver,
+        )
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_memories_from_conversation",
+            _extract,
+        )
+
+        long_line = "## FACTS\n- Uses Postgres 17 and keeps long notes " + ("x" * 41_000)
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": long_line},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "pasted_model_extraction_failed" in body["result"]["warnings"]
+        assert body["result"]["summary"]["mapped_items"] == 1
+
+    def test_falls_back_to_parsing_without_a_model(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _no_model(_agent_id: str | None) -> None:
+            return None
+
+        monkeypatch.setattr(
+            "app.services.memory.extract_retry.resolve_chat_extraction_llm.resolve_import_extraction_llm",
+            _no_model,
+        )
+
+        resp = client.post(
+            "/api/v1/memory/import/dry-run",
+            json={
+                "source": "pasted_memory",
+                "use_model_extraction": True,
+                "payload": {"text": "## FACTS\n- Uses Postgres 17"},
+            },
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "pasted_model_extraction_failed" in body["result"]["warnings"]
+        assert body["result"]["summary"]["mapped_items"] == 1

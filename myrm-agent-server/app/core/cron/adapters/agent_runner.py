@@ -1,0 +1,1252 @@
+"""Agent job runner — executes cron jobs through the Agent pipeline.
+
+1. agent/context_management/PROMPT_CACHE_PRACTICE.md §2.3 Cron 场景
+
+Reads the user's latest configs from ConfigService at execution time
+(no config snapshot). Model priority: agent profile model > CronJob.model
+> user's default model. No implicit fallback to arbitrary providers.
+
+When CronJob.agent_id is set, loads the agent's full profile via
+AgentProfileResolver to inject system_prompt, skills, model,
+subagent_ids, security overrides, max_iterations, and memory_policy
+into GeneralAgentParams — identical to Web/Channel entry points.
+
+Session target modes:
+- ISOLATED: each execution runs with a blank context (default).
+- MAIN: reuses the bound web-chat session's history.
+- DAILY: same-day executions share context via injected run-history;
+  a fresh context starts each calendar day.  See §2.3 of
+  PROMPT_CACHE_PRACTICE.md for cache-safety analysis.
+
+For recurring jobs, a [SILENT] instruction is appended to the prompt
+so the Agent can skip delivery when there's nothing actionable to report.
+
+During execution, a ContextVar guard prevents the Agent from creating new
+cron jobs (cron self-scheduling prevention).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, timezone
+from typing import TYPE_CHECKING
+
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
+from myrm_agent_harness.api.security import is_untrusted_ingress_active
+from myrm_agent_harness.core.security.audit import get_audit_entries
+from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
+    enter_cron_execution_context,
+    exit_cron_execution_context,
+)
+from myrm_agent_harness.toolkits.cron.heartbeat import HEARTBEAT_JOB_NAME
+from myrm_agent_harness.toolkits.cron.situation import (
+    SituationContext,
+    SituationReportBuilder,
+)
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    JobResult,
+    ScheduleKind,
+    SessionTarget,
+)
+
+from app.core.agent.run_activity import track_background_agent_run
+
+from .blocked_actions import blocked_actions_metadata
+from .injection_scan import scan_cron_prompt
+from .provider_window_deferral import usage_limit_deferral
+from .research_lease import grant_run_lease, release_run_lease
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
+
+logger = logging.getLogger(__name__)
+
+
+def _heartbeat_follow_up_delivered(job_output: str | None) -> bool:
+    """Return True when heartbeat output counts as a successful follow-up delivery ack."""
+    text = (job_output or "").strip()
+    return bool(text) and not text.startswith("[SILENT]")
+
+
+async def _finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult) -> None:
+    """Confirm or reset follow-up delivery state after a heartbeat agent run."""
+    if job.name != HEARTBEAT_JOB_NAME:
+        return
+
+    from app.core.memory.proactive.delivery_tracker import (
+        confirm_follow_up_delivery,
+        reset_follow_up_delivery,
+    )
+
+    if result.success and not result.skipped:
+        await confirm_follow_up_delivery(delivered=_heartbeat_follow_up_delivered(result.output))
+    else:
+        reset_follow_up_delivery()
+    await _scan_stalled_group_threads()
+
+
+async def _scan_stalled_group_threads() -> int:
+    """Run one lazy stall scan from the heartbeat path (no new daemon).
+
+    Covers fully silent groups that inbound traffic would never trigger.
+    Best-effort: failures never propagate to the cron run.
+    """
+    try:
+        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+        from app.channels.routing.follow_up import scan_stalled_threads
+        from app.core.channel_bridge import channel_gateway
+        from app.core.channel_bridge.topic_config import SqlTopicManager
+
+        return await scan_stalled_threads(
+            bus=channel_gateway.bus,
+            resolve_topic=SqlTopicManager().resolve_topic,
+            record_outbound=ChannelDataPlaneService.record_outbound,
+        )
+    except Exception:
+        logger.warning("Heartbeat stall scan skipped", exc_info=True)
+        return 0
+
+
+def _source_sort_key(s: dict[str, object]) -> int:
+    v = s.get("index", 0)
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return int(v)
+    if isinstance(v, str):
+        try:
+            return int(v, 10)
+        except ValueError:
+            return 0
+    return 0
+
+
+def _coerce_usage_int(v: object) -> int:
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return int(v)
+    if isinstance(v, str):
+        try:
+            return int(v, 10)
+        except ValueError:
+            return 0
+    return 0
+
+
+_STOP_REASON_CATEGORIES = frozenset({"limit", "cancelled", "error", "other"})
+
+
+def _stop_reason_priority(code: str) -> int:
+    if code in {"iteration_limit_reached", "engine_limit_reached"}:
+        return 40
+    if code == "agent_cancelled":
+        return 30
+    if code == "error":
+        return 20
+    return 10
+
+
+def _normalize_stop_reason_payload(
+    payload: dict[str, object] | None,
+) -> dict[str, object] | None:
+    if payload is None:
+        return None
+    code_obj = payload.get("code")
+    if not isinstance(code_obj, str) or not code_obj.strip():
+        return None
+    code = code_obj.strip()
+    category_obj = payload.get("category")
+    if isinstance(category_obj, str) and category_obj in _STOP_REASON_CATEGORIES:
+        category = category_obj
+    else:
+        category = "other"
+    message_obj = payload.get("message")
+    if isinstance(message_obj, str) and message_obj.strip():
+        message = message_obj.strip()
+    else:
+        message = code.replace("_", " ")
+    normalized: dict[str, object] = {
+        "code": code,
+        "category": category,
+        "message": message,
+    }
+    detail_obj = payload.get("detail")
+    if isinstance(detail_obj, dict):
+        normalized["detail"] = {str(k): v for k, v in detail_obj.items() if isinstance(k, str)}
+    return normalized
+
+
+def _extract_step_item_text(items: object) -> str | None:
+    if not isinstance(items, list):
+        return None
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("text")
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+    return None
+
+
+def _derive_stop_reason_from_event(
+    event: dict[str, object],
+) -> dict[str, object] | None:
+    event_type = event.get("type")
+    if not isinstance(event_type, str):
+        return None
+
+    data = event.get("data")
+    detail = data if isinstance(data, dict) else None
+
+    if event_type == "iteration_limit_reached":
+        message = "Iteration limit reached"
+        if detail is not None:
+            limit = detail.get("limit")
+            nodes = detail.get("nodes_completed")
+            if limit is not None and nodes is not None:
+                message = f"Iteration limit reached ({limit} iterations / {nodes} nodes)"
+            elif limit is not None:
+                message = f"Iteration limit reached ({limit} iterations)"
+        payload: dict[str, object] = {
+            "code": "iteration_limit_reached",
+            "category": "limit",
+            "message": message,
+        }
+        if detail is not None:
+            payload["detail"] = detail
+        return payload
+
+    if event_type == "engine_limit_reached":
+        message = "Engine limit reached"
+        if detail is not None:
+            raw_message = detail.get("message")
+            if isinstance(raw_message, str) and raw_message.strip():
+                message = raw_message.strip()
+        payload_2: dict[str, object] = {
+            "code": "engine_limit_reached",
+            "category": "limit",
+            "message": message,
+        }
+        if detail is not None:
+            payload_2["detail"] = detail
+        return payload_2
+
+    if event_type == "agent_cancelled":
+        reason = detail.get("reason") if detail else None
+        payload_3: dict[str, object] = {
+            "code": "agent_cancelled",
+            "category": "cancelled",
+            "message": ("Cancelled by user" if reason == "user_cancelled" else "Run cancelled"),
+        }
+        if detail is not None:
+            payload_3["detail"] = detail
+        return payload_3
+
+    if event_type == "tasks_steps":
+        step_key = event.get("step_key")
+        if step_key == "iteration_limit_reached":
+            text = _extract_step_item_text(event.get("data"))
+            message = "Iteration limit reached"
+            if text:
+                message = f"Iteration limit reached ({text})"
+            return {
+                "code": "iteration_limit_reached",
+                "category": "limit",
+                "message": message,
+            }
+        if event.get("status") == "error":
+            error_text = event.get("error")
+            if isinstance(error_text, str) and "Tool call limit exceeded" in error_text:
+                return {
+                    "code": "engine_limit_reached",
+                    "category": "limit",
+                    "message": error_text.strip() or "Engine limit reached",
+                }
+
+    if event_type == "error":
+        error_text = event.get("error")
+        if isinstance(error_text, str) and error_text.strip():
+            payload_4: dict[str, object] = {
+                "code": "error",
+                "category": "error",
+                "message": error_text.strip(),
+            }
+            error_type = event.get("error_type")
+            if isinstance(error_type, str) and error_type.strip():
+                payload_4["detail"] = {"error_type": error_type.strip()}
+            return payload_4
+
+    return None
+
+
+_SILENT_SUFFIX = (
+    "\n\n---\n"
+    "[Scheduler] This is a recurring scheduled task. "
+    "If there is nothing actionable or noteworthy to report, "
+    "respond with exactly `[SILENT]` (no other text) to skip notification delivery."
+)
+
+
+_DAILY_MAX_HISTORY_ENTRIES = 5
+_DAILY_OUTPUT_TRUNCATE_CHARS = 500
+_DAILY_CROSSDAY_SUMMARY_CHARS = 300
+_ONE_DAY = timedelta(days=1)
+_OVERLOAD_RETRY_DELAY = timedelta(seconds=60)
+
+
+def _build_effective_prompt(job: CronJob) -> str:
+    """Append [SILENT] instruction for recurring jobs."""
+    prompt = job.prompt or ""
+    if job.schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL):
+        return prompt + _SILENT_SUFFIX
+    return prompt
+
+
+def resolve_trusted_desktop_keys(
+    entries: tuple[dict[str, str], ...] | list[dict[str, str]],
+) -> tuple[str, ...]:
+    """Resolve pre-trusted desktop app entries to canonical trust keys.
+
+    Unresolvable entries are skipped (caller logs the count gap).
+    """
+    from myrm_agent_harness.toolkits.computer_use.app_identity import (
+        resolve_trust_key,
+    )
+
+    return tuple(
+        key
+        for key in (
+            resolve_trust_key(
+                app_name=app.get("name", ""),
+                app_id=app.get("app_id", ""),
+            )
+            for app in entries
+        )
+        if key
+    )
+
+
+def _resolve_cron_enable_memory(
+    enabled_builtin_tools: list[str],
+    memory_settings: dict[str, object] | None,
+    *,
+    untrusted: bool,
+) -> bool:
+    """Enable memory for cron only when all gates pass.
+
+    1. The intersected tool set allows memory (``tools_allowed`` per-job
+       allow-list, parallel to web_search/file/shell handling).
+    2. The user-level memory master switch is on (``enableMemory`` personal
+       setting), keeping cron consistent with channel/voice entry points.
+    3. The run was not started by an untrusted sender: memory here is the owner's,
+       so a stranger's run neither reads nor writes it.
+    """
+    from app.core.memory.proactive.settings import resolve_memory_enabled
+
+    return not untrusted and "memory" in enabled_builtin_tools and resolve_memory_enabled(memory_settings)
+
+
+async def _resolve_cron_enable_web_search(
+    *,
+    enabled_builtin_tools: list[str],
+    job: CronJob,
+    search_is_user_configured: bool,
+    search_cfg: SearchServiceConfig | None,
+) -> bool:
+    """Enable web_search for cron when policy allows it and search is configured."""
+    if "web_search" not in enabled_builtin_tools or not search_is_user_configured:
+        return False
+    if job.tools_allowed is not None and "web_search" in job.tools_allowed:
+        return True
+    from app.core.channel_bridge.config_parsers import verify_search_service_available
+
+    return await verify_search_service_available(search_cfg)
+
+
+async def _build_daily_context(job: CronJob) -> str:
+    """Build injected context for DAILY session-target jobs.
+
+    Queries same-day CronRunRecords for this job and formats recent
+    outputs as context.  On cross-day boundary (first run of the day),
+    injects the previous day's last output as a summary.
+
+    Returns an empty string when there is no history to inject.
+    """
+    from .setup import get_cron_store
+
+    store = get_cron_store()
+    today_utc = datetime.now(timezone.utc).date()
+
+    runs = await store.list_runs(
+        job_id=job.id,
+        limit=_DAILY_MAX_HISTORY_ENTRIES + 5,
+        status="ok",
+    )
+    if not runs:
+        return ""
+
+    def _utc_date(dt: datetime) -> date:
+        if dt.tzinfo is None:
+            return dt.date()
+        return dt.astimezone(timezone.utc).date()
+
+    today_runs = [r for r in runs if _utc_date(r.finished_at) == today_utc]
+    yesterday_utc = today_utc - _ONE_DAY
+    yesterday_runs = [r for r in runs if _utc_date(r.finished_at) == yesterday_utc]
+
+    fragments: list[str] = []
+
+    if not today_runs and yesterday_runs:
+        prev = yesterday_runs[0]
+        output = (prev.output or "")[:_DAILY_CROSSDAY_SUMMARY_CHARS]
+        if output:
+            fragments.append(f"[Yesterday's last output]\n{output}")
+
+    for run in reversed(today_runs[:_DAILY_MAX_HISTORY_ENTRIES]):
+        time_label = run.finished_at.strftime("%H:%M")
+        output = (run.output or "")[:_DAILY_OUTPUT_TRUNCATE_CHARS]
+        if output:
+            fragments.append(f"[Previous run at {time_label}]\n{output}")
+
+    if not fragments:
+        return ""
+
+    logger.debug("Daily context for job %s: %d fragments injected", job.id, len(fragments))
+    return "<daily_context>\n" + "\n---\n".join(fragments) + "\n</daily_context>"
+
+
+def _memory_overload_reason() -> str | None:
+    """Return a skip reason when memory is critical, else None.
+
+    Fail-open by design: any probe failure proceeds with execution rather
+    than blocking scheduled work on a broken sensor.
+    """
+    try:
+        from app.lifecycle.monitors import get_memory_pressure_monitor_instance
+
+        monitor = get_memory_pressure_monitor_instance()
+        if monitor is None:
+            return None
+        level = monitor.current_level.name
+        if level in ("CRITICAL", "EMERGENCY"):
+            return f"memory_pressure:{level.lower()}"
+        return None
+    except Exception:
+        return None
+
+
+class AgentJobRunner:
+    """JobRunner implementation that delegates to AgentFactory.
+
+    When a ``SituationReportBuilder`` is injected, heartbeat jobs receive
+    a dynamically-built situation report prepended to their prompt,
+    transforming blind self-checks into intelligence-driven actions.
+    """
+
+    def __init__(self, *, situation_builder: SituationReportBuilder | None = None) -> None:
+        self._situation_builder = situation_builder
+
+    async def run(self, job: CronJob, *, context: str = "") -> JobResult:
+        with track_background_agent_run():
+            return await self._run_with_retries(job, context=context)
+
+    async def _run_with_retries(self, job: CronJob, *, context: str) -> JobResult:
+        overload_reason = _memory_overload_reason()
+        if overload_reason is not None:
+            # Skip now, retry next tick: skipped runs don't consume retries or
+            # increment failure counters (JobResult.skipped contract).
+            logger.warning(
+                "Cron agent job %s deferred: %s. Retrying on next tick.",
+                job.id,
+                overload_reason,
+            )
+            # A one-shot job has no next slot: without a retry time the skip would consume it.
+            retry_at = datetime.now(timezone.utc) + _OVERLOAD_RETRY_DELAY if job.schedule.kind is ScheduleKind.ONCE else None
+            return JobResult(success=False, skipped=True, skip_reason=overload_reason, retry_at=retry_at)
+        last_result = JobResult(success=False, error="never executed")
+
+        for attempt in range(1 + job.max_retries):
+            last_result = await self._run_once(job, context=context)
+            if last_result.success or last_result.retry_at is not None:
+                # A deferral names the instant a repeat can succeed; retrying now only burns attempts.
+                return last_result
+
+            # If circuit breaker was tripped, abort immediately — do not retry!
+            if getattr(last_result, "circuit_broken", False):
+                logger.error(
+                    "Cron agent job %s circuit broken (attempt %d/%d): %s. Aborting retries to protect resources.",
+                    job.id,
+                    attempt + 1,
+                    1 + job.max_retries,
+                    last_result.error,
+                )
+                return last_result
+
+            if attempt < job.max_retries:
+                backoff = min(job.retry_backoff_ms * (2**attempt), 30_000)
+                jitter = int(datetime.now(timezone.utc).microsecond % 250)
+                await asyncio.sleep((backoff + jitter) / 1000)
+
+        return last_result
+
+    async def _inject_situation_report(self, job: CronJob, prompt: str) -> tuple[str, bool]:
+        """Build and prepend a situation report for heartbeat jobs.
+
+        Returns ``(effective_prompt, has_actionable_content)`` so the caller
+        can skip the LLM call when no section produced useful data.
+        """
+        assert self._situation_builder is not None
+        from app.core.channel_bridge.config_loader import load_user_configs
+        from app.core.memory.proactive.delivery_tracker import (
+            begin_follow_up_delivery,
+            reset_follow_up_delivery,
+        )
+        from app.core.memory.proactive.settings import resolve_memory_enabled
+
+        begin_follow_up_delivery()
+        try:
+            user_cfgs = await load_user_configs()
+            memory_settings = user_cfgs.personal_settings_dict or {}
+            memory_enabled = resolve_memory_enabled(memory_settings)
+
+            ctx = SituationContext(
+                last_tick_at=job.last_run_at,
+                agent_id=job.agent_id or "",
+                user_id=job.user_id,
+                memory_enabled=memory_enabled,
+            )
+            report = await self._situation_builder.build(ctx)
+            if report:
+                return (
+                    f"<situation_report>\n{report}</situation_report>\n\n{prompt}",
+                    True,
+                )
+        except Exception:
+            logger.warning("Situation report build failed for job %s", job.id, exc_info=True)
+            reset_follow_up_delivery()
+            return prompt, True
+        reset_follow_up_delivery()
+        return prompt, False
+
+    async def _try_enqueue_if_goal_active(self, job: CronJob, *, context: str = "") -> bool:
+        """If an active goal exists on this chat, enqueue the cron task as a queued goal.
+
+        Returns True if the job was enqueued (caller should skip direct execution).
+        """
+        from app.services.agent.goals.goal_registry import GoalRegistry
+
+        chat_id = job.chat_id
+        if not chat_id:
+            return False
+
+        provider = GoalRegistry.get_provider(chat_id)
+        if not provider:
+            return False
+
+        active = await provider.get_active_goal(chat_id)
+        if not active:
+            return False
+
+        effective_prompt = _build_effective_prompt(job)
+        if context:
+            effective_prompt = f"{effective_prompt}\n\n{context}"
+
+        objective = f"[Cron: {job.name}] {effective_prompt[:200]}"
+        criteria = list(job.acceptance_criteria) if job.acceptance_criteria else None
+        await provider.create_goal(
+            session_id=chat_id,
+            objective=objective,
+            acceptance_criteria=criteria,
+        )
+        logger.info(
+            "Cron job %s enqueued as goal on chat %s (active goal: %s, criteria=%d)",
+            job.id,
+            chat_id,
+            active.goal_id,
+            len(criteria) if criteria else 0,
+        )
+        return True
+
+    async def _run_once(self, job: CronJob, *, context: str = "") -> JobResult:
+        if not job.prompt:
+            return JobResult(success=False, error="agent job requires a prompt")
+
+        from app.services.budget.enforcer import should_block_execution
+
+        if await should_block_execution():
+            return JobResult(success=False, error="daily budget exceeded (block policy)")
+
+        # A non-owner's message started this run, so its trigger context is a stranger's text: the run gets the
+        # read-only lease and no memory or owner chat history (below), is never queued as a goal in the owner's
+        # chat, where it would run unfenced, and cannot be a workflow template, whose agents the lease cannot reach.
+        untrusted = is_untrusted_ingress_active()
+        if untrusted and job.workflow_template_id:
+            logger.info("Cron job %s: workflow template jobs do not run for a non-owner sender", job.id)
+            return JobResult(success=True, skipped=True, skip_reason="untrusted-workflow")
+
+        if job.chat_id and not untrusted:
+            queued = await self._try_enqueue_if_goal_active(job, context=context)
+            if queued:
+                return JobResult(
+                    success=True,
+                    output="cron job enqueued as goal (active goal exists)",
+                )
+
+        effective_prompt = _build_effective_prompt(job)
+
+        injection_findings = scan_cron_prompt(effective_prompt)
+        if injection_findings:
+            logger.warning(
+                "Cron job %s: prompt injection patterns detected — %s",
+                job.id,
+                "; ".join(injection_findings),
+            )
+            return JobResult(
+                success=False,
+                error=f"prompt injection detected: {injection_findings[0]}",
+            )
+
+        if self._situation_builder and job.name == HEARTBEAT_JOB_NAME:
+            effective_prompt, has_content = await self._inject_situation_report(job, effective_prompt)
+            if not has_content:
+                logger.info("Heartbeat job %s: all sections empty, skipping LLM call", job.id)
+                return JobResult(success=True, skipped=True, skip_reason="no-content")
+
+        if job.session_target == SessionTarget.DAILY:
+            daily_ctx = await _build_daily_context(job)
+            if daily_ctx:
+                effective_prompt = f"{daily_ctx}\n\n{effective_prompt}"
+
+        if context:
+            effective_prompt = f"{effective_prompt}\n\n{context}"
+
+        cron_ctx_token = enter_cron_execution_context()
+        lease_session_key: str | None = None
+        try:
+            from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+            from app.core.channel_bridge.config_loader import load_user_configs
+            from app.core.channel_bridge.config_parsers import (
+                extract_fallback_model_configs,
+                extract_retrieval_models,
+                resolve_chat_fallback_chains_from_providers,
+                resolve_vision_fallback_chain_for_agent,
+            )
+            from app.core.channel_bridge.model_resolver import (
+                enrich_model_capabilities,
+                enrich_model_context_window,
+                resolve_model_config,
+            )
+            from app.core.security.privacy_settings import privacy_agent_params
+
+            user_cfgs = await load_user_configs()
+
+            embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
+            fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(user_cfgs.providers_dict)
+            fallback_model_cfgs_list, fallback_lite_model_cfgs_list = resolve_chat_fallback_chains_from_providers(
+                user_cfgs.providers_dict,
+                require_tool_calling=True,
+            )
+            fallback_model_cfgs = fallback_model_cfgs_list or None
+            fallback_lite_model_cfgs = fallback_lite_model_cfgs_list or None
+            if fallback_model_cfgs and fallback_model_cfg is None:
+                fallback_model_cfg = fallback_model_cfgs[0]
+            if fallback_lite_model_cfgs and fallback_lite_model_cfg is None:
+                fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
+
+            from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+                EmbeddingConfig,
+            )
+            from myrm_agent_harness.toolkits.retriever.reranker.factory import (
+                RerankerConfig,
+            )
+
+            GeneralAgentParams.model_rebuild(
+                _types_namespace={
+                    "EmbeddingConfig": EmbeddingConfig,
+                    "RerankerConfig": RerankerConfig,
+                }
+            )
+
+            security_config_raw = user_cfgs.security_config_dict or {}
+
+            agent_skill_ids: list[str] = []
+            agent_subagent_ids: list[str] | None = None
+            agent_security_raw: dict[str, object] | None = None
+            agent_max_iterations: int | None = None
+            agent_memory_policy = None
+            agent_engine_params = None
+            user_instructions: str | None = None
+            agent_model_override: str | None = None
+            from app.services.agent.profile.profile_resolver import (
+                DEFAULT_ENABLED_BUILTIN_TOOLS,
+            )
+
+            enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+            auto_restore_domains: list[str] = []
+            memory_decay_profile: str | None = None
+            memory_extraction_preset: str | None = None
+            cron_post_run_verify = False
+            trusted_desktop_apps: tuple[dict[str, str], ...] = ()
+            resolved = None
+
+            if job.agent_id:
+                from app.services.agent.profile.profile_resolver import (
+                    get_agent_profile_resolver,
+                )
+
+                resolved = await get_agent_profile_resolver().resolve(job.agent_id)
+                if resolved:
+                    if resolved.system_prompt:
+                        user_instructions = resolved.system_prompt
+                    agent_skill_ids = list(resolved.skill_ids)
+                    agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+                    agent_security_raw = resolved.security_overrides
+                    agent_max_iterations = resolved.max_iterations
+                    agent_memory_policy = resolved.memory_policy
+                    agent_engine_params = resolved.engine_params
+                    agent_model_override = resolved.model
+                    enabled_builtin_tools = list(resolved.enabled_builtin_tools)
+                    auto_restore_domains = list(resolved.auto_restore_domains)
+                    raw_decay = resolved.memory_decay_profile
+                    memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
+                    raw_preset = resolved.memory_extraction_preset
+                    memory_extraction_preset = raw_preset if isinstance(raw_preset, str) else None
+                    cron_post_run_verify = resolved.cron_post_run_verify
+                    trusted_desktop_apps = resolved.trusted_desktop_apps
+
+                    if resolved.agent_type == "team":
+                        from app.ai_agents.team_protocol import (
+                            build_leader_protocol_prompt,
+                        )
+
+                        leader_protocol = await build_leader_protocol_prompt(
+                            agent_subagent_ids or [],
+                            leader_id=job.agent_id,
+                            dynamic_discovery=True,
+                        )
+                        user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
+
+                    from app.services.agent.params.profile_output_suffixes import (
+                        apply_profile_output_suffixes,
+                    )
+
+                    user_instructions = apply_profile_output_suffixes(
+                        user_instructions,
+                        personality_style=resolved.personality_style,
+                        engine_params=resolved.engine_params,
+                        agent_id=job.agent_id,
+                    )
+
+            from app.core.cron.adapters.tools_policy import (
+                intersect_cron_enabled_builtin_tools,
+            )
+
+            enabled_builtin_tools = intersect_cron_enabled_builtin_tools(
+                enabled_builtin_tools,
+                job.tools_allowed,
+            )
+
+            from app.core.cron.adapters.tools_policy import (
+                resolve_cron_runtime_tool_flags,
+            )
+
+            cron_tool_flags = resolve_cron_runtime_tool_flags(
+                enabled_builtin_tools,
+                job.tools_allowed,
+            )
+
+            # Priority: agent profile model > job.model > global default
+            model_override = agent_model_override or job.model
+            model_cfg = resolve_model_config(
+                user_cfgs.providers_dict,
+                model_override=model_override,
+            )
+            model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)
+            model_cfg = enrich_model_context_window(model_cfg, user_cfgs.providers_dict)
+            vision_fallback_model_cfg, vision_fallback_model_cfgs = resolve_vision_fallback_chain_for_agent(
+                user_cfgs.providers_dict,
+                main_model_cfg=model_cfg if model_cfg.supports_vision else None,
+            )
+
+            memory_shared_context_ids: list[str] = []
+            try:
+                from app.services.memory.shared_context.shared_context import (
+                    resolve_shared_context_ids,
+                )
+
+                memory_shared_context_ids = await resolve_shared_context_ids(
+                    agent_id=job.agent_id,
+                    channel_id="cron",
+                    cron_id=job.id,
+                    conversation_id=job.chat_id,
+                    task_id=job.id,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Cron job %s: failed to resolve shared memory contexts: %s",
+                    job.id,
+                    e,
+                )
+
+            memory_settings = user_cfgs.personal_settings_dict or {}
+            cron_trusted_desktop_keys = resolve_trusted_desktop_keys(trusted_desktop_apps)
+            if len(cron_trusted_desktop_keys) != len(trusted_desktop_apps):
+                logger.warning(
+                    "Cron job %s: %d/%d trusted desktop apps unresolvable, skipped",
+                    job.id,
+                    len(trusted_desktop_apps) - len(cron_trusted_desktop_keys),
+                    len(trusted_desktop_apps),
+                )
+            from app.core.agent.tool_description_locale import (
+                resolve_agent_params_locale,
+            )
+            from app.core.memory.proactive.settings import (
+                resolve_conversation_search_enabled,
+            )
+            from app.services.agent.resolve_enable_web_fetch import (
+                resolve_enable_web_fetch,
+            )
+
+            if job.chat_id and job.session_target != SessionTarget.MAIN:
+                from app.services.chat.chat_crud import _ChatCrudMixin
+
+                await _ChatCrudMixin.ensure_chat_source(job.chat_id, "cron")
+
+            effective_allowed_roots = list(job.allowed_roots)
+            if job.project_id and not effective_allowed_roots:
+                try:
+                    from app.services.project.project_service import ProjectService
+
+                    project_model = await ProjectService.get_project(job.project_id)
+                    if project_model and project_model.workspace_path:
+                        effective_allowed_roots.append(project_model.workspace_path)
+                except Exception as exc:
+                    logger.warning("Failed to resolve project workspace for cron job %s: %s", job.id, exc)
+
+            params = GeneralAgentParams(
+                query=effective_prompt,
+                model_cfg=model_cfg,
+                fallback_model_cfg=fallback_model_cfg,
+                fallback_model_cfgs=fallback_model_cfgs,
+                fallback_lite_model_cfg=fallback_lite_model_cfg,
+                fallback_lite_model_cfgs=fallback_lite_model_cfgs,
+                vision_fallback_model_cfg=vision_fallback_model_cfg,
+                vision_fallback_model_cfgs=vision_fallback_model_cfgs or None,
+                search_service_cfg=user_cfgs.search_cfg,
+                chat_id=job.chat_id,
+                agent_id=job.agent_id,
+                project_id=job.project_id,
+                embedding_config=embedding_cfg,
+                reranker_config=reranker_cfg,
+                security_config_raw=security_config_raw,
+                agent_security_raw=agent_security_raw,
+                channel_name="cron",
+                declared_capabilities=job.required_capabilities,
+                declared_allowed_roots=tuple(effective_allowed_roots),
+                **cron_tool_flags,
+                enable_memory=_resolve_cron_enable_memory(enabled_builtin_tools, memory_settings, untrusted=untrusted),
+                enable_web_search=await _resolve_cron_enable_web_search(
+                    enabled_builtin_tools=enabled_builtin_tools,
+                    job=job,
+                    search_is_user_configured=user_cfgs.search_is_user_configured,
+                    search_cfg=user_cfgs.search_cfg,
+                ),
+                enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
+                auto_restore_domains=auto_restore_domains,
+                unattended_mode=True,
+                desktop_preapproved_trust_keys=cron_trusted_desktop_keys,
+                desktop_unattended_fail_fast=True,
+                user_instructions=user_instructions,
+                agent_skill_ids=list(dict.fromkeys(agent_skill_ids + list(job.skill_ids))),
+                subagent_ids=agent_subagent_ids,
+                max_iterations=agent_max_iterations,
+                memory_policy=agent_memory_policy,
+                memory_decay_profile=memory_decay_profile,
+                memory_extraction_preset=memory_extraction_preset,
+                engine_params=agent_engine_params,
+                memory_shared_context_ids=memory_shared_context_ids,
+                enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
+                locale=resolve_agent_params_locale(
+                    personal_settings=memory_settings,
+                    channel="cron",
+                ),
+                notify_targets=(resolved.notify_targets if resolved else ()),
+                **privacy_agent_params(memory_settings),
+            )
+
+            from app.ai_agents.event_log_injector import (
+                inject_event_log_config,
+                resolve_cron_event_log_session_id,
+            )
+
+            cron_event_log_sid = (
+                job.chat_id
+                if (job.session_target == SessionTarget.MAIN and job.chat_id)
+                else resolve_cron_event_log_session_id(str(job.id))
+            )
+            inject_event_log_config(params, session_id_override=cron_event_log_sid)
+
+            agent = AgentFactory.create_general_agent(params)
+            agent.approval_session_key = f"cron:{job.id}"
+
+            timeout = job.timeout_seconds or 300
+            lease_session_key = grant_run_lease(agent, job, timeout_seconds=timeout, untrusted=untrusted)
+            run_started_at = time.monotonic()
+            model_name: str | None = getattr(agent.model_cfg, "model", None)
+
+            from myrm_agent_harness.core.security.types import user_credentials_ctx
+
+            from app.services.agent.execution_cache import (
+                ExecutionMode,
+                finalize_agent_session,
+            )
+            from app.services.agent.runtime_context import build_agent_runtime_context
+            from app.services.agent.session_credential_assembler import (
+                assemble_session_credentials,
+            )
+
+            runtime_context = await build_agent_runtime_context(
+                execution_mode=ExecutionMode.EPHEMERAL,
+            )
+
+            session_credentials = await assemble_session_credentials(
+                oauth_credentials_dict=user_cfgs.oauth_credentials_dict,
+                providers_dict=user_cfgs.providers_dict,
+            )
+            cred_ctx = user_credentials_ctx.set(session_credentials)
+            try:
+                try:
+                    if job.workflow_template_id:
+                        import secrets
+
+                        from app.services.agent.stream_session.stream_lane_factory import (
+                            create_dynamic_workflow_stream,
+                        )
+                        from app.services.workflow_templates.validation import (
+                            validate_cron_template_at_execution,
+                        )
+
+                        template_error = validate_cron_template_at_execution(
+                            job.workflow_template_id,
+                            job.workflow_template_args,
+                        )
+                        if template_error:
+                            logger.warning(
+                                "Cron agent job %s blocked by workflow template execution guard: %s",
+                                job.id,
+                                template_error,
+                            )
+                            return JobResult(success=False, error=template_error)
+
+                        params.message_id = f"cron-{job.id}-{secrets.token_urlsafe(6)}"
+                        dw_stream = create_dynamic_workflow_stream(
+                            params,
+                            cancel_token=None,
+                            workflow_template_id=job.workflow_template_id,
+                            workflow_template_args=job.workflow_template_args,
+                            unattended=True,
+                        )
+                        result = await asyncio.wait_for(
+                            _consume_dynamic_workflow_stream(dw_stream, job, model_name),
+                            timeout=timeout,
+                        )
+                    else:
+                        result = await asyncio.wait_for(
+                            _consume_stream(agent, job, effective_prompt, runtime_context, untrusted=untrusted),
+                            timeout=timeout,
+                        )
+                    if cron_post_run_verify:
+                        from app.core.cron.adapters.post_run_verification import (
+                            apply_cron_post_run_verification,
+                        )
+
+                        elapsed = time.monotonic() - run_started_at
+                        remaining = max(0.0, float(timeout) - elapsed)
+                        result = await apply_cron_post_run_verification(
+                            agent,
+                            job,
+                            result,
+                            enabled=True,
+                            timeout_seconds=remaining,
+                        )
+
+                    if job.acceptance_criteria and result.success:
+                        from app.core.cron.adapters.acceptance_verification import (
+                            apply_acceptance_criteria_verification,
+                        )
+
+                        elapsed = time.monotonic() - run_started_at
+                        remaining = max(0.0, float(timeout) - elapsed)
+                        result = await apply_acceptance_criteria_verification(
+                            job,
+                            result,
+                            timeout_seconds=remaining,
+                        )
+                finally:
+                    await finalize_agent_session(
+                        agent,
+                        chat_id=job.chat_id,
+                        agent_id=params.agent_id,
+                        extra_context=runtime_context,
+                    )
+
+                await _finalize_heartbeat_follow_up_delivery(job, result)
+
+                return result
+            finally:
+                user_credentials_ctx.reset(cred_ctx)
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Cron agent job %s timed out after %ds",
+                job.id,
+                job.timeout_seconds or 300,
+            )
+            return JobResult(
+                success=False,
+                error=f"agent timed out after {job.timeout_seconds or 300}s",
+            )
+        except Exception as exc:
+            return _failure_result(job, exc)
+        finally:
+            if lease_session_key:
+                release_run_lease(lease_session_key)
+            exit_cron_execution_context(cron_ctx_token)
+
+
+def _failure_result(job: CronJob, exc: Exception) -> JobResult:
+    """Map an exception escaping an agent run to its JobResult (breaker, usage-limit deferral, failure)."""
+    from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
+
+    if isinstance(exc, RunawayCircuitBreakException):
+        logger.error("Cron agent job %s tripped RunawayCircuitBreakException: %s", job.id, exc)
+        return JobResult(
+            success=False,
+            error=str(exc),
+            circuit_broken=True,
+        )
+    deferral = usage_limit_deferral(exc)
+    if deferral is not None:
+        logger.warning("Cron agent job %s hit a provider usage limit: %s", job.id, exc)
+        return deferral
+    logger.warning("Cron agent job %s failed: %s", job.id, exc)
+    return JobResult(success=False, error=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Stream accumulation
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _StreamAccumulator:
+    answer: AnswerDraft = field(default_factory=AnswerDraft)
+    progress_steps: list[dict[str, object]] = field(default_factory=list)
+    sources: list[dict[str, object]] = field(default_factory=list)
+    usage: dict[str, int] | None = None
+    error: str | None = None
+    stop_reason: dict[str, object] | None = None
+    circuit_broken: bool = False
+    _seen_indices: set[int] = field(default_factory=set)
+
+    def add_sources(self, items: list[dict[str, object]]) -> None:
+        for src in items:
+            idx = src.get("index")
+            if isinstance(idx, int) and idx not in self._seen_indices:
+                self._seen_indices.add(idx)
+                self.sources.append(src)
+
+    def to_result(self, model: str | None = None) -> JobResult:
+        output = self.answer.text
+        metadata: dict[str, object] = {}
+        if self.progress_steps:
+            metadata["progressSteps"] = self.progress_steps
+        if self.stop_reason:
+            metadata["stopReason"] = self.stop_reason
+        if self.sources:
+            metadata["sources"] = sorted(self.sources, key=_source_sort_key)
+        if model:
+            metadata["model"] = model
+        if self.usage:
+            metadata["usage"] = self.usage
+
+        metadata.update(blocked_actions_metadata(get_audit_entries()))
+
+        if self.error or self.circuit_broken:
+            return JobResult(
+                success=False,
+                output=output,
+                error=self.error or "Runaway circuit break triggered",
+                metadata=metadata or None,
+                circuit_broken=self.circuit_broken,
+            )
+
+        return JobResult(
+            success=True,
+            output=output or "agent completed",
+            metadata=metadata or None,
+        )
+
+    def set_stop_reason(self, payload: dict[str, object]) -> None:
+        normalized = _normalize_stop_reason_payload(payload)
+        if normalized is None:
+            return
+        if self.stop_reason is None:
+            self.stop_reason = normalized
+            return
+        current_code = self.stop_reason.get("code")
+        current_priority = _stop_reason_priority(current_code) if isinstance(current_code, str) else 0
+        next_code = normalized.get("code")
+        next_priority = _stop_reason_priority(next_code) if isinstance(next_code, str) else 0
+        if next_priority >= current_priority:
+            self.stop_reason = normalized
+
+
+async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
+    """Load chat history when session_target is MAIN and chat_id is available."""
+    if job.session_target != SessionTarget.MAIN or not job.chat_id:
+        return None
+    try:
+        from app.services.chat.chat_service import ChatService
+
+        history = await ChatService.load_web_chat_history(
+            chat_id=job.chat_id,
+            max_messages=30,
+        )
+        if history:
+            logger.debug(
+                "Cron job %s: loaded %d history entries from chat %s",
+                job.id,
+                len(history),
+                job.chat_id,
+            )
+        # The agent entry point types history entries loosely; re-wrap so the invariant list types line up.
+        return [list(entry) for entry in history]
+    except Exception:
+        logger.warning(
+            "Cron job %s: failed to load thread history for chat %s",
+            job.id,
+            job.chat_id,
+        )
+        return None
+
+
+async def _consume_stream(
+    agent: object,
+    job: CronJob,
+    effective_prompt: str,
+    runtime_context: dict[str, object],
+    *,
+    untrusted: bool,
+) -> JobResult:
+    from app.ai_agents.general_agent import GeneralAgent
+
+    assert isinstance(agent, GeneralAgent)
+
+    acc = _StreamAccumulator()
+    model_name: str | None = getattr(agent.model_cfg, "model", None)
+    # The bound thread is the owner's private conversation; a non-owner's run never reads it.
+    chat_history = None if untrusted else await _load_thread_history(job)
+
+    async for event in agent.process_stream(
+        query=effective_prompt,
+        chat_history=chat_history,
+        chat_id=job.chat_id,
+        context=runtime_context,
+    ):
+        event_type = event.get("type", "")
+        stop_reason = _derive_stop_reason_from_event(event)
+        if stop_reason is not None:
+            acc.set_stop_reason(stop_reason)
+
+        acc.answer.feed(event)
+        if event_type == "message_end" and isinstance(event.get("usage"), dict):
+            raw_u = event.get("usage")
+            assert isinstance(raw_u, dict)
+            acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
+        elif event_type == "error":
+            error_msg = event.get("error", "unknown agent error")
+            error_type = event.get("error_type", "")
+            acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
+            if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
+                acc.circuit_broken = True
+        elif event_type == "tasks_steps":
+            acc.progress_steps.append(
+                {
+                    "step_key": event.get("step_key"),
+                    "tool_name": event.get("tool_name"),
+                    "items": event.get("data"),
+                    "count": event.get("count"),
+                    "error": (event.get("error") if event.get("status") == "error" else None),
+                }
+            )
+        elif event_type == "sources" and isinstance(event.get("data"), list):
+            raw_list = event.get("data")
+            assert isinstance(raw_list, list)
+            src_items: list[dict[str, object]] = []
+            for el in raw_list:
+                if isinstance(el, dict):
+                    src_items.append({str(k): val for k, val in el.items()})
+            acc.add_sources(src_items)
+
+    return acc.to_result(model=model_name)
+
+
+async def _consume_dynamic_workflow_stream(
+    stream: object,
+    job: CronJob,
+    model_name: str | None,
+) -> JobResult:
+    from collections.abc import AsyncIterable
+
+    assert isinstance(stream, AsyncIterable)
+
+    acc = _StreamAccumulator()
+    async for event in stream:
+        if not isinstance(event, dict):
+            continue
+        event_type = event.get("type", "")
+        stop_reason = _derive_stop_reason_from_event(event)
+        if stop_reason is not None:
+            acc.set_stop_reason(stop_reason)
+
+        acc.answer.feed(event)
+        if event_type == "message_end" and isinstance(event.get("usage"), dict):
+            raw_u = event.get("usage")
+            assert isinstance(raw_u, dict)
+            acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
+        elif event_type == "error":
+            error_msg = event.get("error", "unknown agent error")
+            error_type = event.get("error_type", "")
+            acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
+            if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
+                acc.circuit_broken = True
+        elif event_type == "status":
+            data = event.get("data")
+            if isinstance(data, dict):
+                step_key = data.get("step_key") or data.get("phase")
+                if isinstance(step_key, str):
+                    acc.progress_steps.append(
+                        {
+                            "step_key": step_key,
+                            "tool_name": None,
+                            "items": data,
+                            "count": None,
+                            "error": None,
+                        }
+                    )
+        elif event_type == "sources" and isinstance(event.get("data"), list):
+            raw_list = event.get("data")
+            assert isinstance(raw_list, list)
+            src_items: list[dict[str, object]] = []
+            for el in raw_list:
+                if isinstance(el, dict):
+                    src_items.append({str(k): val for k, val in el.items()})
+            acc.add_sources(src_items)
+
+    return acc.to_result(model=model_name)

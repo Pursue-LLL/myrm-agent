@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Build outputs
+*.tsbuildinfo
+.turbo/
+
+# Cache
+.cache/
+.vercel/
+
+# System files
+.DS_Store
+*.log
+
+# Test coverage
+coverage/
+
+# Environment
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Generated files
+public/
+scripts/
+
+
+
+

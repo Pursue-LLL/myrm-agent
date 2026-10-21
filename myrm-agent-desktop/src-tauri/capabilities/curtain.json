@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "privacy-curtain",
+  "description": "Privacy curtain overlay windows (physical input reporting only)",
+  "windows": [
+    "privacy-curtain-*"
+  ],
+  "permissions": [
+    "allow-curtain-report-physical-input"
+  ]
+}

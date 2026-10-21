@@ -1,0 +1,2 @@
+# Desktop-relative directories grandfathered without _ARCH.md (one per line)
+# Regenerate gaps: bun run scripts/check-fractal-docs.ts --write-baseline

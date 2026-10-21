@@ -1,0 +1,99 @@
+[
+  {
+    "id": "context7",
+    "name": "Context7",
+    "name_zh": "Context7",
+    "description": "Fetch up-to-date library documentation and code examples for any framework",
+    "description_zh": "获取任意框架的最新库文档和代码示例",
+    "icon": "context7",
+    "category": "docs",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "context7",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "description": "Context7 - up-to-date library docs and code examples"
+    },
+    "auth": {
+      "type": "none",
+      "help_text": "Works without an API key for public docs; add a key for higher limits",
+      "help_text_zh": "无需 API Key 即可访问公共文档；添加 Key 可提高限额"
+    },
+    "tags": [
+      "docs",
+      "documentation",
+      "library",
+      "code-examples",
+      "api-reference"
+    ],
+    "website": "https://context7.com"
+  },
+  {
+    "id": "microsoft-learn",
+    "name": "Microsoft Learn",
+    "name_zh": "Microsoft Learn",
+    "description": "Search and fetch Microsoft Learn documentation through Microsoft's hosted MCP server",
+    "description_zh": "通过微软托管的 MCP 服务器搜索和获取 Microsoft Learn 文档",
+    "icon": "microsoft-learn",
+    "category": "docs",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "microsoft-learn",
+      "type": "streamable_http",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "description": "Microsoft Learn - Azure, .NET, Windows, Office documentation"
+    },
+    "auth": {
+      "type": "none",
+      "help_text": "Public documentation; no authentication required",
+      "help_text_zh": "公共文档，无需认证"
+    },
+    "tags": [
+      "docs",
+      "microsoft",
+      "azure",
+      "dotnet",
+      "windows"
+    ],
+    "website": "https://learn.microsoft.com"
+  },
+  {
+    "id": "aws-docs",
+    "name": "AWS Documentation",
+    "name_zh": "AWS 文档",
+    "description": "Search AWS documentation and service guidance through AWS Labs' MCP server",
+    "description_zh": "通过 AWS Labs MCP 服务器搜索 AWS 文档和服务指南",
+    "icon": "aws-docs",
+    "category": "docs",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "aws-docs",
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-documentation-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_DOCUMENTATION_PARTITION": "aws"
+      },
+      "description": "AWS Documentation - services, APIs, best practices"
+    },
+    "auth": {
+      "type": "none",
+      "help_text": "Requires uvx (Python package runner) installed locally",
+      "help_text_zh": "需要本地安装 uvx（Python 包运行器）"
+    },
+    "tags": [
+      "docs",
+      "aws",
+      "cloud",
+      "infrastructure"
+    ],
+    "website": "https://docs.aws.amazon.com"
+  }
+]

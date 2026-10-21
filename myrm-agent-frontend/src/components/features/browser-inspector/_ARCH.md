@@ -1,0 +1,34 @@
+# Browser Inspector Module
+
+Real-time browser live view with interactive element inspection.
+Enables users to visually select page elements and send natural language instructions to the agent.
+
+## Files
+
+| File                          | Role    | Description                                                                                 | I/O/P |
+| ----------------------------- | ------- | ------------------------------------------------------------------------------------------- | ----- |
+| BrowserLiveView.tsx           | Core    | Draggable side panel with screenshot view, dynamic responsive scaling, and element overlay  | Yes   |
+| BrowserInspectorToggle.tsx    | Core    | Floating toggle button, visible when active or snapshot retained, with hover peek thumbnail | Yes   |
+| ElementOverlay.tsx            | Core    | BBox-based interactive element selection overlay                                            | Yes   |
+| InspectorToolbar.tsx          | Support | Toolbar with view/inspect mode toggle, page info, desktop takeover, refresh                 | Yes   |
+| InspectorInstructionInput.tsx | Support | Natural language instruction input with element badge                                       | Yes   |
+| index.ts                      | Export  | Barrel exports                                                                              | -     |
+
+## Dependencies
+
+- `@/store/useBrowserInspectorStore` (POS: Browser Inspector state management; `selectScopedBrowserViewData` for chat-scoped SSE view)
+- `@/store/chat/types` (POS: Chat type definitions — BrowserRefInfo, BrowserViewUpdateStreamEvent)
+- `@/lib/utils/classnameUtils` (POS: Tailwind class name utilities)
+
+## Integration Points
+
+- `ChatWindow.tsx`: Mounts BrowserLiveView + BrowserInspectorToggle
+- `messageStream/handlers/fileDiffEvents.ts`: Applies `browser_view_update` SSE to inspector store with `sourceChatId` from stream chat; does **not** auto-open panel (user may keep panel closed)
+- `messageStream/handlers/toolLifecycleEvents.ts`: On `browser_*` TOOL_START, sets browser active and opens panel only when stream `chatId` matches foreground chat; no TOOL_END REST re-fetch
+- `BrowserLiveView.tsx` / `BrowserInspectorToggle.tsx`: Render scoped view via `selectScopedBrowserViewData`; close panel on **chat switch only** (`useClosePanelOnChatSwitch`) — not on stale `sourceChatId` while foreground TOOL_START opens panel
+- `GET /api/v1/webui/browser/snapshot?chat_id=`: REST manual refresh scoped to active chat
+
+## Coordinate System
+
+- Browser engaged views render a **viewport screenshot**; `ElementOverlay` frames derive from **viewport-relative** bounding boxes (`bbox.viewport_x/viewport_y`), so highlights stay aligned with elements on scrolled pages where absolute DOM positions differ from the visible viewport.
+- Desktop automation elements carry no viewport fields — `ElementOverlay` falls back to absolute coordinates (`bbox.x/y`) for those.

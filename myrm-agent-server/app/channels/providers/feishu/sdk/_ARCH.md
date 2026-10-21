@@ -1,0 +1,16 @@
+# channels/providers/feishu/sdk/
+
+## 架构概述
+
+飞书 SDK 封装 渠道 Provider 实现（入站/出站、凭证、路由）。上级文档：[../../../_ARCH.md](../../../_ARCH.md)。
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | Package init for feishu SDK. Re-exports the public API surface. | ✅ |
+| `_contact.py` | 模块 | Mixin that adds contact-domain API methods to FeishuClient: user info lookup by open_id. | ✅ |
+| `_documents.py` | 模块 | Mixin that adds document-level API methods to FeishuClient: Drive meta, comments, wiki lookup, CardKit streaming, Bitable records, Docx blocks, and media download. | ✅ |
+| `_messaging.py` | 模块 | Mixin that adds IM messaging, reactions, and media methods to FeishuClient. | ✅ |
+| `client.py` | 模块 | Standalone Feishu OpenAPI client. Usable by any module that needs Feishu API access (channels, etc.). | ✅ |
+| `exceptions.py` | 模块 | Feishu-specific API error hierarchy. When used inside a channel provider, the provider is responsible for catching these and converting to the appropriate Chann | ✅ |

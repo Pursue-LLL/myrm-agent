@@ -1,0 +1,403 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
+
+from fastapi import HTTPException
+from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState
+from myrm_agent_harness.toolkits.cron import (
+    DeliveryConfig,
+    FailureAlertConfig,
+    Schedule,
+    ScheduleKind,
+)
+from myrm_agent_harness.toolkits.cron.triggers import (
+    EventTrigger,
+    SystemEventTrigger,
+    TriggerConfig,
+    WebhookTrigger,
+)
+from myrm_agent_harness.toolkits.cron.types import ActiveHours, CronJob, CronRunRecord
+
+from app.api.cron.schemas import (
+    ActiveHoursCreate,
+    ActiveHoursResponse,
+    CronJobResponse,
+    CronRunResponse,
+    DeliveryCreate,
+    DeliveryResponse,
+    DeliveryTestRequest,
+    DeliveryTestResponse,
+    EventTriggerResponse,
+    FailureAlertCreate,
+    FailureAlertResponse,
+    MonitorConfigCreate,
+    MonitorConfigResponse,
+    ScheduleCreate,
+    ScheduleResponse,
+    SystemEventTriggerResponse,
+    TriggerConfigCreate,
+    TriggerConfigResponse,
+    WebhookTriggerResponse,
+)
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.cron.engine.scheduler import CronScheduler
+    from myrm_agent_harness.toolkits.cron.manager import CronManager
+
+
+def _get_manager() -> CronManager:
+    from app.core.cron.adapters.setup import get_cron_manager
+
+    return get_cron_manager()
+
+
+def _resolve_cron_workflow_template_display_name(
+    template_id: str | None,
+    template_args: dict[str, str] | None,
+) -> str | None:
+    """Return display name only when the Cron binding passes execution-time validation."""
+    if not template_id:
+        return None
+    normalized = template_id.strip()
+    if not normalized:
+        return None
+    from app.services.workflow_templates.service import get_template_store
+    from app.services.workflow_templates.validation import (
+        validate_cron_template_at_execution,
+    )
+
+    if validate_cron_template_at_execution(normalized, template_args):
+        return None
+    record = get_template_store().get_template(normalized)
+    if record is None:
+        return None
+    return record.display_name
+
+
+def _to_response(
+    job: CronJob,
+    monitor_state: MonitorState | None = None,
+    *,
+    workflow_template_display_name: str | None = None,
+) -> CronJobResponse:
+    if workflow_template_display_name is None:
+        workflow_template_display_name = _resolve_cron_workflow_template_display_name(
+            job.workflow_template_id,
+            job.workflow_template_args,
+        )
+    return CronJobResponse(
+        id=job.id,
+        user_id="default",
+        name=job.name,
+        job_type=job.job_type,
+        status=job.status,
+        schedule=ScheduleResponse(
+            kind=job.schedule.kind,
+            expr=job.schedule.expr,
+            tz=job.schedule.tz,
+            interval_ms=job.schedule.interval_ms,
+            run_at=job.schedule.run_at,
+            stagger_ms=job.schedule.stagger_ms,
+        ),
+        prompt=job.prompt,
+        model=job.model,
+        chat_id=job.chat_id,
+        agent_id=job.agent_id,
+        project_id=job.project_id,
+        workflow_template_id=job.workflow_template_id,
+        workflow_template_args=job.workflow_template_args,
+        workflow_template_display_name=workflow_template_display_name,
+        command=job.command,
+        delivery=_delivery_to_response(job.delivery),
+        failure_delivery=(_delivery_to_response(job.failure_delivery) if job.failure_delivery else None),
+        failure_alert=_failure_alert_to_response(job.failure_alert),
+        active_hours=_active_hours_to_response(job.active_hours),
+        required_capabilities=(list(job.required_capabilities) if job.required_capabilities else []),
+        tools_allowed=list(job.tools_allowed) if job.tools_allowed else [],
+        skill_ids=list(job.skill_ids) if job.skill_ids else [],
+        allowed_roots=list(job.allowed_roots) if job.allowed_roots else [],
+        triggers=_trigger_config_to_response(job.triggers),
+        context_from=list(job.context_from) if job.context_from else [],
+        pre_condition_script=job.pre_condition_script,
+        acceptance_criteria=(list(job.acceptance_criteria) if job.acceptance_criteria else None),
+        max_retries=job.max_retries,
+        retry_backoff_ms=job.retry_backoff_ms,
+        timeout_seconds=job.timeout_seconds,
+        misfire_grace_seconds=job.misfire_grace_seconds,
+        cooldown_seconds=job.cooldown_seconds,
+        max_fires=job.max_fires,
+        expires_at=job.expires_at,
+        fire_count=job.fire_count,
+        session_target=job.session_target,
+        delete_after_run=job.delete_after_run,
+        run_retention_days=job.run_retention_days,
+        deduplicate=job.deduplicate,
+        monitor_config=_monitor_config_to_response(job.monitor_config, monitor_state),
+        next_run_at=job.next_run_at,
+        last_run_at=job.last_run_at,
+        last_status=job.last_status,
+        last_error=job.last_error,
+        consecutive_failures=job.consecutive_failures,
+        last_failure_alert_at=job.last_failure_alert_at,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+    )
+
+
+def _jobs_to_responses(
+    jobs: list[CronJob],
+    monitor_states: dict[str, MonitorState],
+) -> list[CronJobResponse]:
+    return [
+        _to_response(
+            job,
+            monitor_states.get(job.id),
+            workflow_template_display_name=_resolve_cron_workflow_template_display_name(
+                job.workflow_template_id,
+                job.workflow_template_args,
+            ),
+        )
+        for job in jobs
+    ]
+
+
+def _active_hours_to_response(ah: ActiveHours | None) -> ActiveHoursResponse | None:
+    if ah is None:
+        return None
+    return ActiveHoursResponse(start=ah.start, end=ah.end, tz=ah.tz)
+
+
+def _active_hours_from_request(ah: ActiveHoursCreate | None) -> ActiveHours | None:
+    if ah is None:
+        return None
+    return ActiveHours(start=ah.start, end=ah.end, tz=ah.tz)
+
+
+def _monitor_config_to_response(mc: MonitorConfig | None, state: MonitorState | None = None) -> MonitorConfigResponse | None:
+    if mc is None:
+        return None
+
+    return MonitorConfigResponse(
+        monitor_type=mc.monitor_type,
+        ttl_days=mc.ttl_days,
+        enabled=mc.enabled,
+        last_reset_at=state.last_reset_at if state else None,
+        last_reset_reason=state.last_reset_reason if state else None,
+    )
+
+
+def _monitor_config_from_request(
+    mc: MonitorConfigCreate | None,
+) -> MonitorConfig | None:
+    if mc is None:
+        return None
+
+    return MonitorConfig(
+        monitor_type=mc.monitor_type,
+        ttl_days=mc.ttl_days,
+        enabled=mc.enabled,
+    )
+
+
+def _delivery_to_response(dc: DeliveryConfig) -> DeliveryResponse:
+    return DeliveryResponse(channel=dc.channel, target=dc.target, secret=dc.secret)
+
+
+def _delivery_from_request(
+    d: DeliveryCreate | None,
+    *,
+    existing_secret: str | None = None,
+) -> DeliveryConfig:
+    """Build a DeliveryConfig from an API request.
+
+    For webhook channels a fresh secret is generated on create; on update the
+    existing secret is preserved so external HMAC verifiers stay valid across
+    edits (e.g. changing only the target URL).
+    """
+    if not d:
+        return DeliveryConfig()
+    if d.channel not in ("chat", "silent", "none") and not d.target:
+        raise ValueError(f'Delivery target is required for channel "{d.channel}"')
+    if d.channel == "webhook":
+        return DeliveryConfig(
+            channel=d.channel,
+            target=d.target,
+            secret=existing_secret or _generate_webhook_secret(),
+        )
+    return DeliveryConfig(channel=d.channel, target=d.target)
+
+
+def _generate_webhook_secret() -> str:
+    import secrets as _secrets
+
+    return _secrets.token_hex(32)
+
+
+def _failure_alert_to_response(
+    fa: FailureAlertConfig | bool | None,
+) -> FailureAlertResponse | Literal[False] | None:
+    if fa is None:
+        return None
+    if isinstance(fa, bool):
+        return False
+    return FailureAlertResponse(
+        enabled=fa.enabled,
+        after=fa.after,
+        cooldown_seconds=fa.cooldown_seconds,
+        delivery=_delivery_to_response(fa.delivery) if fa.delivery else None,
+    )
+
+
+def _failure_alert_from_request(
+    fa: FailureAlertCreate | bool | None,
+    *,
+    existing_delivery_secret: str | None = None,
+) -> FailureAlertConfig | Literal[False] | None:
+    if fa is None:
+        return None
+    if isinstance(fa, bool):
+        return False
+    return FailureAlertConfig(
+        enabled=fa.enabled,
+        after=fa.after,
+        cooldown_seconds=fa.cooldown_seconds,
+        delivery=(_delivery_from_request(fa.delivery, existing_secret=existing_delivery_secret) if fa.delivery else None),
+    )
+
+
+def _trigger_config_to_response(
+    tc: TriggerConfig | None,
+) -> TriggerConfigResponse | None:
+    if tc is None:
+        return None
+    return TriggerConfigResponse(
+        webhooks=[WebhookTriggerResponse(path=w.path, secret=w.secret) for w in tc.webhooks],
+        events=[EventTriggerResponse(pattern=e.pattern, channel=e.channel) for e in tc.events],
+        system_events=[
+            SystemEventTriggerResponse(source=s.source, event_type=s.event_type, filters=s.filters) for s in tc.system_events
+        ],
+    )
+
+
+def _trigger_config_from_request(
+    tc: TriggerConfigCreate | None,
+) -> TriggerConfig | None:
+    if tc is None:
+        return None
+    webhooks = tuple(WebhookTrigger() for _ in tc.webhooks)
+    events = tuple(EventTrigger(pattern=e.pattern, channel=e.channel) for e in tc.events)
+    system_events = tuple(
+        SystemEventTrigger(source=s.source, event_type=s.event_type, filters=s.filters) for s in tc.system_events
+    )
+    if not webhooks and not events and not system_events:
+        return None
+    return TriggerConfig(webhooks=webhooks, events=events, system_events=system_events)
+
+
+def _build_schedule(s: ScheduleCreate) -> Schedule:
+    return Schedule(
+        kind=ScheduleKind(s.kind),
+        expr=s.expr,
+        tz=s.tz,
+        interval_ms=s.interval_ms,
+        run_at=s.run_at,
+        stagger_ms=s.stagger_ms,
+    )
+
+
+def _run_to_response(r: CronRunRecord, *, job_name: str | None = None) -> CronRunResponse:
+    return CronRunResponse(
+        id=r.id,
+        job_id=r.job_id,
+        started_at=r.started_at,
+        finished_at=r.finished_at,
+        duration_ms=r.duration_ms,
+        status=r.status,
+        output=r.output,
+        error=r.error,
+        model=r.model,
+        usage_input_tokens=r.usage_input_tokens,
+        usage_output_tokens=r.usage_output_tokens,
+        usage_total_tokens=r.usage_total_tokens,
+        trigger_source=r.trigger_source,
+        delivery_status=r.delivery_status,
+        delivery_error=r.delivery_error,
+        metadata=r.metadata,
+        integrity_hash=r.integrity_hash or None,
+        job_name=job_name,
+    )
+
+
+def _get_scheduler() -> "CronScheduler":
+    from app.core.cron.adapters.setup import get_cron_scheduler
+
+    return get_cron_scheduler()
+
+
+async def _run_test_delivery(
+    mgr: "CronManager",
+    job_id: str,
+    body: DeliveryTestRequest | None,
+) -> DeliveryTestResponse:
+    """Send a one-off test payload through the job's delivery channel.
+
+    Omit the body to test the job's saved delivery; otherwise the provided
+    (not-yet-saved) configuration is tested. Webhook tests reuse the real
+    delivery pipeline (signing, SSRF guard, Feishu/WeCom bot formatting), so a
+    passing test guarantees real runs will deliver.
+    """
+    from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
+    from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
+
+    job = await mgr.get_job(job_id, "default")
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if body is not None and (body.delivery or body.failure_delivery):
+        if body.delivery is not None:
+            config = _delivery_from_request(body.delivery, existing_secret=job.delivery.secret)
+        else:
+            existing_secret = job.failure_delivery.secret if job.failure_delivery else None
+            config = _delivery_from_request(body.failure_delivery, existing_secret=existing_secret)
+    else:
+        config = job.delivery
+
+    if config.channel in ("chat", "silent", "none"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Channel '{config.channel}' does not support test delivery",
+        )
+
+    test_job = CronJob(
+        id=job.id,
+        user_id=job.user_id,
+        name=job.name,
+        job_type=job.job_type,
+        schedule=job.schedule,
+        delivery=config,
+    )
+    result = JobResult(
+        success=True,
+        output=f"Test delivery from Myrm scheduled task '{job.name}'",
+        metadata={"model": None, "usage": None, "duration_ms": 0},
+    )
+    from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
+
+    test_delivery = ChannelResultDelivery(webhook_delivery=WebhookDelivery(max_retries=0, connect_timeout=5, read_timeout=15))
+    try:
+        await test_delivery.deliver(test_job, result)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Test delivery failed: {exc}") from exc
+
+    # Test-to-heal: If test succeeded on the job's active delivery and it was degraded/down, reset consecutive failures
+    if body is None or (not body.delivery and not body.failure_delivery):
+        if job.consecutive_failures > 0 or job.last_error:
+            from myrm_agent_harness.toolkits.cron.types import CronJobPatch
+
+            await mgr.update_job(
+                job.id,
+                job.user_id,
+                CronJobPatch(consecutive_failures=0, clear_last_error=True),
+            )
+
+    return DeliveryTestResponse(delivered=True)

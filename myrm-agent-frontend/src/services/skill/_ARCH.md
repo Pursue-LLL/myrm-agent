@@ -1,0 +1,21 @@
+# skill/ 模块架构
+
+## 架构概述
+
+`@/services/skill` 分片实现：技能 CRUD 核心、进化、优化、迁移。`skill.ts`（根）为 facade re-export。
+
+## 文件清单
+
+| 文件              | 职责                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `core.ts`         | `/skills/*` CRUD、生命周期、用户配置、扫描、本机路径；`approveSkillDraft` / `rejectSkillDraft`；导出预览摘要 `review_digest` 与带错误码的 `SkillExportError`                               |
+| `growth.ts`       | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit；`/evolution/*` 审批、修订与回滚（`rollbackSkillEvolution`）       |
+| `optimization.ts` | `/skill-optimization/*` 版本列表/对比/回滚、skill_manage 批次撤销（`/mutations/{id}/rollback`，静默请求：失败提示由调用方给出，不再叠加全局错误 toast；`__tests__/optimization.rollbackBatch.test.ts` 覆盖路由、`ApiError.data.code` 错误码契约与单次失败只出一个 toast） |
+| `migration.ts`    | External assistant skill migration staging 与 review client                                                                  |
+
+## 依赖
+
+- `@/lib/api`
+- `@/store/skill/types`（core 复用 Skill DTO）
+- `skill/core.ts`（growth 复用 `approveSkillDraft` / `rejectSkillDraft`）
+- 父模块 [services/_ARCH.md](../_ARCH.md)

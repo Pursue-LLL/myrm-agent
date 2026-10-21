@@ -1,0 +1,674 @@
+"""Chat and message repository.
+
+[INPUT]
+app.database.models::Chat, Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
+app.database.models.chat::SYSTEM_NOTICE_EXTRA_KEYS (POS: 系统通知行的 extra_data 标记键，重试与版本计数不把这些行当作回答)
+app.database.repositories.chat_message_search_repo::ChatMessageSearchRepository (POS: 聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略)
+
+[OUTPUT]
+ChatRepository: Chat/Message CRUD, FTS5 message search, compaction CAS, sibling branch persistence and routing tier
+history reads (momentum window, tier of the latest user turn). An incognito chat never stores a title or preview.
+SiblingDetail: Sibling branch query DTO.
+
+[POS]
+聊天领域数据仓储层。封装 Chat/Message 持久化、消息级检索委托和 sibling group 管理。
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import TypedDict, cast
+from uuid import uuid4
+
+from sqlalchemy import (
+    String as SQLString,
+)
+from sqlalchemy import (
+    and_,
+    case,
+    delete,
+    exists,
+    func,
+    or_,
+    select,
+    update,
+)
+from sqlalchemy import (
+    cast as sql_cast,
+)
+from sqlalchemy.engine import CursorResult
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.elements import ColumnElement
+
+from app.database.dto import ChatDTO, MessageDTO
+from app.database.models import Chat, Message
+from app.database.models.chat import SYSTEM_NOTICE_EXTRA_KEYS
+from app.database.repositories.chat_message_search_repo import ChatMessageSearchRepository, MessageFtsSearchRow
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _SiblingGroupInfo:
+    total: int
+    ids: list[str] = field(default_factory=list)
+
+
+class SiblingDetail(TypedDict):
+    id: str
+    is_active: bool
+    created_at: datetime
+
+
+_DTO_COMPUTED_FIELDS: set[str] = {"sibling_count", "sibling_index"}
+
+# Columns that preview a conversation on every surface listing chats (session map, statistics, inbox).
+# An incognito chat never stores them, so no current or future listing can show what the user chose to keep private.
+_INCOGNITO_BLANKED_FIELDS: frozenset[str] = frozenset({"title", "first_message", "last_message"})
+
+
+def _answers_of_turn(chat_id: str, last_user: MessageDTO) -> ColumnElement[bool]:
+    """Answers of the turn *last_user* opened: every assistant message ordered after it, active or not.
+
+    System notices (`SYSTEM_NOTICE_EXTRA_KEYS` set to true) are appended by the server rather than generated for the
+    turn, so they are neither retried nor counted as versions of its answer. SQLite's `json_extract` yields 1 for a
+    JSON true and NULL for an absent key or a NULL column, so `IS NOT 1` keeps every row that is not a notice.
+    """
+    return and_(
+        Message.chat_id == chat_id,
+        Message.role == "assistant",
+        (Message.created_at > last_user.created_at)
+        | ((Message.created_at == last_user.created_at) & (Message.id > last_user.id)),
+        *(func.json_extract(Message.extra_data, f"$.{key}").is_not(1) for key in SYSTEM_NOTICE_EXTRA_KEYS),
+    )
+
+
+def _recorded_routing_tier(extra: object) -> str | None:
+    """The `routingTier` string persisted in a message's `extra_data`, None when it holds none."""
+    tier = extra.get("routingTier") if isinstance(extra, dict) else None
+    return tier if isinstance(tier, str) else None
+
+
+class ChatRepository:
+    """
+    Chat 领域的专有仓储类（Repository）。
+    负责所有的 SQLAlchemy DB 交互，隔离上层服务（Service）与底层数据库结构的耦合。
+    返回 Pydantic DTO (Domain Transfer Object) 以确保类型安全和解耦。
+    """
+
+    @staticmethod
+    async def get_chats_paginated(
+        db: AsyncSession,
+        offset: int,
+        limit: int,
+        source: str | None = None,
+        project_id: str | None = None,
+        unassigned: bool = False,
+        keyword: str | None = None,
+        tags: list[str] | None = None,
+        match_mode: str = "any",
+    ) -> tuple[list[ChatDTO], int]:
+        where_clause: list[ColumnElement[bool]] = [Chat.deleted_at.is_(None), Chat.is_incognito.is_(False)]
+        if source:
+            where_clause.append(Chat.source == source)
+        if project_id:
+            where_clause.append(Chat.project_id == project_id)
+        elif unassigned:
+            where_clause.append(Chat.project_id.is_(None))
+        if keyword:
+            escaped = keyword.replace("%", r"\%").replace("_", r"\_")
+            pattern = f"%{escaped}%"
+            ilike_cond = or_(
+                Chat.title.ilike(pattern, escape="\\"),
+                Chat.first_message.ilike(pattern, escape="\\"),
+            )
+            fts_chat_ids = await ChatRepository._fts_matching_chat_ids(db, keyword)
+            if fts_chat_ids:
+                where_clause.append(or_(ilike_cond, Chat.id.in_(fts_chat_ids)))
+            else:
+                where_clause.append(ilike_cond)
+        if tags:
+            clean_tags = [t.strip().lstrip("#") for t in tags if t.strip()]
+            if clean_tags:
+                tag_conds = [sql_cast(Chat.tags, SQLString).ilike(f'%"{t}"%') for t in clean_tags]
+                if match_mode.lower() == "all":
+                    where_clause.append(and_(*tag_conds))
+                else:
+                    where_clause.append(or_(*tag_conds))
+
+        count_stmt = select(func.count(Chat.id)).where(*where_clause)
+        count_result = await db.execute(count_stmt)
+        total = count_result.scalar_one()
+
+        query_stmt = (
+            select(Chat)
+            .where(*where_clause)
+            .order_by(Chat.is_pinned.desc(), Chat.pin_order.asc(), Chat.updated_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await db.execute(query_stmt)
+        chats = result.scalars().all()
+        return [ChatDTO.model_validate(c) for c in chats], total
+
+    @staticmethod
+    async def update_chat_tags(db: AsyncSession, chat_id: str, tags: list[str]) -> list[str]:
+        clean_tags = list(dict.fromkeys(t.strip().lstrip("#") for t in tags if t.strip()))
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(tags=clean_tags))
+        return clean_tags
+
+    @staticmethod
+    async def get_chat_by_id(
+        db: AsyncSession, chat_id: str, load_messages: bool = False, *, include_trashed: bool = False
+    ) -> ChatDTO | None:
+        stmt = select(Chat).where(Chat.id == chat_id)
+        if not include_trashed:
+            stmt = stmt.where(Chat.deleted_at.is_(None))
+        if load_messages:
+            stmt = stmt.options(selectinload(Chat.messages))
+        result = await db.execute(stmt)
+        chat = result.scalar_one_or_none()
+        return ChatDTO.model_validate(chat) if chat else None
+
+    @staticmethod
+    async def count_messages(db: AsyncSession, chat_id: str) -> int:
+        result = await db.execute(select(func.count()).select_from(Message).where(Message.chat_id == chat_id))
+        return int(result.scalar_one())
+
+    @staticmethod
+    async def add_chat(db: AsyncSession, chat: Chat | ChatDTO) -> None:
+        # Convert DTO back to ORM model for insertion if necessary
+        if isinstance(chat, ChatDTO):
+            db_chat = Chat(**chat.model_dump(exclude={"messages"}))
+        else:
+            db_chat = chat
+        if db_chat.is_incognito:
+            for column in _INCOGNITO_BLANKED_FIELDS:
+                setattr(db_chat, column, None)
+        db.add(db_chat)
+
+    @staticmethod
+    async def update_chat_fields(db: AsyncSession, chat_id: str, updates: dict[str, object]) -> None:
+        """Apply column updates; the preview columns of an incognito chat keep their (empty) value.
+
+        The check runs inside the UPDATE statement against the stored row, so it costs no extra round trip.
+        """
+        if not updates:
+            return
+        values = {
+            column: case((Chat.is_incognito.is_(True), Chat.__table__.c[column]), else_=value)
+            if column in _INCOGNITO_BLANKED_FIELDS
+            else value
+            for column, value in updates.items()
+        }
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(**values))
+
+    @staticmethod
+    async def update_message_extra_data(db: AsyncSession, message_id: str, extra_data: dict[str, object]) -> None:
+        if not extra_data:
+            return
+        await db.execute(update(Message).where(Message.id == message_id).values(extra_data=extra_data))
+
+    @staticmethod
+    async def cas_update_compaction(
+        db: AsyncSession,
+        chat_id: str,
+        old_before_id: str | None,
+        new_summary: str,
+        new_before_id: str,
+    ) -> bool:
+        """Optimistic Concurrency Control (CAS) update for compacted summary."""
+        stmt = update(Chat).where(Chat.id == chat_id)
+        if old_before_id is None:
+            stmt = stmt.where(Chat.compacted_before_id.is_(None))
+        else:
+            stmt = stmt.where(Chat.compacted_before_id == old_before_id)
+
+        stmt = stmt.values(
+            compacted_summary=new_summary,
+            compacted_before_id=new_before_id,
+            compacted_at=datetime.now(UTC),
+        )
+
+        result = cast(CursorResult[tuple[object, ...]], await db.execute(stmt))
+        return bool(result.rowcount and result.rowcount > 0)
+
+    @staticmethod
+    async def get_channel_chat_by_key(db: AsyncSession, channel_session_key: str) -> ChatDTO | None:
+        result = await db.execute(select(Chat).where(Chat.channel_session_key == channel_session_key))
+        chat = result.scalar_one_or_none()
+        return ChatDTO.model_validate(chat) if chat else None
+
+    @staticmethod
+    async def add_message(db: AsyncSession, message: MessageDTO) -> None:
+        db_msg = Message(**message.model_dump(exclude=_DTO_COMPUTED_FIELDS))
+        db.add(db_msg)
+
+    @staticmethod
+    async def add_messages(db: AsyncSession, messages: list[MessageDTO]) -> None:
+        db_msgs = [Message(**m.model_dump(exclude=_DTO_COMPUTED_FIELDS)) for m in messages]
+        db.add_all(db_msgs)
+
+    @staticmethod
+    async def delete_all_messages_for_chat(db: AsyncSession, chat_id: str) -> None:
+        await db.execute(delete(Message).where(Message.chat_id == chat_id))
+
+    @staticmethod
+    async def soft_delete_all_messages_for_chat(db: AsyncSession, chat_id: str) -> None:
+        await db.execute(update(Message).where(Message.chat_id == chat_id).values(is_active=False))
+
+    @staticmethod
+    async def delete_messages_matching(db: AsyncSession, chat_id: str, condition: ColumnElement[bool]) -> list[MessageDTO]:
+        result = await db.execute(select(Message).where(Message.chat_id == chat_id, condition))
+        msgs = list(result.scalars().all())
+        for msg in msgs:
+            await db.delete(msg)
+        return [MessageDTO.model_validate(m) for m in msgs]
+
+    @staticmethod
+    async def get_messages_paginated(
+        db: AsyncSession, chat_id: str, cursor_id: str | None = None, limit: int = 10
+    ) -> list[MessageDTO]:
+        query = select(Message).where(Message.chat_id == chat_id, Message.is_active)
+        if cursor_id:
+            cursor_result = await db.execute(select(Message.created_at, Message.id).where(Message.id == cursor_id))
+            cursor_row = cursor_result.one_or_none()
+            if cursor_row:
+                cursor_ts, c_id = cursor_row
+                query = query.where((Message.created_at < cursor_ts) | ((Message.created_at == cursor_ts) & (Message.id < c_id)))
+        result = await db.execute(query.order_by(Message.created_at.desc(), Message.id.desc()).limit(limit))
+        msgs = result.scalars().all()
+        dtos = [MessageDTO.model_validate(m) for m in msgs]
+
+        group_ids = {d.sibling_group_id for d in dtos if d.sibling_group_id}
+        if group_ids:
+            sibling_counts = await ChatRepository._batch_sibling_counts(db, group_ids)
+            for d in dtos:
+                if d.sibling_group_id and d.sibling_group_id in sibling_counts:
+                    info = sibling_counts[d.sibling_group_id]
+                    d.sibling_count = info.total
+                    d.sibling_index = info.ids.index(d.id) + 1 if d.id in info.ids else 0
+        return dtos
+
+    @staticmethod
+    async def get_all_messages(db: AsyncSession, chat_id: str) -> list[MessageDTO]:
+        result = await db.execute(
+            select(Message)
+            .where(Message.chat_id == chat_id, Message.is_active == True)  # noqa: E712
+            .order_by(Message.created_at.asc(), Message.id.asc())
+        )
+        msgs = result.scalars().all()
+        return [MessageDTO.model_validate(m) for m in msgs]
+
+    @staticmethod
+    async def get_assistant_extra_data(db: AsyncSession, chat_id: str) -> tuple[list[dict[str, object] | None], str | None]:
+        """Load active assistant message extra_data and the last message id.
+
+        Used for rebuilding the Chat.total_* usage cache. Skips the message
+        content column so the aggregation stays cheap even for long sessions.
+        The returned last_message_id identifies the newest active assistant
+        message so the TTL cache can detect new messages / sibling switches.
+        """
+        result = await db.execute(
+            select(Message.extra_data, Message.id)
+            .where(
+                Message.chat_id == chat_id,
+                Message.role == "assistant",
+                Message.is_active == True,  # noqa: E712
+                Message.extra_data.isnot(None),
+            )
+            .order_by(Message.created_at.asc(), Message.id.asc())
+        )
+        rows = result.all()
+        extras = [row[0] for row in rows]
+        last_message_id = rows[-1][1] if rows else None
+        return extras, last_message_id
+
+    @staticmethod
+    async def search_messages_fts(
+        db: AsyncSession,
+        safe_query: str,
+        limit: int,
+        offset: int,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> tuple[list[MessageFtsSearchRow], int]:
+        return await ChatMessageSearchRepository.search_messages_fts(
+            db,
+            safe_query,
+            limit,
+            offset,
+            since,
+            until,
+        )
+
+    @staticmethod
+    async def get_last_user_message(db: AsyncSession, chat_id: str) -> MessageDTO | None:
+        result = await db.execute(
+            select(Message)
+            .where(Message.chat_id == chat_id, Message.role == "user")
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .limit(1)
+        )
+        msg = result.scalar_one_or_none()
+        return MessageDTO.model_validate(msg) if msg else None
+
+    @staticmethod
+    async def delete_messages_after(
+        db: AsyncSession,
+        chat_id: str,
+        anchor: MessageDTO,
+        include_anchor: bool = False,
+    ) -> list[str]:
+        """Delete messages after anchor and return their IDs."""
+        if include_anchor:
+            condition = (Message.created_at > anchor.created_at) | (
+                (Message.created_at == anchor.created_at) & (Message.id >= anchor.id)
+            )
+        else:
+            condition = (Message.created_at > anchor.created_at) | (
+                (Message.created_at == anchor.created_at) & (Message.id > anchor.id)
+            )
+        to_delete = (await db.execute(select(Message).where(Message.chat_id == chat_id, condition))).scalars().all()
+        deleted_ids = [msg.id for msg in to_delete]
+        for msg in to_delete:
+            await db.delete(msg)
+        return deleted_ids
+
+    @staticmethod
+    async def get_latest_message(db: AsyncSession, chat_id: str) -> MessageDTO | None:
+        result = await db.execute(
+            select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.desc(), Message.id.desc()).limit(1)
+        )
+        msg = result.scalar_one_or_none()
+        return MessageDTO.model_validate(msg) if msg else None
+
+    @staticmethod
+    async def get_message_by_id(db: AsyncSession, chat_id: str, message_id: str) -> MessageDTO | None:
+        result = await db.execute(select(Message).where(Message.chat_id == chat_id, Message.id == message_id))
+        msg = result.scalar_one_or_none()
+        return MessageDTO.model_validate(msg) if msg else None
+
+    @staticmethod
+    async def get_message_created_at(db: AsyncSession, message_id: str) -> datetime | None:
+        result = await db.execute(select(Message.created_at).where(Message.id == message_id))
+        value = result.scalar_one_or_none()
+        return value if isinstance(value, datetime) else None
+
+    @staticmethod
+    async def get_recent_messages(
+        db: AsyncSession,
+        chat_id: str,
+        limit: int = 50,
+        exclude_message_id: str | None = None,
+        after_ts: datetime | None = None,
+    ) -> list[MessageDTO]:
+        query = select(Message).where(Message.chat_id == chat_id, Message.is_active)
+        if exclude_message_id:
+            query = query.where(Message.id != exclude_message_id)
+        if after_ts:
+            query = query.where(Message.created_at > after_ts)
+
+        result = await db.execute(query.order_by(Message.created_at.desc()).limit(limit))
+        msgs = list(reversed(result.scalars().all()))
+        dtos = [MessageDTO.model_validate(m) for m in msgs]
+
+        group_ids = {d.sibling_group_id for d in dtos if d.sibling_group_id}
+        if group_ids:
+            sibling_counts = await ChatRepository._batch_sibling_counts(db, group_ids)
+            for d in dtos:
+                if d.sibling_group_id and d.sibling_group_id in sibling_counts:
+                    info = sibling_counts[d.sibling_group_id]
+                    d.sibling_count = info.total
+                    d.sibling_index = info.ids.index(d.id) + 1 if d.id in info.ids else 0
+        return dtos
+
+    @staticmethod
+    async def _fts_matching_chat_ids(db: AsyncSession, keyword: str) -> list[str]:
+        """Best-effort FTS5 lookup for sidebar keyword search; returns [] on failure."""
+        try:
+            from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
+
+            safe_query = sanitize_fts5_query(keyword)
+            if not safe_query:
+                return []
+            return await ChatMessageSearchRepository.get_matching_chat_ids(db, safe_query)
+        except Exception:
+            logger.debug("FTS sidebar search fallback to ilike-only for keyword=%r", keyword, exc_info=True)
+            return []
+
+    @staticmethod
+    async def _batch_sibling_counts(
+        db: AsyncSession,
+        group_ids: set[str],
+    ) -> dict[str, _SiblingGroupInfo]:
+        """Batch-fetch sibling counts and ordered ids for multiple groups."""
+        result = await db.execute(
+            select(Message.sibling_group_id, Message.id, Message.created_at)
+            .where(Message.sibling_group_id.in_(group_ids))
+            .order_by(Message.created_at.asc(), Message.id.asc())
+        )
+        groups: dict[str, _SiblingGroupInfo] = {}
+        for row in result.all():
+            gid = row.sibling_group_id
+            if gid not in groups:
+                groups[gid] = _SiblingGroupInfo(total=0, ids=[])
+            groups[gid].total += 1
+            groups[gid].ids.append(row.id)
+        return groups
+
+    @staticmethod
+    async def deactivate_last_assistant_siblings(
+        db: AsyncSession,
+        chat_id: str,
+        last_user_msg: MessageDTO,
+    ) -> tuple[str, str]:
+        """Mark the last assistant messages as inactive and return (query, sibling_group_id).
+
+        Finds all assistant messages after the given user message, assigns them
+        a shared sibling_group_id (reusing existing if present), and sets
+        is_active=False.  Returns the user query and the sibling_group_id so
+        the caller can attach the same group to the regenerated response.
+        """
+        result = await db.execute(select(Message).where(_answers_of_turn(chat_id, last_user_msg)))
+        assistant_msgs = result.scalars().all()
+
+        group_id = ""
+        for m in assistant_msgs:
+            if m.sibling_group_id:
+                group_id = m.sibling_group_id
+                break
+        if not group_id:
+            group_id = str(uuid4())
+
+        for m in assistant_msgs:
+            m.is_active = False
+            m.sibling_group_id = group_id
+
+        return last_user_msg.content, group_id
+
+    @staticmethod
+    async def switch_active_sibling(
+        db: AsyncSession,
+        sibling_group_id: str,
+        target_message_id: str,
+    ) -> bool:
+        """Set the target message as active and all other siblings as inactive."""
+        result = await db.execute(select(Message).where(Message.sibling_group_id == sibling_group_id))
+        siblings = result.scalars().all()
+        if not siblings:
+            return False
+
+        found = False
+        for m in siblings:
+            if m.id == target_message_id:
+                m.is_active = True
+                found = True
+            else:
+                m.is_active = False
+        return found
+
+    @staticmethod
+    async def get_sibling_info(
+        db: AsyncSession,
+        sibling_group_id: str,
+    ) -> list[SiblingDetail]:
+        """Return ordered list of sibling message summaries for a group."""
+        result = await db.execute(
+            select(Message.id, Message.is_active, Message.created_at)
+            .where(Message.sibling_group_id == sibling_group_id)
+            .order_by(Message.created_at.asc(), Message.id.asc())
+        )
+        return [SiblingDetail(id=row.id, is_active=row.is_active, created_at=row.created_at) for row in result.all()]
+
+    @staticmethod
+    async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str]:
+        """Fetch the recorded routing values of the latest assistant messages for momentum calculation.
+
+        Returns the raw `routingTier` strings of the latest *limit* assistant messages that carry `extra_data`, in
+        chronological order; messages that recorded no tier add nothing but still occupy the window, so an old routed
+        turn does not leak past newer unrouted ones. The column holds either a complexity tier (e.g. "standard",
+        "reasoning") or a specialty slot hit (e.g. "code", "long_doc"); callers partition them with
+        `services.agent.params.routing_memory.split_recent_routing`.
+        """
+        result = await db.execute(
+            select(Message.extra_data)
+            .where(
+                Message.chat_id == chat_id,
+                Message.role == "assistant",
+                Message.extra_data.isnot(None),
+            )
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+        )
+        rows: Sequence[object] = result.scalars().all()
+        recorded = (_recorded_routing_tier(extra) for extra in reversed(rows))
+        return [tier for tier in recorded if tier is not None]
+
+    @staticmethod
+    async def get_last_turn_routing_tier(db: AsyncSession, chat_id: str) -> str | None:
+        """Raw `routingTier` of the newest answer of the latest user turn that recorded one, None when none did.
+
+        The turn is what a retry replaces, so answers it already deactivated still count. System notices are not
+        answers and rows the system appended on its own (auto-continue) carry no tier: both are skipped rather than
+        read as an unrouted answer; an earlier turn's tier never stands in for a turn that recorded none.
+        """
+        last_user = await ChatRepository.get_last_user_message(db, chat_id)
+        if last_user is None:
+            return None
+        result = await db.execute(
+            select(Message.extra_data)
+            .where(_answers_of_turn(chat_id, last_user))
+            .order_by(Message.created_at.desc(), Message.id.desc())
+        )
+        rows: Sequence[object] = result.scalars().all()
+        return next((tier for tier in map(_recorded_routing_tier, rows) if tier is not None), None)
+
+    # ── Pinned Threads ──────────────────────────────────────────────
+
+    @staticmethod
+    async def count_pinned(db: AsyncSession) -> int:
+        result = await db.execute(
+            select(func.count(Chat.id)).where(Chat.is_pinned == True)  # noqa: E712
+        )
+        return result.scalar_one()
+
+    @staticmethod
+    async def get_next_pin_order(db: AsyncSession) -> int:
+        result = await db.execute(
+            select(func.coalesce(func.max(Chat.pin_order), 0)).where(
+                Chat.is_pinned == True  # noqa: E712
+            )
+        )
+        return result.scalar_one() + 1
+
+    @staticmethod
+    async def pin_chat(db: AsyncSession, chat_id: str, pin_order: int) -> None:
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(is_pinned=True, pin_order=pin_order))
+
+    @staticmethod
+    async def unpin_chat(db: AsyncSession, chat_id: str) -> None:
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(is_pinned=False, pin_order=0))
+
+    @staticmethod
+    async def reorder_pinned_chats(db: AsyncSession, items: list[tuple[str, int]]) -> None:
+        for chat_id, order in items:
+            await db.execute(
+                update(Chat)
+                .where(Chat.id == chat_id, Chat.is_pinned == True)  # noqa: E712
+                .values(pin_order=order)
+            )
+
+    # ── Trash (Soft-delete) ─────────────────────────────────────────
+
+    @staticmethod
+    async def soft_delete_chat(db: AsyncSession, chat_id: str) -> bool:
+        result = cast(
+            CursorResult[tuple[object, ...]],
+            await db.execute(
+                update(Chat)
+                .where(Chat.id == chat_id, Chat.deleted_at.is_(None))
+                .values(deleted_at=func.now(), is_pinned=False, pin_order=0)
+            ),
+        )
+        return bool(result.rowcount and result.rowcount > 0)
+
+    @staticmethod
+    async def restore_chat(db: AsyncSession, chat_id: str) -> bool:
+        result = cast(
+            CursorResult[tuple[object, ...]],
+            await db.execute(update(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None)).values(deleted_at=None)),
+        )
+        return bool(result.rowcount and result.rowcount > 0)
+
+    @staticmethod
+    async def get_trashed_chats_paginated(db: AsyncSession, offset: int, limit: int) -> tuple[list[ChatDTO], int]:
+        where_clause = Chat.deleted_at.isnot(None)
+
+        count_result = await db.execute(select(func.count(Chat.id)).where(where_clause))
+        total = count_result.scalar_one()
+
+        result = await db.execute(select(Chat).where(where_clause).order_by(Chat.deleted_at.desc()).offset(offset).limit(limit))
+        chats = result.scalars().all()
+        return [ChatDTO.model_validate(c) for c in chats], total
+
+    @staticmethod
+    async def count_trashed(db: AsyncSession) -> int:
+        result = await db.execute(select(func.count(Chat.id)).where(Chat.deleted_at.isnot(None)))
+        return result.scalar_one()
+
+    @staticmethod
+    async def permanently_delete_chat(db: AsyncSession, chat_id: str) -> bool:
+        # 显式先删除关联的 messages，确保 SQLite messages_fts_delete 触发器正常执行，
+        # 杜绝外键级联绕过子表触发器导致 FTS5 倒排索引残留孤儿行。
+        # 仅当会话在回收站中才删消息：过期的回收站视图不能清空已被恢复的会话。
+        # 单条带 EXISTS 的 DELETE 而非先 SELECT，避免读事务阻止写事务升级为 BEGIN IMMEDIATE。
+        in_trash = exists().where(Chat.id == chat_id, Chat.deleted_at.isnot(None))
+        await db.execute(delete(Message).where(Message.chat_id == chat_id, in_trash))
+        result = cast(
+            CursorResult[tuple[object, ...]],
+            await db.execute(delete(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None))),
+        )
+        return bool(result.rowcount and result.rowcount > 0)
+
+    @staticmethod
+    async def empty_trash(db: AsyncSession) -> int:
+        # 获取所有回收站会话 ID，先显式删除其所有 messages 触发 FTS5 倒排索引同步清理
+        trashed_ids_result = await db.execute(select(Chat.id).where(Chat.deleted_at.isnot(None)))
+        trashed_ids = [row[0] for row in trashed_ids_result.all()]
+        if trashed_ids:
+            await db.execute(delete(Message).where(Message.chat_id.in_(trashed_ids)))
+        result = cast(
+            CursorResult[tuple[object, ...]],
+            await db.execute(delete(Chat).where(Chat.deleted_at.isnot(None))),
+        )
+        return result.rowcount or 0
+
+    @staticmethod
+    async def get_expired_trashed_chat_ids(db: AsyncSession, before: datetime) -> list[str]:
+        result = await db.execute(select(Chat.id).where(Chat.deleted_at.isnot(None), Chat.deleted_at < before))
+        return [row[0] for row in result.all()]

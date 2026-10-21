@@ -1,0 +1,305 @@
+"""Pure helpers for StreamContentCollector event parsing and persistence.
+
+[INPUT]
+- stdlib json (POS: tool result JSON decode)
+
+[OUTPUT]
+- is_memory_citation_tool, parse_tool_end_result
+- collect_kanban_task_created, collect_cron_job_result
+- collect_clarification_required, collect_plan_confirmation_status
+- collect_file_mutation_failures
+- collect_workspace_merge_failures
+- merge_sources_list, source_dedup_key
+- string_keyed_dict, string_keyed_dicts
+
+[POS]
+Stateless parsing helpers for stream_collector. Keeps StreamContentCollector under file line budget.
+"""
+
+from __future__ import annotations
+
+import json
+
+_MEMORY_CITATION_TOOL_NAMES = frozenset(
+    {"memory_search", "memory_search_tool", "memory_recall", "memory_recall_tool"}
+)  # legacy aliases retained for persisted message metadata
+
+
+def is_memory_citation_tool(tool_name: object) -> bool:
+    return isinstance(tool_name, str) and tool_name in _MEMORY_CITATION_TOOL_NAMES
+
+
+def parse_tool_end_result(event: dict[str, object]) -> object | None:
+    result = event.get("result")
+    if isinstance(result, str):
+        try:
+            parsed: object = json.loads(result)
+        except json.JSONDecodeError:
+            return None
+        return parsed
+    return result
+
+
+def collect_kanban_task_created(
+    entries: list[dict[str, object]],
+    event: dict[str, object],
+) -> None:
+    if event.get("tool_name") != "kanban_add_task":
+        return
+    result_obj = parse_tool_end_result(event)
+    if not isinstance(result_obj, dict) or result_obj.get("status") != "added":
+        return
+    task = result_obj.get("task")
+    if not isinstance(task, dict):
+        return
+    task_id = task.get("task_id")
+    board_id = task.get("board_id")
+    title = task.get("title")
+    if not all(isinstance(value, str) for value in (task_id, board_id, title)):
+        return
+    entries.append(
+        {
+            "task_id": task_id,
+            "title": title,
+            "board_id": board_id,
+        }
+    )
+
+
+def collect_cron_job_result(event: dict[str, object]) -> dict[str, object] | None:
+    if event.get("tool_name") != "cron_manage":
+        return None
+    result_obj = parse_tool_end_result(event)
+    if not isinstance(result_obj, dict) or result_obj.get("status") != "success":
+        return None
+    return result_obj
+
+
+def string_keyed_dict(value: object) -> dict[str, object] | None:
+    if not isinstance(value, dict):
+        return None
+    return {str(key): item for key, item in value.items() if isinstance(key, str)}
+
+
+def string_keyed_dicts(values: list[object]) -> list[dict[str, object]]:
+    result: list[dict[str, object]] = []
+    for value in values:
+        normalized = string_keyed_dict(value)
+        if normalized is not None:
+            result.append(normalized)
+    return result
+
+
+def source_dedup_key(source: dict[str, object]) -> str:
+    """Stable dedup key aligned with frontend mergeMessageSources / SourceTracker."""
+    source_key = source.get("source_key")
+    if isinstance(source_key, str) and source_key.strip():
+        return f"source_key:{source_key.strip()}"
+
+    source_type = source.get("type")
+    if source_type == "conversation_history":
+        conversation_id = source.get("conversation_id")
+        message_id = source.get("message_id")
+        if isinstance(conversation_id, str) and conversation_id.strip():
+            mid = message_id if isinstance(message_id, str) else ""
+            return f"conversation:{conversation_id.strip()}:{mid}"
+
+    url = source.get("url")
+    if isinstance(url, str) and url.strip():
+        return f"url:{url.strip()}"
+
+    skill_name = source.get("skill_name")
+    if isinstance(skill_name, str) and skill_name.strip():
+        return f"mcp:{skill_name.strip()}"
+
+    index = source.get("index")
+    if index is not None:
+        return f"index:{index}"
+
+    stable = sorted((str(key), str(value)) for key, value in source.items() if key != "index")
+    return f"content:{hash(tuple(stable))}"
+
+
+def merge_sources_list(
+    existing: list[dict[str, object]],
+    incoming: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Merge source dicts by dedup key; incoming fields overlay existing entries."""
+    merged: dict[str, dict[str, object]] = {}
+    order: list[str] = []
+    for source in existing:
+        key = source_dedup_key(source)
+        if key not in merged:
+            order.append(key)
+        merged[key] = dict(source)
+    for source in incoming:
+        key = source_dedup_key(source)
+        if key in merged:
+            preserved_index = merged[key].get("index")
+            merged[key] = {**merged[key], **source}
+            if preserved_index is not None:
+                merged[key]["index"] = preserved_index
+        else:
+            order.append(key)
+            merged[key] = dict(source)
+    return [merged[key] for key in order]
+
+
+def collect_clarification_required(
+    event: dict[str, object],
+) -> dict[str, object] | None:
+    """Build durable extra_data.clarification from clarification_required SSE."""
+    data = event.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    payload = string_keyed_dict(data)
+    if payload is None:
+        return None
+
+    clarification: dict[str, object] = {"answered": False}
+
+    source = payload.get("source")
+    if isinstance(source, str) and source.strip():
+        clarification["source"] = source.strip()
+        clarification["isResumeMode"] = source.strip() != "deep_research"
+    else:
+        clarification["isResumeMode"] = True
+
+    title = payload.get("title")
+    if isinstance(title, str) and title.strip():
+        clarification["title"] = title.strip()
+
+    form = payload.get("form")
+    if isinstance(form, dict):
+        normalized_form = string_keyed_dict(form)
+        if normalized_form is not None:
+            clarification["form"] = normalized_form
+
+    options = payload.get("options")
+    if isinstance(options, list):
+        option_labels = [str(item) for item in options if isinstance(item, str) and item.strip()]
+        if option_labels:
+            clarification["options"] = option_labels
+
+    allow_multiple = payload.get("allow_multiple")
+    if allow_multiple is None:
+        allow_multiple = payload.get("allowMultiple")
+    if isinstance(allow_multiple, bool):
+        clarification["allowMultiple"] = allow_multiple
+
+    question = payload.get("question") or payload.get("prompt")
+    if isinstance(question, str) and question.strip():
+        clarification["question"] = question.strip()
+
+    if len(clarification) <= 2 and "form" not in clarification:
+        return None
+    return clarification
+
+
+def collect_plan_confirmation_status(
+    data: dict[str, object],
+) -> dict[str, object] | None:
+    """Build durable extra_data.planConfirmation from deep-research status events."""
+    phase = data.get("phase")
+    status = data.get("status")
+    if phase != "plan_confirm" or not isinstance(status, str):
+        return None
+
+    if status == "waiting":
+        raw_plan_items = data.get("plan_items")
+        plan_items = string_keyed_dicts(raw_plan_items if isinstance(raw_plan_items, list) else [])
+        plan_text = data.get("plan")
+        if isinstance(plan_text, str) and plan_text.strip():
+            plan = plan_text.strip()
+        elif plan_items:
+            plan = "\n".join(
+                f"{index + 1}. {str(item.get('content', '')).strip()}"
+                for index, item in enumerate(plan_items)
+                if str(item.get("content", "")).strip()
+            )
+        else:
+            plan = ""
+
+        result: dict[str, object] = {
+            "plan": plan,
+            "status": "waiting",
+            "source": data.get("source") if isinstance(data.get("source"), str) else "deep_research",
+        }
+        spawn_count = data.get("spawn_count")
+        if isinstance(spawn_count, int):
+            result["spawnCount"] = spawn_count
+        estimated_cost = data.get("estimated_cost_usd")
+        if isinstance(estimated_cost, int | float):
+            result["estimatedCostUsd"] = round(float(estimated_cost), 4)
+        remaining_budget = data.get("remaining_budget_usd")
+        if isinstance(remaining_budget, int | float):
+            result["remainingBudgetUsd"] = round(float(remaining_budget), 4)
+        cost_status = data.get("cost_status")
+        if isinstance(cost_status, str) and cost_status.strip():
+            result["costStatus"] = cost_status.strip()
+        if plan_items:
+            result["planItems"] = plan_items
+        total_items = data.get("total_items")
+        if isinstance(total_items, int):
+            result["totalItems"] = total_items
+        goal = data.get("goal")
+        if isinstance(goal, str) and goal.strip():
+            result["goal"] = goal.strip()
+        return result
+
+    if status == "resolved":
+        modified = data.get("modified")
+        return {
+            "status": "edited" if modified else "confirmed",
+        }
+
+    return None
+
+
+def collect_file_mutation_failures(
+    target: list[dict[str, object]],
+    data: object,
+) -> None:
+    """Append normalized file mutation failures from a file_mutation_failed SSE payload."""
+    if not isinstance(data, dict):
+        return
+    files = data.get("files")
+    if not isinstance(files, list):
+        return
+    for item in files:
+        if not isinstance(item, dict):
+            continue
+        path = item.get("path")
+        tool = item.get("tool")
+        if not isinstance(path, str) or not path.strip():
+            continue
+        if not isinstance(tool, str) or not tool.strip():
+            continue
+        preview = item.get("error_preview")
+        target.append(
+            {
+                "path": path.strip(),
+                "tool": tool.strip(),
+                "error_preview": preview if isinstance(preview, str) else "",
+            }
+        )
+
+
+def collect_workspace_merge_failures(
+    target: list[dict[str, object]],
+    data: object,
+) -> None:
+    """Append normalized workspace merge failures from a workspace_merge_failed SSE payload."""
+    if not isinstance(data, dict):
+        return
+    errors = data.get("errors")
+    if not isinstance(errors, list):
+        return
+    for item in errors:
+        if not isinstance(item, dict):
+            continue
+        message = item.get("message")
+        if not isinstance(message, str) or not message.strip():
+            continue
+        target.append({"message": message.strip()})

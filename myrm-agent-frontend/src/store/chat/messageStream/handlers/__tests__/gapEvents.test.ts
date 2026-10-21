@@ -1,0 +1,199 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AgentEventType, type AgentStreamEvent } from '@/store/chat/types';
+import { AdaptiveScheduler } from '../../../adaptiveScheduler';
+import type { StreamHandlerActions, StreamHandlerState } from '../../types';
+import type { StreamCtx } from '../../streamContext';
+
+const isLocalModeMock = vi.hoisted(() => vi.fn(() => false));
+
+vi.mock('@/lib/deploy-mode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+  return {
+    ...actual,
+    isLocalMode: () => isLocalModeMock(),
+  };
+});
+
+import { gapEvents } from '../gapEvents';
+
+const setCurrentBuiltinTools = vi.fn();
+const updateAgentConfig = vi.fn((partial: { selectedSkillIds?: string[] }) => {
+  mockState.agentConfig = {
+    selectedSkillIds: partial.selectedSkillIds ?? mockState.agentConfig.selectedSkillIds,
+  };
+});
+const toastInfo = vi.fn();
+const toastSuccess = vi.fn();
+
+let mockLoading = false;
+let mockState = {
+  currentBuiltinTools: ['web_search', 'memory'] as string[],
+  agentConfig: { selectedSkillIds: ['bound_skill'] as string[] },
+  loading: false,
+  messages: [{ role: 'user', content: '帮我填表准备 staging 部署配置' }],
+};
+
+vi.mock('@/lib/utils/toast', () => ({
+  toast: {
+    info: (...args: unknown[]) => toastInfo(...args),
+    success: (...args: unknown[]) => toastSuccess(...args),
+  },
+}));
+
+vi.mock('@/store/useChatStore', () => ({
+  default: {
+    getState: () => ({
+      ...mockState,
+      loading: mockLoading,
+      setCurrentBuiltinTools: (tools: string[]) => {
+        mockState.currentBuiltinTools = tools;
+        setCurrentBuiltinTools(tools);
+      },
+      updateAgentConfig,
+    }),
+  },
+}));
+
+function createCtx(eventType: string, data: Record<string, string>): StreamCtx {
+  const state: StreamHandlerState = {
+    messages: [],
+    messageAppeared: false,
+    loading: true,
+    scheduler: new AdaptiveScheduler(),
+  };
+  const actions: StreamHandlerActions = {
+    setMessages: (updater) => updater(state),
+    setMessageAppeared: () => undefined,
+    setLoading: () => undefined,
+    _processSuggestions: async () => undefined,
+    scheduleAutoSave: () => undefined,
+  };
+
+  return {
+    data: { type: eventType, data } as unknown as AgentStreamEvent,
+    input: '',
+    sources: undefined,
+    added: false,
+    recievedMessage: '',
+    state,
+    actions,
+    files: [],
+  };
+}
+
+describe('gapEvents', () => {
+  beforeEach(() => {
+    isLocalModeMock.mockReturnValue(false);
+    document.documentElement.lang = 'en';
+    mockLoading = false;
+    mockState = {
+      currentBuiltinTools: ['web_search', 'memory'],
+      agentConfig: { selectedSkillIds: ['bound_skill'] },
+      loading: false,
+      messages: [{ role: 'user', content: '帮我填表准备 staging 部署配置' }],
+    };
+    setCurrentBuiltinTools.mockClear();
+    updateAgentConfig.mockClear();
+    toastInfo.mockClear();
+    toastSuccess.mockClear();
+  });
+
+  it('ignores capability_gap for unknown tool ids', async () => {
+    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'retired_tool' }));
+    expect(result).toBeNull();
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+
+  it('ignores cron capability_gap without factual reason', async () => {
+    document.documentElement.lang = 'zh';
+    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'cron' }));
+    expect(result).toBeNull();
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+
+  it('shows settings CTA on web_search not_configured capability_gap', async () => {
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'web_search',
+        reason: 'not_configured',
+        display_message: 'Web search is enabled but no search API is configured.',
+        settings_path: '/settings/search',
+      }),
+    );
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string; onClick?: () => void };
+    };
+    expect(toastOptions.action?.label).toBe('Go to Settings');
+    expect(typeof toastOptions.action?.onClick).toBe('function');
+  });
+
+  it('shows settings CTA on migration_readiness_critical capability_gap', async () => {
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'migration_import',
+        reason: 'migration_readiness_critical',
+        display_message: 'Configure model providers in Settings.',
+        settings_path: '/settings/models',
+      }),
+    );
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string; onClick?: () => void };
+    };
+    // No translator is installed in unit tests, so the key the handler resolved comes back verbatim.
+    expect(toastOptions.action?.label).toBe('agent.configEditor.goToSettings');
+    expect(typeof toastOptions.action?.onClick).toBe('function');
+  });
+
+  it('shows settings CTA on migration_readiness_warning capability_gap', async () => {
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'migration_import',
+        reason: 'migration_readiness_warning',
+        display_message: 'Enable imported MCP servers in Settings.',
+        settings_path: '/settings/mcp',
+      }),
+    );
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string; onClick?: () => void };
+    };
+    expect(toastOptions.action?.label).toBe('agent.configEditor.goToSettings');
+  });
+
+  it('shows local quick-enable CTA on web_search not_configured in local mode', async () => {
+    isLocalModeMock.mockReturnValue(true);
+    document.documentElement.lang = 'zh';
+
+    await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, {
+        tool_id: 'web_search',
+        reason: 'not_configured',
+        display_message: '已开启网页搜索，但未配置搜索 API。',
+        settings_path: '/settings/search',
+      }),
+    );
+
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as {
+      action?: { label?: string };
+    };
+    expect(toastOptions.action?.label).toBe('一键启用免费搜索');
+  });
+
+  it('ignores capability_gap for agent baseline tool ids (no UI toggle)', async () => {
+    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'file_ops' }));
+    expect(result).toBeNull();
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+
+  it('ignores skill_gap events (bind-and-resend removed)', async () => {
+    const result = await gapEvents(createCtx(AgentEventType.SKILL_GAP, { skill_id: 'github_pr_skill' }));
+    expect(result).toBeNull();
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+});

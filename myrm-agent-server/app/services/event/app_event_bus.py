@@ -1,0 +1,88 @@
+"""Global in-process event bus for real-time SSE notifications.
+
+[INPUT]
+- myrm_agent_harness.infra.pubsub.event_bus::PubSubBus (POS: Harness generic pub/sub)
+
+[OUTPUT]
+- AppEventType, AppEvent, ServerEventBus, get_event_bus: Server-side SSE event bus singleton
+
+[POS]
+Business-layer SSE bus (`ServerEventBus = PubSubBus[AppEvent]`). Kanban, memory, skills, channels publish AppEvent;
+api/events/router streams to WebUI clients. Must not live under app/api/.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import StrEnum
+from typing import Any
+
+from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
+
+
+class AppEventType(StrEnum):
+    """Known event types pushed to web clients."""
+
+    PAIRING_PENDING = "pairing_pending"
+    CHANNEL_CONNECTED = "channel_connected"
+    CHANNEL_DISCONNECTED = "channel_disconnected"
+    GROUPS_UPDATED = "groups_updated"
+    AGENT_CONFIG_UPDATED = "agent_config_updated"
+    MANAGED_POLICY_UPDATED = "managed_policy_updated"
+    MESSAGE_DEAD_LETTERED = "message_dead_lettered"
+    NEW_SKILL_DRAFT = "new_skill_draft"
+    SKILL_GROWTH_UPDATED = "skill_growth_updated"
+    SKILL_EVOLVED = "skill_evolved"
+    SYSTEM_NOTIFICATION = "system_notification"
+    IDLE_STATUS = "idle_status"
+    APPROVAL_REQUIRED = "approval_required"
+    HEALTH_ALERT = "health_alert"
+    BUDGET_ALERT = "budget_alert"
+    ASYNC_AGENT_STREAM_CHUNK = "async_agent_stream_chunk"
+    MEMORY_HISTORY_UPDATED = "memory_history_updated"
+    MEMORY_OPERATION = "memory_operation"
+    SUBAGENTS_UPDATED = "subagents_updated"
+    APPROVAL_RESOLVED = "approval_resolved"
+    CRON_UPDATED = "cron_updated"
+    BUDGET_UPDATED = "budget_updated"
+    KANBAN_TASK_UPDATED = "kanban_task_updated"
+    BACKGROUND_TASK_DONE = "background_task_done"
+    LOCATOR_HEALED = "locator_healed"
+    GOAL_TERMINAL = "goal_terminal"
+    GOAL_DEQUEUED = "goal_dequeued"
+    GOAL_BRANCH_SWITCHED = "goal:branch_switched"
+    EXTENSION_STATUS_CHANGED = "extension_status_changed"
+    SUBAGENT_REBIND_REQUIRED = "subagent_rebind_required"
+    SUBAGENT_STALE = "subagent_stale"
+    MCP_AUTH_REQUIRED = "mcp_auth_required"
+    OAUTH_REAUTH_REQUIRED = "oauth_reauth_required"
+    WORKSPACE_FILE_CHANGED = "workspace_file_changed"
+    RUN_DIGEST_UPDATED = "run_digest_updated"
+    SKILL_POOL_UPDATED = "skill_pool_updated"
+    SESSION_COMPLETED = "session_completed"
+    SESSION_FAILED = "session_failed"
+    SUBAGENT_SPAWNED = "subagent_spawned"
+    SUBAGENT_MERGED = "subagent_merged"
+
+
+@dataclass(frozen=True, slots=True)
+class AppEvent:
+    """Immutable event payload broadcast to all SSE subscribers."""
+
+    event_type: AppEventType
+    data: dict[str, Any]
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+ServerEventBus = PubSubBus[AppEvent]
+
+_bus: ServerEventBus | None = None
+
+
+def get_event_bus() -> ServerEventBus:
+    """Singleton accessor — lazily created on first call."""
+    global _bus  # noqa: PLW0603
+    if _bus is None:
+        _bus = PubSubBus()
+    return _bus

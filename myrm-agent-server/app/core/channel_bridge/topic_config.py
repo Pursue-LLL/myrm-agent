@@ -1,0 +1,747 @@
+"""Topic manager — reads/writes per-topic/channel configuration from UserConfig.
+
+Implements TopicManager protocol for the business layer.
+Manages topic/channel configuration in the per-channel topics config key
+in UserConfig, with a TTL cache to avoid repeated DB queries.
+
+Features:
+- Dual-granularity binding: per-thread (forum topics) and per-channel
+- Agent name resolution: /bind accepts UUID or name, stores canonical UUID
+- Channel bind policy: reject prompt_mode=search at bind_topic; purge legacy search binds at resolve/get_all (General-only IM)
+- Team-shared identity: identityScope/identityId/identityName/identityRevoked per binding; revoke freezes routing, retains memory
+- Proactive follow-up: completionReceipts (default on) / stallNudge (default off, explicit opt-in) per binding
+- Lazy expiration: idle timeout + max age checked at resolve time (no bg tasks)
+- Activity tracking: in-memory cache with interval flush to reduce DB writes
+- Auto-discovery: sync_topic_metadata with dirty checking for UI display
+
+[INPUT]
+- app.database.models::UserConfig
+- app.services.agent.agent_service::AgentService (for name resolution)
+- app.channels.types::TopicContext
+
+[OUTPUT]
+- SqlTopicManager: TopicManager implementation backed by UserConfig DB
+
+[POS]
+业务层的话题/频道管理器。从 UserConfig 表读写每个 channel 的
+per-topic/per-channel 配置，为 AgentRouter 提供路由决策数据，
+支持 /bind /unbind 命令的持久化，以及智能体删除时的级联清理。
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from datetime import datetime, timezone
+
+from app.channels.types import DraftTimeoutAction, IdentityScopeMode, ReplyMode, TopicContext
+from app.channels.types.thread_sharing import ThreadSharingMode
+
+logger = logging.getLogger(__name__)
+
+_CACHE_TTL = 60.0
+
+_CHANNEL_LEVEL_KEY = "__channel__"
+
+_DEFAULT_IDLE_TIMEOUT_HOURS = 24
+_ACTIVE_FLUSH_INTERVAL = 300.0
+
+SEARCH_AGENT_CHANNEL_BIND_MSG = "Search agents cannot be bound to channels; choose a General agent."
+_TOPIC_WORKSPACE_MUTUAL_EXCLUSIVE_MSG = "projectId and authorizedPath are mutually exclusive for topic workspace binding."
+_UNSET: object = object()
+
+
+def is_search_agent_channel_bind_error(exc: BaseException) -> bool:
+    """Return True when bind_topic rejected a prompt_mode=search agent."""
+    return isinstance(exc, ValueError) and str(exc) == SEARCH_AGENT_CHANNEL_BIND_MSG
+
+
+def clean_identity_id(raw: str) -> str:
+    """Sanitize an explicit team identity id at write time.
+
+    Collapsing ids (empty or the reserved ``baseline`` default compartment)
+    are rejected so two bindings can never silently share one memory
+    compartment. Raises ValueError on rejection (fail-closed).
+    """
+    from myrm_agent_harness.agent.security.team_identity import sanitize_identity_id
+
+    cleaned = sanitize_identity_id(raw)
+    if not cleaned or cleaned == "baseline":
+        raise ValueError(f"Invalid identity_id '{raw}'; use ASCII letters, digits, '-' or '_'.")
+    return cleaned
+
+
+class SqlTopicManager:
+    """Manages per-topic/channel configuration in UserConfig DB.
+
+    Config structure in UserConfig (config_key = "telegramTopics" etc.):
+    {
+        "<chat_id>": {
+            "<thread_id>": {
+                "agentId": "uuid-of-agent",
+                "projectId": "uuid-of-project",
+                "authorizedPath": "/path/to/vault",
+                "enabled": true,
+                "boundAt": "2026-03-06T12:00:00Z",
+                "lastActiveAt": "2026-03-30T12:00:00Z",
+                "idleTimeoutH": 24,
+                "maxAgeH": null
+            },
+            "__channel__": { ... }
+        }
+    }
+    """
+
+    def __init__(
+        self,
+        idle_timeout_hours: int = _DEFAULT_IDLE_TIMEOUT_HOURS,
+        max_age_hours: int | None = None,
+    ) -> None:
+        self._cache: dict[str, dict[str, object]] = {}
+        self._cache_ts: dict[str, float] = {}
+        self._default_idle_timeout_h = idle_timeout_hours
+        self._default_max_age_h = max_age_hours
+        self._active_mem: dict[str, str] = {}
+        self._active_flush_ts: dict[str, float] = {}
+
+    async def resolve_topic(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+    ) -> TopicContext | None:
+        config = await self._load_config(channel)
+        if not config:
+            return None
+
+        group_topics = config.get(chat_id)
+        if not isinstance(group_topics, dict):
+            return None
+
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        topic_cfg = group_topics.get(storage_key)
+        if not isinstance(topic_cfg, dict):
+            return None
+
+        if self._is_expired(topic_cfg):
+            self._delete_binding_keys(config, chat_id, storage_key)
+            await self._save_config(channel, config)
+            logger.info(
+                "SqlTopicManager: expired binding %s/%s/%s auto-removed",
+                channel,
+                chat_id,
+                storage_key,
+            )
+            return None
+
+        raw_agent_id = topic_cfg.get("agentId")
+        if isinstance(raw_agent_id, str) and raw_agent_id:
+            if not await self._is_channel_bindable_agent(raw_agent_id):
+                self._delete_binding_keys(config, chat_id, storage_key)
+                await self._save_config(channel, config)
+                logger.info(
+                    "SqlTopicManager: unbindable agent %s binding %s/%s/%s auto-removed",
+                    raw_agent_id,
+                    channel,
+                    chat_id,
+                    storage_key,
+                )
+                return None
+
+        await self._touch_active(channel, chat_id, storage_key, config)
+
+        raw_reply_mode = str(topic_cfg.get("replyMode", "auto"))
+        reply_mode = ReplyMode(raw_reply_mode) if raw_reply_mode in ReplyMode.__members__.values() else ReplyMode.AUTO
+        raw_timeout_action = str(topic_cfg.get("draftTimeoutAction", "auto_reject"))
+        timeout_action = (
+            DraftTimeoutAction(raw_timeout_action)
+            if raw_timeout_action in DraftTimeoutAction.__members__.values()
+            else DraftTimeoutAction.AUTO_REJECT
+        )
+        raw_identity_scope = str(topic_cfg.get("identityScope", "inherit"))
+        identity_scope = (
+            IdentityScopeMode(raw_identity_scope)
+            if raw_identity_scope in IdentityScopeMode.__members__.values()
+            else IdentityScopeMode.INHERIT
+        )
+
+        return TopicContext(            topic_id=thread_id or chat_id,
+            agent_id=str(topic_cfg["agentId"]) if topic_cfg.get("agentId") else None,
+            project_id=str(topic_cfg["projectId"]) if topic_cfg.get("projectId") else None,
+            authorized_path=(str(topic_cfg["authorizedPath"]) if topic_cfg.get("authorizedPath") else None),
+            enabled=bool(topic_cfg.get("enabled", True)),
+            bound_at=str(topic_cfg["boundAt"]) if topic_cfg.get("boundAt") else None,
+            thread_sharing_mode=str(topic_cfg.get("threadSharingMode", "isolated")),
+            reply_mode=reply_mode,
+            draft_timeout_minutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
+            draft_timeout_action=timeout_action,
+            personality_style=str(topic_cfg["personalityStyle"]) if topic_cfg.get("personalityStyle") else None,
+            identity_scope=identity_scope,
+            identity_id=str(topic_cfg["identityId"]) if topic_cfg.get("identityId") else None,
+            identity_name=str(topic_cfg["identityName"]) if topic_cfg.get("identityName") else None,
+            identity_revoked=bool(topic_cfg.get("identityRevoked", False)),
+            completion_receipts=bool(topic_cfg.get("completionReceipts", True)),
+            stall_nudge=bool(topic_cfg.get("stallNudge", False)),
+        )
+
+    async def bind_topic(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+        *,
+        agent_id: str | None | object = _UNSET,
+        display_name: str | None = None,
+        avatar_url: str | None = None,
+        thread_sharing_mode: ThreadSharingMode | object = _UNSET,
+        reply_mode: ReplyMode | object = _UNSET,
+        draft_timeout_minutes: int | object = _UNSET,
+        draft_timeout_action: DraftTimeoutAction | object = _UNSET,
+        project_id: str | None | object = _UNSET,
+        authorized_path: str | None | object = _UNSET,
+        personality_style: str | None | object = _UNSET,
+        identity_scope: IdentityScopeMode | object = _UNSET,
+        identity_id: str | None | object = _UNSET,
+        identity_name: str | None | object = _UNSET,
+        identity_revoked: bool | object = _UNSET,
+        completion_receipts: bool | object = _UNSET,
+        stall_nudge: bool | object = _UNSET,
+    ) -> TopicContext:
+        resolved_agent_id: str | None = None
+        if agent_id is not _UNSET:
+            resolved_agent_id = None if agent_id is None else str(agent_id)
+            if resolved_agent_id:
+                resolved_agent_id = await self._resolve_agent_id(resolved_agent_id)
+                await self._assert_channel_bindable_agent(resolved_agent_id)
+
+        if project_id is not _UNSET and authorized_path is not _UNSET:
+            if project_id and authorized_path:
+                raise ValueError(_TOPIC_WORKSPACE_MUTUAL_EXCLUSIVE_MSG)
+
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        config = await self._load_config(channel)
+        group_topics = config.get(chat_id)
+        existing: dict[str, object] = {}
+        if isinstance(group_topics, dict):
+            existing_raw = group_topics.get(storage_key)
+            if isinstance(existing_raw, dict):
+                existing = dict(existing_raw)
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        topic_entry: dict[str, object] = dict(existing)
+        topic_entry["enabled"] = True
+        topic_entry["boundAt"] = existing.get("boundAt") or now_iso
+        topic_entry["lastActiveAt"] = now_iso
+        topic_entry["idleTimeoutH"] = self._default_idle_timeout_h
+        if self._default_max_age_h is not None:
+            topic_entry["maxAgeH"] = self._default_max_age_h
+
+        if thread_sharing_mode is not _UNSET:
+            mode_value = (
+                thread_sharing_mode.value if isinstance(thread_sharing_mode, ThreadSharingMode) else str(thread_sharing_mode)
+            )
+            topic_entry["threadSharingMode"] = mode_value
+        if reply_mode is not _UNSET:
+            topic_entry["replyMode"] = reply_mode.value
+        if draft_timeout_minutes is not _UNSET:
+            topic_entry["draftTimeoutMinutes"] = draft_timeout_minutes
+        if draft_timeout_action is not _UNSET:
+            topic_entry["draftTimeoutAction"] = draft_timeout_action.value
+
+        if resolved_agent_id is not None:
+            topic_entry["agentId"] = resolved_agent_id
+        elif agent_id is not _UNSET and agent_id is None:
+            topic_entry.pop("agentId", None)
+
+        if display_name is not None:
+            topic_entry["displayName"] = display_name
+        if avatar_url is not None:
+            topic_entry["avatarUrl"] = avatar_url
+
+        resolved_project_id: str | None = None
+        resolved_authorized_path: str | None = None
+        if project_id is not _UNSET:
+            if project_id:
+                from app.core.channel_bridge.topic_workspace_bind import assert_project_workspace
+
+                await assert_project_workspace(str(project_id))
+                topic_entry["projectId"] = str(project_id)
+                topic_entry.pop("authorizedPath", None)
+                resolved_project_id = str(project_id)
+            else:
+                topic_entry.pop("projectId", None)
+        if authorized_path is not _UNSET:
+            if authorized_path:
+                from app.core.channel_bridge.topic_workspace_bind import validate_authorized_path
+
+                validated_path = validate_authorized_path(str(authorized_path))
+                topic_entry["authorizedPath"] = validated_path
+                topic_entry.pop("projectId", None)
+                resolved_authorized_path = validated_path
+            else:
+                topic_entry.pop("authorizedPath", None)
+
+        if project_id is _UNSET and authorized_path is _UNSET:
+            resolved_project_id = str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
+            resolved_authorized_path = str(topic_entry["authorizedPath"]) if topic_entry.get("authorizedPath") else None
+        elif project_id is _UNSET:
+            resolved_project_id = str(topic_entry["projectId"]) if topic_entry.get("projectId") else None
+        elif authorized_path is _UNSET:
+            resolved_authorized_path = str(topic_entry["authorizedPath"]) if topic_entry.get("authorizedPath") else None
+
+        if personality_style is not _UNSET:
+            if personality_style:
+                topic_entry["personalityStyle"] = str(personality_style)
+            else:
+                topic_entry.pop("personalityStyle", None)
+
+        if identity_scope is not _UNSET:
+            scope_value = (
+                identity_scope.value if isinstance(identity_scope, IdentityScopeMode) else str(identity_scope)
+            )
+            topic_entry["identityScope"] = scope_value
+        if identity_id is not _UNSET:
+            if identity_id:
+                topic_entry["identityId"] = clean_identity_id(str(identity_id))
+            else:
+                topic_entry.pop("identityId", None)
+        if identity_name is not _UNSET:
+            if identity_name:
+                topic_entry["identityName"] = str(identity_name)
+            else:
+                topic_entry.pop("identityName", None)
+        if identity_revoked is not _UNSET:
+            topic_entry["identityRevoked"] = bool(identity_revoked)
+        if completion_receipts is not _UNSET:
+            topic_entry["completionReceipts"] = bool(completion_receipts)
+        if stall_nudge is not _UNSET:
+            topic_entry["stallNudge"] = bool(stall_nudge)
+
+        await self._upsert_topic(channel, chat_id, storage_key, topic_entry)
+
+        raw_reply_mode = str(topic_entry.get("replyMode", ReplyMode.AUTO.value))
+        effective_reply_mode = ReplyMode(raw_reply_mode) if raw_reply_mode in ReplyMode.__members__.values() else ReplyMode.AUTO
+        raw_timeout_action = str(topic_entry.get("draftTimeoutAction", DraftTimeoutAction.AUTO_REJECT.value))
+        effective_timeout_action = (
+            DraftTimeoutAction(raw_timeout_action)
+            if raw_timeout_action in DraftTimeoutAction.__members__.values()
+            else DraftTimeoutAction.AUTO_REJECT
+        )
+        raw_identity_scope = str(topic_entry.get("identityScope", IdentityScopeMode.INHERIT.value))
+        effective_identity_scope = (
+            IdentityScopeMode(raw_identity_scope)
+            if raw_identity_scope in IdentityScopeMode.__members__.values()
+            else IdentityScopeMode.INHERIT
+        )
+
+        return TopicContext(
+            topic_id=thread_id or chat_id,
+            agent_id=(str(topic_entry["agentId"]) if topic_entry.get("agentId") else None),
+            project_id=resolved_project_id,
+            authorized_path=resolved_authorized_path,
+            enabled=True,
+            bound_at=str(topic_entry.get("boundAt", now_iso)),
+            thread_sharing_mode=str(topic_entry.get("threadSharingMode", "isolated")),
+            reply_mode=effective_reply_mode,
+            draft_timeout_minutes=int(topic_entry.get("draftTimeoutMinutes", 5)),
+            draft_timeout_action=effective_timeout_action,
+            personality_style=str(topic_entry["personalityStyle"]) if topic_entry.get("personalityStyle") else None,
+            identity_scope=effective_identity_scope,
+            identity_id=str(topic_entry["identityId"]) if topic_entry.get("identityId") else None,
+            identity_name=str(topic_entry["identityName"]) if topic_entry.get("identityName") else None,
+            identity_revoked=bool(topic_entry.get("identityRevoked", False)),
+            completion_receipts=bool(topic_entry.get("completionReceipts", True)),
+            stall_nudge=bool(topic_entry.get("stallNudge", False)),
+        )
+
+    async def revoke_identity(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+    ) -> bool:
+        """Freeze a binding's team identity without deleting stored config.
+
+        A revoked identity routes to the default agent and stops contributing
+        its memory compartment; stored memory is retained so a later rejoin
+        restores continuity. Returns False when no binding exists.
+        """
+        config = await self._load_config(channel)
+        group_topics = config.get(chat_id)
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        if not isinstance(group_topics, dict):
+            return False
+        topic_cfg = group_topics.get(storage_key)
+        if not isinstance(topic_cfg, dict):
+            return False
+        topic_cfg["identityRevoked"] = True
+        await self._save_config(channel, config)
+        return True
+
+    async def restore_identity(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+    ) -> bool:
+        """Clear a previous identity revocation, restoring the binding."""
+        config = await self._load_config(channel)
+        group_topics = config.get(chat_id)
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        if not isinstance(group_topics, dict):
+            return False
+        topic_cfg = group_topics.get(storage_key)
+        if not isinstance(topic_cfg, dict):
+            return False
+        if not topic_cfg.get("identityRevoked"):
+            return False
+        topic_cfg["identityRevoked"] = False
+        await self._save_config(channel, config)
+        return True
+
+    def _is_expired(self, topic_cfg: dict[str, object]) -> bool:
+        """Check if a binding has expired (idle timeout or max age)."""
+        now = datetime.now(timezone.utc)
+
+        idle_h = topic_cfg.get("idleTimeoutH")
+        if isinstance(idle_h, (int, float)) and idle_h > 0:
+            last_active_raw = topic_cfg.get("lastActiveAt")
+            if isinstance(last_active_raw, str):
+                try:
+                    last_active = datetime.fromisoformat(last_active_raw)
+                    if (now - last_active).total_seconds() > idle_h * 3600:
+                        return True
+                except (ValueError, TypeError):
+                    pass
+
+        max_age_h = topic_cfg.get("maxAgeH")
+        if isinstance(max_age_h, (int, float)) and max_age_h > 0:
+            bound_raw = topic_cfg.get("boundAt")
+            if isinstance(bound_raw, str):
+                try:
+                    bound = datetime.fromisoformat(bound_raw)
+                    if (now - bound).total_seconds() > max_age_h * 3600:
+                        return True
+                except (ValueError, TypeError):
+                    pass
+
+        return False
+
+    async def _touch_active(self, channel: str, chat_id: str, storage_key: str, config: dict[str, object]) -> None:
+        """Update last-active timestamp in cache and persist to DB at intervals."""
+        mem_key = f"{channel}:{chat_id}:{storage_key}"
+        now_mono = time.monotonic()
+
+        last_flush = self._active_flush_ts.get(mem_key, 0.0)
+        if now_mono - last_flush < _ACTIVE_FLUSH_INTERVAL:
+            return
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        self._active_mem[mem_key] = now_iso
+        self._active_flush_ts[mem_key] = now_mono
+
+        group_topics = config.get(chat_id)
+        if not isinstance(group_topics, dict):
+            return
+        topic_cfg = group_topics.get(storage_key)
+        if isinstance(topic_cfg, dict):
+            topic_cfg["lastActiveAt"] = now_iso
+            await self._save_config(channel, config)
+
+    async def remove_agent_from_all_bindings(self, agent_id: str) -> None:
+        """Remove an agent from all channel and topic bindings (cascading delete)."""
+        try:
+            from sqlalchemy import select
+
+            from app.database.connection import get_session
+            from app.database.models import UserConfig
+
+            async with get_session() as session:
+                result = await session.execute(select(UserConfig).where(UserConfig.config_key.like("%Topics")))
+                rows = result.scalars().all()
+
+                changed_channels = []
+                for row in rows:
+                    config = row.config_value
+                    if not isinstance(config, dict):
+                        continue
+
+                    changed = False
+                    for chat_id, group_topics in list(config.items()):
+                        if not isinstance(group_topics, dict):
+                            continue
+
+                        for storage_key, topic_cfg in list(group_topics.items()):
+                            if isinstance(topic_cfg, dict) and topic_cfg.get("agentId") == agent_id:
+                                # Remove the binding completely
+                                del group_topics[storage_key]
+                                changed = True
+
+                        # Clean up empty chat groups
+                        if not group_topics:
+                            del config[chat_id]
+                            changed = True
+
+                    if changed:
+                        row.config_value = config
+                        session.add(row)
+                        # Extract channel name from config_key (e.g., "telegramTopics" -> "telegram")
+                        channel_name = row.config_key[:-6] if row.config_key.endswith("Topics") else row.config_key
+                        changed_channels.append(channel_name)
+
+                if changed_channels:
+                    await session.commit()
+                    for channel in changed_channels:
+                        self._invalidate_cache(channel)
+                        logger.info(
+                            "SqlTopicManager: Cascaded deletion of agent %s from channel %s",
+                            agent_id,
+                            channel,
+                        )
+
+        except Exception as exc:
+            logger.warning("SqlTopicManager: failed to cascade delete agent %s: %s", agent_id, exc)
+
+    async def get_all_topics(self, channel: str) -> dict[str, object]:
+        """Get all topics for a channel (used by API).
+
+        Strips legacy Search-track bindings so Settings never shows ghost binds.
+        """
+        config = await self._load_config(channel)
+        if await self._sanitize_unbindable_bindings(channel, config):
+            await self._save_config(channel, config)
+        return config
+
+    async def _resolve_agent_id(self, agent_id_or_name: str) -> str:
+        """Resolve agent by UUID or name. Returns the canonical UUID.
+
+        Raises:
+            ValueError: when input is not a valid UUID and name lookup finds nothing.
+        """
+        import uuid as _uuid
+
+        from app.platform_utils import get_session_factory
+        from app.services.agent.agent_service import AgentService
+
+        session_factory = get_session_factory()
+        async with session_factory() as _db:
+            agent = await AgentService.resolve_agent(agent_id_or_name)
+            if agent:
+                return str(agent.id)
+
+        try:
+            _uuid.UUID(agent_id_or_name)
+        except ValueError:
+            raise ValueError(f"Agent not found: '{agent_id_or_name}'") from None
+
+        return agent_id_or_name
+
+    @staticmethod
+    def _delete_binding_keys(
+        config: dict[str, object],
+        chat_id: str,
+        storage_key: str,
+    ) -> bool:
+        group_topics = config.get(chat_id)
+        if not isinstance(group_topics, dict) or storage_key not in group_topics:
+            return False
+        del group_topics[storage_key]
+        if not group_topics:
+            del config[chat_id]
+        return True
+
+    async def _is_channel_bindable_agent(self, agent_id: str) -> bool:
+        """Return False for Search-track or missing agents (Channel/IM = General-only)."""
+        from app.services.agent.agent_service import AgentService
+
+        agent = await AgentService.get_agent_by_id(agent_id)
+        if agent is None:
+            return False
+        return not self._agent_is_search_track(agent)
+
+    @staticmethod
+    def _agent_is_search_track(agent: object) -> bool:
+        meta = getattr(agent, "metadata", None)
+        if not isinstance(meta, dict):
+            return False
+        return str(meta.get("prompt_mode", "full")) == "search"
+
+    async def _sanitize_unbindable_bindings(self, channel: str, config: dict[str, object]) -> bool:
+        changed = False
+        for chat_id, group_topics in list(config.items()):
+            if not isinstance(group_topics, dict):
+                continue
+            chat_id_str = str(chat_id)
+            for storage_key, topic_cfg in list(group_topics.items()):
+                if not isinstance(topic_cfg, dict):
+                    continue
+                raw_agent_id = topic_cfg.get("agentId")
+                if not isinstance(raw_agent_id, str) or not raw_agent_id:
+                    continue
+                if await self._is_channel_bindable_agent(raw_agent_id):
+                    continue
+                self._delete_binding_keys(config, chat_id_str, str(storage_key))
+                logger.info(
+                    "SqlTopicManager: unbindable agent %s binding %s/%s/%s auto-removed",
+                    raw_agent_id,
+                    channel,
+                    chat_id_str,
+                    storage_key,
+                )
+                changed = True
+        return changed
+
+    async def _assert_channel_bindable_agent(self, agent_id: str) -> None:
+        """Reject Search-track agents — Channel/IM always runs General CORE."""
+        from app.services.agent.agent_service import AgentService
+
+        agent = await AgentService.get_agent_by_id(agent_id)
+        if agent is None:
+            raise ValueError(f"Agent not found: {agent_id}")
+        if self._agent_is_search_track(agent):
+            raise ValueError(SEARCH_AGENT_CHANNEL_BIND_MSG)
+
+    async def sync_topic_metadata(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+        *,
+        display_name: str | None = None,
+        avatar_url: str | None = None,
+    ) -> None:
+        if display_name is None and avatar_url is None:
+            return
+
+        config = await self._load_config(channel)
+        group_raw = config.get(chat_id)
+        if not isinstance(group_raw, dict):
+            group_topics: dict[str, object] = {}
+            config[chat_id] = group_topics
+        else:
+            group_topics = group_raw
+
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        topic_raw = group_topics.get(storage_key)
+        if not isinstance(topic_raw, dict):
+            topic_cfg: dict[str, object] = {}
+            group_topics[storage_key] = topic_cfg
+        else:
+            topic_cfg = topic_raw
+
+        changed = False
+        if display_name is not None and topic_cfg.get("displayName") != display_name:
+            topic_cfg["displayName"] = display_name
+            changed = True
+        if avatar_url is not None and topic_cfg.get("avatarUrl") != avatar_url:
+            topic_cfg["avatarUrl"] = avatar_url
+            changed = True
+
+        if changed:
+            await self._save_config(channel, config)
+
+    async def unbind_topic(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+    ) -> bool:
+        config = await self._load_config(channel)
+        group_topics = config.get(chat_id)
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        if not isinstance(group_topics, dict) or storage_key not in group_topics:
+            return False
+
+        del group_topics[storage_key]
+        if not group_topics:
+            del config[chat_id]
+
+        await self._save_config(channel, config)
+
+        from app.channels.routing.follow_up import drop_tracked_thread
+
+        drop_tracked_thread(channel, chat_id, thread_id)
+        return True
+
+    async def _upsert_topic(
+        self,
+        channel: str,
+        chat_id: str,
+        storage_key: str,
+        topic_entry: dict[str, object],
+    ) -> None:
+        config = await self._load_config(channel)
+
+        group_topics = config.get(chat_id)
+        if not isinstance(group_topics, dict):
+            group_topics = {}
+            config[chat_id] = group_topics
+
+        group_topics[storage_key] = topic_entry
+        await self._save_config(channel, config)
+
+    async def _save_config(self, channel: str, config: dict[str, object]) -> None:
+        try:
+            from sqlalchemy import select
+
+            from app.database.connection import get_session
+            from app.database.models import UserConfig
+
+            config_key = f"{channel}Topics"
+            async with get_session() as session:
+                result = await session.execute(
+                    select(UserConfig).where(
+                        UserConfig.config_key == config_key,
+                    )
+                )
+                row = result.scalar_one_or_none()
+                if row:
+                    row.config_value = config
+                else:
+                    session.add(
+                        UserConfig(
+                            id=__import__("nanoid").generate(size=21),
+                            config_key=config_key,
+                            config_value=config,
+                            version="1_0",
+                            last_device_id="server",
+                        )
+                    )
+                await session.commit()
+
+            self._invalidate_cache(channel)
+        except Exception as exc:
+            logger.warning("SqlTopicManager: failed to save %s topics: %s", channel, exc)
+
+    async def _load_config(self, channel: str) -> dict[str, object]:
+        now = time.monotonic()
+        cached_ts = self._cache_ts.get(channel, 0.0)
+        if now - cached_ts < _CACHE_TTL and channel in self._cache:
+            return self._cache[channel]
+
+        try:
+            from sqlalchemy import select
+
+            from app.database.connection import get_session
+            from app.database.models import UserConfig
+
+            config_key = f"{channel}Topics"
+            async with get_session() as session:
+                result = await session.execute(
+                    select(UserConfig.config_value).where(
+                        UserConfig.config_key == config_key,
+                    )
+                )
+                row = result.scalar_one_or_none()
+
+            self._cache_ts[channel] = now
+            data = row if isinstance(row, dict) else {}
+            self._cache[channel] = data
+            return data
+        except Exception as exc:
+            logger.warning("SqlTopicManager: failed to load %s topics: %s", channel, exc)
+            return self._cache.get(channel, {})
+
+    def _invalidate_cache(self, channel: str) -> None:
+        self._cache.pop(channel, None)
+        self._cache_ts.pop(channel, None)

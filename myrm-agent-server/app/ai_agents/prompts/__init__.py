@@ -1,0 +1,37 @@
+"""Prompts 模块
+
+提示词管理层，存储和管理系统提示词模板。
+支持分层提示词架构和动态模板生成。
+"""
+
+from .deliverable_discipline import (
+    DELIVERABLE_DISCIPLINE_RULES,
+    KNOWLEDGE_WORK_SYSTEM_PROMPT,
+    build_knowledge_work_system_prompt,
+)
+from .fast_search_agent_prompt import get_fast_search_agent_prompt
+from .general_agent_prompt import (
+    CORE_SYSTEM_PROMPT,
+    get_citation_rules_if_needed,
+    get_core_system_prompt,
+)
+from .shared_rules import (
+    EXTERNAL_SOURCES_CITATION_RULES,
+    RESPONSE_RULES,
+)
+
+__all__ = [
+    # deliverable_discipline
+    "DELIVERABLE_DISCIPLINE_RULES",
+    "KNOWLEDGE_WORK_SYSTEM_PROMPT",
+    "build_knowledge_work_system_prompt",
+    # fast_search_agent_prompt
+    "get_fast_search_agent_prompt",
+    # layered_prompts
+    "CORE_SYSTEM_PROMPT",
+    "get_core_system_prompt",
+    "get_citation_rules_if_needed",
+    # shared_rules
+    "RESPONSE_RULES",
+    "EXTERNAL_SOURCES_CITATION_RULES",
+]

@@ -1,0 +1,484 @@
+/**
+ * [INPUT]
+ * - @/services/kanban::completionCriteriaToText, hasKanbanCompletionIntent, KANBAN_SOURCE_CHAT_METADATA_KEY (POS: 验收标准与来源会话的元数据约定)
+ * - ./kanban-styles (POS: 优先级样式、超时预设、可编辑审批的状态、时间格式化)
+ * - ./KanbanMarkdown、./KanbanSkillPicker、./ReviewCommentThread (POS: 富文本、技能选择、验收意见)
+ * - @/lib/kanban/kanbanChatBoard::buildKanbanBoardDeepLink (POS: 回到来源会话的看板链接)
+ * - ./KanbanTaskBlockedNotice (POS: 阻塞提示条：类型标签、界面语言的原因、定时解除时间)
+ * - @/lib/utils/a11y::activateOnKey (POS: 非原生按钮的键盘激活)
+ *
+ * [OUTPUT]
+ * - TaskDetailsSection: 描述、优先级 / 状态 / Agent / 进度徽标、创建与更新时间、来源会话链接，以及超时、技能、验收标准、模型覆盖、指派 Agent、审批开关、验收结果的就地编辑
+ *
+ * [POS]
+ * 任务抽屉的详情区段；全部受控，状态由 useKanbanTaskDrawer 提供。
+ */
+'use client';
+
+import { cn } from '@/lib/utils/classnameUtils';
+import type { KanbanTask } from '@/services/kanban';
+import {
+  completionCriteriaToText,
+  KANBAN_SOURCE_CHAT_METADATA_KEY,
+  hasKanbanCompletionIntent,
+} from '@/services/kanban';
+import {
+  APPROVAL_EDITABLE_STATUSES,
+  PRIORITY_STYLES,
+  TIMEOUT_PRESETS,
+  formatDate,
+  formatDuration,
+} from './kanban-styles';
+import KanbanMarkdown from './KanbanMarkdown';
+import { KanbanSkillPicker } from './KanbanSkillPicker';
+import { KanbanTaskBlockedNotice } from './KanbanTaskBlockedNotice';
+import type { KanbanModelOption } from './KanbanInlineAddForm';
+import { ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import type { AgentListItem } from '@/services/agent';
+import { buildKanbanBoardDeepLink } from '@/lib/kanban/kanbanChatBoard';
+import { ReviewCommentThread } from './ReviewCommentThread';
+import type { AcceptanceResultItem } from './ReviewCommentThread';
+import { activateOnKey } from '@/lib/utils/a11y';
+
+interface TaskDetailsSectionProps {
+  task: KanbanTask;
+  agentName: string | null;
+  progressPill: { done: number; total: number } | null;
+  editingTimeout: boolean;
+  setEditingTimeout: (v: boolean) => void;
+  timeoutValue: number | null;
+  setTimeoutValue: (v: number | null) => void;
+  handleSaveTimeout: (v: number | null) => void;
+  editingSkills: boolean;
+  setEditingSkills: (v: boolean) => void;
+  skillsText: string;
+  setSkillsText: (v: string) => void;
+  handleSaveSkills: () => void;
+  editingCriteria: boolean;
+  setEditingCriteria: (v: boolean) => void;
+  criteriaText: string;
+  setCriteriaText: (v: string) => void;
+  savingCriteria: boolean;
+  handleSaveCriteria: () => void;
+  assignedAgent: AgentListItem | null;
+  agents: AgentListItem[];
+  handleAgentChange: (agentId: string | null) => void;
+  enabledModels: KanbanModelOption[];
+  editingModel: boolean;
+  setEditingModel: (v: boolean) => void;
+  modelValue: string;
+  setModelValue: (v: string) => void;
+  handleSaveModel: (v: string | null) => void;
+  handleRequireApprovalChange: (v: boolean) => void;
+  t: (key: string) => string;
+}
+
+export function TaskDetailsSection({
+  task,
+  agentName,
+  progressPill,
+  editingTimeout,
+  setEditingTimeout,
+  timeoutValue,
+  setTimeoutValue,
+  handleSaveTimeout,
+  editingSkills,
+  setEditingSkills,
+  skillsText,
+  setSkillsText,
+  handleSaveSkills,
+  editingCriteria,
+  setEditingCriteria,
+  criteriaText,
+  setCriteriaText,
+  savingCriteria,
+  handleSaveCriteria,
+  assignedAgent,
+  agents,
+  handleAgentChange,
+  enabledModels,
+  editingModel,
+  setEditingModel,
+  modelValue,
+  setModelValue,
+  handleSaveModel,
+  handleRequireApprovalChange,
+  t,
+}: TaskDetailsSectionProps) {
+  const sourceChatId =
+    typeof task.metadata?.[KANBAN_SOURCE_CHAT_METADATA_KEY] === 'string'
+      ? task.metadata[KANBAN_SOURCE_CHAT_METADATA_KEY]
+      : null;
+
+  const canEditApproval = APPROVAL_EDITABLE_STATUSES.includes(task.status);
+
+  return (
+    <div className="space-y-1.5">
+      {task.description && <KanbanMarkdown className="text-muted-foreground">{task.description}</KanbanMarkdown>}
+      <div className="flex items-center gap-2 flex-wrap text-[10px]">
+        <span className={cn('px-1.5 py-0.5 rounded-full border font-medium', PRIORITY_STYLES[task.priority])}>
+          {task.priority}
+        </span>
+        <span className="text-muted-foreground">{t(`status.${task.status}`)}</span>
+        {task.agent_id && agentName && (
+          <span
+            className="px-1.5 py-0.5 rounded-full bg-chart-4/10 text-chart-4 border border-chart-4/20 truncate max-w-[120px]"
+            title={agentName}
+          >
+            {agentName}
+          </span>
+        )}
+        {progressPill && (
+          <span
+            className={cn(
+              'px-1.5 py-0.5 rounded-full border',
+              progressPill.done === progressPill.total
+                ? 'bg-chart-2/10 text-chart-2 border-chart-2/20'
+                : 'bg-primary/10 text-primary border-primary/20',
+            )}
+          >
+            {progressPill.done}/{progressPill.total}
+          </span>
+        )}
+      </div>
+      <div className="flex gap-3 text-[10px] text-muted-foreground/70 mt-1 flex-wrap items-center">
+        <span>
+          {t('createdAt')}: {formatDate(task.created_at)}
+        </span>
+        <span>
+          {t('updatedAt')}: {formatDate(task.updated_at)}
+        </span>
+        {sourceChatId && (
+          <>
+            <Link href={`/${sourceChatId}`} className="inline-flex items-center gap-0.5 text-primary hover:underline">
+              {t('openSourceChat')}
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+            <Link
+              href={buildKanbanBoardDeepLink({ sourceChatId: sourceChatId, boardId: task.board_id })}
+              className="inline-flex items-center gap-0.5 text-primary hover:underline"
+            >
+              {t('viewBoardTasksFromChat')}
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          </>
+        )}
+      </div>
+
+      {/* Timeout */}
+      {editingTimeout ? (
+        <div className="mt-1 rounded border border-chart-5/30 bg-chart-5/5 px-2 py-1.5 space-y-1">
+          <span className="text-[10px] font-semibold text-chart-5 uppercase tracking-wider">{t('timeoutLabel')}</span>
+          <select
+            value={timeoutValue === null ? '' : String(timeoutValue)}
+            onChange={(e) => setTimeoutValue(e.target.value ? Number(e.target.value) : null)}
+            className="w-full text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-chart-5"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
+            autoFocus
+          >
+            <option value="">{t('timeoutDefault')}</option>
+            {TIMEOUT_PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>
+                {t(p.labelKey)}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-1">
+            <button
+              onClick={() => handleSaveTimeout(timeoutValue)}
+              className="text-[10px] px-2 py-0.5 rounded bg-chart-5 text-white hover:bg-chart-5/80"
+            >
+              {t('save')}
+            </button>
+            <button onClick={() => setEditingTimeout(false)} className="text-[10px] px-2 py-0.5 rounded hover:bg-muted">
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      ) : task.max_runtime_seconds != null ? (
+        <button
+          type="button"
+          className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-chart-5/10 text-chart-5 border border-chart-5/20 mt-1 cursor-pointer hover:border-chart-5/40 transition-colors"
+          onClick={() => {
+            setTimeoutValue(task.max_runtime_seconds ?? null);
+            setEditingTimeout(true);
+          }}
+        >
+          {t('timeoutLabel')}: {formatDuration(task.max_runtime_seconds)}
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            setTimeoutValue(null);
+            setEditingTimeout(true);
+          }}
+          className="text-[10px] text-muted-foreground hover:text-chart-5 transition-colors mt-1"
+        >
+          + {t('timeoutLabel')}
+        </button>
+      )}
+
+      {/* Skills */}
+      {editingSkills ? (
+        <div className="mt-1 space-y-1 rounded border border-chart-3/30 bg-chart-3/5 px-2 py-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-chart-3">{t('skillsLabel')}</span>
+          <KanbanSkillPicker value={skillsText} onChange={setSkillsText} placeholder={t('skillsPlaceholder')} />
+          {task.status === 'running' && <p className="text-[10px] text-amber-500">{t('skillsRunningNotice')}</p>}
+          <div className="flex gap-1">
+            <button
+              onClick={handleSaveSkills}
+              data-testid="kanban-save-skills"
+              className="rounded bg-chart-3 px-2 py-0.5 text-[10px] text-white hover:bg-chart-3/80"
+            >
+              {t('save')}
+            </button>
+            <button onClick={() => setEditingSkills(false)} className="rounded px-2 py-0.5 text-[10px] hover:bg-muted">
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      ) : task.extra_skill_ids && task.extra_skill_ids.length > 0 ? (
+        <button
+          type="button"
+          className="flex flex-wrap gap-1 mt-1 text-left cursor-pointer group/skills"
+          onClick={() => {
+            setSkillsText(task.extra_skill_ids.join(', '));
+            setEditingSkills(true);
+          }}
+        >
+          {task.extra_skill_ids.map((sid) => (
+            <span
+              key={sid}
+              className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-chart-3/10 text-chart-3 border border-chart-3/20 group-hover/skills:border-chart-3/40 transition-colors"
+            >
+              {sid}
+            </span>
+          ))}
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            setSkillsText('');
+            setEditingSkills(true);
+          }}
+          className="text-[10px] text-muted-foreground hover:text-chart-3 transition-colors mt-1"
+        >
+          + {t('skillsLabel')}
+        </button>
+      )}
+
+      {/* Model override */}
+      {editingModel ? (
+        <div className="mt-1 rounded border border-chart-2/30 bg-chart-2/5 px-2 py-1.5 space-y-1">
+          <span className="text-[10px] font-semibold text-chart-2 uppercase tracking-wider">{t('modelLabel')}</span>
+          <select
+            value={modelValue}
+            onChange={(e) => setModelValue(e.target.value)}
+            className="w-full text-xs px-2 py-1 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-chart-2"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
+            autoFocus
+          >
+            <option value="">{t('inheritAgentModel')}</option>
+            {enabledModels.map((m) => (
+              <option key={`${m.providerId}/${m.model}`} value={`${m.providerId}/${m.model}`}>
+                {m.providerName} / {m.model}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-1">
+            <button
+              onClick={() => handleSaveModel(modelValue || null)}
+              className="text-[10px] px-2 py-0.5 rounded bg-chart-2 text-white hover:bg-chart-2/80"
+            >
+              {t('save')}
+            </button>
+            <button onClick={() => setEditingModel(false)} className="text-[10px] px-2 py-0.5 rounded hover:bg-muted">
+              {t('cancel')}
+            </button>
+          </div>
+        </div>
+      ) : task.model_override ? (
+        <button
+          type="button"
+          className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-chart-2/10 text-chart-2 border border-chart-2/20 mt-1 cursor-pointer hover:border-chart-2/40 transition-colors font-mono"
+          title={t('modelEditHint')}
+          onClick={() => {
+            setModelValue(task.model_override ?? '');
+            setEditingModel(true);
+          }}
+        >
+          {t('modelLabel')}: {task.model_override}
+        </button>
+      ) : enabledModels.length > 0 ? (
+        <button
+          onClick={() => {
+            setModelValue('');
+            setEditingModel(true);
+          }}
+          className="text-[10px] text-muted-foreground hover:text-chart-2 transition-colors mt-1"
+        >
+          + {t('modelLabel')}
+        </button>
+      ) : null}
+
+      {/* Goal mode */}
+      {task.goal_mode && (
+        <div className="text-xs bg-chart-4/5 rounded px-2 py-1.5 mt-1 space-y-0.5">
+          <p className="flex items-center gap-1 font-medium text-chart-4">{t('goalModeBadge')}</p>
+          {task.goal_max_turns && (
+            <p className="text-[10px] text-muted-foreground">
+              {t('goalMaxTurnsLabel')}: {task.goal_max_turns}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Human approval gate */}
+      {canEditApproval ? (
+        <label className="flex items-center gap-2 text-xs rounded px-2 py-1.5 mt-1 cursor-pointer hover:bg-muted/40 transition-colors">
+          <input
+            type="checkbox"
+            checked={task.require_approval}
+            onChange={(e) => handleRequireApprovalChange(e.target.checked)}
+            className="rounded border-muted-foreground/30"
+            data-testid="kanban-detail-require-approval"
+          />
+          <span className="text-primary/70">{t('requireApproval')}</span>
+        </label>
+      ) : task.require_approval ? (
+        <div className="text-xs bg-amber-500/5 rounded px-2 py-1.5 mt-1">
+          <p className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+            {t('requireApproval')}
+          </p>
+        </div>
+      ) : null}
+
+      {/* Progress note & blocked */}
+      {task.status === 'running' && hasKanbanCompletionIntent(task.metadata) && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/5 rounded px-2 py-1 mt-1 font-medium">
+          {t('status.verifying')}
+        </p>
+      )}
+      {task.status === 'running' && task.progress_note && !hasKanbanCompletionIntent(task.metadata) && (
+        <p className="text-xs text-chart-4 bg-chart-4/5 rounded px-2 py-1 mt-1 font-medium">{task.progress_note}</p>
+      )}
+      <KanbanTaskBlockedNotice task={task} t={t} />
+
+      {/* Completion criteria */}
+      <div className="mt-1.5">
+        {editingCriteria ? (
+          <div className="rounded border border-primary/30 bg-primary/5 px-2 py-1.5 space-y-1.5">
+            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+              {t('completionCriteria')}
+            </span>
+            <textarea
+              value={criteriaText}
+              onChange={(e) => setCriteriaText(e.target.value)}
+              placeholder={t('criteriaPlaceholder')}
+              className="w-full text-xs px-2 py-1.5 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              rows={3}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
+              autoFocus
+            />
+            <div className="flex gap-1.5">
+              <button
+                onClick={handleSaveCriteria}
+                disabled={savingCriteria}
+                className="text-[10px] px-2 py-0.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {t('send')}
+              </button>
+              <button
+                onClick={() => setEditingCriteria(false)}
+                className="text-[10px] px-2 py-0.5 rounded hover:bg-muted"
+              >
+                {t('cancel')}
+              </button>
+            </div>
+          </div>
+        ) : task.completion_criteria ? (
+          <div
+            className="rounded border border-primary/20 bg-primary/5 px-2 py-1.5 cursor-pointer hover:border-primary/40 transition-colors group/criteria"
+            onClick={() => {
+              setCriteriaText(completionCriteriaToText(task.completion_criteria));
+              setEditingCriteria(true);
+            }}
+            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the Markdown body holds links and block elements, which cannot sit inside a native button
+            role="button"
+            tabIndex={0}
+            onKeyDown={activateOnKey}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+                {t('completionCriteria')}
+              </span>
+              <span className="text-[9px] text-primary/50 opacity-0 group-hover/criteria:opacity-100 transition-opacity">
+                {t('editCriteria')}
+              </span>
+            </div>
+            <KanbanMarkdown className="text-foreground/80 mt-0.5">
+              {completionCriteriaToText(task.completion_criteria)}
+            </KanbanMarkdown>
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              setCriteriaText('');
+              setEditingCriteria(true);
+            }}
+            className="text-[10px] text-primary/60 hover:text-primary transition-colors"
+          >
+            + {t('completionCriteria')}
+          </button>
+        )}
+      </div>
+
+      {/* Acceptance results & Review Comment Thread */}
+      {Array.isArray(task.metadata?.acceptance_results) && task.metadata.acceptance_results.length > 0 && (
+        <div className="mt-1.5 rounded border border-border/80 bg-muted/20 px-2 py-1.5 space-y-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            {t('acceptanceResults')}
+          </span>
+          <ReviewCommentThread
+            results={task.metadata.acceptance_results as AcceptanceResultItem[]}
+            t={t}
+            className="mt-1"
+          />
+        </div>
+      )}
+
+      {/* Agent assignment */}
+      {agents.length > 0 && (
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="text-[10px] text-muted-foreground font-medium shrink-0">{t('assignedAgent')}:</span>
+          {assignedAgent?.avatar_url ? (
+            // oxlint-disable-next-line next/no-img-element -- agent avatars are user-supplied URLs that next/image cannot optimize
+            <img
+              src={assignedAgent.avatar_url}
+              alt={assignedAgent.name}
+              className="w-4 h-4 rounded-full shrink-0 object-cover"
+            />
+          ) : task.agent_id && agentName ? (
+            <span className="w-4 h-4 rounded-full shrink-0 bg-chart-4/20 text-chart-4 text-[8px] font-bold flex items-center justify-center">
+              {agentName.charAt(0).toUpperCase()}
+            </span>
+          ) : null}
+          <select
+            data-testid="kanban-task-agent-select"
+            value={task.agent_id ?? ''}
+            onChange={(e) => handleAgentChange(e.target.value || null)}
+            className="text-[10px] px-1.5 py-0.5 rounded border bg-background focus:outline-none focus:ring-1 focus:ring-primary max-w-[140px]"
+          >
+            <option value="">{t('unassigned')}</option>
+            {agents.map((ag) => (
+              <option key={ag.id} value={ag.id}>
+                {ag.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,240 @@
+from __future__ import annotations
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from app.services.agent.params.models import MentionReferenceRequest
+
+
+@pytest.mark.asyncio
+async def test_workspace_file_reference_inlines_text() -> None:
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    workspace = Path(tempfile.mkdtemp())
+    (workspace / "notes.txt").write_text("Hello World")
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="workspace_file", path="notes.txt", label="@notes.txt")],
+        str(workspace),
+    )
+
+    assert "<mentioned_files>" in context
+    assert 'path="@notes.txt"' in context
+    assert 'type="text"' in context
+    assert "Hello World" in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_workspace_file_reference_blocks_traversal() -> None:
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    workspace = Path(tempfile.mkdtemp())
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="workspace_file", path="../../etc/passwd", label="@passwd")],
+        str(workspace),
+    )
+
+    assert 'error="path outside workspace"' in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_git_diff_reference_is_structured() -> None:
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    workspace = Path(tempfile.mkdtemp())
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="git_diff", label="@diff")],
+        str(workspace),
+    )
+
+    assert 'path="@diff"' in context
+    assert 'type="git-diff"' in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_codebase_reference_returns_index_or_unavailable() -> None:
+    """@codebase mention returns a lightweight workspace overview."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    workspace = Path(tempfile.mkdtemp())
+    (workspace / "main.py").write_text("def hello():\n    pass\n")
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="codebase", label="@codebase")],
+        str(workspace),
+    )
+
+    assert "@codebase" in context
+    assert "codebase-overview" in context
+    assert "Codebase Overview:" in context
+    assert "grep_tool" in context
+    assert "Code indexing unavailable" not in context
+    assert warnings == []
+    assert tokens >= 0
+
+
+def test_text_reference_codebase_parsed() -> None:
+    """_text_reference_to_structured recognizes @codebase token."""
+    from app.services.agent.params.mention import _text_reference_to_structured
+
+    ref = _text_reference_to_structured("@codebase")
+    assert ref.type == "codebase"
+    assert ref.label == "@codebase"
+
+
+def test_text_reference_staged_parsed() -> None:
+    """_text_reference_to_structured recognizes @staged token."""
+    from app.services.agent.params.mention import _text_reference_to_structured
+
+    ref = _text_reference_to_structured("@staged")
+    assert ref.type == "git_staged"
+
+
+def test_text_reference_diff_parsed() -> None:
+    """_text_reference_to_structured recognizes @diff token."""
+    from app.services.agent.params.mention import _text_reference_to_structured
+
+    ref = _text_reference_to_structured("@diff")
+    assert ref.type == "git_diff"
+
+
+@pytest.mark.asyncio
+async def test_codebase_reference_invalid_workspace() -> None:
+    """@codebase with missing workspace dir returns metadata error."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="codebase", label="@codebase")],
+        "/nonexistent/workspace/path",
+    )
+
+    assert "Workspace unavailable" in context
+    assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_codebase_reference_empty_workspace() -> None:
+    """@codebase on empty workspace returns zero-file overview."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    workspace = Path(tempfile.mkdtemp())
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="codebase", label="@codebase")],
+        str(workspace),
+    )
+
+    assert "@codebase" in context
+    assert "Codebase Overview: 0 files" in context
+    assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_codebase_reference_with_multiple_languages() -> None:
+    """@codebase reports Python + TypeScript extension counts."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    workspace = Path(tempfile.mkdtemp())
+    (workspace / "app.py").write_text("class App:\n    pass\n")
+    (workspace / "utils.ts").write_text("export function helper(): void {}\n")
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="codebase", label="@codebase")],
+        str(workspace),
+    )
+
+    assert "@codebase" in context
+    assert "codebase-overview" in context
+    assert "Codebase Overview:" in context
+    assert ".py:" in context
+    assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_mixed_references_with_codebase() -> None:
+    """@codebase can coexist with other reference types."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    workspace = Path(tempfile.mkdtemp())
+    (workspace / "main.py").write_text("x = 1\n")
+    (workspace / "notes.txt").write_text("Hello\n")
+
+    refs = [
+        MentionReferenceRequest(type="workspace_file", path="notes.txt", label="@notes.txt"),
+        MentionReferenceRequest(type="codebase", label="@codebase"),
+    ]
+    context, warnings, tokens = await _build_mention_reference_context(refs, str(workspace))
+
+    assert "@notes.txt" in context
+    assert "@codebase" in context
+    assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_artifact_range_reference_inlines_selection() -> None:
+    """artifact_range mention inlines the selection content with range tag."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [
+            MentionReferenceRequest(
+                type="artifact_range",
+                label="sales.xlsx",
+                range="Sheet1!B2:F10",
+                content="Region: North, Q1: 1200, Q2: 1350",
+            )
+        ],
+        str(Path(tempfile.mkdtemp())),
+    )
+
+    assert "<mentioned_files>" in context
+    assert 'type="artifact-range"' in context
+    assert "sales.xlsx (Sheet1!B2:F10)" in context
+    assert "Region: North" in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_artifact_range_reference_without_content() -> None:
+    """artifact_range mention without content returns empty-selection error."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="artifact_range", label="report.docx", range="所选段落")],
+        str(Path(tempfile.mkdtemp())),
+    )
+
+    assert 'error="empty selection"' in context
+    assert warnings == []
+    assert tokens > 0
+
+
+@pytest.mark.asyncio
+async def test_artifact_range_reference_too_large() -> None:
+    """artifact_range mention larger than the inline budget is metadata-only."""
+    from app.services.agent.params.mention import _MENTION_MAX_INLINE_BYTES, _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [
+            MentionReferenceRequest(
+                type="artifact_range",
+                label="huge.xlsx",
+                range="Sheet1!A1:Z9999",
+                content="y" * (_MENTION_MAX_INLINE_BYTES + 1),
+            )
+        ],
+        str(Path(tempfile.mkdtemp())),
+    )
+
+    assert 'type="artifact-range"' in context
+    assert "Selection too large" in context
+    assert "y" * 1024 not in context
+    assert warnings == []

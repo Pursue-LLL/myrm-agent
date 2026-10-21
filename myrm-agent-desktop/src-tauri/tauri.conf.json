@@ -1,0 +1,120 @@
+{
+  "productName": "MyrmAgent",
+  "version": "0.1.0",
+  "identifier": "com.myrmagent.app",
+  "build": {
+    "beforeDevCommand": "bash -c 'exec bash \"$(git rev-parse --show-toplevel)/myrm-agent-desktop/scripts/build-frontend.sh\" dev'",
+    "beforeBuildCommand": "",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "frontend-shell"
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": "all",
+    "resources": {
+      "../../myrm-agent-frontend/.next/standalone/myrm-agent-frontend/": "frontend"
+    },
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
+    "externalBin": [
+      "binaries/myrmagent-backend"
+    ],
+    "copyright": "Copyright © 2026 MyrmAgent Team",
+    "category": "Productivity",
+    "fileAssociations": [
+      {
+        "ext": ["myrmtheme"],
+        "mimeType": "application/zip",
+        "description": "MyrmAgent workspace theme package"
+      }
+    ],
+    "shortDescription": "Persistent AI assistant for work automation",
+    "longDescription": "MyrmAgent is a Claw-class AI assistant that runs persistently on your device, helping you automate work with skills, memory, and multi-agent capabilities. All your data stays local.",
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist",
+      "exceptionDomain": "",
+      "providerShortName": null,
+      "infoPlist": "Info.plist"
+    },
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "tsp": false,
+      "nsis": {
+        "languages": [
+          "English",
+          "SimpChinese",
+          "TradChinese",
+          "Japanese",
+          "Korean",
+          "German"
+        ],
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "title": "MyrmAgent",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "visible": false,
+        "backgroundColor": [10, 10, 10, 255]
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "scope": [
+          "$HOME/**",
+          "$APPDATA/**",
+          "$LOCALAPPDATA/**",
+          "$DOCUMENT/**",
+          "$DOWNLOAD/**",
+          "$PICTURE/**",
+          "$DESKTOP/**"
+        ]
+      }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "myrmagent"
+        ]
+      }
+    },
+    "shell": {
+      "open": "(?:(?:https?://|mailto:|tel:)\\w\\S*|x-apple\\.systempreferences:[\\w.:?=&%-]+|ms-settings:[\\w.:?=&%-]+|(?:cursor|vscode)://)"
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/Pursue-LLL/myrm-agent/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwMEM5MjhBQTQ4NDk5NkYKUldSdm1ZU2tpcElNa0pBMXFPVTAyME41TVRqQnNlcDJPdGFCdDVoaWR4THpyVHhwUmUzQ1NnUmgK"
+    }
+  }
+}

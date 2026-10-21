@@ -1,0 +1,238 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
+
+const toastMocks = vi.hoisted(() => ({
+  success: vi.fn(),
+  info: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+}));
+
+const storeMocks = vi.hoisted(() => ({
+  fetchConflicts: vi.fn(),
+  fetchPendingMemories: vi.fn(),
+}));
+
+vi.mock('@/lib/utils/toast', () => ({
+  toast: toastMocks,
+}));
+
+vi.mock('@/store/memory', () => ({
+  useMemoryStore: {
+    getState: () => ({
+      fetchConflicts: storeMocks.fetchConflicts,
+      fetchPendingMemories: storeMocks.fetchPendingMemories,
+    }),
+  },
+}));
+
+describe('showMemoryOperationToasts', () => {
+  const router = { push: vi.fn() };
+  const t = (key: string, values?: Record<string, string | number>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('refreshes the pending queue when implicit feedback queues personal proposals', async () => {
+    showMemoryOperationToasts({ operation: 'implicit_feedback_personal', proposal_count: 2 }, { t, router });
+
+    await vi.waitFor(() => {
+      expect(storeMocks.fetchPendingMemories).toHaveBeenCalledWith(true);
+    });
+    // The chat window's pending toast announces it; the event itself stays silent.
+    expect(toastMocks.info).not.toHaveBeenCalled();
+    expect(toastMocks.success).not.toHaveBeenCalled();
+  });
+
+  it('shows success toast for auto-approved correction propagation', () => {
+    showMemoryOperationToasts(
+      {
+        operation: 'correction_propagation',
+        auto_approved: true,
+        context_name: 'Team Memory',
+      },
+      { t, router },
+    );
+
+    expect(toastMocks.success).toHaveBeenCalledWith(
+      'correctionMemorySynced',
+      expect.objectContaining({ description: 'Team Memory' }),
+    );
+  });
+
+  it('shows pending toast with review action for correction propagation', () => {
+    showMemoryOperationToasts(
+      {
+        operation: 'correction_propagation',
+        auto_approved: false,
+        context_name: 'Team Memory',
+      },
+      { t, router },
+    );
+
+    expect(toastMocks.info).toHaveBeenCalledOnce();
+    const call = toastMocks.info.mock.calls[0];
+    call[1]?.action?.onClick();
+    expect(router.push).toHaveBeenCalledWith('/settings/memory?tab=shared');
+  });
+
+  it('shows success toast for frustration skill learned', () => {
+    showMemoryOperationToasts(
+      {
+        operation: 'frustration_skill_learned',
+        skill_name: 'python-development',
+        preference: 'Never add comments unless explaining non-obvious logic',
+      },
+      { t, router },
+    );
+
+    expect(toastMocks.success).toHaveBeenCalledOnce();
+    const call = toastMocks.success.mock.calls[0];
+    expect(call[0]).toContain('frustrationSkillLearned');
+    expect(call[1]?.description).toBe('Never add comments unless explaining non-obvious logic');
+  });
+
+  it('does nothing for unknown operation', () => {
+    showMemoryOperationToasts({ operation: 'unknown_operation' }, { t, router });
+
+    expect(toastMocks.success).not.toHaveBeenCalled();
+    expect(toastMocks.info).not.toHaveBeenCalled();
+    expect(toastMocks.error).not.toHaveBeenCalled();
+  });
+
+  describe('auto_memory_extracted with throttle', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('throttles and merges multiple extract events into one toast', () => {
+      showMemoryOperationToasts({ operation: 'auto_memory_extracted', count: 3 }, { t, router });
+      showMemoryOperationToasts({ operation: 'auto_memory_extracted', count: 2 }, { t, router });
+
+      expect(toastMocks.success).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(2_000);
+
+      expect(toastMocks.success).toHaveBeenCalledOnce();
+      const call = toastMocks.success.mock.calls[0];
+      expect(call[0]).toContain('autoMemoryExtracted');
+      expect(call[0]).toContain('5');
+      expect(call[1]?.action?.label).toBe('viewMemoryCenter');
+    });
+
+    it('defaults count to 1 when not provided', () => {
+      showMemoryOperationToasts({ operation: 'auto_memory_extracted' }, { t, router });
+      vi.advanceTimersByTime(2_000);
+
+      expect(toastMocks.success).toHaveBeenCalledOnce();
+      const call = toastMocks.success.mock.calls[0];
+      expect(call[0]).toContain('1');
+    });
+
+    it('navigates to memory center on action click', () => {
+      showMemoryOperationToasts({ operation: 'auto_memory_extracted', count: 1 }, { t, router });
+      vi.advanceTimersByTime(2_000);
+
+      toastMocks.success.mock.calls[0][1]?.action?.onClick();
+      expect(router.push).toHaveBeenCalledWith('/settings/memory');
+    });
+  });
+
+  describe('operation_ledger kind fallback', () => {
+    it('shows info toast for write kind', () => {
+      showMemoryOperationToasts(
+        { kind: 'write', description: 'User prefers dark theme', status: 'success' },
+        { t, router },
+      );
+
+      expect(toastMocks.info).toHaveBeenCalledOnce();
+      const call = toastMocks.info.mock.calls[0];
+      expect(call[0]).toBe('memoryRecallUpdated');
+      expect(call[1]?.description).toBe('User prefers dark theme');
+    });
+
+    it('shows info toast for forget kind', () => {
+      showMemoryOperationToasts(
+        { kind: 'forget', description: 'Removed outdated preference', status: 'success' },
+        { t, router },
+      );
+
+      expect(toastMocks.info).toHaveBeenCalledOnce();
+    });
+
+    it('skips toast when status is skipped', () => {
+      showMemoryOperationToasts({ kind: 'write', description: 'test', status: 'skipped' }, { t, router });
+
+      expect(toastMocks.info).not.toHaveBeenCalled();
+    });
+
+    it('skips toast when status is error', () => {
+      showMemoryOperationToasts({ kind: 'write', description: 'test', status: 'error' }, { t, router });
+
+      expect(toastMocks.info).not.toHaveBeenCalled();
+    });
+
+    it('skips toast for unhandled kind', () => {
+      showMemoryOperationToasts({ kind: 'recall', description: 'test', status: 'success' }, { t, router });
+
+      expect(toastMocks.info).not.toHaveBeenCalled();
+    });
+
+    it('navigates to memory center on action click', () => {
+      showMemoryOperationToasts({ kind: 'write', description: 'test', status: 'success' }, { t, router });
+
+      toastMocks.info.mock.calls[0][1]?.action?.onClick();
+      expect(router.push).toHaveBeenCalledWith('/settings/memory');
+    });
+
+    it('shows warning toast for conflict kind and refreshes conflicts', async () => {
+      showMemoryOperationToasts(
+        { kind: 'conflict', description: 'High-risk conflict pending', status: 'success' },
+        { t, router },
+      );
+
+      expect(toastMocks.warning).toHaveBeenCalledOnce();
+      const call = toastMocks.warning.mock.calls[0];
+      expect(call[0]).toBe('conflictDetected');
+      expect(call[1]?.description).toBe('conflictDetectedDesc');
+      expect(call[1]?.action?.label).toBe('viewMemoryCenter');
+      await vi.waitFor(() => expect(storeMocks.fetchConflicts).toHaveBeenCalledOnce());
+
+      call[1]?.action?.onClick();
+      expect(router.push).toHaveBeenCalledWith('/settings/memory');
+    });
+
+    it('uses high-risk description when conflict metadata marks high_risk', async () => {
+      showMemoryOperationToasts({ kind: 'conflict', metadata: { high_risk: true }, status: 'success' }, { t, router });
+
+      expect(toastMocks.warning).toHaveBeenCalledOnce();
+      const call = toastMocks.warning.mock.calls[0];
+      expect(call[1]?.description).toBe('conflictHighRiskDetectedDesc');
+      await vi.waitFor(() => expect(storeMocks.fetchConflicts).toHaveBeenCalledOnce());
+    });
+
+    it('refreshes conflicts when guardian auto-resolves expired conflicts', async () => {
+      showMemoryOperationToasts(
+        { kind: 'maintenance', metadata: { operation: 'conflict_auto_resolve' }, status: 'success' },
+        { t, router },
+      );
+
+      expect(toastMocks.warning).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(storeMocks.fetchConflicts).toHaveBeenCalledOnce());
+    });
+
+    it('skips conflict toast when status is error', () => {
+      showMemoryOperationToasts({ kind: 'conflict', description: 'test', status: 'error' }, { t, router });
+
+      expect(toastMocks.warning).not.toHaveBeenCalled();
+      expect(storeMocks.fetchConflicts).not.toHaveBeenCalled();
+    });
+  });
+});

@@ -1,0 +1,425 @@
+'use client';
+
+import React, { memo } from 'react';
+import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
+import { Artifact, ArtifactVersion } from '@/store/chat/types';
+import { ArtifactDisplayMode } from '@/store/useArtifactPortalStore';
+import { isSvgType, isMermaidType, isArchitectureType, isDataDashboardType } from './artifactUtils';
+import ArtifactErrorBoundary from './ArtifactErrorBoundary';
+import { getStorageUrl } from '@/lib/api';
+import SkeletonLoader from './renderers/SkeletonLoader';
+import NoPreview from './renderers/NoPreview';
+import {
+  HtmlPreview,
+  ImagePreview,
+  VideoPreview,
+  SvgPreview,
+  AudioPreview,
+  type PickedElement,
+} from './renderers/MediaPreview';
+
+const noopAsync = async () => {};
+const noop = () => {};
+
+const rendererLoading = (
+  <div className="h-full w-full flex items-center justify-center">
+    <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+  </div>
+);
+
+const CodePreview = dynamic(() => import('./renderers/CodePreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const DocumentPreview = dynamic(() => import('./renderers/DocumentPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const MermaidPreview = dynamic(() => import('./renderers/MermaidPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+// 动态导入 PDF 预览组件
+const PdfPreviewDynamic = dynamic(() => import('./PdfPreview'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center">
+      <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+    </div>
+  ),
+});
+
+// 动态导入表格预览组件
+const SpreadsheetPreviewDynamic = dynamic(() => import('./renderers/SpreadsheetPreview'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center">
+      <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+    </div>
+  ),
+});
+
+const DocxPreviewDynamic = dynamic(() => import('./renderers/DocxPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const PptxPreviewDynamic = dynamic(() => import('./renderers/PptxPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const ReactPreviewDynamic = dynamic(() => import('./ReactPreview'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center bg-muted/30">
+      <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+    </div>
+  ),
+});
+
+const DiffPreviewDynamic = dynamic(() => import('./renderers/DiffPreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const ArchitecturePreviewDynamic = dynamic(() => import('./renderers/architecture/ArchitecturePreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const SpreadsheetEditorDynamic = dynamic(() => import('./renderers/SpreadsheetEditor'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const CanvasViewerDynamic = dynamic(() => import('../canvas/CanvasViewer'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
+const MultiDeviceArticlePreviewerDynamic = dynamic(
+  () => import('./wechat-preview/MultiDeviceArticlePreviewer').then((mod) => mod.MultiDeviceArticlePreviewer),
+  {
+    ssr: false,
+    loading: () => rendererLoading,
+  }
+);
+
+const LivePrototypeCanvasDynamic = dynamic(
+  () => import('./prototype-canvas/LivePrototypeCanvas').then((mod) => mod.LivePrototypeCanvas),
+  {
+    ssr: false,
+    loading: () => rendererLoading,
+  }
+);
+
+const InteractiveDashboardDynamic = dynamic(
+  () => import('./data-dashboard/InteractiveDashboardArtifact').then((mod) => mod.InteractiveDashboardArtifact),
+  {
+    ssr: false,
+    loading: () => rendererLoading,
+  }
+);
+
+interface ArtifactRendererProps {
+  artifact: Artifact;
+  content: string;
+  displayMode: ArtifactDisplayMode;
+  loading: boolean;
+  onDownload: () => void;
+  pickerMode?: boolean;
+  onElementPick?: (element: PickedElement) => void;
+  chatId?: string;
+  /** 版本列表（Diff 模式使用） */
+  versions?: ArtifactVersion[];
+  /** 当前查看的版本索引（Diff 模式使用，-1 表示最新） */
+  viewingVersionIndex?: number;
+  /** Edit 模式保存回调（导出 Blob） */
+  onEditSave?: (blob: Blob) => Promise<void>;
+  /** Edit 模式脏状态回调 */
+  onEditDirty?: (dirty: boolean) => void;
+}
+
+/** 内部渲染器 */
+const InnerRenderer: React.FC<ArtifactRendererProps> = ({
+  artifact,
+  content,
+  displayMode,
+  loading,
+  onDownload,
+  pickerMode,
+  onElementPick,
+  chatId,
+  versions,
+  viewingVersionIndex,
+  onEditSave,
+  onEditDirty,
+}) => {
+  const t = useTranslations('artifacts');
+
+  if (loading) {
+    return <SkeletonLoader type={artifact.type} />;
+  }
+
+  if (displayMode === ArtifactDisplayMode.Diff && versions && versions.length >= 2) {
+    return (
+      <DiffPreviewDynamic
+        currentContent={content}
+        versions={versions}
+        viewingVersionIndex={viewingVersionIndex ?? -1}
+        language={artifact.language}
+      />
+    );
+  }
+
+  const { type, preview_url, filename, content_type } = artifact;
+  const cannotPreview = ['binary'].includes(type);
+
+  // 检查特殊类型
+  const isArchitecture = type === 'architecture' || isArchitectureType(content_type, filename);
+  const isSvg = type === 'svg' || isSvgType(content_type, filename);
+  const isMermaid = type === 'mermaid' || isMermaidType(content_type, filename);
+  const isPdf = type === 'pdf' || content_type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
+  const isSpreadsheet =
+    type === 'spreadsheet' ||
+    /\.(csv|tsv|xlsx|xls)$/i.test(filename) ||
+    content_type === 'text/csv' ||
+    content_type === 'text/tab-separated-values' ||
+    content_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    content_type === 'application/vnd.ms-excel';
+
+  const isCanvas =
+    type === 'canvas' ||
+    /\.(canvas|drawio|excalidraw)$/i.test(filename) ||
+    content_type === 'application/vnd.canvas+html';
+
+  const isWechatArticle =
+    type === 'wechat_article' ||
+    /\.(wechat|article|wx)\.(md|html)$/i.test(filename) ||
+    filename.toLowerCase().includes('wechat') ||
+    content_type === 'application/vnd.wechat+article';
+
+  const isPrototype =
+    type === 'prototype' ||
+    /\.(intent\.md|prototype\.json|prototype\.html)$/i.test(filename) ||
+    content_type === 'application/vnd.myrm.prototype+json';
+
+  const isDashboard =
+    type === 'dashboard' ||
+    isDataDashboardType(content_type, filename) ||
+    /\.(dashboard\.(json|csv)|board\.json)$/i.test(filename);
+
+  // 检测是否为 React/JSX/TSX 文件
+  const isReactFile =
+    /\.(jsx|tsx)$/i.test(filename) ||
+    (filename.endsWith('.js') &&
+      content &&
+      (content.includes('import React') ||
+        content.includes('from "react"') ||
+        content.includes("from 'react'") ||
+        /<[A-Z][a-zA-Z0-9]*/.test(content)));
+
+  // 检测深色模式
+  const isDarkMode = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+
+  // 无法预览的类型
+  if (cannotPreview) {
+    return <NoPreview artifact={artifact} onDownload={onDownload} />;
+  }
+
+  // PDF 预览
+  if (isPdf) {
+    return <PdfPreviewDynamic url={getStorageUrl(preview_url)} filename={filename} />;
+  }
+
+  // 表格/电子表格预览
+  if (isSpreadsheet) {
+    if (displayMode === ArtifactDisplayMode.Edit && preview_url && /\.(xlsx|xls)$/i.test(filename)) {
+      return (
+        <SpreadsheetEditorDynamic
+          previewUrl={preview_url}
+          filename={filename}
+          onSave={onEditSave ?? noopAsync}
+          onDirty={onEditDirty ?? noop}
+        />
+      );
+    }
+    if (displayMode === ArtifactDisplayMode.Code && content) {
+      return <CodePreview content={content} language="csv" artifactId={artifact.id} />;
+    }
+    return (
+      <SpreadsheetPreviewDynamic
+        content={content || ''}
+        filename={filename}
+        previewUrl={preview_url || undefined}
+        artifactId={artifact.id}
+      />
+    );
+  }
+
+  if (type === 'word_document' && preview_url) {
+    return <DocxPreviewDynamic previewUrl={preview_url} artifactId={artifact.id} />;
+  }
+
+  if (type === 'presentation' && preview_url) {
+    return <PptxPreviewDynamic previewUrl={preview_url} />;
+  }
+
+  // React/JSX/TSX 组件预览
+  if (isReactFile && content && displayMode === ArtifactDisplayMode.Preview) {
+    return <ReactPreviewDynamic code={content} filename={filename} isDarkMode={isDarkMode} />;
+  }
+
+  // Architecture 交互式架构图
+  if (isArchitecture && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="json" artifactId={artifact.id} />;
+    }
+    return (
+      <ArchitecturePreviewDynamic
+        content={content}
+        versions={versions}
+        viewingVersionIndex={viewingVersionIndex}
+        initialDiffMode={displayMode === ArtifactDisplayMode.Diff}
+      />
+    );
+  }
+
+  // SVG 内联渲染
+  if (isSvg && content) {
+    return displayMode === ArtifactDisplayMode.Code ? (
+      <CodePreview content={content} language="xml" artifactId={artifact.id} />
+    ) : (
+      <SvgPreview content={content} />
+    );
+  }
+
+  // Mermaid 图表渲染
+  if (isMermaid && content) {
+    return displayMode === ArtifactDisplayMode.Code ? (
+      <CodePreview content={content} language="mermaid" artifactId={artifact.id} />
+    ) : (
+      <MermaidPreview content={content} />
+    );
+  }
+
+  // 代码/文档类型
+  if (['code', 'document'].includes(type)) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language={artifact.language} artifactId={artifact.id} />;
+    }
+    if (isReactFile) {
+      return <CodePreview content={content} language={artifact.language || 'jsx'} artifactId={artifact.id} />;
+    }
+    return type === 'code' ? (
+      <CodePreview content={content} language={artifact.language} artifactId={artifact.id} />
+    ) : (
+      <DocumentPreview content={content} filename={filename} artifactId={artifact.id} />
+    );
+  }
+
+  // Canvas 富交互画布类型 - 严格沙箱隔离与出网鉴权门禁
+  if (isCanvas && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="html" artifactId={artifact.id} />;
+    }
+    return <CanvasViewerDynamic content={content} title={artifact.title || filename} />;
+  }
+
+  // WeChat 公众号/社交文章排版与多设备高保真预览
+  if (isWechatArticle && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="markdown" artifactId={artifact.id} />;
+    }
+    return (
+      <MultiDeviceArticlePreviewerDynamic
+        content={content}
+        title={artifact.title || filename}
+        filename={filename}
+      />
+    );
+  }
+
+  // Interactive Prototype Canvas (从意图一键生成交互原型画布与 spec.md 导出)
+  if (isPrototype && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="markdown" artifactId={artifact.id} />;
+    }
+    return (
+      <LivePrototypeCanvasDynamic
+        content={content}
+        title={artifact.title || filename}
+        filename={filename}
+      />
+    );
+  }
+
+  // Dynamic Web Dashboard Engine (零提示自主可视化与多维表格动态 Web 看板)
+  if (isDashboard && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="json" artifactId={artifact.id} />;
+    }
+    return (
+      <InteractiveDashboardDynamic
+        content={content}
+        title={artifact.title || filename}
+        filename={filename}
+      />
+    );
+  }
+
+  // HTML 类型 - 支持预览和源码切换
+  if (type === 'html') {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="html" artifactId={artifact.id} />;
+    }
+    const htmlUrl = preview_url ? getStorageUrl(preview_url) : undefined;
+    return (
+      <HtmlPreview
+        url={htmlUrl}
+        content={content}
+        artifactId={artifact.id}
+        pickerMode={pickerMode}
+        onElementPick={onElementPick}
+        storageNamespace={artifact.id}
+        chatId={chatId}
+      />
+    );
+  }
+
+  // 视频类型
+  if (type === 'video') {
+    return <VideoPreview url={getStorageUrl(preview_url)} filename={filename} errorMessage={t('videoLoadError')} />;
+  }
+
+  // 图片类型
+  if (type === 'image') {
+    return <ImagePreview url={getStorageUrl(preview_url)} filename={filename} errorMessage={t('imageLoadError')} />;
+  }
+
+  // 音频类型
+  if (type === 'audio') {
+    return <AudioPreview url={getStorageUrl(preview_url)} filename={filename} errorMessage={t('audioLoadError')} />;
+  }
+
+  // 默认：无法预览
+  return <NoPreview artifact={artifact} onDownload={onDownload} />;
+};
+
+/** Artifact 渲染器主组件（带错误边界） */
+const ArtifactRenderer: React.FC<ArtifactRendererProps> = (props) => {
+  const t = useTranslations('artifacts');
+
+  return (
+    <ArtifactErrorBoundary fallbackMessage={t('errors.parseError')}>
+      <InnerRenderer {...props} />
+    </ArtifactErrorBoundary>
+  );
+};
+
+export default memo(ArtifactRenderer);

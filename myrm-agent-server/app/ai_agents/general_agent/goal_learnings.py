@@ -1,0 +1,267 @@
+"""Goal learnings extraction — server-side callback for post-goal memory capture.
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory.strategies.extractor::extract_goal_learnings (POS: LLM-based goal learnings extraction)
+- myrm_agent_harness.api.hooks::create_extraction_llm_func, persist_extracted_memories (POS: LLM wrapper and persistence utilities; deep_scan_llm_func wiring for PII pseudonymization)
+- myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
+- myrm_agent_harness.utils.chat_utils::extract_text_content (POS: multimodal message content → plain text, so screenshots never enter the learnings prompt)
+
+[OUTPUT]
+- build_goal_terminal_callback: Factory for on_goal_terminal callback (deep_scan flag enables PII pseudonymization on stored learnings)
+- build_loop_restart_callback: Factory for on_loop_restart callback
+- retrieve_relevant_learnings: Retrieve historical learnings for a new goal
+
+[POS]
+Server-layer integration for goal lifecycle callbacks. Provides the concrete
+callback implementations injected into StreamContext.on_goal_terminal and
+StreamContext.on_loop_restart, plus retrieval logic for enriching new goals
+with relevant historical learnings. Learnings extraction only runs when a
+memory manager is available; the goal queue advancement always runs. When
+deep PII scan is enabled, extracted learnings are pseudonymized before
+persistence to match the privacy promise of session memory paths.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
+    from langchain_core.messages import BaseMessage
+    from myrm_agent_harness.agent.goals.types import Goal, GoalExecutionSummary
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+logger = logging.getLogger(__name__)
+
+
+def build_goal_terminal_callback(
+    memory_manager: "MemoryManager | None",
+    llm: "BaseChatModel",
+    *,
+    deep_scan: bool = False,
+) -> Callable[["Goal", list["BaseMessage"], "GoalExecutionSummary"], Awaitable[None]]:
+    """Build the on_goal_terminal callback for goal learnings extraction and summary storage.
+
+    The callback always advances the goal queue; learnings extraction (which needs a
+    memory manager) is skipped when memory is disabled. When *deep_scan* is enabled,
+    extracted learnings are passed through LLM-based deep PII pseudonymization before
+    persistence, matching the privacy promise of other memory paths.
+    """
+
+    async def _on_goal_terminal(goal: "Goal", messages: list["BaseMessage"], summary: "GoalExecutionSummary") -> None:
+        logger.info(
+            "Goal %s terminal: %d files, %d tokens, $%.4f",
+            goal.goal_id,
+            len(summary.files_modified),
+            summary.total_tokens,
+            summary.total_cost_usd,
+        )
+
+        # Publish goal terminal notification to ServerEventBus
+        try:
+            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+            event_bus = get_event_bus()
+            meta = goal.metadata or {}
+            event_data: dict[str, object] = {
+                "goal_id": goal.goal_id,
+                "session_id": goal.session_id,
+                "status": goal.status.value,
+                "objective": goal.objective[:200],
+                "files_modified": len(summary.files_modified),
+                "total_tokens": summary.total_tokens,
+                "total_cost_usd": round(summary.total_cost_usd, 4),
+                "execution_duration_s": round(summary.execution_duration_s, 1),
+                "turns_used": summary.turns_used,
+                "verifications": tuple(summary.verifications),
+            }
+            if meta.get("source_channel"):
+                event_data["channel"] = meta["source_channel"]
+                event_data["chat_id"] = meta.get("source_chat_id", "")
+                event_data["thread_id"] = meta.get("source_thread_id", "")
+                event_data["locale"] = meta.get("source_locale", "en")
+            event_bus.publish(AppEvent(event_type=AppEventType.GOAL_TERMINAL, data=event_data))
+        except Exception as e:
+            logger.warning("Failed to publish goal terminal event (non-fatal): %s", e)
+
+        try:
+            if memory_manager is None:
+                logger.debug(
+                    "Goal %s: memory disabled, skipping learnings extraction",
+                    goal.goal_id,
+                )
+            else:
+                from myrm_agent_harness.api.hooks import (
+                    create_extraction_llm_func,
+                    persist_extracted_memories,
+                )
+                from myrm_agent_harness.toolkits.memory.strategies.extractor import (
+                    extract_goal_learnings,
+                )
+                from myrm_agent_harness.utils.chat_utils import extract_text_content
+
+                # Learnings are distilled from words only: attachments and tool screenshots carry
+                # no learnable text and their base64 would otherwise flood the extraction prompt.
+                turns = [("assistant" if msg.type == "ai" else "user", extract_text_content(msg.content)) for msg in messages]
+                dict_messages = [{"role": role, "content": text} for role, text in turns if text]
+
+                if len(dict_messages) < 3:
+                    logger.info("Goal %s: too few messages for learnings extraction", goal.goal_id)
+                else:
+                    llm_func = create_extraction_llm_func(llm)
+                    deep_scan_llm = llm_func if deep_scan else None
+                    learnings = await extract_goal_learnings(
+                        messages=dict_messages,
+                        goal_objective=goal.objective,
+                        llm_func=llm_func,
+                    )
+
+                    if learnings:
+                        stored_count = await persist_extracted_memories(
+                            learnings,
+                            memory_manager,
+                            source_chat_id=goal.session_id,
+                            deep_scan_llm_func=deep_scan_llm,
+                        )
+                        logger.info(
+                            "Goal %s: extracted %d learnings, stored %d",
+                            goal.goal_id,
+                            len(learnings),
+                            stored_count,
+                        )
+                    else:
+                        logger.info("Goal %s: no learnings extracted", goal.goal_id)
+        except Exception as e:
+            logger.warning("Goal learnings extraction failed (non-fatal): %s", e, exc_info=True)
+
+        # Dequeue next goal if available
+        await _try_dequeue_next(goal.session_id)
+
+    return _on_goal_terminal
+
+
+async def _try_dequeue_next(session_id: str, *, _depth: int = 0) -> None:
+    """Attempt to dequeue and start the next queued goal for a session."""
+    if _depth >= 5:
+        logger.warning("Dequeue recursion limit reached for session %s", session_id)
+        return
+
+    from app.services.agent.goals.goal_registry import GoalRegistry
+
+    provider = GoalRegistry.get_provider(session_id)
+    if not provider:
+        return
+
+    try:
+        next_goal = await provider.dequeue_next(session_id)
+    except Exception as e:
+        logger.error("Failed to dequeue next goal for session %s: %s", session_id, e)
+        return
+
+    if not next_goal:
+        logger.info("Queue empty for session %s, no more goals to execute", session_id)
+        return
+
+    logger.info(
+        "Dequeued goal %s for session %s: %s",
+        next_goal.goal_id,
+        session_id,
+        next_goal.objective[:60],
+    )
+
+    try:
+        from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.GOAL_DEQUEUED,
+                data={
+                    "goal_id": next_goal.goal_id,
+                    "session_id": session_id,
+                    "objective": next_goal.objective[:200],
+                },
+            )
+        )
+    except Exception:
+        pass
+
+    from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+
+    triggered = await trigger_goal_stream_with_failure_policy(
+        session_id,
+        next_goal,
+        provider,
+        on_failure="needs_human_review",
+        context="dequeued goal",
+    )
+    if not triggered:
+        await _try_dequeue_next(session_id, _depth=_depth + 1)
+
+
+def build_loop_restart_callback() -> Callable[[str, "Goal"], Awaitable[None]]:
+    """Build the on_loop_restart callback for automatic goal re-triggering.
+
+    When a goal enters loop_restart state (zero tool calls but loop_on_pause enabled),
+    this callback triggers a fresh agent stream with the same goal.
+    """
+
+    async def _on_loop_restart(session_id: str, goal: "Goal") -> None:
+
+        logger.info(
+            "Loop restart for goal %s (restart #%d): %s",
+            goal.goal_id,
+            goal.loop_restarts,
+            goal.objective[:60],
+        )
+
+        from app.services.agent.goals.goal_registry import GoalRegistry
+        from app.services.agent.goals.goal_stream_trigger import trigger_goal_stream_with_failure_policy
+
+        restart_provider = GoalRegistry.get_provider(session_id)
+        await trigger_goal_stream_with_failure_policy(
+            session_id,
+            goal,
+            restart_provider,
+            on_failure="keep_active",
+            context="loop restart",
+        )
+
+    return _on_loop_restart
+
+
+async def retrieve_relevant_learnings(
+    memory_manager: "MemoryManager",
+    objective: str,
+    *,
+    limit: int = 5,
+) -> list[str]:
+    """Retrieve relevant historical learnings for a new goal objective.
+
+    Searches SemanticMemory using the objective as semantic query, returning
+    the most relevant memories (patterns, gotchas, context) for the new goal.
+    """
+    from myrm_agent_harness.toolkits.memory.types import MemoryType
+
+    try:
+        results = await memory_manager.search(
+            query=objective,
+            memory_types=[MemoryType.SEMANTIC],
+            limit=limit,
+        )
+        learnings: list[str] = []
+        for result in results:
+            content = result.content
+            if content and len(content.strip()) > 10:
+                learnings.append(content.strip())
+
+        if learnings:
+            logger.info(
+                "Retrieved %d relevant learnings for goal objective",
+                len(learnings),
+            )
+        return learnings[:limit]
+    except Exception as e:
+        logger.warning("Failed to retrieve goal learnings (non-fatal): %s", e)
+        return []

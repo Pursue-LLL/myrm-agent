@@ -1,0 +1,136 @@
+"""GUI-driven lazy install of optional channel dependencies.
+
+[INPUT]
+- myrm_agent_harness.runtime.deps.lazy_deps::ensure, feature_missing (POS: Allowlisted venv lazy install)
+- app.channels.providers.registry::get_channel_spec, clear_cache (POS: Central channel provider registry)
+
+[OUTPUT]
+- install_channel_dependencies: pip-install optional SDK wheels and optional capability extras for a channel
+- ensure_channel_dependencies_ready: Preflight before enable/toggle (ERROR-level SDK deps only; WARNING optional extras are manual install)
+
+[POS]
+Server business layer for Settings one-click channel dependency installation (SDK-gated and optional capability extras).
+"""
+
+from __future__ import annotations
+
+import importlib
+import logging
+from pathlib import Path
+
+from filelock import FileLock, Timeout
+from myrm_agent_harness.runtime.deps.lazy_deps import FeatureUnavailableError, ensure, feature_missing
+
+from app.channels.providers.registry import clear_cache
+from app.channels.types import ChannelIssue, IssueKind, IssueSeverity
+from app.config.settings import settings
+
+logger = logging.getLogger(__name__)
+
+_INSTALL_LOCK_PATH = Path(settings.database.state_dir) / ".channel_dependency_install.lock"
+
+# Modules to reload after installing SDK wheels (import-time guards refresh).
+_CHANNEL_RELOAD_MODULES: dict[str, tuple[str, ...]] = {
+    "matrix": ("app.channels.providers.matrix.channel",),
+    "discord": ("app.channels.providers.discord.channel",),
+    "feishu": (
+        "app.channels.providers.feishu.channel",
+        "app.channels.providers.feishu.ws_transport",
+    ),
+}
+
+# Optional capability deps: channel runs without them; sub-features degrade (see collect_issues).
+_OPTIONAL_CAPABILITY_FEATURES: dict[str, tuple[str, ...]] = {
+    "wechat": ("platform.wechat-silk",),
+}
+
+
+def _optional_capability_features(channel_name: str, issues: list[ChannelIssue]) -> tuple[str, ...]:
+    """Resolve optional capability lazy features when diagnostics request install."""
+    configured = _OPTIONAL_CAPABILITY_FEATURES.get(channel_name, ())
+    if not configured:
+        return ()
+    for issue in issues:
+        if issue.kind != IssueKind.DEPENDENCY:
+            continue
+        fix = issue.fix or ""
+        if "wechat-silk" in fix:
+            return configured
+    return ()
+
+
+def _resolve_lazy_features(channel_name: str, issues: list[ChannelIssue]) -> tuple[str, ...]:
+    """Map channel + diagnostic issues to harness lazy_deps feature keys."""
+    from app.channels.providers.registry import get_channel_spec
+
+    features: list[str] = list(_optional_capability_features(channel_name, issues))
+
+    spec = get_channel_spec(channel_name)
+    if spec is None or not spec.sdk_package:
+        return tuple(features)
+
+    pkg = spec.sdk_package.lower()
+    if pkg == "mautrix":
+        features.append("platform.matrix")
+        for issue in issues:
+            if issue.kind == IssueKind.DEPENDENCY and "matrix-e2ee" in (issue.fix or ""):
+                features.append("platform.matrix-e2ee")
+                break
+    elif pkg == "discord.py":
+        features.append("platform.discord")
+    elif pkg == "lark-oapi":
+        features.append("platform.feishu")
+    return tuple(features)
+
+
+def _features_need_install(features: tuple[str, ...]) -> bool:
+    return any(feature_missing(feature) for feature in features)
+
+
+def _reload_channel_modules(channel_name: str) -> None:
+    for module_name in _CHANNEL_RELOAD_MODULES.get(channel_name, ()):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+
+def _run_install(features: tuple[str, ...]) -> tuple[bool, str]:
+    errors: list[str] = []
+    for feature in features:
+        try:
+            ensure(feature, prompt=False)
+        except FeatureUnavailableError as exc:
+            errors.append(str(exc))
+    if errors:
+        return False, "; ".join(errors)
+    return True, "Dependencies installed"
+
+
+def install_channel_dependencies(channel_name: str, issues: list[ChannelIssue]) -> tuple[bool, str]:
+    """Install lazy-deps for ``channel_name`` based on diagnostics."""
+    features = _resolve_lazy_features(channel_name, issues)
+    if not features:
+        return False, f"Channel {channel_name!r} has no lazy-install mapping"
+
+    _INSTALL_LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lock = FileLock(str(_INSTALL_LOCK_PATH), timeout=300)
+    try:
+        with lock:
+            ok, message = _run_install(features)
+    except Timeout:
+        return False, "Another dependency install is in progress; try again shortly"
+
+    if ok:
+        clear_cache()
+        _reload_channel_modules(channel_name)
+    return ok, message
+
+
+def ensure_channel_dependencies_ready(channel_name: str, issues: list[ChannelIssue]) -> tuple[bool, str]:
+    """Ensure optional deps are present before enabling a channel (no-op if already satisfied)."""
+    blocking = any(issue.kind == IssueKind.DEPENDENCY and issue.severity == IssueSeverity.ERROR for issue in issues)
+    if not blocking:
+        return True, ""
+    features = _resolve_lazy_features(channel_name, issues)
+    if not features or not _features_need_install(features):
+        return True, ""
+    return install_channel_dependencies(channel_name, issues)

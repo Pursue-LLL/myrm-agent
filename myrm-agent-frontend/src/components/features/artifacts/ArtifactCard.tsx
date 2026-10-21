@@ -1,0 +1,1050 @@
+'use client';
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils/classnameUtils';
+import { Artifact, ArtifactType } from '@/store/chat/types';
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  ExternalLink,
+  Eye,
+  FolderOpen,
+  Globe,
+  Link2,
+  Lock,
+  MessageSquarePlus,
+  Play,
+  Send,
+  Pin,
+} from 'lucide-react';
+import { usePinnedDashboardStore } from './widget-dashboard/usePinnedDashboardStore';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Label } from '@/components/primitives/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
+import { OrganizePlanPanel } from './OrganizePlanPanel';
+import { WeChatDraftPanel } from './WeChatDraftPanel';
+import { isOrganizePlanArtifact } from './organizePlanUtils';
+import { isTauriRuntime } from '@/lib/deploy-mode';
+import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { toast } from 'sonner';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
+import useChatStore from '@/store/useChatStore';
+import { wikiService } from '@/services/wikiService';
+import { PublishModal, type PublishedArtifactUpdate } from './PublishModal';
+import { type ArtifactPublication } from '@/services/hosting';
+import { HtmlPreview, SvgPreview } from './renderers/MediaPreview';
+import MermaidPreview from './renderers/MermaidPreview';
+import { LARGE_FILE_THRESHOLD } from '@/lib/constants/artifact';
+import {
+  deploymentHostname,
+  formatBytes,
+  getArtifactIcon,
+  getDownloadFilename,
+  createArtifactSharePreview,
+  fetchArtifactDeployPreflight,
+  isDeployCandidateArtifactType,
+  isPublicationStale,
+  isSharePreviewableArtifact,
+  patchArtifactPublicationsInChat,
+  publicationsChanged,
+  type ArtifactDeployPreflight,
+} from './artifactUtils';
+import { buildPublicArtifactShareUrl } from '@/services/artifactShares';
+import { activateOnKey, REVEAL_ON_HOVER } from '@/lib/utils/a11y';
+
+interface ArtifactCardProps {
+  artifact: Artifact;
+  onPreview?: (artifact: Artifact) => void;
+  onDownload?: (artifact: Artifact) => void;
+}
+
+function getArtifactColor(type: ArtifactType): string {
+  switch (type) {
+    case 'code':
+      return 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20';
+    case 'document':
+      return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20';
+    case 'html':
+      return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20';
+    case 'pdf':
+      return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+    case 'image':
+    case 'svg':
+      return 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20';
+    case 'mermaid':
+      return 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20';
+    case 'spreadsheet':
+      return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
+    case 'presentation':
+      return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20';
+    case 'word_document':
+      return 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20';
+    case 'binary':
+    default:
+      return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20';
+  }
+}
+
+function isPreviewable(type: ArtifactType): boolean {
+  return [
+    'code',
+    'document',
+    'html',
+    'image',
+    'svg',
+    'mermaid',
+    'pdf',
+    'spreadsheet',
+    'presentation',
+    'word_document',
+  ].includes(type);
+}
+
+function isCopyable(type: ArtifactType): boolean {
+  return ['code', 'document', 'html', 'svg', 'mermaid', 'spreadsheet'].includes(type);
+}
+
+function supportsInlinePreview(type: ArtifactType): boolean {
+  return ['html', 'svg', 'mermaid'].includes(type);
+}
+
+function isIngestableToWiki(type: ArtifactType): boolean {
+  return ['code', 'document', 'html', 'svg', 'mermaid'].includes(type);
+}
+
+const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDownload }) => {
+  const t = useTranslations('artifacts');
+  const tWidget = useTranslations('widgetDashboard');
+  const { isPinned, togglePin } = usePinnedDashboardStore();
+  const pinned = isPinned(artifact.id);
+  const Icon = getArtifactIcon(artifact.type as ArtifactType, artifact.filename);
+  const colorClass = getArtifactColor(artifact.type as ArtifactType);
+  const canPreview = isPreviewable(artifact.type as ArtifactType);
+  const canCopy = isCopyable(artifact.type as ArtifactType);
+  const canInlinePreview = supportsInlinePreview(artifact.type as ArtifactType);
+  const [copied, setCopied] = useState(false);
+  const [pathCopied, setPathCopied] = useState(false);
+  const [inlineExpanded, setInlineExpanded] = useState(canInlinePreview);
+  const [inlineContent, setInlineContent] = useState<string | null>(null);
+  const [inlineLoading, setInlineLoading] = useState(false);
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [publishTargetId, setPublishTargetId] = useState<string | undefined>();
+  const [publications, setPublications] = useState<ArtifactPublication[]>(artifact.publications ?? []);
+  const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [sharePopoverOpen, setSharePopoverOpen] = useState(false);
+  const [sharePassword, setSharePassword] = useState('');
+  const [shareTtlDays, setShareTtlDays] = useState(7);
+  const [ingestLoading, setIngestLoading] = useState(false);
+  const [wechatDraftOpen, setWechatDraftOpen] = useState(false);
+  const isOrganizePlan = isOrganizePlanArtifact(artifact.filename);
+  const [organizePlanOpen, setOrganizePlanOpen] = useState(false);
+  const [organizePlanContent, setOrganizePlanContent] = useState<string | null>(null);
+  const [organizePlanLoading, setOrganizePlanLoading] = useState(false);
+  const chatId = useChatStore((state) => state.chatId);
+  const workspaceDir = useChatStore((state) => state.workspaceDir);
+  const agentName = useChatStore((state) => state.agentConfig?.agentName);
+  const presetName = useChatStore((state) => state.agentConfig?.presetName);
+  const [artifactState, setArtifactState] = useState(artifact);
+  const hasLocalPath = Boolean(artifact.file_path);
+  const canPushWeChatDraft = (artifact.type as ArtifactType) === 'html' && hasLocalPath;
+  const isDeployCandidate = isDeployCandidateArtifactType(artifact.type as ArtifactType);
+  const canDeploy = isDeployCandidate && deployPreflight?.deployable === true;
+  const canSharePreview = isSharePreviewableArtifact(artifactState);
+  const canIngestToWiki = isIngestableToWiki(artifact.type as ArtifactType);
+  const isLargeFile = canInlinePreview && artifact.size > LARGE_FILE_THRESHOLD;
+
+  useEffect(() => {
+    setArtifactState(artifact);
+  }, [artifact]);
+
+  useEffect(() => {
+    if (!isDeployCandidate) {
+      setDeployPreflight(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPreflight = async () => {
+      const result = await fetchArtifactDeployPreflight(artifact.id);
+      if (!cancelled) {
+        setDeployPreflight(result);
+      }
+    };
+
+    void loadPreflight();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [artifact.id, isDeployCandidate]);
+
+  useEffect(() => {
+    if (artifact.publications?.length) {
+      setPublications(artifact.publications);
+    }
+  }, [artifact.publications]);
+
+  useEffect(() => {
+    if (!isDeployCandidate) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydratePublications = async () => {
+      try {
+        const response = await fetch(getApiUrl(`/files/artifacts/${artifact.id}`));
+        if (!response.ok || cancelled) {
+          return;
+        }
+        const data = (await response.json()) as {
+          latest_version_id?: string | null;
+          publications?: ArtifactPublication[];
+        };
+        if (cancelled) {
+          return;
+        }
+        if (data.publications) {
+          const publications = data.publications;
+          setPublications((prev) => {
+            if (!publicationsChanged(prev, publications)) {
+              return prev;
+            }
+            patchArtifactPublicationsInChat(artifact.id, publications);
+            return publications;
+          });
+        }
+        if (data.latest_version_id) {
+          setArtifactState((prev) => ({ ...prev, latest_version_id: data.latest_version_id }));
+        }
+      } catch {
+        // hydrate is best-effort
+      }
+    };
+
+    void hydratePublications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [artifact.id, isDeployCandidate]);
+
+  const handleOpenDeploy = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (deployPreflight && !deployPreflight.deployable) {
+        toast.error(deployPreflight.message, {
+          description: deployPreflight.hint ?? undefined,
+        });
+        return;
+      }
+      setPublishTargetId(undefined);
+      setPublishModalOpen(true);
+    },
+    [deployPreflight],
+  );
+
+  const handleSharePreview = useCallback(async () => {
+    if (shareLoading) {
+      return;
+    }
+    setShareLoading(true);
+    try {
+      const pwd = sharePassword.trim() || undefined;
+      const result = await createArtifactSharePreview(artifactState.id, artifactState.type, {
+        ttlDays: shareTtlDays,
+        password: pwd,
+      });
+      const url = result.share_url ?? buildPublicArtifactShareUrl(result.share_path);
+      await writeToClipboard(url);
+      const descKey = result.password_protected
+        ? 'sharePreview.successDescriptionProtected'
+        : 'sharePreview.successDescription';
+      toast.success(t('sharePreview.successTitle'), {
+        description: t(descKey, { days: shareTtlDays }),
+      });
+      setSharePopoverOpen(false);
+      setSharePassword('');
+      setShareTtlDays(7);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('sharePreview.failed');
+      toast.error(message);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [artifactState.id, artifactState.type, shareLoading, sharePassword, shareTtlDays, t]);
+
+  const preloadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const inlineFetchAttempted = useRef(false);
+  const { getCachedContent, setCachedContent } = useArtifactPortalStore();
+
+  const fetchInlineContent = useCallback(async (): Promise<string | null> => {
+    const cached = getCachedContent(artifact.id);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const fullUrl = getStorageUrl(artifact.preview_url);
+      const response = await fetch(fullUrl);
+      if (response.ok) {
+        const text = await response.text();
+        setCachedContent(artifact.id, text);
+        return text;
+      }
+    } catch {
+      // fetch failure handled by caller
+    }
+    return null;
+  }, [artifact.id, artifact.preview_url, getCachedContent, setCachedContent]);
+
+  const toggleInlinePreview = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (inlineExpanded) {
+        setInlineExpanded(false);
+        return;
+      }
+
+      setInlineExpanded(true);
+
+      if (isLargeFile || inlineContent) {
+        return;
+      }
+
+      inlineFetchAttempted.current = true;
+      setInlineLoading(true);
+      const content = await fetchInlineContent();
+      setInlineContent(content);
+      setInlineLoading(false);
+    },
+    [inlineExpanded, inlineContent, fetchInlineContent, isLargeFile],
+  );
+
+  useEffect(() => {
+    if (
+      !canInlinePreview ||
+      !inlineExpanded ||
+      inlineContent ||
+      inlineLoading ||
+      inlineFetchAttempted.current ||
+      isLargeFile
+    ) {
+      return;
+    }
+    inlineFetchAttempted.current = true;
+    let cancelled = false;
+    setInlineLoading(true);
+    fetchInlineContent().then((content) => {
+      if (!cancelled) {
+        setInlineContent(content);
+        setInlineLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [canInlinePreview, inlineExpanded, inlineContent, inlineLoading, fetchInlineContent, isLargeFile]);
+
+  const preloadContent = useCallback(async () => {
+    if (!['code', 'document', 'svg', 'mermaid', 'html'].includes(artifact.type)) {
+      return;
+    }
+    if (isLargeFile) {
+      return;
+    }
+    if (getCachedContent(artifact.id)) {
+      return;
+    }
+
+    try {
+      const fullUrl = getStorageUrl(artifact.preview_url);
+      const response = await fetch(fullUrl);
+      if (response.ok) {
+        const text = await response.text();
+        setCachedContent(artifact.id, text);
+      }
+    } catch {
+      // silent preload failure
+    }
+  }, [artifact, getCachedContent, setCachedContent, isLargeFile]);
+
+  const handleMouseEnter = useCallback(() => {
+    preloadTimerRef.current = setTimeout(() => {
+      preloadContent();
+    }, 200);
+  }, [preloadContent]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (preloadTimerRef.current) {
+      clearTimeout(preloadTimerRef.current);
+      preloadTimerRef.current = null;
+    }
+  }, []);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      const cached = getCachedContent(artifact.id);
+      let text = cached;
+      if (!text) {
+        const fullUrl = getStorageUrl(artifact.preview_url);
+        const response = await fetch(fullUrl);
+        if (response.ok) {
+          text = await response.text();
+          setCachedContent(artifact.id, text);
+        }
+      }
+      if (text) {
+        await writeToClipboard(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      // clipboard API may fail in insecure context
+    }
+  }, [artifact, getCachedContent, setCachedContent]);
+
+  const handleOpenInNewTab = useCallback(() => {
+    const fullUrl = getStorageUrl(artifact.preview_url);
+    window.open(fullUrl, '_blank', 'noopener,noreferrer');
+  }, [artifact]);
+
+  const handleRevealInFileManager = useCallback(async () => {
+    if (!artifact.file_path) {
+      return;
+    }
+    try {
+      await apiRequest(`/files/${artifact.id}/reveal`, { method: 'POST' });
+    } catch {
+      toast.error(t('errors.serverError'));
+    }
+  }, [artifact, t]);
+
+  const handleOpenWithDefaultApp = useCallback(async () => {
+    if (!artifact.file_path) {
+      return;
+    }
+    try {
+      await apiRequest(`/files/${artifact.id}/open`, { method: 'POST' });
+    } catch {
+      toast.error(t('errors.serverError'));
+    }
+  }, [artifact, t]);
+
+  const handleCopyPath = useCallback(async () => {
+    if (!artifact.file_path) {
+      return;
+    }
+    await writeToClipboard(artifact.file_path);
+    setPathCopied(true);
+    setTimeout(() => setPathCopied(false), 2000);
+  }, [artifact.file_path]);
+
+  const handleIngestToWiki = useCallback(async () => {
+    if (ingestLoading) {
+      return;
+    }
+    setIngestLoading(true);
+    try {
+      const agentId = useChatStore.getState().agentConfig?.agentId;
+      const result = await wikiService.ingestArtifact(artifact.id, agentId);
+      if (result.success) {
+        toast.success(t('ingestToWiki.success'), { description: result.message });
+      } else {
+        toast.error(t('ingestToWiki.failed'), { description: result.message });
+      }
+    } catch {
+      toast.error(t('ingestToWiki.failed'));
+    } finally {
+      setIngestLoading(false);
+    }
+  }, [artifact.id, ingestLoading, t]);
+
+  const handleInsertToChat = useCallback(() => {
+    const isLocalMode = isTauriRuntime() && !!artifact.file_path;
+    const chatFile = {
+      fileName: artifact.filename,
+      fileExtension: artifact.filename.split('.').pop() || '',
+      localPath: isLocalMode ? artifact.file_path : undefined,
+      fileUrl: isLocalMode ? undefined : getStorageUrl(artifact.preview_url),
+      fileType: (isLocalMode ? 'local_path' : 'uploaded') as 'local_path' | 'uploaded',
+    };
+    const currentFiles = useChatStore.getState().files;
+    const alreadyAttached = currentFiles.some(
+      (f) =>
+        f.fileName === chatFile.fileName &&
+        ((chatFile.fileUrl && f.fileUrl === chatFile.fileUrl) ||
+          (chatFile.localPath && f.localPath === chatFile.localPath)),
+    );
+    if (alreadyAttached) {
+      toast.info(t('insertToChat.alreadyAttached'));
+      return;
+    }
+    useChatStore.getState().setFiles([...currentFiles, chatFile]);
+    toast.success(t('insertToChat.success'));
+  }, [artifact, t]);
+
+  const handleDownload = async () => {
+    if (onDownload) {
+      onDownload(artifactState);
+      return;
+    }
+
+    try {
+      const response = await fetch(artifactState.download_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = getDownloadFilename(artifactState.filename);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+
+  const handlePublished = (update: PublishedArtifactUpdate) => {
+    setPublications(update.publications);
+    patchArtifactPublicationsInChat(artifact.id, update.publications);
+    if (update.latest_version_id) {
+      setArtifactState((prev) => ({ ...prev, latest_version_id: update.latest_version_id }));
+    }
+    void import('@/lib/progression/tryMarkMilestone').then(({ tryMarkMilestone }) => {
+      tryMarkMilestone('first_multistep_delivery');
+    });
+  };
+
+  const stalePublications = publications.filter((pub) => isPublicationStale(pub, artifactState.latest_version_id));
+
+  const handleDismissWeChatDraftPanel = useCallback(() => {
+    setWechatDraftOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!organizePlanOpen || organizePlanContent) {
+      return;
+    }
+    let cancelled = false;
+    setOrganizePlanLoading(true);
+    void fetchInlineContent().then((content) => {
+      if (!cancelled) {
+        setOrganizePlanContent(content);
+        setOrganizePlanLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizePlanOpen, organizePlanContent, fetchInlineContent]);
+
+  return (
+    <>
+      <div
+        className={cn(
+          'group relative rounded-xl overflow-hidden',
+          'border border-gray-200/60 dark:border-gray-700/60',
+          'bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-850/50',
+          'hover:border-gray-300 dark:hover:border-gray-600',
+          'hover:shadow-md hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50',
+          'transition-all duration-200 ease-out',
+          canInlinePreview && inlineExpanded && 'sm:col-span-2',
+        )}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Card header */}
+        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dynamic role is not resolvable by static analysis */}
+        <div
+          className="flex items-center gap-3 p-3 cursor-pointer"
+          onClick={() => canPreview && onPreview?.(artifactState)}
+          role={canPreview ? 'button' : undefined}
+          tabIndex={canPreview ? 0 : undefined}
+          onKeyDown={activateOnKey}
+        >
+          <div className={cn('flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', colorClass)}>
+            <Icon className="w-5 h-5" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{artifactState.filename}</h4>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="text-xs text-gray-500 dark:text-gray-400">{t(`types.${artifactState.type}`)}</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(artifactState.size)}</span>
+              {artifactState.filename.endsWith('.skill') && (
+                <>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{t('skillActions.skillPackageHint')}</span>
+                </>
+              )}
+            </div>
+            {hasLocalPath && (
+              <p
+                className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5 max-w-[200px]"
+                title={artifact.file_path}
+              >
+                {artifact.file_path}
+              </p>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className={cn('flex items-center gap-1 transition-opacity duration-200', REVEAL_ON_HOVER)}>
+            {hasLocalPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenWithDefaultApp();
+                }}
+                title={t('openWithDefaultApp')}
+              >
+                <Play className="w-4 h-4" />
+              </Button>
+            )}
+            {hasLocalPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRevealInFileManager();
+                }}
+                title={t('revealInFileManager')}
+              >
+                <FolderOpen className="w-4 h-4" />
+              </Button>
+            )}
+            {hasLocalPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopyPath();
+                }}
+                title={pathCopied ? t('copied') : t('copyPath')}
+              >
+                <Copy className={cn('w-3.5 h-3.5', pathCopied && 'text-green-500')} />
+              </Button>
+            )}
+            {canDeploy && publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-green-600 dark:text-green-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const live = publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url);
+                  if (live?.publication_url) {
+                    window.open(live.publication_url, '_blank');
+                  }
+                }}
+                title={t('deploy.deployedLabel', {
+                  hostname: deploymentHostname(
+                    publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url)
+                      ?.publication_url ?? '',
+                  ),
+                })}
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            )}
+            {canSharePreview && (
+              <Popover open={sharePopoverOpen} onOpenChange={setSharePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-primary"
+                    onClick={(e) => e.stopPropagation()}
+                    title={t('sharePreview.open')}
+                  >
+                    <Link2 className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-3 space-y-3" align="end" onClick={(e) => e.stopPropagation()}>
+                  <p className="text-sm font-medium">{t('sharePreview.title')}</p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1">
+                      <Lock className="w-3 h-3" />
+                      {t('sharePreview.passwordLabel')}
+                    </Label>
+                    <Input
+                      type="password"
+                      value={sharePassword}
+                      onChange={(e) => setSharePassword(e.target.value)}
+                      placeholder={t('sharePreview.passwordPlaceholder')}
+                      className="h-8 text-sm"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('sharePreview.ttlLabel')}</Label>
+                    <div className="flex gap-1.5">
+                      {[1, 7, 14, 30].map((d) => (
+                        <Button
+                          key={d}
+                          variant={shareTtlDays === d ? 'default' : 'outline'}
+                          size="sm"
+                          className="h-7 flex-1 text-xs px-0"
+                          onClick={() => setShareTtlDays(d)}
+                        >
+                          {t('sharePreview.ttlDays', { days: d })}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full h-8 text-sm"
+                    disabled={shareLoading}
+                    onClick={() => {
+                      void handleSharePreview();
+                    }}
+                  >
+                    {shareLoading ? t('sharePreview.creating') : t('sharePreview.createBtn')}
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            )}
+            {isDeployCandidate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn('h-8 w-8', canDeploy ? 'text-primary' : 'text-muted-foreground opacity-60')}
+                onClick={handleOpenDeploy}
+                title={
+                  canDeploy
+                    ? t('publish.openModal')
+                    : (deployPreflight?.hint ?? deployPreflight?.message ?? t('publish.openModal'))
+                }
+              >
+                <Globe className="w-4 h-4" />
+              </Button>
+            )}
+            {canPushWeChatDraft && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-8 w-8',
+                  wechatDraftOpen
+                    ? 'text-primary'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setWechatDraftOpen((prev) => !prev);
+                }}
+                title={t('wechatDraft.openPanel')}
+                data-testid="wechat-draft-open-panel"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            )}
+            {isOrganizePlan && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-8 w-8',
+                  organizePlanOpen
+                    ? 'text-primary'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOrganizePlanOpen((prev) => !prev);
+                }}
+                title={t('organizePlan.openPanel')}
+              >
+                <FolderOpen className="w-4 h-4" />
+              </Button>
+            )}
+            {canIngestToWiki && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                disabled={ingestLoading}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleIngestToWiki();
+                }}
+                title={t('ingestToWiki.title')}
+              >
+                <BookOpen className={cn('w-4 h-4', ingestLoading && 'opacity-50 animate-pulse')} />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleInsertToChat();
+              }}
+              title={t('insertToChat.title')}
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-8 w-8',
+                pinned
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePin({
+                  id: `pin_${artifact.id}`,
+                  artifactId: artifact.id,
+                  title: artifactState.filename,
+                  type: artifactState.type,
+                  content: artifactState.content || artifactState.filename,
+                  networkPolicy: 'none',
+                });
+              }}
+              title={pinned ? tWidget('unpin') : tWidget('pinWidget')}
+              data-testid={`artifact-pin-btn-${artifact.id}`}
+            >
+              <Pin className={cn('w-4 h-4', pinned && 'fill-current')} />
+            </Button>
+            {canInlinePreview && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={toggleInlinePreview}
+                title={inlineExpanded ? t('inlinePreview.collapse') : t('inlinePreview.expand')}
+              >
+                {inlineExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            )}
+            {canPreview && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreview?.(artifactState);
+                }}
+                title={t('preview')}
+              >
+                <Eye className="w-4 h-4" />
+              </Button>
+            )}
+            {canCopy && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+                title={copied ? t('copied') : t('copyCode')}
+              >
+                <Copy className={cn('w-4 h-4', copied && 'text-green-500')} />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenInNewTab();
+              }}
+              title={t('openInNewTab')}
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload();
+              }}
+              title={t('download')}
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
+          <div className="mx-3 mb-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()} role="presentation">
+            {publications
+              .filter((pub) => pub.publication_status === 'READY' && pub.publication_url)
+              .map((pub) => {
+                const url = pub.publication_url;
+                if (!url) {
+                  return null;
+                }
+                return (
+                <button
+                  key={pub.id}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-950/50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(url, '_blank');
+                  }}
+                  title={t('publish.openLiveWithTarget', {
+                    target: pub.hosting_target_name ?? pub.hosting_target_id,
+                    hostname: deploymentHostname(url),
+                  })}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  <span className="truncate max-w-[12rem]">
+                    {pub.hosting_target_name ? `${pub.hosting_target_name} · ` : ''}
+                    {deploymentHostname(url)}
+                  </span>
+                </button>
+                );
+              })}
+          </div>
+        )}
+
+        {stalePublications.map((pub) => (
+          <div
+            key={pub.id}
+            className="mx-3 mb-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            <span className="min-w-0">
+              {t('deploy.redeployBannerForTarget', {
+                target: pub.hosting_target_name ?? pub.hosting_target_id,
+              })}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 shrink-0 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPublishTargetId(pub.hosting_target_id);
+                setPublishModalOpen(true);
+              }}
+            >
+              {t('deploy.redeployAction')}
+            </Button>
+          </div>
+        ))}
+
+        {/* Inline visual preview */}
+        {canInlinePreview && inlineExpanded && (
+          <div className="border-t border-gray-200/60 dark:border-gray-700/60">
+            {isLargeFile ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-6">
+                <span className="text-sm text-muted-foreground">
+                  {t('inlinePreview.largeFileHint', { size: formatBytes(artifact.size) })}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPreview?.(artifactState);
+                  }}
+                >
+                  <Eye className="w-3.5 h-3.5 mr-1.5" />
+                  {t('inlinePreview.viewFullscreen')}
+                </Button>
+              </div>
+            ) : inlineLoading && !inlineContent ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+              </div>
+            ) : inlineContent ? (
+              <div className="min-h-[100px]">
+                {artifact.type === 'svg' ? (
+                  <SvgPreview content={inlineContent} />
+                ) : artifact.type === 'mermaid' ? (
+                  <MermaidPreview content={inlineContent} />
+                ) : (
+                  <HtmlPreview content={inlineContent} autoHeight injectTheme />
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                {t('inlinePreview.loadError')}
+              </div>
+            )}
+          </div>
+        )}
+
+        {canPushWeChatDraft && wechatDraftOpen && artifactState.file_path && (
+          <WeChatDraftPanel
+            artifactId={artifact.id}
+            filename={artifactState.filename}
+            htmlPath={artifactState.file_path}
+            chatId={chatId ?? null}
+            agentName={agentName}
+            presetName={presetName}
+            fetchInlineContent={fetchInlineContent}
+            onComplete={handleDismissWeChatDraftPanel}
+          />
+        )}
+
+        {isOrganizePlan && organizePlanOpen && (
+          <div
+            className="mx-3 mb-3 rounded-lg border border-border/60 bg-muted/20 p-3"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            {organizePlanLoading && !organizePlanContent ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin w-5 h-5 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+              </div>
+            ) : organizePlanContent ? (
+              <OrganizePlanPanel
+                workspace={workspaceDir ?? ''}
+                planContent={organizePlanContent}
+                onPlanChange={setOrganizePlanContent}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('organizePlan.invalidPlan')}</p>
+            )}
+          </div>
+        )}
+      </div>
+      <PublishModal
+        artifact={artifactState}
+        open={publishModalOpen}
+        onClose={() => {
+          setPublishModalOpen(false);
+          setPublishTargetId(undefined);
+        }}
+        onPublished={handlePublished}
+        initialTargetId={publishTargetId}
+      />
+    </>
+  );
+};
+
+export default ArtifactCard;

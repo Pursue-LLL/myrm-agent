@@ -1,0 +1,302 @@
+/**
+ * [INPUT]
+ * - @/hooks/voice/useVoiceSession::useVoiceSession (POS: Full-duplex voice session orchestrator with PTT screen context)
+ * - @/lib/vision/frameSelector::VisualFrame (POS: Intelligent frame selector for vision)
+ * - @/components/features/voice/VoiceSessionOverlay (POS: Full-screen voice session UI)
+ * - @/store/useChatStore::useChatStore (POS: Chat state bus)
+ *
+ * [OUTPUT]
+ * - VoiceSessionButton: Trigger button for full-duplex voice session with overlay.
+ *
+ * [POS]
+ * Voice session trigger. Renders a mic-session button that opens VoiceSessionOverlay,
+ * bridging useVoiceSession with the chat store for message sending and TTS playback.
+ * Supports audio_only, agent_bridge, openai_realtime, and gemini_live modes; announces
+ * voice background task completion via the voice-bg-done event across all modes.
+ */
+
+'use client';
+
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { HeadsetIcon } from 'hugeicons-react';
+import { cn } from '@/lib/utils/classnameUtils';
+import { useTranslations } from 'next-intl';
+import { useVoiceSession, type VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
+import type { VisualFrame } from '@/lib/vision/frameSelector';
+import VoiceSessionOverlay from '@/components/features/voice/VoiceSessionOverlay';
+import VoiceBubble from '@/components/features/voice/VoiceBubble';
+import { isStopCommand } from '@/hooks/voice/voiceCommands';
+import Tooltip from '@/components/features/settings/Tooltip';
+import useChatStore from '@/store/useChatStore';
+
+const VOICE_SESSION_KEY = 'voiceSessionEnabled';
+const VOICE_FULL_DUPLEX_KEY = 'voiceFullDuplexEnabled';
+const VOICE_AGENT_BRIDGE_KEY = 'voiceAgentBridgeEnabled';
+const VOICE_MODE_KEY = 'voiceSessionMode';
+
+function resolveVoiceMode(): VoiceSessionMode {
+  const stored = localStorage.getItem(VOICE_MODE_KEY);
+  if (stored === 'openai_realtime' || stored === 'agent_bridge' || stored === 'audio_only') {
+    return stored;
+  }
+  return localStorage.getItem(VOICE_AGENT_BRIDGE_KEY) === 'true' ? 'agent_bridge' : 'audio_only';
+}
+
+interface VoiceSessionButtonProps {
+  disabled?: boolean;
+  keyterms?: string[];
+}
+
+const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionButtonProps) => {
+  const t = useTranslations('voiceSession');
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const setCameraFrames = useChatStore((s) => s.setCameraFrames);
+  const chatId = useChatStore((s) => s.chatId);
+  const agentId = useChatStore((s) => s.agentConfig?.agentId);
+
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [fullDuplex, setFullDuplex] = useState(true);
+  const [voiceMode, setVoiceMode] = useState<VoiceSessionMode>('audio_only');
+
+  useEffect(() => {
+    setVoiceEnabled(localStorage.getItem(VOICE_SESSION_KEY) === 'true');
+    setFullDuplex(localStorage.getItem(VOICE_FULL_DUPLEX_KEY) !== 'false');
+    setVoiceMode(resolveVoiceMode());
+
+    const handler = () => {
+      setVoiceEnabled(localStorage.getItem(VOICE_SESSION_KEY) === 'true');
+      setFullDuplex(localStorage.getItem(VOICE_FULL_DUPLEX_KEY) !== 'false');
+      setVoiceMode(resolveVoiceMode());
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
+  const handleSendMessage = useCallback(
+    (text: string, visionFrames?: VisualFrame[]) => {
+      if (!text.trim()) {
+        return;
+      }
+
+      if (visionFrames?.length) {
+        const dataUrls = visionFrames.map((f) =>
+          f.base64.startsWith('data:') ? f.base64 : `data:image/jpeg;base64,${f.base64}`,
+        );
+        setCameraFrames(dataUrls);
+      }
+
+      void sendMessage(text);
+    },
+    [sendMessage, setCameraFrames],
+  );
+
+  const voice = useVoiceSession({
+    enabled: voiceEnabled,
+    autoSend: true,
+    onSendMessage: handleSendMessage,
+    keyterms,
+    fullDuplex,
+    mode: voiceMode,
+    agentId: agentId ?? undefined,
+    chatId: chatId ?? undefined,
+  });
+  const { speakResponse, stopSession } = voice;
+
+  const lastAssistantRef = useRef<string | null>(null);
+  const messages = useChatStore((s) => s.messages);
+  const loading = useChatStore((s) => s.loading);
+
+  // In audio_only mode: watch messages store for assistant replies → TTS.
+  // Non-audio_only modes stream agent audio via WebRTC/WS, so watch-TTS would
+  // double-announce voice background completions alongside voice-bg-done.
+  // voice_bg_done_ messages are announced via the voice-bg-done event below
+  // (concise title + safe queue), so they are skipped here.
+  useEffect(() => {
+    if (voiceMode !== 'audio_only') {
+      return;
+    }
+    if (!voice.isActive || loading) {
+      return;
+    }
+
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'assistant') {
+      return;
+    }
+    if (lastMsg.messageId?.startsWith('voice_bg_done_')) {
+      return;
+    }
+
+    const content = lastMsg.content;
+    if (content && content !== lastAssistantRef.current && content.length > 10) {
+      lastAssistantRef.current = content;
+      voice.speakResponse(content);
+    }
+  }, [messages, loading, voice, voiceMode]);
+
+  // Announce voice background task completion via TTS in all voice modes.
+  // When the agent is mid-utterance (agent_bridge), defer until it stops speaking.
+  const pendingAnnounceRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (!voice.isActive) {
+      return;
+    }
+
+    const handleVoiceBgDone = (e: Event) => {
+      const detail = (e as CustomEvent<{ title?: string; message?: string; chat_id?: string }>).detail;
+      if (!detail?.chat_id || !chatId || detail.chat_id !== chatId) {
+        return;
+      }
+      const text = detail.title || detail.message;
+      if (!text) {
+        return;
+      }
+      if (voice.sessionState === 'speaking') {
+        pendingAnnounceRef.current.push(text);
+        return;
+      }
+      speakResponse(text, { queue: true });
+    };
+
+    window.addEventListener('voice-bg-done', handleVoiceBgDone);
+    return () => window.removeEventListener('voice-bg-done', handleVoiceBgDone);
+  }, [voiceMode, voice.isActive, speakResponse, voice.sessionState, chatId]);
+
+  // Flush deferred announcements once the agent stops speaking.
+  useEffect(() => {
+    if (pendingAnnounceRef.current.length === 0 || voice.sessionState === 'speaking') {
+      return;
+    }
+    const pending = pendingAnnounceRef.current;
+    pendingAnnounceRef.current = [];
+    for (const text of pending) {
+      speakResponse(text, { queue: true });
+    }
+  }, [voice.sessionState, speakResponse]);
+
+  const [bubbleMinimized, setBubbleMinimized] = useState(false);
+
+  // Spoken stop command ends the hands-free session (exact match only).
+  const stopFiredRef = useRef(false);
+  useEffect(() => {
+    if (!voice.isActive) {
+      stopFiredRef.current = false;
+      setBubbleMinimized(false);
+    }
+  }, [voice.isActive]);
+  useEffect(() => {
+    if (voice.isActive && !stopFiredRef.current && isStopCommand(voice.interimText)) {
+      stopFiredRef.current = true;
+      stopSession();
+    }
+  }, [voice.isActive, voice.interimText, stopSession]);
+
+  const handleToggle = useCallback(() => {
+    if (voice.isActive) {
+      voice.stopSession();
+    } else {
+      setBubbleMinimized(false);
+      voice.startSession();
+    }
+  }, [voice]);
+
+  // Handle remote voice toggle / interrupt / replay events from Pet Surface
+  useEffect(() => {
+    const handleRemoteToggle = () => {
+      handleToggle();
+    };
+    const handleRemoteInterrupt = () => {
+      if (voice.isActive) {
+        voice.interruptTTS();
+      }
+    };
+    const handleRemoteReplay = () => {
+      import('@/hooks/voice/useTTS').then(({ getLastSpokenText }) => {
+        const last = getLastSpokenText();
+        if (last) {
+          voice.speakResponse(last);
+        }
+      });
+    };
+
+    window.addEventListener('myrm-voice-toggle', handleRemoteToggle);
+    window.addEventListener('myrm-voice-interrupt', handleRemoteInterrupt);
+    window.addEventListener('myrm-voice-replay', handleRemoteReplay);
+
+    return () => {
+      window.removeEventListener('myrm-voice-toggle', handleRemoteToggle);
+      window.removeEventListener('myrm-voice-interrupt', handleRemoteInterrupt);
+      window.removeEventListener('myrm-voice-replay', handleRemoteReplay);
+    };
+  }, [handleToggle, voice]);
+
+  // Sync voice state to pet surface
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent('myrm-voice-state-update', {
+        detail: {
+          voiceState: voice.sessionState === 'inactive' ? 'idle' : voice.sessionState,
+          audioLevel: voice.audioLevel,
+        },
+      }),
+    );
+  }, [voice.sessionState, voice.audioLevel]);
+
+  if (!voiceEnabled) {
+    return null;
+  }
+
+  return (
+    <>
+      <Tooltip content={voice.isActive ? t('stopSession') : t('startSession')}>
+        <button
+          type="button"
+          onClick={handleToggle}
+          disabled={disabled}
+          className={cn(
+            'relative flex items-center justify-center w-8 h-8 rounded-full transition duration-200',
+            voice.isActive
+              ? 'bg-primary/15 dark:bg-primary/20 text-primary hover:bg-primary/25 dark:hover:bg-primary/30'
+              : 'bg-[#fdfdf8] dark:bg-muted/60 hover:bg-[#e8e8e0] dark:hover:bg-muted/80 text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white',
+            disabled && 'opacity-50 cursor-not-allowed',
+          )}
+          aria-label={voice.isActive ? t('stopSession') : t('startSession')}
+        >
+          <HeadsetIcon size={16} />
+          {voice.isActive && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          )}
+        </button>
+      </Tooltip>
+
+      <VoiceSessionOverlay
+        isOpen={voice.isActive && !bubbleMinimized}
+        sessionState={voice.sessionState}
+        audioLevel={voice.audioLevel}
+        interimText={voice.interimText}
+        onClose={voice.stopSession}
+        onInterrupt={voice.interruptTTS}
+        onMinimize={() => setBubbleMinimized(true)}
+        agentResponseText={voice.agentResponseText}
+        agentToolName={voice.agentToolName}
+        isAgentBridge={voiceMode === 'agent_bridge'}
+        voiceMode={voiceMode}
+        liveNotes={voice.liveNotes.snapshot}
+      />
+      <VoiceBubble
+        visible={voice.isActive && bubbleMinimized}
+        sessionState={voice.sessionState}
+        statusText={voice.agentToolName || voice.interimText}
+        speaking={voice.sessionState === 'speaking'}
+        onExpand={() => setBubbleMinimized(false)}
+      />
+    </>
+  );
+});
+
+VoiceSessionButton.displayName = 'VoiceSessionButton';
+
+export default VoiceSessionButton;

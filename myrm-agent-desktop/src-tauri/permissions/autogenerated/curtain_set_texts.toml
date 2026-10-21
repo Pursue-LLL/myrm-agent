@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-curtain-set-texts"
+description = "Enables the curtain_set_texts command without any pre-configured scope."
+commands.allow = ["curtain_set_texts"]
+
+[[permission]]
+identifier = "deny-curtain-set-texts"
+description = "Denies the curtain_set_texts command without any pre-configured scope."
+commands.deny = ["curtain_set_texts"]

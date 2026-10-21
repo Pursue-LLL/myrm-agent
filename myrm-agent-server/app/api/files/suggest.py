@@ -1,0 +1,325 @@
+"""
+[INPUT]
+myrm_agent_harness.toolkits.filesystem_suggest::suggest_workspace_paths (POS: Workspace path suggestion ranker)
+app.services.chat.chat_service::ChatService (POS: Chat metadata and workspace resolver)
+app.core.storage::files_service (POS: Stored file metadata service)
+app.services.wiki.vault::resolve_wiki_vault_path (POS: Wiki vault path resolver)
+myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure (POS: Wiki file system structure manager)
+
+[OUTPUT]
+GET /api/v1/files/suggest: returns structured GUI @ reference suggestions.
+
+[POS]
+File reference suggestion API. Resolves the current chat workspace and returns workspace,
+uploaded, generated, wiki and special references without exposing absolute paths.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+from typing import Literal
+
+from fastapi import APIRouter, Query
+from fastapi.responses import JSONResponse
+from myrm_agent_harness.toolkits.filesystem_suggest import WorkspaceSuggestionOptions, rank_basename, suggest_workspace_paths
+from pydantic import BaseModel, Field
+
+from app.core.storage import files_service
+from app.core.storage.types import FilePurpose
+from app.core.utils.errors import validation_error
+from app.core.utils.response_utils import success_response
+from app.services.chat.chat_service import ChatService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+ReferenceSource = Literal["workspace", "uploaded", "generated", "special", "wiki"]
+ReferenceType = Literal[
+    "workspace_file",
+    "workspace_folder",
+    "uploaded_file",
+    "generated_file",
+    "git_diff",
+    "git_staged",
+    "url",
+    "wiki_concept",
+]
+SuggestionKind = Literal["file", "directory", "reference"]
+
+
+class ReferenceSuggestion(BaseModel):
+    """Single selectable @ reference suggestion."""
+
+    source: ReferenceSource
+    reference_type: ReferenceType
+    kind: SuggestionKind
+    label: str
+    basename: str
+    directory: str = ""
+    relative_path: str | None = None
+    file_id: str | None = None
+    description: str | None = None
+    size: int | None = None
+    score_tier: str
+    score: int
+    match_ranges: list[tuple[int, int]] = Field(default_factory=list)
+    concept_name: str | None = None
+
+
+class ReferenceSuggestResponse(BaseModel):
+    """Response for @ reference suggestions."""
+
+    results: list[ReferenceSuggestion]
+    total: int
+
+
+_SPECIAL_REFERENCES: tuple[ReferenceSuggestion, ...] = (
+    ReferenceSuggestion(
+        source="special",
+        reference_type="git_staged",
+        kind="reference",
+        label="@staged",
+        basename="@staged",
+        description="Git staged changes",
+        score_tier="prefix",
+        score=1000,
+    ),
+    ReferenceSuggestion(
+        source="special",
+        reference_type="git_diff",
+        kind="reference",
+        label="@diff",
+        basename="@diff",
+        description="Git working tree changes",
+        score_tier="prefix",
+        score=990,
+    ),
+    ReferenceSuggestion(
+        source="special",
+        reference_type="workspace_folder",
+        kind="directory",
+        label="@folder:",
+        basename="@folder:",
+        description="Directory tree under workspace",
+        score_tier="prefix",
+        score=980,
+    ),
+    ReferenceSuggestion(
+        source="special",
+        reference_type="url",
+        kind="reference",
+        label="@url:",
+        basename="@url:",
+        description="Fetch webpage content",
+        score_tier="prefix",
+        score=970,
+    ),
+    ReferenceSuggestion(
+        source="special",
+        reference_type="wiki_concept",
+        kind="reference",
+        label="@wiki:",
+        basename="@wiki:",
+        description="Knowledge base concept",
+        score_tier="prefix",
+        score=960,
+    ),
+)
+
+
+@router.get("/suggest", response_model=None)
+async def suggest_references(
+    chat_id: str = Query(..., description="Chat id used to resolve the workspace boundary"),
+    q: str = Query("", description="@ mention query without the leading @"),
+    limit: int = Query(30, ge=1, le=100),
+    kind: Literal["any", "file", "directory"] = Query("any"),
+    source: Literal["all", "workspace", "uploaded", "generated", "special"] = Query("all"),
+) -> JSONResponse:
+    """Suggest safe, structured references for the chat input."""
+
+    query = q.strip()
+    results: list[ReferenceSuggestion] = []
+    chat = await ChatService.get_chat_metadata(chat_id.strip())
+    if chat is None:
+        raise validation_error("Unknown chat_id")
+
+    if source in ("all", "special"):
+        results.extend(_suggest_special(query))
+
+    if source in ("all", "workspace"):
+        workspace = await _resolve_workspace(chat_id)
+        if workspace is not None:
+            results.extend(_suggest_workspace(workspace, query, kind, limit))
+
+    if kind != "directory" and source in ("all", "uploaded", "generated"):
+        results.extend(await _suggest_stored_files(chat_id.strip(), query, source))
+
+    if kind != "directory" and source == "all":
+        agent_id = chat.agent_id if chat is not None else None
+        results.extend(_suggest_wiki(query, agent_id))
+
+    results.sort(key=lambda item: (-item.score, item.source, item.label.lower()))
+    bounded = results[:limit]
+    return success_response(data=ReferenceSuggestResponse(results=bounded, total=len(bounded)).model_dump())
+
+
+async def _resolve_workspace(chat_id: str) -> str | None:
+    from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+    chat = await ChatService.get_chat_metadata(chat_id.strip())
+    if chat is None:
+        raise validation_error("Unknown chat_id")
+    workspace = await resolve_effective_chat_workspace(
+        chat,
+        jit_fallback=True,
+        persist_jit=False,
+    )
+    if not workspace:
+        return None
+    resolved = os.path.realpath(os.path.expanduser(workspace))
+    if not os.path.isdir(resolved):
+        return None
+    return resolved
+
+
+def _suggest_special(query: str) -> list[ReferenceSuggestion]:
+    bare_query = query.lower()
+    if bare_query.startswith("@"):
+        bare_query = bare_query[1:]
+    matches: list[ReferenceSuggestion] = []
+    for item in _SPECIAL_REFERENCES:
+        needle = item.basename.removeprefix("@").removesuffix(":").lower()
+        if not bare_query or needle.startswith(bare_query):
+            matches.append(item)
+    return matches
+
+
+def _suggest_workspace(
+    workspace: str,
+    query: str,
+    kind: Literal["any", "file", "directory"],
+    limit: int,
+) -> list[ReferenceSuggestion]:
+    options = WorkspaceSuggestionOptions(limit=limit, kind=kind)
+    suggestions = suggest_workspace_paths(workspace, query, options)
+    results: list[ReferenceSuggestion] = []
+    for item in suggestions:
+        reference_type: ReferenceType = "workspace_folder" if item.kind == "directory" else "workspace_file"
+        results.append(
+            ReferenceSuggestion(
+                source="workspace",
+                reference_type=reference_type,
+                kind=item.kind,
+                label=item.basename,
+                basename=item.basename,
+                directory=item.directory,
+                relative_path=item.relative_path,
+                size=item.size,
+                score_tier=item.score_tier,
+                score=item.score,
+                match_ranges=item.match_ranges,
+            )
+        )
+    return results
+
+
+async def _suggest_stored_files(
+    chat_id: str,
+    query: str,
+    source: Literal["all", "workspace", "uploaded", "generated", "special"],
+) -> list[ReferenceSuggestion]:
+    purposes: list[FilePurpose]
+    if source == "uploaded":
+        purposes = [FilePurpose.UPLOAD]
+    elif source == "generated":
+        purposes = [FilePurpose.GENERATED]
+    else:
+        purposes = [FilePurpose.UPLOAD, FilePurpose.GENERATED]
+
+    results: list[ReferenceSuggestion] = []
+    for purpose in purposes:
+        files = await files_service.list_files(purpose=purpose, include_expired=False)
+        for file in files:
+            # A file bound to a chat (generated there, or uploaded in an incognito chat) is private to it.
+            if file.source_chat_id and file.source_chat_id != chat_id:
+                continue
+            rank = rank_basename(file.filename, query)
+            if rank is None:
+                continue
+            tier, score, ranges = rank
+            basename = Path(file.filename).name
+            results.append(
+                ReferenceSuggestion(
+                    source="uploaded" if purpose == FilePurpose.UPLOAD else "generated",
+                    reference_type="uploaded_file" if purpose == FilePurpose.UPLOAD else "generated_file",
+                    kind="file",
+                    label=basename,
+                    basename=basename,
+                    directory="Uploaded files" if purpose == FilePurpose.UPLOAD else "Generated files",
+                    file_id=file.id,
+                    description=file.content_type,
+                    size=file.size,
+                    score_tier=tier,
+                    score=score,
+                    match_ranges=ranges,
+                )
+            )
+    return results
+
+
+def _suggest_wiki(query: str, agent_id: str | None = None) -> list[ReferenceSuggestion]:
+    """Search wiki concepts and return matching suggestions."""
+    try:
+        from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+        from app.services.wiki.vault import resolve_wiki_vault_path
+
+        vault_path = resolve_wiki_vault_path(agent_id)
+        structure = WikiStructure(vault_path)
+        concept_paths = structure.list_concepts()
+
+        results: list[ReferenceSuggestion] = []
+        for concept_path in concept_paths:
+            try:
+                rel = concept_path.relative_to(structure.concepts_dir)
+                concept_name = str(rel.with_suffix("")).replace("\\", "/")
+            except ValueError:
+                concept_name = concept_path.stem
+
+            display_name = concept_name.rsplit("/", maxsplit=1)[-1]
+            rank = rank_basename(display_name, query)
+            if rank is None and query:
+                rank = rank_basename(concept_name, query)
+            if rank is None and query:
+                continue
+
+            tier, score, ranges = rank if rank else ("prefix", 800, [])
+            first_line = ""
+            try:
+                with open(concept_path, encoding="utf-8", errors="replace") as f:
+                    first_line = f.readline().strip().removeprefix("#").strip()[:80]
+            except OSError:
+                pass
+
+            results.append(
+                ReferenceSuggestion(
+                    source="wiki",
+                    reference_type="wiki_concept",
+                    kind="reference",
+                    label=f"@wiki:{concept_name}",
+                    basename=display_name,
+                    directory="Knowledge base",
+                    concept_name=concept_name,
+                    description=first_line or None,
+                    score_tier=tier,
+                    score=score,
+                    match_ranges=ranges,
+                )
+            )
+        return results
+    except Exception as exc:
+        logger.debug("Wiki suggest unavailable: %s", exc)
+        return []

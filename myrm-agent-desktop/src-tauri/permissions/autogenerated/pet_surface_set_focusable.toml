@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pet-surface-set-focusable"
+description = "Enables the pet_surface_set_focusable command without any pre-configured scope."
+commands.allow = ["pet_surface_set_focusable"]
+
+[[permission]]
+identifier = "deny-pet-surface-set-focusable"
+description = "Denies the pet_surface_set_focusable command without any pre-configured scope."
+commands.deny = ["pet_surface_set_focusable"]

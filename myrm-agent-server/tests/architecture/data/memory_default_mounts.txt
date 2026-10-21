@@ -1,0 +1,31 @@
+# Memory routers mounted for every user. Read by tests/architecture/test_memory_router_mounts.py.
+# A bare line is an unattributed default mount: it can only be removed. A new mount goes behind `if settings.memory_labs_enabled:`
+# in app/api/memory/router.py, or is added here as `<include_router first argument> | <default-visible caller file:line>`.
+pending.router
+conflicts.router
+shared_context_health.router
+shared_contexts.router
+shared_context_history.router
+guardian.router
+working_state.router
+crud.router
+head_probe.router
+backup.router
+backup_remote.router
+reindex.router
+archive_restore.router
+tool_guidance.router
+external_transcripts.router
+domain_mesh.router
+profile_notes_router
+memory_migration_router
+radar.router
+follow_ups_router
+onboarding.router
+private_notebook_router
+ephemeral_delta_router
+two_layer_dialectic_router
+budget_packing_router
+mem_cube_router
+markdown_chunker_router
+score_honesty_router

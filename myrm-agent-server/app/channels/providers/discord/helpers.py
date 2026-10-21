@@ -1,0 +1,206 @@
+"""Helper functions for Discord channel integration.
+
+[INPUT]
+- channels.types.messages::OutboundMessage, (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
+- channels.types.components::ActionButton, (POS: UI component type definitions Cross-channel interactive component abstractions  Support in)
+
+[OUTPUT]
+- build_discord_components: 将 Myrm ComponentConvert为 discord.ui.View
+- build_discord_embed: 将 Myrm 消息ContentConvert为 discord.Embed
+- DiscordMedia / build_discord_media: split media attachments into uploads, unfurled links and unsendable ones
+- is_forum_channel / derive_thread_name: forum-channel detection and thread titles from message text
+- reply_reference: native reply target (message id plus channel id) for an outbound reply
+
+[POS]
+Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, TypeGuard
+
+import discord
+
+from app.channels.types.components import (
+    ActionButton,
+    ButtonStyle,
+    SelectMenu,
+)
+from app.channels.types.messages import OutboundMessage
+
+if TYPE_CHECKING:
+    from app.channels.types.messages import MediaAttachment
+
+logger = logging.getLogger(__name__)
+
+# Discord Button Style Mapping
+_BUTTON_STYLE_MAP = {
+    ButtonStyle.PRIMARY: discord.ButtonStyle.primary,
+    ButtonStyle.DANGER: discord.ButtonStyle.danger,
+    ButtonStyle.DEFAULT: discord.ButtonStyle.secondary,
+}
+
+
+def build_discord_components(msg: OutboundMessage) -> discord.ui.View | None:
+    """Convert OutboundMessage components and quick_replies to a Discord View."""
+    if not msg.components and not msg.quick_replies:
+        return None
+
+    view = discord.ui.View()
+    has_items = False
+
+    # 1. Add standard components (Buttons, SelectMenus)
+    for row_idx, row in enumerate(msg.components):
+        for item in row:
+            if isinstance(item, ActionButton):
+                if item.url:
+                    # Link button (no custom_id allowed)
+                    btn: discord.ui.Button[discord.ui.View] = discord.ui.Button(
+                        style=discord.ButtonStyle.link,
+                        label=item.label,
+                        url=item.url,
+                        row=row_idx,
+                    )
+                else:
+                    # Callback button
+                    btn = discord.ui.Button(
+                        style=_BUTTON_STYLE_MAP.get(item.style, discord.ButtonStyle.secondary),
+                        label=item.label,
+                        custom_id=f"act:{item.action_id}:{item.value}",
+                        row=row_idx,
+                    )
+                view.add_item(btn)
+                has_items = True
+            elif isinstance(item, SelectMenu):
+                options = [
+                    discord.SelectOption(label=opt.label, value=opt.value, description=opt.description) for opt in item.options
+                ]
+                select: discord.ui.Select[discord.ui.View] = discord.ui.Select(
+                    custom_id=f"sel:{item.action_id}",
+                    placeholder=item.placeholder,
+                    options=options,
+                    row=row_idx,
+                )
+                view.add_item(select)
+                has_items = True
+
+    # 2. Add quick replies as secondary buttons (if space permits)
+    # Discord allows max 5 rows, 5 buttons per row. We put quick replies in the last available row.
+    if msg.quick_replies:
+        qr_row = min(4, len(msg.components))  # Try to put in the next row, max row index is 4
+        for qr in msg.quick_replies:
+            # Only render required quick replies as buttons, or all if we want to be generous
+            # For Discord, we render all quick replies as secondary buttons
+            btn = discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label=qr.label,
+                custom_id=f"qr:{qr.text}",
+                row=qr_row,
+            )
+            try:
+                view.add_item(btn)
+                has_items = True
+            except ValueError:
+                # View is full (max 25 items)
+                logger.warning("Discord View is full, dropping remaining quick replies")
+                break
+
+    return view if has_items else None
+
+
+def build_discord_embed(msg: OutboundMessage) -> discord.Embed | None:
+    """Build a Discord Embed if the message has reasoning or tool steps."""
+    if not msg.reasoning and not msg.tool_steps:
+        return None
+
+    embed = discord.Embed(color=discord.Color.blurple())
+
+    if msg.reasoning:
+        # Discord embed description limit is 4096
+        reasoning_text = msg.reasoning[:4090] + "..." if len(msg.reasoning) > 4096 else msg.reasoning
+        embed.add_field(name=" Thinking Process", value=f"```\n{reasoning_text}\n```", inline=False)
+
+    if msg.tool_steps:
+        steps_text = "\n".join(f"• **{step.label}**" + (f": {step.detail}" if step.detail else "") for step in msg.tool_steps)
+        steps_text = steps_text[:1020] + "..." if len(steps_text) > 1024 else steps_text
+        embed.add_field(name=" Tool Execution", value=steps_text, inline=False)
+
+    return embed
+
+
+@dataclass(frozen=True, slots=True)
+class DiscordMedia:
+    """Outbound attachments sorted by how Discord can take them."""
+
+    files: list[discord.File]
+    """Local files, uploaded with the message."""
+    links: list[str]
+    """URL-only attachments: posted as links, which Discord unfurls into previews."""
+    failed: list[str]
+    """Display names of attachments that cannot be sent at all (unreadable file, no source)."""
+
+
+def build_discord_media(media: Sequence[MediaAttachment]) -> DiscordMedia:
+    """Sort MediaAttachments into uploads, links and unsendable ones."""
+    files: list[discord.File] = []
+    links: list[str] = []
+    failed: list[str] = []
+    for m in media:
+        if m.path:
+            try:
+                files.append(discord.File(fp=m.path, filename=m.filename))
+            except OSError as exc:
+                logger.warning("Discord attachment %s is unreadable: %s", m.display_name, exc)
+                failed.append(m.display_name)
+        elif m.url:
+            links.append(m.url)
+        else:
+            failed.append(m.display_name)
+    return DiscordMedia(files, links, failed)
+
+
+def is_forum_channel(channel: discord.abc.Messageable | None) -> TypeGuard[discord.ForumChannel]:
+    """Check whether *channel* is a Discord Forum channel (type 15).
+
+    Uses a dual check (isinstance + raw type value) for compatibility
+    across discord.py versions where ForumChannel may not exist.
+    """
+    if channel is None:
+        return False
+    forum_cls = getattr(discord, "ForumChannel", None)
+    if forum_cls and isinstance(channel, forum_cls):
+        return True
+    channel_type = getattr(channel, "type", None)
+    if channel_type is not None:
+        type_value = getattr(channel_type, "value", channel_type)
+        if type_value == 15:
+            return True
+    return False
+
+
+def derive_thread_name(content: str) -> str:
+    """Extract a thread title from message content (first non-empty line, max 100 chars)."""
+    for line in content.split("\n"):
+        cleaned = line.strip().lstrip("#").strip()
+        if cleaned:
+            return cleaned[:100]
+    return "New Post"
+
+
+def reply_reference(channel: discord.abc.Messageable, reply_to_id: str) -> discord.MessageReference | None:
+    """Native Discord reply target for ``reply_to_id`` inside ``channel``.
+
+    Discord needs the channel id next to the message id. ``None`` means the id cannot be addressed
+    (not a snowflake, or a channel without an id), so the message goes out as a plain post.
+    """
+    channel_id = getattr(channel, "id", None)
+    if not isinstance(channel_id, int):
+        return None
+    try:
+        message_id = int(reply_to_id)
+    except ValueError:
+        return None
+    return discord.MessageReference(message_id=message_id, channel_id=channel_id, fail_if_not_exists=False)

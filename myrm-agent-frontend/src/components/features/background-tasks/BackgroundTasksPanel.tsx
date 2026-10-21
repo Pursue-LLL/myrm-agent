@@ -1,0 +1,543 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Terminal } from 'lucide-react';
+import { IconSearch, IconX } from '@/components/features/icons/PremiumIcons';
+import { Input } from '@/components/primitives/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
+import { toast } from '@/lib/utils/toast';
+import { fetchWithTimeout } from '@/lib/api';
+import {
+  listBackgroundTasks,
+  cancelBackgroundTask,
+  steerBackgroundTask,
+  sendShellBackgroundStdin,
+  evictedFilenameFromVaultRef,
+  type BackgroundTask,
+} from '@/services/background-tasks';
+import { cancelMediaTask } from '@/services/mediaTasks';
+import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
+import { isRiskHeldError } from '@/services/riskHeldToast';
+import { useGlobalMediaTaskNotifications } from '@/hooks/tasks/useGlobalMediaTaskNotifications';
+import { useMediaBackgroundTasks } from '@/hooks/tasks/useMediaBackgroundTasks';
+import { ActiveGoalsSection } from './ActiveGoalsSection';
+import { BackgroundTaskRow } from './BackgroundTaskRow';
+import { MediaTaskRow } from './MediaTaskRow';
+import { type ActiveGoal, IDLE_STOP_THRESHOLD, POLL_FAST_MS, POLL_SLOW_MS } from './backgroundTasksPanel.constants';
+import EvictedDrawerSuspenseFallback from '@/components/features/message-box/progress-steps/renderers/EvictedDrawerSuspenseFallback';
+
+const EvictedOutputDrawer = lazy(
+  () => import('@/components/features/message-box/progress-steps/renderers/EvictedOutputDrawer'),
+);
+
+interface VaultLogDrawerState {
+  chatId: string;
+  filename: string;
+}
+
+interface BackgroundTasksPanelProps {
+  trigger: React.ReactNode;
+}
+
+export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelProps) {
+  const t = useTranslations('backgroundTasks');
+  const router = useRouter();
+  useGlobalMediaTaskNotifications();
+  const { mediaTasks, recentTerminalMediaTasks, refetchMediaTasks } = useMediaBackgroundTasks();
+  const [tasks, setTasks] = useState<BackgroundTask[]>([]);
+  const [registryEphemeral, setRegistryEphemeral] = useState(false);
+  const [activeGoals, setActiveGoals] = useState<ActiveGoal[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [recentMediaExpanded, setRecentMediaExpanded] = useState(false);
+  const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
+  const [steerInput, setSteerInput] = useState('');
+  const [shellInputTaskId, setShellInputTaskId] = useState<string | null>(null);
+  const [shellInput, setShellInput] = useState('');
+  const [vaultLogDrawer, setVaultLogDrawer] = useState<VaultLogDrawerState | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const idleCountRef = useRef(0);
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const result = await listBackgroundTasks();
+      setTasks(result.tasks);
+      setRegistryEphemeral(Boolean(result.registry_ephemeral));
+      const hasRunning = result.tasks.some((task) => task.status === 'running');
+      idleCountRef.current = hasRunning ? 0 : idleCountRef.current + 1;
+    } catch {
+      // silent - panel is non-critical UI
+    }
+  }, []);
+
+  const fetchActiveGoals = useCallback(async () => {
+    try {
+      const res = await fetchWithTimeout('/goals/active');
+      if (!res.ok) {
+        return;
+      }
+      const data = await res.json();
+      setActiveGoals(data.goals || []);
+    } catch {
+      // silent - non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    idleCountRef.current = 0;
+    fetchTasks();
+    fetchActiveGoals();
+    void refetchMediaTasks();
+    const interval = setInterval(() => {
+      fetchTasks();
+      fetchActiveGoals();
+      void refetchMediaTasks();
+    }, POLL_FAST_MS);
+    return () => clearInterval(interval);
+  }, [isOpen, fetchTasks, fetchActiveGoals, refetchMediaTasks]);
+
+  useEffect(() => {
+    if (isOpen) {
+      return;
+    }
+
+    fetchTasks();
+    fetchActiveGoals();
+    void refetchMediaTasks();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      if (idleCountRef.current >= IDLE_STOP_THRESHOLD) {
+        return;
+      }
+      fetchTasks();
+      fetchActiveGoals();
+      void refetchMediaTasks();
+    }, POLL_SLOW_MS);
+
+    return () => clearInterval(interval);
+  }, [isOpen, fetchTasks, fetchActiveGoals, refetchMediaTasks]);
+
+  useEffect(() => subscribeBackgroundTasksChanged(fetchTasks), [fetchTasks]);
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredActiveGoals = useMemo(() => {
+    if (!normalizedQuery) {
+      return activeGoals;
+    }
+    return activeGoals.filter((goal) => {
+      return (
+        goal.objective.toLowerCase().includes(normalizedQuery) ||
+        goal.status.toLowerCase().includes(normalizedQuery) ||
+        goal.session_id.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [activeGoals, normalizedQuery]);
+
+  const filteredMediaTasks = useMemo(() => {
+    if (!normalizedQuery) {
+      return mediaTasks;
+    }
+    return mediaTasks.filter((task) => {
+      const prompt = String(task.payload?.prompt ?? '').toLowerCase();
+      const taskType = (task.task_type ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        taskType.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery)
+      );
+    });
+  }, [mediaTasks, normalizedQuery]);
+
+  const filteredRecentTerminalMediaTasks = useMemo(() => {
+    if (!normalizedQuery) {
+      return recentTerminalMediaTasks;
+    }
+    return recentTerminalMediaTasks.filter((task) => {
+      const prompt = String(task.payload?.prompt ?? '').toLowerCase();
+      const taskType = (task.task_type ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        taskType.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery)
+      );
+    });
+  }, [recentTerminalMediaTasks, normalizedQuery]);
+
+  const agentTasks = useMemo(() => {
+    const list = tasks.filter((task) => (task.kind ?? 'agent') !== 'shell');
+    if (!normalizedQuery) {
+      return list;
+    }
+    return list.filter((task) => {
+      const prompt = (task.prompt ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      const resultPreview = (task.result_preview ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery) ||
+        resultPreview.includes(normalizedQuery)
+      );
+    });
+  }, [tasks, normalizedQuery]);
+
+  const shellTasks = useMemo(() => {
+    const list = tasks.filter((task) => task.kind === 'shell');
+    if (!normalizedQuery) {
+      return list;
+    }
+    return list.filter((task) => {
+      const prompt = (task.prompt ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      const resultPreview = (task.result_preview ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery) ||
+        resultPreview.includes(normalizedQuery)
+      );
+    });
+  }, [tasks, normalizedQuery]);
+
+  const handleGoalAction = async (sessionId: string, action: string) => {
+    try {
+      const res = await fetchWithTimeout(`/goals/${sessionId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed');
+      }
+      toast.success(t('goalActionSuccess'));
+      fetchActiveGoals();
+    } catch {
+      toast.error(t('cancelFailed'));
+    }
+  };
+
+  const handleCancel = async (taskId: string) => {
+    try {
+      await cancelBackgroundTask(taskId);
+      toast.success(t('cancelSuccess'));
+      fetchTasks();
+    } catch {
+      toast.error(t('cancelFailed'));
+    }
+  };
+
+  const handleCancelMediaTask = async (taskId: string) => {
+    try {
+      await cancelMediaTask(taskId);
+      toast.success(t('cancelSuccess'));
+      void refetchMediaTasks();
+    } catch {
+      toast.error(t('cancelFailed'));
+    }
+  };
+
+  const handleNavigateChat = (chatId: string) => {
+    setIsOpen(false);
+    router.push(`/chat/${chatId}`);
+  };
+
+  const handleViewVaultLog = (chatId: string, vaultLogRef: string) => {
+    setVaultLogDrawer({
+      chatId,
+      filename: evictedFilenameFromVaultRef(vaultLogRef),
+    });
+  };
+
+  const handleSteer = async (taskId: string) => {
+    if (!steerInput.trim()) {
+      return;
+    }
+    try {
+      await steerBackgroundTask(taskId, steerInput.trim());
+      toast.success(t('steerSuccess'));
+      setSteerTaskId(null);
+      setSteerInput('');
+    } catch (error) {
+      // `apiRequest` has already shown the notice for a held instruction; a second toast would repeat it.
+      if (!isRiskHeldError(error)) {
+        toast.error(t('steerFailed'));
+      }
+    }
+  };
+
+  const handleToggleSteer = (taskId: string) => {
+    setSteerTaskId((current) => (current === taskId ? null : taskId));
+    setSteerInput('');
+    setShellInputTaskId(null);
+    setShellInput('');
+  };
+
+  const handleToggleShellInput = (taskId: string) => {
+    setShellInputTaskId((current) => (current === taskId ? null : taskId));
+    setShellInput('');
+    setSteerTaskId(null);
+    setSteerInput('');
+  };
+
+  const handleShellInputSend = async (taskId: string, value?: string) => {
+    const nextValue = value ?? shellInput;
+    if (value === undefined && !nextValue.trim()) {
+      return;
+    }
+    try {
+      await sendShellBackgroundStdin(taskId, nextValue, { submit: true });
+      toast.success(t('shellInputSuccess'));
+      setShellInputTaskId(null);
+      setShellInput('');
+      fetchTasks();
+    } catch {
+      toast.error(t('shellInputFailed'));
+    }
+  };
+
+  const handleShellInputClose = async (taskId: string) => {
+    try {
+      await sendShellBackgroundStdin(taskId, '', { close: true });
+      toast.success(t('shellInputCloseSuccess'));
+      setShellInputTaskId(null);
+      setShellInput('');
+      fetchTasks();
+    } catch {
+      toast.error(t('shellInputCloseFailed'));
+    }
+  };
+
+  const runningCount = tasks.filter((task) => task.status === 'running').length;
+  const activeMediaCount = mediaTasks.length;
+  const totalBadge = runningCount + activeGoals.length + activeMediaCount;
+  const hasPanelContent =
+    tasks.length > 0 || activeGoals.length > 0 || mediaTasks.length > 0 || recentTerminalMediaTasks.length > 0;
+
+  return (
+    <>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Tooltip open={isOpen ? false : undefined}>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <div className="relative inline-flex cursor-pointer">
+                {trigger}
+                {totalBadge > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                    {totalBadge}
+                  </span>
+                )}
+              </div>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right">{t('title')}</TooltipContent>
+        </Tooltip>
+        <PopoverContent
+          className="w-[340px] p-0 border-border/50 bg-popover/95 backdrop-blur-xl sm:w-[380px]"
+          align="end"
+          sideOffset={8}
+        >
+          <div className="border-b border-border/50 px-4 py-3">
+            <h3 className="text-sm font-medium text-foreground">{t('title')}</h3>
+            {registryEphemeral ? (
+              <p className="mt-1 text-xs text-muted-foreground/80">{t('ephemeralRegistryNotice')}</p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground/80">{t('durableRegistryNotice')}</p>
+            )}
+            {hasPanelContent && (
+              <div className="relative mt-2.5">
+                <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('searchPlaceholder')}
+                  className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border/60 placeholder:text-muted-foreground/60"
+                  data-testid="background-tasks-search-input"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label={t('clearSearch')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    <IconX className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="max-h-[360px] overflow-y-auto sm:max-h-[400px]">
+            <ActiveGoalsSection
+              goals={filteredActiveGoals}
+              onNavigateChat={handleNavigateChat}
+              onGoalAction={handleGoalAction}
+            />
+
+            {hasPanelContent ? (
+              <>
+                {filteredMediaTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                      {t('media.section')} ({filteredMediaTasks.length})
+                    </div>
+                    <div className="divide-y divide-border/20">
+                      {filteredMediaTasks.map((task) => (
+                        <MediaTaskRow
+                          key={task.task_id}
+                          task={task}
+                          variant="active"
+                          onCancel={handleCancelMediaTask}
+                          onNavigateChat={handleNavigateChat}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {filteredRecentTerminalMediaTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:bg-muted/20"
+                      onClick={() => setRecentMediaExpanded((expanded) => !expanded)}
+                      aria-expanded={recentMediaExpanded}
+                      data-testid="media-recent-toggle"
+                    >
+                      <span>
+                        {t('media.recentSection')} ({filteredRecentTerminalMediaTasks.length})
+                      </span>
+                      <span className="normal-case tracking-normal text-muted-foreground">
+                        {recentMediaExpanded ? t('media.hideRecent') : t('media.showRecent')}
+                      </span>
+                    </button>
+                    {recentMediaExpanded && (
+                      <div className="divide-y divide-border/20">
+                        {filteredRecentTerminalMediaTasks.map((task) => (
+                          <MediaTaskRow
+                            key={task.task_id}
+                            task={task}
+                            variant="terminal"
+                            onNavigateChat={handleNavigateChat}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {shellTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                      <Terminal className="mr-1 inline h-3 w-3" />
+                      {t('shellSection')} ({shellTasks.length})
+                    </div>
+                    <div className="divide-y divide-border/20">
+                      {shellTasks.map((task) => (
+                        <BackgroundTaskRow
+                          key={task.task_id}
+                          task={task}
+                          allowSteer={false}
+                          allowShellInput={task.status === 'running' && !task.stdin_closed}
+                          steerTaskId={steerTaskId}
+                          shellInputTaskId={shellInputTaskId}
+                          steerInput={steerInput}
+                          shellInput={shellInput}
+                          onSteerInputChange={setSteerInput}
+                          onShellInputChange={setShellInput}
+                          onToggleSteer={handleToggleSteer}
+                          onToggleShellInput={handleToggleShellInput}
+                          onSteer={handleSteer}
+                          onShellInputSend={handleShellInputSend}
+                          onPromptOptionSelect={(taskId, option) => handleShellInputSend(taskId, option.value)}
+                          onShellInputClose={handleShellInputClose}
+                          onCancel={handleCancel}
+                          onNavigateChat={handleNavigateChat}
+                          onViewVaultLog={handleViewVaultLog}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {agentTasks.length > 0 && (
+                  <div className="border-b border-border/30">
+                    <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                      {t('agentSection')} ({agentTasks.length})
+                    </div>
+                    <div className="divide-y divide-border/20">
+                      {agentTasks.map((task) => (
+                        <BackgroundTaskRow
+                          key={task.task_id}
+                          task={task}
+                          allowSteer
+                          allowShellInput={false}
+                          steerTaskId={steerTaskId}
+                          shellInputTaskId={shellInputTaskId}
+                          steerInput={steerInput}
+                          shellInput={shellInput}
+                          onSteerInputChange={setSteerInput}
+                          onShellInputChange={setShellInput}
+                          onToggleSteer={handleToggleSteer}
+                          onToggleShellInput={handleToggleShellInput}
+                          onSteer={handleSteer}
+                          onShellInputSend={handleShellInputSend}
+                          onPromptOptionSelect={(taskId, option) => handleShellInputSend(taskId, option.value)}
+                          onShellInputClose={handleShellInputClose}
+                          onCancel={handleCancel}
+                          onNavigateChat={handleNavigateChat}
+                          onViewVaultLog={handleViewVaultLog}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {searchQuery.trim().length > 0 &&
+                  filteredActiveGoals.length === 0 &&
+                  filteredMediaTasks.length === 0 &&
+                  filteredRecentTerminalMediaTasks.length === 0 &&
+                  shellTasks.length === 0 &&
+                  agentTasks.length === 0 && (
+                    <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+                      {t('noSearchResults')}
+                    </div>
+                  )}
+              </>
+            ) : (
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t('empty')}</div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {vaultLogDrawer && (
+        <Suspense fallback={<EvictedDrawerSuspenseFallback />}>
+          <EvictedOutputDrawer
+            filename={vaultLogDrawer.filename}
+            chatId={vaultLogDrawer.chatId}
+            onClose={() => setVaultLogDrawer(null)}
+          />
+        </Suspense>
+      )}
+    </>
+  );
+}

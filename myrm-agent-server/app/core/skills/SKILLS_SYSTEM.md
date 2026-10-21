@@ -1,0 +1,186 @@
+# 技能管理系统设计文档
+
+> 业务层：`app.core.skills` | 框架层：`myrm_agent_harness.backends.skills`
+
+---
+
+## 一、设计目标
+
+构建**适配层**技能管理系统：
+
+- **专注适配**：连接业务层和框架层，不实现存储细节
+- **SKILL.md 规范**：符合 Claude 官方规范，单一配置文件
+- **多存储后端**：Local / Storage（经 `StorageProvider`，本地文件系统或持久卷）/ 业务层自定义
+
+---
+
+## 二、分层架构
+
+```
+app/api/skills/    API 路由
+    ↓
+app/core/skills/   业务适配层（本模块）
+    ├── loader.py       SkillBackend 工厂
+    ├── store/          CRUD / 进化存储单例 / 用户配置
+    ├── creation/       技能创作（SkillWriteBackend 本地实现）
+    ├── packaging/      打包 / 解包 / 校验
+    ├── providers/      本地提供者
+    ├── discovery/      发现 / 采纳 / 挂载 / 上游更新
+    ├── marketplace/    市场 / ClawHub 镜像 / 自定义源
+    ├── gates/          集成凭证 / 权限 / 隔离 / 依赖 gate
+    └── curator/        Curator 治理 / 技能合并（consolidation）
+    ↓
+myrm_agent_harness.backends.skills/   框架层实现
+    ├── LocalSkillBackend
+    ├── StorageSkillBackend
+    └── CompositeSkillBackend
+```
+
+---
+
+## 三、核心流程
+
+### 3.1 技能加载
+
+```
+SkillBackend.load_skills(skill_ids)
+    → 解析 SKILL.md frontmatter
+    → 返回 SkillMetadata 列表
+
+SkillBackend.get_skill_content(列表里的名称或 storage_skill_id)
+    → CompositeSkillBackend 按列表优先级逐后端询问，由持有该技能的后端返回 SKILL.md
+    → /user/ 的 LOCAL 技能直接读其磁盘目录；/prebuilt/ 只读用户已启用的 prebuilt
+```
+
+列出的技能都能读到内容（SOP、hooks、资源）：运行时按 `[use <名称>]` 激活技能时，名称既可以是 Catalog 名称（`hookprobe-1a2b`），也可以是运行时名称（`hookprobe_1a2b_skill`）或 `storage_skill_id`。
+
+### 3.2 技能发现与安装
+
+```
+discovery/    搜索外部源（空 query 返回 []，需用户显式搜索）
+    → sources/     MCP 源、市场源（ClawHub / ModelScope / Aliyun 等）
+    → installers/  安装流程编排
+marketplace/market_service  业务层：GitHub 源分析、自定义源、ClawHub 镜像懒加载、installed_skill_id 搜索 enrich
+discovery/mount 安装/更新后 catalog enable 入口（prebuilt/local）
+discovery/adopt   显式 agent.skill_ids 非空时，Discover install 自动 append 新技能（采纳契约）
+marketplace/clawhub_registry UserSkillConfig.clawhub_registry_url → CLAWHUB_URL（运行时 SSOT）；bootstrap 迁移 OpenClaw legacy env；CN 预设 skill.xfyun.cn；legacy skillhub.cn 自动迁移；strict probe 验 ClawHub dict JSON
+marketplace/clawhub_probe     切换国内镜像前 Block 0 可达性探测（GET /skills/discovery/registry-probe）
+effective_skill_ids  解析 Agent 显式 allowlist（所见即所得标准：空名单装配 0 技能）；legacy local::{name} 读时迁移（全 local_skill_paths 根）
+local_skill_id (harness)  local::{16hex} path-hash SSOT；install/uninstall/catalog 对齐
+```
+
+**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。内置通用智能体（如 `builtin-general`）默认不加载任何技能（`skill_ids = []`，纯指令零启动基线），用户可在配置中自主启用所需技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能，并广播 `agent_config_updated`；当前聊天会话若已绑定同一 Agent，前端通过 `syncBoundChatAgentConfig` 刷新 `selectedSkillIds`。Chat 与 Discover HTTP 共用 `discovery/market_install_flow.py`（replace 快照、`app.core.skills.audit`、catalog enable、采纳）；Web 回合在 `orchestrator_turn_launch` 的后台 turn 入口绑定 `get_current_agent_id()`。
+
+### 3.3 打包与解包
+
+```
+packaging/packer.py    目录 → 技能包
+packaging/unpacker.py  技能包 → 目录
+packaging/validator.py 校验包格式
+```
+
+### 3.4 预置技能种子（prebuilt_seeds）
+
+```
+prebuilt_seeds/{name}/SKILL.md   版本控制的工作流定义（YAML frontmatter + contract）
+prebuilt_sync.py                 启动时同步到 storage + 清理幽灵条目
+    → 写入 skills/prebuilt/{id}/SKILL.md
+    → 写入 skills/prebuilt/{id}/_metadata.json（供 list_prebuilt_skills 发现）
+    → 清理 storage 中已无对应 seed 目录的孤儿 SKILL.md 与 _metadata.json
+user_config.ensure_prebuilt_enabled_after_sync()
+    → 新安装（无 config 文件）：默认启用精选通用办公技能集（`_DEFAULT_ENABLED_PREBUILT_SKILLS`：数据分析 / 深度调研 / 文档解析 / 办公文档生成 / PDF 生成）
+    → 已有配置：保持用户已选启用列表；从 enabled/disabled 列表移除已无 seed 的幽灵 ID
+builtin_initializer                  BuiltIn Agent 不绑定 user 技能（skill_ids = []）；
+                                      预置体可用技能 = 用户全局启用的 prebuilt 集（agent 绑定不参与该判定）
+```
+
+存储路径约定见 `app.core.storage.paths`（`SKILL_METADATA_FILE = _metadata.json`）。
+
+### 3.5 预置技能 vs Harness 工具（边界）
+
+| 问题 | 答案 |
+|------|------|
+| 第三方 SaaS（Google/Notion/Linear）怎么用？ | **Skill** 编排 `web_fetch_tool` / `bash_code_execute_tool`；或用户配置 **MCP** |
+| 何时新增 harness `@tool()`？ | 仅当能力是**跨项目通用框架原语**（见 `toolkits/_ARCH.md`） |
+| 预置 skill 上架条件 | `allowed-tools` 工具名正确（CI：`test_prebuilt_allowed_tools_match_tool_registry`）+ 依赖 OAuth/MCP **已在产品中可用** |
+| 正例 | Google Workspace prebuilt skill + Settings OAuth GUI；`x-live-search` prebuilt skill + xAI provider + 沙箱标准脚本 PTC（**不依赖** Agent Web Search/Tavily，0 Action Tool 注册） |
+
+Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harness 工具实现单一厂商集成。
+
+### 3.6 预置 skill  bundled scripts（bash 可执行）
+
+| 步骤 | 说明 |
+|------|------|
+| Seed 同步 | `prebuilt_sync._sync_skill_bundle_files` 将 `scripts/` 等写入 storage |
+| SKILL 命令 | 使用 `.claude/skills/{skill-id}/scripts/...` 全路径（含连字符 skill 名） |
+| Runtime | `bash_executor` 检测路径 → `SkillWorkspaceManager` stage → cwd + token inject |
+| OAuth scope | 集成 skill 的 SKILL.md frontmatter `oauth_issuer`（如 `google_workspace`）→ harness 解析为 `SkillMetadata.oauth_issuer` → bash 检测到 skill 路径时 `ExecutionContext.allowed_credential_issuers` 仅注入对应 issuer；generic bash（无 skill 路径）仍注入全部 session 凭证 |
+
+### 3.7 Integration OAuth availability
+
+| 步骤 | 说明 |
+|------|------|
+| OAuth 存储 | `app/services/integrations/oauth_store.py` — `oauthCredentials` 加密 blob |
+| 判定 | `is_oauth_issuer_connected(db, issuer)` |
+| Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/available` |
+| Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
+| 快照与适配 | Skills 页读取持久化快照；prebuilt 快照的 `requires` 在同步时取自实际留存的 SKILL.md（用户改过则以用户副本为准），在线编辑 SKILL.md 后于下次同步对齐。绑定到 Agent 的技能经 `/user/` 路由由 `runtime_metadata.skill_to_runtime_metadata` 还原为运行时元数据（requires / trust / allowed_tools / always / 调用开关等），availability 由运行时 gate 重算 |
+| 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、x-live-search provider gate（`resolve_xai_search_config`）；所有声明了 `requires`（bins / env / config）的 skill 由 `requirements_availability.py` 统一重算，无需逐 skill 登记 |
+| Bash 注入 | `SessionCredentialAssembler` → `user_credentials_ctx`（Web / Channel / Cron / channel approval resume）→ harness bash env；详见 harness `SECURITY_DESIGN.md` §3.2.3 |
+| GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill；仅依赖 env 密钥且不可用的技能卡片提供就地「配置密钥」按钮，打开详情侧栏（密钥在侧栏内填写，保存后可用性按 `skill_env_vars` 重算）；缺账号或连接器的技能显示本地化的“去设置连接”提示，同时声明了 bins / env / config 的技能显示服务端原因（缺的可能不是账号） |
+| Write tier | `POST /oauth/start` `{tier: write}` 增量 consent；`write_enabled` on status API |
+| Fail-closed | DB enrich 异常时 integration skill 标记 unavailable |
+| Bin gate scope | `requires.bins` 使用 server 进程 `PATH`（与 harness `check_requirements` 一致）；桌面端 PATH 由 sidecar 启动时补全；sandbox 内 CLI 可用性以运行时 bash 错误为准 |
+| Env gate scope | `requires.env` 的每个变量须存在于进程 env 或该 skill 的 `UserSkillConfig.skill_env_vars`（非空白）——与 `resolve_skill_env_map` 运行时注入使用同一份 `lookup_skill_env`，保证「可用」与「真能拿到」一致；harness `evaluate_requires(requires, extra_env)` 为纯函数 |
+
+### 3.8 Skill 权限管理链路
+
+| 层 | 内容 |
+|------|------|
+| 声明 | SKILL.md frontmatter `required_permissions: [file_write, shell_exec, ...]`；未知权限名 fail-lenient（跳过 + WARNING） |
+| 解析 | harness `parse_skill_frontmatter` → `SkillFrontmatter.required_permissions: list[SkillPermission]` → `build_skill_metadata` → `SkillMetadata.required_permissions` |
+| 落库 | server `Skill.from_metadata` 映射枚举值到字符串；`Skill.required_permissions` 随 `to_dict`/`from_dict` 持久化 |
+| API | `app/api/skills/permissions.py`：`GET /{skill_id}/permissions`、`POST .../grant`、`POST .../revoke`、`POST .../apply-template`、`POST /permissions/bulk-revoke-by-type`、`GET /{skill_id}/permissions/usage` |
+| UI | 设置 → AI 工具 → 「权限管理」Tab（授予/撤销/批量撤销）；技能详情 → 「权限使用统计」区（允许/拒绝率 + 最近操作） |
+| 运行时 | `SkillBoundaryProvider` guardrail 依据 `SkillPermissionGrant` 判断放行/拦截；操作写入 `skill_permission_usage_logs` |
+| 卸载清理 | `SkillMarketService.uninstall` 成功后调用 `permission_service.purge_skill_permissions`：删除该 skill 的 `SkillPermissionGrant` + `skill_permission_usage_logs`，并清空内存权限缓存，防止重装同 ID 技能继承旧授权 |
+
+### 3.9 技能包内嵌经验库自闭环机制 (Embedded Experience Library Loop)
+
+为了避免 Agent 在同一技能领域反复踩已知的环境特异性陷阱，技能包支持内嵌经验库演进机制：
+
+| 机制环节 | 说明 |
+|------|------|
+| **文件约定** | 技能包根目录允许内嵌 `EXPERIENCE.md`（或在 `SKILL.md` 中约定避坑指南） |
+| **条目格式** | 必须采用标准三段论：`【场景/触发条件】`、`【常见踩坑/错误现象及 Root Cause】`、`【防范铁律与最优解】` |
+| **读在前 (Read-First)** | Agent 激活该技能执行前，优先检索与吸收对应经验库，提前规避已知环境陷阱与反爬/限流/格式问题 |
+| **写在后 (Write-Back)** | Agent 在当前任务中遭遇未知报错并自主解决后，在复盘总结阶段自动将新增避坑知识回写追加至技能包 `EXPERIENCE.md`，实现技能经验的自适应闭环迭代 |
+
+### 3.10 技能生命周期发布验收门（Release gate）
+
+单机产品已内置版本 SSOT、基线相对回归门、原子应用与一键回滚（含 batch 回滚）；发版前至少跑通下列自动化（不必再对标桌面竞品补平行能力）：
+
+| 路径 | 验收要点 | 参考测试 |
+|------|----------|----------|
+| Agent 写 SKILL.md | DB 版本 + 磁盘一致；meta-tool 失败可 `restore_skill_md_from_active_version` | `app/services/skills/write_orchestrator.py`；harness `batch_runner` 集成 |
+| `skill_manage` 批量改 | 变更前 snapshot，失败整批 rollback；成功可 GUI Undo（consume batch_snapshots） | harness `tests/backends/test_skill_system_core.py`；server `tests/services/skills/test_mutation_batch_*.py` |
+| 版本回滚 | 激活历史版本并同步写回磁盘 SKILL.md；历史版本可对比 | `tests/api/skill_optimization/test_versions_routes.py`、`tests/services/skill_optimization/test_skill_version_integration.py` |
+| 进化审批 → 落盘 | 审批通过后 apply；拒绝/失败 rollback | `tests/integration/test_skill_evolution_integration.py` |
+
+GUI 冒烟（Chrome E2E，按需）：技能详情版本 Tab 回滚（见 `myrm-agent-frontend/src/components/features/skills/_ARCH.md`）；chat `skill_manage` Undo 提示与 Task Steps 展开见 `tests/e2e/test_skill_manage_undo_hint_chrome_e2e.py`（需 `E2E_SKILL_MANAGE_UNDO_CHAT_PATH`）。
+
+---
+
+## 四、依赖关系
+
+- **内部**：`app.core.storage/`（对象存储抽象）
+- **框架**：`myrm_agent_harness.backends.skills`（SkillBackend Protocol）
+- **被依赖**：`app.api.skills/`、`app.ai_agents/`
+
+---
+
+## 五、相关文档
+
+- [skills/_ARCH.md](_ARCH.md) - 模块架构与文件清单
+- [discovery/_ARCH.md](discovery/_ARCH.md) - 技能发现服务
+- 框架层技能后端：`myrm_agent_harness.backends.skills`（PyPI `myrm-agent-harness`）

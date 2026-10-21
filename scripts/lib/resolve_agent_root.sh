@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Resolve AGENT_ROOT for nested (parent/myrm-agent) vs standalone myrm-agent layouts.
+# Usage: source this file, then: resolve_agent_paths "/path/to/repo/root"
+
+resolve_agent_paths() {
+  local project_root="$1"
+
+  if [[ -n "${MYRM_AGENT_ROOT:-}" ]] && [[ -f "${MYRM_AGENT_ROOT}/myrm-agent-server/run.py" ]]; then
+    AGENT_ROOT="$(cd "${MYRM_AGENT_ROOT}" && pwd)"
+  elif [[ -f "${project_root}/myrm-agent/myrm-agent-server/run.py" ]]; then
+    AGENT_ROOT="${project_root}/myrm-agent"
+  elif [[ -f "${project_root}/myrm-agent-server/run.py" ]]; then
+    AGENT_ROOT="${project_root}"
+  else
+    echo "ERROR: myrm-agent-server not found under ${project_root}" >&2
+    echo "  Nested layout: parent must contain myrm-agent/myrm-agent-server/run.py" >&2
+    echo "  Standalone: clone https://github.com/Pursue-LLL/myrm-agent.git" >&2
+    return 1
+  fi
+
+  SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
+  FRONTEND_DIR="${AGENT_ROOT}/myrm-agent-frontend"
+  DESKTOP_DIR="${AGENT_ROOT}/myrm-agent-desktop"
+  export AGENT_ROOT SERVER_DIR FRONTEND_DIR DESKTOP_DIR
+}

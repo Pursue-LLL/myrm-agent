@@ -1,0 +1,109 @@
+"""ResultDelivery implementation via the Channel Gateway.
+
+Routes cron job results through the application's existing
+``ChannelGateway`` infrastructure as ``OutboundMessage`` objects.
+
+Webhook delivery is delegated to the framework's ``WebhookDelivery``.
+Feishu/Lark custom bot hook URLs use ``feishu_bot_webhook`` (``msg_type=text`` JSON).
+WeCom group bot hook URLs use ``wecom_bot_webhook`` (``msgtype=markdown`` JSON).
+Channel delivery goes through ``MessageBus.send_now`` (the same preparation, routing and
+failure bookkeeping as queued sends) and raises on failure (delivery_status=FAILED).
+Workspace files the result mentions ride along as attachments (see ``channel_deliverables``).
+"""
+
+from __future__ import annotations
+
+import logging
+
+from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
+from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
+
+from app.channels import OutboundMessage
+
+from .channel_deliverables import collect_cron_deliverables
+from .feishu_bot_webhook import deliver_feishu_bot_webhook, is_feishu_bot_hook_url
+from .wecom_bot_webhook import deliver_wecom_bot_webhook, is_wecom_bot_hook_url
+
+logger = logging.getLogger(__name__)
+
+_webhook_delivery = WebhookDelivery(user_agent="MyrmAgent-Cron/1.0")
+
+
+class ChannelResultDelivery:
+    """Delivers cron results through ChannelGateway or webhook.
+
+    Webhook delivery delegates to the framework's ``WebhookDelivery``.
+    Channel delivery uses ``MessageBus.send_now`` for synchronous error
+    propagation.  Exceptions propagate to the scheduler so it can record
+    ``delivery_status = FAILED`` in the CronRun record.
+    """
+
+    def __init__(self, webhook_delivery: WebhookDelivery | None = None) -> None:
+        self._webhook_delivery = webhook_delivery or _webhook_delivery
+
+    async def deliver(self, job: CronJob, result: JobResult) -> None:
+        if job.delivery.channel in ("silent", "chat"):
+            return
+
+        target = (job.delivery.target or "").strip()
+
+        if job.delivery.channel == "webhook":
+            if is_feishu_bot_hook_url(target):
+                await deliver_feishu_bot_webhook(job, result)
+            elif is_wecom_bot_hook_url(target):
+                await deliver_wecom_bot_webhook(job, result)
+            else:
+                await self._webhook_delivery.deliver(job, result)
+            return
+
+        if job.delivery.channel == "feishu" and is_feishu_bot_hook_url(target):
+            await deliver_feishu_bot_webhook(job, result)
+            return
+
+        if job.delivery.channel == "wecom" and is_wecom_bot_hook_url(target):
+            await deliver_wecom_bot_webhook(job, result)
+            return
+
+        await self._deliver_channel(job, result)
+
+    async def _deliver_channel(self, job: CronJob, result: JobResult) -> None:
+        from app.core.channel_bridge import channel_gateway
+        from app.core.channel_bridge.topic_config import SqlTopicManager
+
+        recipient_id = self._resolve_recipient(job)
+
+        topic = await SqlTopicManager().resolve_topic(job.delivery.channel, recipient_id, job.delivery.thread_id)
+        if topic is not None and topic.identity_revoked:
+            raise RuntimeError(f"Cron job {job.id}: team identity revoked for {job.delivery.channel}/{recipient_id}")
+
+        deliverables = await collect_cron_deliverables(job, result.output or "")
+        content = deliverables.content
+        if result.error:
+            content += f"\n\n**Error:** {result.error[:500]}"
+
+        meta: dict[str, object] = dict(result.metadata) if result.metadata else {}
+        meta["job_name"] = job.name
+        meta["success"] = result.success
+        meta["proactive"] = True
+        meta["followup_kind"] = "cron_writeback"
+        if deliverables.locale:
+            meta.setdefault("locale", deliverables.locale)
+
+        msg = OutboundMessage(
+            channel=job.delivery.channel,
+            recipient_id=recipient_id,
+            content=content,
+            user_id=job.user_id,
+            thread_id=job.delivery.thread_id,
+            media=deliverables.media,
+            components=deliverables.components,
+            metadata=meta,
+        )
+
+        await channel_gateway.bus.send_now(msg)
+
+    @staticmethod
+    def _resolve_recipient(job: CronJob) -> str:
+        if job.delivery.target:
+            return str(job.delivery.target)
+        raise ValueError(f'Cron job {job.id}: delivery target is required for channel "{job.delivery.channel}"')

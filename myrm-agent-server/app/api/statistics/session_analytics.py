@@ -1,0 +1,256 @@
+"""Session-level analytics and execution trace endpoints.
+
+[INPUT]
+- app.api.statistics.context_health.context_health (POS: 上下文健康指标构建)
+- app.api.statistics.usage_aggregation (POS: 使用量聚合)
+- app.api.statistics.session_trace (POS: 会话执行轨迹 API)
+- myrm_agent_harness.agent.event_log (POS: 事件日志分析框架)
+- app.core.utils.session_id::is_safe_session_id (POS: session_id/chat_id 文件路径插值白名单校验)
+
+[OUTPUT]
+- router: Session analytics APIRouter (get_session_analytics)
+
+[POS]
+会话级分析 API。提供单个会话的详细统计（token、工具、事件时间线、任务指标）。
+执行轨迹端点见 session_trace 模块。
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from pathlib import Path
+
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
+from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+from myrm_agent_harness.agent.event_log.types import EventFilter, EventPayload
+from sqlalchemy import and_, case, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.statistics.context_health.context_health import (
+    build_chat_compaction_snapshot,
+    build_context_health,
+)
+from app.api.statistics.usage_aggregation import aggregate_usage, normalize_usage_rows
+from app.config.settings import settings
+from app.core.utils.errors import internal_error, not_found_error
+from app.core.utils.response_utils import success_response
+from app.core.utils.session_id import is_safe_session_id
+from app.database.connection import get_db
+from app.database.models import Chat, Message
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+async def _build_llm_duration_breakdown(backend: FileEventLogBackend, session_id: str) -> list[dict[str, object]]:
+    """Aggregate LLM call durations from persisted ``token_usage`` events.
+
+    Buckets calls by model name and sums only events carrying a concrete
+    ``duration_ms`` so legacy or failed calls never distort the breakdown.
+    """
+    try:
+        events = await backend.get_events(session_id, EventFilter(event_types=frozenset({"token_usage"})))
+    except Exception:
+        logger.debug("Failed to read token_usage events for LLM breakdown", exc_info=True)
+        return []
+
+    totals: dict[str, list[int | float]] = {}
+    for event in events:
+        payload: EventPayload | dict[str, object] = event.data
+        inner = payload.get("data")
+        if isinstance(inner, dict):
+            payload = inner
+        duration_raw = payload.get("duration_ms")
+        if not isinstance(duration_raw, (int, float)):
+            continue
+        model_name = payload.get("model_name")
+        if not isinstance(model_name, str) or not model_name:
+            model_name = "unknown"
+        count, total = totals.setdefault(model_name, [0, 0.0])
+        totals[model_name] = [count + 1, total + float(duration_raw)]
+
+    return [
+        {
+            "model_name": model_name,
+            "call_count": count,
+            "total_duration_ms": round(total, 1),
+        }
+        for model_name, (count, total) in totals.items()
+    ]
+
+
+def _validate_session_id(session_id: str) -> None:
+    """Reject IDs outside the safe charset as not-found (no existence oracle)."""
+    if not is_safe_session_id(session_id):
+        raise not_found_error(resource=f"Session {session_id}")
+
+
+@router.get("/session/{session_id}")
+async def get_session_analytics(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Get comprehensive analytics for a single session.
+
+    Returns detailed breakdown of tokens, cost, tool usage, events timeline, and task metrics.
+    Validates session ownership to prevent data leakage.
+    """
+    try:
+        _validate_session_id(session_id)
+        chat_stmt = select(Chat).where(and_(Chat.id == session_id))
+        chat_result = await db.execute(chat_stmt)
+        chat = chat_result.scalar_one_or_none()
+
+        if not chat:
+            raise not_found_error(resource=f"Session {session_id}")
+
+        async def get_chat_metadata() -> dict[str, object]:
+            return {
+                "session_id": chat.id,
+                "title": chat.title or "Untitled",
+                "action_mode": chat.action_mode,
+                "created_at": chat.created_at.isoformat() if chat.created_at else None,
+            }
+
+        async def get_message_stats() -> dict[str, object]:
+            msg_stmt = select(
+                func.count(Message.id).label("total_messages"),
+                func.sum(case((Message.role == "user", 1), else_=0)).label("user_messages"),
+                func.sum(case((Message.role == "assistant", 1), else_=0)).label("assistant_messages"),
+            ).where(Message.chat_id == session_id)
+            msg_result = await db.execute(msg_stmt)
+            row = msg_result.one()
+
+            usage_stmt = select(Message.extra_data).where(
+                and_(
+                    Message.chat_id == session_id,
+                    Message.role == "assistant",
+                    Message.extra_data.isnot(None),
+                )
+            )
+            usage_result = await db.execute(usage_stmt)
+            usage_rows = normalize_usage_rows(usage_result.all())
+            stats = aggregate_usage(usage_rows)
+
+            return {
+                "message_count": row.total_messages or 0,
+                "user_messages": row.user_messages or 0,
+                "assistant_messages": row.assistant_messages or 0,
+                **stats,
+            }
+
+        async def get_event_log_data() -> dict[str, object]:
+            event_log_file = Path(settings.database.event_log_dir) / f"{session_id}.jsonl"
+            if not event_log_file.exists():
+                return {
+                    "duration_ms": 0,
+                    "tool_breakdown": [],
+                    "events_timeline": [],
+                    "task_metrics": {},
+                }
+
+            from myrm_agent_harness.agent.event_log import EventLogger
+            from myrm_agent_harness.agent.event_log.trace_builder import build_trace
+
+            backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
+            event_logger = EventLogger(backend=backend, session_id=session_id)
+            summary = await event_logger.get_session_summary(events_limit=150, timeline_limit=100)
+            trace = await build_trace(backend, session_id)
+
+            tool_breakdown = [
+                {
+                    "tool_name": tb.tool_name,
+                    "call_count": tb.call_count,
+                    "total_duration_ms": tb.total_duration_ms,
+                }
+                for tb in summary.tool_breakdown
+            ]
+
+            events_timeline = [
+                {
+                    "type": se.event_type,
+                    "timestamp": se.timestamp,
+                    "data": se.data,
+                }
+                for se in summary.events_timeline
+            ]
+
+            result: dict[str, object] = {
+                "duration_ms": summary.duration_ms,
+                "tool_breakdown": tool_breakdown,
+                "events_timeline": events_timeline,
+                "task_metrics": summary.task_metrics,
+                "token_economics": summary.token_economics,
+                "context_breakdown": trace.context_breakdown if trace else None,
+            }
+            llm_breakdown = await _build_llm_duration_breakdown(backend, session_id)
+            if llm_breakdown:
+                result["llm_breakdown"] = llm_breakdown
+            if summary.security_audit:
+                result["security_audit"] = summary.security_audit
+            return result
+
+        chat_meta, message_stats, event_log_data = await asyncio.gather(
+            get_chat_metadata(),
+            get_message_stats(),
+            get_event_log_data(),
+        )
+
+        raw_task_metrics = event_log_data["task_metrics"]
+        task_metrics_for_health: dict[str, object] = (
+            {str(k): v for k, v in raw_task_metrics.items()} if isinstance(raw_task_metrics, dict) else {}
+        )
+
+        result = {
+            **chat_meta,
+            **message_stats,
+            "duration_ms": event_log_data["duration_ms"],
+            "tool_breakdown": event_log_data["tool_breakdown"],
+            "llm_breakdown": event_log_data.get("llm_breakdown", []),
+            "events_timeline": event_log_data["events_timeline"],
+            "task_metrics": event_log_data["task_metrics"],
+            "token_economics": event_log_data.get("token_economics"),
+            "context_breakdown": event_log_data.get("context_breakdown"),
+            "context_health": build_context_health(
+                message_stats=message_stats,
+                task_metrics=task_metrics_for_health,
+                chat_compaction=build_chat_compaction_snapshot(
+                    compacted_at=chat.compacted_at,
+                    compacted_tokens_saved=chat.compacted_tokens_saved,
+                ),
+                model_name=_dominant_model_name(message_stats),
+            ).to_dict(),
+        }
+
+        return success_response(data=result)
+
+    except Exception as e:
+        if "not found" in str(e).lower():
+            raise
+        raise internal_error(operation="Get session analytics", exception=e) from e
+
+
+def _dominant_model_name(message_stats: dict[str, object]) -> str | None:
+    model_breakdown = message_stats.get("modelBreakdown")
+    if not isinstance(model_breakdown, dict):
+        return None
+
+    selected_model: str | None = None
+    selected_calls = -1
+    selected_tokens = -1
+    for model_name, raw_bucket in model_breakdown.items():
+        if not isinstance(model_name, str) or not isinstance(raw_bucket, dict):
+            continue
+        calls = _non_negative_int(raw_bucket.get("calls"))
+        tokens = _non_negative_int(raw_bucket.get("inputTokens"))
+        if calls > selected_calls or (calls == selected_calls and tokens > selected_tokens):
+            selected_model = model_name
+            selected_calls = calls
+            selected_tokens = tokens
+    return selected_model
+
+
+def _non_negative_int(value: object) -> int:
+    return max(int(value), 0) if isinstance(value, (int, float)) else 0

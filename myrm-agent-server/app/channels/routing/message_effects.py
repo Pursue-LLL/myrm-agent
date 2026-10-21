@@ -1,0 +1,439 @@
+"""Message side-effect helpers for AgentRouter.
+
+Encapsulates typing indicators, reactions, placeholder management,
+and reply convenience methods. These are best-effort operations that
+silently ignore failures. Error replies use classified friendly messages
+instead of raw internal errors.
+
+[INPUT]
+- channels.core.bus::MessageBus (POS: async message bus)
+- channels.core.outbound_media::discard_ephemeral_media (POS: temp attachment cleanup)
+- channels.core.outbound_prepare::prepare_outbound (POS: shared outbound preparation)
+- channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.reliability.retry::send_with_retry (POS: async retry utility with exponential backoff)
+- channels.rendering.renderer::render (POS: outbound message formatting pipeline)
+- channels.rendering.splitter::cap_stream_preview (POS: smart preview length cap for IM placeholders)
+- llms.errors.classifier::classify_error (POS: LLM error classification)
+- channels.routing.friendly_errors::friendly_error_message (POS: member-safe error wording with reference id)
+
+[OUTPUT]
+- MessageEffects: Helper for typing/keepalive/reaction/placeholder/reply/busy-ack operations
+
+[POS]
+Message side-effect operations collection: every auxiliary channel interaction the router performs
+(typing, reactions, placeholders, replies, busy acks). Router holds an instance via composition.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import dataclasses
+import logging
+import time
+from functools import partial
+
+from myrm_agent_harness.toolkits.llms.errors.classifier import classify_error
+
+from app.channels.core.bus import MessageBus
+from app.channels.core.outbound_media import discard_ephemeral_media
+from app.channels.core.outbound_prepare import prepare_outbound
+from app.channels.i18n import channel_t, get_text
+from app.channels.reliability.retry import send_with_retry
+from app.channels.rendering.renderer import render
+from app.channels.rendering.splitter import cap_stream_preview
+from app.channels.routing.friendly_errors import friendly_error_message
+from app.channels.types import (
+    InboundMessage,
+    MessagePriority,
+    OutboundMessage,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class MessageEffects:
+    """Stateless helper for message side-effects (typing, reactions, placeholders, replies).
+
+    All operations are best-effort — failures are logged at debug level and silently ignored.
+    """
+
+    def __init__(self, bus: MessageBus) -> None:
+        self._bus = bus
+        self._typing_keepalive_tasks: dict[str, asyncio.Task[None]] = {}
+
+    async def set_typing(self, channel: str, chat_id: str, *, composing: bool) -> None:
+        """Best-effort typing indicator."""
+        ch = self._bus.get_channel(channel)
+        if not ch:
+            return
+        try:
+            if composing:
+                await ch.start_typing(chat_id)
+            else:
+                await ch.stop_typing(chat_id)
+        except Exception as exc:
+            logger.debug("typing indicator failed for %s/%s: %s", channel, chat_id, exc)
+
+    def start_typing_keepalive(self, channel: str, chat_id: str) -> None:
+        """Start periodic typing indicator refresh for platforms that auto-dismiss.
+
+        Reads ``ChannelCapabilities.typing_keepalive_interval``; does nothing
+        when the interval is 0 or the channel is missing.
+        """
+        ch = self._bus.get_channel(channel)
+        if not ch:
+            return
+        interval = ch.capabilities.typing_keepalive_interval
+        if interval <= 0:
+            return
+
+        key = f"{channel}:{chat_id}"
+        existing = self._typing_keepalive_tasks.get(key)
+        if existing and not existing.done():
+            return
+
+        async def _keepalive_loop() -> None:
+            while True:
+                await asyncio.sleep(interval)
+                try:
+                    await ch.start_typing(chat_id)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.debug(
+                        "typing keepalive tick failed for %s/%s: %s",
+                        channel,
+                        chat_id,
+                        exc,
+                    )
+
+        self._typing_keepalive_tasks[key] = asyncio.create_task(_keepalive_loop())
+
+    async def stop_typing_keepalive(self, channel: str, chat_id: str) -> None:
+        """Cancel the periodic typing refresh and send a stop indicator."""
+        key = f"{channel}:{chat_id}"
+        task = self._typing_keepalive_tasks.pop(key, None)
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    async def send_placeholder(
+        self,
+        channel: str,
+        chat_id: str,
+        *,
+        thread_id: str | None = None,
+        msg: InboundMessage | None = None,
+    ) -> str | None:
+        """Send a 'thinking...' placeholder message. Returns message_id or None."""
+        ch = self._bus.get_channel(channel)
+        if not ch or not ch.capabilities.edit:
+            return None
+        placeholder_text = get_text(msg, "placeholder_thinking") if msg is not None else channel_t(None, "placeholder_thinking")
+        try:
+            fn = partial(ch.send_placeholder, thread_id=thread_id)
+            return await send_with_retry(
+                fn,
+                chat_id,
+                placeholder_text,
+                config=ch.retry_config,
+                should_retry=ch.should_retry,
+                extract_retry_after=ch.extract_retry_after,
+                label=f"placeholder:{channel}",
+            )
+        except Exception as exc:
+            logger.debug("placeholder send failed for %s/%s: %s", channel, chat_id, exc)
+            return None
+
+    async def edit_placeholder(
+        self,
+        channel: str,
+        chat_id: str,
+        placeholder_id: str,
+        result: OutboundMessage,
+    ) -> None:
+        """Replace the placeholder with the actual Agent response.
+
+        Prefers edit_placeholder_message (rich formatting with full message context)
+        when the channel supports it, falling back to edit_message with text content.
+        An edit carries text only, so attachments follow as a message of their own through
+        the bus (retry, durable record and partial-delivery handling included).
+        Falls back to a normal outbound publish if editing fails entirely.
+        """
+        ch = self._bus.get_channel(channel)
+        if not ch:
+            await self._bus.publish_outbound(result)
+            return
+
+        prepared = prepare_outbound(result, ch.capabilities, channel_name=channel)
+        discard_ephemeral_media(result.media, keep_paths={m.path for m in prepared.media})
+        text_reply = dataclasses.replace(prepared, media=())
+        chunks = render(text_reply, ch.render_style)
+
+        meta = dict(prepared.metadata) if isinstance(prepared.metadata, dict) else {}
+        first_result = dataclasses.replace(text_reply, content=chunks[0], metadata=meta)
+        first_result = await self._bus.durable_outbound.persist_direct_send(first_result)
+
+        try:
+            logger.debug("editing placeholder with %d chars", len(chunks[0]))
+            await self._bus.durable_outbound.mark_attempting(first_result)
+            await send_with_retry(
+                ch.edit_placeholder_message,
+                chat_id,
+                placeholder_id,
+                first_result,
+                config=ch.retry_config,
+                should_retry=ch.should_retry,
+                extract_retry_after=ch.extract_retry_after,
+                label=f"edit:{channel}",
+            )
+        except Exception as exc:
+            logger.warning("placeholder edit failed, sending normally: %s", exc)
+            await self._bus.durable_outbound.ack(first_result)
+            await self._bus.publish_outbound(prepared)
+            return
+
+        await self._bus.durable_outbound.ack(first_result)
+        for extra_chunk in chunks[1:]:
+            extra = dataclasses.replace(text_reply, content=extra_chunk, components=(), quick_replies=())
+            await self._bus.publish_outbound(extra)
+        if prepared.media:
+            files_only = dataclasses.replace(
+                text_reply,
+                content="",
+                media=prepared.media,
+                components=(),
+                quick_replies=(),
+                reasoning=None,
+                tool_steps=(),
+            )
+            await self._bus.publish_outbound(files_only)
+
+    async def cleanup_placeholder(
+        self,
+        channel: str,
+        chat_id: str,
+        placeholder_id: str,
+        error_text: str,
+    ) -> None:
+        """Replace an orphaned placeholder with an error/status message, or delete it."""
+        ch = self._bus.get_channel(channel)
+        if not ch:
+            return
+        try:
+            await ch.edit_message(chat_id, placeholder_id, error_text)
+        except Exception:
+            try:
+                await ch.delete_message(chat_id, placeholder_id)
+            except Exception as exc:
+                logger.debug("placeholder cleanup failed for %s/%s: %s", channel, chat_id, exc)
+
+    async def edit_progress(
+        self,
+        channel: str,
+        chat_id: str,
+        placeholder_id: str | None,
+        label: str,
+    ) -> bool:
+        """Best-effort edit of placeholder with a progress label.
+
+        Returns:
+            True if edit succeeded, False otherwise
+        """
+        if not placeholder_id:
+            return False
+
+        ch = self._bus.get_channel(channel)
+        if not ch:
+            return False
+        max_len = ch.render_style.max_text_length or ch.capabilities.max_text_length or 4096
+        capped_label = cap_stream_preview(label, max_len)
+        try:
+            await ch.edit_message(chat_id, placeholder_id, capped_label)
+            return True
+        except Exception as exc:
+            logger.debug("progress edit failed for %s/%s: %s", channel, chat_id, exc)
+            return False
+
+    async def set_reaction(
+        self,
+        channel: str,
+        chat_id: str,
+        message_id: object,
+        emoji: str,
+    ) -> None:
+        """Best-effort message reaction."""
+        if not isinstance(message_id, str) or not message_id:
+            return
+        ch = self._bus.get_channel(channel)
+        if not ch or not ch.capabilities.reactions:
+            return
+        try:
+            await ch.react_to_message(chat_id, message_id, emoji)
+        except Exception as exc:
+            logger.debug("reaction failed for %s/%s: %s", channel, chat_id, exc)
+
+    async def ack_reaction(
+        self,
+        channel: str,
+        chat_id: str,
+        message_id: str | None,
+        emoji: str = "",
+    ) -> None:
+        """Add receive-acknowledgement reaction (used by ReactionPolicy.FULL)."""
+        if not message_id:
+            return
+        await self.set_reaction(channel, chat_id, message_id, emoji)
+
+    async def completion_reaction(
+        self,
+        channel: str,
+        chat_id: str,
+        message_id: str | None,
+        *,
+        success: bool,
+        success_emoji: str = "",
+        failure_emoji: str = "",
+        had_ack: bool = False,
+    ) -> None:
+        """Add completion/failure reaction and remove prior ack if present."""
+        if not message_id:
+            return
+        if had_ack:
+            await self.set_reaction(channel, chat_id, message_id, "")
+        await self.set_reaction(channel, chat_id, message_id, success_emoji if success else failure_emoji)
+
+    async def send_error_reply(self, msg: InboundMessage, error: str | Exception) -> None:
+        """Send a classified, user-friendly error reply.
+
+        Accepts either a pre-formatted friendly string (from router's
+        ``friendly_error_message`` call) or a raw Exception.
+
+        Groups reply to chat_id; DMs reply to sender.
+        """
+        if isinstance(error, Exception):
+            friendly, ref_id = friendly_error_message(error, msg)
+            kind = classify_error(error)
+            logger.error(
+                "Channel error reply [ref: %s] [%s] for %s/%s: %s",
+                ref_id,
+                kind.value,
+                msg.channel,
+                msg.sender_id,
+                error,
+                exc_info=error,
+            )
+        else:
+            friendly = error
+
+        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=recipient,
+            content=friendly,
+            user_id=msg.user_id or "",
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata["message_id"]))
+                if msg.is_group and (msg.message_id or msg.metadata.get("message_id"))
+                else None
+            ),
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        await self._bus.publish_outbound(reply)
+
+    async def send_pending_reply(self, msg: InboundMessage) -> None:
+        """Notify the sender that their pairing is pending approval."""
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=msg.sender_id,
+            content=get_text(msg, "pairing_pending"),
+            user_id="",
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        await self._bus.publish_outbound(reply)
+
+    async def send_pairing_request_reply(self, msg: InboundMessage) -> None:
+        """Notify the sender that a pairing request has been created."""
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=msg.sender_id,
+            content=get_text(msg, "pairing_submitted"),
+            user_id="",
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        await self._bus.publish_outbound(reply)
+
+    async def send_quota_exceeded_reply(self, msg: InboundMessage, quota: int) -> None:
+        """Notify the sender that their daily conversation quota has been exhausted."""
+        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
+        content = get_text(msg, "daily_quota_exceeded", quota=quota)
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=recipient,
+            content=content,
+            user_id=msg.user_id or "",
+            reply_to_id=msg.message_id or (msg.metadata.get("message_id") if msg.metadata else None),
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        await self._bus.publish_outbound(reply)
+
+    async def send_mute_reply(self, msg: InboundMessage) -> None:
+        """Send a thread mute confirmation message."""
+        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=recipient,
+            content=get_text(msg, "mute_confirm"),
+            user_id=msg.user_id or "",
+            reply_to_id=msg.message_id or msg.metadata.get("message_id"),
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        await self._bus.publish_outbound(reply)
+
+    async def send_busy_ack(self, msg: InboundMessage, position: int, max_pending: int) -> None:
+        """Acknowledge a message received while the agent is busy.
+
+        Args:
+            msg: The inbound message that was queued or dropped.
+            position: Queue position (1-based) or -1 when dropped.
+            max_pending: Maximum pending queue capacity.
+        """
+        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
+        if position < 0:
+            content = get_text(msg, "busy_ack_queue_full")
+        else:
+            content = get_text(msg, "busy_ack_queued", position=position, max_pending=max_pending)
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=recipient,
+            content=content,
+            user_id=msg.user_id or "",
+            reply_to_id=msg.message_id or msg.metadata.get("message_id"),
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        try:
+            await self._bus.publish_outbound(reply)
+        except Exception:
+            logger.debug("busy_ack send failed for %s/%s", msg.channel, recipient, exc_info=True)
+
+    @staticmethod
+    async def wait_for_edit_gap(last_progress_at: float, min_interval: float = 2.0) -> None:
+        """Ensure minimum interval since the last progress edit before the final edit.
+
+        Prevents rapid successive edits that some messaging platforms
+        (e.g. WhatsApp) may silently drop or process out-of-order.
+        """
+        if last_progress_at <= 0:
+            return
+        elapsed = time.monotonic() - last_progress_at
+        if elapsed < min_interval:
+            await asyncio.sleep(min_interval - elapsed)

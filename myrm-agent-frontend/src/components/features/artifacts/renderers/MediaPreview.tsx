@@ -1,0 +1,496 @@
+'use client';
+
+/**
+ * [INPUT]
+ * - dompurify, @/lib/constants/artifact (LARGE_FILE_THRESHOLD, IMAGE_LAZY_LOAD_MARGIN),
+ *   @/lib/untrusted-link, @/lib/widget-theme-bridge, @/hooks/workspace/useWidgetStorage,
+ *   PremiumIcons, uploadAnnotated — see imports.
+ * [OUTPUT]
+ * - HtmlPreview: sandboxed iframe viewer (theme bridge, height sync, link gating, element picker).
+ * - ImagePreview / VideoPreview / AudioPreview: media viewers with lazy loading and error fallback.
+ * - SvgPreview: threshold-split viewer (inline sanitized DOM below LARGE_FILE_THRESHOLD, blob-backed img rasterization at or above it).
+ * [POS]
+ * Media preview renderers consumed by ArtifactRenderer / ArtifactCard / RichMediaFilePreview.
+ */
+
+import React, { memo, useMemo, useRef, useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import DOMPurify from 'dompurify';
+import { cn } from '@/lib/utils/classnameUtils';
+import { requestUntrustedLink } from '@/lib/untrusted-link';
+import { useTranslations } from 'next-intl';
+import { IMAGE_LAZY_LOAD_MARGIN, LARGE_FILE_THRESHOLD } from '@/lib/constants/artifact';
+import { buildWidgetSrcdoc, subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
+import { useWidgetStorage } from '@/hooks/workspace/useWidgetStorage';
+import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
+import { Pencil } from 'lucide-react';
+import { uploadAnnotatedImage } from '@/components/features/image-editor/uploadAnnotated';
+
+const ImageEditorLazy = lazy(() => import('@/components/features/image-editor/ImageEditor'));
+
+/** Picked element data from iframe postMessage */
+export interface PickedElement {
+  selector: string;
+  breadcrumb: string;
+  tagName: string;
+  outerHTML: string;
+}
+
+interface HtmlPreviewProps {
+  /** Remote URL (takes priority) */
+  url?: string;
+  /** HTML content (used via srcdoc when url is absent) */
+  content?: string;
+  /** Whether content is still streaming (strips scripts for safe preview) */
+  isStreaming?: boolean;
+  /** Enable theme bridge injection for AI-generated widgets */
+  injectTheme?: boolean;
+  /** Enable auto height sync (for inline preview mode) */
+  autoHeight?: boolean;
+  /** Artifact ID for element picker context */
+  artifactId?: string;
+  /** Whether element picker mode is active */
+  pickerMode?: boolean;
+  /** Callback when an element is picked */
+  onElementPick?: (element: PickedElement) => void;
+  /** Storage namespace for KV persistence (enables localStorage polyfill) */
+  storageNamespace?: string;
+  /** Chat ID for storage association */
+  chatId?: string;
+}
+
+const SANDBOX_POLICY = 'allow-scripts';
+const MIN_IFRAME_HEIGHT = 100;
+const MAX_IFRAME_HEIGHT = 2000;
+
+/** HTML Preview — sandboxed iframe with theme bridge, height sync, link interception, and element picker */
+export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
+  ({
+    url,
+    content,
+    isStreaming = false,
+    injectTheme = true,
+    autoHeight = false,
+    artifactId: _artifactId,
+    pickerMode = false,
+    onElementPick,
+    storageNamespace,
+    chatId,
+  }) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [iframeHeight, setIframeHeight] = useState<number | undefined>(undefined);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const themeVarsRef = useRef<Record<string, string>>({});
+    const initialStorageRef = useRef<Record<string, string> | undefined>(undefined);
+
+    const { storageData, handleStorageMessage } = useWidgetStorage({
+      namespace: storageNamespace,
+      chatId,
+      enabled: !isStreaming && !!storageNamespace,
+    });
+
+    if (storageData !== undefined && initialStorageRef.current === undefined) {
+      initialStorageRef.current = storageData;
+    }
+
+    const storageReady = storageData !== undefined;
+
+    // Resolve theme variables on mount and when host Theme Profile / dark mode changes
+    useEffect(() => {
+      if (!injectTheme) {
+        return;
+      }
+
+      return subscribeHostThemeVars((newVars) => {
+        themeVarsRef.current = newVars;
+        iframeRef.current?.contentWindow?.postMessage({ type: 'widget-theme-update', vars: newVars }, '*');
+      });
+    }, [injectTheme]);
+
+    // Build srcdoc from content + theme
+    const srcdoc = useMemo(() => {
+      if (url || !content) {
+        return undefined;
+      }
+      if (!injectTheme) {
+        // No theme injection: wrap in minimal safe HTML
+        const safeContent = isStreaming ? content.replace(/<script[\s\S]*?<\/script>/gi, '') : content;
+        return safeContent;
+      }
+      return buildWidgetSrcdoc(
+        content,
+        themeVarsRef.current,
+        isStreaming,
+        storageReady ? initialStorageRef.current : undefined,
+      );
+    }, [url, content, isStreaming, injectTheme, storageReady]);
+
+    // Send picker mode toggle to iframe when pickerMode changes
+    useEffect(() => {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'widget-picker-toggle', active: pickerMode }, '*');
+    }, [pickerMode]);
+
+    // Listen for postMessage events from our own iframe only
+    const handleMessage = useCallback(
+      (e: MessageEvent) => {
+        if (e.source !== iframeRef.current?.contentWindow) {
+          return;
+        }
+        if (!e.data || typeof e.data !== 'object') {
+          return;
+        }
+
+        if (e.data.type === 'widget-resize' && autoHeight) {
+          const h = Math.min(Math.max(e.data.height, MIN_IFRAME_HEIGHT), MAX_IFRAME_HEIGHT);
+          setIframeHeight(h);
+        }
+
+        if (e.data.type === 'widget-navigate' && typeof e.data.url === 'string') {
+          // The widget is untrusted content: the host validates the link and, in the desktop shell, asks the user first.
+          requestUntrustedLink(e.data.url, null);
+        }
+
+        if (e.data.type === 'widget-element-pick' && onElementPick) {
+          onElementPick({
+            selector: e.data.selector,
+            breadcrumb: e.data.breadcrumb,
+            tagName: e.data.tagName,
+            outerHTML: e.data.outerHTML,
+          });
+        }
+
+        if (e.data.type?.startsWith('widget-storage-')) {
+          handleStorageMessage(e.data as Record<string, unknown>);
+        }
+      },
+      [autoHeight, onElementPick, handleStorageMessage],
+    );
+
+    useEffect(() => {
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    }, [handleMessage]);
+
+    const handleLoad = useCallback(() => setIsLoading(false), []);
+
+    // URL mode: remote content
+    if (url) {
+      return (
+        <div className="h-full w-full overflow-hidden relative">
+          {isLoading && <LoadingOverlay />}
+          <iframe
+            ref={iframeRef}
+            src={url}
+            className="w-full h-full border-0 bg-background"
+            sandbox={SANDBOX_POLICY}
+            title="HTML Preview"
+            onLoad={handleLoad}
+          />
+        </div>
+      );
+    }
+
+    // Content mode: srcdoc rendering
+    if (!srcdoc) {
+      return (
+        <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+          <div className="animate-spin w-6 h-6 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={cn('w-full overflow-hidden relative', !autoHeight && 'h-full')}
+        style={autoHeight && iframeHeight ? { height: iframeHeight } : undefined}
+      >
+        {isLoading && <LoadingOverlay />}
+        <iframe
+          ref={iframeRef}
+          srcDoc={srcdoc}
+          className={cn('w-full border-0 bg-background', autoHeight ? '' : 'h-full')}
+          style={autoHeight && iframeHeight ? { height: iframeHeight } : undefined}
+          sandbox={SANDBOX_POLICY}
+          title="HTML Preview"
+          onLoad={handleLoad}
+        />
+      </div>
+    );
+  },
+);
+HtmlPreview.displayName = 'HtmlPreview';
+
+const LoadingOverlay: React.FC = memo(() => (
+  <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+    <div className="animate-spin w-6 h-6 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+  </div>
+));
+LoadingOverlay.displayName = 'LoadingOverlay';
+
+/** 图片预览组件（支持懒加载 + 标注编辑） */
+export const ImagePreview: React.FC<{
+  url: string;
+  filename: string;
+  errorMessage: string;
+  showEditButton?: boolean;
+}> = memo(({ url, filename, errorMessage, showEditButton = true }) => {
+  const [isLoaded, setIsLoaded] = React.useState(false);
+  const [hasError, setHasError] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const tEditor = useTranslations('imageEditor');
+
+  React.useEffect(() => {
+    const img = imgRef.current;
+    if (!img) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            img.src = url;
+            observer.unobserve(img);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: `${IMAGE_LAZY_LOAD_MARGIN}px` },
+    );
+
+    observer.observe(img);
+    return () => observer.disconnect();
+  }, [url]);
+
+  const handleEditComplete = useCallback(async (blob: Blob) => {
+    setEditing(false);
+    try {
+      await uploadAnnotatedImage(blob);
+    } catch (err) {
+      console.error('Failed to upload annotated image:', err);
+    }
+  }, []);
+
+  return (
+    <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4 group/img relative">
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-full max-w-md aspect-video rounded-lg bg-muted animate-pulse flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-muted-foreground/10" />
+          </div>
+        </div>
+      )}
+
+      {hasError && (
+        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+            <IconImage className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <span className="text-sm">{errorMessage}</span>
+        </div>
+      )}
+
+      {/* oxlint-disable-next-line next/no-img-element -- src is assigned lazily from arbitrary artifact URLs (blob, data, backend), which next/image cannot optimize */}
+      <img
+        ref={imgRef}
+        alt={filename}
+        className={cn(
+          'max-w-full max-h-full object-contain rounded-lg shadow-lg transition-opacity duration-300',
+          isLoaded ? 'opacity-100' : 'opacity-0',
+        )}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)}
+      />
+
+      {isLoaded && !hasError && showEditButton && (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className={cn(
+            'absolute top-6 right-6 p-2 rounded-full',
+            'bg-black/50 text-white hover:bg-black/70 transition-all',
+            'opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 pointer-coarse:opacity-100',
+          )}
+          aria-label={tEditor('editButton')}
+          title={tEditor('editTooltip')}
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+      )}
+
+      {editing && (
+        <Suspense fallback={null}>
+          <ImageEditorLazy imageSrc={url} onComplete={handleEditComplete} onCancel={() => setEditing(false)} />
+        </Suspense>
+      )}
+    </div>
+  );
+});
+ImagePreview.displayName = 'ImagePreview';
+
+/** 视频预览组件（带加载骨架屏） */
+export const VideoPreview: React.FC<{ url: string; filename: string; errorMessage: string }> = memo(
+  ({ url, filename, errorMessage }) => {
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [hasError, setHasError] = useState(false);
+
+    const handleLoadedData = useCallback(() => setIsLoaded(true), []);
+    const handleError = useCallback(() => setHasError(true), []);
+
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-black/5 dark:bg-white/5 p-4">
+        {!isLoaded && !hasError && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-full max-w-lg aspect-video rounded-lg bg-muted animate-pulse flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-14 h-14 rounded-full bg-muted-foreground/10 flex items-center justify-center">
+                  <div className="w-0 h-0 border-l-[12px] border-l-muted-foreground/20 border-y-[8px] border-y-transparent ml-1" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {hasError && (
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+              <IconFilm className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <span className="text-sm">{errorMessage}</span>
+          </div>
+        )}
+
+        {!hasError && (
+          <video
+            src={url}
+            controls
+            playsInline
+            preload="metadata"
+            className={cn(
+              'max-w-full max-h-full rounded-lg shadow-lg transition-opacity duration-300',
+              isLoaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoadedData={handleLoadedData}
+            onError={handleError}
+          >
+            <track kind="captions" label={filename} />
+          </video>
+        )}
+      </div>
+    );
+  },
+);
+VideoPreview.displayName = 'VideoPreview';
+
+/**
+ * SVG 预览组件。
+ *
+ * 常规体积走 DOMPurify 清洗 + 内联 DOM（保留元素语义与页面样式继承）；
+ * 超过 LARGE_FILE_THRESHOLD 的大文件改走 Blob URL + `<img>` 浏览器原生栅格化：
+ * DOMPurify 同步清洗与数万 DOM 节点内联会阻塞主线程数秒且随连续渲染劣化，
+ * 而 `<img>` 上下文按规范禁用 SVG 脚本与外部资源加载，安全性不低于内联路径。
+ */
+export const SvgPreview: React.FC<{ content: string }> = memo(({ content }) => {
+  const t = useTranslations('artifacts');
+  const isLarge = content.length >= LARGE_FILE_THRESHOLD;
+  const [rasterUrl, setRasterUrl] = useState<string | null>(null);
+  const [rasterFailed, setRasterFailed] = useState(false);
+
+  useEffect(() => {
+    if (!isLarge) {
+      setRasterUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([content], { type: 'image/svg+xml' }));
+    setRasterUrl(url);
+    setRasterFailed(false);
+    return () => URL.revokeObjectURL(url);
+  }, [content, isLarge]);
+
+  const sanitizedContent = useMemo(() => {
+    if (isLarge) {
+      return '';
+    }
+    return DOMPurify.sanitize(content, {
+      USE_PROFILES: { svg: true, svgFilters: true },
+      ADD_TAGS: ['use'],
+      ADD_ATTR: ['xlink:href'],
+    });
+  }, [content, isLarge]);
+
+  if (isLarge) {
+    if (rasterFailed) {
+      return (
+        <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4">
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+              <IconImage className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <span className="text-sm">{t('inlinePreview.loadError')}</span>
+          </div>
+        </div>
+      );
+    }
+    if (!rasterUrl) {
+      return <div className="h-full w-full bg-muted/30" />;
+    }
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4 overflow-auto">
+        {/* oxlint-disable-next-line next/no-img-element -- the source is an in-memory blob URL rasterized from an oversized SVG, which next/image cannot optimize */}
+        <img
+          src={rasterUrl}
+          alt={t('types.svg')}
+          className="max-w-full max-h-full object-contain"
+          onError={() => setRasterFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="h-full w-full flex items-center justify-center bg-muted/30 p-4 overflow-auto [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:object-contain"
+      dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+    />
+  );
+});
+SvgPreview.displayName = 'SvgPreview';
+
+/** 音频预览组件 */
+export const AudioPreview: React.FC<{ url: string; filename: string; errorMessage: string }> = memo(
+  ({ url, filename, errorMessage }) => {
+    const [hasError, setHasError] = useState(false);
+
+    const handleError = useCallback(() => setHasError(true), []);
+
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-black/5 dark:bg-white/5 p-8">
+        {hasError ? (
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+              <IconHeadphones className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <span className="text-sm">{errorMessage}</span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-6 w-full max-w-md">
+            <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center shadow-inner">
+              <IconHeadphones className="w-12 h-12 text-primary/80" />
+            </div>
+            <div className="w-full bg-background rounded-full shadow-sm border p-2">
+              {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- no captions are available for user-supplied or generated media */}
+              <audio
+                src={url}
+                controls
+                preload="metadata"
+                className="w-full h-10 outline-none"
+                onError={handleError}
+                title={filename}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+AudioPreview.displayName = 'AudioPreview';

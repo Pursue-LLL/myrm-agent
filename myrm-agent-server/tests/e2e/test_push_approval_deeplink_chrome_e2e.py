@@ -1,0 +1,385 @@
+"""Real Chrome MCP E2E: push approval deeplink navigates on an already-open chat tab.
+
+Every test is declared PRIVATE because it seeds chats and approvals through
+``POST /approvals/test/seed-mock`` (workspace backend code that the deployed shared
+epoch does not carry) and mutates the backend-global pending-approval queue, which
+an open Approval Drawer on any other session would otherwise pick up.
+"""
+
+from __future__ import annotations
+
+import time
+
+import pytest
+
+from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    http_json,
+    navigate_mcp_page,
+    open_mcp_page,
+    wait_for_state,
+)
+
+_APPROVAL_DIALOG_STATE = """(() => ({
+  ready: !!document.querySelector('[role="dialog"]'),
+  pathname: location.pathname,
+  search: location.search,
+}))()"""
+
+_APPROVAL_OPEN_QUERY_STRIPPED = """(() => ({
+  ready:
+    !!document.querySelector('[role="dialog"]') &&
+    !location.search.includes('approval='),
+  search: location.search,
+}))()"""
+
+_NO_APPROVAL_DIALOG_STATE = """(() => ({
+  ready: !document.querySelector('[role="dialog"]'),
+  hasChatInput: !!document.querySelector('[data-chat-input]'),
+}))()"""
+
+_QUERY_STRIPPED_NO_DIALOG = """(() => ({
+  ready:
+    !document.querySelector('[role="dialog"]') &&
+    !location.search.includes('approval=') &&
+    !!document.querySelector('[data-chat-input]'),
+  search: location.search,
+}))()"""
+
+_HIDE_APPROVAL_DRAWER_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (bridge && typeof bridge.hideApprovalDrawer === 'function') {
+    bridge.hideApprovalDrawer();
+    return { hidden: true, via: 'bridge' };
+  }
+  const overlay = document.querySelector('[data-vaul-overlay]');
+  if (overlay instanceof HTMLElement) {
+    overlay.click();
+    return { hidden: true, via: 'overlay' };
+  }
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  return { hidden: false, via: 'escape' };
+})()"""
+
+
+def _resolve_approval_cleanup(api_url: str, approval_id: str, *, decision: str = "deny") -> None:
+    """Best-effort resolve for test cleanup; tolerates 404 on private SHPOIB backends.
+
+    Private backends use ephemeral data directories that may lose records
+    when the MCP page context closes (triggering async SSE teardown). The
+    resolve step is cleanup — the real assertions happen on the browser side
+    (deeplink navigation, dialog display, URL query strip).
+    """
+    resolved = http_json(
+        "POST",
+        f"{api_url}/api/v1/approvals/{approval_id}/resolve",
+        {"decision": decision},
+        expected_statuses=frozenset({200, 201, 204, 404}),
+    )
+    if isinstance(resolved, dict) and resolved.get("code") == 40401:
+        return
+    if isinstance(resolved, dict) and resolved.get("status"):
+        assert resolved["status"] == "REJECTED"
+
+
+def _deny_stale_e2e_push_approvals(api_url: str) -> None:
+    listed = http_json("GET", f"{api_url}/api/v1/approvals?limit=100&offset=0")
+    if not isinstance(listed, dict):
+        return
+    approvals = listed.get("approvals")
+    if not isinstance(approvals, list):
+        return
+    stale_ids = [
+        str(item.get("id") or "")
+        for item in approvals
+        if isinstance(item, dict) and str(item.get("chat_id") or "").startswith("e2epush") and str(item.get("id") or "")
+    ]
+    if not stale_ids:
+        return
+    http_json(
+        "POST",
+        f"{api_url}/api/v1/approvals/batch-resolve",
+        {"approval_ids": stale_ids, "decision": "reject"},
+    )
+
+
+def _seed_push_approval(api_url: str) -> dict[str, str]:
+    seeded = http_json("POST", f"{api_url}/api/v1/approvals/test/seed-mock")
+    assert isinstance(seeded, dict)
+    chat_id = str(seeded.get("chat_id") or "")
+    approval_id = str(seeded.get("approval_id") or "")
+    push_url = str(seeded.get("push_url") or "")
+    assert len(chat_id) >= 8
+    assert approval_id
+    assert push_url.startswith(f"/{chat_id}?approval={approval_id}")
+    return {
+        "chat_id": chat_id,
+        "approval_id": approval_id,
+        "push_url": push_url,
+    }
+
+
+_DEEPLINK_FORENSICS_JS = """(async () => {
+  const apiBase = window.__MYRM_E2E_API_BASE__ || '';
+  let pendingIds;
+  try {
+    const response = await fetch(`${apiBase}/api/v1/approvals?limit=100&offset=0`, { cache: 'no-store' });
+    pendingIds = ((await response.json()).approvals || []).map((item) => item.id);
+  } catch (error) {
+    pendingIds = String(error);
+  }
+  return {
+    href: location.href,
+    apiBase,
+    bound: window.name.startsWith('myrm-e2e-v1:'),
+    hasChatInput: !!document.querySelector('[data-chat-input]'),
+    dialogCount: document.querySelectorAll('[role="dialog"]').length,
+    pendingIds,
+    body: (document.body?.innerText || '').slice(0, 160),
+  };
+})()"""
+
+
+def _wait_for_deeplink_state(
+    client: ChromeMcpClient,
+    page: McpPage,
+    expression: str,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    """``wait_for_state`` whose failure names the page and backend state.
+
+    A bare ``{'ready': False}`` cannot tell a drawer that never opened from a
+    deeplink consumed against the wrong backend; the snapshot shows which backend
+    the page talks to and which approvals it can see.
+    """
+    try:
+        return wait_for_state(client, page, expression, timeout_sec=timeout_sec)
+    except AssertionError as exc:
+        snapshot = client.evaluate(page, _DEEPLINK_FORENSICS_JS, timeout_sec=20.0)
+        raise AssertionError(f"{exc} | forensics={snapshot}") from exc
+
+
+def _ensure_clean_chat_surface(client: ChromeMcpClient, page: McpPage) -> None:
+    for _ in range(24):
+        state_raw = client.evaluate(page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=5.0)
+        state = state_raw if isinstance(state_raw, dict) else {"value": state_raw}
+        if state.get("ready") is True:
+            return
+        client.evaluate(page, _HIDE_APPROVAL_DRAWER_JS, timeout_sec=5.0)
+        time.sleep(0.25)
+    raise AssertionError("Could not hide approval drawer before deeplink baseline")
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_push_approval_deeplink_navigates_on_open_chat_tab() -> None:
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
+
+    seeded = _seed_push_approval(api_url)
+    chat_id = seeded["chat_id"]
+    approval_id = seeded["approval_id"]
+    push_url = seeded["push_url"]
+
+    chat_url = f"{ui_url}/{chat_id}"
+    deeplink_url = f"{ui_url}{push_url}"
+
+    with open_mcp_page(chat_url) as (client, page):
+        _ensure_clean_chat_surface(client, page)
+        baseline = wait_for_state(client, page, _NO_APPROVAL_DIALOG_STATE, timeout_sec=60.0)
+        assert baseline.get("ready") is True
+        assert baseline.get("hasChatInput") is True
+
+        navigate_mcp_page(client, page, deeplink_url)
+
+        opened = _wait_for_deeplink_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
+        assert opened.get("ready") is True
+        assert str(opened.get("pathname") or "").endswith(f"/{chat_id}")
+
+        stripped = _wait_for_deeplink_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        assert stripped.get("ready") is True
+
+    _resolve_approval_cleanup(api_url, approval_id)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_push_approval_deeplink_cold_start_opens_drawer() -> None:
+    """Cold navigation to ?approval= URL (notification click with no prior tab)."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
+
+    seeded = _seed_push_approval(api_url)
+    chat_id = seeded["chat_id"]
+    approval_id = seeded["approval_id"]
+    push_url = seeded["push_url"]
+
+    deeplink_url = f"{ui_url}{push_url}"
+
+    with open_mcp_page(deeplink_url) as (client, page):
+        opened = _wait_for_deeplink_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
+        assert opened.get("ready") is True
+        assert str(opened.get("pathname") or "").endswith(f"/{chat_id}")
+
+        stripped = _wait_for_deeplink_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        assert stripped.get("ready") is True
+
+    _resolve_approval_cleanup(api_url, approval_id)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_push_approval_deeplink_from_different_open_chat_tab() -> None:
+    """User on chat A receives push for chat B — navigate must land on B and open drawer."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
+
+    decoy = _seed_push_approval(api_url)
+    target = _seed_push_approval(api_url)
+    assert decoy["chat_id"] != target["chat_id"]
+
+    decoy_url = f"{ui_url}/{decoy['chat_id']}"
+    target_deeplink = f"{ui_url}{target['push_url']}"
+
+    with open_mcp_page(decoy_url) as (client, page):
+        _ensure_clean_chat_surface(client, page)
+        navigate_mcp_page(client, page, target_deeplink)
+
+        opened = _wait_for_deeplink_state(client, page, _APPROVAL_DIALOG_STATE, timeout_sec=90.0)
+        assert opened.get("ready") is True
+        assert str(opened.get("pathname") or "").endswith(f"/{target['chat_id']}")
+
+        stripped = _wait_for_deeplink_state(client, page, _APPROVAL_OPEN_QUERY_STRIPPED, timeout_sec=60.0)
+        assert stripped.get("ready") is True
+
+    for aid in (decoy["approval_id"], target["approval_id"]):
+        _resolve_approval_cleanup(api_url, aid)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_push_approval_deeplink_unknown_id_strips_query_without_drawer() -> None:
+    """Stale or forged ?approval= must not open a drawer but should still clean the URL."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
+
+    seeded = _seed_push_approval(api_url)
+    chat_id = seeded["chat_id"]
+    approval_id = seeded["approval_id"]
+    bogus_deeplink = f"{ui_url}/{chat_id}?approval=ap-e2e-unknown-id"
+
+    # Resolve the real pending approval first so recovery does not open the drawer.
+    resolved = http_json(
+        "POST",
+        f"{api_url}/api/v1/approvals/{approval_id}/resolve",
+        {"decision": "deny"},
+    )
+    assert isinstance(resolved, dict)
+    assert resolved.get("status") == "REJECTED"
+
+    with open_mcp_page(f"{ui_url}/{chat_id}") as (client, page):
+        _ensure_clean_chat_surface(client, page)
+        navigate_mcp_page(client, page, bogus_deeplink)
+
+        cleaned = _wait_for_deeplink_state(client, page, _QUERY_STRIPPED_NO_DIALOG, timeout_sec=90.0)
+        assert cleaned.get("ready") is True
+
+
+# The drawer's note box is the one the person types into before approving. What they type has to
+# leave on `guidance`: the harness reads a decision's `feedback` only as a rejection reason, so a
+# note sent there reaches nobody. The state below reports both the box and its value, so the test
+# can wait for the drawer and assert on what the UI actually collected.
+_DRAWER_NOTE_BOX = """(() => {
+  const box = document.querySelector('textarea[id^="comment-"]');
+  const approve = Array.from(document.querySelectorAll('button')).find(
+    (btn) => /approve|批准/i.test((btn.textContent || '').trim()),
+  );
+  return { ready: !!box && !!approve, hasNote: !!box };
+})()"""
+
+
+def _type_into_drawer_note(client: ChromeMcpClient, page: McpPage, note: str) -> bool:
+    """Type into the drawer's note box the way a person does (a real input event, not value = x)."""
+    typed = client.evaluate(
+        page,
+        f"""(() => {{
+          const box = document.querySelector('textarea[id^="comment-"]');
+          if (!box) return false;
+          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+          setter.call(box, {note!r});
+          box.dispatchEvent(new Event('input', {{ bubbles: true }}));
+          return box.value === {note!r};
+        }})()""",
+        timeout_sec=10.0,
+    )
+    return typed is True
+
+
+def _drawer_note_value(client: ChromeMcpClient, page: McpPage) -> str:
+    value = client.evaluate(
+        page,
+        """(() => {
+          const box = document.querySelector('textarea[id^="comment-"]');
+          return box ? box.value : '';
+        })()""",
+        timeout_sec=10.0,
+    )
+    return str(value or "")
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(180)
+def test_drawer_collects_the_note_typed_on_an_approval() -> None:
+    """The approval drawer's note box accepts what a person types before they approve."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    _deny_stale_e2e_push_approvals(api_url)
+    seeded = _seed_push_approval(api_url)
+    deeplink_url = f"{ui_url}{seeded['push_url']}"
+
+    with open_mcp_page(deeplink_url) as (client, page):
+        state = wait_for_state(client, page, _DRAWER_NOTE_BOX, timeout_sec=90.0)
+        assert state.get("ready") is True, f"drawer note box never appeared: {state}"
+
+        assert _type_into_drawer_note(client, page, "only staging, not prod") is True
+        assert _drawer_note_value(client, page) == "only staging, not prod"
+
+    _resolve_approval_cleanup(api_url, seeded["approval_id"])

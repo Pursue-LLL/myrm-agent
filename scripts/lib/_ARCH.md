@@ -1,0 +1,17 @@
+# scripts/lib 模块架构
+
+## 架构概述
+
+`myrm` CLI 与 `scripts/dev/*` 共享的 Bash 库。仅 Unix/Git Bash；Windows 使用 PowerShell 对等脚本。
+
+## 文件清单
+
+| 文件 | 职责 |
+|------|------|
+| `resolve_agent_root.sh` | 解析嵌套 monorepo 与独立 clone 下的 `myrm-agent` 根路径 |
+| `start_server.sh` | 启动 FastAPI 后端（env、端口、venv python） |
+| `server_sync_flags.sh` | OSS dev setup 与 Desktop release 共用的 `uv sync` flags（排除 GPL/heavy optional extras）；含 `SERVER_UV_SYNC_FLAGS_WITH_MATRIX_E2EE` 供 `install_harness.sh` 在 `MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时使用 |
+
+## 依赖
+
+- 父模块 [scripts/_ARCH.md](../_ARCH.md)

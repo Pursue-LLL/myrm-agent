@@ -1,0 +1,153 @@
+"""Application lifecycle management.
+
+Manages background monitors: MemoryPressureMonitor, AuthAlert, MaintenanceScheduler.
+All monitors follow start/stop pattern for clean lifecycle.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.runtime.survival.memory_pressure import MemoryPressureMonitor
+
+logger = logging.getLogger(__name__)
+
+_memory_pressure_monitor: MemoryPressureMonitor | None = None
+
+_auth_alert_monitor_task: asyncio.Task[None] | None = None
+
+
+async def start_auth_alert_monitor() -> None:
+    """Start auth alert monitor only when there is an external attack surface.
+
+    Skipped in Local (loopback-only) mode where auth audit has no value.
+    """
+    global _auth_alert_monitor_task
+
+    from app.config.deploy_mode import is_webui_remote_mode
+    from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+
+    caps = get_deployment_capabilities()
+    if not (caps.enables_auth_audit or is_webui_remote_mode()):
+        logger.debug("Auth alert monitor skipped (local mode, no external attack surface)")
+        return
+
+    if _auth_alert_monitor_task is not None:
+        return
+
+    from app.middleware.auth_alert import alert_monitor_loop
+
+    _auth_alert_monitor_task = asyncio.create_task(alert_monitor_loop())
+    logger.info("Auth alert monitor started (every 5 min)")
+
+
+async def stop_auth_alert_monitor() -> None:
+    """Stop auth alert monitor."""
+    global _auth_alert_monitor_task
+
+    if _auth_alert_monitor_task is None:
+        return
+
+    _auth_alert_monitor_task.cancel()
+    try:
+        await _auth_alert_monitor_task
+    except asyncio.CancelledError:
+        pass
+    _auth_alert_monitor_task = None
+    logger.info("Auth alert monitor stopped")
+
+
+async def start_memory_pressure_monitor() -> None:
+    """Initialize and start the global MemoryPressureMonitor.
+
+    Must be called BEFORE start_maintenance_scheduler() so the scheduler
+    can subscribe to pressure events automatically.
+    """
+    global _memory_pressure_monitor
+
+    if _memory_pressure_monitor is not None:
+        return
+
+    from myrm_agent_harness.runtime.survival.memory_pressure import init_memory_pressure_monitor
+
+    _memory_pressure_monitor = init_memory_pressure_monitor()
+    await _memory_pressure_monitor.start()
+    logger.info(
+        "Memory pressure monitor started (initial_level=%s, mem=%.1f%%)",
+        _memory_pressure_monitor.current_level.name,
+        _memory_pressure_monitor.current_memory_percent,
+    )
+
+    # Also start the high-fidelity resource monitor
+    from myrm_agent_harness.runtime.survival.resource_monitor import get_resource_monitor
+
+    from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+    async def _on_metrics_collected(metrics: object) -> None:
+        try:
+            monitor = get_resource_monitor()
+            get_event_bus().publish(
+                AppEvent(
+                    event_type=AppEventType.MEMORY_HISTORY_UPDATED,
+                    data={"history": monitor.get_history()},
+                )
+            )
+        except Exception as e:
+            logger.debug(f"Failed to publish memory history event: {e}")
+
+    monitor = get_resource_monitor()
+    monitor.add_listener(_on_metrics_collected)
+    await monitor.start()
+
+
+async def stop_memory_pressure_monitor() -> None:
+    """Stop the global MemoryPressureMonitor."""
+    global _memory_pressure_monitor
+
+    if _memory_pressure_monitor is None:
+        return
+
+    await _memory_pressure_monitor.stop()
+    _memory_pressure_monitor = None
+
+    # Also stop the high-fidelity resource monitor
+    from myrm_agent_harness.runtime.survival.resource_monitor import get_resource_monitor
+
+    await get_resource_monitor().stop()
+
+    logger.info("Memory pressure monitor stopped")
+
+
+def get_memory_pressure_monitor_instance() -> MemoryPressureMonitor | None:
+    """Get the lifecycle-managed monitor instance (for subscriber registration)."""
+    return _memory_pressure_monitor
+
+
+async def start_maintenance_scheduler() -> None:
+    """Initialize the global adaptive maintenance scheduler.
+
+    Selects the appropriate LoadSensor based on deployment mode:
+    - LOCAL/Tauri: DeviceLoadSensor (cross-platform CPU/memory via psutil)
+    - SANDBOX (SaaS): SaaSLoadSensor (API quota headroom + queue depth)
+
+    Also subscribes to MemoryPressureMonitor if already initialized.
+    """
+    try:
+        from myrm_agent_harness.runtime.maintenance import (
+            DeviceLoadSensor,
+            SaaSLoadSensor,
+            init_maintenance_scheduler,
+        )
+
+        from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+
+        caps = get_deployment_capabilities()
+        sensor = SaaSLoadSensor() if caps.is_sandbox_instance else DeviceLoadSensor()
+        init_maintenance_scheduler(sensor)
+        mode = "SaaS" if caps.is_sandbox_instance else "Device"
+        logger.info("Maintenance scheduler initialized (sensor=%s)", mode)
+    except Exception as e:
+        logger.error("Maintenance scheduler initialization failed: %s", e)

@@ -1,0 +1,1489 @@
+import { API_BASE_URL, apiRequest, fetchWithTimeout } from '@/lib/api';
+import type { ExportData } from '@/lib/utils/chat-export';
+import { Message, type ActionMode, type MentionReferenceType, type ModelSelection } from '@/store/chat/types';
+import { requestManager } from '@/lib/utils/requestManager';
+import { parseServerTimestamp } from '@/lib/utils/timeUtils';
+
+export interface TurnOutlineItem {
+  turn_index: number;
+  user_message_id: string;
+  assistant_message_id: string | null;
+  prompt_preview: string;
+  reply_preview: string | null;
+  created_at: string | null;
+  message_count: number;
+}
+
+/**
+ * 获取轻量会话轮次大纲投影
+ */
+export const getChatOutline = async (chatId: string): Promise<TurnOutlineItem[]> => {
+  return apiRequest(`/chats/${chatId}/outline`);
+};
+
+export interface TrajectoryStep {
+  step_index: number;
+  tool_name: string;
+  tool_args: Record<string, unknown>;
+  tool_result_summary: string | null;
+  is_error: boolean;
+  duration_ms: number;
+  tokens_used: number;
+}
+
+export interface TurnTrajectory {
+  turn_id: string;
+  user_prompt: string;
+  assistant_reply: string | null;
+  steps: TrajectoryStep[];
+  total_steps: number;
+  total_tokens: number;
+  created_at: string | null;
+}
+
+export interface SessionTrajectoryResponse {
+  session_id: string;
+  title: string | null;
+  turns: TurnTrajectory[];
+  total_turns: number;
+  total_tool_calls: number;
+  total_tokens: number;
+}
+
+/**
+ * 获取会话完整执行轨迹 (Trajectory)
+ */
+export const getSessionTrajectory = async (chatId: string): Promise<SessionTrajectoryResponse> => {
+  return apiRequest(`/chats/${chatId}/trajectory`);
+};
+
+export interface ReplayDeterminismResponse {
+  session_id: string;
+  determinism_score: number;
+  tool_sequence_similarity: number;
+  tool_set_jaccard: number;
+  args_similarity: number;
+  original_tool_count: number;
+  replayed_tool_count: number;
+  drifted_tools: string[];
+  verdict: string;
+}
+
+/**
+ * 重放会话并计算确定性指标
+ */
+export const replayChatSession = async (
+  chatId: string,
+  mode: 'live' | 'mock' = 'live',
+): Promise<ReplayDeterminismResponse> => {
+  return apiRequest(`/chats/${chatId}/replay`, {
+    method: 'POST',
+    body: JSON.stringify({ mode }),
+  });
+};
+
+export interface ChatItem {
+  id: string;
+  title: string;
+  firstMessage: string;
+  lastMessage: string;
+  actionMode: string;
+  source: string;
+  isCompacted?: boolean;
+  isPinned?: boolean;
+  pinOrder?: number;
+  projectId?: string | null;
+  tags?: string[];
+  updatedAt: Date;
+  createdAt: Date;
+}
+
+export interface PaginationInfo {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface ChatHistoryResponse {
+  items: ChatItem[];
+  pagination: PaginationInfo;
+}
+
+/**
+ * 获取聊天历史列表（支持分页、来源、项目和多维度标签过滤）
+ */
+export const getChatHistory = async (
+  page: number = 1,
+  pageSize: number = 20,
+  source?: string,
+  projectId?: string | null,
+  keyword?: string,
+  tags?: string[],
+  matchMode: 'any' | 'all' = 'any',
+): Promise<ChatHistoryResponse> => {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (source) {
+    params.set('source', source);
+  }
+  if (projectId) {
+    params.set('project_id', projectId);
+  }
+  if (projectId === null) {
+    params.set('unassigned', 'true');
+  }
+  if (keyword) {
+    params.set('keyword', keyword);
+  }
+  if (tags && tags.length > 0) {
+    tags.forEach((tag) => params.append('tags', tag));
+    params.set('match_mode', matchMode);
+  }
+  const data = (await apiRequest(`/chats?${params}`)) as {
+    items?: unknown[];
+    pagination?: PaginationInfo;
+  };
+
+  // 从新的响应格式中提取数据
+  const items = data.items || [];
+  const pagination = data.pagination || {
+    page: 1,
+    page_size: pageSize,
+    total: 0,
+    total_pages: 0,
+    has_next: false,
+    has_prev: false,
+  };
+
+  const chatItems = (items as Record<string, unknown>[]).map((chat) => ({
+    id: chat.id as string,
+    title: (chat.title || chat.firstMessage || 'Untitled Chat') as string,
+    firstMessage: (chat.firstMessage || '') as string,
+    lastMessage: (chat.lastMessage || '') as string,
+    actionMode: (chat.actionMode || 'fast') as string,
+    source: (chat.source || 'web') as string,
+    isCompacted: Boolean(chat.isCompacted),
+    isPinned: Boolean(chat.isPinned),
+    pinOrder: (chat.pinOrder as number) || 0,
+    projectId: (chat.projectId as string | null) ?? null,
+    tags: Array.isArray(chat.tags) ? (chat.tags as string[]) : [],
+    updatedAt: parseServerTimestamp((chat.updated_at || chat.created_at) as string),
+    createdAt: parseServerTimestamp((chat.created_at || chat.updated_at) as string),
+  }));
+
+  return {
+    items: chatItems,
+    pagination,
+  };
+};
+
+/** 获取最近聊天历史列表，返回 ChatItem 数组。 */
+export const getChatHistoryLegacy = async (): Promise<ChatItem[]> => {
+  const response = await getChatHistory(1, 50); // 默认获取前50条
+  return response.items;
+};
+
+/**
+ * 更新会话的多维度层级标签 (Item 156)
+ */
+export const updateChatTags = async (chatId: string, tags: string[]): Promise<{ chatId: string; tags: string[] }> => {
+  return apiRequest(`/chats/${chatId}/tags`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tags }),
+  });
+};
+
+export interface SearchResult {
+  id: string;
+  chat_id: string;
+  role: string;
+  content: string;
+  sent_at: string;
+  chat_title: string | null;
+  snippet: string;
+  source?: string;
+  is_relaxed?: boolean;
+}
+
+export interface SearchResponse {
+  items: SearchResult[];
+  total: number;
+}
+
+export const searchChatHistory = async (
+  query: string,
+  limit: number = 20,
+  offset: number = 0,
+  since?: string,
+  until?: string,
+): Promise<SearchResponse> => {
+  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
+  if (since) {
+    params.set('since', since);
+  }
+  if (until) {
+    params.set('until', until);
+  }
+  const data = (await apiRequest(`/chats/search?${params}`)) as SearchResponse;
+  return { items: data.items || [], total: data.total || 0 };
+};
+
+/** Recall-index SSOT search for @chat: composer citation (matches server inject path). */
+export const searchCitableChats = async (
+  query: string,
+  limit: number = 20,
+  offset: number = 0,
+  excludeChatId?: string,
+): Promise<SearchResponse> => {
+  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
+  if (excludeChatId) {
+    params.set('exclude_chat_id', excludeChatId);
+  }
+  const data = (await apiRequest(`/chats/recall/search?${params}`)) as SearchResponse;
+  return { items: data.items || [], total: data.total || 0 };
+};
+
+/**
+ * 获取聊天元数据（不含消息）
+ */
+export const getChatDetail = async (
+  chatId: string,
+  silent: boolean = false,
+): Promise<{
+  chat: {
+    id: string;
+    title: string | null;
+    actionMode: string;
+    activeMoaPresetId?: string | null;
+    agent_id: string | null;
+    is_incognito: boolean;
+    compacted_summary: string | null;
+    compacted_before_id: string | null;
+    workspace_dir: string | null;
+    session_loaded_skill_names: string[] | null;
+    session_access_roots: Array<{
+      path: string;
+      writable: boolean;
+      label?: string;
+      source?: string;
+    }> | null;
+    created_at: string;
+    updated_at: string;
+  };
+  message_count: number;
+  turn_outline: TurnOutlineItem[];
+}> => {
+  return apiRequest(`/chats/${chatId}`, { silent });
+};
+
+/**
+ * Set or clear session-level skill override for a chat.
+ * Pass null to clear the override (revert to agent defaults).
+ */
+export const updateSessionSkills = async (
+  chatId: string,
+  skillNames: string[] | null,
+): Promise<{ session_loaded_skill_names: string[] | null }> => {
+  return apiRequest(`/chats/${chatId}/session-skills`, {
+    method: 'PATCH',
+    body: JSON.stringify({ skill_names: skillNames }),
+  });
+};
+
+/** Persist session MoA preset for a chat (null clears). Skipped for incognito on server. */
+export const updateChatActiveMoaPreset = async (
+  chatId: string,
+  presetId: string | null,
+): Promise<{ active_moa_preset_id: string | null }> => {
+  return apiRequest(`/chats/${chatId}/active-moa-preset`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active_moa_preset_id: presetId }),
+  });
+};
+
+/**
+ * Update per-chat working directory
+ */
+export const updateChatWorkspaceDir = async (
+  chatId: string,
+  workspaceDir: string | null,
+): Promise<{ workspace_dir: string | null }> => {
+  return apiRequest(`/chats/${chatId}/workspace`, {
+    method: 'PATCH',
+    body: JSON.stringify({ workspace_dir: workspaceDir }),
+  });
+};
+
+/** Re-run memory extraction for the latest user/assistant turn in a chat. */
+export const retryChatMemoryExtract = async (
+  chatId: string,
+): Promise<{ status: 'scheduled' | 'already_in_flight'; chat_id: string }> => {
+  return apiRequest(`/chats/${chatId}/memory/retry-extract`, {
+    method: 'POST',
+  });
+};
+
+export const grantSessionAccessRoot = async (
+  chatId: string,
+  path: string,
+  writable: boolean = true,
+  label?: string,
+): Promise<{
+  session_access_roots: Array<{
+    path: string;
+    writable: boolean;
+    label?: string;
+    source?: string;
+  }>;
+}> => {
+  return apiRequest(`/chats/${chatId}/session-access-roots`, {
+    method: 'POST',
+    body: JSON.stringify({ path, writable, label }),
+  });
+};
+
+export const revokeSessionAccessRoot = async (
+  chatId: string,
+  path: string,
+): Promise<{
+  session_access_roots: Array<{
+    path: string;
+    writable: boolean;
+    label?: string;
+    source?: string;
+  }>;
+}> => {
+  return apiRequest(`/chats/${chatId}/session-access-roots`, {
+    method: 'PATCH',
+    body: JSON.stringify({ path }),
+  });
+};
+
+export interface DirectoryEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+}
+
+export interface BrowseResult {
+  current: string;
+  parent: string | null;
+  entries: DirectoryEntry[];
+}
+
+/**
+ * Browse directories on the server for workspace selection
+ */
+export const browseDirectories = async (path: string = '~'): Promise<BrowseResult> => {
+  const params = new URLSearchParams({ path });
+  return apiRequest(`/files/browse?${params}`);
+};
+
+// ---------------------------------------------------------------------------
+// Workspace file browser API
+// ---------------------------------------------------------------------------
+
+export interface FileEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size: number | null;
+  mtime: string | null;
+  is_text: boolean | null;
+  children: FileEntry[] | null;
+}
+
+export interface FileTreeResult {
+  root: string;
+  entries: FileEntry[];
+  truncated: boolean;
+}
+
+/**
+ * Browse workspace directory files with metadata (for file browser UI)
+ */
+export const browseWorkspaceFiles = async (path: string, depth: number = 2): Promise<FileTreeResult> => {
+  const params = new URLSearchParams({ path, depth: String(depth) });
+  return apiRequest(`/files/browse/files?${params}`);
+};
+
+/** Register server-side workspace directory watch for SSE auto-refresh. */
+export const registerWorkspaceWatch = async (workspace: string): Promise<{ workspace: string }> => {
+  return apiRequest('/files/browse/watch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace }),
+  });
+};
+
+/** Release server-side workspace directory watch registration. */
+export const unregisterWorkspaceWatch = async (workspace: string): Promise<{ workspace: string }> => {
+  const params = new URLSearchParams({ workspace });
+  return apiRequest(`/files/browse/watch?${params}`, { method: 'DELETE' });
+};
+
+/**
+ * Get workspace file content URL for preview or download
+ */
+export const getWorkspaceFileContentUrl = (filePath: string, workspace: string, download: boolean = false): string => {
+  const params = new URLSearchParams({ path: filePath, workspace });
+  if (download) {
+    params.set('download', 'true');
+  }
+  return `${API_BASE_URL}/files/browse/content?${params}`;
+};
+
+/**
+ * Fetch workspace file content as text for inline preview
+ */
+export const fetchWorkspaceFileContent = async (filePath: string, workspace: string): Promise<string> => {
+  const params = new URLSearchParams({ path: filePath, workspace });
+  const res = await fetchWithTimeout(`/files/browse/content?${params}`, { method: 'GET', credentials: 'include' });
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'Unknown error');
+    throw new Error(text);
+  }
+  return res.text();
+};
+
+// ---------------------------------------------------------------------------
+// Workspace file write operations API
+// ---------------------------------------------------------------------------
+
+export interface WorkspaceUploadResult {
+  uploaded_count: number;
+  files: Array<{ name: string; path: string; size: number }>;
+}
+
+export const uploadToWorkspace = async (
+  workspace: string,
+  files: File[],
+  targetDir: string = '',
+  onProgress?: (percent: number) => void,
+): Promise<WorkspaceUploadResult> => {
+  const formData = new FormData();
+  files.forEach((f) => formData.append('files', f));
+
+  const params = new URLSearchParams({ workspace });
+  if (targetDir) {
+    params.set('target_dir', targetDir);
+  }
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}/files/browse/upload?${params}`);
+    xhr.withCredentials = true;
+
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          resolve(res.data);
+        } catch {
+          reject(new Error('Invalid server response'));
+        }
+      } else {
+        reject(new Error(xhr.responseText || `Upload failed: ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(formData);
+  });
+};
+
+export const mkdirInWorkspace = async (workspace: string, path: string): Promise<{ path: string; name: string }> => {
+  return apiRequest('/files/browse/mkdir', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace, path }),
+  });
+};
+
+export const renameInWorkspace = async (
+  workspace: string,
+  path: string,
+  newName: string,
+): Promise<{ old_name: string; new_name: string; path: string }> => {
+  return apiRequest('/files/browse/rename', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace, path, new_name: newName }),
+  });
+};
+
+export const moveInWorkspace = async (
+  workspace: string,
+  source: string,
+  targetDir: string,
+): Promise<{ name: string; old_path: string; new_path: string }> => {
+  return apiRequest('/files/browse/move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace, source, target_dir: targetDir }),
+  });
+};
+
+export const deleteInWorkspace = async (
+  workspace: string,
+  path: string,
+): Promise<{ deleted: string; type: string }> => {
+  const params = new URLSearchParams({ workspace, path });
+  return apiRequest(`/files/browse/delete?${params}`, { method: 'DELETE' });
+};
+
+export const saveWorkspaceFileContent = async (
+  workspace: string,
+  path: string,
+  content: string,
+): Promise<{ path: string; name: string; size: number }> => {
+  return apiRequest('/files/browse/content', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace, path, content }),
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Structured @ reference suggestion API
+// ---------------------------------------------------------------------------
+
+export type ReferenceSuggestionSource = 'workspace' | 'uploaded' | 'generated' | 'special' | 'agent' | 'wiki';
+/** Memory-import provenance (`external:claude_code`, `external:codex`, ...) surfaces on prior-chat hits. */
+export type ReferenceHistorySource = ReferenceSuggestionSource | `external:${string}`;
+export type ReferenceSuggestionType =
+  | 'workspace_file'
+  | 'workspace_folder'
+  | 'uploaded_file'
+  | 'generated_file'
+  | 'git_diff'
+  | 'git_staged'
+  | 'url'
+  | 'agent'
+  | 'wiki_concept'
+  | 'prior_chat';
+
+export interface ReferenceSuggestion {
+  source: ReferenceHistorySource;
+  reference_type: ReferenceSuggestionType;
+  kind: 'file' | 'directory' | 'reference' | 'agent';
+  label: string;
+  basename: string;
+  directory: string;
+  relative_path: string | null;
+  file_id: string | null;
+  description: string | null;
+  size: number | null;
+  score_tier: string;
+  score: number;
+  match_ranges: Array<[number, number]>;
+  avatar_url?: string;
+  concept_name?: string | null;
+}
+
+export interface ReferenceSuggestResponse {
+  results: ReferenceSuggestion[];
+  total: number;
+}
+
+export interface MentionReferencePayload {
+  type: Exclude<MentionReferenceType, 'agent'>;
+  path?: string;
+  file_id?: string;
+  url?: string;
+  label?: string;
+  start_line?: number;
+  end_line?: number;
+  concept_name?: string;
+  range?: string;
+  content?: string;
+}
+
+export const suggestReferences = async (
+  chatId: string,
+  query: string,
+  limit: number = 30,
+  kind: 'any' | 'file' | 'directory' = 'any',
+): Promise<ReferenceSuggestResponse> => {
+  const params = new URLSearchParams({ chat_id: chatId, q: query, limit: String(limit), kind });
+  return apiRequest(`/files/suggest?${params}`);
+};
+
+export interface CursorPage {
+  messages: Message[];
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+/**
+ * Cursor-paginated message loading
+ */
+export const getMessages = async (
+  chatId: string,
+  options?: { before?: string; limit?: number; silent?: boolean },
+): Promise<CursorPage> => {
+  const params = new URLSearchParams();
+  if (options?.before) {
+    params.set('before', options.before);
+  }
+  if (options?.limit) {
+    params.set('limit', String(options.limit));
+  }
+  const qs = params.toString();
+  return apiRequest(`/chats/${chatId}/messages${qs ? `?${qs}` : ''}`, { silent: options?.silent });
+};
+
+interface AgentConfigPayload {
+  skill_ids: string[];
+  enabled_builtin_tools: string[];
+  browser_source?: string;
+  kanban_default_board_id?: string;
+}
+
+interface MigrationReadinessAnchorPayload {
+  import_batch_id: string;
+  readiness_status: 'ready' | 'warning' | 'critical';
+}
+
+export interface StreamRequestBody {
+  query: string | object[];
+  message_id: string;
+  chat_id: string;
+  action_mode: ActionMode;
+  active_moa_preset_id?: string | null;
+  auto_moa_reasoning?: boolean;
+  auto_moa_preset_id?: string | null;
+  search_depth?: 'normal' | 'deep';
+  reasoning_display_mode?: 'off' | 'collapsed' | 'inline';
+  model_selection?: ModelSelection;
+  timezone: string;
+  timestamp?: number;
+  locale?: string;
+  agent_id?: string;
+  migration_readiness_anchor?: MigrationReadinessAnchorPayload;
+  ephemeral_subagents?: Record<string, unknown>;
+  user_instructions?: string;
+  lite_model_selection?: ModelSelection;
+  fallback_lite_model_selection?: ModelSelection;
+  safety_fallback_model_selection?: ModelSelection;
+  filter_model_selection?: ModelSelection;
+  fallback_model_selection?: ModelSelection;
+  fallback_filter_model_selection?: ModelSelection;
+  light_model_selection?: ModelSelection;
+  fallback_light_model_selection?: ModelSelection;
+  reasoning_model_selection?: ModelSelection;
+  fallback_reasoning_model_selection?: ModelSelection;
+  vision_fallback_model_selection?: ModelSelection;
+  mcp_cfg?: object[];
+  fetch_raw_webpage?: boolean;
+  enable_memory?: boolean;
+  memory_require_confirmation?: boolean;
+  enable_memory_auto_extraction?: boolean;
+  enable_advanced_retrieval?: boolean;
+  agent_config?: AgentConfigPayload;
+  force_external_agent?: string;
+  privacy_enabled?: boolean;
+  privacy_s2_action?: string;
+  privacy_s3_action?: string;
+  privacy_routing?: object;
+  privacy_custom_keywords_s2?: string[];
+  privacy_custom_keywords_s3?: string[];
+  privacy_custom_patterns_s2?: string[];
+  privacy_custom_patterns_s3?: string[];
+  privacy_sensitive_tools_s2?: string[];
+  privacy_sensitive_tools_s3?: string[];
+  privacy_deep_scan?: boolean;
+  user_id?: string;
+  sibling_group_id?: string;
+  regenerate_instruction?: string;
+  goal?: {
+    max_tokens?: number;
+    max_usd?: number;
+    max_time_seconds?: number;
+    max_turns?: number;
+    convergence_window?: number;
+    loop_on_pause?: boolean;
+    checkpoint_mode?: string;
+    acceptance_criteria?: Array<Record<string, unknown>>;
+    constraints?: string[];
+    protected_paths?: string[];
+  };
+  mention_references?: MentionReferencePayload[];
+  mentioned_agent_ids?: string[];
+  quote?: {
+    source_message_id: string;
+    quoted_text: string;
+  };
+  resume_value?: unknown;
+}
+
+const getActionModeEndpoint = (actionMode: ActionMode): string => {
+  switch (actionMode) {
+    default:
+      return '/agents/agent-stream';
+  }
+};
+
+/**
+ * 创建 AI 搜索流式请求（SSE）。
+ * SSE 流式连接的生命周期由 AbortController 控制（用户取消），不设置超时。
+ */
+export const createAISearchStream = async (
+  requestBody: StreamRequestBody,
+  abortController?: AbortController,
+): Promise<Response> => {
+  const controller = abortController || new AbortController();
+  requestManager.registerRequest(controller);
+
+  const endpoint = getActionModeEndpoint(requestBody.action_mode);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (requestBody.chat_id) {
+    headers['X-Chat-ID'] = requestBody.chat_id;
+  }
+
+  const fetchOptions: RequestInit = {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody),
+    signal: controller.signal,
+  };
+
+  try {
+    return await fetchWithTimeout(endpoint, fetchOptions, 0);
+  } finally {
+    requestManager.unregisterRequest(controller);
+  }
+};
+
+/**
+ * 取消正在运行的Agent请求
+ *
+ * @param messageId - 要取消的消息ID
+ * @returns 取消操作的响应
+ */
+export const cancelAgentRequest = async (messageId: string): Promise<{ cancelled: boolean }> => {
+  return apiRequest(`/agents/agent/${messageId}/cancel`, {
+    method: 'POST',
+  });
+};
+
+/**
+ * Cancel the active agent run for a chat (mobile remote / no workspace pane).
+ */
+export const cancelActiveChatAgent = async (chatId: string): Promise<{ cancelled: boolean; chat_id: string }> => {
+  const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
+  if (isMobileRemoteSurface()) {
+    return mobileRemotePost<{ cancelled: boolean; chat_id: string }>(`/api/v1/agents/chats/${chatId}/cancel`, {});
+  }
+  return apiRequest(`/agents/chats/${chatId}/cancel`, {
+    method: 'POST',
+  });
+};
+
+export type ChatTurnPrewarmRequest = {
+  agentId?: string | null;
+  actionMode?: string;
+  incognitoMode?: boolean;
+};
+
+export const startChatTurnPrewarm = async (
+  chatId: string,
+  request: ChatTurnPrewarmRequest,
+): Promise<{ started: boolean; chat_id: string }> => {
+  const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
+  const body = {
+    agent_id: request.agentId ?? null,
+    action_mode: request.actionMode ?? 'agent',
+    incognito_mode: request.incognitoMode ?? false,
+  };
+  if (isMobileRemoteSurface()) {
+    return mobileRemotePost<{ started: boolean; chat_id: string }>(`/api/v1/agents/chats/${chatId}/prewarm`, body);
+  }
+  return apiRequest(`/agents/chats/${chatId}/prewarm`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    silent: true,
+  });
+};
+
+export const cancelChatTurnPrewarm = async (
+  chatId: string,
+  agentId?: string | null,
+): Promise<{ cancelled: boolean; chat_id: string }> => {
+  const { isMobileRemoteSurface, mobileApiRequest } = await import('@/lib/mobileRemote');
+  const query = agentId ? `?agent_id=${encodeURIComponent(agentId)}` : '';
+  if (isMobileRemoteSurface()) {
+    return mobileApiRequest<{ cancelled: boolean; chat_id: string }>(`/api/v1/agents/chats/${chatId}/prewarm${query}`, {
+      method: 'DELETE',
+    });
+  }
+  return apiRequest(`/agents/chats/${chatId}/prewarm${query}`, {
+    method: 'DELETE',
+    silent: true,
+  });
+};
+
+/**
+ * 获取后续建议（搜索模式和 Agent 模式通用）
+ *
+ * 后端从 UserConfig 表读取 filter model 配置。
+ */
+export const getSuggestions = async (
+  chatHistory: [string, string][],
+  abortController?: AbortController,
+): Promise<string[]> => {
+  const controller = abortController || new AbortController();
+  requestManager.registerRequest(controller);
+
+  try {
+    const data = (await apiRequest('/agents/suggestions', {
+      method: 'POST',
+      body: JSON.stringify({ chat_history: chatHistory }),
+      signal: controller.signal,
+    })) as { suggestions?: string[] };
+
+    return data.suggestions || [];
+  } finally {
+    requestManager.unregisterRequest(controller);
+  }
+};
+
+/**
+ * 更新聊天标题
+ */
+export const updateChatTitle = async (chatId: string, title: string): Promise<void> => {
+  await apiRequest(`/chats/${chatId}/title`, {
+    method: 'PUT',
+    body: JSON.stringify({ title }),
+  });
+};
+
+/**
+ * 删除聊天
+ */
+export const deleteChat = async (chatId: string): Promise<void> => {
+  await apiRequest(`/chats/${chatId}`, {
+    method: 'DELETE',
+  });
+};
+
+export const batchDeleteChats = async (ids: string[]): Promise<{ deleted: number; failed: number }> => {
+  const data = await apiRequest('/chats/batch-delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+  return data as { deleted: number; failed: number };
+};
+
+/**
+ * 从 Conversation Recall 中排除或恢复聊天。
+ */
+export const updateChatRecallExclusion = async (chatId: string, excluded: boolean): Promise<void> => {
+  await apiRequest(`/chats/${chatId}/recall-exclusion`, {
+    method: 'PATCH',
+    body: JSON.stringify({ excluded }),
+  });
+};
+
+export interface ConversationRecallEntry {
+  chat_id: string;
+  title: string | null;
+  agent_id: string | null;
+  source: string;
+  snippet: string;
+  summary: string | null;
+  last_message_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  is_excluded: boolean;
+}
+
+export interface ConversationRecallListResponse {
+  items: ConversationRecallEntry[];
+  pagination: PaginationInfo;
+}
+
+export const listConversationRecallEntries = async (params: {
+  excluded?: boolean;
+  page?: number;
+  pageSize?: number;
+}): Promise<ConversationRecallListResponse> => {
+  const query = new URLSearchParams({
+    page: String(params.page ?? 1),
+    page_size: String(params.pageSize ?? 20),
+  });
+  if (params.excluded !== undefined) {
+    query.set('excluded', String(params.excluded));
+  }
+  const data = (await apiRequest(`/chats/recall/entries?${query}`)) as ConversationRecallListResponse;
+  return {
+    items: data.items || [],
+    pagination: data.pagination,
+  };
+};
+
+export interface ExportChatOptions {
+  redactSecrets?: boolean;
+}
+
+/**
+ * Fetch all chat data for export (metadata + messages).
+ */
+export const exportChat = async (chatId: string, options?: ExportChatOptions): Promise<ExportData> => {
+  const params = new URLSearchParams();
+  if (options?.redactSecrets !== undefined) {
+    params.set('redact_secrets', String(options.redactSecrets));
+  }
+  const query = params.toString();
+  const url = query ? `/chats/${chatId}/export?${query}` : `/chats/${chatId}/export`;
+  return apiRequest(url) as Promise<ExportData>;
+};
+
+/**
+ * 生成聊天标题
+ *
+ * 不再发送 API Key，后端从 UserConfig 表读取 filter model 配置。
+ */
+export const generateChatTitle = async (messages: Message[], abortController?: AbortController): Promise<string> => {
+  const controller = abortController || new AbortController();
+  requestManager.registerRequest(controller);
+
+  try {
+    const data = (await apiRequest('/chats/generate-title', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+      signal: controller.signal,
+    })) as { title?: string };
+
+    return data.title || 'Untitled Chat';
+  } finally {
+    requestManager.unregisterRequest(controller);
+  }
+};
+
+export interface CompactResult {
+  compacted: boolean;
+  message_count: number;
+  tokens_saved: number;
+  reason: string | null;
+  focus_topic?: string;
+  backup_path?: string | null;
+}
+
+export const getContextPins = async (chatId: string): Promise<{ files: string[] }> => {
+  const response = (await apiRequest(`/chats/${chatId}/context/pins`, { silent: true })) as {
+    files: string[];
+  };
+  return { files: response.files ?? [] };
+};
+
+export const compactChat = async (chatId: string, focusTopic?: string): Promise<CompactResult> => {
+  const body = focusTopic ? JSON.stringify({ focus_topic: focusTopic }) : undefined;
+  return (await apiRequest(`/chats/${chatId}/compact`, {
+    method: 'POST',
+    ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
+  })) as CompactResult;
+};
+
+export interface ContextBranchRecord {
+  branch_id: string;
+  label: string;
+  snapshot_path: string;
+  created_at: string;
+}
+
+export const listContextBranches = async (chatId: string): Promise<ContextBranchRecord[]> => {
+  const response = (await apiRequest(`/chats/${chatId}/context/branches`, { silent: true })) as {
+    branches: ContextBranchRecord[];
+  };
+  return response.branches ?? [];
+};
+
+export const createContextBranch = async (
+  chatId: string,
+  payload: { snapshot_path: string; label?: string },
+): Promise<ContextBranchRecord> => {
+  return (await apiRequest(`/chats/${chatId}/context/branches`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+  })) as ContextBranchRecord;
+};
+
+export interface BranchForkResult {
+  new_chat_id: string;
+  parent_chat_id: string;
+  branch_id: string;
+  message_count: number;
+}
+
+export const forkContextBranch = async (
+  chatId: string,
+  branchId: string,
+  newTitle?: string,
+): Promise<BranchForkResult> => {
+  const body = newTitle ? JSON.stringify({ new_title: newTitle }) : undefined;
+  return (await apiRequest(`/chats/${chatId}/context/branches/${branchId}/fork`, {
+    method: 'POST',
+    timeout: 120000,
+    ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
+  })) as BranchForkResult;
+};
+
+export const setContextPins = async (chatId: string, files: string[]): Promise<{ files: string[] }> => {
+  return (await apiRequest(`/chats/${chatId}/context/pins`, {
+    method: 'PUT',
+    body: JSON.stringify({ files }),
+    headers: { 'Content-Type': 'application/json' },
+  })) as { files: string[] };
+};
+
+export const focusFlushChat = async (chatId: string): Promise<{ cleared: boolean }> => {
+  return (await apiRequest(`/chats/${chatId}/messages`, {
+    method: 'DELETE',
+  })) as { cleared: boolean };
+};
+
+export interface RegenerateResult {
+  success: boolean;
+  query: string;
+  sibling_group_id: string;
+  instruction?: string | null;
+}
+
+/**
+ * Regenerate: mark old assistant messages as inactive siblings and return the query.
+ */
+export const regenerateLastTurn = async (chatId: string, instruction?: string): Promise<RegenerateResult> => {
+  return (await apiRequest(`/chats/${chatId}/regenerate`, {
+    method: 'POST',
+    body: JSON.stringify(instruction ? { instruction } : {}),
+  })) as RegenerateResult;
+};
+
+/**
+ * Switch the active sibling in a sibling group.
+ */
+export const switchSibling = async (
+  chatId: string,
+  siblingGroupId: string,
+  targetMessageId: string,
+): Promise<{ success: boolean }> => {
+  return (await apiRequest(`/chats/${chatId}/switch-sibling`, {
+    method: 'POST',
+    body: JSON.stringify({ sibling_group_id: siblingGroupId, target_message_id: targetMessageId }),
+  })) as { success: boolean };
+};
+
+export interface SiblingInfo {
+  id: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+/**
+ * Get all siblings in a group.
+ */
+export const getSiblings = async (chatId: string, siblingGroupId: string): Promise<{ siblings: SiblingInfo[] }> => {
+  return (await apiRequest(`/chats/${chatId}/siblings/${siblingGroupId}`)) as { siblings: SiblingInfo[] };
+};
+
+export interface TruncateResult {
+  success: boolean;
+  deleted_count: number;
+}
+
+export interface RewindResult {
+  success: boolean;
+  deleted_count: number;
+  composer_text: string;
+  message_index: number;
+  goal_paused: boolean;
+  reverted_files?: string[];
+  file_warnings?: string[];
+  skipped_files?: string[];
+}
+
+/**
+ * Truncate: delete a message and everything after it.
+ * Used by edit-resend to sync backend before re-sending the edited message. Silent: the caller decides what the
+ * user is told, so a failure is not also reported by the request layer.
+ */
+export const truncateAfterMessage = async (chatId: string, messageId: string): Promise<TruncateResult> => {
+  return (await apiRequest(`/chats/${chatId}/truncate-after`, {
+    method: 'POST',
+    body: JSON.stringify({ message_id: messageId }),
+    silent: true,
+  })) as TruncateResult;
+};
+
+/**
+ * Rewind conversation to before a user message and seed the composer.
+ * scope: "conversation" (messages only) or "both" (also revert file changes).
+ * Silent: the caller decides what the user is told, so a failure is not also reported by the request layer.
+ */
+export const rewindToMessage = async (
+  chatId: string,
+  messageId: string,
+  scope: 'conversation' | 'both' = 'conversation',
+): Promise<{ data: RewindResult } & RewindResult> => {
+  return (await apiRequest(`/chats/${chatId}/rewind`, {
+    method: 'POST',
+    body: JSON.stringify({ message_id: messageId, scope }),
+    silent: true,
+  })) as { data: RewindResult } & RewindResult;
+};
+
+/**
+ * Submit user's answer to a Deep Research clarification question.
+ */
+export const submitClarifyResponse = async (
+  messageId: string,
+  answer: string | string[] | Record<string, string | string[]>,
+): Promise<void> => {
+  await apiRequest('/agents/clarify-response', {
+    method: 'POST',
+    body: JSON.stringify({ messageId, answer }),
+  });
+};
+
+/**
+ * Submit user's response to a Deep Research plan confirmation gate.
+ * @param action - "confirm" (use as-is), "edit" (use modified plan), "skip" (skip gate)
+ */
+export const submitPlanConfirmResponse = async (
+  messageId: string,
+  action: 'confirm' | 'edit' | 'skip',
+  modifiedPlan?: string,
+): Promise<void> => {
+  await apiRequest('/agents/plan-confirm-response', {
+    method: 'POST',
+    body: JSON.stringify({ messageId, action, modifiedPlan }),
+  });
+};
+
+/**
+ * Submit user's answer to a Dynamic Workflow mid-run human gate.
+ */
+export const submitHumanGateResponse = async (messageId: string, answer: string): Promise<void> => {
+  await apiRequest('/agents/human-gate-response', {
+    method: 'POST',
+    body: JSON.stringify({ messageId, answer }),
+  });
+};
+
+/**
+ * Resume a General Agent plan confirmation interrupt via the main SSE stream.
+ * Uses the same resume_value mechanism as tool approval. Rejects when the request cannot be sent, so the card never
+ * reads an unsent answer as confirmed; rejects with `ApprovalAlreadyResolvedError` when the plan was already answered.
+ */
+export const resumePlanConfirmStream = async (
+  messageId: string,
+  resumeValue: Record<string, unknown>,
+): Promise<void> => {
+  const { default: useChatStore } = await import('@/store/useChatStore');
+  const chatState = useChatStore.getState();
+  if (!chatState.chatId) {
+    throw new Error('Plan confirm resume needs an open chat');
+  }
+
+  const { getModelSelection, getLiteModelSelection } = await import('@/store/chat/messageRequest');
+  const { getBrowserTimezone } = await import('@/lib/utils/messageUtils');
+
+  const modelSelection = getModelSelection(chatState.actionMode, chatState.agentConfig);
+  if (!modelSelection) {
+    throw new Error('Plan confirm resume needs a selected model');
+  }
+
+  const liteModelSelection = getLiteModelSelection();
+
+  const requestBody = {
+    query: '',
+    message_id: messageId,
+    chat_id: chatState.chatId,
+    action_mode: chatState.actionMode,
+    resume_value: resumeValue,
+    model_selection: modelSelection,
+    timezone: getBrowserTimezone(),
+    ...(liteModelSelection && { lite_model_selection: liteModelSelection }),
+    ...(chatState.agentConfig && {
+      agent_config: {
+        skill_ids: chatState.agentConfig.selectedSkillIds,
+        enabled_builtin_tools: chatState.agentConfig.enabledBuiltinTools ?? [],
+      },
+    }),
+  };
+
+  const { AgentBusyError, ApprovalAlreadyResolvedError, isAgentBusySseEvent } =
+    await import('@/store/chat/streamErrors');
+  const response = await createAISearchStream(requestBody, chatState.abortController || undefined);
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new ApprovalAlreadyResolvedError();
+    }
+    throw new Error(`Plan confirm resume failed: HTTP ${response.status}`);
+  }
+
+  const { handleMessageStream } = await import('@/store/chat/messageStreamHandler');
+  const { AdaptiveScheduler } = await import('@/store/chat/adaptiveScheduler');
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  if (!reader) {
+    throw new Error('Plan confirm resume stream has no body');
+  }
+
+  const sources: import('@/store/chat/types').Source[] = [];
+  const scheduler = new AdaptiveScheduler();
+  let added = false;
+  let recievedMessage = '';
+
+  const streamState = {
+    messages: chatState.messages,
+    messageAppeared: chatState.messageAppeared,
+    loading: chatState.loading,
+    scheduler,
+  };
+
+  const setMessagesAdapter = (
+    updater: (state: import('@/store/chat/messageStreamHandler').StreamMutableState) => void,
+  ) => {
+    useChatStore.setState((draft) => {
+      updater(draft);
+    });
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n').filter((line) => line.trim().startsWith('data:'));
+    for (const line of lines) {
+      try {
+        const json = JSON.parse(line.replace(/^data:\s*/, ''));
+        if (isAgentBusySseEvent(json as { type: string } & Record<string, unknown>)) {
+          throw new AgentBusyError('Agent is busy processing another request for this session.');
+        }
+        const result = await handleMessageStream(json, '', sources, added, recievedMessage, streamState, {
+          setMessages: setMessagesAdapter,
+          setMessageAppeared: chatState.setMessageAppeared || (() => {}),
+          setLoading: chatState.setLoading || (() => {}),
+          _processSuggestions: chatState._processSuggestions || (async () => {}),
+          scheduleAutoSave: chatState.scheduleAutoSave || (() => {}),
+        });
+        added = result.added;
+        recievedMessage = result.recievedMessage;
+      } catch (error) {
+        if (error instanceof AgentBusyError) {
+          throw error;
+        }
+        console.error('[PLAN_CONFIRM] Stream parse error:', error);
+      }
+    }
+  }
+
+  scheduler.flush();
+  scheduler.cancel();
+
+  const { finalizeAgentStreamTurn } = await import('@/store/chat/chatAgentSessionRestore');
+  await finalizeAgentStreamTurn(chatState.chatId);
+};
+
+/** Wire format of a message persisted in the pre-compaction workspace backup. */
+export interface ArchivedChatMessage {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string | null;
+}
+
+/**
+ * Retrieve all archived messages from the workspace backup files.
+ */
+export const getChatArchive = async (chatId: string): Promise<{ messages: ArchivedChatMessage[] }> => {
+  return apiRequest(`/chats/${chatId}/archive`);
+};
+
+/**
+ * Update the compacted summary for a chat (Intervention API).
+ */
+export const updateCompactionSummary = async (chatId: string, summary: string): Promise<void> => {
+  await apiRequest(`/chats/${chatId}/compaction/summary`, {
+    method: 'PUT',
+    body: JSON.stringify({ summary }),
+  });
+};
+
+export type CatchupStatus = 'completed' | 'running' | 'waiting_for_approval' | 'error' | 'stopped';
+export type CatchupNeed = 'approval' | 'error' | 'question';
+
+export interface CatchupBrief {
+  chat_id: string;
+  /** Empty when the chat has no title yet; the UI supplies the localized placeholder. */
+  chat_title: string;
+  updated_at: string;
+  last_user_prompt: string;
+  /** Bounded opening of the latest agent reply. */
+  result_preview: string;
+  files_touched: string[];
+  tool_counts: Record<string, number>;
+  needs_from_user: CatchupNeed | null;
+  status: CatchupStatus;
+}
+
+export interface CatchupResponse {
+  briefs: CatchupBrief[];
+}
+
+/**
+ * Fetch a brief for every chat the user has not caught up with.
+ */
+export const getCatchupBriefs = async (): Promise<CatchupResponse> => {
+  return apiRequest(`/chats/catchup?t=${Date.now()}`);
+};
+
+/**
+ * Record the user's presence in a chat. `silent` suppresses the error toast for background stamping.
+ */
+export const markChatAsRead = async (chatId: string, options: { silent?: boolean } = {}): Promise<void> => {
+  await apiRequest(`/chats/${chatId}/read`, {
+    method: 'POST',
+    silent: options.silent,
+  });
+};
+
+// ── Pinned Threads ──────────────────────────────────────────────
+
+export const pinChat = async (chatId: string): Promise<{ isPinned: boolean; pinOrder: number }> => {
+  return apiRequest(`/chats/${chatId}/pin`, { method: 'PATCH' });
+};
+
+export const unpinChat = async (chatId: string): Promise<void> => {
+  await apiRequest(`/chats/${chatId}/unpin`, { method: 'PATCH' });
+};
+
+export const reorderPinnedChats = async (items: { id: string; pin_order: number }[]): Promise<void> => {
+  await apiRequest('/chats/pin-reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ items }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+// ── Session Handoff ──────────────────────────────────────────────
+
+export interface HandoffResponse {
+  targetChannel: string;
+  targetSessionKey: string;
+}
+
+export const handoffChat = async (chatId: string, targetChannel: string): Promise<HandoffResponse> => {
+  return apiRequest<HandoffResponse>(`/chats/${chatId}/handoff`, {
+    method: 'POST',
+    body: JSON.stringify({ target_channel: targetChannel }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+// ── Fission Topology ─────────────────────────────────────────────
+
+export interface FissionTopologyResponse {
+  fission_id: string;
+  nodes: import('@/store/chat/types').FissionTopologyNode[];
+  total_cost_usd: number;
+}
+
+export const getFissionTopology = async (chatId: string): Promise<FissionTopologyResponse | null> => {
+  try {
+    const raw = await apiRequest<unknown>(`/chats/${chatId}/fission`);
+    if (!raw) {
+      return null;
+    }
+    if (typeof raw === 'object' && 'data' in raw) {
+      const wrapped = raw as { data?: FissionTopologyResponse | null };
+      return wrapped.data ?? null;
+    }
+    return raw as FissionTopologyResponse;
+  } catch (error) {
+    console.error('Failed to fetch fission topology:', error);
+    return null;
+  }
+};
+
+// ── Conversation Share ───────────────────────────────────────────
+
+export interface ChatShareResponse {
+  token: string;
+  share_url: string;
+  expires_at: number;
+  chat_id: string;
+  password_protected: boolean;
+}
+
+export interface ChatShareStatusResponse {
+  shared: boolean;
+  revoked: boolean;
+  password_protected: boolean;
+  share_url?: string | null;
+  expires_at?: number | null;
+}
+
+export const getChatShareStatus = async (chatId: string): Promise<ChatShareStatusResponse> => {
+  return apiRequest<ChatShareStatusResponse>(`/chats/${chatId}/share`);
+};
+
+export const createChatShare = async (
+  chatId: string,
+  ttlDays: number = 7,
+  password?: string,
+): Promise<ChatShareResponse> => {
+  return apiRequest<ChatShareResponse>(`/chats/${chatId}/share`, {
+    method: 'POST',
+    body: JSON.stringify({
+      ttl_days: ttlDays,
+      ...(password ? { password } : {}),
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+export const revokeChatShare = async (chatId: string): Promise<void> => {
+  await apiRequest(`/chats/${chatId}/share`, { method: 'DELETE' });
+};
+
+// ── 5-Contract Delivery Status ────────────────────────────────────
+
+export interface PhaseContractRecord {
+  phase: string;
+  status: 'pending' | 'in_progress' | 'satisfied' | 'violated' | 'waiting_approval';
+  summary: string;
+  evidence?: string[];
+  progress_pct: number;
+  details?: Record<string, unknown>;
+}
+
+export interface FiveContractSnapshotResponse {
+  contracts: Record<string, PhaseContractRecord>;
+  current_phase: string;
+  overall_progress_pct: number;
+  is_fully_satisfied: boolean;
+  has_violations: boolean;
+}
+
+export const getChatDeliveryContracts = async (chatId: string): Promise<FiveContractSnapshotResponse> => {
+  return apiRequest<FiveContractSnapshotResponse>(`/chats/${chatId}/delivery-contracts`);
+};

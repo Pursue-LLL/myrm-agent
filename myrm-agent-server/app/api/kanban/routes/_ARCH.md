@@ -1,0 +1,85 @@
+# api/kanban/routes/ 模块架构
+
+## 架构概述
+
+Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common.py) 的 `router`（`/kanban` 前缀）。上级：[../_ARCH.md](../_ARCH.md)。
+
+## 模块依赖
+
+- `app.api.kanban.http_common`：共享 router、DTO 转换与附件解析装配
+- `app.services.kanban`：Task/Board/Bulk/Specify 等业务编排
+- `app.services.kanban.task_attachment_ids`：Task 附件 ID 读写持久化
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | 触发子模块路由注册 | — |
+| `boards.py` | 路由 | Board CRUD、summary、board 级 events | ✅ |
+| `tasks.py` | 路由 | Task CRUD、move、promote、reclaim、approve/reject、retry（列表查询见 `tasks_list.py`） | ✅ |
+| `tasks_list.py` | 路由 | `GET /boards/{board_id}/tasks`：列表查询 + stats/attachments/diagnostics DTO 富化装配 | ✅ |
+| `skill_ids.py` | 辅助 | `validate_extra_skill_ids`：任务技能 id 存在性校验（非法 400） | ✅ |
+| `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/delete；动作清单只有 `_BULK_HANDLERS` 一处，校验与分派共用，新增动作只加一个 handler | ✅ |
+| `task_meta.py` | 路由 | runs、events、comments（评论文本先过风险闸门，命中 400 `risk_held`）、diagnostics、依赖边 | ✅ |
+| `specify.py` | 路由 | specify/apply-spec/specify-all、decompose/apply-decompose | ✅ |
+| `race.py` | 路由 | 赛马 estimate/start/lanes/decide/winner（V1 仅 git-worktree 任务） | ✅ |
+
+## 端点明细（`/api/v1/kanban`）
+
+### `boards.py`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET/POST | `/boards` | GET 支持 `project_id` 过滤；POST 支持可选 `project_id` / `milestone_id` 作用域绑定（含一致性校验） |
+| GET/PATCH/DELETE | `/boards/{board_id}` | - |
+| GET | `/boards/{board_id}/summary` | - |
+| GET | `/boards/{board_id}/events` | - |
+
+### `tasks.py`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/boards/{board_id}/tasks` | `title` / `description` / 验收标准的文字部分（字符串形式与列表里的 `semantic` 项；`shell` 项是被执行的命令，不过闸）先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，不建任务）；POST body 可选 `metadata`（如 `source_chat_id`）、`model_override`（`provider/model`，经 `validate_model_override` 校验，非法 400）、`extra_skill_ids`（经 `validate_extra_skill_ids` 校验，id 不在可发现技能集内 400；仅用户路径生效——decompose/specify 输出不含技能、pipeline 仅注入预置模板技能，均走 service 层不受影响） |
+| GET/PATCH/DELETE | `/tasks/{task_id}` | PATCH 带上的 `title` / `description` / `result` / 验收标准文字同样先过风险闸门（没带的字段不重新过闸）；PATCH 支持 `result`/`metadata`/`require_approval` 等字段；`extra_skill_ids` 同样经 `validate_extra_skill_ids` 校验；`require_approval` 仅活动状态（TRIAGE/BACKLOG/READY/RUNNING/BLOCKED）可改，IN_REVIEW 与终态返回 400（守卫在 `task_ops.update_task`） |
+| POST | `/tasks/{task_id}/move` | `result` 与移交 `metadata` 里的所有字符串（含嵌套的列表和对象）是下一个智能体会读到的文字，先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，任务不移动） |
+| POST | `/tasks/{task_id}/promote` | - |
+| POST | `/tasks/{task_id}/reclaim` | `reason` 先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，任务继续运行）：有调度器时它写进这次运行的错误信息，下一次执行的上下文会带上它 |
+| POST | `/tasks/{task_id}/approve` | IN_REVIEW → COMPLETED（promote dependents；非 IN_REVIEW 幂等 200 返回当前状态） |
+| POST | `/tasks/{task_id}/reject` | IN_REVIEW → READY（reason 必填且先过风险闸门，命中 400 `risk_held`、任务仍在 IN_REVIEW；回写 error，retry_count 重置；非 IN_REVIEW 幂等 200） |
+| POST | `/tasks/{task_id}/retry` | FAILED → READY（无请求体，重置重试预算；非 FAILED 幂等 200 返回当前状态） |
+
+### `tasks_list.py`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/boards/{board_id}/tasks` | 支持 `status_filter`、`agent_id`、`source_chat_id`、`limit`、`offset` query；并发加载 task stats 与附件 ID，DTO 装配含附件元数据与诊断摘要 |
+
+### `bulk.py`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/boards/{board_id}/tasks/bulk-action` | `task_ids` 单次 1–100 个（前端按每段 25 个顺序发送）；`action` ∈ move/archive/reassign/delete；delete 需 `confirm=true`；逐条执行、允许部分成功；reassign 的 `params.agent_id` 为空串表示取消指派；业务拒绝（`ValueError`，含依赖未满足、未知 Agent）把原因原样回在该条结果里，非预期异常记 ERROR 日志（含堆栈），该条结果只回通用的 `Internal error`，其余条目照常执行 |
+
+### `task_meta.py`
+
+| 方法 | 路径 |
+|------|------|
+| GET | `/tasks/{task_id}/runs` |
+| GET | `/tasks/{task_id}/events` |
+| POST | `/tasks/{task_id}/comments` |
+| GET | `/tasks/{task_id}/diagnostics` |
+| GET | `/boards/{board_id}/edges` |
+| GET | `/tasks/{task_id}/dependencies` |
+| GET | `/tasks/{task_id}/dependents` |
+| POST | `/tasks/{task_id}/dependencies` |
+| DELETE | `/tasks/{task_id}/dependencies/{parent_task_id}` |
+
+### `specify.py`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/tasks/{task_id}/specify` | `dry_run` 默认 true；false 时持久化并提升 TRIAGE |
+| POST | `/tasks/{task_id}/apply-spec` | 持久化预览 spec，避免 LLM 双调用 |
+| POST | `/boards/{board_id}/specify-all` | 并发扫描 board 内全部 TRIAGE |
+| POST | `/tasks/{task_id}/decompose` | 分解预览（始终 dry-run） |
+| POST | `/tasks/{task_id}/apply-decompose` | `fanout=true` 创建子任务图；`false` 降级为 Specify |

@@ -1,0 +1,183 @@
+import { describe, expect, it } from 'vitest';
+import {
+  BUILT_IN_PROVIDER_INFO,
+  getInitialProviders,
+  getLiteLLMModelName,
+  hasActiveApiKey,
+  hasUsableProviderAuth,
+  isLocalOrTrustedSplitStackApiUrl,
+  isLoopbackApiUrl,
+  isTrustedSplitStackHostname,
+  LOCAL_NO_AUTH_API_KEY_MARKER,
+  OAUTH_AUTH_API_KEY_MARKER,
+  normalizeApiUrl,
+  resolveCustomProviderTypeInfo,
+  resolveProviderApiKeyForRequests,
+} from '../providerTypes';
+
+describe('providerTypes defaults', () => {
+  it('uses the official Xiaomi MiMo API endpoint', () => {
+    expect(BUILT_IN_PROVIDER_INFO.xiaomi_mimo.defaultApiUrl).toBe('https://api.xiaomimimo.com/v1');
+  });
+
+  it('uses the OpenCode Go subscription API endpoint', () => {
+    expect(BUILT_IN_PROVIDER_INFO.opencode_go.defaultApiUrl).toBe('https://opencode.ai/zen/go/v1');
+    expect(BUILT_IN_PROVIDER_INFO.opencode_go.dashboardUrl).toBe('https://opencode.ai');
+    expect(BUILT_IN_PROVIDER_INFO.opencode_go.alternativeApiUrls).toEqual([
+      { url: 'https://opencode.ai/zen/go/v1', label: 'Zen / Go (订阅/贡献者套餐)' },
+      { url: 'https://opencode.ai/v1', label: 'Standard API (平台标准直连)' },
+    ]);
+    expect(getLiteLLMModelName('opencode_go', 'deepseek-v4-flash')).toBe('openai/deepseek-v4-flash');
+  });
+
+  it('seeds initial Xiaomi provider config with the same endpoint', () => {
+    const xiaomiProvider = getInitialProviders().find((provider) => provider.id === 'xiaomi_mimo');
+
+    expect(xiaomiProvider?.apiUrl).toBe('https://api.xiaomimimo.com/v1');
+  });
+
+  it('does not double-prefix Xiaomi MiMo when model already includes litellm segment', () => {
+    expect(getLiteLLMModelName('xiaomi_mimo', 'mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
+    expect(getLiteLLMModelName('xiaomi_mimo', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
+  });
+
+  it('prefers an already-qualified LiteLLM model id over a mismatched providerId', () => {
+    expect(getLiteLLMModelName('openai', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
+  });
+
+  it('correctly configures and routes Vercel AI Gateway without vendor prefix hijacking', () => {
+    expect(BUILT_IN_PROVIDER_INFO.vercel_ai_gateway.defaultApiUrl).toBe('https://ai-gateway.vercel.sh/v1');
+    expect(getLiteLLMModelName('vercel_ai_gateway', 'anthropic/claude-3-5-sonnet')).toBe(
+      'vercel_ai_gateway/anthropic/claude-3-5-sonnet',
+    );
+    expect(getLiteLLMModelName('vercel_ai_gateway', 'openai/gpt-4o')).toBe('vercel_ai_gateway/openai/gpt-4o');
+    expect(getLiteLLMModelName('vercel_ai_gateway', 'meta-llama/llama-3.3-70b')).toBe(
+      'vercel_ai_gateway/meta-llama/llama-3.3-70b',
+    );
+    expect(getLiteLLMModelName('vercel_ai_gateway', 'vercel_ai_gateway/anthropic/claude-3-5-sonnet')).toBe(
+      'vercel_ai_gateway/anthropic/claude-3-5-sonnet',
+    );
+  });
+});
+
+describe('resolveCustomProviderTypeInfo', () => {
+  it('returns metadata for valid custom provider types', () => {
+    expect(resolveCustomProviderTypeInfo('openai-like')?.litellmPrefix).toBe('openai');
+    expect(resolveCustomProviderTypeInfo('anthropic-like')?.name).toBe('Anthropic-Like');
+  });
+
+  it('returns undefined for legacy bare provider ids used as providerType', () => {
+    expect(resolveCustomProviderTypeInfo('openai')).toBeUndefined();
+    expect(resolveCustomProviderTypeInfo('anthropic')).toBeUndefined();
+    expect(resolveCustomProviderTypeInfo('ollama')).toBeUndefined();
+  });
+});
+
+describe('SaaS platform provider seed auth contract', () => {
+  const seededPlatformProvider = {
+    id: 'platform-openrouter',
+    name: 'Platform OpenRouter',
+    providerType: 'openai-like' as const,
+    isEnabled: true,
+    apiKeys: [{ id: 'platform-managed', key: 'platform-managed', remark: '', isActive: true }],
+    apiUrl: 'https://example.test/llm-relay/v1',
+    enabledModels: ['anthropic/claude-sonnet-4'],
+  };
+
+  it('treats the platform-managed placeholder key as an active key', () => {
+    expect(hasActiveApiKey(seededPlatformProvider)).toBe(true);
+  });
+
+  it('reports the seeded provider as usable so NoProviderBanner hides', () => {
+    expect(hasUsableProviderAuth(seededPlatformProvider)).toBe(true);
+  });
+
+  it('forwards the platform-managed marker to the request key resolver', () => {
+    expect(resolveProviderApiKeyForRequests(seededPlatformProvider)).toBe('platform-managed');
+  });
+});
+
+describe('isTrustedSplitStackHostname and URL helpers', () => {
+  it('correctly classifies loopback, RFC1918, Tailscale, and mDNS as trusted split-stack hostnames', () => {
+    expect(isTrustedSplitStackHostname('localhost')).toBe(true);
+    expect(isTrustedSplitStackHostname('127.0.0.1')).toBe(true);
+    expect(isTrustedSplitStackHostname('10.0.0.1')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.16.0.1')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.31.255.254')).toBe(true);
+    expect(isTrustedSplitStackHostname('192.168.1.100')).toBe(true);
+    expect(isTrustedSplitStackHostname('100.80.20.10')).toBe(true);
+    expect(isTrustedSplitStackHostname('mac-mini.local')).toBe(true);
+  });
+
+  it('rejects cloud link-local metadata, public IPs, and external domains', () => {
+    expect(isTrustedSplitStackHostname('169.254.169.254')).toBe(false);
+    expect(isTrustedSplitStackHostname('8.8.8.8')).toBe(false);
+    expect(isTrustedSplitStackHostname('api.openai.com')).toBe(false);
+    expect(isTrustedSplitStackHostname('172.15.0.1')).toBe(false);
+    expect(isTrustedSplitStackHostname('172.32.0.1')).toBe(false);
+  });
+
+  it('correctly evaluates full API URLs for local or split-stack hosting', () => {
+    expect(isLoopbackApiUrl('http://127.0.0.1:11434/v1')).toBe(true);
+    expect(isLoopbackApiUrl('http://192.168.1.50:11434/v1')).toBe(false);
+
+    expect(isLocalOrTrustedSplitStackApiUrl('http://127.0.0.1:11434/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('http://192.168.1.50:11434/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('192.168.1.50:11434/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('100.80.20.10:8000')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('http://100.80.20.10:8000/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('http://dgx-spark.local:8000/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('https://api.openai.com/v1')).toBe(false);
+    expect(isLocalOrTrustedSplitStackApiUrl('')).toBe(false);
+    expect(isLocalOrTrustedSplitStackApiUrl(null)).toBe(false);
+  });
+
+  it('rigorously tests exact CIDR boundaries for RFC1918 and Tailscale CGNAT', () => {
+    // 172.16.0.0/12 boundaries
+    expect(isTrustedSplitStackHostname('172.15.255.255')).toBe(false);
+    expect(isTrustedSplitStackHostname('172.16.0.0')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.31.255.255')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.32.0.0')).toBe(false);
+
+    // Tailscale 100.64.0.0/10 boundaries
+    expect(isTrustedSplitStackHostname('100.63.255.255')).toBe(false);
+    expect(isTrustedSplitStackHostname('100.64.0.0')).toBe(true);
+    expect(isTrustedSplitStackHostname('100.127.255.255')).toBe(true);
+    expect(isTrustedSplitStackHostname('100.128.0.0')).toBe(false);
+
+    // Link-local boundaries
+    expect(isTrustedSplitStackHostname('169.254.0.1')).toBe(false);
+    expect(isTrustedSplitStackHostname('169.254.255.254')).toBe(false);
+  });
+
+  it('allows no-auth for trusted split-stack endpoints and resolves synthetic marker', () => {
+    const lanProvider = {
+      id: 'custom_lan',
+      providerType: 'openai-like' as const,
+      apiUrl: 'http://192.168.1.50:11434/v1',
+      apiKeys: [],
+    };
+    expect(hasUsableProviderAuth(lanProvider)).toBe(true);
+    expect(resolveProviderApiKeyForRequests(lanProvider)).toBe(LOCAL_NO_AUTH_API_KEY_MARKER);
+  });
+
+  it('recognizes oauthConnected providers as usable auth and resolves synthetic oauth marker', () => {
+    const oauthProvider = {
+      id: 'xai',
+      providerType: 'openai-like' as const,
+      apiUrl: 'https://api.x.ai/v1',
+      apiKeys: [],
+      oauthConnected: true,
+    };
+    expect(hasUsableProviderAuth(oauthProvider)).toBe(true);
+    expect(resolveProviderApiKeyForRequests(oauthProvider)).toBe(OAUTH_AUTH_API_KEY_MARKER);
+  });
+
+  it('normalizes API URLs by stripping known endpoints including /responses', () => {
+    expect(normalizeApiUrl('https://opencode.ai/zen/go/v1/responses')).toBe('https://opencode.ai/zen/go/v1');
+    expect(normalizeApiUrl('https://opencode.ai/zen/go/v1/responses/')).toBe('https://opencode.ai/zen/go/v1');
+    expect(normalizeApiUrl('https://opencode.ai/zen/v1/responses')).toBe('https://opencode.ai/zen/v1');
+    expect(normalizeApiUrl('https://api.openai.com/v1/chat/completions')).toBe('https://api.openai.com/v1');
+    expect(normalizeApiUrl('https://opencode.ai/zen/go/v1')).toBe('https://opencode.ai/zen/go/v1');
+  });
+});

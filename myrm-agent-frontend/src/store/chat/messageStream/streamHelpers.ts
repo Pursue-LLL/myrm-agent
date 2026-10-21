@@ -1,0 +1,279 @@
+/**
+ * [INPUT]
+ * @/store/chat/types::Source, ProgressItem, ClarificationForm, GoalStatusPayload, ErrorKind (POS: Chat SSE types)
+ * @/components/features/chat-window/goals/GoalStatusCard::GoalState (POS: Goal UI state)
+ *
+ * [OUTPUT]
+ * Pure helpers: task step status, source merge, goal/clarification normalization, SSE clarify unwrap, friendly errors
+ *
+ * [POS]
+ * Shared utilities for messageStream/handlers/* event slices.
+ */
+
+import { getClarificationNotificationTitle, resolveStreamLocale } from '@/lib/i18n/streamNotificationCopy';
+
+import type {
+  Source,
+  ProgressItem,
+  ClarificationForm,
+  ClarificationOption,
+  ClarificationQuestion,
+  GoalStatusPayload,
+  ErrorKind,
+} from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
+import type { GoalState } from '@/components/features/chat-window/goals/goalStatusTypes';
+
+export function mapTaskStepStatus(status: string | undefined): ProgressItem['status'] | undefined {
+  switch (status) {
+    case 'completed':
+    case 'success':
+      return 'success';
+    case 'partial_success':
+      return 'warning';
+    case 'error':
+    case 'failed':
+      return 'error';
+    case 'cancelled':
+    case 'skipped':
+      return 'cancelled';
+    case 'blocked':
+      return 'blocked';
+    default:
+      // running / pending / in_progress — in-flight steps (no terminal badge)
+      return undefined;
+  }
+}
+
+function resolveUsageLimit(payload: GoalStatusPayload): GoalState['usageLimit'] {
+  const metadata = payload.metadata;
+  const holdKind =
+    payload.status === 'wait' ? metadata?.wait_kind : payload.status === 'paused' ? metadata?.pause_kind : undefined;
+  if (holdKind !== 'usage_limit') {
+    return undefined;
+  }
+  const resumeAt = metadata?.wait_resume_at;
+  return { resumeAt: typeof resumeAt === 'string' && resumeAt ? resumeAt : undefined };
+}
+
+export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
+  return {
+    goalId: payload.goal_id,
+    objective: payload.objective,
+    uiSummary: payload.ui_summary,
+    status: payload.status,
+    tokensUsed: payload.tokens_used,
+    timeUsedSeconds: payload.time_used_seconds,
+    costUsd: payload.cost_usd,
+    turnsUsed: payload.turns_used,
+    noProgressStreak: payload.no_progress_streak,
+    loopRestarts: payload.loop_restarts,
+    budget: payload.budget
+      ? {
+          maxTokens: payload.budget.max_tokens,
+          maxUsd: payload.budget.max_usd,
+          maxTimeSeconds: payload.budget.max_time_seconds,
+          maxTurns: payload.budget.max_turns,
+          convergenceWindow: payload.budget.convergence_window,
+          loopOnPause: payload.budget.loop_on_pause,
+          maxLoopRestarts: payload.budget.max_loop_restarts,
+        }
+      : undefined,
+    verdict: payload.verdict,
+    reason: payload.reason ?? (payload.status === 'wait' ? payload.wait_reason : undefined),
+    usageLimit: resolveUsageLimit(payload),
+    constraints: payload.constraints,
+    acceptanceCriteria: payload.acceptance_criteria,
+    acceptanceResults: payload.metadata?.acceptance_results as GoalState['acceptanceResults'],
+    acceptanceHistory: payload.metadata?.acceptance_history as GoalState['acceptanceHistory'],
+    checkpointMode: payload.checkpoint_mode === 'per_todo' ? 'per_todo' : undefined,
+    subgoals: payload.subgoals,
+    deliverables: payload.deliverables,
+    executionSummary: payload.metadata?.execution_summary,
+  };
+}
+
+function getSourceKey(source: Source): string {
+  if (source.source_key) {
+    return source.source_key;
+  }
+  if (source.type === 'conversation_history' && source.conversation_id) {
+    return `conversation:${source.conversation_id}:${source.message_id ?? ''}`;
+  }
+  const clickUrl = resolveSourceClickUrl(source);
+  if (clickUrl) {
+    return `url:${clickUrl}`;
+  }
+  if (source.skill_name) {
+    return `mcp:${source.skill_name}`;
+  }
+  return `index:${source.index}`;
+}
+
+function coerceSourceIndex(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+function assignSourceIndex(source: Source, usedIndexes: Set<number>, maxIndex: number): Source {
+  const coerced = coerceSourceIndex(source.index);
+  if (coerced !== null && !usedIndexes.has(coerced)) {
+    return { ...source, index: coerced };
+  }
+  const nextIndex = maxIndex + 1;
+  return { ...source, index: nextIndex };
+}
+
+export function mergeMessageSources(existingSources: Source[], incomingSources: Source[]): Source[] {
+  const mergedSources = existingSources.map((source) => {
+    const coerced = coerceSourceIndex(source.index);
+    return coerced === null ? source : { ...source, index: coerced };
+  });
+  const usedIndexes = new Set(mergedSources.map((source) => source.index));
+  let maxIndex = Math.max(0, ...mergedSources.map((source) => source.index));
+
+  for (const incoming of incomingSources) {
+    const sourceKey = getSourceKey(incoming);
+    const existingIndex = mergedSources.findIndex((source) => getSourceKey(source) === sourceKey);
+    if (existingIndex !== -1) {
+      const preservedIndex = mergedSources[existingIndex].index;
+      mergedSources[existingIndex] = {
+        ...mergedSources[existingIndex],
+        ...incoming,
+        index: preservedIndex,
+      };
+      continue;
+    }
+
+    const nextSource = assignSourceIndex(incoming, usedIndexes, maxIndex);
+    usedIndexes.add(nextSource.index);
+    maxIndex = Math.max(maxIndex, nextSource.index);
+    mergedSources.push(nextSource);
+  }
+
+  return mergedSources.sort((a, b) => a.index - b.index);
+}
+
+export function getContextOverflowMessage(): string {
+  const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
+  return lang?.startsWith('zh')
+    ? '对话已超出模型上下文限制，当前消息未发送。请开始新对话。'
+    : 'Context limit exceeded. Message not sent. Please start a new conversation.';
+}
+
+interface FriendlyError {
+  message: string;
+  hint?: string;
+}
+
+export async function getUserFriendlyError(errorKind: ErrorKind | undefined, rawError: string): Promise<FriendlyError> {
+  if (errorKind === 'concurrency_limit') {
+    const isZh = typeof document !== 'undefined' && document.documentElement.lang?.startsWith('zh');
+    return {
+      message: isZh
+        ? '并发会话已达上限，无法接收新请求。请先结束部分运行中的任务后重试。'
+        : 'Concurrency limit reached; the request could not be accepted. Please finish or stop some running tasks and retry.',
+    };
+  }
+  return { message: rawError };
+}
+
+/**
+ * Whether a clarification is answered by resuming the run (agent turn) or by the legacy short call (deep research).
+ * The server decides this from the event's own `source` and persists it, so the frontend must apply the same rule
+ * rather than the chat the user happens to have open: a general-agent clarify carries no `source` and resumes.
+ */
+export function resolveClarifyIsResumeMode(source: unknown): boolean {
+  return typeof source === 'string' && source.trim() ? source.trim() !== 'deep_research' : true;
+}
+
+export function normalizeClarificationForm(value: unknown): ClarificationForm | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const rawForm = value as Record<string, unknown>;
+  const title = typeof rawForm.title === 'string' && rawForm.title.trim() ? rawForm.title.trim() : undefined;
+  const requiresConfirmation = normalizeRequiresConfirmation(
+    rawForm.requires_confirmation ?? rawForm.requiresConfirmation,
+  );
+  const context = typeof rawForm.context === 'string' && rawForm.context.trim() ? rawForm.context.trim() : undefined;
+  const rawQuestions = Array.isArray(rawForm.questions) ? rawForm.questions : [];
+  const questions: ClarificationQuestion[] = [];
+
+  for (const rawQuestionValue of rawQuestions) {
+    if (!rawQuestionValue || typeof rawQuestionValue !== 'object') {
+      continue;
+    }
+    const rawQuestion = rawQuestionValue as Record<string, unknown>;
+    const id = typeof rawQuestion.id === 'string' ? rawQuestion.id.trim() : '';
+    const prompt = typeof rawQuestion.prompt === 'string' ? rawQuestion.prompt.trim() : '';
+    if (!id || !prompt) {
+      continue;
+    }
+
+    const question: ClarificationQuestion = { id, prompt };
+    if (typeof rawQuestion.allow_multiple === 'boolean') {
+      question.allowMultiple = rawQuestion.allow_multiple;
+    }
+
+    if (Array.isArray(rawQuestion.options)) {
+      const options: ClarificationOption[] = [];
+      for (const rawOptionValue of rawQuestion.options) {
+        if (!rawOptionValue || typeof rawOptionValue !== 'object') {
+          continue;
+        }
+        const rawOption = rawOptionValue as Record<string, unknown>;
+        const optionId = typeof rawOption.id === 'string' ? rawOption.id.trim() : '';
+        const label = typeof rawOption.label === 'string' ? rawOption.label.trim() : '';
+        if (!optionId || !label) {
+          continue;
+        }
+
+        const option: ClarificationOption = { id: optionId, label };
+        if (typeof rawOption.description === 'string' && rawOption.description.trim()) {
+          option.description = rawOption.description.trim();
+        }
+        options.push(option);
+      }
+      if (options.length > 0) {
+        question.options = options;
+      }
+    }
+
+    questions.push(question);
+  }
+
+  if (questions.length === 0) {
+    return undefined;
+  }
+  return {
+    ...(title ? { title } : {}),
+    ...(requiresConfirmation ? { requiresConfirmation: true } : {}),
+    ...(context ? { context } : {}),
+    questions,
+  };
+}
+
+function normalizeRequiresConfirmation(value: unknown): boolean {
+  return value === true;
+}
+
+/** Unwrap production SSE payload `{ type, form }` into a normalized ClarificationForm. */
+export function resolveClarificationFormFromEventData(data: unknown): ClarificationForm | undefined {
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+
+  const payload = data as Record<string, unknown>;
+  if (payload.type === 'ask_question' && payload.form !== undefined) {
+    return normalizeClarificationForm(payload.form);
+  }
+
+  return normalizeClarificationForm(data);
+}
+
+export { getClarificationNotificationTitle, resolveStreamLocale };

@@ -1,0 +1,42 @@
+# runtime 模块架构
+
+[INPUT]
+- config（POS: BackendConfig / FrontendConfig / SystemConfig）
+
+[OUTPUT]
+- Python / Next.js Sidecar 启停与健康检查
+- Appshot / Voice PTT / Inline Input 全局快捷键
+
+[POS]
+Tauri 主进程 Sidecar 与系统运行时层。
+
+## 架构概述
+
+Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生命周期、全局快捷键、Setup Token、端口检测。
+
+父模块：[../../_ARCH.md](../../_ARCH.md) · [../_ARCH.md](../_ARCH.md)
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `mod.rs` | 核心 | 模块聚合、`TOXIC_ENV_VARS` 毒性环境变量黑名单、`suppress_console_window`、`spawn_backend_monitors`/`stop_backend_monitors`（watchdog+wake 统一挂载/停挂，幂等替换） | ✅ |
+| `sidecar_version_manager.rs` | 核心 | Sidecar 独立引擎版本状态机（versions.json、原子写入、三级降级链路与坏版本拉黑） | ✅ |
+| `python_backend.rs` | 核心 | Python Sidecar 启动、版本自适应解析、就绪探测与启动超时自动回滚自愈（停机序列经 `python_backend_stop`）；向 sidecar 注入帷幕桥 `MYRM_CURTAIN_STATE_FILE`、离席 runtime 桥 `MYRM_DESKTOP_RUNTIME_FILE`、spawn fallback `MYRM_LOCKED_USE_ENABLED`、壳身份 `MYRM_SHELL_PID`（server 据此判定帷幕主人存活，同时作为 sidecar 启动时补全 PATH 的门控——GUI 启动的 macOS 应用只继承 launchd 极简 PATH，补全在 server 侧 `app/startup/desktop_path.py` 完成）；启动前同步 `desktop_runtime.json` | ✅ |
+| `python_backend_stop.rs` | 核心 | 后端优雅停机序列层 `graceful_stop_backend`（停 monitors → POST `/api/v1/system/shutdown` → 等待自退 → 兜底强杀），全部停机路径共享 | ✅ |
+| `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启）；`stop_frontend` 仅供 `app/lifecycle.rs` 在停机时内部调用，不是 IPC 命令 | — |
+| `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启（stop_backend_monitors 停挂，支持 wake_notify 快速快检） | ✅ |
+| `wake.rs` | 核心 | 系统休眠唤醒侦测器（单调时钟时间跃迁 + 原生通知）与两阶段自愈协调器（cancel 走 watch channel，停挂不丢消息） | ✅ |
+| `remote_follow.rs` | 核心 | Remote 跟随标记文件（`remote_follow.json` 布尔意图）；`get/switch_remote_follow` IPC（切换唯一入口：切 remote 优雅停本地后端、切回本地重启并重挂监控；编排成功才落 flag——失败零 flag 副作用，flag 与真实进程态永不不一致；完成后广播 `app:connections-changed`）；setup 期 defer 判定 | ✅ |
+| `update_safety.rs` | 核心 | Updater 签名安全态只读查询（`get_updater_safety` IPC，四态稳定字符串；校验逻辑零触碰） | ✅ |
+| `setup_token.rs` | 核心 | WebUI Remote Setup Token IPC | — |
+| `port.rs` | 工具 | 端口占用检测 | — |
+| `product_origin.rs` | 核心 | 产品页来源：发布版是 `http://127.0.0.1:<webui_port>`（端口取启动期配置，运行期不变），开发版取 `build.devUrl`（主窗口直连它，子窗口须同源，否则浏览器存储各成一套）。`exact_origin()` 给 ACL 的 Remote 能力一个无通配的精确来源，`page_url()` 构造子窗口页面地址——路径段与查询值一律百分号编码，动态值（如会话 ID）出不了各自的位置。`app/setup.rs` 构造并 `manage`，宠物浮层与会话窗口经 `State` 取用 | ✅ |
+| `survivor_diag.rs` | 核心 | 端口幸存者跨平台命令行与路径诊断、安全 Re-kill 自愈回收与 TCP 释放确认 | ✅ |
+| `process_registry/` | 核心 | 桌面受管进程注册中心（多 Sidecar 全生命周期追踪） | ✅ |
+| `inline_input.rs` | 核心 | Inline Input 全局快捷键与 paste_back | ✅ |
+| `appshot/` | 核心 | Appshot 截屏、Voice PTT、窗口 toggle | ✅ |
+
+## 依赖
+
+- `config` — BackendConfig / FrontendConfig / SystemConfig

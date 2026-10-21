@@ -1,0 +1,387 @@
+'use client';
+
+/**
+ * [INPUT]
+ * @/services/chat::submitPlanConfirmResponse (POS: Deep Research plan confirm REST API)
+ * @/services/chat::resumePlanConfirmStream (POS: General Agent plan confirm SSE resume)
+ * @/store/chat/types::Message.planConfirmation (POS: plan confirmation state)
+ * @/store/chat/streamErrors::ApprovalAlreadyResolvedError (POS: another client answered the plan first)
+ *
+ * [OUTPUT]
+ * PlanConfirmationCard: Renders plan review card with confirm/edit/skip actions; a plan another client already
+ * answered settles into a neutral handled state.
+ *
+ * [POS]
+ * Plan-phase HITL gate. Supports both Deep Research (PhaseWaiter REST)
+ * and General Agent (LangGraph interrupt SSE resume) confirmation paths.
+ */
+
+import React, { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import { submitPlanConfirmResponse } from '@/services/chat';
+import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
+import useChatStore from '@/store/useChatStore';
+import { cn } from '@/lib/utils';
+
+interface PlanConfirmationCardProps {
+  messageId: string;
+  plan: string;
+  status: 'waiting' | 'confirmed' | 'edited' | 'skipped' | 'handled';
+  planItems?: Array<{ id: string; content: string; status?: string }>;
+  goal?: string;
+  source?: 'deep_research' | 'general_agent' | 'dynamic_workflow';
+  spawnCount?: number;
+  estimatedCostUsd?: number;
+  remainingBudgetUsd?: number;
+  costStatus?: string;
+}
+
+const CheckCircleIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
+
+const PencilIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </svg>
+);
+
+const SkipIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polygon points="5 4 15 12 5 20 5 4" />
+    <line x1="19" y1="5" x2="19" y2="19" />
+  </svg>
+);
+
+const InfoCircleIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 16v-4" />
+    <path d="M12 8h.01" />
+  </svg>
+);
+
+const resolvedStatusMap: Record<string, string> = {
+  confirmed: 'confirmed',
+  edited: 'edited',
+  skipped: 'skipped',
+  handled: 'handledElsewhere',
+};
+
+const PlanConfirmationCard = ({
+  messageId,
+  plan,
+  status,
+  planItems,
+  source,
+  spawnCount,
+  estimatedCostUsd,
+  remainingBudgetUsd,
+}: PlanConfirmationCardProps) => {
+  const t = useTranslations('chat.planConfirmation');
+  const isDynamicWorkflow = source === 'dynamic_workflow';
+  const [editing, setEditing] = useState(false);
+  const [editedPlan, setEditedPlan] = useState(plan);
+  const [submitting, setSubmitting] = useState(false);
+
+  // The run resumed by the answer streams to its end before this write and may raise a fresh plan on the same row. That
+  // plan reads differently and must stay waiting instead of inheriting this answer; the same plan is stamped even when
+  // the stream already marked it resolved, so the user's own choice (edited, skipped) is what the card shows.
+  const markResolved = useCallback(
+    (resolvedStatus: 'confirmed' | 'edited' | 'skipped' | 'handled') => {
+      useChatStore.setState((state) => {
+        const row = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+        if (row?.planConfirmation?.plan === plan) {
+          row.planConfirmation.status = resolvedStatus;
+        }
+      });
+    },
+    [messageId, plan],
+  );
+
+  // A 409 means another client answered this plan first: the answer was not applied and the card has nothing left to ask.
+  const reportSubmitFailure = useCallback(
+    (err: unknown, failureLabel: string) => {
+      if (err instanceof ApprovalAlreadyResolvedError) {
+        markResolved('handled');
+        return;
+      }
+      console.error(failureLabel, err);
+      toast.error(t('submitFailed'));
+    },
+    [markResolved, t],
+  );
+
+  const submitAction = useCallback(
+    async (action: 'confirm' | 'edit' | 'skip', editedTodos?: unknown) => {
+      if (source === 'general_agent') {
+        const resumeValue: Record<string, unknown> = { action };
+        if (action === 'edit' && editedTodos) {
+          resumeValue.edited_todos = editedTodos;
+        }
+        const { resumePlanConfirmStream } = await import('@/services/chat');
+        await resumePlanConfirmStream(messageId, resumeValue);
+      } else {
+        const modifiedPlan = action === 'edit' ? editedPlan.trim() : undefined;
+        await submitPlanConfirmResponse(messageId, action, modifiedPlan || undefined);
+      }
+    },
+    [source, messageId, editedPlan],
+  );
+
+  const handleConfirm = async () => {
+    if (submitting) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitAction('confirm');
+      markResolved('confirmed');
+    } catch (err) {
+      reportSubmitFailure(err, 'Failed to confirm plan:');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (submitting) {
+      return;
+    }
+    if (!editing) {
+      setEditing(true);
+      return;
+    }
+    const trimmed = editedPlan.trim();
+    if (!trimmed) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const isChanged = trimmed !== plan.trim();
+      if (source === 'general_agent' && planItems) {
+        const editedLines = trimmed.split('\n').filter((l) => l.trim());
+        const editedTodos = editedLines.map((line, i) => ({
+          id: planItems[i]?.id ?? `task-${i}`,
+          content: line.replace(/^\d+\.\s*/, '').trim(),
+          status: planItems[i]?.status ?? 'pending',
+        }));
+        await submitAction(isChanged ? 'edit' : 'confirm', editedTodos);
+      } else {
+        await submitAction(isChanged ? 'edit' : 'confirm');
+      }
+      markResolved(isChanged ? 'edited' : 'confirmed');
+    } catch (err) {
+      reportSubmitFailure(err, 'Failed to submit edited plan:');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSkip = async () => {
+    if (submitting) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitAction('skip');
+      markResolved('skipped');
+    } catch (err) {
+      reportSubmitFailure(err, 'Failed to skip plan confirmation:');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (status !== 'waiting') {
+    const label = resolvedStatusMap[status];
+    const handledElsewhere = status === 'handled';
+    const StatusIcon = handledElsewhere ? InfoCircleIcon : CheckCircleIcon;
+    return (
+      // The icon stays on the first line: a label that wraps on a narrow screen must not float it to the middle.
+      <div
+        className={cn(
+          'mt-3 flex items-start gap-2.5 rounded-2xl border px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3',
+          handledElsewhere ? 'border-border/60 bg-muted/40' : 'border-emerald-500/30 bg-emerald-500/5',
+        )}
+      >
+        <StatusIcon
+          className={cn(
+            'mt-0.5 h-4 w-4 shrink-0',
+            handledElsewhere ? 'text-muted-foreground' : 'text-emerald-500 dark:text-emerald-400',
+          )}
+        />
+        <span
+          className={cn(
+            'font-medium',
+            handledElsewhere ? 'text-muted-foreground' : 'text-emerald-700 dark:text-emerald-300',
+          )}
+        >
+          {label ? t(label) : t('confirmed')}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 sm:mt-4" data-testid="dynamic-workflow-plan-card">
+      <div className="relative overflow-hidden rounded-2xl border border-blue-500/40 bg-card/90 backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/5 dark:from-blue-500/15 dark:to-cyan-500/10" />
+
+        <div className="relative flex flex-col gap-4 p-3 sm:gap-5 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="text-sm font-semibold leading-snug text-foreground sm:text-base">
+                {isDynamicWorkflow ? t('workflowTitle') : t('title')}
+              </span>
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                {isDynamicWorkflow ? t('workflowDescription') : t('description')}
+              </span>
+            </div>
+            <span className="shrink-0 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
+              {isDynamicWorkflow ? t('workflowBadge') : t('badge')}
+            </span>
+          </div>
+
+          {isDynamicWorkflow && (spawnCount !== undefined || estimatedCostUsd !== undefined) && (
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {spawnCount !== undefined && (
+                <span className="rounded-full border border-border/60 bg-background/80 px-2.5 py-1">
+                  {t('spawnCount', { count: spawnCount })}
+                </span>
+              )}
+              {estimatedCostUsd !== undefined && (
+                <span className="rounded-full border border-border/60 bg-background/80 px-2.5 py-1">
+                  {t('estimatedCost', { cost: estimatedCostUsd.toFixed(2) })}
+                </span>
+              )}
+              {remainingBudgetUsd !== undefined && (
+                <span className="rounded-full border border-border/60 bg-background/80 px-2.5 py-1">
+                  {t('remainingBudget', { budget: remainingBudgetUsd.toFixed(2) })}
+                </span>
+              )}
+            </div>
+          )}
+
+          {editing ? (
+            <textarea
+              className="w-full resize-none rounded-xl border border-border/70 bg-background/90 px-3 py-2.5 font-mono text-sm leading-relaxed placeholder:text-muted-foreground transition-colors focus:border-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500/25 sm:px-4 sm:py-3"
+              rows={Math.min(Math.max(editedPlan.split('\n').length + 1, 6), 20)}
+              placeholder={t('editPlaceholder')}
+              value={editedPlan}
+              onChange={(e) => setEditedPlan(e.target.value)}
+              disabled={submitting}
+            />
+          ) : (
+            <div className="rounded-xl border border-border/60 bg-background/70 p-3 sm:p-4">
+              <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-foreground/90">{plan}</pre>
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse gap-2 border-t border-border/50 pt-3 sm:flex-row sm:justify-end sm:pt-4">
+            {!isDynamicWorkflow && (
+              <button
+                type="button"
+                onClick={handleSkip}
+                disabled={submitting}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent/60 disabled:opacity-50 sm:w-auto sm:py-2"
+              >
+                <SkipIcon className="h-3.5 w-3.5" />
+                {t('skip')}
+              </button>
+            )}
+            {isDynamicWorkflow ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  disabled={submitting}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent/60 disabled:opacity-50 sm:w-auto sm:py-2"
+                >
+                  {t('workflowCancel')}
+                </button>
+                <button
+                  type="button"
+                  data-testid="dynamic-workflow-plan-run"
+                  onClick={handleConfirm}
+                  disabled={submitting}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+                >
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                  {t('workflowConfirm')}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleEdit}
+                  disabled={submitting}
+                  className={cn(
+                    'inline-flex w-full items-center justify-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 sm:w-auto sm:py-2',
+                    editing
+                      ? 'border-blue-500/50 bg-blue-600 text-white hover:bg-blue-700'
+                      : 'border-blue-500/30 bg-blue-500/10 text-blue-700 hover:bg-blue-500/20 dark:text-blue-300',
+                  )}
+                >
+                  <PencilIcon className="h-3.5 w-3.5" />
+                  {t('edit')}
+                </button>
+                {!editing && (
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    disabled={submitting}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+                  >
+                    <CheckCircleIcon className="h-3.5 w-3.5" />
+                    {t('confirm')}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(PlanConfirmationCard);

@@ -1,0 +1,340 @@
+import { File } from '@/store/chat/types';
+import { partitionFilesByType, getMimeType } from '@/lib/utils/fileUtils';
+import { isTauriRuntime } from '@/lib/deploy-mode';
+import { fromStoreFile } from '@/services/file-service/types';
+import { extractPdfContent, extractDocumentContent } from '@/services/file';
+import { showI18nToast } from '@/services/i18nToastService';
+import useConfigStore from '@/store/useConfigStore';
+
+type VisionTextPart = { type: 'text'; text: string };
+type VisionImagePart = { type: 'image_url'; image_url: { url: string; detail: string } };
+type VisionVideoPart = { type: 'video_url'; video_url: { url: string; mime_type: string } };
+export type VisionContentPart = VisionTextPart | VisionImagePart | VisionVideoPart;
+
+/**
+ * Resolve an image file to a URL for the message payload.
+ * Both Tauri and Sandbox modes pass lightweight URL references — the harness
+ * MediaResolverProcessor resolves them to base64 right before the LLM call,
+ * keeping checkpoints and message history lean.
+ *
+ * - Tauri: file:// local path (harness reads from disk)
+ * - Sandbox: StorageProvider HTTP URL (harness fetches via HTTP)
+ */
+const resolveImageUrl = async (file: File): Promise<string | null> => {
+  if (isTauriRuntime()) {
+    return file.localPath ? `file://${file.localPath}` : null;
+  }
+  return file.fileUrl || null;
+};
+
+const buildExtractParams = (file: File): { fileId: string } | { filePath: string } => {
+  if (isTauriRuntime()) {
+    return { filePath: file.localPath || '' };
+  }
+  return { fileId: file.id || '' };
+};
+
+const attachmentReferencePart = (fileName: string): VisionContentPart => ({
+  type: 'text',
+  text: `[Attachment: ${fileName}]`,
+});
+
+/** Collapse ascending page numbers into a compact “2-4, 7” form for the toast copy. */
+const formatPageRanges = (pages: number[]): string => {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (const page of sorted.slice(1)) {
+    if (page === prev + 1) {
+      prev = page;
+      continue;
+    }
+    ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+    start = page;
+    prev = page;
+  }
+  ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+  return ranges.join(', ');
+};
+
+/**
+ * Process PDF files via backend extraction API (parallel).
+ * Text-first; when text is sparse, backend renders pages as images.
+ * Image parts are always included — the server-side VisionFallback
+ * handles routing to a vision model when the primary model lacks vision.
+ */
+const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> => {
+  const extractEnabled = useConfigStore.getState().extractDocumentText ?? true;
+  if (!extractEnabled) {
+    return pdfFiles.map((file) => attachmentReferencePart(file.fileName));
+  }
+
+  const results = await Promise.allSettled(
+    pdfFiles.map((file) => extractPdfContent(buildExtractParams(file)).then((result) => ({ file, result }))),
+  );
+
+  const parts: VisionContentPart[] = [];
+
+  for (const settled of results) {
+    if (settled.status === 'rejected') {
+      console.error('PDF extraction failed:', settled.reason);
+      continue;
+    }
+    const { file, result } = settled.value;
+    const hasImages = Boolean(result.images && result.images.length > 0);
+    const scannedPages = result.pagesWithoutText ?? [];
+
+    if (result.text) {
+      parts.push({ type: 'text', text: `[PDF: ${file.fileName}]\n${result.text}` });
+    } else if (!hasImages) {
+      // Nothing readable came back: keep the attachment visible to the model instead of dropping it silently.
+      parts.push(attachmentReferencePart(file.fileName));
+    }
+
+    if (result.parsedPages > 0 && result.parsedPages < result.pageCount) {
+      showI18nToast(
+        'chat.pdfParsedPages',
+        { fileName: file.fileName, parsed: result.parsedPages, total: result.pageCount },
+        { type: 'info', duration: 5000 },
+      );
+    }
+
+    if (scannedPages.length > 0) {
+      // Only pages that actually travelled as images may be called "sent". Past the
+      // delivery ceiling the rest were dropped, so the copy must not promise them.
+      const sentPages = result.images.map((img) => img.pageNumber).filter((page): page is number => typeof page === 'number');
+      const sentSet = new Set(sentPages);
+      const delivered = scannedPages.filter((page) => sentSet.has(page));
+      const withheld = scannedPages.filter((page) => !sentSet.has(page));
+
+      if (delivered.length > 0) {
+        showI18nToast(
+          'chat.pdfScannedPages',
+          { fileName: file.fileName, pages: formatPageRanges(delivered) },
+          { type: 'info', duration: 6000 },
+        );
+      }
+      if (withheld.length > 0) {
+        showI18nToast(
+          'chat.pdfScannedPagesWithheld',
+          { fileName: file.fileName, pages: formatPageRanges(withheld) },
+          { type: 'warning', duration: 8000 },
+        );
+      }
+    }
+
+    if (hasImages) {
+      for (const img of result.images) {
+        const url = img.fileUrl || `data:${img.mimeType};base64,${img.data}`;
+        parts.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
+      }
+
+      const trace = result.imageTrace;
+      if (trace?.truncated) {
+        // Figures past the delivery window never reached the model; say so instead of implying full coverage.
+        showI18nToast(
+          'chat.pdfFiguresTruncated',
+          { kept: trace.keptCount ?? result.images.length },
+          { type: 'info', duration: 6000 },
+        );
+      } else if (trace && trace.droppedCount > 0) {
+        showI18nToast(
+          'chat.pdfImageOptimized',
+          { kept: trace.keptCount, dropped: trace.droppedCount },
+          { type: 'success', duration: 6000 },
+        );
+      }
+    }
+  }
+
+  return parts;
+};
+
+/**
+ * Process document files (.docx/.xlsx/.xls/.pptx/.ppt/.ipynb) via backend extraction API (parallel).
+ * Backend uses Harness parsers to convert to Markdown text.
+ */
+const processDocumentFiles = async (docFiles: File[]): Promise<VisionContentPart[]> => {
+  const extractEnabled = useConfigStore.getState().extractDocumentText ?? true;
+  if (!extractEnabled) {
+    return docFiles.map((file) => attachmentReferencePart(file.fileName));
+  }
+
+  const results = await Promise.allSettled(
+    docFiles.map((file) => extractDocumentContent(buildExtractParams(file)).then((result) => ({ file, result }))),
+  );
+
+  const parts: VisionContentPart[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const settled = results[i];
+    if (settled.status === 'rejected') {
+      console.error('Document extraction failed:', settled.reason);
+      const failedFile = docFiles[i];
+      parts.push({
+        type: 'text',
+        text: `[Document: ${failedFile.fileName}] (Extraction failed — the file may be corrupted or in an unsupported format)`,
+      });
+      continue;
+    }
+    const { file, result } = settled.value;
+    if (result.text) {
+      parts.push({ type: 'text', text: `[Document: ${file.fileName}]\n${result.text}` });
+    }
+  }
+  return parts;
+};
+
+/**
+ * Process video files by passing their URLs as video_url content parts.
+ * Video analysis (frame extraction, native pass-through) is handled server-side
+ * by VideoAnalysisEngine based on model capabilities.
+ */
+const processVideoFiles = async (videoFiles: File[]): Promise<VisionContentPart[]> => {
+  const parts: VisionContentPart[] = [];
+  for (const file of videoFiles) {
+    let url: string;
+    if (isTauriRuntime() && file.localPath) {
+      const { tauriFileService } = await import('@/services/file-service/tauri');
+      url = await tauriFileService.readFileAsDataURL(fromStoreFile(file));
+    } else {
+      url = file.fileUrl || '';
+    }
+    if (!url) {
+      parts.push({ type: 'text', text: `[Video: ${file.fileName}] (Failed to read video file)` });
+      continue;
+    }
+    const mime = getMimeType(file.fileExtension);
+    parts.push({ type: 'video_url', video_url: { url, mime_type: mime } });
+  }
+  return parts;
+};
+
+const MAX_TEXT_INJECT_CHARS = 200_000;
+
+/**
+ * Process plain text files (.csv/.txt/.md/.json) by fetching their content directly.
+ * Tauri mode reads via native file service; Sandbox mode fetches from storage URL.
+ */
+const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]> => {
+  const results = await Promise.allSettled(
+    textFiles.map(async (file) => {
+      let text: string;
+      if (isTauriRuntime() && file.localPath) {
+        const { tauriFileService } = await import('@/services/file-service/tauri');
+        const dataUrl = await tauriFileService.readFileAsDataURL(fromStoreFile(file));
+        const base64 = dataUrl.split(',')[1] || '';
+        text = atob(base64);
+      } else {
+        const url = file.fileUrl || '';
+        if (!url) {
+          throw new Error(`No URL for text file: ${file.fileName}`);
+        }
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch ${file.fileName}: ${res.status}`);
+        }
+        text = await res.text();
+      }
+      return { file, text };
+    }),
+  );
+
+  const parts: VisionContentPart[] = [];
+  for (const settled of results) {
+    if (settled.status === 'rejected') {
+      console.error('Text file read failed:', settled.reason);
+      continue;
+    }
+    const { file, text } = settled.value;
+    if (text) {
+      const truncated =
+        text.length > MAX_TEXT_INJECT_CHARS
+          ? text.slice(0, MAX_TEXT_INJECT_CHARS) + `\n\n... [truncated at ${MAX_TEXT_INJECT_CHARS} chars]`
+          : text;
+      parts.push({ type: 'text', text: `[File: ${file.fileName}]\n${truncated}` });
+    }
+  }
+  return parts;
+};
+
+/**
+ * Build multimodal query from attached files and optional camera frames.
+ *
+ * All visual content (images, camera frames, PDF charts) is always included
+ * regardless of primary model vision capability — the server-side
+ * VisionFallbackEngine handles routing to a vision model when needed.
+ *
+ * - Camera frames: injected as image_url parts.
+ * - Images: passed as URL references (file:// or HTTP) for lazy resolution.
+ * - Videos: passed as video_url parts for server-side analysis.
+ * - PDFs: text-first extraction; sparse-text PDFs rendered as page images.
+ * - Documents (.docx/.xlsx/.xls/.ipynb): extracted to Markdown text via backend.
+ * - Text files (.csv/.txt/.md/.json): content fetched directly.
+ * - Other files: marked as [Attachment: filename] so the Agent is aware of them.
+ * - If no multimodal content, returns plain text.
+ */
+export const buildMultimodalQuery = async (
+  textInput: string,
+  files: File[],
+  cameraFrames?: string[],
+): Promise<string | VisionContentPart[]> => {
+  const { imageFiles, videoFiles, pdfFiles, documentFiles, textFiles, otherFiles } = partitionFilesByType(files);
+  const hasCameraFrames = cameraFrames && cameraFrames.length > 0;
+  const hasAttachments =
+    imageFiles.length > 0 ||
+    videoFiles.length > 0 ||
+    pdfFiles.length > 0 ||
+    documentFiles.length > 0 ||
+    textFiles.length > 0 ||
+    otherFiles.length > 0;
+
+  if (!hasAttachments && !hasCameraFrames) {
+    return textInput;
+  }
+
+  const contentParts: VisionContentPart[] = [{ type: 'text', text: textInput }];
+
+  if (hasCameraFrames) {
+    for (const frameDataUrl of cameraFrames) {
+      contentParts.push({ type: 'image_url', image_url: { url: frameDataUrl, detail: 'auto' } });
+    }
+  }
+
+  if (imageFiles.length > 0) {
+    const imageUrls = await Promise.all(imageFiles.map(resolveImageUrl));
+    for (const url of imageUrls) {
+      if (url) {
+        contentParts.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
+      }
+    }
+  }
+
+  if (videoFiles.length > 0) {
+    const videoParts = await processVideoFiles(videoFiles);
+    contentParts.push(...videoParts);
+  }
+
+  if (pdfFiles.length > 0) {
+    const pdfParts = await processPdfFiles(pdfFiles);
+    contentParts.push(...pdfParts);
+  }
+
+  if (documentFiles.length > 0) {
+    const docParts = await processDocumentFiles(documentFiles);
+    contentParts.push(...docParts);
+  }
+
+  if (textFiles.length > 0) {
+    const txtParts = await processTextFiles(textFiles);
+    contentParts.push(...txtParts);
+  }
+
+  if (otherFiles.length > 0) {
+    for (const file of otherFiles) {
+      contentParts.push(attachmentReferencePart(file.fileName));
+    }
+  }
+
+  return contentParts.length === 1 ? textInput : contentParts;
+};

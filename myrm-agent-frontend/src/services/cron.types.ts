@@ -1,0 +1,438 @@
+export type JobStatus = 'active' | 'paused' | 'completed';
+export type RunStatus = 'ok' | 'error' | 'skipped' | 'circuit_break';
+export type SessionTarget = 'isolated' | 'main' | 'daily';
+
+export interface CronSchedule {
+  kind: 'cron' | 'interval' | 'once';
+  expr?: string;
+  tz?: string;
+  interval_ms?: number;
+  run_at?: string;
+  stagger_ms?: number;
+}
+
+export interface CronDelivery {
+  channel: string;
+  target?: string | null;
+  secret?: string | null;
+}
+
+export interface ActiveHours {
+  start: string;
+  end: string;
+  tz: string;
+}
+
+export interface MonitorConfig {
+  monitor_type: 'set' | 'hash';
+  ttl_days: number;
+  enabled: boolean;
+  last_reset_at?: string | null;
+  last_reset_reason?: string | null;
+}
+
+export interface FailureAlertConfig {
+  enabled: boolean;
+  after: number;
+  cooldown_seconds: number;
+  delivery?: CronDelivery | null;
+}
+
+export interface EventTrigger {
+  pattern: string;
+  channel?: string | null;
+}
+
+export interface SystemEventTrigger {
+  source: string;
+  event_type: string;
+  filters: Record<string, string>;
+}
+
+export interface WebhookTrigger {
+  path?: string | null;
+  secret?: string | null;
+}
+
+export interface PollTrigger {
+  url: string;
+  json_path?: string | null;
+  interval_seconds: number;
+  change_detection: boolean;
+}
+
+export interface StreamTrigger {
+  url: string;
+  protocol: 'ws' | 'sse';
+  filter_json_path?: string | null;
+  filter_regex?: string | null;
+  headers?: Record<string, string>;
+}
+
+export interface TriggerConfig {
+  webhooks: WebhookTrigger[];
+  events: EventTrigger[];
+  system_events: SystemEventTrigger[];
+  polls: PollTrigger[];
+  streams: StreamTrigger[];
+}
+
+export interface CronJob {
+  id: string;
+  user_id: string;
+  name: string;
+  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  status: JobStatus;
+  schedule: CronSchedule;
+  prompt?: string;
+  model?: string;
+  chat_id?: string;
+  agent_id?: string | null;
+  workflow_template_id?: string | null;
+  workflow_template_args?: Record<string, string> | null;
+  workflow_template_display_name?: string | null;
+  command?: string;
+  delivery?: CronDelivery;
+  failure_delivery?: CronDelivery | null;
+  failure_alert?: FailureAlertConfig | false | null;
+  active_hours?: ActiveHours | null;
+  triggers?: TriggerConfig | null;
+  context_from: string[];
+  pre_condition_script?: string | null;
+  acceptance_criteria?: Array<Record<string, unknown>> | null;
+  max_retries: number;
+  retry_backoff_ms: number;
+  timeout_seconds: number;
+  misfire_grace_seconds: number;
+  cooldown_seconds: number;
+  max_fires?: number | null;
+  expires_at?: string | null;
+  fire_count: number;
+  session_target: SessionTarget;
+  required_capabilities: string[];
+  tools_allowed: string[];
+  skill_ids?: string[];
+  allowed_roots: string[];
+  delete_after_run: boolean;
+  run_retention_days: number;
+  deduplicate: boolean;
+  skip_if_active: boolean;
+  monitor_config?: MonitorConfig | null;
+  next_run_at?: string;
+  last_run_at?: string;
+  last_status?: RunStatus;
+  last_error?: string;
+  consecutive_failures: number;
+  last_failure_alert_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CronRunVerification {
+  status: 'pass' | 'fail' | 'skipped' | 'error';
+  passed?: boolean | null;
+  summary?: string;
+}
+
+export interface CronProgressStep {
+  tool_name?: string;
+  step_key?: string;
+  error?: string;
+}
+
+export type MonitorContractErrorCode = 'invalid_json_like_output';
+export type MonitorFailureCountSource = 'persistent_state' | 'memory_fallback';
+
+export interface ConnectorFailureDetail {
+  category: string;
+  target: string;
+  status_code?: number | null;
+  message?: string;
+  duration_ms?: number | null;
+  timestamp?: string;
+}
+
+/** Actions the safety rules stopped during a run, grouped by tool and reason. */
+export interface CronBlockedAction {
+  tool: string;
+  reason: string;
+  count: number;
+}
+
+export interface CronRunMetadata {
+  verification?: CronRunVerification;
+  progressSteps?: CronProgressStep[];
+  /** Exact number of stopped actions; `blockedActions` lists the first groups only. */
+  blockedCount?: number;
+  blockedActions?: CronBlockedAction[];
+  monitor_contract_error?: MonitorContractErrorCode | string;
+  monitor_failure_count?: number;
+  monitor_failure_count_source?: MonitorFailureCountSource | string;
+  connector_failure?: ConnectorFailureDetail;
+}
+
+export interface CronRun {
+  id: string;
+  job_id: string;
+  started_at: string;
+  finished_at: string;
+  duration_ms: number;
+  status: RunStatus;
+  output?: string;
+  error?: string;
+  model?: string;
+  usage_input_tokens?: number;
+  usage_output_tokens?: number;
+  usage_total_tokens?: number;
+  trigger_source?: string | null;
+  delivery_status?: 'delivered' | 'failed' | 'skipped';
+  delivery_error?: string;
+  job_name?: string;
+  metadata?: CronRunMetadata;
+}
+
+export interface CronJobsListResponse {
+  items: CronJob[];
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface CronRunsListResponse {
+  items: CronRun[];
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface UsageSummary {
+  total_runs: number;
+  success_runs: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_tokens: number;
+  avg_tokens_per_run: number;
+  estimated_hours_saved?: number;
+  roi_multiple?: number;
+  estimated_value_saved_cents?: number;
+  estimated_cost_cents?: number;
+}
+
+export interface UsageByDay {
+  date: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  runs: number;
+}
+
+export interface UsageByJob {
+  job_id: string;
+  job_name: string;
+  total_tokens: number;
+  runs: number;
+  hours_saved?: number;
+}
+
+export interface UsageByModel {
+  model: string;
+  total_tokens: number;
+  runs: number;
+}
+
+export interface UsageStatsResponse {
+  summary: UsageSummary;
+  by_day: UsageByDay[];
+  by_job: UsageByJob[];
+  by_model: UsageByModel[];
+}
+
+export interface TriggerConfigRequest {
+  webhooks?: Record<string, never>[];
+  events?: { pattern: string; channel?: string }[];
+  system_events?: { source: string; event_type: string; filters?: Record<string, string> }[];
+  polls?: { url: string; json_path?: string; interval_seconds?: number; change_detection?: boolean }[];
+  streams?: {
+    url: string;
+    protocol?: 'ws' | 'sse';
+    filter_json_path?: string;
+    filter_regex?: string;
+    headers?: Record<string, string>;
+  }[];
+}
+
+export interface CreateCronJobRequest {
+  name: string;
+  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  schedule: CronSchedule;
+  /** Originating chat session; the job's runs are attributed to this chat */
+  chat_id?: string;
+  prompt?: string;
+  model?: string;
+  agent_id?: string;
+  command?: string;
+  delivery?: { channel: string; target?: string };
+  failure_delivery?: { channel: string; target?: string };
+  failure_alert?: {
+    enabled: boolean;
+    after?: number;
+    cooldown_seconds?: number;
+    delivery?: CronDelivery;
+  };
+  active_hours?: ActiveHours;
+  triggers?: TriggerConfigRequest;
+  max_retries?: number;
+  retry_backoff_ms?: number;
+  timeout_seconds?: number;
+  misfire_grace_seconds?: number;
+  cooldown_seconds?: number;
+  max_fires?: number;
+  expires_at?: string;
+  session_target?: SessionTarget;
+  delete_after_run?: boolean;
+  run_retention_days?: number;
+  deduplicate?: boolean;
+  skip_if_active?: boolean;
+  monitor_config?: MonitorConfig;
+  context_from?: string[];
+  pre_condition_script?: string | null;
+  acceptance_criteria?: Array<Record<string, unknown>> | null;
+  required_capabilities?: string[];
+  tools_allowed?: string[];
+  skill_ids?: string[];
+  workflow_template_id?: string;
+  workflow_template_args?: Record<string, string>;
+  override_prerequisite?: boolean;
+}
+
+export interface UpdateCronJobRequest {
+  name?: string;
+  status?: JobStatus;
+  schedule?: CronSchedule;
+  prompt?: string;
+  model?: string;
+  agent_id?: string | null;
+  workflow_template_id?: string | null;
+  workflow_template_args?: Record<string, string> | null;
+  command?: string;
+  delivery?: { channel: string; target?: string };
+  failure_delivery?: { channel: string; target?: string } | null;
+  failure_alert?:
+    { enabled: boolean; after?: number; cooldown_seconds?: number; delivery?: CronDelivery } | false | null;
+  active_hours?: ActiveHours | null;
+  triggers?: TriggerConfigRequest | null;
+  max_retries?: number;
+  retry_backoff_ms?: number;
+  timeout_seconds?: number;
+  misfire_grace_seconds?: number;
+  cooldown_seconds?: number;
+  max_fires?: number | null;
+  expires_at?: string | null;
+  session_target?: SessionTarget;
+  chat_id?: string | null;
+  required_capabilities?: string[];
+  tools_allowed?: string[];
+  allowed_roots?: string[];
+  delete_after_run?: boolean;
+  run_retention_days?: number;
+  deduplicate?: boolean;
+  skip_if_active?: boolean;
+  monitor_config?: MonitorConfig | null;
+  context_from?: string[];
+  pre_condition_script?: string | null;
+  acceptance_criteria?: Array<Record<string, unknown>> | null;
+  skill_ids?: string[];
+}
+
+export interface BlueprintSlotDef {
+  name: string;
+  type: 'time' | 'text' | 'enum';
+  label: string;
+  default: string;
+  options: string[];
+  optional: boolean;
+}
+
+export interface BlueprintDef {
+  id: string;
+  icon: string;
+  title: Record<string, string>;
+  description: Record<string, string>;
+  prompt_template: Record<string, string>;
+  slots: BlueprintSlotDef[];
+  category: string;
+  tags: string[];
+  sort_order: number;
+  default_skill_ids?: string[];
+}
+
+export interface BlueprintFillResponse {
+  schedule: CronSchedule;
+  prompt: string;
+  name: string;
+  required_capabilities: string[];
+  tools_allowed: string[];
+  skill_ids?: string[];
+  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  session_target: SessionTarget;
+  deduplicate: boolean;
+  skip_if_active: boolean;
+  timeout_seconds?: number | null;
+  monitor_config?: {
+    monitor_type: 'set' | 'hash';
+    ttl_days: number;
+    enabled: boolean;
+  } | null;
+  failure_alert?: {
+    enabled: boolean;
+    after: number;
+    cooldown_seconds: number;
+  } | null;
+  pre_condition_script?: string | null;
+  command?: string | null;
+}
+
+export interface PrerequisiteCheckRequest {
+  prompt?: string;
+  agent_id?: string;
+  workflow_template_id?: string;
+  command?: string;
+  tools_allowed?: string[];
+  chat_id?: string;
+  threshold?: number;
+}
+
+export interface PrerequisiteCheckResponse {
+  fingerprint: string;
+  manual_success_count: number;
+  threshold: number;
+  is_satisfied: boolean;
+  chat_verified_count: number;
+  kanban_verified_count: number;
+  override_allowed: boolean;
+}
+
+export interface ConnectorHealthItem {
+  target: string;
+  channel: string;
+  status: 'healthy' | 'degraded' | 'down';
+  total_deliveries: number;
+  failed_deliveries: number;
+  consecutive_failures: number;
+  last_status_code?: number | null;
+  last_error_category?: string | null;
+  last_error_message?: string | null;
+  last_delivery_at?: string | null;
+  last_failed_at?: string | null;
+  fix_suggestion?: string | null;
+  bound_job_ids: string[];
+}
+
+export interface ConnectorsHealthListResponse {
+  items: ConnectorHealthItem[];
+  total: number;
+  degraded_count: number;
+  down_count: number;
+}

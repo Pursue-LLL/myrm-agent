@@ -1,0 +1,298 @@
+'use client';
+
+import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { cn } from '@/lib/utils/classnameUtils';
+import { Monitor, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
+import useChatStore from '@/store/useChatStore';
+import type { BrowserRefInfo } from '@/store/chat/types';
+import { ElementOverlay } from '@/components/features/browser-inspector';
+import { apiRequest } from '@/lib/api';
+import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import { usePanelResize } from '@/hooks/inspector/usePanelResize';
+import DesktopInspectorToolbar from './DesktopInspectorToolbar';
+import DesktopInstructionInput from './DesktopInstructionInput';
+import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
+import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
+
+const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({ t }) => {
+  const [details, setDetails] = useState<DesktopPermissionsStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [apiError, setApiError] = useState(false);
+
+  const fetchPermissions = useCallback(async () => {
+    setChecking(true);
+    setApiError(false);
+    try {
+      const data = await apiRequest<DesktopPermissionsStatus>(desktopPermissionsPath(false), {
+        silent: true,
+      });
+      setDetails(data);
+    } catch {
+      setApiError(true);
+      setDetails(null);
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchPermissions();
+  }, [fetchPermissions]);
+
+  if (apiError) {
+    return (
+      <div className="px-3 py-2 text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-b border-amber-500/20 flex items-center gap-2 flex-wrap">
+        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+        <span className="flex-1 min-w-0">{t('permissionCheckFailed')}</span>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors whitespace-nowrap"
+          onClick={() => void fetchPermissions()}
+          disabled={checking}
+        >
+          <RefreshCw className={cn('w-3 h-3', checking && 'animate-spin')} />
+          {t('permissionCheckAgain')}
+        </button>
+      </div>
+    );
+  }
+
+  const missingParts: string[] = [];
+  if (details && !details.accessibility) {
+    missingParts.push(t('permissionDeniedAccessibility'));
+  }
+  if (details && !details.screen_recording) {
+    missingParts.push(t('permissionDeniedScreenRecording'));
+  }
+  const message = missingParts.length > 0 ? missingParts.join(' ') : t('permissionDenied');
+
+  return (
+    <div className="px-3 py-2 text-xs bg-destructive/10 text-destructive border-b border-destructive/20 flex items-center gap-2 flex-wrap">
+      <span className="flex-1 min-w-0">{message}</span>
+      {pickSettingsDeepLink(details?.settings_deeplinks) && (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
+          onClick={() => {
+            const link = pickSettingsDeepLink(details?.settings_deeplinks);
+            if (link) {
+              openPermissionDeepLinkWithGuideFallback(link, details?.platform);
+            }
+          }}
+        >
+          <ExternalLink className="w-3 h-3" />
+          {t('permissionOpenSettings')}
+        </button>
+      )}
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
+        onClick={fetchPermissions}
+        disabled={checking}
+      >
+        <RefreshCw className={cn('w-3 h-3', checking && 'animate-spin')} />
+        {t('permissionCheckAgain')}
+      </button>
+    </div>
+  );
+};
+
+interface DesktopLiveViewProps {
+  onSendInstruction: (instruction: string, refId: string | null) => void;
+}
+
+const MIN_PANEL_WIDTH = 320;
+const MAX_PANEL_WIDTH = 960;
+const DEFAULT_PANEL_WIDTH = 520;
+const PANEL_WIDTH_KEY = 'desktop-inspector-panel-width';
+
+const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) => {
+  const t = useTranslations('chat.desktopInspector');
+  const {
+    isOpen,
+    mode,
+    viewData,
+    selectedElement,
+    instructionText,
+    closePanel,
+    setMode,
+    selectElement,
+    clearSelection,
+    setInstructionText,
+    fetchSnapshot,
+    isSnapshotLoading,
+  } = useDesktopInspectorStore();
+  const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
+  const scopedViewData = selectScopedDesktopViewData(viewData, chatId);
+
+  useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
+
+  const { panelWidth, isResizing, separatorProps } = usePanelResize({
+    storageKey: PANEL_WIDTH_KEY,
+    minWidth: MIN_PANEL_WIDTH,
+    maxWidth: MAX_PANEL_WIDTH,
+    defaultWidth: DEFAULT_PANEL_WIDTH,
+  });
+  const [isMobile, setIsMobile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const container = imageContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const scale = Math.min(containerWidth / img.naturalWidth, containerHeight / img.naturalHeight, 1);
+
+    setImageSize({
+      width: img.naturalWidth * scale,
+      height: img.naturalHeight * scale,
+    });
+  }, []);
+
+  const filteredRefs = React.useMemo(() => {
+    if (!scopedViewData?.refs) {
+      return {};
+    }
+    if (!searchQuery.trim()) {
+      return scopedViewData.refs;
+    }
+    const q = searchQuery.trim().toLowerCase();
+    const res: Record<string, BrowserRefInfo> = {};
+    for (const [refId, info] of Object.entries(scopedViewData.refs)) {
+      const name = (info.name || '').toLowerCase();
+      const role = (info.role || '').toLowerCase();
+      if (refId.toLowerCase().includes(q) || name.includes(q) || role.includes(q)) {
+        res[refId] = info;
+      }
+    }
+    return res;
+  }, [scopedViewData?.refs, searchQuery]);
+
+  const handleElementClick = useCallback(
+    (refId: string, info: BrowserRefInfo) => {
+      selectElement(refId, info);
+    },
+    [selectElement],
+  );
+
+  const handleSubmit = useCallback(
+    (instruction: string, refId: string | null) => {
+      onSendInstruction(instruction, refId);
+      clearSelection();
+    },
+    [onSendInstruction, clearSelection],
+  );
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const headerTitle = scopedViewData?.windowTitle || scopedViewData?.appName || t('title');
+
+  return (
+    <div
+      ref={panelRef}
+      className={cn(
+        'fixed top-0 right-0 h-full z-40 flex',
+        'bg-background border-l border-border shadow-xl',
+        'transition-transform duration-200 ease-out',
+        isResizing && 'select-none',
+      )}
+      style={{ width: isMobile ? '100%' : `${panelWidth}px` }}
+    >
+      <div
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-50 sm:block hidden',
+          'hover:bg-primary/20 active:bg-primary/30 transition-colors',
+          isResizing && 'bg-primary/30',
+        )}
+        {...separatorProps}
+        aria-label={t('resizePanel')}
+      />
+
+      <div className="flex flex-col w-full ml-1.5">
+        <DesktopInspectorToolbar
+          mode={mode}
+          onModeChange={setMode}
+          onClose={closePanel}
+          onRefresh={() => void fetchSnapshot(false)}
+          isLoading={isSnapshotLoading}
+          title={headerTitle}
+          subtitle={scopedViewData?.appName}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+        />
+
+        {scopedViewData?.needsPermission && <PermissionBanner t={t} />}
+
+        <div
+          ref={imageContainerRef}
+          className="flex-1 relative overflow-hidden bg-muted/30 flex items-center justify-center"
+        >
+          {scopedViewData?.screenshotBase64 ? (
+            <div className="relative" style={{ width: imageSize.width, height: imageSize.height }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`data:${scopedViewData.mimeType};base64,${scopedViewData.screenshotBase64}`}
+                alt={t('screenshotAlt')}
+                className="w-full h-full object-contain"
+                onLoad={handleImageLoad}
+                draggable={false}
+              />
+
+              {mode === 'inspect' && imageSize.width > 0 && (
+                <ElementOverlay
+                  refs={filteredRefs}
+                  imageWidth={imageSize.width}
+                  imageHeight={imageSize.height}
+                  viewportWidth={scopedViewData.viewportWidth}
+                  viewportHeight={scopedViewData.viewportHeight}
+                  selectedRefId={selectedElement?.refId ?? null}
+                  onElementClick={handleElementClick}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 text-muted-foreground px-6 text-center">
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                <Monitor className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm">{t('waitingForDesktop')}</p>
+              <p className="text-xs text-muted-foreground/60">{t('waitingHint')}</p>
+            </div>
+          )}
+        </div>
+
+        {mode === 'inspect' && (
+          <DesktopInstructionInput
+            selectedRefId={selectedElement?.refId ?? null}
+            selectedInfo={selectedElement?.info ?? null}
+            instructionText={instructionText}
+            onInstructionChange={setInstructionText}
+            onSubmit={handleSubmit}
+            onClearSelection={clearSelection}
+            disabled={!scopedViewData}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default React.memo(DesktopLiveView);

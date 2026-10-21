@@ -1,0 +1,1 @@
+"""Companion and mascot service."""

@@ -1,0 +1,283 @@
+groups:
+  - name: myrm_agent_alerts
+    interval: 30s
+    rules:
+      # === HTTP Layer Alerts ===
+      
+      - alert: HighHTTPErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) 
+            / 
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate detected"
+          description: "HTTP 5xx error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 5%)"
+
+      - alert: HTTPResponseTimeTooHigh
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP p95 response time exceeds 10 seconds"
+          description: "HTTP p95 response time is {{ $value }}s (threshold: 10s)"
+
+      # === Agent Execution Alerts ===
+
+      - alert: AgentExecutionTimeout
+        expr: agent_execution_duration_seconds > 300
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Agent execution exceeds 5 minutes"
+          description: "Agent execution took {{ $value }}s (threshold: 300s)"
+
+      - alert: AgentExecutionFailureRateHigh
+        expr: |
+          (
+            sum(rate(agent_execution_total{status="failed"}[10m]))
+            /
+            sum(rate(agent_execution_total[10m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent execution failure rate exceeds 10%"
+          description: "Agent failure rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+      # === Tool Execution Alerts ===
+
+      - alert: ToolExecutionHighFailureRate
+        expr: |
+          (
+            sum(rate(agent_tool_calls_total{status="failed"}[5m])) by (tool_name)
+            /
+            sum(rate(agent_tool_calls_total[5m])) by (tool_name)
+          ) > 0.2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tool {{ $labels.tool_name }} has high failure rate"
+          description: "Tool {{ $labels.tool_name }} failure rate is {{ $value | humanizePercentage }} (threshold: 20%)"
+
+      - alert: ToolExecutionTooSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(tool_execution_duration_seconds_bucket[5m])) by (le, tool_name)
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tool {{ $labels.tool_name }} p95 latency exceeds 30 seconds"
+          description: "Tool {{ $labels.tool_name }} p95 latency is {{ $value }}s"
+
+      # === Memory Brief Telemetry Alerts ===
+
+      - alert: MemoryBriefNotAppliedRateHigh
+        expr: |
+          (
+            (
+              sum(rate(myrm_memory_brief_injection_not_applied_total{phase="stream"}[10m])) by (reason, brief_source)
+              /
+              clamp_min(sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])), 0.001)
+            ) > 0.15
+          )
+          and
+          sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief not_applied rate is elevated"
+          description: "reason={{ $labels.reason }}, source={{ $labels.brief_source }}, rate={{ $value | humanizePercentage }} over 10m"
+
+      - alert: MemoryBriefStreamPersistMismatchHigh
+        expr: |
+          (
+            (
+              abs(
+                sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) by (brief_state, brief_source, injection_state, injection_reason)
+                -
+                sum(rate(myrm_memory_brief_status_events_total{phase="persist"}[10m])) by (brief_state, brief_source, injection_state, injection_reason)
+              )
+              /
+              clamp_min(
+                sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) by (brief_state, brief_source, injection_state, injection_reason),
+                0.001
+              )
+            ) > 0.20
+          )
+          and
+          sum(rate(myrm_memory_brief_status_events_total{phase="stream"}[10m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief stream/persist mismatch is elevated"
+          description: "state={{ $labels.brief_state }}, source={{ $labels.brief_source }}, injection={{ $labels.injection_state }}/{{ $labels.injection_reason }}, drift={{ $value | humanizePercentage }} over 10m"
+
+      - alert: MemoryBriefUnknownEnumDetected
+        expr: increase(myrm_memory_brief_status_unknown_total[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unknown memory brief enum values detected"
+          description: "At least one unknown brief/injection enum value appeared in the last 10 minutes"
+
+      - alert: MemoryBriefTelemetryDropDetected
+        expr: increase(myrm_memory_brief_status_telemetry_dropped_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry events are being dropped"
+          description: "Dropped telemetry events detected over 10m (subject={{ $labels.telemetry_subject }}, dropped_phase={{ $labels.dropped_phase }}, incoming_phase={{ $labels.incoming_phase }})"
+
+      - alert: MemoryBriefTelemetryFlushExceptionDetected
+        expr: increase(myrm_memory_brief_status_telemetry_flush_exceptions_total[10m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry flush loop encountered unexpected exceptions"
+          description: "Unexpected flush-loop exceptions detected over 10m (subject={{ $labels.telemetry_subject }})"
+
+      - alert: MemoryBriefTelemetryFlushHttpErrorDetected
+        expr: |
+          (
+            increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]) >= 6
+            and
+            (
+              increase(myrm_memory_brief_status_telemetry_flush_http_errors_total[10m])
+              /
+              clamp_min(increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]), 1)
+            ) >= 0.50
+          )
+          or
+          (
+            increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]) >= 10
+            and
+            (
+              increase(myrm_memory_brief_status_telemetry_flush_http_errors_total[10m])
+              /
+              clamp_min(increase(myrm_memory_brief_status_telemetry_flush_attempts_total[10m]), 1)
+            ) >= 0.30
+            and
+            (
+              max_over_time(myrm_memory_brief_status_telemetry_queue_fill_ratio[10m]) >= 0.60
+              or
+              sum by (telemetry_subject) (
+                increase(myrm_memory_brief_status_telemetry_dropped_total[10m])
+              ) > 0
+            )
+          )
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry flush HTTP failures detected"
+          description: "HTTP flush failure ratio breached adaptive attempts-based threshold over 10m (subject={{ $labels.telemetry_subject }}, ratio=errors/attempts, queue_pressure_or_drop_signal=true)"
+
+      - alert: MemoryBriefTelemetryDedupRejectDetected
+        expr: |
+          (
+            increase(myrm_cp_memory_brief_status_events_ingested_total[10m]) >= 20
+            and
+            (
+              increase(myrm_cp_memory_brief_status_dedup_rejected_ingested_total[10m])
+              /
+              clamp_min(increase(myrm_cp_memory_brief_status_events_ingested_total[10m]), 1)
+            ) >= 0.05
+          )
+          or
+          (
+            increase(myrm_cp_memory_brief_status_dedup_rejected_ingested_total[10m]) >= 5
+            and
+            increase(myrm_cp_memory_brief_status_dedup_rejected_total{reason="redis_unavailable"}[10m]) > 0
+          )
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory brief telemetry strict dedup rejects detected"
+          description: "Strict dedup rejects breached threshold over 10m (ratio=dedup_rejects/events OR redis_unavailable burst)."
+
+      # === Resource Alerts ===
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes > 2 * 1024 * 1024 * 1024  # 2GB
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanize1024 }}B (threshold: 2GB)"
+
+      - alert: NoRecentActivity
+        expr: |
+          (time() - max(http_requests_total) > 3600) 
+          and 
+          max(http_requests_total) > 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No HTTP requests in the last hour"
+          description: "Service may be idle or unreachable"
+
+      # === LLM Provider Alerts ===
+
+      - alert: LLMProviderDown
+        expr: |
+          sum(rate(http_requests_total{endpoint=~".*/llm/.*", status_code=~"5.."}[5m])) 
+          / 
+          sum(rate(http_requests_total{endpoint=~".*/llm/.*"}[5m])) 
+          > 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM provider may be down or degraded"
+          description: "LLM API error rate is {{ $value | humanizePercentage }} (threshold: 50%)"
+
+# === Alertmanager Routing Example ===
+# 
+# alertmanager.yml:
+# route:
+#   group_by: ['alertname', 'severity']
+#   group_wait: 10s
+#   group_interval: 10s
+#   repeat_interval: 12h
+#   receiver: 'default'
+#   routes:
+#     - match:
+#         severity: critical
+#       receiver: 'pagerduty'
+#     - match:
+#         severity: warning
+#       receiver: 'slack'
+#
+# receivers:
+#   - name: 'default'
+#     webhook_configs:
+#       - url: 'http://localhost:5001/webhook'
+#   - name: 'slack'
+#     slack_configs:
+#       - api_url: 'https://hooks.slack.com/services/XXX'
+#         channel: '#alerts'
+#   - name: 'pagerduty'
+#     pagerduty_configs:
+#       - service_key: 'XXX'

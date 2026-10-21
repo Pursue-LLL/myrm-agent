@@ -1,0 +1,78 @@
+"""FastAPI handlers for database operational errors (SQLite busy/lock).
+
+[INPUT]
+- app.database.operations.sqlite_storage_busy::is_sqlite_storage_busy (POS: SQLite 忙/锁异常识别)
+- app.schemas.responses::BusinessCode, create_error_response (POS: 统一 API 响应格式定义)
+
+[OUTPUT]
+- register_database_operational_handlers: Register FastAPI exception handlers for SQLite errors
+
+[POS]
+数据库运维 HTTP 异常处理器。将 sqlite3/SQLAlchemy OperationalError 映射为标准化 API 响应。
+"""
+
+from __future__ import annotations
+
+import logging
+import sqlite3
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError as SQLAlchemyOperationalError
+
+from app.database.operations.sqlite_storage_busy import is_sqlite_storage_busy, sqlite_busy_retry_after_seconds
+from app.schemas.responses import BusinessCode, create_error_response
+
+logger = logging.getLogger(__name__)
+
+_SQLITE_BUSY_MESSAGE = "Database is temporarily busy. Please retry shortly."
+
+
+def _sqlite_busy_json_response() -> JSONResponse:
+    sec = sqlite_busy_retry_after_seconds()
+    return JSONResponse(
+        status_code=503,
+        content=create_error_response(
+            code=BusinessCode.DB_STORAGE_BUSY,
+            message=_SQLITE_BUSY_MESSAGE,
+        ).model_dump(mode="json"),
+        headers={"Retry-After": str(sec)},
+    )
+
+
+def register_database_operational_handlers(app: FastAPI) -> None:
+    """Register ``sqlite3`` and SQLAlchemy ``OperationalError`` handlers."""
+
+    @app.exception_handler(sqlite3.OperationalError)
+    async def _sqlite3_operational_handler(_request: Request, exc: sqlite3.OperationalError) -> JSONResponse:
+        if is_sqlite_storage_busy(exc):
+            logger.warning("SQLite busy or locked (raw): %s", exc)
+            return _sqlite_busy_json_response()
+        logger.error("SQLite operational error: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response(
+                code=BusinessCode.DB_QUERY_ERROR,
+                message="Database operation failed",
+            ).model_dump(mode="json"),
+        )
+
+    @app.exception_handler(SQLAlchemyOperationalError)
+    async def _sqlalchemy_operational_handler(
+        _request: Request,
+        exc: SQLAlchemyOperationalError,
+    ) -> JSONResponse:
+        if is_sqlite_storage_busy(exc):
+            logger.warning("SQLite busy or locked (SQLAlchemy): %s", exc)
+            return _sqlite_busy_json_response()
+        logger.error("Database operational error: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response(
+                code=BusinessCode.DB_QUERY_ERROR,
+                message="Database operation failed",
+            ).model_dump(mode="json"),
+        )
+
+
+__all__ = ["register_database_operational_handlers"]

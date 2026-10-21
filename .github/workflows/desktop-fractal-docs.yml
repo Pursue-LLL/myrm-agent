@@ -1,0 +1,47 @@
+name: Desktop fractal docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-desktop/**'
+      - '.github/workflows/desktop-fractal-docs.yml'
+  pull_request:
+    paths:
+      - 'myrm-agent-desktop/**'
+      - '.github/workflows/desktop-fractal-docs.yml'
+
+concurrency:
+  group: desktop-fractal-docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fractal-docs:
+    name: Desktop fractal documentation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+        with:
+          bun-version: latest
+
+      - name: Fractal docs gate
+        run: bun run myrm-agent-desktop/scripts/check-fractal-docs.ts
+
+      - name: Fractal docs unit test
+        run: bun test myrm-agent-desktop/scripts/check-fractal-docs.test.ts
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+
+      - name: Desktop launch contract smoke
+        run: bash myrm-agent-desktop/scripts/ci/verify-launch-contract.sh
+
+      - name: Desktop Rust cargo check
+        run: bash myrm-agent-desktop/scripts/ci/cargo-check.sh

@@ -1,0 +1,1427 @@
+"""Chat turn observation and completion workflow."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import time
+
+from dev_gate.contract import EvaluateIntent
+from e2e_core.wave_ledger import maybe_register_e2e_chat
+
+import cdp_chat.support as cdp_chat_support
+from cdp_chat.send_turn_contract import (
+    SendTurnError,
+    SendTurnPhase,
+    is_live_send_turn_profile,
+)
+from cdp_chat.submit import CdpChatSubmit
+from cdp_chat.support import (
+    BRIDGE_TURN_SNAPSHOT_JS,
+    PREPARE_AUTOMATION_SEND_JS,
+    SELECT_FIRST_ENABLED_MODEL_JS,
+    SELECT_MIMO_MODEL_JS,
+    WAIT_WORKSPACE_STREAM_JS,
+    chat_id_from_path,
+    chat_messages_have_ok,
+    is_persisted_e2e_goal,
+)
+
+
+def _touch_live_turn_progress(node: str) -> None:
+    """Refresh hung-reap progress during LIVE LLM turn waits (parallel-safe)."""
+    try:
+        from e2e_session_runtime.snapshot import touch_session_progress
+
+        touch_session_progress(current_node=node)
+    except ImportError:
+        pass
+
+
+def _bridge_has_completion(bridge: dict[str, object]) -> bool:
+    """Unified completion signal check: hasCompletionSignal (SSOT) with hasOk/hasDone fallback."""
+    return bool(
+        bridge.get("hasCompletionSignal")
+        or bridge.get("hasOk")
+        or bridge.get("hasDone")
+    )
+
+
+_SUBMIT_CONSUMED_WAIT_SEC = 45.0
+_SUBMIT_API_GRACE_SEC = 30.0
+_SUBMIT_API_GRACE_POLL_SEC = 5.0
+
+
+class CdpChatTurn(CdpChatSubmit):
+    async def main_state(
+        self,
+        prompt: str,
+        *,
+        intent: EvaluateIntent = EvaluateIntent.BRIDGE_POLL,
+    ) -> dict[str, object]:
+        result = await self.evaluate(
+            f"""( () => {{
+              const main = document.querySelector('main');
+              const text = main?.innerText || '';
+              const bridgeUsers = window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount;
+              const assistantCount =
+                main?.querySelectorAll('[data-test-id="assistant-message"]')?.length || 0;
+              const allWithId = main?.querySelectorAll('[data-message-id]')?.length || 0;
+              const domUsers = Math.max(0, allWithId - assistantCount);
+              const userMsgs =
+                typeof bridgeUsers === 'number' && bridgeUsers >= 0 ? bridgeUsers : domUsers;
+              const assistantNodes = Array.from(
+                main?.querySelectorAll('[data-test-id="assistant-message"]') || [],
+              );
+              const lastAssistant = assistantNodes.length
+                ? assistantNodes[assistantNodes.length - 1]
+                : null;
+              const allAssistantText = assistantNodes.map((el) => el.innerText || '').join('\\n');
+              let okInAssistant = false;
+              for (let i = assistantNodes.length - 1; i >= 0; i -= 1) {{
+                const t = assistantNodes[i]?.innerText || '';
+                if (!t.trim()) continue;
+                if (/(?:\\bOK\\b|GOAL_OK|\\bDONE\\b)/i.test(t) || /\\bOK\\b/i.test(t.replace(/\\s+/g, ' '))) {{
+                  okInAssistant = true;
+                  break;
+                }}
+              }}
+              const sending = !!main?.querySelector('button[aria-label="Stop"]');
+              const hasUserPrompt = userMsgs > 0 || text.includes({json.dumps(prompt)});
+              const okInMain =
+                hasUserPrompt &&
+                (okInAssistant ||
+                  /(?:\\bOK\\b|GOAL_OK|\\bDONE\\b)/i.test(text) ||
+                  /^\\s*(?:OK|DONE)\\s*$/m.test(text) ||
+                  ((text.includes('OK') || text.includes('DONE')) && !sending));
+              return {{
+                url: location.href,
+                path: location.pathname,
+                bridgeChatId: window.__MYRM_E2E_CHAT__?.debugProviderState?.()?.chatId ?? null,
+                userMsgs,
+                sending,
+                hasUserPrompt,
+                okInMain,
+                okInAssistant,
+                sample: text.slice(0, 500),
+                assistantSample: allAssistantText.slice(0, 300),
+              }};
+            }})()""",
+            intent=intent,
+        )
+        return (
+            result
+            if isinstance(result, dict)
+            else {"hasUserPrompt": False, "okInMain": False}
+        )
+
+    async def wait_stream_started(
+        self,
+        prompt: str,
+        *,
+        timeout_sec: float = 180.0,
+        min_user_msgs: int = 1,
+        chat_id_hint: str | None = None,
+    ) -> dict[str, object]:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            try:
+                last = await self.main_state(prompt, intent=EvaluateIntent.BRIDGE_POLL)
+            except TimeoutError:
+                await asyncio.sleep(1)
+                continue
+            if (
+                last.get("sending")
+                or last.get("hasUserPrompt")
+                or int(last.get("userMsgs") or 0) >= min_user_msgs
+            ):
+                return last
+            chat_id = chat_id_hint or await self.resolve_chat_id(
+                path=str(last.get("path") or ""),
+                hint=str(last.get("bridgeChatId") or "").strip() or None,
+            )
+            if chat_id:
+                bridge_id = str(last.get("bridgeChatId") or "").strip()
+                ui_progress = bool(
+                    last.get("sending")
+                    or int(last.get("userMsgs") or 0) >= min_user_msgs
+                )
+                try:
+                    api_ok = (
+                        cdp_chat_support.chat_user_message_count(chat_id)
+                        >= min_user_msgs
+                    )
+                except OSError:
+                    api_ok = False
+                if (
+                    api_ok
+                    and bridge_id == chat_id
+                    and not is_live_send_turn_profile()
+                    and ui_progress
+                ):
+                    last["chatId"] = chat_id
+                    last["okViaApi"] = True
+                    return last
+                try:
+                    if chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
+                        if is_live_send_turn_profile():
+                            bridge_turn = await self._bridge_turn_snapshot()
+                            if isinstance(bridge_turn, dict):
+                                ui_users = int(bridge_turn.get("userCount") or 0)
+                                ui_streaming = bridge_turn.get("isStreaming") is True
+                                if ui_users >= min_user_msgs or ui_streaming:
+                                    last["chatId"] = chat_id
+                                    last["okViaUiTurn"] = True
+                                    return last
+                        else:
+                            return last
+                except OSError:
+                    pass
+            await asyncio.sleep(0.75)
+        raise TimeoutError(f"UI send did not start stream: {last}")
+
+    async def _bridge_turn_snapshot(self) -> dict[str, object] | None:
+        try:
+            result = await self.evaluate(
+                BRIDGE_TURN_SNAPSHOT_JS,
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+        except (RuntimeError, TimeoutError) as exc:
+            self._emit_bridge_diag(
+                f"TRANSPORT_ERR {type(exc).__name__}: {str(exc)[:160]}"
+            )
+            return None
+        if not isinstance(result, dict):
+            self._emit_bridge_diag(f"JS_NULL result={result!r}")
+            return None
+        return result
+
+    def _emit_bridge_diag(self, token: str) -> None:
+        """Throttled observability for bridge probe failures (max 1 per 10s)."""
+        now = time.monotonic()
+        if now - getattr(self, "_bridge_diag_last_emit", 0.0) >= 10.0:
+            self._bridge_diag_last_emit = now
+            print(f"E2E_OBSERVE: {token}", flush=True)
+
+    async def _resolved_goal_api_base(self) -> str:
+        """Resolve private-pool bound API base for goal probes (page binding first)."""
+        cached = getattr(self, "_goal_api_base_cached", None)
+        if cached:
+            return cached
+        try:
+            probe = await self.evaluate(
+                """(() => {
+                  const base = typeof window.__MYRM_E2E_API_BASE__ === 'string'
+                    ? window.__MYRM_E2E_API_BASE__.trim()
+                    : '';
+                  return base || null;
+                })()""",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            if isinstance(probe, str) and probe.strip():
+                resolved = probe.strip().rstrip("/")
+                self._goal_api_base_cached = resolved
+                return resolved
+        except (RuntimeError, TimeoutError):
+            pass
+        resolved = cdp_chat_support.get_e2e_api_url()
+        self._goal_api_base_cached = resolved
+        return resolved
+
+    async def _goal_completion_if_persisted(
+        self,
+        chat_id: str,
+    ) -> dict[str, object] | None:
+        """Return okViaGoal payload once a goal is persisted for this chat.
+
+        Goal turns may finish without an explicit OK token in the assistant
+        message; the private-backend goal record is the authoritative signal.
+        Safe for non-Goal tests: no goal record means None, so they never match.
+        """
+        api_url = await self._resolved_goal_api_base()
+        try:
+            goal = await asyncio.wait_for(
+                asyncio.to_thread(
+                    cdp_chat_support.fetch_e2e_goal_status,
+                    chat_id,
+                    api_url=api_url,
+                ),
+                timeout=20.0,
+            )
+        except (TimeoutError, OSError):
+            return None
+        if not is_persisted_e2e_goal(goal):
+            return None
+        return {
+            "okViaGoal": True,
+            "okViaApi": False,
+            "goalStatus": str(goal.get("status") or ""),
+        }
+
+    async def _best_effort_user_message_count(
+        self,
+        chat_id: str,
+        *,
+        timeout_sec: float = 4.0,
+        max_attempts: int = 1,
+        wall_timeout_sec: float = 6.0,
+    ) -> int:
+        normalized = chat_id.strip()
+        if not normalized:
+            return 0
+        try:
+            count = await asyncio.wait_for(
+                asyncio.to_thread(
+                    cdp_chat_support.chat_user_message_count,
+                    normalized,
+                    timeout_sec=timeout_sec,
+                    max_attempts=max_attempts,
+                ),
+                timeout=wall_timeout_sec,
+            )
+        except (TimeoutError, OSError, ValueError):
+            return 0
+        return max(0, int(count))
+
+    async def _finish_if_api_ok(
+        self,
+        chat_id: str,
+        prompt: str,
+        *,
+        min_user_msgs: int,
+    ) -> dict[str, object] | None:
+        if is_live_send_turn_profile():
+            return None
+        try:
+            if not chat_messages_have_ok(chat_id, min_user_count=min_user_msgs):
+                return None
+        except OSError:
+            return None
+        maybe_register_e2e_chat(chat_id)
+        return {
+            "chatId": chat_id,
+            "okViaApi": True,
+            "okViaBridge": False,
+        }
+
+    async def wait_turn_done(
+        self,
+        prompt: str,
+        *,
+        chat_id_hint: str | None = None,
+        min_user_msgs: int = 1,
+        timeout_sec: float = 180.0,
+    ) -> dict[str, object]:
+        """Wait until the assistant turn completes, updating ``last`` every probe.
+
+        Single unified loop: bridge snapshot → API (LIVE skipped) → DOM probe →
+        Goal signal. ``last`` always holds the freshest successful observation so
+        timeout diagnostics never show an empty dict, and the DOM/Goal fallbacks
+        remain reachable even when the bridge probe keeps failing.
+        """
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        chat_id = chat_id_hint
+        last_progress_touch = time.monotonic()
+
+        def _maybe_touch_progress(node: str = "wait_turn_done") -> None:
+            nonlocal last_progress_touch
+            now = time.monotonic()
+            if now - last_progress_touch >= 15.0:
+                _touch_live_turn_progress(node)
+                last_progress_touch = now
+
+        def _finish(chat_id: str, payload: dict[str, object]) -> dict[str, object]:
+            if is_live_send_turn_profile() and bool(payload.get("okViaApi")):
+                raise SendTurnError(
+                    SendTurnPhase.OBSERVE,
+                    "okViaApi completion forbidden in LIVE profile",
+                )
+            payload["chatId"] = chat_id
+            payload["okViaApi"] = payload.get("okViaApi", True)
+            maybe_register_e2e_chat(chat_id)
+            return payload
+
+        while time.monotonic() < deadline:
+            _maybe_touch_progress("wait_turn_done")
+
+            bridge = await self._bridge_turn_snapshot()
+            if isinstance(bridge, dict):
+                last = bridge
+                chat_id = str(bridge.get("chatId") or "").strip() or chat_id_hint
+                if (
+                    chat_id
+                    and int(bridge.get("userCount") or 0) >= min_user_msgs
+                    and _bridge_has_completion(bridge)
+                    and not bridge.get("isStreaming")
+                ):
+                    return _finish(
+                        chat_id, {**bridge, "okViaBridge": True, "okViaApi": False}
+                    )
+                if (
+                    chat_id
+                    and int(bridge.get("userCount") or 0) >= min_user_msgs
+                    and not bridge.get("isStreaming")
+                ):
+                    goal_finish = await self._goal_completion_if_persisted(chat_id)
+                    if goal_finish is not None:
+                        return _finish(chat_id, goal_finish)
+
+            if not chat_id_hint:
+                try:
+                    probe = await self.main_state(
+                        prompt, intent=EvaluateIntent.BRIDGE_POLL
+                    )
+                    if isinstance(probe, dict):
+                        last = probe
+                        chat_id = await self.resolve_chat_id(
+                            path=str(probe.get("path") or ""),
+                            hint=str(probe.get("bridgeChatId") or "").strip() or None,
+                        )
+                except RuntimeError as exc:
+                    message = str(exc)
+                    if any(
+                        token in message
+                        for token in (
+                            "Target closed",
+                            "No page found",
+                            "detached Frame",
+                        )
+                    ):
+                        await asyncio.sleep(1.5)
+                        continue
+                    raise
+            else:
+                chat_id = chat_id_hint
+            if not chat_id:
+                chat_id = await self.bridge_chat_id()
+            if chat_id:
+                finished = await self._finish_if_api_ok(
+                    chat_id, prompt, min_user_msgs=min_user_msgs
+                )
+                if finished is not None:
+                    return finished
+
+            try:
+                last = await self.main_state(prompt, intent=EvaluateIntent.BRIDGE_POLL)
+            except RuntimeError as exc:
+                message = str(exc)
+                if any(
+                    token in message
+                    for token in ("Target closed", "No page found", "detached Frame")
+                ):
+                    await asyncio.sleep(1.5)
+                    continue
+                raise
+            chat_id = await self.resolve_chat_id(
+                path=str(last.get("path") or ""),
+                hint=str(last.get("bridgeChatId") or "").strip() or chat_id_hint,
+            )
+            if last.get("sending"):
+                await asyncio.sleep(1)
+                continue
+            if chat_id:
+                finished = await self._finish_if_api_ok(
+                    chat_id, prompt, min_user_msgs=min_user_msgs
+                )
+                if finished is not None:
+                    return finished
+            bridge_streaming = isinstance(bridge, dict) and bridge.get("isStreaming") is True
+            if (
+                not bridge_streaming
+                and last.get("hasUserPrompt")
+                and last.get("okInMain")
+            ):
+                if chat_id:
+                    maybe_register_e2e_chat(chat_id)
+                    last["chatId"] = chat_id
+                return last
+            if (
+                is_live_send_turn_profile()
+                and last.get("hasUserPrompt")
+                and not last.get("sending")
+                and last.get("okInAssistant")
+            ):
+                if chat_id:
+                    maybe_register_e2e_chat(chat_id)
+                    last["chatId"] = chat_id
+                return last
+            await asyncio.sleep(1.5)
+        raise TimeoutError(f"Timed out waiting for assistant OK: {last}")
+
+    async def wait_turn_settled(
+        self,
+        *,
+        chat_id_hint: str | None = None,
+        min_user_msgs: int = 1,
+        timeout_sec: float = 180.0,
+    ) -> dict[str, object]:
+        """Wait until the assistant finishes without requiring an OK token."""
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            bridge = await self._bridge_turn_snapshot()
+            if isinstance(bridge, dict):
+                last = bridge
+                chat_id = str(bridge.get("chatId") or "").strip() or chat_id_hint
+                if (
+                    chat_id
+                    and int(bridge.get("userCount") or 0) >= min_user_msgs
+                    and not bridge.get("isStreaming")
+                    and str(bridge.get("lastAssistantSample") or "").strip()
+                ):
+                    maybe_register_e2e_chat(chat_id)
+                    return {**bridge, "chatId": chat_id, "okViaBridge": True}
+            try:
+                probe = await self.main_state("", intent=EvaluateIntent.BRIDGE_POLL)
+            except RuntimeError as exc:
+                message = str(exc)
+                if any(
+                    token in message
+                    for token in ("Target closed", "No page found", "detached Frame")
+                ):
+                    await asyncio.sleep(1.5)
+                    continue
+                raise
+            if isinstance(probe, dict):
+                last = probe
+                if (
+                    int(probe.get("userMsgs") or 0) >= min_user_msgs
+                    and not probe.get("sending")
+                    and str(probe.get("assistantSample") or "").strip()
+                ):
+                    chat_id = await self.resolve_chat_id(
+                        path=str(probe.get("path") or ""),
+                        hint=str(probe.get("bridgeChatId") or "").strip()
+                        or chat_id_hint,
+                    )
+                    if chat_id:
+                        maybe_register_e2e_chat(chat_id)
+                        return {**probe, "chatId": chat_id, "okViaBridge": True}
+            await asyncio.sleep(1.5)
+        raise TimeoutError(f"Timed out waiting for assistant reply: {last}")
+
+    async def _clear_input_via_bridge(self) -> None:
+        await self.evaluate(
+            """(() => {
+              window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+              const input = document.querySelector('[data-chat-input]');
+              if (input && (input.value || '').length > 0) {
+                const proto = Object.getPrototypeOf(input);
+                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                if (setter) setter.call(input, '');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              return { ok: true };
+            })()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+
+    async def wait_input_empty(
+        self,
+        *,
+        timeout_sec: float = 60.0,
+        chat_id_hint: str | None = None,
+    ) -> None:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        last_loading: dict[str, object] = {}
+        last_touch = time.monotonic()
+        while time.monotonic() < deadline:
+            if time.monotonic() - last_touch >= 15.0:
+                _touch_live_turn_progress("wait_input_empty")
+                last_touch = time.monotonic()
+            if chat_id_hint:
+                try:
+                    if chat_messages_have_ok(chat_id_hint, min_user_count=1):
+                        await self._clear_input_via_bridge()
+                        return
+                except OSError:
+                    pass
+            bridge = await self._bridge_turn_snapshot()
+            if isinstance(bridge, dict):
+                last = bridge
+            dom = await self._dom_state()
+            loading = bool(
+                (isinstance(bridge, dict) and bridge.get("isStreaming"))
+                or dom.get("sending")
+            )
+            probe = await self.send_state()
+            last = {**probe, **last}
+            last_loading = {"loading": loading, "domSending": dom.get("sending"), "bridge": bridge}
+            if not loading and int(probe.get("inputLen") or 0) == 0:
+                return
+            if not loading and int(probe.get("inputLen") or 0) > 0:
+                await self._clear_input_via_bridge()
+                probe = await self.send_state()
+                if int(probe.get("inputLen") or 0) == 0:
+                    return
+            await asyncio.sleep(1)
+        raise TimeoutError(
+            f"Chat input not ready for send: {last} loading={last_loading}"
+        )
+
+    async def _dom_state(self) -> dict[str, object]:
+        probe = await self.evaluate(
+            """(() => {
+              const main = document.querySelector('main');
+              const stop = main?.querySelector('button[aria-label="Stop"]');
+              const input = document.querySelector('[data-chat-input]');
+              return {
+                sending: !!stop,
+                inputLen: (input?.value || '').length,
+                hasStopBtn: !!stop,
+              };
+            })()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        return probe if isinstance(probe, dict) else {}
+
+    async def _attach_chat_session(self, chat_id: str) -> None:
+        payload = json.dumps(chat_id)
+        last: object = {"ok": False}
+        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
+            "/"
+        )
+        for attempt in range(12):
+            await self.ensure_e2e_api_base_binding()
+            bridge_probe = await self.evaluate(
+                """(() => ({
+                  hasAttach: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
+                  fallback: window.__MYRM_E2E_CHAT__?.__e2eFallback === true,
+                }))()""",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            if isinstance(bridge_probe, dict) and not bridge_probe.get("hasAttach"):
+                try:
+                    await self.ensure_react_e2e_bridge(
+                        timeout_sec=min(45.0, 15.0 + attempt * 3)
+                    )
+                except TimeoutError:
+                    await self.navigate_to_chat(
+                        chat_id,
+                        ui_base,
+                        timeout_sec=90.0,
+                    )
+                    continue
+            try:
+                result = await self.evaluate(
+                    f"""(() => {{
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (!bridge?.attachToChat) {{
+                        return {{ ok: false, err: 'no attachToChat' }};
+                      }}
+                      return Promise.resolve(bridge.attachToChat({payload}))
+                        .then(() => ({{ ok: true }}))
+                        .catch((err) => ({{ ok: false, err: String(err) }}));
+                    }})()""",
+                    intent=EvaluateIntent.ROUTE_ATTACH,
+                )
+            except RuntimeError as exc:
+                message = str(exc)
+                if attempt < 11 and (
+                    "e2e-private-backend-not-ready" in message
+                    or "attach-timeout" in message
+                ):
+                    if "attach-timeout" in message:
+                        await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                    await asyncio.sleep(2.0 + attempt)
+                    continue
+                raise
+            last = result
+            if isinstance(result, dict) and result.get("ok"):
+                return
+            err_text = str(result.get("err") or "") if isinstance(result, dict) else ""
+            if isinstance(result, dict) and result.get("err") == "no attachToChat":
+                await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                await asyncio.sleep(1.0)
+                continue
+            if "attach-timeout" in err_text and attempt < 11:
+                await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                await asyncio.sleep(2.0 + attempt)
+                continue
+            await asyncio.sleep(1.0 + attempt)
+        raise RuntimeError(f"E2E bridge attachToChat failed: {last}")
+
+    async def _wait_submit_consumed(
+        self,
+        prompt_for_wait: str,
+        *,
+        baseline_user_msgs: int,
+        chat_id_hint: str | None,
+    ) -> dict[str, object] | None:
+        """Wait until the submit shows activity (stream, userCount, API).
+
+        Returns the wait result when activity observed, None on timeout. The
+        result still needs confirmation (UI `sending` flags can stick on a
+        wedged transport without server persistence).
+        """
+        try:
+            return await asyncio.wait_for(
+                self.wait_stream_started(
+                    prompt_for_wait,
+                    min_user_msgs=baseline_user_msgs + 1,
+                    chat_id_hint=chat_id_hint,
+                ),
+                timeout=_SUBMIT_CONSUMED_WAIT_SEC,
+            )
+        except TimeoutError:
+            return None
+
+    @staticmethod
+    def _submit_consumed_confirmed(
+        started: dict[str, object] | None,
+    ) -> bool:
+        """True only on API-confirmed persistence signals (R-ax21).
+
+        UI `sending`/`hasUserPrompt`/`userMsgs` are browser-local: on a
+        wedged transport the UI shows the message while the server never
+        receives it (ax21: wait returned via UI userMsgs, API userCount
+        stayed 0 forever). Trust only okViaApi/okViaUiTurn, both of which
+        require a server round-trip.
+        """
+        if not isinstance(started, dict):
+            return False
+        return bool(started.get("okViaApi") or started.get("okViaUiTurn"))
+
+    async def _submit_api_grace_advance(
+        self,
+        chat_id: str | None,
+        *,
+        baseline_user_msgs: int,
+        timeout_sec: float | None = None,
+    ) -> bool:
+        """Poll API userCount briefly for slow-server persistence (R-ax21).
+
+        Guards the refill decision: a healthy-but-slow backend may persist
+        after the UI wait gave up. Accept on advance (avoids double-send);
+        refill only on confirmed absence.
+        """
+        normalized = (chat_id or "").strip()
+        if not normalized:
+            return True
+        effective = _SUBMIT_API_GRACE_SEC if timeout_sec is None else timeout_sec
+        deadline = time.monotonic() + effective
+        while time.monotonic() < deadline:
+            if await self._submit_persisted_in_api(
+                normalized,
+                baseline_user_msgs=baseline_user_msgs,
+            ):
+                return True
+            await asyncio.sleep(_SUBMIT_API_GRACE_POLL_SEC)
+        return False
+
+    async def _submit_persisted_in_api(
+        self,
+        chat_id: str | None,
+        *,
+        baseline_user_msgs: int,
+    ) -> bool:
+        """Direct API userCount check (slow-API backstop before refill).
+
+        Prevents double-send: refill only when the server really has nothing.
+        Unknown chat preserves the legacy trust path.
+        """
+        normalized = (chat_id or "").strip()
+        if not normalized:
+            return True
+        return (
+            await self._best_effort_user_message_count(normalized)
+            > baseline_user_msgs
+        )
+
+    async def _bridge_primary_submit(
+        self,
+        text: str,
+        *,
+        baseline_user_msgs: int,
+    ) -> dict[str, object]:
+        """Bridge atomic submit first (R-ax22/F1).
+
+        submitAndObserveTurn fills with flushSync, enforces named guards
+        (empty-message/no-chat-id/send-not-ready/busy/model-unavailable)
+        and seals only on API+UI admission (sendTurnSealed). Any failure
+        carries an err code, so the silent-nothing class cannot pass.
+        Transport errors are normalized to err dicts for fallback routing.
+        """
+        try:
+            result = await self._submit_via_dev_bridge(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            return {
+                "ok": False,
+                "err": f"bridge-submit-transport: {type(exc).__name__}: {exc}",
+                "mode": "bridgeTransportError",
+            }
+        if isinstance(result, dict):
+            return result
+        return {"ok": False, "err": "bridge-submit-invalid", "mode": "bridgeSubmitInvalid"}
+
+    @staticmethod
+    def _bridge_miss_summary(result: dict[str, object]) -> str:
+        """One-line miss forensics (R-ax27/F1).
+
+        The bridge result debug carries apiUsers/userCount/streaming at
+        observe-timeout; surfacing it here preserves the decisive datum
+        even when the run dies before printing the submit dict.
+        """
+        debug = result.get("debug")
+        if not isinstance(debug, dict):
+            return ""
+        return (
+            f" apiUsers={debug.get('apiUsers')} userCount={debug.get('userCount')} "
+            f"streaming={debug.get('streaming')} phase={debug.get('phase')}"
+        )
+
+    async def _native_fill_and_click(self, text: str) -> dict[str, object]:
+        """Fill input + native click once (v48 path primitive)."""
+        await self.evaluate(
+            PREPARE_AUTOMATION_SEND_JS,
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        await self.evaluate(
+            f"""(() => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              bridge?.setInputMessage?.({json.dumps(text)});
+              return {{ ok: true, inputLen: {len(text)} }};
+            }})()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        clicked = await self.submit_native_click()
+        return (
+            clicked
+            if isinstance(clicked, dict)
+            else {"ok": False, "err": "native-click-invalid"}
+        )
+
+    async def _final_submit_snapshot(
+        self,
+        prompt_for_wait: str,
+        chat_id: str | None,
+        *,
+        baseline_user_msgs: int,
+    ) -> dict[str, object]:
+        """Best-effort failure snapshot (R-ax22/F2).
+
+        The consume-timeout previously discarded the wait observation;
+        preserve UI + API state so the next failure carries forensics.
+        Never raises.
+        """
+        snapshot: dict[str, object] = {
+            "userMsgs": None,
+            "sending": None,
+            "hasUserPrompt": None,
+            "bridgeChatId": None,
+            "path": None,
+            "mainSampleLen": None,
+            "apiUsers": None,
+            "baseline": baseline_user_msgs,
+        }
+        try:
+            probe = await self.main_state(
+                prompt_for_wait, intent=EvaluateIntent.BRIDGE_POLL
+            )
+        except (RuntimeError, TimeoutError, OSError):
+            probe = None
+        if isinstance(probe, dict):
+            for key in (
+                "userMsgs",
+                "sending",
+                "hasUserPrompt",
+                "bridgeChatId",
+                "path",
+            ):
+                snapshot[key] = probe.get(key)
+            snapshot["mainSampleLen"] = len(str(probe.get("sample") or ""))
+        normalized = (chat_id or "").strip()
+        if normalized:
+            snapshot["apiUsers"] = await self._best_effort_user_message_count(
+                normalized
+            )
+        return snapshot
+
+    async def fast_desktop_agent_submit(
+        self,
+        text: str,
+        prompt_for_wait: str,
+        *,
+        chat_id_hint: str | None = None,
+        baseline_user_msgs_hint: int | None = None,
+        wait_stream_started: bool = True,
+    ) -> dict[str, object]:
+        """Desktop approval E2E submit (R-ax22/F1).
+
+        Initial sends (wait_stream_started=True) try the bridge atomic path
+        first and fall back to setInputMessage + nativeClick (v48 path).
+        Nudge sends (wait_stream_started=False) keep the native
+        fire-and-forget path unchanged.
+        """
+        chat_id = chat_id_hint
+        baseline_user_msgs = (
+            max(0, int(baseline_user_msgs_hint))
+            if baseline_user_msgs_hint is not None
+            else 0
+        )
+        if baseline_user_msgs_hint is None and chat_id:
+            baseline_user_msgs = await self._best_effort_user_message_count(chat_id)
+        from cdp_chat.support import signoff_parallel_desktop_mux_step_timeout_sec
+
+        bridge_timeout = signoff_parallel_desktop_mux_step_timeout_sec(60.0)
+        await self.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)
+        if chat_id:
+            await self._attach_chat_session(chat_id)
+        submit: dict[str, object] | None = None
+        if wait_stream_started:
+            bridge_submit = await self._bridge_primary_submit(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+            if bridge_submit.get("ok"):
+                submit = {**bridge_submit, "primary": "bridgeAtomic"}
+            else:
+                self._emit_bridge_diag(
+                    "BRIDGE_PRIMARY_MISS "
+                    f"err={bridge_submit.get('err')} "
+                    f"mode={bridge_submit.get('mode')}"
+                    f"{self._bridge_miss_summary(bridge_submit)} — native fallback"
+                )
+        if submit is None:
+            submit = await self._native_fill_and_click(text)
+        recoverable_submit_errors = {"no send button", "send disabled"}
+        submit_err = str(submit.get("err") or "")
+        submit_probe = (
+            submit.get("probe") if isinstance(submit.get("probe"), dict) else {}
+        )
+        send_ready_no_button = bool(
+            isinstance(submit_probe, dict)
+            and submit_probe.get("sendReady")
+            and not submit_probe.get("hasBtn")
+        )
+        # In shared-hot retries the DOM button can disappear while bridge send is ready.
+        # Prefer bridge submit first to avoid expensive chat-surface re-hydration loops.
+        if (
+            not submit.get("ok")
+            and submit_err in recoverable_submit_errors
+            and send_ready_no_button
+        ):
+            bridge_submit = await self._submit_via_dev_bridge(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+            if bridge_submit.get("ok"):
+                submit = {**bridge_submit, "mode": "bridgeSendChatMessage"}
+        if (
+            not submit.get("ok")
+            and str(submit.get("err") or "") in recoverable_submit_errors
+        ):
+            ui_base = (
+                getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
+            ).rstrip("/")
+            await self.ensure_chat_surface(ui_base, timeout_sec=30.0)
+            if chat_id:
+                try:
+                    await asyncio.wait_for(
+                        self._attach_chat_session(chat_id), timeout=30.0
+                    )
+                except TimeoutError:
+                    pass
+            submit = await self._native_fill_and_click(text)
+        if (
+            not submit.get("ok")
+            and str(submit.get("err") or "") in recoverable_submit_errors
+        ):
+            bridge_submit = await self._submit_via_dev_bridge(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+            if bridge_submit.get("ok"):
+                submit = {**bridge_submit, "mode": "bridgeSendChatMessage"}
+        if not submit.get("ok"):
+            raise RuntimeError(f"fast desktop native submit failed: {submit}")
+        if wait_stream_started:
+            started = await self._wait_submit_consumed(
+                prompt_for_wait,
+                baseline_user_msgs=baseline_user_msgs,
+                chat_id_hint=chat_id,
+            )
+            consumed = self._submit_consumed_confirmed(started)
+            if not consumed and await self._submit_api_grace_advance(
+                chat_id,
+                baseline_user_msgs=baseline_user_msgs,
+            ):
+                # Slow-server backstop: UI wait saw no hard signal, but the
+                # message landed within grace. Accept without refill
+                # (avoids double-send).
+                consumed = True
+                if not isinstance(started, dict):
+                    started = {
+                        "okViaApiBackstop": True,
+                        "userMsgs": baseline_user_msgs + 1,
+                    }
+            if not consumed:
+                # R-ax15/ax16/ax19/ax21/ax22: click reported ok but nothing
+                # persisted server-side. Refill via the bridge atomic path
+                # first (flushSync fill + named errors + admission seal),
+                # native re-click once as fallback. Still silent afterwards: a
+                # turn can never complete, so fail fast with forensics instead
+                # of burning the run on fiction.
+                self._emit_bridge_diag(
+                    "SUBMIT_NOT_CONSUMED refill once "
+                    f"baseline={baseline_user_msgs} chat_id={(chat_id or '')[:8]}..."
+                )
+                if chat_id:
+                    await self._attach_chat_session(chat_id)
+                resubmit = await self._bridge_primary_submit(
+                    text,
+                    baseline_user_msgs=baseline_user_msgs,
+                )
+                if resubmit.get("ok"):
+                    resubmit = {**resubmit, "primary": "bridgeAtomicRefill"}
+                else:
+                    self._emit_bridge_diag(
+                        "BRIDGE_REFILL_MISS "
+                        f"err={resubmit.get('err')} "
+                        f"mode={resubmit.get('mode')}"
+                        f"{self._bridge_miss_summary(resubmit)} — native reclick"
+                    )
+                    resubmit = await self._native_fill_and_click(text)
+                if not resubmit.get("ok"):
+                    raise RuntimeError(f"fast desktop resubmit failed: {resubmit}")
+                submit = resubmit
+                started = await self._wait_submit_consumed(
+                    prompt_for_wait,
+                    baseline_user_msgs=baseline_user_msgs,
+                    chat_id_hint=chat_id,
+                )
+                consumed = self._submit_consumed_confirmed(
+                    started
+                ) or await self._submit_api_grace_advance(
+                    chat_id,
+                    baseline_user_msgs=baseline_user_msgs,
+                )
+                if not consumed:
+                    final_snapshot = await self._final_submit_snapshot(
+                        prompt_for_wait,
+                        chat_id,
+                        baseline_user_msgs=baseline_user_msgs,
+                    )
+                    # Hygiene: a hung POST (no-timeout SSE fetch) would keep
+                    # loading=true and poison every later send via the busy
+                    # guard. Abort best-effort so the next attempt starts
+                    # from a clean store; never mask the original failure.
+                    try:
+                        await self.evaluate(
+                            "(() => {"
+                            " window.__MYRM_E2E_CHAT__?.abortActiveStream?.();"
+                            " return { ok: true }; })()",
+                            intent=EvaluateIntent.SYNC_PROBE,
+                        )
+                    except (RuntimeError, TimeoutError, OSError):
+                        pass
+                    raise RuntimeError(
+                        "fast desktop submit not consumed after refill "
+                        f"(baseline_user_msgs={baseline_user_msgs} "
+                        f"chat_id={(chat_id or '').strip() or '-'} "
+                        f"final={final_snapshot}): "
+                        "message never persisted server-side; check mux reclaim "
+                        "stall, chat route attach, or send-button staleness"
+                    )
+                started = started if isinstance(started, dict) else {}
+                started["streamProbe"] = "consumed_after_refill"
+        else:
+            started = {
+                "streamProbe": "skipped_for_follow_up_nudge",
+                "userMsgs": baseline_user_msgs,
+            }
+        if chat_id:
+            started["chatId"] = chat_id
+        return {
+            "fill": {"ok": True, "mode": "fastNative", "inputLen": len(text)},
+            "submit": submit,
+            "started": started,
+        }
+
+    async def submit_desktop_nudge(
+        self,
+        text: str,
+        *,
+        chat_id_hint: str | None = None,
+    ) -> dict[str, object]:
+        """Follow-up after desktop_snapshot; steer when agent stream is still active."""
+        chat_id = chat_id_hint
+        baseline_user_msgs = 0
+        if chat_id:
+            baseline_user_msgs = await self._best_effort_user_message_count(chat_id)
+        if chat_id:
+            try:
+                api_steer = await asyncio.to_thread(
+                    cdp_chat_support.steer_chat_message,
+                    chat_id,
+                    text,
+                )
+            except OSError as exc:
+                api_steer = {"ok": False, "err": str(exc)}
+            if isinstance(api_steer, dict) and api_steer.get("ok"):
+                return {"submit": api_steer, "mode": "steerApi"}
+        await self.ensure_react_e2e_bridge(timeout_sec=20.0)
+        payload = json.dumps(text)
+        bridge_steer = await self.evaluate(
+            f"""(async () => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (typeof bridge?.submitSteerNudge !== 'function') {{
+                return {{ ok: false, err: 'no-submitSteerNudge' }};
+              }}
+              return await bridge.submitSteerNudge({payload});
+            }})()""",
+            intent=EvaluateIntent.AGENT_SUBMIT,
+        )
+        if isinstance(bridge_steer, dict) and bridge_steer.get("ok"):
+            return {
+                "submit": bridge_steer,
+                "mode": str(bridge_steer.get("mode", "steerBridge")),
+            }
+        ui_base = (getattr(self, "_base_url", None) or "http://127.0.0.1:3000").rstrip(
+            "/"
+        )
+        if chat_id:
+            chat_target = f"{ui_base}/chat/{chat_id}"
+            on_chat = await self.evaluate(
+                f"""(() => {{
+                  const href = String(location.href || '');
+                  return {{ onChat: href.startsWith({chat_target!r}) }};
+                }})()""",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            if not (isinstance(on_chat, dict) and on_chat.get("onChat")):
+                await asyncio.to_thread(
+                    self._client.navigate,
+                    self._page,
+                    chat_target,
+                    timeout_ms=120_000,
+                )
+                await self.ensure_react_e2e_bridge(timeout_sec=20.0)
+                await self.evaluate(
+                    PREPARE_AUTOMATION_SEND_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                await self.evaluate(
+                    f"""(() => {{
+                      window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
+                      return {{ ok: true, inputLen: {len(text)} }};
+                    }})()""",
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                steer = await self.evaluate(
+                    """(() => {
+                      const buttons = [...document.querySelectorAll('button[aria-label]')];
+                      const steerBtn = buttons.find((btn) => {
+                        const label = String(btn.getAttribute('aria-label') || '').toLowerCase();
+                        return (
+                          label.includes('steer')
+                          || label.includes('guidance')
+                          || label.includes('转向')
+                          || label.includes('指导')
+                        );
+                      });
+                      if (steerBtn && !steerBtn.disabled) {
+                        steerBtn.click();
+                        return { ok: true, mode: 'steerClick' };
+                      }
+                      return { ok: false, err: 'no-steer-button' };
+                    })()""",
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                if isinstance(steer, dict) and steer.get("ok"):
+                    return {"submit": steer, "mode": "steerClick"}
+            try:
+                await asyncio.wait_for(self._attach_chat_session(chat_id), timeout=15.0)
+            except TimeoutError:
+                pass
+        await self.ensure_chat_surface(ui_base, timeout_sec=30.0)
+        if chat_id:
+            try:
+                await asyncio.wait_for(self._attach_chat_session(chat_id), timeout=30.0)
+            except TimeoutError:
+                pass
+        await self.evaluate(
+            """(() => {
+              const bridge = window.__MYRM_E2E_CHAT__;
+              bridge?.abortActiveStream?.();
+              bridge?.releaseActiveStreamForApiResume?.();
+              bridge?.prepareAutomationSend?.();
+              bridge?.clearStreamRequestMessageId?.();
+              return { ok: true };
+            })()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        for _ in range(40):
+            snap = await self.evaluate(
+                BRIDGE_TURN_SNAPSHOT_JS,
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            if isinstance(snap, dict) and not snap.get("isStreaming"):
+                break
+            await asyncio.sleep(0.5)
+        await self.evaluate(
+            f"""(() => {{
+              window.__MYRM_E2E_CHAT__?.setInputMessage?.({payload});
+              return {{ ok: true, inputLen: {len(text)} }};
+            }})()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        for _ in range(40):
+            probe = await self.evaluate(
+                """(() => {
+                  const btn = document.querySelector('.message-send-btn');
+                  return {
+                    hasBtn: Boolean(btn),
+                    disabled: btn ? Boolean(btn.disabled) : true,
+                    sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
+                  };
+                })()""",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            if (
+                isinstance(probe, dict)
+                and probe.get("hasBtn")
+                and not probe.get("disabled")
+            ):
+                break
+            await asyncio.sleep(0.5)
+        submit = await self.send_chat_message_atomic(
+            text,
+            baseline_user_msgs=baseline_user_msgs,
+        )
+        if not submit.get("ok"):
+            submit = await self.submit_native_click()
+        if not submit.get("ok"):
+            raise RuntimeError(f"desktop nudge submit failed: {submit}")
+        return {"submit": submit, "mode": submit.get("mode", "nudge")}
+
+    async def _sync_model_selection(self) -> None:
+        await self.ensure_e2e_api_base_binding()
+        try:
+            await self.evaluate(
+                """(() => {
+                  const bridge = window.__MYRM_E2E_CHAT__;
+                  if (!bridge?.ensureProviders) return { ok: false };
+                  bridge.prepareAutomationSend?.();
+                  return bridge.ensureProviders().then(() => ({ ok: true }));
+                })()""",
+                intent=EvaluateIntent.AGENT_SUBMIT,
+            )
+        except (RuntimeError, TimeoutError):
+            pass
+        for picker_js in (SELECT_MIMO_MODEL_JS, SELECT_FIRST_ENABLED_MODEL_JS):
+            try:
+                picked = await self.evaluate(
+                    picker_js,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
+                )
+            except (RuntimeError, TimeoutError):
+                continue
+            if isinstance(picked, dict) and picked.get("ok"):
+                return
+
+    async def send_message(
+        self,
+        text: str,
+        prompt_for_wait: str,
+        *,
+        chat_id_hint: str | None = None,
+        base_url: str | None = None,
+        skip_model_sync: bool = False,
+    ) -> dict[str, object]:
+        ui_base = (
+            base_url or getattr(self, "_base_url", None) or "http://127.0.0.1:3000"
+        ).rstrip("/")
+        baseline_user_msgs = 0
+        chat_id = chat_id_hint
+        _touch_live_turn_progress("send_prepare")
+        await self.dismiss_modals()
+        await self.wait_dev_bridge()
+        await self.ensure_e2e_api_base_binding()
+        if chat_id_hint:
+            on_chat_page = False
+            try:
+                probe = await self.evaluate(
+                    """(() => ({
+                      path: location.pathname,
+                    }))()""",
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                if isinstance(probe, dict):
+                    on_chat_page = (
+                        chat_id_from_path(str(probe.get("path") or "")) is not None
+                    )
+            except (RuntimeError, TimeoutError):
+                on_chat_page = False
+            _touch_live_turn_progress("send_navigate")
+            if on_chat_page:
+                await self.wait_shell_ready(timeout_sec=90.0, require_bridge=True)
+            else:
+                await self.navigate_to_chat(chat_id_hint, ui_base, timeout_sec=90.0)
+        if not chat_id:
+            chat_id = await self.bridge_chat_id()
+        if chat_id:
+            try:
+                baseline_user_msgs = cdp_chat_support.chat_user_message_count(chat_id)
+            except OSError:
+                baseline_user_msgs = 0
+        self._baseline_user_msgs = baseline_user_msgs
+        try:
+            if baseline_user_msgs == 0 and not skip_model_sync:
+                await self._sync_model_selection()
+            else:
+                await self.evaluate(
+                    PREPARE_AUTOMATION_SEND_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+            if chat_id:
+                await self.ensure_react_e2e_bridge(timeout_sec=60.0)
+                if baseline_user_msgs > 0:
+                    await self._attach_chat_session(chat_id)
+            else:
+                await self.evaluate(
+                    """(() => {
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (!bridge?.ensureChatSession) return { ok: false, err: 'no ensureChatSession' };
+                      return Promise.resolve(bridge.ensureChatSession()).then(() => ({ ok: true }));
+                    })()""",
+                    intent=EvaluateIntent.ROUTE_ATTACH,
+                )
+            ready = await self._ensure_send_ready()
+            if baseline_user_msgs > 0:
+                await self.evaluate(
+                    """(() => {
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      if (typeof bridge?.clearStreamRequestMessageId === 'function') {
+                        bridge.clearStreamRequestMessageId();
+                        return { ok: true, mode: 'cleared-stream-request-id' };
+                      }
+                      return { ok: false, mode: 'no-clear-hook' };
+                    })()""",
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+            send_probe = await self.evaluate(
+                """(() => ({
+                  sendReady: !!window.__MYRM_E2E_CHAT__?.isSendReady?.(),
+                  path: location.pathname,
+                }))()""",
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+            if not isinstance(send_probe, dict) or not send_probe.get("sendReady"):
+                debug = await self.evaluate(
+                    """(() => window.__MYRM_E2E_CHAT__?.debugProviderState?.() ?? null)()""",
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                raise RuntimeError(
+                    f"E2E send not ready before submit: ready={ready} probe={send_probe} debug={debug}"
+                )
+            fill = {"ok": True, "mode": "sendTurnContract", "inputLen": len(text)}
+            if is_live_send_turn_profile():
+                workspace_ready = await self.evaluate(
+                    WAIT_WORKSPACE_STREAM_JS,
+                    intent=EvaluateIntent.AGENT_SUBMIT,
+                )
+                if not isinstance(workspace_ready, dict) or not workspace_ready.get(
+                    "ok"
+                ):
+                    raise RuntimeError(
+                        f"SendTurnContract workspace stream not ready: {workspace_ready!r}"
+                    )
+                send_rev = await self.evaluate(
+                    """(() => ({
+                      rev: window.__MYRM_E2E_SEND_TURN_REV__
+                        ?? window.__MYRM_E2E_CHAT__?.sendTurnRev?.()
+                        ?? 'unknown',
+                    }))()""",
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                if isinstance(send_rev, dict):
+                    print(
+                        f"E2E_SEND_TURN: rev={send_rev.get('rev')}",
+                        flush=True,
+                    )
+            try:
+                _touch_live_turn_progress("send_submit")
+                submit = await self.send_chat_message_atomic(
+                    text,
+                    baseline_user_msgs=baseline_user_msgs,
+                )
+            except SendTurnError as exc:
+                raise RuntimeError(
+                    f"SendTurnContract failed phase={exc.phase.value}: {exc}"
+                ) from exc
+            except RuntimeError as exc:
+                if any(
+                    token in str(exc)
+                    for token in ("Target closed", "No page found", "detached Frame")
+                ):
+                    raise RuntimeError(
+                        f"SendTurnContract transport error: {exc}"
+                    ) from exc
+                raise
+            if not submit.get("ok"):
+                raise RuntimeError(
+                    f"SendTurnContract submit failed: {submit} fill={fill}"
+                )
+            submit_mode = str(submit.get("mode") or "")
+            if submit_mode != "sendTurnSealed":
+                raise RuntimeError(
+                    f"SendTurnContract expected sendTurnSealed, got: {submit}"
+                )
+            sealed_chat_id = str(
+                submit.get("chatId") or chat_id or (await self.bridge_chat_id()) or ""
+            ).strip()
+            if not sealed_chat_id:
+                raise RuntimeError(
+                    f"SendTurnContract missing chatId after submit: {submit}"
+                )
+            chat_id = sealed_chat_id
+            debug = submit.get("debug")
+            started: dict[str, object] = {
+                "chatId": chat_id,
+                "sendTurnMode": submit_mode,
+                "okViaSendTurn": True,
+            }
+            if isinstance(debug, dict):
+                started["userMsgs"] = debug.get("userCount")
+                started["sending"] = debug.get("streaming")
+            if is_live_send_turn_profile():
+                submit_debug = debug if isinstance(debug, dict) else {}
+                streaming_active = submit_debug.get("streaming") is True
+                expected_path = f"/{chat_id.strip()}"
+                on_chat_path = False
+                on_sealed_chat = False
+                try:
+                    path_probe = await self.evaluate(
+                        """(() => ({
+                          path: location.pathname,
+                          chatId: window.__MYRM_E2E_CHAT__?.turnSnapshot?.()?.chatId ?? null,
+                        }))()""",
+                        intent=EvaluateIntent.SYNC_PROBE,
+                    )
+                    if isinstance(path_probe, dict):
+                        on_chat_path = str(path_probe.get("path") or "") == expected_path
+                        probe_chat = str(path_probe.get("chatId") or "").strip()
+                        on_sealed_chat = probe_chat == chat_id.strip()
+                except (RuntimeError, TimeoutError):
+                    on_chat_path = False
+                    on_sealed_chat = False
+                await self.ensure_react_e2e_bridge(timeout_sec=60.0)
+                if streaming_active:
+                    # Page.navigate during an active stream drops Turn1 SSE (tools_snapshot)
+                    # before the UI store hydrates; soft attach preserves direct SSE.
+                    if not on_chat_path or not on_sealed_chat:
+                        await self._attach_chat_session(chat_id)
+                else:
+                    await self.navigate_to_chat(chat_id, ui_base, timeout_sec=90.0)
+                    await self._attach_chat_session(chat_id)
+            _touch_live_turn_progress("send_turn_sealed")
+            return {"fill": fill, "submit": submit, "started": started}
+        finally:
+            self._baseline_user_msgs = 0

@@ -1,0 +1,412 @@
+"""Browser takeover LIVE — gate / MUX probe helpers (R98)."""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import time
+import urllib.error
+
+from cdp_chat.mcp_ui import McpChatSession
+from cdp_chat.support import (
+    chat_browser_gate_from_api,
+    get_e2e_api_url,
+    wait_e2e_backend_ready,
+)
+from dev_gate.contract import GATE_MUX_STALL_FAIL_FAST_SEC, EvaluateIntent
+from e2e_session_runtime.heartbeat import heartbeat_once
+
+E2E_PROMPT = (
+    "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
+    "reason 为「请在 Chrome 完成操作后，在聊天横幅点击完成」。"
+    "当工具返回后，只回复纯文本 DONE，不要再调用任何工具，"
+    "不要 browser_snapshot_tool，不要 browser_inspect_tool，不要 browser_navigate_tool，"
+    "不要再次调用 browser_ask_human_tool。"
+    "只回复 DONE 一个词。"
+)
+
+E2E_NUDGE_PROMPT = (
+    "请现在调用 browser_ask_human_tool，reason 为「请在 Chrome 完成操作后，在聊天横幅点击完成」。"
+    "当工具返回后，只回复纯文本 DONE，不要再调用任何工具。只回复 DONE 一个词。"
+)
+
+BROWSER_TOOL_PROGRESS_JS = (
+    "(() => window.__MYRM_E2E_CHAT__?.getBrowserToolProgress?.() ?? {})()"
+)
+
+RECOVER_BROWSER_TAKEOVER_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.recoverPendingBrowserTakeover) {
+    return { ok: false, err: 'no-recoverPendingBrowserTakeover' };
+  }
+  const result = await bridge.recoverPendingBrowserTakeover();
+  return { ok: true, ...result };
+})()"""
+
+BANNER_ASSERT_JS = """(() => {
+  const alert = document.querySelector('[role="alert"]');
+  const text = alert?.innerText || '';
+  const backendUnreachable = /后端未响应|Backend not reachable|API_PORT=8080/i.test(text);
+  if (backendUnreachable) {
+    return {
+      ready: false,
+      backendUnreachable: true,
+      hasAlert: true,
+      sample: text.slice(0, 240),
+    };
+  }
+  const buttons = alert ? Array.from(alert.querySelectorAll('button')) : [];
+  const labels = buttons.map((btn) => (btn.textContent || '').trim());
+  const hasAlert = !!alert;
+  const hasExtensionTitle = /Your turn in Chrome|请在 Chrome 中完成操作/i.test(text);
+  const hasReason = /请在 Chrome 完成操作|Please click Done|E2E:/i.test(text);
+  const hasUrl = /example\\.com/i.test(text);
+  const hasDone = labels.some((label) => /Done|完成/i.test(label));
+  const hasSkip = labels.some((label) => /Can't do this|无法完成/i.test(label));
+  const snap = window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.();
+  const storePending = snap?.pending === true && snap?.uiMode === 'extension';
+  const ready = (hasAlert && hasExtensionTitle && hasDone && hasSkip) || storePending;
+  return {
+    ready,
+    backendUnreachable: false,
+    hasAlert,
+    hasExtensionTitle,
+    hasReason,
+    hasUrl,
+    hasDone,
+    hasSkip,
+    storePending,
+    storeUiMode: snap?.pending ? snap?.uiMode ?? null : null,
+    storeReason: snap?.reason ?? null,
+    buttonCount: buttons.length,
+    sample: text.slice(0, 240),
+  };
+})()"""
+
+ENABLE_YOLO_JS = """(() => {
+  const key = 'securityConfig';
+  const mgr = window.__MYRM_CONFIG_SYNC__?.get?.(key)
+    ?? (typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem(key) || 'null') : null);
+  const next = {
+    ...(mgr && typeof mgr === 'object' ? mgr : {}),
+    yoloModeEnabled: true,
+    yoloModeEnabledAt: Math.floor(Date.now() / 1000),
+    permissions: { '*': 'allow' },
+    domainHitlEnabled: false,
+    autoReviewEnabled: false,
+  };
+  if (window.__MYRM_CONFIG_SYNC__?.set) {
+    window.__MYRM_CONFIG_SYNC__.set(key, next);
+  }
+  return { ok: true, yoloModeEnabled: next.yoloModeEnabled === true };
+})()"""
+
+ENABLE_BROWSER_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.setCurrentBuiltinTools) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  bridge.setCurrentBuiltinTools(['browser']);
+  const tools = bridge.getCurrentBuiltinTools?.() ?? [];
+  return { ok: tools.includes('browser'), tools };
+})()"""
+
+SET_BROWSER_CONNECT_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.setBrowserSource) {
+    return { ok: false, err: 'no-setBrowserSource' };
+  }
+  bridge.setBrowserSource('connect');
+  const browserSource = bridge.getBrowserSource?.() ?? null;
+  return { ok: browserSource === 'connect', browserSource };
+})()"""
+
+BROWSER_GATE_WAIT_SEC = 180.0
+BROWSER_GATE_API_TIMEOUT_SEC = 25.0
+BROWSER_RECOVERY_DELAY_SEC = 12.0
+BROWSER_RECOVERY_MIN_INTERVAL_SEC = 20.0
+MAX_SEND_ATTEMPTS = 3
+
+# Minimum wall-clock a retry still needs to re-bootstrap the chat shell, run a retry
+# gate and converge a Done resume. A retry started below this is guaranteed to be
+# reaped mid-flight by the BODY hung-reap cap, and that leaves the run with no pytest
+# terminal state — the failure then reads as an external kill instead of the real
+# cause ("the model never called the gate tool").
+RETRY_MIN_BUDGET_SEC = 240.0
+
+
+def remaining_body_budget_sec() -> float | None:
+    """Remaining BODY-relative wall budget, or None when the clock is untracked.
+
+    Must measure the same clock the coordinator's BODY hung-reap enforces:
+    ``body_elapsed_sec = now - bodyStartedMonotonic`` capped at the fixed
+    ``LIVE_AGENT_BODY_WALL_CLOCK_SEC``. ``remaining_wall_sec`` is the *cumulative*
+    session budget (ADMIT+BOOTSTRAP+BODY), so it over-reports by the whole
+    pre-BODY queue — using it would let a retry start with 1680s "remaining"
+    while the reaper is seconds away from ``E2E_BODY_WALL_EXCEEDED``.
+    """
+    from e2e_session_runtime.snapshot import (
+        body_elapsed_from_snapshot,
+        read_session_snapshot,
+    )
+
+    snapshot = read_session_snapshot(os.getpid())
+    if snapshot is None:
+        return None
+    body_elapsed = body_elapsed_from_snapshot(snapshot)
+    if body_elapsed is None:
+        return None
+    from mux.transport_supervisor import live_agent_body_wall_cap_sec
+
+    return float(live_agent_body_wall_cap_sec()) - float(body_elapsed)
+
+
+def require_retry_budget(*, attempt: int) -> None:
+    """Fail fast instead of starting a retry that cannot finish before the BODY cap."""
+    remaining = remaining_body_budget_sec()
+    if remaining is None or remaining >= RETRY_MIN_BUDGET_SEC:
+        return
+    raise TimeoutError(
+        f"E2E_RETRY_BUDGET_EXHAUSTED: attempt={attempt} "
+        f"remaining={int(remaining)}s<{int(RETRY_MIN_BUDGET_SEC)}s — "
+        "a retry cannot complete before the BODY hung-reap cap; failing fast so the "
+        "terminal state stays observable"
+    )
+
+
+from e2e_live_flows.browser_takeover_live_mux import (
+    gate_probe_evaluate,
+)
+
+
+def require_browser_gate_triggered(*, last_tool: str, takeover_pending: bool) -> None:
+    """Fail unless the turn actually parked on the takeover interrupt.
+
+    ``last_tool`` is reported for diagnosis only — a call that raised still shows up as
+    the last browser tool, so it must never be treated as proof of a takeover.
+    """
+    if takeover_pending:
+        return
+    raise AssertionError(
+        "Model never triggered browser takeover gate "
+        f"(lastTool={last_tool!r}, takeoverPending={takeover_pending}). "
+        "Expected browser_ask_human_tool to park the turn on a HITL interrupt and "
+        "produce the extension in-chat banner."
+    )
+
+
+async def probe_browser_tool_progress(chat: McpChatSession) -> dict[str, object]:
+    probe = await gate_probe_evaluate(
+        chat, BROWSER_TOOL_PROGRESS_JS, label="tool_progress"
+    )
+    if probe is None:
+        return {"active": False, "muxStall": True}
+    return probe if isinstance(probe, dict) else {"active": False}
+
+
+async def maybe_recover_browser_takeover(
+    chat: McpChatSession,
+    *,
+    started_at: float,
+    last_recovery_at: list[float],
+) -> tuple[str, bool] | None:
+    if time.monotonic() - started_at < BROWSER_RECOVERY_DELAY_SEC:
+        return None
+    if time.monotonic() - last_recovery_at[0] < BROWSER_RECOVERY_MIN_INTERVAL_SEC:
+        return None
+    last_recovery_at[0] = time.monotonic()
+    recover = await gate_probe_evaluate(
+        chat,
+        RECOVER_BROWSER_TAKEOVER_JS,
+        intent=EvaluateIntent.AGENT_SUBMIT,
+        label="recover_takeover",
+    )
+    if recover is None:
+        return None
+    if (
+        isinstance(recover, dict)
+        and recover.get("ok")
+        and recover.get("pending") is True
+    ):
+        return "browser_ask_human_tool", True
+    return None
+
+
+async def api_browser_gate_progress(
+    chat_id: str | None,
+    *,
+    api_url: str,
+    timeout_sec: float = BROWSER_GATE_API_TIMEOUT_SEC,
+) -> dict[str, object] | None:
+    if not chat_id:
+        return None
+    try:
+        return await asyncio.to_thread(
+            chat_browser_gate_from_api,
+            chat_id,
+            api_url=api_url,
+            timeout_sec=timeout_sec,
+        )
+    except (TimeoutError, OSError, urllib.error.URLError) as exc:
+        print(
+            f"E2E_GATE_API_SKIP: transient api gate skip — {exc!s:.120}",
+            flush=True,
+        )
+        return None
+
+
+async def wait_for_browser_ask_human_gate(
+    chat: McpChatSession,
+    *,
+    chat_id: str | None = None,
+    api_url: str | None = None,
+    timeout_sec: float = BROWSER_GATE_WAIT_SEC,
+) -> tuple[str, bool, bool]:
+    """Return (lastTool, takeoverPending, api_hitl_confirmed)."""
+    deadline = time.monotonic() + timeout_sec
+    gate_started = time.monotonic()
+    last_recovery_at = [0.0]
+    last_tool = ""
+    takeover_pending = False
+    resolved_api = (api_url or get_e2e_api_url()).rstrip("/")
+    last_api_poll_at = 0.0
+    mux_degraded = False
+    mux_stall_started: float | None = None
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        now = time.monotonic()
+        api_timeout = BROWSER_GATE_API_TIMEOUT_SEC * (2.0 if mux_degraded else 1.0)
+        if chat_id and now - last_api_poll_at >= 2.0:
+            last_api_poll_at = now
+            api_progress = await api_browser_gate_progress(
+                chat_id,
+                api_url=resolved_api,
+                timeout_sec=api_timeout,
+            )
+            if isinstance(api_progress, dict):
+                api_tool = str(api_progress.get("lastTool") or "")
+                # Only a PENDING approval proves the turn really parked on a human
+                # interrupt. The tool *name* merely says the model tried: a tool that
+                # raised (e.g. no attachable browser) still leaves the name in
+                # progressSteps while the turn completes normally.
+                if api_progress.get("takeoverPending") is True:
+                    print(
+                        f"E2E_GATE_API_FIRST: lastTool={api_tool!r} pending=True",
+                        flush=True,
+                    )
+                    return api_tool or "browser_ask_human_tool", True, True
+                if api_tool and not last_tool:
+                    last_tool = api_tool
+        progress = await probe_browser_tool_progress(chat)
+        last_tool = str(progress.get("lastTool") or last_tool)
+        takeover_pending = progress.get("takeoverPending") is True
+        if progress.get("muxStall") is True:
+            mux_degraded = True
+            if mux_stall_started is None:
+                mux_stall_started = now
+            elif now - mux_stall_started >= GATE_MUX_STALL_FAIL_FAST_SEC:
+                # Only a real interrupt earns the right to keep waiting; a tool that never
+                # parked the turn (name present, failure swallowed) is a stall, not a
+                # takeover in progress.
+                raise TimeoutError(
+                    f"E2E_GATE_MUX_STALL_FAIL_FAST after "
+                    f"{int(now - mux_stall_started)}s "
+                    f"(cap={GATE_MUX_STALL_FAIL_FAST_SEC}s, api_degraded={mux_degraded})"
+                )
+        else:
+            mux_stall_started = None
+        if takeover_pending:
+            return last_tool, True, False
+
+        if progress.get("muxStall") is True:
+            api_progress = await api_browser_gate_progress(
+                chat_id,
+                api_url=resolved_api,
+                timeout_sec=BROWSER_GATE_API_TIMEOUT_SEC * 2.0,
+            )
+            if isinstance(api_progress, dict):
+                api_tool = str(api_progress.get("lastTool") or "")
+                if api_progress.get("takeoverPending") is True:
+                    print(
+                        f"E2E_GATE_API_FALLBACK: lastTool={api_tool!r} pending=True",
+                        flush=True,
+                    )
+                    return api_tool or "browser_ask_human_tool", True, True
+                if api_tool and not last_tool:
+                    last_tool = api_tool
+
+        banner = await gate_probe_evaluate(chat, BANNER_ASSERT_JS, label="gate_banner")
+        if isinstance(banner, dict) and banner.get("storePending") is True:
+            # storePending is driven by the takeover store, which is only populated from
+            # a real interrupt/pending-approval event — unlike `ready`, which is also
+            # satisfiable by banner-looking DOM that carries no HITL semantics.
+            return last_tool or "browser_ask_human_tool", True, False
+
+        recovered = await maybe_recover_browser_takeover(
+            chat,
+            started_at=gate_started,
+            last_recovery_at=last_recovery_at,
+        )
+        if recovered is not None:
+            tool, pending = recovered
+            return tool, pending, False
+
+        await asyncio.sleep(1.0)
+    return last_tool, takeover_pending, False
+
+
+async def wait_takeover_banner(
+    chat: McpChatSession, *, timeout_sec: float = 90.0
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    banner_started = time.monotonic()
+    last_recovery_at = [0.0]
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        if not wait_e2e_backend_ready(timeout_sec=3.0):
+            await chat.ensure_e2e_api_base_binding()
+            await asyncio.sleep(2.0)
+            continue
+        raw = await gate_probe_evaluate(chat, BANNER_ASSERT_JS, label="wait_banner")
+        if raw is None:
+            await asyncio.sleep(1.0)
+            continue
+        last = raw if isinstance(raw, dict) else {"value": raw}
+        if last.get("backendUnreachable") is True:
+            await chat.ensure_e2e_api_base_binding()
+            await asyncio.sleep(2.0)
+            continue
+        if last.get("ready") is True:
+            return last
+        recovered = await maybe_recover_browser_takeover(
+            chat,
+            started_at=banner_started,
+            last_recovery_at=last_recovery_at,
+        )
+        if recovered is not None:
+            raw = await gate_probe_evaluate(
+                chat, BANNER_ASSERT_JS, label="banner_after_recovery"
+            )
+            if raw is None:
+                await asyncio.sleep(1.0)
+                continue
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("ready") is True:
+                return last
+        await asyncio.sleep(1.0)
+    raise AssertionError(f"Browser takeover banner did not appear: {last}")
+
+
+async def prepare_browser_turn(chat: McpChatSession) -> None:
+    connect = await chat.evaluate(
+        SET_BROWSER_CONNECT_JS, intent=EvaluateIntent.SYNC_PROBE
+    )
+    assert isinstance(connect, dict)
+    assert connect.get("ok") is True, f"Failed to set browser source connect: {connect}"
+    enabled = await chat.evaluate(
+        ENABLE_BROWSER_JS, intent=EvaluateIntent.SYNC_PROBE
+    )
+    assert isinstance(enabled, dict)
+    assert enabled.get("ok") is True, f"Failed to enable browser in chat session: {enabled}"
+    await chat.evaluate(ENABLE_YOLO_JS, intent=EvaluateIntent.SYNC_PROBE)

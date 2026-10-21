@@ -1,0 +1,371 @@
+"""Policy resolution for inbound messages.
+
+Resolves the sender's system user_id by checking DM/group policies,
+pairing status, and WhatsApp LID fallback logic.
+
+[INPUT]
+- channels.protocols.pairing::PairingStore, ChannelPolicyProvider, DmPolicy, GroupPolicy, GroupTriggerMode, PairingStatus (POS: identity binding and policy protocols)
+- channels.routing.bot_loop_guard::BotLoopGuard (POS: bot-to-bot reply loop protection: caps admitted bot triggers per conversation)
+- channels.routing.context_buffer::GroupContextBuffer (POS: group chat context accumulation buffer)
+- channels.routing.message_effects::MessageEffects (POS: typing/reaction/placeholder side effects)
+- channels.routing.policy_resolver_support::BoundedCooldownMap, GroupFollowUpTracker, policy query and sender check helpers (POS: policy lookups, cooldown and follow-up tracking, the owner rule)
+- channels.routing.sender_admission::check_sender_admitted, is_untrusted_event_sender (POS: side-effect-free admission and sender-trust checks)
+- channels.types::InboundMessage, ContextEntry, METADATA_GUEST_TURN_KEY (POS: core message types and metadata constants shared by every channel)
+
+[OUTPUT]
+- PolicyResolver: InboundMessage → user_id resolution (or None to skip), plus the read-only is_sender_admitted / is_untrusted_event_sender
+
+[POS]
+Inbound policy resolution: decides whether a message reaches an agent turn and under which identity.
+Handles DM/group policy evaluation, user identity resolution, and pairing state management.
+Router holds an instance via composition and calls resolve_group_user / resolve_dm_user,
+and is_sender_admitted / is_untrusted_event_sender for work that must follow the access policy and the sender's
+trust level but runs before those resolvers.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import dataclasses
+import logging
+import time
+from collections.abc import Callable
+
+from app.channels.protocols.pairing import (
+    ChannelPolicyProvider,
+    DmPolicy,
+    GroupPolicy,
+    GroupTriggerMode,
+    PairingStatus,
+    PairingStore,
+)
+from app.channels.routing.bot_loop_guard import BotLoopGuard
+from app.channels.routing.context_buffer import GroupContextBuffer
+from app.channels.routing.message_effects import MessageEffects
+from app.channels.routing.policy_resolver_support import (
+    BoundedCooldownMap,
+    GroupFollowUpTracker,
+    check_guest_mention_allowed,
+    check_sender_daily_quota,
+    is_control_plane_forward,
+    is_exempt_diagnostic_command,
+    query_dm_policy,
+    query_enabled_groups,
+    query_group_policy,
+    query_group_trigger,
+    resolve_group_sender_identity,
+    resolve_paired_user,
+    should_respond_in_group_support,
+)
+from app.channels.routing.sender_admission import check_sender_admitted, is_untrusted_event_sender
+from app.channels.types import (
+    METADATA_GUEST_TURN_KEY,
+    ContextEntry,
+    InboundMessage,
+)
+
+logger = logging.getLogger(__name__)
+
+ChannelLookup = Callable[[str], object | None]
+
+
+class PolicyResolver:
+    """Resolves sender identity via DM/group policy and pairing store.
+
+    Stateless with respect to messages — all mutable state (context buffer)
+    is injected from the Router.
+    """
+
+    def __init__(
+        self,
+        pairing: PairingStore,
+        policy: ChannelPolicyProvider | None,
+        context_buffer: GroupContextBuffer,
+        fx: MessageEffects,
+        get_channel: ChannelLookup,
+    ) -> None:
+        self._pairing = pairing
+        self._policy = policy
+        self._context_buffer = context_buffer
+        self._fx = fx
+        self._get_channel = get_channel
+        self._cooldown = BoundedCooldownMap()
+        # Thread-Aware active multiround follower-up tracker
+        self._tracker = GroupFollowUpTracker(ttl_seconds=600.0, max_size=1000)
+        # Bot-authored trigger loop protection (per-conversation sliding window)
+        self._bot_loop_guard = BotLoopGuard()
+
+    @property
+    def pairing(self) -> PairingStore:
+        """Expose pairing store for router commands."""
+        return self._pairing
+
+    async def is_sender_admitted(self, msg: InboundMessage) -> bool:
+        """Whether the access policy lets this sender through, decided without any side effect.
+
+        For work that must follow the policy but runs before ``resolve_*_user``, which reply, count and pair.
+        """
+        return await check_sender_admitted(self._pairing, self._policy, self._get_channel, msg)
+
+    async def is_untrusted_event_sender(self, msg: InboundMessage) -> bool:
+        """Whether the sender is anyone but the owner, by the rule that fences a chat turn from that sender.
+
+        Decided without any side effect, for work that runs before ``resolve_*_user`` but must be fenced like
+        the chat turn those resolvers would start.
+        """
+        return await is_untrusted_event_sender(self._pairing, msg)
+
+    async def resolve_group_user(
+        self,
+        msg: InboundMessage,
+    ) -> tuple[str, InboundMessage] | None:
+        """Resolve user_id for group messages via GroupPolicy + trigger check.
+
+        Returns (user_id, possibly-modified msg) or None to skip.
+        Flow: groupPolicy → enabled_groups → trigger check → context buffer → default_user_id.
+        The admission gates (control-plane forward, group policy, enabled groups, guest mention) are mirrored
+        side-effect-free in ``sender_admission``; change them together.
+        """
+        if msg.user_id and is_control_plane_forward(msg):
+            return msg.user_id, msg
+
+        policy = await self._get_group_policy(msg.channel)
+
+        if policy == GroupPolicy.DISABLED:
+            logger.warning("PolicyResolver: group disabled for %s, ignoring", msg.channel)
+            return None
+
+        enabled = await self._get_enabled_groups()
+        is_guest_turn = False
+        if msg.chat_id not in enabled:
+            if await self._is_guest_mention_allowed(msg):
+                is_guest_turn = True
+            else:
+                return None
+
+        chat_id = msg.chat_id or msg.sender_id
+
+        should_respond, cleaned = await self._should_respond_in_group(msg)
+
+        # BotLoopGuard: bot-authored triggers that passed the sender gate are
+        # capped per chat; two automation agents must not run unbounded turns.
+        # Dropped messages fall through to the non-trigger path below.
+        if should_respond and msg.is_bot:
+            allowed, state = self._bot_loop_guard.admit(f"{msg.channel}:{chat_id}")
+            if not allowed:
+                logger.warning(
+                    "PolicyResolver: BotLoopGuard %s, dropping bot trigger in %s:%s",
+                    state,
+                    msg.channel,
+                    chat_id,
+                )
+                should_respond = False
+
+        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+        if not should_respond:
+            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
+            # Buffer human chatter only: bot/alert noise crowds out human
+            # context and can seed bot-to-bot loops. Persistence above stays
+            # unconditional for DWD completeness.
+            if not msg.is_bot:
+                self._context_buffer.append(
+                    chat_id,
+                    ContextEntry(
+                        sender_id=msg.sender_id,
+                        content=msg.content,
+                        timestamp=time.monotonic(),
+                        sender_name=msg.sender_name,
+                    ),
+                )
+            return None
+
+        asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
+
+        # Clean thread-mute message from processing to prevent agent triggering on confirmations
+        if cleaned == "___MUTE_CONFIRMED___":
+            return None
+
+        if cleaned != msg.content:
+            msg = dataclasses.replace(msg, content=cleaned)
+
+        if hasattr(self._context_buffer, "drain_async"):
+            context = await self._context_buffer.drain_async(msg.channel, chat_id)
+        else:
+            context = self._context_buffer.drain(chat_id)
+        if context:
+            msg = dataclasses.replace(msg, context_messages=context)
+
+        if self._policy:
+            default_uid = await self._policy.get_default_user_id()
+            if default_uid:
+                if is_guest_turn:
+                    guest_meta = dict(msg.metadata or {})
+                    guest_meta[METADATA_GUEST_TURN_KEY] = "1"
+                    if msg.thread_id:
+                        self._tracker.activate(f"{msg.channel}:{msg.chat_id}:{msg.thread_id}")
+                    return f"guest_{msg.channel}_{msg.sender_id}", dataclasses.replace(msg, metadata=guest_meta)
+                return await resolve_group_sender_identity(self._pairing, self._fx, msg, default_uid, self._tracker)
+
+        return None
+
+    async def resolve_dm_user(self, msg: InboundMessage) -> str | None:
+        """Resolve the sender's system user_id via DM policy + PairingStore.
+
+        The admission gates (pre-resolved identity, DM policy, ACTIVE pairing incl. the LID mapping) are mirrored
+        side-effect-free in ``sender_admission``; change them together.
+        """
+        if msg.user_id:
+            return msg.user_id
+
+        # BotLoopGuard applies to DMs too: an automation bot relaying into DM
+        # must not run unbounded agent turns. Human DMs are never counted.
+        if msg.is_bot:
+            allowed, state = self._bot_loop_guard.admit(f"{msg.channel}:{msg.chat_id or msg.sender_id}")
+            if not allowed:
+                logger.warning(
+                    "PolicyResolver: BotLoopGuard %s, dropping bot DM in %s:%s",
+                    state,
+                    msg.channel,
+                    msg.sender_id,
+                )
+                return None
+
+        policy = await self._get_dm_policy(msg.channel)
+
+        if policy == DmPolicy.DISABLED:
+            logger.warning("PolicyResolver: DM disabled for %s, ignoring", msg.channel)
+            return None
+
+        user_id: str | None = None
+        if policy == DmPolicy.OPEN:
+            user_id = await self._resolve_paired_user(msg)
+            if not user_id:
+                # Security Gate: Prevent silent privilege escalation to default_user_id (e.g. sandbox/admin).
+                guest_uid = f"guest_{msg.channel}_{msg.sender_id}"
+                logger.info(
+                    "PolicyResolver: Unpaired sender %s/%s assigned guest %s",
+                    msg.channel,
+                    msg.sender_id,
+                    guest_uid,
+                )
+                user_id = guest_uid
+        elif policy == DmPolicy.PAIRING:
+            user_id = await self._resolve_with_pairing(msg)
+        else:
+            user_id = await self._resolve_allowlist(msg)
+
+        if user_id and user_id.startswith("paired_member_"):
+            if not is_exempt_diagnostic_command(msg.content):
+                is_exceeded, daily_quota, usage_count = await check_sender_daily_quota(self._pairing, msg)
+                if is_exceeded:
+                    logger.warning(
+                        "PolicyResolver: sender %s/%s exceeded daily quota %d (used %d)",
+                        msg.channel,
+                        msg.sender_id,
+                        daily_quota,
+                        usage_count,
+                    )
+                    await self._fx.send_quota_exceeded_reply(msg, daily_quota)
+                    return None
+
+        if user_id and msg.sender_name:
+            await self._touch_display_name(msg)
+
+        if user_id:
+            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+            is_auth = not user_id.startswith("guest_") and not user_id.startswith("paired_member_")
+            msg_with_user = dataclasses.replace(msg, user_id=user_id)
+            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg_with_user, is_trigger=True, is_authenticated=is_auth))
+
+        return user_id
+
+    async def _touch_display_name(self, msg: InboundMessage) -> None:
+        """Best-effort update of display_name when the sender's name changes."""
+        try:
+            await self._pairing.touch_display_name(msg.channel, msg.sender_id, msg.sender_name or "")
+        except Exception:
+            logger.debug(
+                "touch_display_name failed for %s/%s",
+                msg.channel,
+                msg.sender_id,
+                exc_info=True,
+            )
+
+    async def _should_respond_in_group(self, msg: InboundMessage) -> tuple[bool, str]:
+        """Determine whether the bot should respond based on trigger config."""
+        return await should_respond_in_group_support(self._policy, self._tracker, self._fx, msg)
+
+    async def _get_dm_policy(self, channel: str) -> DmPolicy:
+        return await query_dm_policy(self._policy, channel)
+
+    async def _get_group_policy(self, channel: str) -> GroupPolicy:
+        return await query_group_policy(self._policy, channel)
+
+    async def _get_group_trigger(self, channel: str) -> tuple[GroupTriggerMode, list[str]]:
+        return await query_group_trigger(self._policy, channel)
+
+    async def _get_enabled_groups(self) -> set[str]:
+        return await query_enabled_groups(self._policy)
+
+    async def _is_guest_mention_allowed(self, msg: InboundMessage) -> bool:
+        return await check_guest_mention_allowed(self._policy, msg)
+
+    async def _resolve_allowlist(self, msg: InboundMessage) -> str | None:
+        """Allowlist mode: only ACTIVE pairings are processed, others silently ignored."""
+        user_id = await self._resolve_paired_user(msg)
+        if user_id:
+            return user_id
+
+        status = await self._pairing.get_status(msg.channel, msg.sender_id)
+        if status == PairingStatus.BLOCKED:
+            logger.warning("PolicyResolver: blocked %s/%s", msg.channel, msg.sender_id)
+            return None
+
+        logger.warning(
+            "PolicyResolver: unpaired %s/%s (allowlist mode)",
+            msg.channel,
+            msg.sender_id,
+        )
+        return None
+
+    async def _resolve_paired_user(self, msg: InboundMessage) -> str | None:
+        """The sender's identity from an ACTIVE pairing, also via the verified WhatsApp LID mapping."""
+        return await resolve_paired_user(self._pairing, self._get_channel, msg)
+
+    async def _resolve_with_pairing(self, msg: InboundMessage) -> str | None:
+        """Pairing mode: auto-create PENDING for unknown senders."""
+        user_id = await self._resolve_paired_user(msg)
+        if user_id:
+            return user_id
+
+        status = await self._pairing.get_status(msg.channel, msg.sender_id)
+        if status == PairingStatus.BLOCKED:
+            logger.warning("PolicyResolver: blocked %s/%s", msg.channel, msg.sender_id)
+            return None
+
+        if status == PairingStatus.PENDING:
+            await self._rate_limited_pending_reply(msg)
+            return None
+
+        default_uid = ""
+        if self._policy:
+            default_uid = await self._policy.get_default_user_id() or ""
+        await self._pairing.bind(
+            msg.channel,
+            msg.sender_id,
+            default_uid,
+            status=PairingStatus.PENDING,
+            display_name=msg.sender_name,
+        )
+        logger.warning("PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id)
+        await self._fx.send_pairing_request_reply(msg)
+        self._cooldown.should_suppress(f"{msg.channel}:{msg.sender_id}")
+        return None
+
+    async def _rate_limited_pending_reply(self, msg: InboundMessage) -> None:
+        """Send pending reply at most once per _PENDING_REPLY_COOLDOWN per sender."""
+        key = f"{msg.channel}:{msg.sender_id}"
+        if not self._cooldown.should_suppress(key):
+            await self._fx.send_pending_reply(msg)

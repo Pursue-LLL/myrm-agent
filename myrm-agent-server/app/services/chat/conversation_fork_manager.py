@@ -1,0 +1,546 @@
+"""Conversation Fork Manager
+
+[INPUT]
+- database.models::Chat, ConversationFork, Message (POS: ORM models)
+- platform::get_checkpointer (POS: LangGraph checkpointer instance)
+- app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
+
+[OUTPUT]
+- ConversationForkManager: Fork conversation + query fork info + multi-generational lineage trace
+- ForkCreateResult: Fork operation result NamedTuple
+- ForkInfoResponse: Fork info query result NamedTuple with root_chat_id and depth
+
+[POS]
+Conversation forking service layer. Manages checkpoint-based conversation
+forking and fork relationship queries.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, NamedTuple
+from uuid import uuid4
+
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import ChannelVersions
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.models import Chat, ConversationFork, Message
+from app.services.chat.conversation_recall_index_service import (
+    ConversationRecallIndexService,
+)
+
+if TYPE_CHECKING:
+    from langgraph.checkpoint.base import CheckpointTuple
+
+logger = logging.getLogger(__name__)
+
+
+class ForkCreateResult(NamedTuple):
+    """Fork creation operation result."""
+
+    success: bool
+    new_chat_id: str | None
+    parent_chat_id: str
+    fork_point: int | None
+    error: str | None = None
+
+
+class ForkChildInfo(NamedTuple):
+    """Single child fork info."""
+
+    chat_id: str
+    title: str
+    created_at: str  # ISO format timestamp
+
+
+class ForkInfoResponse(NamedTuple):
+    """Fork info query response."""
+
+    parent_chat_id: str | None
+    fork_point: int | None
+    children: list[ForkChildInfo]
+    root_chat_id: str | None = None
+    depth: int = 0
+
+
+class ConversationForkManager:
+    """Conversation forking service.
+
+    Provides checkpoint-based conversation forking capabilities:
+    - Clone messages + full Chat metadata to new thread
+    - Remap compacted_before_id for self-contained fork (no parent dependency)
+    - Clone LangGraph checkpoint at last-message fork point
+    - Track fork relationships in database
+    - Query fork lineage (parent and children)
+
+    """
+
+    @staticmethod
+    async def get_last_message_index(db: AsyncSession, chat_id: str) -> int | None:
+        """Return the 0-based index of the last active message, or None if empty."""
+        count_stmt = select(func.count(Message.id)).where(
+            Message.chat_id == chat_id,
+            Message.is_active == True,  # noqa: E712
+        )
+        result = await db.execute(count_stmt)
+        total = result.scalar_one()
+        return total - 1 if total > 0 else None
+
+    @staticmethod
+    async def fork_conversation(
+        db: AsyncSession,
+        parent_chat_id: str,
+        message_index: int,
+        new_title: str | None = None,
+        fork_mode: str = "full_clone",
+        acceptance_scope: str | None = None,
+    ) -> ForkCreateResult:
+        """Fork conversation from specific message index.
+
+        Creates a new chat with complete checkpoint state at fork point,
+        or as an independent acceptance audit verifier.
+
+        Args:
+            db: Database session
+            parent_chat_id: Parent conversation ID
+            message_index: Message index to fork from (0-based)
+            new_title: Optional custom title (auto-generated if None)
+            fork_mode: "full_clone" (default) or "acceptance_verifier"
+            acceptance_scope: Optional specific scope/criteria for acceptance audit
+
+        Returns:
+            ForkCreateResult with new_chat_id or error
+
+        """
+        from app.platform_utils import get_checkpointer
+
+        # 1. Validate parent chat exists and user has access
+        parent_stmt = select(Chat).where(Chat.id == parent_chat_id)
+        parent_result = await db.execute(parent_stmt)
+        parent_chat = parent_result.scalar_one_or_none()
+
+        if not parent_chat:
+            return ForkCreateResult(
+                success=False,
+                new_chat_id=None,
+                parent_chat_id=parent_chat_id,
+                fork_point=message_index,
+                error="Parent chat not found or access denied",
+            )
+
+        # Validate message_index boundary against active messages.
+        count_stmt = select(func.count(Message.id)).where(
+            Message.chat_id == parent_chat_id,
+            Message.is_active == True,  # noqa: E712
+        )
+        count_result = await db.execute(count_stmt)
+        total_messages = count_result.scalar_one()
+
+        if message_index < 0 or message_index >= total_messages:
+            return ForkCreateResult(
+                success=False,
+                new_chat_id=None,
+                parent_chat_id=parent_chat_id,
+                fork_point=message_index,
+                error=f"Invalid message_index: {message_index} (total active messages: {total_messages})",
+            )
+
+        # 2. Attempt to get checkpoint (optional — fork works with or without it)
+        checkpointer = get_checkpointer()
+        checkpoint_tuple: CheckpointTuple | None = None
+
+        if checkpointer and message_index == total_messages - 1:
+            parent_config: RunnableConfig = {"configurable": {"thread_id": parent_chat_id}}
+            try:
+                checkpoint_tuple = await checkpointer.aget_tuple(parent_config)
+                if checkpoint_tuple and not checkpoint_tuple.checkpoint:
+                    checkpoint_tuple = None
+            except Exception as e:
+                logger.warning("Checkpoint retrieval failed (non-fatal): %s", e)
+                checkpoint_tuple = None
+
+        # 3. Generate fork title and create new chat
+        new_chat_id = str(uuid4())
+        is_acceptance_mode = fork_mode == "acceptance_verifier"
+
+        if not new_title:
+            msg_stmt = (
+                select(Message)
+                .where(
+                    Message.chat_id == parent_chat_id,
+                    Message.is_active == True,  # noqa: E712
+                )
+                .order_by(Message.created_at)
+                .offset(message_index)
+                .limit(1)
+            )
+            msg_result = await db.execute(msg_stmt)
+            fork_message = msg_result.scalar_one_or_none()
+
+            if is_acceptance_mode:
+                base_title = parent_chat.title or "Task"
+                new_title = f"[Audit] Acceptance: {base_title}"
+            elif fork_message and fork_message.content:
+                snippet = fork_message.content[:40].strip()
+                new_title = f"Branch: {snippet}{'...' if len(fork_message.content) > 40 else ''}"
+            else:
+                new_title = f"Branch from: {parent_chat.title or 'Conversation'}"
+            new_title = new_title[:255]
+        else:
+            new_title = new_title.strip()[:255]
+
+        # Resolve workspace for fork: sandbox resets to repo root; otherwise SSOT project bind.
+        if parent_chat.sandbox_base_dir:
+            fork_workspace_dir = parent_chat.sandbox_base_dir
+        else:
+            from app.services.chat.chat_service import ChatService
+            from app.services.chat.effective_workspace import (
+                resolve_effective_chat_workspace,
+            )
+
+            parent_dto = await ChatService.get_chat_metadata(parent_chat_id)
+            fork_workspace_dir = (
+                await resolve_effective_chat_workspace(
+                    parent_dto,
+                    jit_fallback=False,
+                )
+                if parent_dto is not None
+                else None
+            )
+
+        new_chat = Chat(
+            id=new_chat_id,
+            agent_id=parent_chat.agent_id,
+            title=new_title,
+            source=parent_chat.source,
+            channel_session_key=None,  # Fork creates independent conversation
+            session_loaded_skill_names=parent_chat.session_loaded_skill_names,
+            action_mode=parent_chat.action_mode,
+            active_moa_preset_id=parent_chat.active_moa_preset_id,
+            workspace_dir=fork_workspace_dir,
+            sandbox_base_dir=None,
+            project_id=parent_chat.project_id,
+            is_incognito=parent_chat.is_incognito,
+            compacted_summary=parent_chat.compacted_summary,
+            compacted_before_id=parent_chat.compacted_before_id,
+            compacted_at=parent_chat.compacted_at,
+            compacted_tokens_saved=parent_chat.compacted_tokens_saved,
+            session_notes_json=parent_chat.session_notes_json,
+        )
+        db.add(new_chat)
+
+        # 4. Clone active messages up to fork point into new chat in batch
+        msgs_stmt = (
+            select(Message)
+            .where(
+                Message.chat_id == parent_chat_id,
+                Message.is_active == True,  # noqa: E712
+            )
+            .order_by(Message.created_at)
+            .limit(message_index + 1)
+        )
+        msgs_result = await db.execute(msgs_stmt)
+        parent_messages = msgs_result.scalars().all()
+
+        id_mapping: dict[str, str] = {}
+        cloned_messages: list[Message] = []
+        for msg in parent_messages:
+            new_msg_id = str(uuid4())
+            id_mapping[msg.id] = new_msg_id
+            cloned_messages.append(
+                Message(
+                    id=new_msg_id,
+                    chat_id=new_chat_id,
+                    role=msg.role,
+                    content=msg.content,
+                    sent_at=msg.sent_at,
+                    sent_timezone=msg.sent_timezone,
+                    extra_data=msg.extra_data,
+                    created_at=msg.created_at,
+                    sibling_group_id=None,
+                    is_active=True,
+                )
+            )
+
+        if is_acceptance_mode:
+            from datetime import UTC, datetime, timedelta
+
+            now_utc = datetime.now(UTC)
+            # Ensure audit prompt timestamp is strictly after the cloned messages so it appears last in chronological ordering
+            audit_created_at = (
+                (cloned_messages[-1].created_at + timedelta(milliseconds=10))
+                if cloned_messages and cloned_messages[-1].created_at
+                else now_utc
+            )
+            scope_hint = f"\nSpecific Audit Scope: {acceptance_scope}" if acceptance_scope else ""
+            audit_instruction = (
+                "[INDEPENDENT ACCEPTANCE AUDIT INITIATED]\n"
+                "You are an adversarial Acceptance Verifier and Critic Agent. "
+                "Your objective is to strictly audit and verify the delivered artifacts and final outputs from the previous workflow.\n"
+                "- Strip confirmation bias: inspect workspace files, run automated test suites, verify data consistency, and validate boundary constraints.\n"
+                "- DO NOT accept self-asserted verbal claims. Require physical tool execution proofs (file reads, command runs, lint checks).\n"
+                f"- If any discrepancy, missing test, or hidden defect is found, report it with exact evidence.{scope_hint}"
+            )
+            audit_msg_id = str(uuid4())
+            cloned_messages.append(
+                Message(
+                    id=audit_msg_id,
+                    chat_id=new_chat_id,
+                    role="user",
+                    content=audit_instruction,
+                    sent_at=now_utc,
+                    sent_timezone="UTC",
+                    extra_data={"is_acceptance_audit_prompt": True},
+                    created_at=audit_created_at,
+                )
+            )
+
+        if cloned_messages:
+            db.add_all(cloned_messages)
+
+        # Remap compacted_before_id or clear compaction if fork point is before compaction boundary
+        if new_chat.compacted_before_id:
+            if new_chat.compacted_before_id in id_mapping:
+                new_chat.compacted_before_id = id_mapping[new_chat.compacted_before_id]
+            else:
+                new_chat.compacted_summary = None
+                new_chat.compacted_before_id = None
+                new_chat.compacted_at = None
+                new_chat.compacted_tokens_saved = None
+
+        # 5. Clone checkpoint if available (best-effort)
+        fork_checkpoint_id: str | None = None
+        if checkpoint_tuple:
+            new_config: RunnableConfig = {"configurable": {"thread_id": new_chat_id}}
+            new_versions: ChannelVersions = {}
+            try:
+                await checkpointer.aput(
+                    new_config,
+                    checkpoint_tuple.checkpoint,
+                    checkpoint_tuple.metadata or {},
+                    new_versions,
+                )
+                raw_checkpoint_id = checkpoint_tuple.config.get("checkpoint_id")
+                if not raw_checkpoint_id:
+                    raw_checkpoint_id = getattr(checkpoint_tuple, "checkpoint_ns", None)
+                fork_checkpoint_id = str(raw_checkpoint_id) if raw_checkpoint_id is not None else None
+                logger.debug(
+                    "Forked checkpoint: %s -> %s (message_index=%d)",
+                    parent_chat_id,
+                    new_chat_id,
+                    message_index,
+                )
+            except Exception as e:
+                logger.warning("Checkpoint clone failed (non-fatal): %s", e)
+
+        fork_record = ConversationFork(
+            child_chat_id=new_chat_id,
+            parent_chat_id=parent_chat_id,
+            fork_checkpoint_id=fork_checkpoint_id,
+            fork_message_index=message_index,
+        )
+        db.add(fork_record)
+        await db.flush()
+        await ConversationRecallIndexService.rebuild_chat(db, new_chat_id)
+
+        # Commit transaction.
+        try:
+            await db.commit()
+            logger.debug("Fork created successfully: %s (parent=%s)", new_chat_id, parent_chat_id)
+
+            from app.services.chat.session_continuity_service import (
+                CheckpointClearError,
+                invalidate_chat_checkpoint,
+            )
+
+            try:
+                await invalidate_chat_checkpoint(new_chat_id)
+            except CheckpointClearError as exc:
+                logger.error(
+                    "Fork checkpoint clear failed for child chat %s (parent=%s): %s",
+                    new_chat_id,
+                    parent_chat_id,
+                    exc,
+                )
+
+            # Record immutable fork_point event in EventLog
+            try:
+                import time
+                from pathlib import Path
+
+                from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+                from myrm_agent_harness.agent.event_log.types import EventPayload, StructuredEvent
+
+                from app.config.settings import get_settings
+
+                event_log_dir = Path(get_settings().database.event_log_dir)
+                if event_log_dir.exists():
+                    fork_event_data = {
+                        "parent_chat_id": parent_chat_id,
+                        "child_chat_id": new_chat_id,
+                        "fork_message_index": message_index,
+                        "fork_checkpoint_id": fork_checkpoint_id,
+                        "is_acceptance_mode": is_acceptance_mode,
+                    }
+                    backend = FileEventLogBackend(log_dir=event_log_dir, session_id=parent_chat_id)
+                    parent_events = await backend.get_events(parent_chat_id)
+                    next_seq = (parent_events[-1].sequence + 1) if parent_events else 1
+                    fork_event = StructuredEvent(
+                        sequence=next_seq,
+                        timestamp=time.time(),
+                        event_type="fork_point",
+                        session_id=parent_chat_id,
+                        data=EventPayload(**fork_event_data),
+                    )
+                    await backend.append([fork_event])
+                    logger.info(
+                        "Recorded immutable fork_point event in EventLog: parent=%s -> child=%s (index=%d)",
+                        parent_chat_id,
+                        new_chat_id,
+                        message_index,
+                    )
+            except Exception as ev_err:
+                logger.debug("Failed recording fork_point event: %s", ev_err)
+
+            return ForkCreateResult(
+                success=True,
+                new_chat_id=new_chat_id,
+                parent_chat_id=parent_chat_id,
+                fork_point=message_index,
+                error=None,
+            )
+
+        except Exception as e:
+            logger.exception("Failed to commit fork transaction")
+            await db.rollback()
+
+            try:
+                cp = get_checkpointer()
+                for tid in (new_chat_id, f"chat_{new_chat_id}"):
+                    await cp.adelete_thread(tid)
+                logger.info(
+                    "Fork rollback: cleaned orphaned checkpoint (thread_id=%s)",
+                    new_chat_id,
+                )
+            except Exception as cp_err:
+                logger.warning(
+                    "Fork rollback: failed to clean orphaned checkpoint (thread_id=%s): %s",
+                    new_chat_id,
+                    cp_err,
+                )
+
+            return ForkCreateResult(
+                success=False,
+                new_chat_id=None,
+                parent_chat_id=parent_chat_id,
+                fork_point=message_index,
+                error=f"Database commit error: {e!s}",
+            )
+
+    @staticmethod
+    async def get_fork_info(
+        db: AsyncSession,
+        chat_id: str,
+    ) -> ForkInfoResponse:
+        """Get fork information for a chat.
+
+        Retrieves:
+        - Parent chat info (if this is a fork)
+        - List of child forks (if any)
+
+        Args:
+            db: Database session
+            chat_id: Chat ID to query
+
+        Returns:
+            ForkInfoResponse with parent and children info
+
+        """
+        # 1. Query if this chat is a fork
+        parent_stmt = select(ConversationFork).where(ConversationFork.child_chat_id == chat_id)
+        parent_result = await db.execute(parent_stmt)
+        fork_record = parent_result.scalar_one_or_none()
+
+        parent_chat_id: str | None = None
+        fork_point: int | None = None
+
+        if fork_record:
+            parent_chat_id = fork_record.parent_chat_id
+            fork_point = fork_record.fork_message_index
+
+        # 1. Query parent fork and trace root ancestor lineage
+        curr_parent_id = fork_record.parent_chat_id if fork_record else None
+        root_chat_id: str | None = curr_parent_id
+        depth = 0
+        visited: set[str] = {chat_id}
+
+        while curr_parent_id and curr_parent_id not in visited:
+            visited.add(curr_parent_id)
+            depth += 1
+            root_chat_id = curr_parent_id
+            anc_stmt = select(ConversationFork.parent_chat_id).where(ConversationFork.child_chat_id == curr_parent_id)
+            anc_result = await db.execute(anc_stmt)
+            curr_parent_id = anc_result.scalar_one_or_none()
+
+        # 2. Query child forks
+        children_stmt = (
+            select(ConversationFork, Chat)
+            .join(Chat, Chat.id == ConversationFork.child_chat_id)
+            .where(ConversationFork.parent_chat_id == chat_id)
+            .order_by(ConversationFork.created_at.desc())
+        )
+        children_result = await db.execute(children_stmt)
+        children_rows = children_result.all()
+
+        children_list: list[ForkChildInfo] = []
+        for fork, chat in children_rows:
+            children_list.append(
+                ForkChildInfo(
+                    chat_id=chat.id,
+                    title=chat.title or "Untitled",
+                    created_at=fork.created_at.isoformat() if fork.created_at else "",
+                )
+            )
+
+        return ForkInfoResponse(
+            parent_chat_id=parent_chat_id,
+            fork_point=fork_point,
+            children=children_list,
+            root_chat_id=root_chat_id,
+            depth=depth,
+        )
+
+    @staticmethod
+    async def delete_fork_lineage(
+        db: AsyncSession,
+        chat_id: str,
+    ) -> int:
+        """Delete all child forks recursively.
+
+        Args:
+            db: Database session
+            chat_id: Root chat ID
+
+        Returns:
+            Number of forks deleted
+
+        Note:
+            Database CASCADE constraint handles actual deletion.
+            This method is for metrics/logging purposes.
+
+        """
+        # Count children before deletion (CASCADE will delete them)
+        count_stmt = select(func.count(ConversationFork.child_chat_id)).where(ConversationFork.parent_chat_id == chat_id)
+        count_result = await db.execute(count_stmt)
+        child_count = count_result.scalar_one()
+
+        # Deletion handled by CASCADE constraint when parent chat is deleted
+        logger.debug(
+            "Fork lineage deletion triggered: chat_id=%s, children=%d",
+            chat_id,
+            child_count,
+        )
+
+        return int(child_count)

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-screen-lock-platform-support"
+description = "Enables the screen_lock_platform_support command without any pre-configured scope."
+commands.allow = ["screen_lock_platform_support"]
+
+[[permission]]
+identifier = "deny-screen-lock-platform-support"
+description = "Denies the screen_lock_platform_support command without any pre-configured scope."
+commands.deny = ["screen_lock_platform_support"]

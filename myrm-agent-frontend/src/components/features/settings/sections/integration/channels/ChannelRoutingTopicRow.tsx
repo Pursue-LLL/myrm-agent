@@ -1,0 +1,390 @@
+'use client';
+
+import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { Users, ShieldCheck, Zap, BadgeCheck, Ban, Undo2 } from 'lucide-react';
+import { IconAlertCircle, IconLoader, IconUser } from '@/components/features/icons/PremiumIcons';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
+import type { AgentListItem } from '@/services/agent';
+import type { Project } from '@/services/projects';
+import type {
+  DraftTimeoutAction,
+  IdentityScopeMode,
+  ReplyMode,
+  ThreadSharingMode,
+  TopicBinding,
+} from '@/services/channels';
+import useConfigStore from '@/store/useConfigStore';
+import { resolveTopicWorkspaceDisplayLabel } from './topicWorkspaceLabel';
+
+interface ChannelRoutingTopicRowProps {
+  agents: AgentListItem[];
+  projects: Project[];
+  isSaving: boolean;
+  onBindTopic: (topicId: string, agentId: string) => void;
+  onBindTopicWorkspace: (topicId: string, projectId: string | null) => void;
+  onSetDraftTimeout: (topicId: string, minutes: number, action: DraftTimeoutAction) => void;
+  onSetReplyMode: (topicId: string, mode: ReplyMode) => void;
+  onSetThreadSharingMode: (topicId: string, mode: ThreadSharingMode) => void;
+  onSetIdentity: (topicId: string, name: string | null, scope: IdentityScopeMode) => void;
+  onRevokeIdentity: (topicId: string, revoked: boolean) => void;
+  onSetFollowUp: (topicId: string, completionReceipts: boolean, stallNudge: boolean) => void;
+  topic: TopicBinding;
+}
+
+const IDENTITY_SCOPES: IdentityScopeMode[] = ['inherit', 'shared', 'private'];
+const DRAFT_TIMEOUT_MINUTES = [1, 3, 5, 10, 15, 30, 60] as const;
+const MINUTES_PER_HOUR = 60;
+
+export function ChannelRoutingTopicRow({
+  agents,
+  projects,
+  isSaving,
+  onBindTopic,
+  onBindTopicWorkspace,
+  onSetDraftTimeout,
+  onSetReplyMode,
+  onSetThreadSharingMode,
+  onSetIdentity,
+  onRevokeIdentity,
+  onSetFollowUp,
+  topic,
+}: ChannelRoutingTopicRowProps) {
+  const t = useTranslations('settings.sections.channelRouting');
+  const locale = useLocale();
+  const workspaceDisplayLabel = resolveTopicWorkspaceDisplayLabel(topic, projects);
+  const [identityDraft, setIdentityDraft] = useState<string | null>(null);
+  const identityValue = identityDraft ?? topic.identityName ?? '';
+  const identityScope = topic.identityScope ?? 'inherit';
+  // Until settings are loaded the answer is unknown, and a warning that flashes and vanishes is worse than none.
+  const hasNotificationDelivery = useConfigStore(
+    (state) => !state._configStoreReady || (state.personalSettings?.notificationDeliveries?.length ?? 0) > 0,
+  );
+  const timeoutLabel = (minutes: number) =>
+    minutes === MINUTES_PER_HOUR ? t('replyMode.timeoutHour') : t('replyMode.timeoutMinutes', { minutes });
+
+  return (
+    <div className="flex flex-col gap-3 p-3 bg-background border rounded-lg hover:border-primary/30 transition-colors">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          {topic.avatarUrl ? (
+            // oxlint-disable-next-line next/no-img-element -- avatars are arbitrary channel-platform URLs that next/image cannot optimize
+            <img
+              src={topic.avatarUrl}
+              alt={topic.displayName || topic.topicId}
+              className="w-8 h-8 rounded-full bg-muted"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
+              {(topic.displayName || topic.topicId).substring(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <div className="font-medium text-sm">{topic.displayName || topic.topicId}</div>
+            <div className="text-xs text-muted-foreground font-mono">{topic.topicId}</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {isSaving && <IconLoader className="w-4 h-4 animate-spin text-primary/50" />}
+          <select
+            value={topic.agentId || 'none'}
+            onChange={(event) => onBindTopic(topic.topicId, event.target.value)}
+            disabled={isSaving}
+            className="min-w-0 bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none"
+          >
+            <option value="none">{t('inheritGlobalDefault')}</option>
+            {agents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {getBuiltinAgentName(agent.id, agent.name, locale)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 pl-11 flex-wrap">
+        <span className="text-xs text-muted-foreground">{t('workspace.label')}:</span>
+        <select
+          value={topic.projectId || 'none'}
+          onChange={(event) =>
+            onBindTopicWorkspace(topic.topicId, event.target.value === 'none' ? null : event.target.value)
+          }
+          disabled={isSaving || projects.length === 0}
+          className="bg-background border border-input rounded-full text-sm px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none max-w-full"
+        >
+          <option value="none">{t('workspace.none')}</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+        {workspaceDisplayLabel && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs text-muted-foreground font-mono truncate max-w-[240px] sm:max-w-md cursor-default">
+                  {workspaceDisplayLabel}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm break-all font-mono text-xs">
+                {workspaceDisplayLabel}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {projects.length === 0 && <span className="text-xs text-muted-foreground">{t('workspace.emptyProjects')}</span>}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p className="text-xs">{t('threadSharing.tooltip')}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <span className="text-xs text-muted-foreground">{t('threadSharing.label')}:</span>
+        <div className="flex flex-wrap gap-1">
+          <button
+            onClick={() => onSetThreadSharingMode(topic.topicId, 'isolated')}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              topic.threadSharingMode === 'isolated'
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <IconUser className="w-3 h-3" />
+            {t('threadSharing.isolated')}
+          </button>
+          <button
+            onClick={() => onSetThreadSharingMode(topic.topicId, 'shared')}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              topic.threadSharingMode === 'shared'
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Users className="w-3 h-3" />
+            {t('threadSharing.shared')}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p className="text-xs">{t('replyMode.tooltip')}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <span className="text-xs text-muted-foreground">{t('replyMode.label')}:</span>
+        <div className="flex flex-wrap gap-1">
+          <button
+            onClick={() => onSetReplyMode(topic.topicId, 'auto')}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              topic.replyMode === 'auto'
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Zap className="w-3 h-3" />
+            {t('replyMode.auto')}
+          </button>
+          <button
+            onClick={() => onSetReplyMode(topic.topicId, 'draft_review')}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              topic.replyMode === 'draft_review'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <ShieldCheck className="w-3 h-3" />
+            {t('replyMode.draftReview')}
+          </button>
+        </div>
+      </div>
+
+      {topic.replyMode === 'draft_review' && (
+        <div className="flex items-center gap-3 pl-11 flex-wrap">
+          <span className="text-xs text-muted-foreground">{t('replyMode.timeout')}:</span>
+          <select
+            value={topic.draftTimeoutMinutes}
+            onChange={(event) => onSetDraftTimeout(topic.topicId, Number(event.target.value), topic.draftTimeoutAction)}
+            disabled={isSaving}
+            className="bg-background border border-input rounded text-xs px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none"
+          >
+            {DRAFT_TIMEOUT_MINUTES.map((minutes) => (
+              <option key={minutes} value={minutes}>
+                {timeoutLabel(minutes)}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">{t('replyMode.onExpiry')}:</span>
+          <select
+            value={topic.draftTimeoutAction}
+            onChange={(event) =>
+              onSetDraftTimeout(topic.topicId, topic.draftTimeoutMinutes, event.target.value as DraftTimeoutAction)
+            }
+            disabled={isSaving}
+            className="bg-background border border-input rounded text-xs px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none"
+          >
+            <option value="auto_reject">{t('replyMode.autoReject')}</option>
+            <option value="auto_send">{t('replyMode.autoSend')}</option>
+          </select>
+        </div>
+      )}
+
+      {topic.replyMode === 'draft_review' && !hasNotificationDelivery && (
+        <p className="flex items-start gap-1.5 pl-11 text-xs text-amber-600 dark:text-amber-400">
+          <IconAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            {t('replyMode.noNotifyChannel')}{' '}
+            <Link href="/settings/preferences" className="font-medium underline underline-offset-2 hover:opacity-80">
+              {t('replyMode.noNotifyChannelLink')}
+            </Link>
+          </span>
+        </p>
+      )}
+
+      <div className="flex flex-col gap-2 pl-11">
+        <div className="flex items-center gap-2 flex-wrap">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="text-xs">{t('identity.tooltip')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="text-xs text-muted-foreground">{t('identity.label')}:</span>
+          {topic.identityRevoked && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+              {t('identity.revokedBadge')}
+            </span>
+          )}
+          {topic.identityName && !topic.identityRevoked && (
+            <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+              <BadgeCheck className="w-3 h-3" />
+              {topic.identityName}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            value={identityValue}
+            onChange={(event) => setIdentityDraft(event.target.value)}
+            onBlur={() => {
+              const name = identityValue.trim();
+              if (name !== (topic.identityName ?? '')) {
+                onSetIdentity(topic.topicId, name || null, identityScope);
+              }
+              setIdentityDraft(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                (event.target as HTMLInputElement).blur();
+              }
+            }}
+            disabled={isSaving}
+            placeholder={t('identity.namePlaceholder')}
+            maxLength={32}
+            className="bg-background border border-input rounded-full text-xs px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none w-40 placeholder:text-muted-foreground/60"
+          />
+          <div className="flex flex-wrap gap-1">
+            {IDENTITY_SCOPES.map((scope) => (
+              <button
+                key={scope}
+                onClick={() => onSetIdentity(topic.topicId, topic.identityName, scope)}
+                disabled={isSaving}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  identityScope === scope
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {t(`identity.${scope}`)}
+              </button>
+            ))}
+          </div>
+          {topic.identityName &&
+            (topic.identityRevoked ? (
+              <button
+                onClick={() => onRevokeIdentity(topic.topicId, false)}
+                disabled={isSaving}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors bg-muted/50 text-muted-foreground hover:bg-muted"
+              >
+                <Undo2 className="w-3 h-3" />
+                {t('identity.restore')}
+              </button>
+            ) : (
+              <button
+                onClick={() => onRevokeIdentity(topic.topicId, true)}
+                disabled={isSaving}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors bg-muted/50 text-muted-foreground hover:bg-muted"
+              >
+                <Ban className="w-3 h-3" />
+                {t('identity.revoke')}
+              </button>
+            ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 pl-11">
+        <div className="flex items-center gap-2 flex-wrap">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="text-xs">{t('followUp.tooltip')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="text-xs text-muted-foreground">{t('followUp.label')}:</span>
+          <button
+            onClick={() => onSetFollowUp(topic.topicId, !(topic.completionReceipts ?? true), topic.stallNudge ?? false)}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              (topic.completionReceipts ?? true)
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Zap className="w-3 h-3" />
+            {t('followUp.receipts')}
+          </button>
+          <button
+            onClick={() => onSetFollowUp(topic.topicId, topic.completionReceipts ?? true, !(topic.stallNudge ?? false))}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              (topic.stallNudge ?? false)
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Users className="w-3 h-3" />
+            {t('followUp.stallNudge')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

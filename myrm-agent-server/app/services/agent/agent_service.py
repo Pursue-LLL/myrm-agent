@@ -1,0 +1,589 @@
+"""智能体服务（基于 UnitOfWork）
+
+[INPUT]
+Agent CRUD请求、agent_id、user_id
+
+[OUTPUT]
+AgentProfile 实例、AgentUpdateOutcome（含 snapshot_saved）、操作结果
+
+[POS]
+业务层Agent服务。
+- 单机/沙箱模式，无多租户隔离（忽略 user_id）
+- 所有额外字段存入 metadata
+- 负责维护数据一致性（删除时级联清理渠道绑定、更新/删除时失效 IM 渠道的 agent overrides 缓存、CRUD 后异步热重载技能命令绑定）
+"""
+
+import asyncio
+import logging
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Protocol, cast
+
+from myrm_agent_harness.backends.profiles.types import AgentProfile, CommandBinding
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+
+from app.config.settings import settings
+from app.core.memory.adapters.policy import memory_policy_from_dict
+from app.database.dto import AgentCreate, AgentUpdate, CommandBindingConfig
+from app.database.repositories.uow import UnitOfWork
+from app.services.agent.profile.profile_snapshot_service import (
+    ProfileSnapshotService,
+    has_mutable_diff,
+)
+from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+logger = logging.getLogger(__name__)
+
+HIDDEN_SYSTEM_PROMPT = "⚠️ [Hidden for security]"
+
+
+@dataclass(frozen=True)
+class AgentUpdateOutcome:
+    profile: AgentProfile
+    snapshot_saved: bool
+
+
+class _AgentRepositoryPort(Protocol):
+    async def list_profiles(
+        self,
+        *,
+        offset: int = 0,
+        limit: int | None = None,
+        exclude_ids: list[str] | None = None,
+    ) -> list[AgentProfile]: ...
+
+    async def count_profiles(self, *, exclude_ids: list[str] | None = None) -> int: ...
+
+    async def get_profile(self, agent_id: str) -> AgentProfile | None: ...
+
+    async def create_profile(
+        self,
+        profile: AgentProfile,
+        *,
+        cron_post_run_verify: bool = False,
+    ) -> AgentProfile: ...
+
+    async def update_profile(self, agent_id: str, updates: dict[str, object]) -> AgentProfile | None: ...
+
+    async def delete_profile(self, agent_id: str) -> bool: ...
+
+
+def _normalize_agent_name(name: str) -> str:
+    return name.strip().casefold()
+
+
+def _agent_name_match_sort_key(profile: AgentProfile) -> tuple[int, str]:
+    # Prefer user-created agents over built-ins, then use id for deterministic ordering.
+    built_in_rank = 1 if profile.built_in else 0
+    return (built_in_rank, profile.id)
+
+
+def _memory_policy_from_request(raw: object) -> AgentMemoryPolicy | None:
+    if raw is None:
+        return None
+    if hasattr(raw, "model_dump"):
+        dumped = raw.model_dump(mode="json", exclude_none=True)
+        return memory_policy_from_dict(dumped)
+    return None
+
+
+def _command_bindings_from_request(
+    raw: list[CommandBindingConfig] | None,
+) -> list[CommandBinding] | None:
+    """Convert DTO CommandBindingConfig list to harness CommandBinding list."""
+    if not raw:
+        return None
+    return [
+        CommandBinding(
+            command_name=b.command_name,
+            skill_ids=tuple(b.skill_ids),
+            description=b.description,
+            aliases=tuple(b.aliases),
+            instruction=b.instruction,
+        )
+        for b in raw
+    ] or None
+
+
+def _invalidate_agent_profile_cache(agent_id: str) -> None:
+    """Ensure profile-bound entry points see the newest agent contract immediately."""
+    try:
+        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
+
+        get_agent_profile_resolver().invalidate(agent_id)
+    except Exception as e:
+        logger.warning("Failed to invalidate AgentProfileResolver cache for '%s': %s", agent_id, e)
+
+
+# 确保 harness 目录存在
+os.makedirs(settings.database.harness_dir, exist_ok=True)
+harness_db_path = str(Path(settings.database.harness_dir) / "agents_index.db")
+harness_agents_dir = str(Path(settings.database.harness_dir) / "agents")
+
+
+def _notify_agent_update(agent_id: str, action: str) -> None:
+    """发送 Agent 更新事件"""
+    try:
+        bus = get_event_bus()
+        bus.publish(
+            AppEvent(
+                event_type=AppEventType.AGENT_CONFIG_UPDATED,
+                data={"agent_id": agent_id, "action": action},
+            )
+        )
+    except Exception as e:
+        logger.error(f"Failed to publish agent update event: {e}")
+
+
+def _invalidate_channel_agent_cache(agent_id: str) -> None:
+    """Invalidate shared resolver cache used by Web / IM / Cron entry points."""
+    _invalidate_agent_profile_cache(agent_id)
+
+
+def _finalize_profile_mutation(agent_id: str, action: str) -> None:
+    _notify_agent_update(agent_id, action)
+    _invalidate_agent_profile_cache(agent_id)
+    _reload_command_bindings()
+
+
+def _reload_command_bindings() -> None:
+    """Schedule async reload of skill command bindings in the CommandRegistry.
+
+    Called after agent create/update/delete when command_bindings may have changed.
+    Uses asyncio.create_task to avoid blocking the current sync call path.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+
+    from app.core.channel_bridge.setup import reload_skill_command_bindings
+
+    loop.create_task(reload_skill_command_bindings())
+
+
+class AgentService:
+    """智能体服务类"""
+
+    @staticmethod
+    def _ar(uow: UnitOfWork) -> _AgentRepositoryPort:
+        return cast(_AgentRepositoryPort, uow.agent_repo)
+
+    @staticmethod
+    async def get_agent_list(page: int = 1, page_size: int = 20) -> tuple[list[AgentProfile], int]:
+        """获取智能体列表（支持分页）— DB-level pagination."""
+        from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS
+
+        hidden_ids = list(HIDDEN_BUILTIN_AGENT_IDS)
+        offset = (page - 1) * page_size
+
+        async with UnitOfWork() as uow:
+            repo = AgentService._ar(uow)
+            total = await repo.count_profiles(exclude_ids=hidden_ids)
+            profiles = await repo.list_profiles(offset=offset, limit=page_size, exclude_ids=hidden_ids)
+
+            return profiles, total
+
+    @staticmethod
+    async def get_agent_by_id(agent_id: str) -> AgentProfile | None:
+        """根据 ID 获取智能体详情"""
+        async with UnitOfWork() as uow:
+            return await AgentService._ar(uow).get_profile(agent_id)
+
+    @staticmethod
+    async def get_agents_by_name(name: str) -> list[AgentProfile]:
+        """根据名称获取智能体列表（不区分大小写，结果稳定排序）"""
+        normalized_name = _normalize_agent_name(name)
+        if not normalized_name:
+            return []
+        async with UnitOfWork() as uow:
+            profiles = await AgentService._ar(uow).list_profiles()
+        matches = [p for p in profiles if p.display_name and _normalize_agent_name(p.display_name) == normalized_name]
+        matches.sort(key=_agent_name_match_sort_key)
+        return matches
+
+    @staticmethod
+    async def get_agent_by_name(name: str) -> AgentProfile | None:
+        """根据名称获取智能体（不区分大小写，稳定返回首个候选）"""
+        matches = await AgentService.get_agents_by_name(name)
+        return matches[0] if matches else None
+
+    @staticmethod
+    async def resolve_agent(agent_id_or_name: str) -> AgentProfile | None:
+        """按 ID 或名称解析智能体（ID 优先）"""
+        agent = await AgentService.get_agent_by_id(agent_id_or_name)
+        if agent:
+            return agent
+        return await AgentService.get_agent_by_name(agent_id_or_name)
+
+    @staticmethod
+    async def create_agent(agent_data: AgentCreate) -> AgentProfile:
+        """创建智能体"""
+        import uuid
+
+        from app.services.agent.external_cli_gate import (
+            assert_external_cli_tools_allowed,
+        )
+
+        await assert_external_cli_tools_allowed(agent_data.enabled_builtin_tools)
+
+        from app.services.agent.skill_instance_resolver import (
+            serialize_agent_skill_configs,
+            validate_agent_skill_config_instances,
+        )
+
+        await validate_agent_skill_config_instances(skill_configs=agent_data.skill_configs)
+        serialized_skill_configs = serialize_agent_skill_configs(agent_data.skill_configs)
+
+        agent_id = str(uuid.uuid4())
+
+        metadata: dict[str, object] = {
+            "mcp_ids": agent_data.mcp_ids,
+            "mcp_tool_selections": agent_data.mcp_tool_selections,
+            "enabled_builtin_tools": agent_data.enabled_builtin_tools,
+            "auto_restore_domains": list(agent_data.auto_restore_domains or []),
+            "suggestion_prompts": agent_data.suggestion_prompts,
+            "home_directory": agent_data.home_directory,
+            "security_overrides": agent_data.security_overrides,
+            "default_security_preset": agent_data.default_security_preset,
+            "required_capabilities": agent_data.required_capabilities,
+            "prompt_mode": agent_data.prompt_mode,
+            "personality_style": agent_data.personality_style,
+            "allow_discovery": agent_data.allow_discovery,
+            "subagent_ids": agent_data.subagent_ids,
+            "workspace_policy": agent_data.workspace_policy,
+            "engine_params": agent_data.engine_params,
+            "openapi_services": agent_data.openapi_services or [],
+            "agent_type": agent_data.agent_type,
+            "session_policy": (agent_data.session_policy.model_dump(mode="json") if agent_data.session_policy else None),
+            "notify_targets": agent_data.notify_targets,
+            "tool_gateway_config": (
+                agent_data.tool_gateway_config.model_dump(mode="json")
+                if getattr(agent_data, "tool_gateway_config", None)
+                else None
+            ),
+            "browser_source": agent_data.browser_source,
+            "dialog_policy": agent_data.dialog_policy,
+            "session_recording": agent_data.session_recording,
+            "busy_input_mode": agent_data.busy_input_mode,
+            "is_pareto_preset": agent_data.is_pareto_preset,
+            "cost_reduction_ratio": agent_data.cost_reduction_ratio,
+            "a2a_enabled": agent_data.a2a_enabled,
+            "a2a_trusted_peer_ids": agent_data.a2a_trusted_peer_ids,
+            "trusted_desktop_apps": agent_data.trusted_desktop_apps,
+            "responsibility_scope": agent_data.responsibility_scope,
+            "owner_label": agent_data.owner_label,
+            "acceptance_criteria": list(agent_data.acceptance_criteria or []),
+        }
+
+        if agent_data.model_selection:
+            metadata["model_selection_full"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
+
+        profile = AgentProfile(
+            id=agent_id,
+            display_name=agent_data.name,
+            description=agent_data.description,
+            avatar=agent_data.avatar_url,
+            model=(agent_data.model_selection.model if agent_data.model_selection else None),
+            max_iterations=agent_data.max_iterations,
+            skills=agent_data.skill_ids,
+            skill_configs=serialized_skill_configs,
+            tools_allowed=agent_data.enabled_builtin_tools,
+            system_prompt=agent_data.system_prompt,
+            memory_policy=_memory_policy_from_request(agent_data.memory_policy),
+            command_bindings=_command_bindings_from_request(agent_data.command_bindings),
+            metadata=metadata,
+            built_in=agent_data.is_built_in,
+        )
+
+        async with UnitOfWork() as uow:
+            created_profile = await AgentService._ar(uow).create_profile(
+                profile,
+                cron_post_run_verify=agent_data.cron_post_run_verify,
+            )
+
+        _finalize_profile_mutation(created_profile.id, "created")
+
+        logger.info(f"✅ 创建智能体: {created_profile.id} (name={created_profile.display_name})")
+        return created_profile
+
+    @staticmethod
+    async def update_agent(agent_id: str, agent_data: AgentUpdate) -> AgentUpdateOutcome | None:
+        """更新智能体"""
+        if agent_data.enabled_builtin_tools is not None:
+            from app.services.agent.external_cli_gate import (
+                assert_external_cli_tools_allowed,
+            )
+
+            await assert_external_cli_tools_allowed(agent_data.enabled_builtin_tools)
+
+        if agent_data.skill_configs is not None:
+            from app.services.agent.skill_instance_resolver import (
+                serialize_agent_skill_configs,
+                validate_agent_skill_config_instances,
+            )
+
+            await validate_agent_skill_config_instances(skill_configs=agent_data.skill_configs)
+            serialized_skill_configs = serialize_agent_skill_configs(agent_data.skill_configs)
+        else:
+            serialized_skill_configs = None
+
+        snapshot_saved = True
+        subagent_binding_changed = False
+        async with UnitOfWork() as uow:
+            existing = await AgentService._ar(uow).get_profile(agent_id)
+            if not existing:
+                return None
+
+            updates: dict[str, object] = {}
+            new_metadata = dict(existing.metadata) if existing.metadata else {}
+            if agent_data.model_selection is not None:
+                updates["model"] = agent_data.model_selection.model
+                updates["model_selection"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
+                new_metadata["model_selection_full"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
+            if agent_data.name is not None:
+                updates["display_name"] = agent_data.name
+            if agent_data.description is not None:
+                updates["description"] = agent_data.description
+            if agent_data.avatar_url is not None:
+                updates["avatar"] = agent_data.avatar_url
+            if agent_data.skill_ids is not None:
+                updates["skills"] = agent_data.skill_ids
+            if serialized_skill_configs is not None:
+                updates["skill_configs"] = serialized_skill_configs
+            if agent_data.enabled_builtin_tools is not None:
+                updates["tools_allowed"] = agent_data.enabled_builtin_tools
+            if agent_data.is_built_in is not None and not existing.built_in:
+                updates["built_in"] = agent_data.is_built_in
+
+            if agent_data.system_prompt is not None and agent_data.system_prompt != HIDDEN_SYSTEM_PROMPT:
+                updates["system_prompt"] = agent_data.system_prompt
+            if "max_iterations" in agent_data.model_fields_set:
+                updates["max_iterations"] = agent_data.max_iterations
+            if "memory_policy" in agent_data.model_fields_set:
+                updates["memory_policy"] = _memory_policy_from_request(agent_data.memory_policy)
+            if "workspace_policy" in agent_data.model_fields_set and agent_data.workspace_policy is not None:
+                updates["workspace_policy"] = agent_data.workspace_policy
+            if agent_data.mcp_ids is not None:
+                new_metadata["mcp_ids"] = agent_data.mcp_ids
+            if agent_data.mcp_tool_selections is not None:
+                new_metadata["mcp_tool_selections"] = agent_data.mcp_tool_selections
+            if agent_data.enabled_builtin_tools is not None:
+                new_metadata["enabled_builtin_tools"] = agent_data.enabled_builtin_tools
+            if "home_directory" in agent_data.model_fields_set:
+                new_metadata["home_directory"] = agent_data.home_directory
+            if agent_data.security_overrides is not None:
+                new_metadata["security_overrides"] = agent_data.security_overrides
+            if "default_security_preset" in agent_data.model_fields_set:
+                new_metadata["default_security_preset"] = agent_data.default_security_preset
+            if agent_data.prompt_mode is not None:
+                new_metadata["prompt_mode"] = agent_data.prompt_mode
+            if agent_data.personality_style is not None:
+                new_metadata["personality_style"] = agent_data.personality_style
+            if "allow_discovery" in agent_data.model_fields_set:
+                new_metadata["allow_discovery"] = agent_data.allow_discovery
+            if agent_data.subagent_ids is not None:
+                existing_meta = existing.metadata or {}
+                previous_subagent_ids = list(new_metadata.get("subagent_ids") or existing_meta.get("subagent_ids") or [])
+                new_metadata["subagent_ids"] = agent_data.subagent_ids
+                subagent_binding_changed = sorted(previous_subagent_ids) != sorted(agent_data.subagent_ids)
+            else:
+                subagent_binding_changed = False
+            if "workspace_policy" in agent_data.model_fields_set:
+                new_metadata["workspace_policy"] = agent_data.workspace_policy
+            if "engine_params" in agent_data.model_fields_set:
+                new_metadata["engine_params"] = agent_data.engine_params
+            if "auto_restore_domains" in agent_data.model_fields_set:
+                new_metadata["auto_restore_domains"] = list(agent_data.auto_restore_domains or [])
+            if "suggestion_prompts" in agent_data.model_fields_set:
+                new_metadata["suggestion_prompts"] = agent_data.suggestion_prompts
+            if "openapi_services" in agent_data.model_fields_set:
+                new_metadata["openapi_services"] = agent_data.openapi_services or []
+            if agent_data.agent_type is not None:
+                new_metadata["agent_type"] = agent_data.agent_type
+            if "session_policy" in agent_data.model_fields_set:
+                new_metadata["session_policy"] = (
+                    agent_data.session_policy.model_dump(mode="json") if agent_data.session_policy else None
+                )
+            if "notify_targets" in agent_data.model_fields_set:
+                new_metadata["notify_targets"] = agent_data.notify_targets
+            if "tool_gateway_config" in agent_data.model_fields_set:
+                new_metadata["tool_gateway_config"] = (
+                    agent_data.tool_gateway_config.model_dump(mode="json")
+                    if getattr(agent_data, "tool_gateway_config", None)
+                    else None
+                )
+            if "browser_source" in agent_data.model_fields_set:
+                new_metadata["browser_source"] = agent_data.browser_source
+            if "dialog_policy" in agent_data.model_fields_set:
+                new_metadata["dialog_policy"] = agent_data.dialog_policy
+            if "session_recording" in agent_data.model_fields_set:
+                new_metadata["session_recording"] = agent_data.session_recording
+            if "is_pareto_preset" in agent_data.model_fields_set:
+                new_metadata["is_pareto_preset"] = agent_data.is_pareto_preset
+            if "cost_reduction_ratio" in agent_data.model_fields_set:
+                new_metadata["cost_reduction_ratio"] = agent_data.cost_reduction_ratio
+            if "busy_input_mode" in agent_data.model_fields_set:
+                new_metadata["busy_input_mode"] = agent_data.busy_input_mode
+            if "a2a_enabled" in agent_data.model_fields_set and agent_data.a2a_enabled is not None:
+                new_metadata["a2a_enabled"] = agent_data.a2a_enabled
+            if "a2a_trusted_peer_ids" in agent_data.model_fields_set and agent_data.a2a_trusted_peer_ids is not None:
+                new_metadata["a2a_trusted_peer_ids"] = list(agent_data.a2a_trusted_peer_ids)
+            if "responsibility_scope" in agent_data.model_fields_set:
+                raw_rs = agent_data.responsibility_scope
+                new_metadata["responsibility_scope"] = raw_rs.strip() or None if raw_rs else None
+            if "owner_label" in agent_data.model_fields_set:
+                raw_ol = agent_data.owner_label
+                new_metadata["owner_label"] = raw_ol.strip() or None if raw_ol else None
+            if "acceptance_criteria" in agent_data.model_fields_set:
+                raw_ac = [str(x).strip() for x in (agent_data.acceptance_criteria or [])]
+                new_metadata["acceptance_criteria"] = [x for x in raw_ac if x] or None
+            if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
+                updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
+            if "trusted_desktop_apps" in agent_data.model_fields_set and agent_data.trusted_desktop_apps is not None:
+                new_metadata["trusted_desktop_apps"] = agent_data.trusted_desktop_apps
+
+            updates["metadata"] = new_metadata
+
+            if "command_bindings" in agent_data.model_fields_set:
+                updates["command_bindings"] = _command_bindings_from_request(agent_data.command_bindings)
+
+            if not existing.built_in and has_mutable_diff(existing, updates):
+                try:
+                    saved_id = await ProfileSnapshotService.save_profile_snapshot(agent_id, reason="webui-update", uow=uow)
+                    snapshot_saved = saved_id is not None
+                except Exception as e:
+                    snapshot_saved = False
+                    logger.warning(
+                        "Failed to save profile snapshot before WebUI update for '%s': %s",
+                        agent_id,
+                        e,
+                    )
+
+            updated_profile = await AgentService._ar(uow).update_profile(agent_id, updates)
+            if updated_profile is None:
+                return None
+
+        _finalize_profile_mutation(agent_id, "updated")
+
+        if subagent_binding_changed:
+            try:
+                get_event_bus().publish(
+                    AppEvent(
+                        event_type=AppEventType.SUBAGENT_REBIND_REQUIRED,
+                        data={
+                            "agent_id": agent_id,
+                            "subagent_ids": list(agent_data.subagent_ids or []),
+                        },
+                    )
+                )
+            except Exception as e:
+                logger.warning("Failed to publish subagent rebind event for %s: %s", agent_id, e)
+
+        logger.info("Agent updated: %s", agent_id)
+        return AgentUpdateOutcome(profile=updated_profile, snapshot_saved=snapshot_saved)
+
+    @staticmethod
+    async def delete_agent(agent_id: str) -> bool:
+        """删除智能体 (含级联清理: 技能/渠道绑定/Kanban引用/Cron引用)
+
+        Raises:
+            PermissionError: If the agent is a built-in agent (cannot be deleted).
+        """
+        async with UnitOfWork() as uow:
+            existing = await AgentService._ar(uow).get_profile(agent_id)
+            if existing and existing.built_in:
+                raise PermissionError(f"Built-in agent '{agent_id}' cannot be deleted")
+            success = await AgentService._ar(uow).delete_profile(agent_id)
+
+        if success:
+            # 级联清理所有该 Agent 的专属技能 (Orphan Skill GC)
+            try:
+                from pathlib import Path
+
+                from myrm_agent_harness.agent.skills.evolution.db.store import (
+                    SkillStore,
+                )
+
+                from app.config.settings import settings
+
+                store = SkillStore(db_path=Path(settings.database.state_dir) / "skills.db")
+                deleted_count = await store.delete_skills_by_agent(agent_id)
+                if deleted_count > 0:
+                    logger.info(
+                        "Cascade deleted %d scoped skills for agent %s",
+                        deleted_count,
+                        agent_id,
+                    )
+                store.close()
+            except Exception as e:
+                logger.error("Failed to cascade delete skills for %s: %s", agent_id, e)
+
+            # 级联清理所有该 Agent 的渠道绑定
+            try:
+                from app.core.channel_bridge.topic_config import SqlTopicManager
+
+                manager = SqlTopicManager()
+                await manager.remove_agent_from_all_bindings(agent_id)
+            except Exception as e:
+                logger.error(f"Failed to cascade delete bindings for agent {agent_id}: {e}")
+
+            # 级联清理 Kanban 任务的 agent_id 引用
+            try:
+                from app.services.kanban import KanbanService
+
+                kanban_svc = KanbanService.get_instance()
+                cleared = await kanban_svc.clear_agent_references(agent_id)
+                if cleared:
+                    logger.info(
+                        "Cleared agent_id on %d kanban tasks for agent %s",
+                        cleared,
+                        agent_id,
+                    )
+            except Exception as e:
+                logger.error("Failed to clear kanban agent refs for %s: %s", agent_id, e)
+
+            # 级联清理 Cron Job 的 agent_id 引用（防止孤悬 Cron 以空配置运行）
+            try:
+                from sqlalchemy import update as sql_update
+
+                from app.database.connection import get_session
+                from app.database.models import CronJobModel
+
+                async with get_session() as session:
+                    result = await session.execute(
+                        sql_update(CronJobModel).where(CronJobModel.agent_id == agent_id).values(agent_id=None)
+                    )
+                    await session.commit()
+                    cron_cleared = result.rowcount or 0
+                if cron_cleared:
+                    logger.info(
+                        "Cleared agent_id on %d cron jobs for agent %s",
+                        cron_cleared,
+                        agent_id,
+                    )
+            except Exception as e:
+                logger.error("Failed to clear cron agent refs for %s: %s", agent_id, e)
+
+            _finalize_profile_mutation(agent_id, "deleted")
+            logger.info("Agent deleted: %s", agent_id)
+        return success
+
+    save_profile_snapshot = ProfileSnapshotService.save_profile_snapshot
+    count_profile_snapshots = ProfileSnapshotService.count_profile_snapshots
+    list_profile_snapshots = ProfileSnapshotService.list_profile_snapshots
+
+    @staticmethod
+    async def rollback_profile(agent_id: str) -> bool:
+        ok = await ProfileSnapshotService.rollback_profile(agent_id)
+        if ok:
+            _finalize_profile_mutation(agent_id, "rollback")
+        return ok
+
+    @staticmethod
+    async def rollback_profile_to_snapshot(agent_id: str, snapshot_id: str) -> bool:
+        ok = await ProfileSnapshotService.rollback_profile_to_snapshot(agent_id, snapshot_id)
+        if ok:
+            _finalize_profile_mutation(agent_id, "rollback")
+        return ok

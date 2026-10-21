@@ -1,0 +1,169 @@
+/**
+ * One-shot migration for unified provider identity (storage id ↔ LiteLLM routing).
+ *
+ * Rewrites persisted Provider bundle + personal media settings once on load/import.
+ * No runtime alias tables on the server — selections must resolve to concrete rows.
+ */
+
+import type {
+  CustomModelInfo,
+  DefaultModelConfig,
+  ModelSlot,
+  ProviderConfig,
+  RoutingConfig,
+  SingleModelSelection,
+} from './providerTypes';
+import {
+  getInitialDefaultModelConfig,
+  PROVIDER_TO_LITELLM_PREFIX,
+  resolveCustomProviderTypeInfo,
+} from './providerTypes';
+import type { ProvidersConfigValue } from '@/services/config/types';
+import type { PersonalSettingsConfigValue, VideoGenerationConfig } from '@/services/config/types';
+
+import legacyRemapJson from '@shared/config/provider_legacy_remap.json';
+
+/** Canonical remap — single source at `shared/config/provider_legacy_remap.json`. */
+const LEGACY_PROVIDER_ID_REMAP: Readonly<Record<string, string>> = legacyRemapJson as Record<string, string>;
+
+export function remapLegacyProviderId(providerId: string): string {
+  if (!providerId) {
+    return providerId;
+  }
+  const trimmed = providerId.trim();
+  const slug = trimmed.replace(/-/g, '_').toLowerCase();
+  return LEGACY_PROVIDER_ID_REMAP[slug] ?? trimmed;
+}
+
+export function deriveRoutingProfile(provider: ProviderConfig): string {
+  if (provider.routingProfile && provider.routingProfile.length > 0) {
+    return provider.routingProfile;
+  }
+  const typeInfo = resolveCustomProviderTypeInfo(provider.providerType);
+  if (typeInfo) {
+    return typeInfo.litellmPrefix;
+  }
+  return PROVIDER_TO_LITELLM_PREFIX[provider.id] ?? provider.id;
+}
+
+function migrateSelection(sel: SingleModelSelection | null): SingleModelSelection | null {
+  if (!sel) {
+    return null;
+  }
+  const nextId = remapLegacyProviderId(sel.providerId);
+  return nextId === sel.providerId ? sel : { ...sel, providerId: nextId };
+}
+
+function migrateModelSlot(slot: ModelSlot | null | undefined): ModelSlot | null {
+  if (!slot) {
+    return null;
+  }
+  return {
+    ...slot,
+    primary: migrateSelection(slot.primary),
+    fallback: migrateSelection(slot.fallback),
+  };
+}
+
+function migrateRouting(cfg: RoutingConfig | null): RoutingConfig | null {
+  if (!cfg) {
+    return null;
+  }
+  return {
+    enabled: cfg.enabled,
+    lightModel: migrateModelSlot(cfg.lightModel) ?? cfg.lightModel,
+    reasoningModel: migrateModelSlot(cfg.reasoningModel) ?? cfg.reasoningModel,
+  };
+}
+
+function migrateVisionFallbackModel(value: SingleModelSelection | ModelSlot | null | undefined): ModelSlot | null {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === 'object' && ('primary' in value || 'fallback' in value)) {
+    return migrateModelSlot(value as ModelSlot);
+  }
+  const primary = migrateSelection(value as SingleModelSelection);
+  return primary ? { primary, fallback: null } : null;
+}
+
+export function migrateDefaultModelConfig(config: DefaultModelConfig): DefaultModelConfig {
+  return {
+    ...config,
+    baseModel: migrateModelSlot(config.baseModel) ?? config.baseModel,
+    liteModel: migrateModelSlot(config.liteModel) ?? config.liteModel,
+    fastModeModel: config.fastModeModel ? migrateModelSlot(config.fastModeModel) : null,
+    routingConfig: migrateRouting(config.routingConfig),
+    visionFallbackModel: migrateVisionFallbackModel(config.visionFallbackModel),
+    videoFallbackModel: migrateVisionFallbackModel(config.videoFallbackModel),
+    codeModel: config.codeModel ? migrateModelSlot(config.codeModel) : null,
+    longDocModel: config.longDocModel ? migrateModelSlot(config.longDocModel) : null,
+    backgroundEvolutionModel: config.backgroundEvolutionModel
+      ? migrateModelSlot(config.backgroundEvolutionModel)
+      : null,
+  };
+}
+
+function migrateProviders(providers: readonly ProviderConfig[]): ProviderConfig[] {
+  return providers.map((raw) => {
+    const base = raw as ProviderConfig;
+    const nextId = remapLegacyProviderId(base.id);
+    const routingProfile = deriveRoutingProfile({ ...base, id: nextId });
+    return { ...base, id: nextId, routingProfile };
+  });
+}
+
+function migrateCustomModelInfo(info: Record<string, CustomModelInfo>): Record<string, CustomModelInfo> {
+  const next: Record<string, CustomModelInfo> = {};
+  for (const [key, meta] of Object.entries(info)) {
+    const slash = key.indexOf('/');
+    if (slash <= 0) {
+      next[key] = meta;
+      continue;
+    }
+    const pid = key.slice(0, slash);
+    const rest = key.slice(slash);
+    const mappedPid = remapLegacyProviderId(pid);
+    next[`${mappedPid}${rest}`] = meta;
+  }
+  return next;
+}
+
+function migrateVideoGeneration(cfg: VideoGenerationConfig | undefined): VideoGenerationConfig | undefined {
+  if (!cfg) {
+    return cfg;
+  }
+  const mapPid = (s: string) => remapLegacyProviderId(s);
+  const provider = mapPid(cfg.provider) as VideoGenerationConfig['provider'];
+  const fallbackProviders = (cfg.fallbackProviders ?? []).map((fb) => ({
+    ...fb,
+    provider: mapPid(String(fb.provider)),
+  }));
+  return { ...cfg, provider, fallbackProviders };
+}
+
+/** Migrate persisted providers bundle (SQLite / Postgres / export JSON). */
+export function migrateProvidersBundle(input: {
+  providers?: readonly ProviderConfig[];
+  defaultModelConfig?: DefaultModelConfig;
+  customModelInfo?: Record<string, CustomModelInfo>;
+}): ProvidersConfigValue {
+  const mergedDefault: DefaultModelConfig = {
+    ...getInitialDefaultModelConfig(),
+    ...input.defaultModelConfig,
+  };
+  return {
+    providers: migrateProviders(input.providers ?? []),
+    defaultModelConfig: migrateDefaultModelConfig(mergedDefault),
+    customModelInfo: migrateCustomModelInfo(input.customModelInfo ?? {}),
+  };
+}
+
+/** Migrate media-related fields inside personal settings (video provider enums). */
+export function migratePersonalSettingsMedia(settings: PersonalSettingsConfigValue): PersonalSettingsConfigValue {
+  const videoGeneration = migrateVideoGeneration(settings.videoGeneration);
+  return {
+    ...settings,
+    ...(videoGeneration !== undefined ? { videoGeneration } : {}),
+  };
+}

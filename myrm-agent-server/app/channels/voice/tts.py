@@ -1,0 +1,523 @@
+"""Text-to-Speech synthesis for outbound Agent replies.
+
+Supports multiple providers with automatic fallback to Edge TTS or Piper when available:
+  1. OpenAI (gpt-4o-mini-tts)
+  2. ElevenLabs (eleven_multilingual_v2)
+  3. Fish Audio (s1 model, 2M+ community voices)
+  4. MiniMax (speech-2.8-hd, cost-effective Asian language support)
+  5. Edge TTS (Microsoft Neural, free, no API key)
+  6. Piper (local offline CPU ONNX neural TTS, zero-API)
+  7. Voicebox (local/remote loopback voice service)
+
+[INPUT]
+- channels.types::VoiceConfig, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+
+[OUTPUT]
+- synthesize(): Text -> audio file path (Path)
+- synthesize_stream(): Text -> AsyncGenerator[bytes] (streaming audio)
+- is_edge_tts_available(): Whether optional Edge TTS (voice-tts extra) is installed
+- is_piper_available(): Whether optional local Piper TTS is installed
+- is_local_tts_available(): Whether any fully offline local TTS provider is available
+
+[POS]
+Outbound text-to-speech. Called by Router based on TTSMode when sending Agent replies.
+Synthesizes text to audio and sends via MediaAttachment(AUDIO).
+Telegram uses Opus format (voice bubble); other platforms use default format. MP3。
+Web playback uses synthesize_stream() for streaming。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import tempfile
+from collections.abc import AsyncGenerator
+from pathlib import Path
+from types import ModuleType
+
+import httpx
+
+from app.channels.types import VoiceConfig
+from app.core.utils.chat_utils import extract_litellm_answer_text
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_BASE_URLS: dict[str, str] = {
+    "openai": "https://api.openai.com/v1",
+    "elevenlabs": "https://api.elevenlabs.io",
+    "fish_audio": "https://api.fish.audio/v1",
+    "minimax": "https://api.minimax.io/v1",
+    "voicebox": "http://127.0.0.1:8000",
+}
+
+_DEFAULT_VOICES: dict[str, str] = {
+    "openai": "alloy",
+    "elevenlabs": "21m00Tcm4TlvDq8ikWAM",
+    "fish_audio": "7f92f8afb8ec43bf81429cc1c9199cb1",
+    "minimax": "English_expressive_narrator",
+    "edge": "en-US-MichelleNeural",
+    "piper": "en_US-lessac-medium",
+    "voicebox": "default",
+}
+
+
+def _resolve_base_url(config: VoiceConfig, provider: str) -> str:
+    """Resolve the API base URL: config override (OpenAI & Voicebox) > provider default."""
+    if provider in ("openai", "voicebox") and config.tts_base_url:
+        return config.tts_base_url.rstrip("/")
+    return _DEFAULT_BASE_URLS.get(provider, "")
+
+
+_MIN_TEXT_LENGTH = 10
+_TTS_TIMEOUT = 30.0
+_STREAM_CHUNK_SIZE = 4096
+_EDGE_TTS_INSTALL_HINT = "uv sync --extra voice-tts"
+EDGE_TTS_INSTALL_HINT = _EDGE_TTS_INSTALL_HINT
+
+
+_PIPER_INSTALL_HINT = "uv sync --extra voice-tts-local"
+PIPER_INSTALL_HINT = _PIPER_INSTALL_HINT
+
+
+def is_piper_available() -> bool:
+    """Return whether the optional local Piper TTS engine is installed."""
+    try:
+        import piper  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def is_local_tts_available() -> bool:
+    """Return whether any fully offline local TTS provider (Piper) is available."""
+    return is_piper_available()
+
+
+def is_edge_tts_available() -> bool:
+    """Return whether the optional Edge TTS (GPL-3.0) package is installed."""
+    try:
+        import edge_tts  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def _import_edge_tts() -> ModuleType:
+    """Import edge_tts or raise with an install hint."""
+    try:
+        import edge_tts
+    except ImportError as exc:
+        raise ImportError(f"edge-tts is not installed. Install with: {_EDGE_TTS_INSTALL_HINT}") from exc
+    return edge_tts
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+async def synthesize(
+    text: str,
+    config: VoiceConfig,
+    *,
+    output_format: str = "mp3",
+) -> Path | None:
+    """Synthesize text to an audio file. Falls back to Edge TTS on failure."""
+    if len(text) < _MIN_TEXT_LENGTH:
+        logger.warning("TTS: text too short (%d chars), skipping", len(text))
+        return None
+
+    if len(text) > config.tts_max_length:
+        logger.warning("TTS: text too long (%d > %d chars), skipping", len(text), config.tts_max_length)
+        return None
+
+    if config.tts_summary_enabled and len(text) > config.tts_summary_threshold:
+        summarized = await _summarize_for_tts(text, config)
+        if summarized:
+            text = summarized
+
+    provider = config.tts_provider.lower()
+    try:
+        if provider == "edge":
+            return await _synthesize_edge(text, config)
+        return await _synthesize_api(text, config, provider, output_format)
+    except ImportError:
+        logger.warning("TTS: edge-tts not installed (%s)", _EDGE_TTS_INSTALL_HINT)
+        return None
+    except Exception:
+        logger.exception("TTS: primary provider '%s' failed", provider)
+
+    if provider != "edge":
+        if not is_edge_tts_available():
+            logger.warning(
+                "TTS: Edge TTS fallback unavailable (install voice-tts extra: %s)",
+                _EDGE_TTS_INSTALL_HINT,
+            )
+        else:
+            try:
+                logger.warning("TTS: falling back to Edge TTS (free)")
+                return await _synthesize_edge(text, config)
+            except Exception:
+                logger.exception("TTS: Edge TTS fallback also failed")
+    return None
+
+
+async def synthesize_stream(
+    text: str,
+    config: VoiceConfig,
+) -> AsyncGenerator[bytes]:
+    """Stream-synthesize text to MP3 audio chunks. Falls back to Edge TTS."""
+    if len(text) < _MIN_TEXT_LENGTH:
+        logger.warning("TTS stream: text too short (%d chars), skipping", len(text))
+        return
+
+    provider = config.tts_provider.lower()
+    stream_fn = _STREAM_PROVIDERS.get(provider)
+
+    if stream_fn:
+        try:
+            async for chunk in stream_fn(text, config):
+                yield chunk
+            return
+        except ImportError:
+            logger.warning("TTS stream: edge-tts not installed (%s)", _EDGE_TTS_INSTALL_HINT)
+            return
+        except Exception:
+            logger.exception("TTS stream: provider '%s' failed, falling back", provider)
+
+    if provider != "edge":
+        if is_edge_tts_available():
+            try:
+                async for chunk in _stream_edge(text, config):
+                    yield chunk
+                return
+            except Exception:
+                logger.exception("TTS stream: edge fallback also failed")
+        else:
+            logger.warning(
+                "TTS stream: Edge TTS fallback unavailable (install voice-tts extra: %s)",
+                _EDGE_TTS_INSTALL_HINT,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Request builders (shared between streaming and non-streaming)
+# ---------------------------------------------------------------------------
+
+
+def _openai_request(config: VoiceConfig, text: str, fmt: str):
+    voice = config.tts_voice or _DEFAULT_VOICES["openai"]
+    base = _resolve_base_url(config, "openai")
+    url = f"{base}/audio/speech"
+    headers = {"Authorization": f"Bearer {config.tts_api_key}", "Content-Type": "application/json"}
+    body: dict[str, object] = {"model": "gpt-4o-mini-tts", "input": text, "voice": voice, "response_format": fmt}
+    if config.tts_speed != 1.0:
+        body["speed"] = config.tts_speed
+    return url, headers, body
+
+
+def _elevenlabs_request(config: VoiceConfig, text: str, stream: bool):
+    voice_id = config.tts_voice or _DEFAULT_VOICES["elevenlabs"]
+    base_url = _resolve_base_url(config, "elevenlabs")
+    endpoint = f"{base_url}/v1/text-to-speech/{voice_id}"
+    url = f"{endpoint}/stream" if stream else endpoint
+    headers = {"xi-api-key": config.tts_api_key, "Content-Type": "application/json", "Accept": "audio/mpeg"}
+    params = {"output_format": "mp3_44100_128"}
+    body = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75, "style": 0.0, "use_speaker_boost": True},
+    }
+    return url, headers, params, body
+
+
+def _fish_audio_request(config: VoiceConfig, text: str, fmt: str):
+    voice_id = config.tts_voice or _DEFAULT_VOICES["fish_audio"]
+    base = _resolve_base_url(config, "fish_audio")
+    url = f"{base}/tts"
+    headers = {"Authorization": f"Bearer {config.tts_api_key}", "model": "s1"}
+    body = {"text": text, "reference_id": voice_id, "format": fmt, "latency": "normal"}
+    return url, headers, body
+
+
+def _minimax_request(config: VoiceConfig, text: str, *, stream: bool):
+    voice_id = config.tts_voice or _DEFAULT_VOICES["minimax"]
+    base = _resolve_base_url(config, "minimax")
+    url = f"{base}/t2a_v2"
+    headers = {"Authorization": f"Bearer {config.tts_api_key}", "Content-Type": "application/json"}
+    body = {
+        "model": "speech-2.8-hd",
+        "text": text,
+        "stream": stream,
+        "language_boost": "auto",
+        "voice_setting": {"voice_id": voice_id, "speed": config.tts_speed, "vol": 1.0, "pitch": config.tts_pitch},
+        "audio_setting": {"sample_rate": 32000, "bitrate": 128000, "format": "mp3", "channel": 1},
+    }
+    return url, headers, body
+
+
+# ---------------------------------------------------------------------------
+# Non-streaming provider implementations
+# ---------------------------------------------------------------------------
+
+
+async def _synthesize_api(text: str, config: VoiceConfig, provider: str, output_format: str) -> Path:
+    """Unified non-streaming synthesis for API-based providers."""
+    fmt = "opus" if output_format == "opus" else "mp3"
+
+    if provider == "openai":
+        url, headers, body = _openai_request(config, text, fmt)
+        async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+            resp = await client.post(url, headers=headers, json=body)
+            resp.raise_for_status()
+            return _write_temp(resp.content, f".{fmt}")
+
+    if provider == "elevenlabs":
+        url, headers, params, body = _elevenlabs_request(config, text, stream=False)
+        async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+            resp = await client.post(url, headers=headers, params=params, json=body)
+            resp.raise_for_status()
+            return _write_temp(resp.content, ".mp3")
+
+    if provider == "fish_audio":
+        url, headers, body = _fish_audio_request(config, text, fmt)
+        async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+            resp = await client.post(url, headers=headers, json=body)
+            resp.raise_for_status()
+            return _write_temp(resp.content, f".{fmt}")
+
+    if provider == "minimax":
+        url, headers, body = _minimax_request(config, text, stream=False)
+        async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+            resp = await client.post(url, headers=headers, json=body)
+            resp.raise_for_status()
+            data = resp.json()
+
+        base_resp = data.get("base_resp", {})
+        if base_resp.get("status_code", 0) != 0:
+            raise ValueError(f"MiniMax TTS error: {base_resp.get('status_msg', 'unknown')}")
+        audio_hex = data.get("data", {}).get("audio", "")
+        if not audio_hex:
+            raise ValueError("MiniMax TTS returned empty audio")
+        return _write_temp(bytes.fromhex(audio_hex), ".mp3")
+
+    if provider == "voicebox":
+        base_url = _resolve_base_url(config, "voicebox")
+        url = f"{base_url}/tts"
+        body = {
+            "text": text,
+            "voice": config.tts_voice or _DEFAULT_VOICES["voicebox"],
+            "speed": config.tts_speed,
+        }
+        async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+            resp = await client.post(url, json=body)
+            resp.raise_for_status()
+            return _write_temp(resp.content, ".mp3")
+
+    if provider == "piper":
+        return await _synthesize_piper(text, config)
+
+    logger.warning("TTS: unknown provider '%s', falling back to edge", provider)
+    raise ValueError(f"Unknown provider: {provider}")
+
+
+async def _synthesize_piper(text: str, config: VoiceConfig) -> Path:
+    """Synthesize text using local Piper TTS."""
+    if not is_piper_available():
+        raise ImportError(f"piper is not installed. Install with: {_PIPER_INSTALL_HINT}")
+
+    import piper
+
+    voice_name = config.tts_voice or _DEFAULT_VOICES["piper"]
+    tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    tmp.close()
+    output_path = Path(tmp.name)
+
+    voice = piper.PiperVoice.load(voice_name)
+    with open(output_path, "wb") as f:
+        voice.synthesize(text, f)
+
+    file_size = output_path.stat().st_size
+    if file_size < 100:
+        output_path.unlink(missing_ok=True)
+        raise ValueError("Piper TTS produced empty audio")
+
+    logger.warning("TTS: piper ok (voice=%s, bytes=%d)", voice_name, file_size)
+    return output_path
+
+
+async def _synthesize_edge(text: str, config: VoiceConfig) -> Path:
+    edge_tts = _import_edge_tts()
+
+    voice = config.tts_voice or _DEFAULT_VOICES["edge"]
+    tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+    tmp.close()
+    output_path = Path(tmp.name)
+
+    rate = f"{(config.tts_speed - 1.0) * 100:+.0f}%" if config.tts_speed != 1.0 else "+0%"
+    pitch = f"{config.tts_pitch:+.0f}Hz" if config.tts_pitch != 0.0 else "+0Hz"
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    await communicate.save(str(output_path))
+
+    file_size = output_path.stat().st_size
+    if file_size < 100:
+        output_path.unlink(missing_ok=True)
+        raise ValueError("Edge TTS produced empty audio")
+
+    logger.warning("TTS: edge ok (voice=%s, bytes=%d)", voice, file_size)
+    return output_path
+
+
+# ---------------------------------------------------------------------------
+# Streaming provider implementations
+# ---------------------------------------------------------------------------
+
+
+async def _stream_openai(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    url, headers, body = _openai_request(config, text, "mp3")
+    async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+        async with client.stream("POST", url, headers=headers, json=body) as resp:
+            resp.raise_for_status()
+            async for chunk in resp.aiter_bytes(_STREAM_CHUNK_SIZE):
+                yield chunk
+
+
+async def _stream_elevenlabs(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    url, headers, params, body = _elevenlabs_request(config, text, stream=True)
+    async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+        async with client.stream("POST", url, headers=headers, params=params, json=body) as resp:
+            resp.raise_for_status()
+            async for chunk in resp.aiter_bytes(_STREAM_CHUNK_SIZE):
+                yield chunk
+
+
+async def _stream_fish_audio(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    url, headers, body = _fish_audio_request(config, text, "mp3")
+    async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+        async with client.stream("POST", url, headers=headers, json=body) as resp:
+            resp.raise_for_status()
+            async for chunk in resp.aiter_bytes(_STREAM_CHUNK_SIZE):
+                yield chunk
+
+
+async def _stream_minimax(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    """MiniMax streaming returns SSE with hex-encoded audio in each event."""
+    url, headers, body = _minimax_request(config, text, stream=True)
+    async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+        async with client.stream("POST", url, headers=headers, json=body) as resp:
+            resp.raise_for_status()
+            buffer = ""
+            async for raw in resp.aiter_text():
+                buffer += raw
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    line = line.strip()
+                    if not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if payload == "[DONE]":
+                        return
+                    try:
+                        data = json.loads(payload)
+                    except json.JSONDecodeError:
+                        continue
+                    audio_hex = data.get("data", {}).get("audio", "")
+                    if audio_hex:
+                        yield bytes.fromhex(audio_hex)
+
+
+async def _stream_edge(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    edge_tts = _import_edge_tts()
+
+    voice = config.tts_voice or _DEFAULT_VOICES["edge"]
+    rate = f"{(config.tts_speed - 1.0) * 100:+.0f}%" if config.tts_speed != 1.0 else "+0%"
+    pitch = f"{config.tts_pitch:+.0f}Hz" if config.tts_pitch != 0.0 else "+0Hz"
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    async for event in communicate.stream():
+        if event["type"] == "audio":
+            yield event["data"]
+
+
+async def _stream_voicebox(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    base_url = _resolve_base_url(config, "voicebox")
+    url = f"{base_url}/tts/stream"
+    body = {
+        "text": text,
+        "voice": config.tts_voice or _DEFAULT_VOICES["voicebox"],
+        "speed": config.tts_speed,
+    }
+    async with httpx.AsyncClient(timeout=_TTS_TIMEOUT) as client:
+        async with client.stream("POST", url, json=body) as resp:
+            resp.raise_for_status()
+            async for chunk in resp.aiter_bytes(_STREAM_CHUNK_SIZE):
+                yield chunk
+
+
+async def _stream_piper(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
+    """Stream Piper TTS synthesis chunks."""
+    if not is_piper_available():
+        raise ImportError(f"piper is not installed. Install with: {_PIPER_INSTALL_HINT}")
+
+    import piper
+
+    voice_name = config.tts_voice or _DEFAULT_VOICES["piper"]
+    voice = piper.PiperVoice.load(voice_name)
+    for chunk in voice.synthesize_stream_raw(text):
+        yield chunk
+
+
+_STREAM_PROVIDERS = {
+    "openai": _stream_openai,
+    "elevenlabs": _stream_elevenlabs,
+    "fish_audio": _stream_fish_audio,
+    "minimax": _stream_minimax,
+    "edge": _stream_edge,
+    "voicebox": _stream_voicebox,
+    "piper": _stream_piper,
+}
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _write_temp(data: bytes, suffix: str) -> Path:
+    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    tmp.write(data)
+    tmp.close()
+    return Path(tmp.name)
+
+
+_SUMMARY_PROMPT = (
+    "Summarize the following text for audio playback. "
+    "Keep key information, be concise, and stay under 300 words. "
+    "Output the summary directly without any preamble.\n\n"
+)
+
+_SUMMARY_TIMEOUT = 15.0
+
+
+async def _summarize_for_tts(text: str, config: VoiceConfig) -> str | None:
+    """Summarize long text using LLM before TTS synthesis."""
+    try:
+        from litellm import acompletion
+
+        model = config.tts_summary_model or "gpt-4o-mini"
+        resp = await acompletion(
+            model=model,
+            messages=[{"role": "user", "content": f"{_SUMMARY_PROMPT}{text}"}],
+            max_tokens=500,
+            temperature=0.3,
+            timeout=_SUMMARY_TIMEOUT,
+        )
+        summary = extract_litellm_answer_text(resp).strip()
+        if not summary:
+            return None
+
+        logger.warning("TTS: summarized %d → %d chars (model=%s)", len(text), len(summary), model)
+        return summary
+    except Exception:
+        logger.exception("TTS: summarization failed, using original text")
+        return None

@@ -1,0 +1,34 @@
+# infra 服务模块
+
+
+---
+
+## 架构概述
+
+系统级基础设施服务。提供聊天工作空间清理、系统休眠抑制、系统通知持久化与云沙箱 Python 环境的延迟重置。
+
+---
+
+## 文件清单
+
+| 文件 | 地位 | 职责 |
+|------|------|------|
+| `sandbox_cleanup.py` | ✅ 核心 | 删除聊天时的工作空间清理：聊天对应的本地工作空间目录 + ArtifactVault 中该任务的临时产物（返回每项清理是否成功）；`cleanup_chat_workspaces` 一次处理多个聊天，共享金库只扫描一次（逐个清理的开销随 聊天数 × 金库对象数 增长）；金库清理是阻塞的文件遍历与删除，放在工作线程执行（5000 个对象实测事件循环最长停顿 1937 ms → 16 ms） |
+| `sleep_inhibitor.py` | ✅ 核心 | 系统休眠抑制 — 任务运行期间阻止系统进入空闲休眠。引用计数、跨平台 (IOKit/systemd-inhibit/SetThreadExecutionState)、仅 local 模式激活。支持 `prevent_display_sleep` 参数控制显示器保持唤醒（CU 场景需要屏幕持续亮起）；显示器需求独立计数，普通 hold 先占位时后到的 CU 需求仍会升级为常亮 |
+| `system_notification.py` | ✅ 核心 | 系统通知持久化服务。支持独立会话写入，也支持复用调用方 `AsyncSession`（避免 SQLite 下嵌套会话锁冲突）。 |
+| `python_env_reset.py` | ✅ 核心 | 云沙箱「重置环境」的 Python 环境延迟重置：运行中的进程缓存着解释器路径，存活时删除会让智能体命令指向不存在的解释器，因此请求只写标记（`locks/python-env-reset`，属实例备份排除的 runtime 目录，不会随备份迁移），下一次进程启动时在所有启动阶段之前消费并调用 harness `discard_shared_venv`。标记超过 600 秒视为未完成的旧请求，丢弃且不清环境；无论清理成败标记都会删除，失败不重试；控制平面拒绝换容器时由路由撤回标记；仍有效的标记（属于已被受理、正在进行的换容器）不会被重复请求认领，因此只有写下标记的那次调用才能撤回它 |
+
+---
+
+## 依赖关系
+
+### 内部依赖
+- `myrm_agent_harness/`：工作空间服务、ArtifactVault 与共享 Python 环境重置（`api.hooks.discard_shared_venv`）
+- `app/config/deploy_mode`：`sleep_inhibitor` 检查部署模式
+
+### 被依赖方
+- `app/services/chat/`：删除聊天时调用沙箱清理
+- `app/ai_agents/general_agent/stream_pipeline.py`：`execute_stream_pipeline` 中使用 `SleepInhibitor.hold(prevent_display_sleep=…)`——运行挂载了桌面会话时同时保持显示器常亮，避免空闲熄屏锁住屏幕、打断 CU 任务
+- `app/api/statistics/wiki_evidence.py`：治理告警写入系统通知
+- `app/api/system/sandbox_recreate.py`：重置环境请求写入/撤回 Python 环境重置标记
+- `app/server/lifespan.py`：启动最前置消费重置标记

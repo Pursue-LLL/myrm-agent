@@ -1,0 +1,399 @@
+'use client';
+
+/**
+ * [INPUT]
+ * - @/lib/api::apiRequest (POS: 前端统一请求入口)
+ * - @/lib/utils/toast::toast (POS: 全局 toast 通知)
+ * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
+ * - @/lib/desktop/desktopPermissionsStatus (POS: permissions API FE 契约)
+ * - ./DesktopPermissionsRows (POS: 桌面权限卡片子组件视图行)
+ * - @/lib/desktop/desktopLockedUseDoctor (POS: DesktopLockedUse doctor 解析)
+ * - @/services/runtime-health::getRuntimeDoctor (POS: /health/doctor)
+ *
+ * [OUTPUT]
+ * - DesktopPermissionsCard: 桌面自动化就绪检测卡片；OS 授权 + 功能捕获探针三态 + 始终信任应用列表
+ *
+ * [POS]
+ * 系统设置中的环境诊断卡片。仅本地/Tauri 模式渲染；`GET /webui/desktop/permissions` + `GET/DELETE /webui/desktop/trust/apps`。
+ */
+
+import { memo, useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { MonitorCheck, CheckCircle2, XCircle, CircleDashed, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils/classnameUtils';
+import { apiRequest } from '@/lib/api';
+import { toast } from '@/lib/utils/toast';
+import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
+import { openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
+import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
+import {
+  findDesktopLockedUseReport,
+  lockedUseDoctorNeedsSettingsLink,
+  resolveLockedUseDoctorBadgeKey,
+  resolveLockedUseDoctorDetailKey,
+  resolveLockedUseDoctorVisualTone,
+} from '@/lib/desktop/desktopLockedUseDoctor';
+import {
+  MYRM_LOCKED_USE_SETTINGS_ANCHOR,
+  scrollToDesktopSettingsAnchor,
+} from '@/lib/desktop/desktopSettingsAnchors';
+import { getRuntimeDoctor, type DoctorResponse } from '@/services/runtime-health';
+import { PermissionRow, CaptureProbeRow, ScreenLockRow, LockedUseDoctorRow, DeeplinkItem } from './DesktopPermissionsRows';
+
+type HeaderTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
+
+interface TrustedDesktopApp {
+  trust_key: string;
+  display_name: string;
+  app_id: string;
+  scope: string;
+}
+
+const DesktopPermissionsCardLocal = memo(() => {
+  const t = useTranslations('settings.desktopPermissions');
+  const [status, setStatus] = useState<DesktopPermissionsStatus | null>(null);
+  const [trustedApps, setTrustedApps] = useState<TrustedDesktopApp[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isTrustLoading, setIsTrustLoading] = useState(true);
+  const [revokingKey, setRevokingKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [trustError, setTrustError] = useState<string | null>(null);
+  const [doctor, setDoctor] = useState<DoctorResponse | null>(null);
+  const [isDoctorLoading, setIsDoctorLoading] = useState(true);
+
+  const fetchDoctor = useCallback(async () => {
+    setIsDoctorLoading(true);
+    try {
+      const data = await getRuntimeDoctor();
+      setDoctor(data);
+    } catch {
+      setDoctor(null);
+    } finally {
+      setIsDoctorLoading(false);
+    }
+  }, []);
+
+  const fetchPermissions = useCallback(async (probeCapture = false) => {
+    setIsLoading(true);
+    setError(null);
+    void fetchDoctor();
+    try {
+      const data = await apiRequest<DesktopPermissionsStatus>(desktopPermissionsPath(probeCapture), {
+        silent: true,
+      });
+      setStatus(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to check permissions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchDoctor]);
+
+  const fetchTrustedApps = useCallback(async () => {
+    setIsTrustLoading(true);
+    setTrustError(null);
+    try {
+      const data = await apiRequest<{ apps: TrustedDesktopApp[] }>('/webui/desktop/trust/apps', { silent: true });
+      setTrustedApps(Array.isArray(data.apps) ? data.apps : []);
+    } catch (err) {
+      setTrustError(err instanceof Error ? err.message : t('trustedAppsLoadFailed'));
+    } finally {
+      setIsTrustLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    void fetchPermissions();
+    void fetchTrustedApps();
+  }, [fetchPermissions, fetchTrustedApps]);
+
+  const handleRevokeTrustedApp = useCallback(
+    async (trustKey: string) => {
+      if (revokingKey) {
+        return;
+      }
+      setRevokingKey(trustKey);
+      try {
+        await apiRequest('/webui/desktop/trust/apps', {
+          method: 'DELETE',
+          body: JSON.stringify({ trust_key: trustKey }),
+        });
+        setTrustedApps((prev) => prev.filter((app) => app.trust_key !== trustKey));
+        toast.success(t('trustedAppsRevokeSuccess'));
+      } catch {
+        toast.error(t('trustedAppsRevokeFailed'));
+      } finally {
+        setRevokingKey(null);
+      }
+    },
+    [revokingKey, t],
+  );
+
+  const handleCopyCommand = useCallback(
+    (command: string) => {
+      void navigator.clipboard.writeText(command);
+      toast.success(t('copiedToClipboard'));
+    },
+    [t],
+  );
+
+  const handleOpenDeeplink = useCallback((url: string) => {
+    openPermissionDeepLink(url);
+  }, []);
+
+  const handleLockedUseFixLink = useCallback(() => {
+    scrollToDesktopSettingsAnchor(MYRM_LOCKED_USE_SETTINGS_ANCHOR);
+  }, []);
+
+  if (error) {
+    return (
+      <section className="space-y-6">
+        <div className="flex items-center gap-3 px-2">
+          <MonitorCheck className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
+        </div>
+        <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{t('checkFailed')}</p>
+            <button
+              onClick={() => void fetchPermissions(true)}
+              className="p-2 rounded-lg hover:bg-muted/50 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const grantsOk = status?.all_granted === true;
+  const capturable = status?.screen_recording_capturable;
+  const headerTone: HeaderTone | null = !status
+    ? null
+    : status.capture_ready
+      ? 'verified'
+      : grantsOk && (capturable === null || capturable === undefined)
+        ? 'unverified'
+        : grantsOk && capturable === false
+          ? 'capture_failed'
+          : 'missing';
+  const showFixHints =
+    Boolean(status) &&
+    Object.keys(status?.settings_deeplinks ?? {}).length > 0 &&
+    (status?.all_granted !== true || status?.screen_recording_capturable === false);
+
+  const lockedUseReport = findDesktopLockedUseReport(doctor);
+  const lockedUseDetailKey = resolveLockedUseDoctorDetailKey(lockedUseReport);
+  const lockedUseDetail = lockedUseDetailKey ? t(lockedUseDetailKey) : null;
+  const lockedUseTone = resolveLockedUseDoctorVisualTone(lockedUseReport, isDoctorLoading);
+  const lockedUseBadgeKey = resolveLockedUseDoctorBadgeKey(lockedUseReport, isDoctorLoading);
+  const lockedUseShowFixLink = lockedUseDoctorNeedsSettingsLink(lockedUseReport);
+
+  return (
+    <section className="space-y-6">
+      <div className="flex items-center gap-3 px-2">
+        <MonitorCheck className="w-5 h-5 text-muted-foreground" />
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
+      </div>
+
+      <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden divide-y divide-border/20">
+        {/* Header with overall status — capture_ready only for emerald "all ready". */}
+        <div className="p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {!status || isLoading ? (
+              <div className="p-2 rounded-lg bg-muted/50">
+                <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />
+              </div>
+            ) : headerTone === 'verified' ? (
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              </div>
+            ) : headerTone === 'unverified' ? (
+              <div className="p-2 rounded-lg bg-sky-500/10">
+                <CircleDashed className="w-4 h-4 text-sky-500" />
+              </div>
+            ) : (
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <XCircle className="w-4 h-4 text-amber-500" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {!status || isLoading
+                  ? t('checking')
+                  : headerTone === 'verified'
+                    ? t('allReady')
+                    : headerTone === 'unverified'
+                      ? t('grantsOkCaptureUnverified')
+                      : headerTone === 'capture_failed'
+                        ? t('captureFailed')
+                        : t('actionRequired')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {!status || isLoading
+                  ? ''
+                  : headerTone === 'unverified'
+                    ? t('captureUnverifiedHint')
+                    : headerTone === 'capture_failed'
+                      ? t('captureFailedHint')
+                      : t('platform', { name: status.platform })}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => void fetchPermissions(true)}
+            disabled={isLoading}
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors"
+            title={t('recheckWithCapture')}
+          >
+            <RefreshCw className={cn('w-4 h-4 text-muted-foreground', isLoading && 'animate-spin')} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3 bg-muted/20">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('setupGuideTitle')}</p>
+          <ol className="list-decimal list-inside space-y-2 text-xs text-muted-foreground leading-relaxed">
+            <li>{t('setupGuideStep1')}</li>
+            <li>{t('setupGuideStep2')}</li>
+            <li>{t('setupGuideStep3')}</li>
+            <li>{t('setupGuideStep4')}</li>
+          </ol>
+        </div>
+
+        {/* Accessibility check */}
+        <PermissionRow
+          label={t('accessibility')}
+          description={t('accessibilityDesc')}
+          granted={status?.accessibility ?? false}
+          isLoading={isLoading}
+          statusOkLabel={t('statusOk')}
+          statusMissingLabel={t('statusMissing')}
+        />
+
+        {/* Screen recording grant */}
+        <PermissionRow
+          label={t('screenRecording')}
+          description={t('screenRecordingDesc')}
+          granted={status?.screen_recording ?? false}
+          isLoading={isLoading}
+          statusOkLabel={t('statusOk')}
+          statusMissingLabel={t('statusMissing')}
+        />
+
+        {/* Functional capture probe (null = not verified yet) */}
+        <CaptureProbeRow
+          label={t('captureFunctional')}
+          description={t('captureFunctionalDesc')}
+          capturable={status?.screen_recording_capturable ?? null}
+          isLoading={isLoading}
+          statusOkLabel={t('statusOk')}
+          statusUnverifiedLabel={t('statusUnverified')}
+          statusMissingLabel={t('statusMissing')}
+        />
+
+        {/* Physical Screen Lock & Sleep Interruption Gate */}
+        {status?.screen_locked !== undefined && (
+          <ScreenLockRow
+            label={t('screenLockGuardLabel')}
+            description={t('screenLockGuardDesc')}
+            isLocked={status.screen_locked}
+            isLoading={isLoading}
+            statusLockedLabel={t('screenLockGuardLocked')}
+            statusUnlockedLabel={t('screenLockGuardUnlocked')}
+          />
+        )}
+
+        <LockedUseDoctorRow
+          label={t('lockedUseDoctorLabel')}
+          description={t('lockedUseDoctorDesc')}
+          detail={lockedUseDetail}
+          tone={lockedUseTone}
+          statusBadgeLabel={t(lockedUseBadgeKey)}
+          fixActionLabel={lockedUseShowFixLink ? t('lockedUseDoctorGoToSettings') : undefined}
+          onFixAction={lockedUseShowFixLink ? handleLockedUseFixLink : undefined}
+        />
+
+        {/* Deeplinks / repair hints */}
+        {showFixHints && (
+          <div className="p-5 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('fixHints')}</p>
+            {Object.entries(status?.settings_deeplinks ?? {}).map(([key, value]) => (
+              <DeeplinkItem
+                key={key}
+                label={key}
+                value={value}
+                onCopy={handleCopyCommand}
+                onOpen={handleOpenDeeplink}
+                openSettingsTitle={t('openSettings')}
+                copyCommandTitle={t('copyCommand')}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
+        <div className="p-5 space-y-1">
+          <p className="text-sm font-semibold text-foreground">{t('trustedAppsTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('trustedAppsDesc')}</p>
+        </div>
+        <div className="divide-y divide-border/20">
+          {isTrustLoading ? (
+            <div className="px-5 py-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              {t('checking')}
+            </div>
+          ) : trustError ? (
+            <div className="px-5 py-4 flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">{t('trustedAppsLoadFailed')}</p>
+              <button
+                type="button"
+                onClick={() => void fetchTrustedApps()}
+                className="p-2 rounded-lg hover:bg-muted/50 transition-colors shrink-0"
+                title={t('trustedAppsRetry')}
+              >
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+          ) : trustedApps.length === 0 ? (
+            <div className="px-5 py-4 text-sm text-muted-foreground">{t('trustedAppsEmpty')}</div>
+          ) : (
+            trustedApps.map((app) => (
+              <div key={app.trust_key} className="px-5 py-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{app.display_name}</p>
+                  {app.app_id ? <p className="text-xs text-muted-foreground font-mono truncate">{app.app_id}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  data-testid={`desktop-trust-revoke-${app.trust_key}`}
+                  disabled={revokingKey === app.trust_key}
+                  onClick={() => void handleRevokeTrustedApp(app.trust_key)}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted/50 transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {t('trustedAppsRevoke')}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+});
+
+DesktopPermissionsCardLocal.displayName = 'DesktopPermissionsCardLocal';
+
+const DesktopPermissionsCard = memo(() => {
+  // Loopback Chrome E2E / local WebUI must see this card even if a sandbox
+  // NEXT_PUBLIC_DEPLOY_MODE leaked into the FE process env (showsLocalIntegrationTabs SSOT).
+  if (!showsLocalIntegrationTabs()) {
+    return null;
+  }
+  return <DesktopPermissionsCardLocal />;
+});
+
+DesktopPermissionsCard.displayName = 'DesktopPermissionsCard';
+
+export default DesktopPermissionsCard;

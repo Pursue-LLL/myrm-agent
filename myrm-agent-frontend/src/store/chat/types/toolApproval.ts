@@ -1,0 +1,73 @@
+/**
+ * [INPUT]
+ * ./sessionConfig::ActionMode (POS: 会话级 Agent 与模式配置类型)
+ *
+ * [OUTPUT]
+ * ToolApprovalRequest, CompletionStatus.
+ *
+ * [POS]
+ * 工具审批契约。
+ */
+
+import type { ActionMode } from './sessionConfig';
+
+export type { CommandSpan } from '@/lib/approval/shellCommandDisplay';
+
+/** 工具审批请求（Permission Engine 触发） */
+export interface ToolApprovalRequest {
+  requestId: string;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  reason: string;
+  timeoutSeconds: number;
+  expiresAt: number;
+  /** Action to take when timeout expires: "deny" (default) or "allow" */
+  timeoutBehavior: 'deny' | 'allow';
+  messageId: string;
+  displayMode: 'approval' | 'handover';
+  chatId: string;
+  actionMode: ActionMode;
+  batchId?: string;
+  batchIndex?: number;
+  batchSize?: number;
+  /** Opaque id of the pause this card answers (one per pause, even for one task's consecutive pauses); echoed on resume so the answer can only settle this pause */
+  interruptId?: string;
+  /** URL-bearing tools: hostnames extracted from tool arguments */
+  domains?: string[];
+  /** Whether Domain HITL is active for this request */
+  domainApproval?: boolean;
+  /** PTC/MCP annotations (e.g. readOnlyHint, destructiveHint) */
+  ptcAnnotations?: Record<string, boolean>;
+  /** Unified diff preview for file-mutating tool approvals */
+  diff?: string;
+  /** Pipeline segment highlight spans (shell approval UX) */
+  commandSpans?: { startIndex: number; endIndex: number }[];
+  /** Per-segment risk from harness risk_classifier */
+  commandSpanRisks?: ('safe' | 'unknown')[];
+  /** Per-segment stable reason codes for tooltip i18n */
+  commandSpanReasons?: (
+    'safe' | 'empty_segment' | 'redirect' | 'unknown_command' | 'unknown_subcommand' | 'invalid_flags'
+  )[];
+  /** Sandbox workspace root for shell approvals */
+  workspaceRoot?: string;
+  /** Bilingual human-readable command explanation for non-developer users */
+  plainExplanation?: { en: string; zh: string };
+  /** LLM-provided execution intent from bash_code_execute_tool.reason */
+  executionIntent?: string;
+  /** True when the LLM security reviewer recommended denial — user may override once */
+  smartDenied?: boolean;
+  /** True when the approval involves high-risk operations — Always Allow is hidden */
+  hideAllowAlways?: boolean;
+  /** LLM reviewer's reason for denial */
+  reviewerReason?: string;
+  /** Path-policy ASK: user may grant directory access alongside approval */
+  pathGrantEligible?: boolean;
+  pathGrantPath?: string;
+  pathGrantWritable?: boolean;
+  /** Script operand TOCTOU integrity protection */
+  scriptOperandPath?: string;
+  scriptOperandHash?: string;
+  scriptOperandProtected?: boolean;
+}
+export type CompletionStatus =
+  'complete' | 'truncated' | 'filtered' | 'budget_blocked' | 'warning' | 'success' | 'error' | 'cancelled';

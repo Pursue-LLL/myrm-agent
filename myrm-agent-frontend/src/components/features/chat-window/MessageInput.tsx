@@ -1,0 +1,801 @@
+/**
+ * [INPUT]
+ * - @/hooks/message-input/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
+ * - @/hooks/message-input/messageInputKeyRouter::{resolveDualChannelAction, resolveBusySubmitMode, resolveBusyPlaceholderKey} (POS: 聊天输入框双通道键盘交互路由核心)
+ * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
+ * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
+ *
+ * [OUTPUT]
+ * - MessageInput: 渲染聊天输入区、工具栏、快捷操作、Agent 状态灯和发送入口。
+ *
+ * [POS]
+ * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
+ */
+import * as React from 'react';
+import { ArrowRight, Square, Plus, X, Navigation, ListPlus, Maximize2, Minimize2, CornerDownLeft } from 'lucide-react';
+import { isImeComposing } from '@/lib/utils/imeUtils';
+import TextareaAutosize from 'react-textarea-autosize';
+import AttachList from '../message-input-actions/AttachList';
+import AttachButton from '../message-input-actions/AttachButton';
+import SearchModeSelector from '../message-input-actions/SearchModeSelector';
+import DeepSearchToggle from '../message-input-actions/DeepSearchToggle';
+import WorkflowModeToggle from '../message-input-actions/WorkflowModeToggle';
+import BaseModelSelector from '../message-input-actions/BaseModelSelector';
+import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
+import LivenessIndicator from './LivenessIndicator';
+import ReadinessBadge from '../message-input-actions/ReadinessBadge';
+import BudgetBadge from './BudgetBadge';
+import { RealTimeCostAndCacheHud } from './RealTimeCostAndCacheHud';
+import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
+import SessionSpendSurface from '@/components/billing/SessionSpendSurface';
+import EnvironmentShield from '../message-input-actions/EnvironmentShield';
+import AgentIndicator from '../message-input-actions/AgentIndicator';
+import ToolsPanel from '../message-input-actions/ToolsPanel';
+import SessionSkillsToggle from '../message-input-actions/SessionSkillsToggle';
+import KnowledgePickerPopover from '../message-input-actions/KnowledgePickerPopover';
+import TurnCapabilityToggle from '../message-input-actions/TurnCapabilityToggle';
+import WorkspaceDirPicker from './WorkspaceDirPicker';
+import SpeechInputButton from '../message-input-actions/SpeechInputButton';
+import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
+import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityButton';
+import {
+  ThinkingBudgetEffortSlider,
+  PermissionModeTierSwitcher,
+} from './thinking-permission';
+import GoalModeToggle from '../message-input-actions/GoalModeToggle';
+import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
+import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
+import SecurityPresetSelector from '../message-input-actions/SecurityPresetSelector';
+import FocusFlushButton from '../message-input-actions/FocusFlushButton';
+import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBalanceWarningHUD';
+import { ForkButton } from './ForkButton';
+import { QueuedMessagesList } from './QueuedMessagesList';
+import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
+import { useTranslations } from 'next-intl';
+import { useMessageInput } from '@/hooks/message-input/useMessageInput';
+import {
+  resolveBusyPlaceholderKey,
+  resolveBusySubmitMode,
+  resolveDualChannelAction,
+} from '@/hooks/message-input/messageInputKeyRouter';
+import { useDragDrop } from '@/hooks/ui/useDragDrop';
+import { reportUserActivity } from '@/services/memory';
+
+let lastTypingReportTime = 0;
+const reportTypingActivityThrottled = (chatId?: string) => {
+  const now = Date.now();
+  if (now - lastTypingReportTime > 5000) {
+    lastTypingReportTime = now;
+    void reportUserActivity(chatId, 'typing').catch(() => {});
+  }
+};
+import { usePriorChatComposerDrop } from '@/hooks/chat/usePriorChatComposerDrop';
+import { useDesktopFolderDrop } from '@/hooks/message-input/useDesktopFolderDrop';
+import { LinkDetectionDialog } from './LinkDetectionDialog';
+import { MobileActionSheet } from './mobile/MobileActionSheet';
+import { useMobileSheetEntries } from './mobile/useMobileSheetEntries';
+import { CommandPalette } from '@/components/features/app-shell/command-palette';
+import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
+import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
+import { ReferenceMentionPopover } from './ReferenceMentionPopover';
+import ClarificationInput from '../message-box/ClarificationInput';
+import SessionAccessRootsBar from './SessionAccessRootsBar';
+import ProjectBoundaryBadge from './ProjectBoundaryBadge';
+import { findActivePendingClarification } from '@/store/chat/clarificationState';
+import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
+import useChatStore from '@/store/useChatStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useProjectStore } from '@/store/useProjectStore';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import { QuoteCard } from './QuoteCard';
+import { useInputHistory } from '@/hooks/message-input/useInputHistory';
+import InputHistoryPopup from './InputHistoryPopup';
+import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
+import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
+import { ComposerContextChipStrip } from './context-strip/ComposerContextChipStrip';
+import { SkillRequiredConnectorsPreflightBanner } from './context-strip/SkillRequiredConnectorsPreflightBanner';
+import { ScopedArtifactChip } from './ScopedArtifactChip';
+import { WechatArticleComposerHint } from './WechatArticleComposerHint';
+import { ContextSpilloverBadge } from '../message-box/ContextSpilloverBadge';
+import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
+import { ChatInlineTeamRunVisibilityStrip } from './subagent/ChatInlineTeamRunVisibilityStrip';
+import { extractKeyterms } from './speechKeyterms';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
+import { AlertTriangle } from 'lucide-react';
+
+interface MessageInputProps {
+  loading: boolean;
+  hideWorkspacePicker?: boolean;
+}
+
+const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProps) => {
+  const commonT = useTranslations('common');
+  const chatT = useTranslations('chat');
+  const commandsT = useTranslations('commands');
+  const messages = useChatStore((s) => s.messages);
+  const chatId = useChatStore((s) => s.chatId);
+  const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
+  const projects = useProjectStore((s) => s.projects);
+  const projectsLoaded = useProjectStore((s) => s.loaded);
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
+  const agentConfig = useChatStore((s) => s.agentConfig);
+  const mentionReferences = useChatStore((s) => s.mentionReferences);
+  const removeMentionReference = useChatStore((s) => s.removeMentionReference);
+  const keyterms = React.useMemo(() => extractKeyterms(messages), [messages]);
+  const pendingClarification = React.useMemo(() => findActivePendingClarification(messages), [messages]);
+  const isComposerClarifyMode = pendingClarification !== null;
+  const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
+  const { triggerPrewarm, cancelPrewarm, shouldPrewarm } = useChatTurnPrewarm();
+
+  React.useEffect(() => {
+    if (!projectsLoaded) {
+      void fetchProjects();
+    }
+  }, [fetchProjects, projectsLoaded]);
+
+  const hideChatWorkspacePicker = React.useMemo(() => {
+    if (hideWorkspacePicker) {
+      return true;
+    }
+    if (!chatId) {
+      return false;
+    }
+    const chatItem = chatHistoryItems.find((item) => item.id === chatId);
+    const projectId = chatItem?.projectId;
+    if (!projectId) {
+      return false;
+    }
+    const project = projects.find((item) => item.id === projectId);
+    return Boolean(project?.workspacePath?.trim());
+  }, [hideWorkspacePicker, chatHistoryItems, chatId, projects]);
+
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const {
+    showLinkDialog,
+    setShowLinkDialog,
+    dontRemindAgain,
+    setDontRemindAgain,
+    isUploadingPaste,
+    showCompactConfirm,
+    setShowCompactConfirm,
+    dontRemindCompact,
+    setDontRemindCompact,
+    turnCapabilitySelection,
+    setTurnCapabilitySelection,
+    inputRef,
+    actionMode,
+    setActionMode,
+    files,
+    setFiles,
+    hideAttachList,
+    setHideAttachList,
+    stopMessage,
+    clearCurrentSessionMessageId,
+    inputMessage,
+    setInputMessage,
+    handlePaste,
+    handleSubmit,
+    handleSteerSubmit,
+    handleRedirectSubmit,
+    handleQueueSubmit,
+    handleInputChange,
+    handleDroppedFiles,
+    handleAddAtSymbol,
+    handleSkipAtSymbol,
+    confirmCompact,
+    queue,
+    queuePausedReason,
+    queueEditingId,
+    editMessage,
+    removeMessage,
+    reorder,
+    setQueueEditingId,
+    resumeQueue,
+  } = useMessageInput();
+
+  const showBtwDisambiguation = React.useMemo(
+    () => loading && /^\/(?:btw|bg)\b/i.test(inputMessage.trim()),
+    [loading, inputMessage],
+  );
+
+  // The busy hint names what Enter actually does, which depends on the agent's busy-input setting and attachments.
+  const busyPlaceholderKey = resolveBusyPlaceholderKey(
+    resolveBusySubmitMode(files.length > 0, agentConfig?.busyInputMode),
+    isExpanded,
+  );
+
+  const { pendingExplicitSkillActivation, setPendingExplicitSkillActivation } = useChatStore(
+    useShallow((state) => ({
+      pendingExplicitSkillActivation: state.pendingExplicitSkillActivation,
+      setPendingExplicitSkillActivation: state.setPendingExplicitSkillActivation,
+    })),
+  );
+  const { pendingWorkflowTemplateId, pendingWorkflowTemplateDisplayName } = useChatStore(
+    useShallow((state) => ({
+      pendingWorkflowTemplateId: state.pendingWorkflowTemplateId,
+      pendingWorkflowTemplateDisplayName: state.pendingWorkflowTemplateDisplayName,
+    })),
+  );
+
+  const inputHistory = useInputHistory({
+    agentId: agentConfig?.agentId,
+    getInputValue: () => inputMessage,
+  });
+
+  const mobileSheetEntries = useMobileSheetEntries({
+    onClose: () => setIsMobileSheetOpen(false),
+  });
+
+  const [isTurnCapabilityOpen, setIsTurnCapabilityOpen] = React.useState(false);
+  const handleOpenCapabilityEditor = React.useCallback(() => {
+    setIsTurnCapabilityOpen(true);
+    setIsMobileSheetOpen(true);
+  }, []);
+
+  const { chips: composerContextChips, summary: composerContextSummary } = useComposerContextChips({
+    turnCapabilitySelection,
+    setTurnCapabilitySelection,
+    files,
+    setFiles,
+    clearCurrentSessionMessageId,
+    mentionReferences,
+    removeMentionReference,
+    onOpenCapabilityEditor: handleOpenCapabilityEditor,
+    hideAttachList,
+  });
+
+  const handleTranscript = React.useCallback(
+    (text: string) => {
+      const currentMessage = inputRef.current?.value || '';
+      setInputMessage(currentMessage ? `${currentMessage} ${text}` : text);
+      inputRef.current?.focus();
+    },
+    [setInputMessage, inputRef],
+  );
+
+  // 追踪光标位置（用于快捷指令检测）
+  const [cursorPosition, setCursorPosition] = React.useState(0);
+
+  // 更新光标位置的统一方法
+  const updateCursorPosition = React.useCallback(() => {
+    const pos = inputRef.current?.selectionStart || 0;
+    setCursorPosition(pos);
+  }, [inputRef]);
+
+  // 监听输入变化，更新光标位置
+  React.useEffect(() => {
+    updateCursorPosition();
+  }, [inputMessage, updateCursorPosition]);
+
+  // 快捷指令
+  const {
+    showCommandPalette,
+    filteredItems: commandItems,
+    selectedIndex: commandSelectedIndex,
+    executeCommand,
+    handleKeyDown: handleCommandKeyDown,
+  } = useSlashCommand(inputMessage, cursorPosition);
+
+  // @ 结构化引用
+  const {
+    isOpen: showReferenceMention,
+    results: referenceMentionResults,
+    selectedIndex: referenceMentionSelectedIndex,
+    query: referenceMentionQuery,
+    selectReference,
+    handleKeyDown: handleReferenceMentionKeyDown,
+  } = useReferenceMention(inputMessage, cursorPosition);
+
+  const dropDisabled = loading || actionMode === 'fast';
+
+  // 拖拽上传
+  const { isDragging: isFileDragging, dragHandlers: fileDragHandlers } = useDragDrop({
+    onFilesSelected: (selectedFiles) => {
+      void handleDroppedFiles(selectedFiles);
+    },
+    accept: [
+      'image/*',
+      'video/*',
+      'audio/*',
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.ms-powerpoint',
+      'text/csv',
+      'text/plain',
+      'text/markdown',
+      'application/json',
+    ],
+    maxFiles: 20,
+    disabled: dropDisabled,
+  });
+
+  const { isSessionDragging, dragHandlers: sessionDragHandlers } = usePriorChatComposerDrop({
+    disabled: dropDisabled,
+  });
+
+  const { isDraggingOver: isDesktopFolderDragging } = useDesktopFolderDrop({
+    disabled: dropDisabled,
+  });
+
+  const mergedDragHandlers = React.useMemo(
+    () => ({
+      onDragEnter: (event: React.DragEvent) => {
+        fileDragHandlers.onDragEnter(event);
+        sessionDragHandlers.onDragEnter(event);
+      },
+      onDragOver: (event: React.DragEvent) => {
+        fileDragHandlers.onDragOver(event);
+        sessionDragHandlers.onDragOver(event);
+      },
+      onDragLeave: (event: React.DragEvent) => {
+        fileDragHandlers.onDragLeave(event);
+        sessionDragHandlers.onDragLeave(event);
+      },
+      onDrop: (event: React.DragEvent) => {
+        fileDragHandlers.onDrop(event);
+        sessionDragHandlers.onDrop(event);
+      },
+    }),
+    [fileDragHandlers, sessionDragHandlers],
+  );
+
+  const isDragging = isFileDragging || isSessionDragging || isDesktopFolderDragging;
+
+  return (
+    <>
+      <div
+        className={
+          isExpanded
+            ? 'fixed inset-0 z-50 flex flex-col justify-end bg-background/95 backdrop-blur-sm p-4 sm:p-6'
+            : 'relative w-full'
+        }
+      >
+        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- key delegation from focusable children */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          onKeyDown={(e) => {
+            // IME 组合输入阶段不拦截按键，避免回车键误发送或触发快捷指令。
+            if (isImeComposing(e)) {
+              return;
+            }
+
+            if (e.key === 'Backspace' && inputMessage === '') {
+              const lastRemovableChip = [...composerContextChips].reverse().find((c) => c.isRemovable && c.onRemove);
+              if (lastRemovableChip) {
+                e.preventDefault();
+                lastRemovableChip.onRemove?.();
+                return;
+              }
+            }
+
+            if (isExpanded && e.key === 'Escape') {
+              e.preventDefault();
+              setIsExpanded(false);
+              return;
+            }
+
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+              e.preventDefault();
+              setIsExpanded((prev) => !prev);
+              return;
+            }
+
+            if (showCommandPalette) {
+              handleCommandKeyDown(e);
+              return;
+            }
+            if (showReferenceMention && handleReferenceMentionKeyDown(e)) {
+              return;
+            }
+
+            // 输入历史弹窗键盘处理
+            if (inputHistory.handleKeyDown(e)) {
+              if (inputHistory.popup.open && (e.key === 'Tab' || e.key === 'Enter')) {
+                const text = inputHistory.confirm();
+                if (text) {
+                  setInputMessage(text);
+                }
+              }
+              return;
+            }
+
+            const dualAction = resolveDualChannelAction(e, { loading, expanded: isExpanded });
+            if (dualAction === 'queue') {
+              void handleQueueSubmit();
+              return;
+            }
+            if (dualAction === 'submit') {
+              void handleSubmit();
+              return;
+            }
+          }}
+          className="w-full"
+          {...mergedDragHandlers}
+        >
+          {/* 快捷指令面板 */}
+          <CommandPalette
+            open={showCommandPalette}
+            items={commandItems}
+            selectedIndex={commandSelectedIndex}
+            onSelect={executeCommand}
+            anchorEl={inputRef.current}
+          />
+
+          {/* @ 引用面板 */}
+          <ReferenceMentionPopover
+            open={showReferenceMention}
+            results={referenceMentionResults}
+            selectedIndex={referenceMentionSelectedIndex}
+            query={referenceMentionQuery}
+            onSelect={(reference) => selectReference(reference, setInputMessage)}
+            anchorEl={inputRef.current}
+          />
+
+          {/* 拖拽上传 Overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg pointer-events-none">
+              <div className="text-center">
+                <div className="text-2xl font-semibold text-primary mb-2">
+                  {isSessionDragging ? chatT('dragDrop.sessionTitle') : chatT('dragDrop.title')}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {isSessionDragging ? chatT('dragDrop.sessionDescription') : chatT('dragDrop.description')}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 消息排队提示 */}
+          <QueuedMessagesList
+            queue={queue}
+            pausedReason={queuePausedReason}
+            editingId={queueEditingId}
+            setEditingId={setQueueEditingId}
+            editMessage={editMessage}
+            removeMessage={removeMessage}
+            reorder={reorder}
+            resume={resumeQueue}
+          />
+
+          {/* 文件列表显示区域 */}
+          {!hideAttachList && files.length > 0 && (
+            <AttachList
+              files={files}
+              setFiles={setFiles}
+              clearCurrentSessionMessageId={clearCurrentSessionMessageId}
+              setHideAttachList={setHideAttachList}
+            />
+          )}
+
+          {/* 动态工作记忆面板 (Active Working Memory) */}
+          <ActiveWorkingMemoryPanel />
+
+          {/* 子代理协同常驻微进度条 */}
+          <ChatInlineTeamRunVisibilityStrip />
+
+          <div
+            className="flex flex-col bg-secondary px-3 sm:px-5 pt-5 pb-2 rounded-lg w-full border border-border relative"
+            data-chat-composer
+          >
+            {/* 输入历史弹窗 */}
+            <InputHistoryPopup
+              popup={inputHistory.popup}
+              onSelect={(index) => {
+                const text = inputHistory.confirm(index);
+                if (text) {
+                  setInputMessage(text);
+                }
+              }}
+              onHover={inputHistory.setActiveIndex}
+              onClose={inputHistory.close}
+            />
+            <QuoteCard />
+            <ProjectBoundaryBadge />
+            <SessionAccessRootsBar />
+            {isComposerClarifyMode && pendingClarification ? (
+              <ClarificationInput
+                messageId={pendingClarification.messageId}
+                answered={pendingClarification.clarification.answered}
+                options={pendingClarification.clarification.options}
+                allowMultiple={pendingClarification.clarification.allowMultiple}
+                isResumeMode={pendingClarification.clarification.isResumeMode}
+                title={pendingClarification.clarification.title}
+                form={pendingClarification.clarification.form}
+                variant="composer"
+              />
+            ) : (
+              <>
+                <ProviderLowBalanceWarningHUD className="mb-2" />
+                <FeaturedExpertChips />
+                <ScopedArtifactChip />
+                <SkillRequiredConnectorsPreflightBanner
+                  activeSkillIds={turnCapabilitySelection?.skillIds ?? null}
+                  onOpenCapabilityEditor={handleOpenCapabilityEditor}
+                />
+                <ComposerContextChipStrip
+                  chips={composerContextChips}
+                  summary={composerContextSummary}
+                  disabled={loading}
+                  onOpenCapabilityEditor={handleOpenCapabilityEditor}
+                />
+                <ContextSpilloverBadge charCount={inputMessage.length} />
+                <WechatArticleComposerHint inputMessage={inputMessage} />
+                {showBtwDisambiguation ? (
+                  <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                    {commandsT('builtin.btwDisambiguation')}
+                  </p>
+                ) : null}
+                <TextareaAutosize
+                  ref={inputRef}
+                  data-chat-input
+                  value={inputMessage}
+                  onFocus={() => {
+                    if (shouldPrewarm) {
+                      void triggerPrewarm();
+                    }
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(() => {
+                      const active = document.activeElement;
+                      if (active instanceof HTMLElement && active.closest('[data-chat-composer]')) {
+                        return;
+                      }
+                      void cancelPrewarm();
+                    }, 120);
+                  }}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    reportTypingActivityThrottled(chatId);
+                    updateCursorPosition();
+                    if (inputHistory.popup.open) {
+                      inputHistory.close();
+                    }
+                  }}
+                  onPaste={handlePaste}
+                  onKeyUp={updateCursorPosition}
+                  onClick={updateCursorPosition}
+                  minRows={isExpanded ? 8 : 2}
+                  className={`bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
+                  placeholder={
+                    inputHistory.ghostText
+                      ? inputHistory.ghostText
+                      : loading
+                        ? chatT(busyPlaceholderKey)
+                        : chatT(isExpanded ? 'input.expandedPlaceholder' : 'input.placeholder')
+                  }
+                />
+                {/* 操作栏 */}
+                <div className="flex flex-row items-center justify-between mt-4 gap-2">
+                  {/* 左侧：功能按钮 */}
+                  <div className="flex flex-row items-center gap-1 sm:gap-2 min-w-0 flex-1">
+                    {/* 移动端精简版：+ 按钮触发 ActionSheet + 核心快捷入口 */}
+                    <div className="flex sm:hidden flex-row items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setIsMobileSheetOpen(true)}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors"
+                        aria-label={chatT('input.expandToolbar')}
+                        data-testid="sendbox-mobile-plus-btn"
+                      >
+                        <Plus size={16} />
+                      </button>
+                      <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
+                    </div>
+                    {/* 桌面版：可横向滚动，避免工具栏互相挤压 */}
+                    <div className="hidden sm:flex flex-row flex-nowrap items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+                      <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
+                      <DeepSearchToggle />
+                      <WorkflowModeToggle />
+                      <BaseModelSelector />
+                      <ThinkingBudgetEffortSlider />
+                      <PermissionModeTierSwitcher />
+                      <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
+                      <GoalModeToggle />
+                      <IncognitoModeToggle />
+                      <SandboxModeToggle />
+                      <SecurityPresetSelector />
+                      <FocusFlushButton />
+                      <ExpertSummonPopover />
+                      {chatId && messages.length > 0 && !loading && (
+                        <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
+                      )}
+                      <AgentIndicator />
+                      <SessionSkillsToggle />
+                      <KnowledgePickerPopover />
+                      <TurnCapabilityToggle
+                        selection={turnCapabilitySelection}
+                        onSelectionChange={setTurnCapabilitySelection}
+                        disabled={loading}
+                        open={isTurnCapabilityOpen}
+                        onOpenChange={setIsTurnCapabilityOpen}
+                      />
+                      <ToolsPanel />
+                      {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
+                      <button
+                        type="button"
+                        onClick={() => setIsExpanded((prev) => !prev)}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label={chatT(isExpanded ? 'input.collapseEditor' : 'input.expandEditor')}
+                        title={chatT(isExpanded ? 'input.collapseEditor' : 'input.expandEditor')}
+                      >
+                        {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                      </button>
+                    </div>
+                  </div>
+                  {/* 右侧：发送操作 */}
+                  <div className="flex flex-row items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 overflow-x-auto max-w-[45vw] sm:max-w-none">
+                      <WorkUnitBalanceBar compact className="shrink-0" />
+                      <SessionSpendSurface className="shrink-0" />
+                      <ContextUsageIndicator />
+                      <ReadinessBadge />
+                      <LivenessIndicator />
+                      <div className="hidden sm:flex items-center gap-1">
+                        <EnvironmentShield />
+                        <BudgetBadge />
+                        <RealTimeCostAndCacheHud />
+                      </div>
+                    </div>
+                    {/* 附件按钮在所有设备上都显示在右侧 */}
+                    {actionMode !== 'fast' && <AttachButton files={files} setFiles={setFiles} />}
+                    {isVoiceEnabled && (
+                      <SpeechInputButton onTranscript={handleTranscript} disabled={loading} keyterms={keyterms} />
+                    )}
+                    {isVoiceEnabled && <VoiceSessionButton disabled={loading} keyterms={keyterms} />}
+                    {loading ? (
+                      <div className="flex items-center gap-1">
+                        {inputMessage.trim().length > 0 || pendingExplicitSkillActivation ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleRedirectSubmit}
+                              className="bg-primary text-primary-foreground hover:bg-primary/80 transition duration-100 rounded-full p-2"
+                              aria-label={chatT('redirect.send')}
+                              title={chatT('redirect.tooltip')}
+                            >
+                              <CornerDownLeft size={17} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSteerSubmit}
+                              className="bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30 transition duration-100 rounded-full p-2"
+                              aria-label={chatT('steer.send')}
+                              title={chatT('steer.tooltip')}
+                            >
+                              <Navigation size={17} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleQueueSubmit()}
+                              className="bg-accent/60 text-white hover:bg-accent/80 transition duration-100 rounded-full p-2"
+                              aria-label={chatT('queue.sendLater')}
+                              title={chatT('queue.sendLaterTooltip')}
+                            >
+                              <ListPlus size={17} />
+                            </button>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={stopMessage}
+                          className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 transition duration-100 rounded-full p-2"
+                          aria-label={chatT('input.stop')}
+                        >
+                          <Square size={17} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="brand-elevation-slot">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleSubmit();
+                          }}
+                          disabled={
+                            inputMessage.trim().length === 0 && files.length === 0 && !pendingExplicitSkillActivation
+                          }
+                          className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
+                          aria-label={commonT('send')}
+                        >
+                          <ArrowRight size={17} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </form>
+      </div>
+
+      {/* 链接检测对话框 */}
+      <LinkDetectionDialog
+        open={showLinkDialog}
+        onOpenChange={setShowLinkDialog}
+        dontRemindAgain={dontRemindAgain}
+        setDontRemindAgain={setDontRemindAgain}
+        onAddAtSymbol={handleAddAtSymbol}
+        onSkip={handleSkipAtSymbol}
+      />
+
+      {/* 压缩确认对话框 */}
+      <AlertDialog open={showCompactConfirm} onOpenChange={setShowCompactConfirm}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
+              <AlertTriangle size={20} />
+              {chatT('compact.confirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base pt-2">
+              {chatT('compact.confirmDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex items-center space-x-2 py-2">
+            <input
+              type="checkbox"
+              id="dontRemindCompact"
+              checked={dontRemindCompact}
+              onChange={(e) => setDontRemindCompact(e.target.checked)}
+              className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
+            />
+            <label htmlFor="dontRemindCompact" className="text-sm text-muted-foreground">
+              {chatT('compact.dontRemindAgain')}
+            </label>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>{commonT('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCompact} className="bg-amber-500 text-white hover:bg-amber-600">
+              {chatT('compact.confirmButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 移动端 ActionSheet */}
+      <MobileActionSheet
+        open={isMobileSheetOpen}
+        onClose={() => setIsMobileSheetOpen(false)}
+        title={chatT('input.expandToolbar')}
+        entries={mobileSheetEntries}
+        footer={
+          <>
+            <DeepSearchToggle />
+            <WorkflowModeToggle />
+            <IncognitoModeToggle />
+            <SandboxModeToggle />
+            <SecurityPresetSelector />
+            <AgentIndicator />
+            <KnowledgePickerPopover />
+            <TurnCapabilityToggle
+              selection={turnCapabilitySelection}
+              onSelectionChange={setTurnCapabilitySelection}
+              disabled={loading}
+            />
+          </>
+        }
+      />
+    </>
+  );
+};
+
+export default MessageInput;

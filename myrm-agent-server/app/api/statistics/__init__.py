@@ -1,0 +1,53 @@
+"""Statistics API package entrypoint.
+
+[INPUT]
+- fastapi::APIRouter (POS: FastAPI router composition)
+- app.api.statistics.router (POS: base statistics API routes)
+- app.api.statistics.agent_usage (POS: per-agent usage analytics routes)
+- app.api.statistics.growth_dashboard (POS: growth dashboard routes)
+- app.api.statistics.daily_journal (POS: daily journal aggregation routes)
+- app.api.statistics.daily_wrap (POS: AI-generated daily wrap summary routes)
+- app.api.statistics.turn_capability (POS: one-turn capability observability routes)
+- app.api.statistics.expert_summon (POS: expert summon funnel observability routes)
+- app.api.statistics.assessment_import (POS: assessment import funnel observability routes)
+- app.api.statistics.assessment_import_value (POS: assessment import value anchor routes)
+
+[OUTPUT]
+- build_statistics_router: compose statistics routers on explicit application startup.
+
+[POS]
+Statistics package entrypoint. Keeps submodule imports lightweight and composes routers only when
+the main API router asks for them.
+"""
+
+from fastapi import APIRouter
+
+
+def build_statistics_router() -> APIRouter:
+    """Build the statistics API router without import-time submodule side effects."""
+    from app.api.statistics.agent_usage import router as agent_usage_router
+    from app.api.statistics.assessment_import import router as assessment_import_router
+    from app.api.statistics.assessment_import_value import router as assessment_import_value_router
+    from app.api.statistics.daily_journal import router as daily_journal_router
+    from app.api.statistics.daily_wrap import router as daily_wrap_router
+    from app.api.statistics.expert_summon import router as expert_summon_router
+    from app.api.statistics.growth_dashboard import router as growth_dashboard_router
+    from app.api.statistics.router import router as base_router
+    from app.api.statistics.turn_capability import router as turn_capability_router
+    from app.api.statistics.wiki_evidence import router as wiki_evidence_router
+
+    statistics_router = APIRouter()
+    statistics_router.include_router(base_router)
+    statistics_router.include_router(agent_usage_router)
+    statistics_router.include_router(growth_dashboard_router)
+    statistics_router.include_router(daily_journal_router)
+    statistics_router.include_router(daily_wrap_router)
+    statistics_router.include_router(expert_summon_router)
+    statistics_router.include_router(turn_capability_router)
+    statistics_router.include_router(wiki_evidence_router)
+    statistics_router.include_router(assessment_import_router)
+    statistics_router.include_router(assessment_import_value_router)
+    return statistics_router
+
+
+__all__ = ["build_statistics_router"]

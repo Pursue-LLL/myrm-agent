@@ -1,0 +1,174 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { cn } from '@/lib/utils/classnameUtils';
+
+import { SpriteEngine, CODEX_STANDARD } from './SpriteEngine';
+
+import type { SpriteLoadState, SpritesheetMeta } from './SpriteEngine';
+
+interface SpriteRendererProps {
+  /** URL of the spritesheet image (webp/png). */
+  sheetUrl: string | null;
+  /** Current animation row (0-indexed). */
+  row: number;
+  /** Display size in CSS pixels. Defaults to 64. */
+  size?: number;
+  /** Optional spritesheet layout override. Defaults to Codex standard 8×9. */
+  meta?: Partial<SpritesheetMeta>;
+  /** Additional CSS classes on the wrapper. */
+  className?: string;
+  /** Called when load state changes. */
+  onLoadStateChange?: (state: SpriteLoadState) => void;
+  /** Called when user requests health check from error fallback. */
+  onHealthCheckRequest?: () => void;
+  /** Called with detected grid rows after sheet loads (for dynamic row mapping). */
+  onSheetRowsDetected?: (rows: number) => void;
+  /** Called when the canvas element mounts (alpha hit-testing in popped-out window). */
+  onCanvasRef?: (canvas: HTMLCanvasElement | null) => void;
+}
+
+/**
+ * SpriteRenderer — React wrapper around SpriteEngine.
+ *
+ * [INPUT]
+ * - SpriteEngine (POS: Canvas 2D rendering engine for spritesheet assets)
+ *
+ * [OUTPUT]
+ * - SpriteRenderer: React component rendering a canvas with fallback states
+ *
+ * [POS]
+ * React lifecycle wrapper for SpriteEngine. Manages canvas mount/unmount,
+ * sheet loading, row prop updates, and displays fallback UI on error/loading.
+ */
+export default function SpriteRenderer({
+  sheetUrl,
+  row,
+  size = 64,
+  meta,
+  className,
+  onLoadStateChange,
+  onHealthCheckRequest,
+  onSheetRowsDetected,
+  onCanvasRef,
+}: SpriteRendererProps) {
+  const t = useTranslations('companion');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<SpriteEngine | null>(null);
+  const [loadState, setLoadState] = useState<SpriteLoadState>('idle');
+
+  const setCanvasRef = useCallback(
+    (node: HTMLCanvasElement | null) => {
+      canvasRef.current = node;
+      onCanvasRef?.(node);
+    },
+    [onCanvasRef],
+  );
+
+  const handleLoadStateChange = useCallback(
+    (state: SpriteLoadState) => {
+      setLoadState(state);
+      onLoadStateChange?.(state);
+    },
+    [onLoadStateChange],
+  );
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const engine = new SpriteEngine({
+      canvas,
+      meta: { ...CODEX_STANDARD, ...meta },
+      onLoadStateChange: handleLoadStateChange,
+    });
+    engineRef.current = engine;
+
+    return () => {
+      engine.destroy();
+      engineRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on mount
+  }, []);
+
+  // Load sheet when URL changes
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || !sheetUrl) {
+      return;
+    }
+
+    engine
+      .loadSheet(sheetUrl)
+      .then(() => {
+        engine.play();
+        const { rows: detectedRows } = engine.getEffectiveDimensions();
+        onSheetRowsDetected?.(detectedRows);
+      })
+      .catch(() => {});
+  }, [sheetUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update row when prop changes
+  useEffect(() => {
+    engineRef.current?.setRow(row);
+  }, [row]);
+
+  // Update meta when prop changes
+  useEffect(() => {
+    if (meta) {
+      engineRef.current?.setMeta(meta);
+    }
+  }, [meta]);
+
+  const cellW = meta?.cellWidth ?? CODEX_STANDARD.cellWidth;
+  const cellH = meta?.cellHeight ?? CODEX_STANDARD.cellHeight;
+
+  return (
+    <div
+      className={cn('relative inline-flex items-center justify-center', className)}
+      style={{ width: size, height: size }}
+    >
+      <canvas
+        ref={setCanvasRef}
+        width={cellW}
+        height={cellH}
+        className={cn('w-full h-full', loadState !== 'ready' && 'hidden')}
+        style={{ imageRendering: 'pixelated' }}
+      />
+
+      {/* Fallback: pulsing circle when loading or error */}
+      {loadState !== 'ready' && (
+        <div
+          className={cn(
+            'w-full h-full rounded-full flex items-center justify-center',
+            loadState === 'loading' && 'bg-muted animate-pulse',
+            loadState === 'error' && 'bg-destructive/10',
+            loadState === 'idle' && 'bg-muted/50',
+          )}
+        >
+          {loadState === 'error' && (
+            <div className="flex flex-col items-center gap-0.5 px-1">
+              <span className="text-xs text-destructive">!</span>
+              {onHealthCheckRequest && (
+                <button
+                  type="button"
+                  className="text-[9px] text-destructive underline-offset-2 hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onHealthCheckRequest();
+                  }}
+                >
+                  {t('doctor.openFromSprite')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

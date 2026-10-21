@@ -1,0 +1,234 @@
+"""Tests for auto_resolve_expired_conflicts in memory_guardian_ops.
+
+Covers:
+- Resolves expired conflicts (status → resolved, resolved_at set)
+- Does not resolve non-expired conflicts
+- Does not resolve already-resolved conflicts
+- Returns correct count
+- Handles empty result set
+- Filters out rows where conflict_auto_resolve_at IS NULL (high-risk conflicts)
+"""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+
+class TestAutoResolveExpiredConflicts:
+    """Tests for the auto_resolve_expired_conflicts function."""
+
+    @pytest.mark.asyncio
+    async def test_resolves_expired_conflicts(self) -> None:
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
+
+        mock_result = MagicMock()
+        mock_result.rowcount = 3
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.commit = AsyncMock()
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            count = await auto_resolve_expired_conflicts()
+
+        assert count == 3
+        mock_db.execute.assert_called_once()
+        mock_db.commit.assert_called_once()
+
+        stmt = mock_db.execute.call_args[0][0]
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": False}))
+        assert "pending_memories" in compiled.lower() or "pendingmemory" in compiled.lower()
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_none_expired(self) -> None:
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
+
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.commit = AsyncMock()
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            count = await auto_resolve_expired_conflicts()
+
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_update_sets_resolved_status(self) -> None:
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
+
+        mock_result = MagicMock()
+        mock_result.rowcount = 1
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.commit = AsyncMock()
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            await auto_resolve_expired_conflicts()
+
+        stmt = mock_db.execute.call_args[0][0]
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "resolved" in compiled.lower() or "status" in compiled.lower()
+        # metadata_json must be merged via json_set so existing fields
+        # (merge_suggestion/source) survive the auto-resolve write.
+        assert "json_set" in compiled.lower()
+        assert "'keep_old'" in compiled.lower() or '"keep_old"' in compiled.lower()
+
+    @pytest.mark.asyncio
+    async def test_query_filters_out_none_auto_resolve_at(self) -> None:
+        """High-risk conflicts (auto_resolve_at=None) must never match the expiry query.
+
+        The auto-resolve UPDATE only targets rows where conflict_auto_resolve_at
+        IS NOT NULL and <= now, so high-risk conflicts stay pending forever until
+        the user resolves them manually.
+        """
+        from app.lifecycle.memory_guardian_ops import auto_resolve_expired_conflicts
+
+        mock_result = MagicMock()
+        mock_result.rowcount = 0
+
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.commit = AsyncMock()
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.database.connection.get_session", return_value=mock_session_ctx):
+            await auto_resolve_expired_conflicts()
+
+        stmt = mock_db.execute.call_args[0][0]
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": False}))
+        assert "conflict_auto_resolve_at is not null" in compiled.lower()
+        assert "conflict_auto_resolve_at" in compiled.lower()
+
+
+class TestGuardianEventCallContracts:
+    """The guardian call sites must match the ledger event signatures.
+
+    These events are invoked inside the guardian cycle's broad ``except``, so a
+    signature drift silently degrades Command Center telemetry instead of
+    failing loudly. Calling them exactly as the guardians do pins the contract.
+    """
+
+    @pytest.mark.asyncio
+    async def test_purge_audit_accepts_guardian_kwargs(self) -> None:
+        from app.services.memory.ledger.guardian_events import record_purge_audit
+        from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
+
+        mock_ledger = AsyncMock()
+        mock_ledger.record_event = AsyncMock(return_value=MagicMock())
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch("app.database.connection.get_session", return_value=mock_session_ctx),
+            patch(
+                "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+                MagicMock(return_value=mock_ledger),
+            ),
+        ):
+            await record_purge_audit(purged_count=3, policy=MemoryGuardianPolicy())
+
+        _, kwargs = mock_ledger.record_event.call_args
+        assert kwargs["metadata"]["purged_count"] == 3
+
+    @pytest.mark.asyncio
+    async def test_maintenance_event_accepts_guardian_kwargs(self) -> None:
+        from myrm_agent_harness.toolkits.memory.health import MaintenanceReport
+
+        from app.services.memory.ledger.guardian_events import record_maintenance_event
+        from app.services.memory.ledger.guardian_policy import MemoryGuardianPolicy
+
+        mock_ledger = AsyncMock()
+        mock_ledger.record_event = AsyncMock(return_value=MagicMock())
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        report = MaintenanceReport(forgotten_count=2)
+
+        with (
+            patch("app.database.connection.get_session", return_value=mock_session_ctx),
+            patch(
+                "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+                MagicMock(return_value=mock_ledger),
+            ),
+        ):
+            await record_maintenance_event(report=report, forced=False, policy=MemoryGuardianPolicy())
+
+        _, kwargs = mock_ledger.record_event.call_args
+        assert kwargs["metadata"]["forced"] is False
+
+
+class TestRecordConflictAutoResolveEvent:
+    """Tests for the guardian's auto-resolve audit event."""
+    @pytest.mark.asyncio
+    async def test_records_audit_event_with_count(self) -> None:
+        from app.services.memory.ledger.guardian_events import record_conflict_auto_resolve_event
+
+        mock_ledger = AsyncMock()
+        mock_ledger.record_event = AsyncMock(return_value=MagicMock())
+        mock_ledger_service_cls = MagicMock(return_value=mock_ledger)
+
+        mock_db = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch("app.database.connection.get_session", return_value=mock_session_ctx),
+            patch(
+                "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+                mock_ledger_service_cls,
+            ),
+        ):
+            await record_conflict_auto_resolve_event(resolved_count=2)
+
+        mock_ledger.record_event.assert_called_once()
+        _, kwargs = mock_ledger.record_event.call_args
+        assert kwargs["kind"].value == "maintenance"
+        assert kwargs["status"].value == "success"
+        assert kwargs["metadata"]["auto_resolved_conflicts"] == 2
+        assert kwargs["metadata"]["resolution"] == "keep_old"
+        assert kwargs["commit"] is True
+
+    @pytest.mark.asyncio
+    async def test_ledger_failure_is_non_fatal(self) -> None:
+        from app.services.memory.ledger.guardian_events import record_conflict_auto_resolve_event
+
+        mock_ledger = AsyncMock()
+        mock_ledger.record_event = AsyncMock(side_effect=RuntimeError("ledger down"))
+        mock_ledger_service_cls = MagicMock(return_value=mock_ledger)
+
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch("app.database.connection.get_session", return_value=mock_session_ctx),
+            patch(
+                "app.services.memory.ledger.operation_ledger.MemoryOperationLedgerService",
+                mock_ledger_service_cls,
+            ),
+        ):
+            await record_conflict_auto_resolve_event(resolved_count=1)  # must not raise

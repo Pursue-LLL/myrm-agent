@@ -1,0 +1,96 @@
+import { create } from 'zustand';
+import type { ToolApprovalRequest } from '@/store/chat/types';
+
+type BatchDecisionType = 'approve' | 'edit' | 'reject';
+
+export interface BatchApprovalDecision {
+  type: BatchDecisionType;
+  extra?: {
+    edited_args?: Record<string, unknown>;
+    feedback?: string;
+    allow_always?: boolean | { tool?: boolean; args?: boolean };
+    allow_domain?: boolean;
+  };
+}
+
+interface ToolApprovalState {
+  queue: ToolApprovalRequest[];
+  processingMessageIds: Set<string>;
+  isResolving: boolean;
+  batchDecisions: Map<string, BatchApprovalDecision>;
+
+  addRequest: (request: ToolApprovalRequest) => void;
+  removeRequest: (requestId: string) => void;
+  clearAll: () => void;
+  setResolving: (isResolving: boolean) => void;
+  setBatchDecision: (requestId: string, decision: BatchApprovalDecision) => void;
+  clearBatchDecisions: () => void;
+
+  markProcessing: (messageId: string) => void;
+  unmarkProcessing: (messageId: string) => void;
+  isProcessing: (messageId: string) => boolean;
+}
+
+/**
+ * A pending pause is announced again each time the run pauses on it after another card of the chat was answered;
+ * the card already queued for it stays the only one. The next pause of the same task has a different id, so it is a new card.
+ */
+function isAnnouncedAgain(queued: ToolApprovalRequest, incoming: ToolApprovalRequest): boolean {
+  return (
+    queued.interruptId !== undefined &&
+    queued.interruptId === incoming.interruptId &&
+    (queued.batchIndex ?? 0) === (incoming.batchIndex ?? 0)
+  );
+}
+
+const useToolApprovalStore = create<ToolApprovalState>((set, get) => ({
+  queue: [],
+  processingMessageIds: new Set(),
+  isResolving: false,
+  batchDecisions: new Map(),
+
+  addRequest: (request) =>
+    set((state) =>
+      state.queue.some((queued) => isAnnouncedAgain(queued, request)) ? state : { queue: [...state.queue, request] },
+    ),
+
+  removeRequest: (requestId) =>
+    set((state) => ({
+      queue: state.queue.filter((r) => r.requestId !== requestId),
+    })),
+
+  clearAll: () =>
+    set({
+      queue: [],
+      processingMessageIds: new Set(),
+      isResolving: false,
+      batchDecisions: new Map(),
+    }),
+
+  setResolving: (isResolving) => set({ isResolving }),
+  setBatchDecision: (requestId, decision) =>
+    set((state) => {
+      const next = new Map(state.batchDecisions);
+      next.set(requestId, decision);
+      return { batchDecisions: next };
+    }),
+  clearBatchDecisions: () => set({ batchDecisions: new Map() }),
+
+  markProcessing: (messageId) =>
+    set((state) => {
+      const newSet = new Set(state.processingMessageIds);
+      newSet.add(messageId);
+      return { processingMessageIds: newSet };
+    }),
+
+  unmarkProcessing: (messageId) =>
+    set((state) => {
+      const newSet = new Set(state.processingMessageIds);
+      newSet.delete(messageId);
+      return { processingMessageIds: newSet };
+    }),
+
+  isProcessing: (messageId) => get().processingMessageIds.has(messageId),
+}));
+
+export default useToolApprovalStore;

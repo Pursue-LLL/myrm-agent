@@ -1,0 +1,208 @@
+"""Integration: ask_question_tool mount policy for interactive web vs unattended/IM."""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+from app.ai_agents.general_agent.tool_setup import (
+    ToolSetupMixin,
+    _should_mount_ask_question_tool,
+)
+from app.core.types import ModelConfig
+
+
+def _tool_names(items: list[object]) -> set[str]:
+    return {name for tool in items if (name := getattr(tool, "name", None))}
+
+
+def _make_mixin(**overrides: object) -> ToolSetupMixin:
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    defaults: dict[str, object] = {
+        "enable_web_search": False,
+        "search_service_cfg": None,
+        "reranker_config": None,
+        "enable_advanced_retrieval": False,
+        "embedding_config": None,
+        "fetch_raw_webpage": False,
+        "image_generation_params": None,
+        "video_generation_params": None,
+        "tts_params": None,
+        "search_depth": "normal",
+        "model_cfg": MagicMock(model="test-model", api_key="k", base_url="http://localhost"),
+        "skill_ids": [],
+        "unattended_mode": False,
+        "channel_name": "web_chat",
+        "prompt_mode": "full",
+        "enable_structured_clarify": True,
+    }
+    defaults.update(overrides)
+    for key, value in defaults.items():
+        setattr(mixin, key, value)
+    return mixin
+
+
+def test_should_mount_predicate_matrix() -> None:
+    assert _should_mount_ask_question_tool(
+        unattended_mode=False,
+        channel_name="web_chat",
+        prompt_mode="full",
+        enable_structured_clarify=True,
+    )
+    assert not _should_mount_ask_question_tool(
+        unattended_mode=True,
+        channel_name="web_chat",
+        prompt_mode="full",
+        enable_structured_clarify=True,
+    )
+    assert not _should_mount_ask_question_tool(
+        unattended_mode=False,
+        channel_name="telegram_instance_1",
+        prompt_mode="full",
+        enable_structured_clarify=True,
+    )
+    assert not _should_mount_ask_question_tool(
+        unattended_mode=False,
+        channel_name="web_chat",
+        prompt_mode="search",
+        enable_structured_clarify=True,
+    )
+    assert not _should_mount_ask_question_tool(
+        unattended_mode=False,
+        channel_name="web_chat",
+        prompt_mode="full",
+        enable_structured_clarify=False,
+    )
+
+
+def test_ask_question_mounted_for_interactive_web_chat() -> None:
+    mixin = _make_mixin()
+    tools: list[object] = []
+    mixin._setup_clarification_tools(tools)
+
+    assert "ask_question_tool" in _tool_names(tools)
+
+
+def test_ask_question_tool_locale_resolution() -> None:
+    """Verify tool description resolves properly based on agent locale."""
+    from myrm_agent_harness.agent.meta_tools.clarification._ask_question_descriptions import (
+        ASK_QUESTION_TOOL_DESCRIPTION_EN,
+        ASK_QUESTION_TOOL_DESCRIPTION_ZH,
+    )
+
+    # Chinese locale
+    mixin_zh = _make_mixin(locale="zh-CN")
+    tools_zh: list[object] = []
+    mixin_zh._setup_clarification_tools(tools_zh)
+    tool_zh = next(tool for tool in tools_zh if getattr(tool, "name", None) == "ask_question_tool")
+    assert tool_zh.description == ASK_QUESTION_TOOL_DESCRIPTION_ZH
+
+    # English / default locale
+    mixin_en = _make_mixin(locale="en-US")
+    tools_en: list[object] = []
+    mixin_en._setup_clarification_tools(tools_en)
+    tool_en = next(tool for tool in tools_en if getattr(tool, "name", None) == "ask_question_tool")
+    assert tool_en.description == ASK_QUESTION_TOOL_DESCRIPTION_EN
+
+
+def test_ask_question_tool_schema_uses_requires_confirmation() -> None:
+    """Mounted tool must expose requires_confirmation (not legacy clarification_type)."""
+    from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput
+
+    mixin = _make_mixin()
+    tools: list[object] = []
+    mixin._setup_clarification_tools(tools)
+
+    ask_tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
+    assert ask_tool.args_schema is AskQuestionInput
+
+    properties = AskQuestionInput.model_json_schema()["properties"]
+    assert "requires_confirmation" in properties
+    assert "clarification_type" not in properties
+
+
+def test_ask_question_skipped_when_unattended() -> None:
+    mixin = _make_mixin(unattended_mode=True)
+    tools: list[object] = []
+    mixin._setup_clarification_tools(tools)
+
+    assert "ask_question_tool" not in _tool_names(tools)
+
+
+def test_ask_question_skipped_for_im_channel() -> None:
+    mixin = _make_mixin(channel_name="telegram_abc123")
+    tools: list[object] = []
+    mixin._setup_clarification_tools(tools)
+
+    assert "ask_question_tool" not in _tool_names(tools)
+
+
+def test_ask_question_skipped_when_structured_clarify_disabled() -> None:
+    mixin = _make_mixin(enable_structured_clarify=False)
+    tools: list[object] = []
+    mixin._setup_clarification_tools(tools)
+
+    assert "ask_question_tool" not in _tool_names(tools)
+
+
+def test_factory_unattended_agent_excludes_ask_question_tool() -> None:
+    params = GeneralAgentParams(
+        query="test",
+        model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+        unattended_mode=True,
+        channel_name="cron",
+        prompt_mode="full",
+    )
+    agent = AgentFactory.create_general_agent(params)
+    assert agent.unattended_mode is True
+
+    tools: list[object] = []
+    agent._setup_clarification_tools(tools)
+
+    assert "ask_question_tool" not in _tool_names(tools)
+
+
+_SIGN_OFF_QUESTIONS: list[dict[str, object]] = [
+    {
+        "id": "proceed",
+        "prompt": "Delete the production database?",
+        "options": [{"id": "delete", "label": "Delete"}, {"id": "keep", "label": "Keep"}],
+    }
+]
+
+
+async def _resume_ask_question(response: object, *, requires_confirmation: bool) -> str:
+    """Run the mounted tool as the agent does and resume its interrupt with ``response``."""
+    mixin = _make_mixin()
+    tools: list[object] = []
+    mixin._setup_clarification_tools(tools)
+    ask_tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
+    with patch("langgraph.types.interrupt", return_value=response):
+        return await ask_tool.ainvoke({"questions": _SIGN_OFF_QUESTIONS, "requires_confirmation": requires_confirmation})
+
+
+@pytest.mark.parametrize("no_answer", [{}, None])
+async def test_unanswered_sign_off_form_is_not_treated_as_consent(no_answer: object) -> None:
+    result = await _resume_ask_question(no_answer, requires_confirmation=True)
+
+    assert "NOT approved" in result
+    assert "best judgment" not in result
+
+
+@pytest.mark.parametrize("no_answer", [{}, None])
+async def test_unanswered_plain_clarification_still_continues_on_best_judgment(no_answer: object) -> None:
+    result = await _resume_ask_question(no_answer, requires_confirmation=False)
+
+    assert "best judgment" in result
+    assert "NOT approved" not in result
+
+
+async def test_answered_sign_off_form_returns_the_answer_unchanged() -> None:
+    answer = {"proceed": ["keep"]}
+
+    result = await _resume_ask_question(answer, requires_confirmation=True)
+
+    assert json.loads(result) == answer

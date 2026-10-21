@@ -1,0 +1,481 @@
+"""Chat UI session backed by the Chrome DevTools MCP mux owner model."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import time
+
+_LOGGER = logging.getLogger(__name__)
+
+from cdp_chat.support import (
+    PAGE_PROBE_JS,
+    e2e_api_base_inject_js,
+    e2e_runtime_bootstrap_apply_js,
+    shpoib_parallel_shell_timeout_sec,
+)
+from cdp_chat.ui import CdpChatSession
+from chrome_mcp.client import (
+    ChromeMcpClient,
+    McpPage,
+    is_context_reset_error,
+    is_page_ownership_error,
+)
+from dev_gate.contract import EvaluateIntent
+
+_DETACHED_FRAME_TOKENS = (
+    "detached Frame",
+    "Execution context was destroyed",
+)
+
+_TARGET_CLOSED_TOKENS = (
+    "Target closed",
+    "No page found",
+)
+
+
+def is_detached_frame_error(exc: BaseException) -> bool:
+    message = str(exc)
+    return any(token in message for token in _DETACHED_FRAME_TOKENS)
+
+
+def is_target_closed_error(exc: BaseException) -> bool:
+    message = str(exc)
+    return any(token in message for token in _TARGET_CLOSED_TOKENS)
+
+
+def is_mux_parallel_fail_fast(exc: BaseException) -> bool:
+    """Parallel mux lock contention — retry would amplify stalls across sessions."""
+    from dev_gate.contract import (
+        MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN,
+        MUX_RECLAIM_STALL_TOKEN,
+    )
+    from mux.transport_supervisor import MUX_TRANSPORT_EXHAUSTED_TOKEN
+
+    message = str(exc)
+    return (
+        MUX_RECLAIM_STALL_TOKEN in message
+        or MUX_TRANSPORT_EXHAUSTED_TOKEN in message
+        or MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN in message
+    )
+
+
+def is_mux_page_heal_error(exc: BaseException) -> bool:
+    return is_page_ownership_error(exc) or is_context_reset_error(exc)
+
+
+def _default_e2e_ui_base() -> str:
+    return os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+
+def _path_needs_chat_navigate(path: str) -> bool:
+    normalized = path.strip().strip("/")
+    return normalized in {"", "blank", "about:blank"}
+
+
+class McpChatSession(CdpChatSession):
+    def __init__(self, client: ChromeMcpClient, page: McpPage) -> None:
+        self._client = client
+        self._page = page
+        self._base_url = _default_e2e_ui_base()
+
+    async def _sync_page_after_mux_reset(self) -> None:
+        ui_home = f"{self._base_url.rstrip('/')}/"
+
+        def _resolve() -> McpPage:
+            existing = self._client.primary_owned_page()
+            if existing is not None:
+                return existing
+            return self._client.ensure_primary_page_after_recovery(
+                fallback_url=ui_home,
+            )
+
+        self._page = await asyncio.to_thread(_resolve)
+        self._reset_shell_layout_wait_clock()
+
+    async def evaluate(
+        self,
+        expression: str,
+        *,
+        await_promise: bool = True,
+        recv_timeout: float | None = None,
+        intent: EvaluateIntent | None = None,
+    ) -> object:
+        from dev_gate.contract import (
+            MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC,
+            MUX_RECLAIM_STALL_TOKEN,
+            resolve_evaluate_budget,
+        )
+        from cdp_chat.send_turn_contract import is_live_send_turn_profile
+
+        if intent is not None:
+            budget = resolve_evaluate_budget(intent, live=is_live_send_turn_profile())
+            await_promise = budget.await_promise
+            recv_timeout = budget.cdp_timeout_sec
+            max_mux_attempts = budget.mux_max_attempts
+            recv_grace = budget.mux_recv_grace_sec
+        else:
+            if recv_timeout is None:
+                recv_timeout = 60.0
+            shpoib_parallel = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+            max_mux_attempts = 3 if shpoib_parallel else (
+                1 if recv_timeout <= 15.0 else 2
+            )
+            recv_grace = 10.0 if recv_timeout <= 15.0 else 15.0
+
+        if recv_timeout <= 0:
+            raise TimeoutError(
+                f"MCP evaluate budget exhausted (recv_timeout={recv_timeout:.3f}s)"
+            )
+        recv_timeout = min(recv_timeout, 180.0)
+
+        shpoib_parallel = os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
+        reclaim_budget = float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC) + 15.0
+        if recv_timeout <= 15.0:
+            reclaim_budget = 45.0 if shpoib_parallel else 20.0
+        elif recv_timeout <= 30.0:
+            reclaim_budget = 35.0
+        wall_deadline = time.monotonic() + recv_timeout + reclaim_budget
+        heal_attempts = 0
+        max_heal_attempts = 0 if recv_timeout <= 15.0 else 3
+        mux_attempts = 0
+        loop = asyncio.get_running_loop()
+
+        async def _reset_mux_after_orphan() -> None:
+            from dev_gate.contract import mux_reset_after_orphan_timeout_sec
+
+            orphan_timeout = mux_reset_after_orphan_timeout_sec()
+            reset_future = loop.run_in_executor(
+                self._client.mux_reset_executor(),
+                self._client.reset_after_orphan,
+            )
+            reset_task = asyncio.ensure_future(reset_future)
+            deadline = time.monotonic() + orphan_timeout
+            try:
+                while not reset_task.done():
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        reset_task.cancel()
+                        self._client.discard_mux_reset_executor()
+                        raise TimeoutError()
+                    try:
+                        from e2e_session_runtime.lifecycle import touch_wall_progress
+
+                        touch_wall_progress(current_node="mux_reset_after_orphan")
+                    except ImportError:
+                        pass
+                    try:
+                        from e2e_session_runtime.heartbeat import heartbeat_once
+
+                        heartbeat_once()
+                    except ImportError:
+                        pass
+                    await asyncio.wait({reset_task}, timeout=min(5.0, remaining))
+                await reset_task
+            except TimeoutError as exc:
+                self._client.discard_mux_reset_executor()
+                raise RuntimeError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: reset_after_orphan timed out after "
+                    f"{int(orphan_timeout)}s"
+                ) from exc
+            await self._sync_page_after_mux_reset()
+
+        while time.monotonic() < wall_deadline:
+            remaining = wall_deadline - time.monotonic()
+            attempt_timeout = min(recv_timeout + recv_grace, remaining)
+            eval_future = loop.run_in_executor(
+                self._client.mux_eval_executor(),
+                lambda: self._client.evaluate(
+                    self._page,
+                    expression,
+                    timeout_sec=recv_timeout,
+                    await_promise=await_promise,
+                ),
+            )
+            eval_task = asyncio.ensure_future(eval_future)
+            done, pending = await asyncio.wait(
+                {eval_task},
+                timeout=attempt_timeout,
+            )
+            if pending:
+                eval_task.cancel()
+                mux_attempts += 1
+                _LOGGER.warning(
+                    "MUX_EVALUATE_ORPHAN: recv_timeout=%.1f attempt_timeout=%.1f "
+                    "mux_attempts=%d/%d — triggering _reset_mux_after_orphan",
+                    recv_timeout,
+                    attempt_timeout,
+                    mux_attempts,
+                    max_mux_attempts,
+                )
+                if mux_attempts < max_mux_attempts:
+                    await _reset_mux_after_orphan()
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
+                if max_mux_attempts == 0:
+                    raise TimeoutError(
+                        f"sync evaluate orphaned after {attempt_timeout:.0f}s"
+                    )
+                raise TimeoutError(
+                    f"{MUX_RECLAIM_STALL_TOKEN}: evaluate orphaned after "
+                    f"{attempt_timeout:.0f}s"
+                )
+            try:
+                return eval_task.result()
+            except RuntimeError as exc:
+                if is_mux_parallel_fail_fast(exc):
+                    raise
+                message = str(exc)
+                if mux_attempts < max_mux_attempts and (
+                    "transport unavailable" in message.lower()
+                    or "not running after transport recovery" in message.lower()
+                ):
+                    mux_attempts += 1
+                    _LOGGER.warning(
+                        "MUX_EVALUATE_TRANSPORT_RESET: mux_attempts=%d/%d err=%s",
+                        mux_attempts,
+                        max_mux_attempts,
+                        message[:200],
+                    )
+                    await _reset_mux_after_orphan()
+                    await asyncio.sleep(0.75 * mux_attempts)
+                    continue
+                if heal_attempts < max_heal_attempts and is_detached_frame_error(exc):
+                    heal_attempts += 1
+                    await self._heal_detached_page()
+                    continue
+                if heal_attempts < max_heal_attempts and (
+                    is_mux_page_heal_error(exc) or is_target_closed_error(exc)
+                ):
+                    heal_attempts += 1
+                    await self._heal_reclaimed_page()
+                    continue
+                raise
+        raise TimeoutError(
+            f"{MUX_RECLAIM_STALL_TOKEN}: evaluate exceeded "
+            f"{recv_timeout + float(MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC) + 15.0:.0f}s wall"
+        )
+
+    async def _inject_e2e_api_base(self) -> None:
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if bootstrap_js:
+            try:
+                result = await self.evaluate(
+                    bootstrap_js,
+                    intent=EvaluateIntent.ROUTE_ATTACH,
+                )
+                if isinstance(result, dict) and result.get("ok") is True:
+                    return
+                _LOGGER.warning("E2E_RUNTIME_BOOTSTRAP_WARN: %s", result)
+            except RuntimeError as exc:
+                if is_target_closed_error(exc) or is_page_ownership_error(exc):
+                    raise
+                _LOGGER.warning(
+                    "E2E_RUNTIME_BOOTSTRAP_WARN: %s",
+                    str(exc)[:200],
+                )
+        inject_js = e2e_api_base_inject_js()
+        if not inject_js:
+            return
+        try:
+            await self.evaluate(inject_js, intent=EvaluateIntent.SYNC_PROBE)
+        except RuntimeError as exc:
+            if is_target_closed_error(exc) or is_page_ownership_error(exc):
+                raise
+            _LOGGER.warning("E2E_API_BASE_INJECT_WARN: %s", str(exc)[:200])
+
+    async def _heal_reclaimed_page(self) -> None:
+        async def _try_reclaim() -> McpPage:
+            return await asyncio.to_thread(
+                self._client.reclaim_owned_page,
+                self._page,
+            )
+
+        try:
+            reopened = await _try_reclaim()
+        except RuntimeError as exc:
+            if not is_page_ownership_error(exc):
+                raise
+            _LOGGER.warning(
+                "MUX_HEAL_OWNERSHIP_RESET: reclaim failed (%s) — reset_after_orphan",
+                str(exc)[:200],
+            )
+            await asyncio.to_thread(self._client.reset_after_orphan)
+            await self._sync_page_after_mux_reset()
+            try:
+                reopened = await _try_reclaim()
+            except RuntimeError as exc2:
+                if not is_page_ownership_error(exc2):
+                    raise
+                _LOGGER.warning(
+                    "MUX_HEAL_NEW_PAGE: reclaim still failed — opening fresh page"
+                )
+                fresh = await asyncio.to_thread(
+                    self._client.new_page,
+                    f"{self._base_url.rstrip('/')}/",
+                    120_000,
+                )
+                if fresh is None:
+                    raise RuntimeError(
+                        "new_page returned no page after ownership heal"
+                    ) from exc2
+                reopened = fresh
+        self._page = reopened
+        self._reset_shell_layout_wait_clock()
+        await asyncio.sleep(1.0)
+        await self._inject_e2e_api_base()
+        for heal_retry in range(2):
+            try:
+                await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)
+                return
+            except TimeoutError:
+                if heal_retry == 0:
+                    await asyncio.to_thread(
+                        self._client.navigate,
+                        self._page,
+                        f"{self._base_url.rstrip('/')}/",
+                        timeout_ms=60_000,
+                    )
+                    await asyncio.sleep(2.0)
+                    await self._inject_e2e_api_base()
+
+    async def _heal_detached_page(self) -> None:
+        await asyncio.to_thread(
+            self._client.navigate,
+            self._page,
+            f"{self._base_url.rstrip('/')}/",
+            timeout_ms=60_000,
+        )
+        await asyncio.sleep(2.0)
+        self._reset_shell_layout_wait_clock()
+        await self._inject_e2e_api_base()
+        try:
+            await self.wait_shell_ready(timeout_sec=60.0, require_bridge=True)
+        except TimeoutError:
+            pass
+
+    async def _navigate_to_chat_home(self, *, timeout_ms: int = 120_000) -> None:
+        from e2e_core.shared_ui_hydrate import async_shared_ui_hydrate_burst
+
+        ui_base = self._base_url.rstrip("/")
+        async with async_shared_ui_hydrate_burst():
+            await asyncio.to_thread(
+                self._client.navigate,
+                self._page,
+                f"{ui_base}/",
+                timeout_ms=timeout_ms,
+            )
+        await asyncio.sleep(2.0)
+        await self._inject_e2e_api_base()
+
+    async def bootstrap(
+        self,
+        base_url: str,
+        *,
+        timeout_sec: float = 120.0,
+        navigate: bool = False,
+    ) -> dict[str, object]:
+        """MCP pages use the full bootstrap + shared UI session contract (R72)."""
+        self._base_url = base_url
+        self._mark_bootstrap_started()
+        return await super().bootstrap(
+            base_url,
+            timeout_sec=timeout_sec,
+            navigate=navigate,
+        )
+
+    async def wait_shell_ready(
+        self,
+        *,
+        timeout_sec: float = 120.0,
+        require_bridge: bool = True,
+    ) -> dict[str, object]:
+        timeout_sec = shpoib_parallel_shell_timeout_sec(timeout_sec)
+        deadline = time.monotonic() + timeout_sec
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s")
+        try:
+            probe = await self.evaluate(
+                PAGE_PROBE_JS,
+                intent=EvaluateIntent.SYNC_PROBE,
+            )
+        except (RuntimeError, TimeoutError):
+            probe = None
+        if isinstance(probe, dict):
+            path = str(probe.get("path") or "")
+            if _path_needs_chat_navigate(path) or not probe.get("hasLayout"):
+                await self._navigate_to_chat_home(
+                    timeout_ms=max(15_000, int(remaining * 1000)),
+                )
+        slice_sec = max(0.0, deadline - time.monotonic())
+        if slice_sec <= 0:
+            raise TimeoutError(f"Chat shell not ready within {timeout_sec:.0f}s")
+        return await super().wait_shell_ready(
+            timeout_sec=slice_sec,
+            require_bridge=require_bridge,
+        )
+
+    async def ensure_dev_bridge(
+        self, *, timeout_sec: float = 90.0, allow_reload: bool = True
+    ) -> None:
+        await super().ensure_dev_bridge(
+            timeout_sec=timeout_sec,
+            allow_reload=allow_reload,
+        )
+
+    async def cdp(
+        self,
+        method: str,
+        params: dict[str, object] | None = None,
+        *,
+        recv_timeout: float = 30.0,
+    ) -> dict[str, object]:
+        arguments = params or {}
+        if method in {"Runtime.enable", "Page.enable", "DOM.enable"}:
+            return {}
+        if method == "Page.addScriptToEvaluateOnNewDocument":
+            # MCP mux has no raw CDP; ensure_e2e_api_base_binding injects on the live document.
+            return {}
+        if method == "Page.reload":
+            await asyncio.to_thread(
+                self._client.reload,
+                self._page,
+                timeout_ms=min(int(recv_timeout * 1000), 120_000),
+            )
+            await asyncio.sleep(4.0)
+            await self._inject_e2e_api_base()
+            return {}
+        if method == "Page.navigate":
+            url = arguments.get("url")
+            if not isinstance(url, str):
+                raise RuntimeError("Page.navigate requires url")
+            await asyncio.to_thread(
+                self._client.navigate,
+                self._page,
+                url,
+                timeout_ms=min(int(recv_timeout * 1000), 60_000),
+            )
+            await self._inject_e2e_api_base()
+            return {}
+        if method == "Input.insertText":
+            text = arguments.get("text")
+            if isinstance(text, str):
+                await asyncio.to_thread(self._client.type_text, self._page, text)
+            return {}
+        if method == "Input.dispatchKeyEvent":
+            if arguments.get("type") != "keyDown":
+                return {}
+            key = str(arguments.get("key") or "")
+            modifiers = int(arguments.get("modifiers") or 0)
+            if modifiers & 4:
+                key = f"Meta+{key}"
+            elif modifiers & 2:
+                key = f"Control+{key}"
+            if key:
+                await asyncio.to_thread(self._client.press_key, self._page, key)
+            return {}
+        if method in {"DOM.getDocument", "DOM.querySelector", "DOM.getBoxModel"}:
+            return {}
+        raise RuntimeError(f"Unsupported CDP fallback through MCP: {method}")

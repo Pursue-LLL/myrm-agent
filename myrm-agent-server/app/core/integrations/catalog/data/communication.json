@@ -1,0 +1,202 @@
+[
+  {
+    "id": "slack",
+    "name": "Slack",
+    "name_zh": "Slack",
+    "description": "Access Slack channels, messages, and workspace information",
+    "description_zh": "访问 Slack 频道、消息和工作区信息",
+    "icon": "slack",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "slack",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/slack-mcp"
+      ],
+      "description": "Slack - channels, messages, users, reactions, threads"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "SLACK_BOT_TOKEN",
+      "help_url": "https://api.slack.com/apps",
+      "help_text": "Create a Slack App, install to workspace, and copy the Bot User OAuth Token",
+      "help_text_zh": "创建 Slack App，安装到工作区，复制 Bot User OAuth Token"
+    },
+    "tags": [
+      "messaging",
+      "teams",
+      "channels",
+      "workspace"
+    ],
+    "website": "https://slack.com"
+  },
+  {
+    "id": "feishu",
+    "name": "Feishu / Lark",
+    "name_zh": "飞书",
+    "description": "Messaging, group chats, documents, calendars, and more via Feishu/Lark OpenAPI",
+    "description_zh": "通过飞书开放平台实现消息、群聊、文档、日历等自动化操作",
+    "icon": "feishu",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "lark-mcp",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@larksuiteoapi/lark-mcp",
+        "mcp",
+        "-a",
+        "{{app_id}}",
+        "-s",
+        "{{app_secret}}"
+      ],
+      "description": "Feishu/Lark - messaging, group chats, docs, calendar, contacts"
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "{{app_id}}",
+          "label": "App ID",
+          "label_zh": "应用 ID",
+          "inject": "arg_placeholder"
+        },
+        {
+          "key": "{{app_secret}}",
+          "label": "App Secret",
+          "label_zh": "应用密钥",
+          "inject": "arg_placeholder"
+        }
+      ],
+      "help_url": "https://open.feishu.cn/app",
+      "help_text": "Create an app in Feishu Open Platform and copy App ID & App Secret. For user-identity APIs, run 'npx @larksuiteoapi/lark-mcp login' locally and add --oauth --token-mode user_access_token to MCP config.",
+      "help_text_zh": "在飞书开放平台创建应用，复制 App ID 和 App Secret。如需以用户身份调用 API，请在本地运行 npx @larksuiteoapi/lark-mcp login 并在 MCP 配置中添加 --oauth --token-mode user_access_token。"
+    },
+    "tags": [
+      "messaging",
+      "feishu",
+      "lark",
+      "docs",
+      "calendar",
+      "群聊",
+      "飞书",
+      "文档",
+      "日历"
+    ],
+    "website": "https://open.feishu.cn"
+  },
+  {
+    "id": "dingtalk",
+    "name": "DingTalk",
+    "name_zh": "钉钉",
+    "description": "Contacts, robot messaging, calendar, to-do, attendance, and more via DingTalk OpenAPI",
+    "description_zh": "通过钉钉开放平台实现通讯录、机器人消息、日历、待办、考勤等自动化操作",
+    "icon": "dingtalk",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "dingtalk-mcp",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "dingtalk-mcp"
+      ],
+      "env": {
+        "ACTIVE_PROFILES": "dingtalk-contacts,dingtalk-robot-send-message,dingtalk-calendar,dingtalk-tasks"
+      },
+      "description": "DingTalk - contacts, robot messaging, calendar, tasks, attendance"
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "DINGTALK_Client_ID",
+          "label": "Client ID",
+          "label_zh": "应用 Client ID",
+          "inject": "env"
+        },
+        {
+          "key": "DINGTALK_Client_Secret",
+          "label": "Client Secret",
+          "label_zh": "应用 Client Secret",
+          "inject": "env"
+        }
+      ],
+      "help_url": "https://open-dev.dingtalk.com/fe/app",
+      "help_text": "Create an app in DingTalk Open Platform Developer Console, copy Client ID and Client Secret",
+      "help_text_zh": "在钉钉开放平台开发者后台创建应用，复制 Client ID 和 Client Secret"
+    },
+    "tags": [
+      "messaging",
+      "dingtalk",
+      "contacts",
+      "calendar",
+      "tasks",
+      "attendance",
+      "钉钉",
+      "通讯录",
+      "待办",
+      "考勤"
+    ],
+    "website": "https://open.dingtalk.com"
+  },
+  {
+    "id": "qq-mail",
+    "name": "QQ Mail",
+    "name_zh": "QQ 邮箱",
+    "description": "Send and receive emails through your QQ Mail account via IMAP/SMTP",
+    "description_zh": "通过 IMAP/SMTP 协议收发 QQ 邮箱邮件",
+    "icon": "qq-mail",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "qq-mail",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-email"
+      ],
+      "description": "QQ Mail - send, receive, search emails via IMAP/SMTP",
+      "env": {
+        "EMAIL_TYPE": "qq"
+      }
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "EMAIL_USER",
+          "label": "Email Address",
+          "label_zh": "邮箱地址",
+          "inject": "env"
+        },
+        {
+          "key": "EMAIL_PASSWORD",
+          "label": "Authorization Code",
+          "label_zh": "授权码",
+          "inject": "env"
+        }
+      ],
+      "env_key": null,
+      "help_url": "https://kf.qq.com/product/tx_mail.html",
+      "help_text": "In QQ Mail Settings → Account, enable IMAP/SMTP service and generate an authorization code (not your QQ password)",
+      "help_text_zh": "在 QQ 邮箱设置 → 账户中，开启 IMAP/SMTP 服务并生成授权码（非 QQ 登录密码）"
+    },
+    "tags": [
+      "email",
+      "qq",
+      "mail",
+      "邮箱",
+      "QQ邮箱",
+      "收发邮件"
+    ],
+    "website": "https://mail.qq.com"
+  }
+]

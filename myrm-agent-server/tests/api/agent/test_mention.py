@@ -1,0 +1,636 @@
+"""Tests for agent_params/mention.py
+
+Tests _build_mentioned_file_context, _inject_mentioned_files_into_query,
+_parse_document, and _format_size with real file I/O.
+"""
+
+from __future__ import annotations
+
+import os
+import tempfile
+from pathlib import Path
+
+import pytest
+
+
+class TestBuildMentionedFileContext:
+    """Tests for _build_mentioned_file_context."""
+
+    def _make_workspace(self, files: dict[str, str | bytes]) -> str:
+        """Create a temporary workspace with given files."""
+        tmpdir = tempfile.mkdtemp()
+        for rel_path, content in files.items():
+            abs_path = os.path.join(tmpdir, rel_path)
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+            mode = "wb" if isinstance(content, bytes) else "w"
+            with open(abs_path, mode) as f:
+                f.write(content)
+        return tmpdir
+
+    @pytest.mark.asyncio
+    async def test_inline_small_text_file(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace({"notes.txt": "Hello World"})
+        result, warnings, tokens = await _build_mentioned_file_context(["notes.txt"], workspace)
+
+        assert "<mentioned_files>" in result
+        assert 'path="notes.txt"' in result
+        assert 'type="text"' in result
+        assert "Hello World" in result
+        assert isinstance(warnings, list)
+        assert isinstance(tokens, int)
+
+    @pytest.mark.asyncio
+    async def test_file_not_found(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace({})
+        result, warnings, tokens = await _build_mentioned_file_context(["missing.txt"], workspace)
+
+        assert 'error="file not found"' in result
+
+    @pytest.mark.asyncio
+    async def test_directory_not_treated_as_file(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace({"subdir/dummy.txt": "x"})
+        result, warnings, tokens = await _build_mentioned_file_context(["subdir"], workspace)
+
+        assert 'error="file not found"' in result
+
+    @pytest.mark.asyncio
+    async def test_path_outside_workspace(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace({})
+        result, warnings, tokens = await _build_mentioned_file_context(["../../etc/passwd"], workspace)
+
+        assert 'error="path outside workspace"' in result
+
+    @pytest.mark.asyncio
+    async def test_binary_file_metadata_only(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace({"image.png": b"\x89PNG\r\n\x1a\n" + b"\x00" * 100})
+        result, warnings, tokens = await _build_mentioned_file_context(["image.png"], workspace)
+
+        assert 'type="binary"' in result
+        assert "use file_read_tool" in result
+
+    @pytest.mark.asyncio
+    async def test_pdf_binary_metadata_only(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace({"doc.pdf": b"%PDF-1.4 fake content"})
+        result, warnings, tokens = await _build_mentioned_file_context(["doc.pdf"], workspace)
+
+        assert 'type="binary"' in result
+
+    @pytest.mark.asyncio
+    async def test_max_files_limit(self) -> None:
+        from app.services.agent.params.mention import _MENTION_MAX_FILES, _build_mentioned_file_context
+
+        files = {f"file_{i}.txt": f"content {i}" for i in range(15)}
+        workspace = self._make_workspace(files)
+        paths = [f"file_{i}.txt" for i in range(15)]
+        result, warnings, tokens = await _build_mentioned_file_context(paths, workspace)
+
+        assert result.count("mentioned_file") <= _MENTION_MAX_FILES * 2 + 2
+
+    @pytest.mark.asyncio
+    async def test_large_text_file_not_inlined(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        big_content = "x" * (150 * 1024)
+        workspace = self._make_workspace({"big.txt": big_content})
+        result, warnings, tokens = await _build_mentioned_file_context(["big.txt"], workspace)
+
+        assert "Content too large to inline" in result
+
+    @pytest.mark.asyncio
+    async def test_multiple_files(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace(
+            {
+                "a.txt": "Alpha",
+                "b.md": "Beta",
+            }
+        )
+        result, warnings, tokens = await _build_mentioned_file_context(["a.txt", "b.md"], workspace)
+
+        assert "Alpha" in result
+        assert "Beta" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_list_returns_empty(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_workspace({})
+        result, warnings, tokens = await _build_mentioned_file_context([], workspace)
+
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_docx_document_parsed(self) -> None:
+        Document = pytest.importorskip("docx", reason="python-docx not installed").Document
+
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        docx_path = os.path.join(workspace, "report.docx")
+        doc = Document()
+        doc.add_heading("Quarterly Report", level=1)
+        doc.add_paragraph("Revenue increased 25%.")
+        doc.save(docx_path)
+
+        result, warnings, tokens = await _build_mentioned_file_context(["report.docx"], workspace)
+
+        assert 'type="document"' in result
+        assert "Quarterly Report" in result
+        assert "Revenue increased 25%" in result
+
+    @pytest.mark.asyncio
+    async def test_xlsx_document_parsed(self) -> None:
+        Workbook = pytest.importorskip("openpyxl", reason="openpyxl not installed").Workbook
+
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        xlsx_path = os.path.join(workspace, "data.xlsx")
+        wb = Workbook()
+        ws = wb.active
+        assert ws is not None
+        ws.append(["Name", "Score"])
+        ws.append(["Alice", 95])
+        wb.save(xlsx_path)
+
+        result, warnings, tokens = await _build_mentioned_file_context(["data.xlsx"], workspace)
+
+        assert 'type="document"' in result
+        assert "Alice" in result
+
+    @pytest.mark.asyncio
+    async def test_pptx_document_parsed(self) -> None:
+        Presentation = pytest.importorskip("pptx", reason="python-pptx not installed").Presentation
+
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        pptx_path = os.path.join(workspace, "slides.pptx")
+        prs = Presentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[0])
+        slide.shapes.title.text = "Strategic Plan"
+        slide.placeholders[1].text = "Key initiatives"
+        prs.save(pptx_path)
+
+        result, warnings, tokens = await _build_mentioned_file_context(["slides.pptx"], workspace)
+
+        assert 'type="document"' in result
+        assert "Strategic Plan" in result
+        assert "Key initiatives" in result
+
+
+class TestInjectMentionedFilesIntoQuery:
+    """Tests for _inject_mentioned_files_into_query."""
+
+    def test_string_query(self) -> None:
+        from app.services.agent.params.mention import _inject_mentioned_files_into_query
+
+        result = _inject_mentioned_files_into_query("Hello", "<ctx>files</ctx>")
+        assert result == "Hello<ctx>files</ctx>"
+
+    def test_empty_context_noop(self) -> None:
+        from app.services.agent.params.mention import _inject_mentioned_files_into_query
+
+        result = _inject_mentioned_files_into_query("Hello", "")
+        assert result == "Hello"
+
+    def test_multimodal_query_with_text(self) -> None:
+        from app.services.agent.params.mention import _inject_mentioned_files_into_query
+
+        query: list[dict[str, object]] = [{"type": "text", "text": "Analyze this"}]
+        result = _inject_mentioned_files_into_query(query, "<ctx>data</ctx>")
+
+        assert isinstance(result, list)
+        assert "Analyze this<ctx>data</ctx>" in result[0]["text"]  # type: ignore[index]
+
+    def test_multimodal_query_no_text_part(self) -> None:
+        from app.services.agent.params.mention import _inject_mentioned_files_into_query
+
+        query: list[dict[str, object]] = [{"type": "image_url", "url": "http://example.com/img.png"}]
+        result = _inject_mentioned_files_into_query(query, "<ctx>data</ctx>")
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[1]["type"] == "text"
+
+
+class TestParseDocument:
+    """Tests for _parse_document."""
+
+    def test_docx_parse(self) -> None:
+        Document = pytest.importorskip("docx", reason="python-docx not installed").Document
+
+        from app.services.agent.params.mention import _parse_document
+
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+            doc = Document()
+            doc.add_paragraph("Test paragraph")
+            doc.save(f.name)
+            result = _parse_document(f.name, ".docx")
+            os.unlink(f.name)
+
+        assert result is not None
+        assert "Test paragraph" in result
+
+    def test_xlsx_parse(self) -> None:
+        Workbook = pytest.importorskip("openpyxl", reason="openpyxl not installed").Workbook
+
+        from app.services.agent.params.mention import _parse_document
+
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as f:
+            wb = Workbook()
+            ws = wb.active
+            assert ws is not None
+            ws.append(["Col1", "Col2"])
+            wb.save(f.name)
+            result = _parse_document(f.name, ".xlsx")
+            os.unlink(f.name)
+
+        assert result is not None
+        assert "Col1" in result
+
+    def test_pptx_parse(self) -> None:
+        Presentation = pytest.importorskip("pptx", reason="python-pptx not installed").Presentation
+
+        from app.services.agent.params.mention import _parse_document
+
+        with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as f:
+            prs = Presentation()
+            slide = prs.slides.add_slide(prs.slide_layouts[0])
+            slide.shapes.title.text = "Test Slide"
+            prs.save(f.name)
+            result = _parse_document(f.name, ".pptx")
+            os.unlink(f.name)
+
+        assert result is not None
+        assert "Test Slide" in result
+
+    def test_unsupported_extension(self) -> None:
+        from app.services.agent.params.mention import _parse_document
+
+        result = _parse_document("/tmp/fake.odt", ".odt")
+        assert result is None
+
+
+class TestFormatSize:
+    """Tests for _format_size."""
+
+    def test_bytes(self) -> None:
+        from app.services.agent.params.mention import _format_size
+
+        assert _format_size(500) == "500B"
+
+    def test_kilobytes(self) -> None:
+        from app.services.agent.params.mention import _format_size
+
+        assert _format_size(2048) == "2.0KB"
+
+    def test_megabytes(self) -> None:
+        from app.services.agent.params.mention import _format_size
+
+        assert _format_size(5 * 1024 * 1024) == "5.0MB"
+
+
+class TestRichContextReferences:
+    """Tests for @staged, @folder:, @url: references."""
+
+    def _make_git_workspace(self, files: dict[str, str]) -> str:
+        """Create a temporary git workspace with staged files."""
+        import subprocess
+
+        tmpdir = tempfile.mkdtemp()
+        subprocess.run(["git", "init"], cwd=tmpdir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmpdir, check=True, capture_output=True)
+
+        for rel_path, content in files.items():
+            abs_path = os.path.join(tmpdir, rel_path)
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+            with open(abs_path, "w") as f:
+                f.write(content)
+
+        return tmpdir
+
+    @pytest.mark.asyncio
+    async def test_staged_reference_no_changes(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_git_workspace({"test.txt": "hello"})
+        result, warnings, tokens = await _build_mentioned_file_context(["@staged"], workspace)
+
+        assert "<mentioned_file" in result
+        assert 'path="@staged"' in result
+        assert 'type="git-diff"' in result
+        assert "No staged changes" in result
+
+    @pytest.mark.asyncio
+    async def test_staged_reference_with_changes(self) -> None:
+        import subprocess
+
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_git_workspace({"test.txt": "original"})
+        subprocess.run(["git", "add", "test.txt"], cwd=workspace, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=workspace, check=True, capture_output=True)
+
+        with open(os.path.join(workspace, "test.txt"), "w") as f:
+            f.write("modified")
+        subprocess.run(["git", "add", "test.txt"], cwd=workspace, check=True, capture_output=True)
+
+        result, warnings, tokens = await _build_mentioned_file_context(["@staged"], workspace)
+
+        assert 'path="@staged"' in result
+        assert 'type="git-diff"' in result
+        assert "diff --git" in result or "+modified" in result
+
+    @pytest.mark.asyncio
+    async def test_folder_reference_empty(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        result, warnings, tokens = await _build_mentioned_file_context(["@folder:"], workspace)
+
+        assert "<mentioned_file" in result
+        assert 'path="@folder:"' in result
+
+    @pytest.mark.asyncio
+    async def test_folder_reference_with_files(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        os.makedirs(os.path.join(workspace, "src"))
+        os.makedirs(os.path.join(workspace, "src", "utils"))
+        Path(os.path.join(workspace, "src", "main.py")).write_text("print('hello')")
+        Path(os.path.join(workspace, "src", "utils", "helper.py")).write_text("def helper(): pass")
+
+        result, warnings, tokens = await _build_mentioned_file_context(["@folder:src"], workspace)
+
+        assert 'path="@folder:src"' in result
+        assert 'type="folder-tree"' in result
+        assert "main.py" in result
+        assert "utils/" in result
+        assert "helper.py" in result
+
+    @pytest.mark.asyncio
+    async def test_folder_reference_outside_workspace(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        result, warnings, tokens = await _build_mentioned_file_context(["@folder:../../etc"], workspace)
+
+        assert 'error="path outside workspace"' in result
+
+    @pytest.mark.asyncio
+    async def test_folder_reference_filters_excluded_dirs(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        os.makedirs(os.path.join(workspace, ".git"))
+        os.makedirs(os.path.join(workspace, "node_modules"))
+        os.makedirs(os.path.join(workspace, "src"))
+        Path(os.path.join(workspace, ".git", "config")).write_text("git config")
+        Path(os.path.join(workspace, "node_modules", "package.json")).write_text("{}")
+        Path(os.path.join(workspace, "src", "main.py")).write_text("code")
+
+        result, warnings, tokens = await _build_mentioned_file_context(["@folder:"], workspace)
+
+        assert "main.py" in result
+        assert ".git" not in result
+        assert "node_modules" not in result
+
+    @pytest.mark.asyncio
+    async def test_url_reference_invalid_url(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = tempfile.mkdtemp()
+        result, warnings, tokens = await _build_mentioned_file_context(["@url:not-a-valid-url"], workspace)
+
+        assert 'path="@url:not-a-valid-url"' in result
+        assert 'error="failed to fetch URL"' in result
+
+    @pytest.mark.asyncio
+    async def test_mixed_references(self) -> None:
+        from app.services.agent.params.mention import _build_mentioned_file_context
+
+        workspace = self._make_git_workspace({"test.txt": "hello", "data.md": "# Data"})
+
+        result, warnings, tokens = await _build_mentioned_file_context(["@staged", "test.txt", "@folder:"], workspace)
+
+        assert 'path="@staged"' in result
+        assert 'path="test.txt"' in result
+        assert 'path="@folder:"' in result
+        assert "hello" in result
+
+
+class TestWikiConceptPart:
+    """Tests for _wiki_concept_part (Research Studio wiki context injection)."""
+
+    def _make_wiki_vault(self, concepts: dict[str, str] | None = None) -> str:
+        vault = tempfile.mkdtemp()
+        wiki_dir = os.path.join(vault, "wiki", "concepts")
+        raw_dir = os.path.join(vault, "raw")
+        os.makedirs(wiki_dir, exist_ok=True)
+        os.makedirs(raw_dir, exist_ok=True)
+        for name, content in (concepts or {}).items():
+            Path(os.path.join(wiki_dir, f"{name}.md")).write_text(content, encoding="utf-8")
+        return vault
+
+    @pytest.mark.asyncio
+    async def test_concept_found_and_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_concept_part
+
+        vault = self._make_wiki_vault({"machine-learning": "# ML\nSupervised and unsupervised learning."})
+
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_concept_part("machine-learning", 0)
+
+        assert 'path="@wiki:machine-learning"' in result
+        assert 'type="wiki-concept"' in result
+        assert "Supervised and unsupervised learning" in result
+        assert consumed > 0
+
+    @pytest.mark.asyncio
+    async def test_concept_not_found(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_concept_part
+
+        vault = self._make_wiki_vault()
+
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_concept_part("nonexistent", 0)
+
+        assert 'error="concept not found"' in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_concept_too_large_not_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _MENTION_MAX_INLINE_BYTES, _wiki_concept_part
+
+        vault = self._make_wiki_vault({"big-concept": "x" * (_MENTION_MAX_INLINE_BYTES + 1)})
+
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_concept_part("big-concept", 0)
+
+        assert "Concept too large" in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_concept_exception_returns_error(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_concept_part
+
+        with patch(
+            "app.services.wiki.vault.resolve_wiki_vault_path",
+            side_effect=RuntimeError("disk failure"),
+        ):
+            result, consumed = await _wiki_concept_part("test", 0)
+
+        assert 'error="read failed"' in result
+        assert consumed == 0
+
+
+class TestWikiRawFilePart:
+    """Tests for _wiki_raw_file_part (Research Studio raw file context injection)."""
+
+    def _make_wiki_vault(self, raw_files: dict[str, str] | None = None) -> str:
+        vault = tempfile.mkdtemp()
+        wiki_dir = os.path.join(vault, "wiki", "concepts")
+        raw_dir = os.path.join(vault, "raw")
+        os.makedirs(wiki_dir, exist_ok=True)
+        os.makedirs(raw_dir, exist_ok=True)
+        for name, content in (raw_files or {}).items():
+            Path(os.path.join(raw_dir, name)).write_text(content, encoding="utf-8")
+        return vault
+
+    @pytest.mark.asyncio
+    async def test_raw_file_found_and_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_raw_file_part
+
+        vault = self._make_wiki_vault({"report.md": "# Q3 Report\nRevenue grew 30%."})
+
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_raw_file_part("report.md", "report.md", 0)
+
+        assert 'type="wiki-raw-file"' in result
+        assert "Revenue grew 30%" in result
+        assert consumed > 0
+
+    @pytest.mark.asyncio
+    async def test_raw_file_not_found(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_raw_file_part
+
+        vault = self._make_wiki_vault()
+
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_raw_file_part("missing.pdf", "missing.pdf", 0)
+
+        assert 'error="raw file not found"' in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_raw_file_too_large_not_inlined(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _MENTION_MAX_INLINE_BYTES, _wiki_raw_file_part
+
+        vault = self._make_wiki_vault({"huge.txt": "y" * (_MENTION_MAX_INLINE_BYTES + 1)})
+
+        with patch("app.services.wiki.vault.resolve_wiki_vault_path", return_value=Path(vault)):
+            result, consumed = await _wiki_raw_file_part("huge.txt", "huge.txt", 0)
+
+        assert "File too large" in result
+        assert consumed == 0
+
+    @pytest.mark.asyncio
+    async def test_raw_file_exception_returns_error(self) -> None:
+        from unittest.mock import patch
+
+        from app.services.agent.params.mention import _wiki_raw_file_part
+
+        with patch(
+            "app.services.wiki.vault.resolve_wiki_vault_path",
+            side_effect=RuntimeError("io error"),
+        ):
+            result, consumed = await _wiki_raw_file_part("file.txt", "file.txt", 0)
+
+        assert 'error="read failed"' in result
+        assert consumed == 0
+
+
+def _build_minimal_pdf_bytes(text: str) -> bytes:
+    """Build a minimal valid PDF 1.4 with a single text page."""
+    stream_content = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET"
+    stream_bytes = stream_content.encode("latin-1")
+    stream_len = len(stream_bytes)
+
+    objects = [
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+        f"4 0 obj\n<< /Length {stream_len} >>\nstream\n".encode("latin-1") + stream_bytes + b"\nendstream\nendobj\n",
+        b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    ]
+
+    body = b""
+    offsets: list[int] = []
+    header = b"%PDF-1.4\n"
+    pos = len(header)
+
+    for obj in objects:
+        offsets.append(pos)
+        body += obj
+        pos += len(obj)
+
+    xref_pos = pos
+    xref = f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n"
+    for offset in offsets:
+        xref += f"{offset:010d} 00000 n \n"
+
+    trailer = f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n"
+    return header + body + xref.encode("latin-1") + trailer.encode("latin-1")
+
+
+class TestParseStoredDocument:
+    """Tests for _parse_stored_document (stored-file PDF path via SmartPDFParser)."""
+
+    @pytest.mark.asyncio
+    async def test_parses_real_pdf_text(self) -> None:
+        from app.services.agent.params.mention import _parse_stored_document
+
+        pdf_bytes = _build_minimal_pdf_bytes("Stored contract terms")
+        result = await _parse_stored_document(pdf_bytes, ".pdf", "contract.pdf")
+
+        assert result is not None
+        assert "Stored contract terms" in result
+
+    @pytest.mark.asyncio
+    async def test_invalid_pdf_returns_none(self) -> None:
+        from app.services.agent.params.mention import _parse_stored_document
+
+        result = await _parse_stored_document(b"%PDF-1.4 fake content", ".pdf", "bad.pdf")
+
+        assert result is None

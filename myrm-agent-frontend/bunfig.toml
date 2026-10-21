@@ -1,0 +1,6 @@
+# [install]
+# registry = "https://registry.npmmirror.com"
+
+# Bun preload for in-package `bun`/`bunx` when runtime is Bun (see scripts/next-dev-gate.cjs).
+# `bunx next dev` via Node uses next.config + reclaimPausedDevListeners instead.
+preload = ["./scripts/next-dev-gate.cjs"]

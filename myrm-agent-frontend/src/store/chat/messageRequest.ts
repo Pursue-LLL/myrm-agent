@@ -1,0 +1,1534 @@
+/**
+ * [INPUT]
+ * @/services/chat::createAISearchStream (POS: Chat streaming API client)
+ * @/lib/model-binding::resolveActiveModelConfig (POS: Frontend model selection resolver)
+ * @/lib/model-routing::resolveSmartRouting (POS: Single decision point for smart routing activation and slots)
+ * @/store/useConfigStore::useConfigStore (POS: Chat configuration state store)
+ *
+ * [OUTPUT]
+ * getModelSelection: Resolve the active model for chat requests.
+ * getRoutingModelSelections: Resolve the light / reasoning routing slots a request carries (empty when smart routing does not apply).
+ * validateChatModelConfig: Block send when default model / provider is incomplete.
+ * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
+ * createMessageRequest: Assemble the agent chat request payload and stream it.
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, a text a risk rule holds retracts it too and resolves false with only the risk notice (no failure notice), a resume that someone else (the timeout or another device) already resolved rejects with `ApprovalAlreadyResolvedError` without a failure notice, queued messages send their own attachments, a turn that ends after a newer one took over leaves the turn state (loading, Stop handle, request id, attachments) to the newer one.
+ * createSmartUpdater: Route state updates to active store or background snapshot.
+ * attachToChat: Re-attach to an existing multiplexed SSE stream; post-consume finalizeAgentStreamTurn; ending never resets the turn state of a newer turn.
+ *
+ * [POS]
+ * Chat message request assembly layer. It prepares payloads and acts as the MMU (Memory Management Unit) routing stream updates to the correct store.
+ */
+
+import { resolveVisibleBuiltinAgentId } from '@/lib/product-surface';
+import {
+  Message,
+  File,
+  AgentConfig,
+  ActionMode,
+  ModelSelection,
+  type BuiltinToolId,
+  type ArchiveRestoreAction,
+  type MentionReference,
+  type MentionReferenceType,
+  type TurnCapabilityTerminalTelemetry,
+  type QueuedAttachments,
+  type ChatState,
+} from '@/store/chat/types';
+import useConfigStore from '../useConfigStore';
+import useProviderStore from '../useProviderStore';
+import useChatStore from '../useChatStore';
+import { useScopedArtifactStore } from '../useScopedArtifactStore';
+import { getThinkingEffort } from '@/components/features/message-input-actions/ThinkingIntensityButton';
+import useAuthStore from '../useAuthStore';
+import useRetrievalStore from '../useRetrievalStore';
+import useAgentStore from '../useAgentStore';
+import useQuoteStore from '../useQuoteStore';
+import { showI18nToast } from '@/services/i18nToastService';
+import { supportsProviderNoAuth } from '@/store/config/providerTypes';
+import { executeStreamWithRetry, shouldUseMultiplexedAgentStream } from './streamConsumer';
+import { consumeStream } from './consumeStream';
+import {
+  AgentBusyError,
+  ApprovalAlreadyResolvedError,
+  RequestRefusedError,
+  RiskBlockedError,
+  isTransientNetworkError,
+} from './streamErrors';
+import { isHeldByOtherTurn, resolveRequestState, retractUserBubble, sendFailureToast } from './sendLifecycle';
+import { finalizeAgentStreamTurn } from '@/store/chat/chatAgentSessionRestore';
+import useToolApprovalStore from '../useToolApprovalStore';
+import { useProjectStore } from '@/store/useProjectStore';
+import {
+  FatalNetworkError,
+  isArchiveRestoreActionInvalidError,
+  isRetryableHttpStatus,
+} from '@/lib/utils/networkResilience';
+import { buildMultimodalQuery } from './multimodalBuilder';
+import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
+import { createAISearchStream, type StreamRequestBody } from '@/services/chat';
+import { inSessionMentionDeduplicator } from './inSessionMentionDeduplicator';
+import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
+import { resolveSmartRouting } from '@/lib/model-routing';
+import { getBrowserTimezone } from '@/lib/utils/messageUtils';
+import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
+import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
+import { resolveE2eApiBase } from '@/lib/deploy-mode';
+import {
+  generateCompanion,
+  getEnhancedPersonality,
+  getTitle,
+} from '@/components/features/companion/companionGenerator';
+import useCompanionStore from '../useCompanionStore';
+import { fetchWithTimeout } from '@/lib/api';
+import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
+import { hasUsableProviderAuth, normalizeApiUrl } from '@/store/config/providerTypes';
+import { normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
+import { consumeMigrationReadinessAnchorForAgent, peekMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
+
+import type { Rarity } from '@/components/features/companion/companionGenerator';
+
+function resolveKanbanProjectScope(migrationBoundProjectId: string | null | undefined): string | null {
+  const migrationScope = migrationBoundProjectId?.trim();
+  if (migrationScope) {
+    return migrationScope;
+  }
+  const activeFilter = useProjectStore.getState().activeFilter;
+  if (typeof activeFilter !== 'string') {
+    return null;
+  }
+  const trimmed = activeFilter.trim();
+  return trimmed || null;
+}
+
+export interface ChatActionsState {
+  chatId: string | undefined;
+  actionMode: ActionMode;
+  searchDepth: 'normal' | 'deep';
+  agentConfig: AgentConfig | null;
+  abortController: AbortController | null;
+  loading: boolean;
+  loadingOlder: boolean;
+  messages: Message[];
+  compactedSummary: string | null;
+  compactedBeforeId: string | null;
+  workspaceDir: string | null;
+  files: File[];
+  mentionReferences: MentionReference[];
+  cameraFrames: string[];
+  hideAttachList: boolean;
+  hasUsedImagesInCurrentChat: boolean;
+  isGoalMode: boolean;
+  goalBudgetTokens: number | null;
+  goalBudgetUsd: number | null;
+  goalMaxTimeSeconds: number | null;
+  goalMaxTurns: number | null;
+  goalProtectedPaths: string[] | null;
+  goalLoopOnPause: boolean;
+  goalConvergenceWindow: number | null;
+  goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
+  goalConstraints: string[] | null;
+  goalCheckpointMode: boolean;
+  isWorkflowMode: boolean;
+  currentSessionMessageId: string | null;
+  messageAppeared: boolean;
+  isMessagesLoaded: boolean;
+  hasMoreMessages: boolean;
+  nextCursor: string | null;
+  incognitoMode: boolean;
+  sandboxMode: boolean;
+  securityPreset: import('./types/chatState').SecurityPreset;
+  notFound: boolean;
+  loadError: boolean;
+  newChatCreated: boolean;
+  currentBuiltinTools: BuiltinToolId[];
+  activeMoaPresetId: string | null;
+  lastCompactionMeta: import('./types/messages').LastCompactionMeta | null;
+  sessionSkillOverrides: string[] | null;
+  sessionAccessRoots: import('./types/sessionAccess').SessionAccessRoot[];
+  contextBranches: import('./types/chatState').ChatState['contextBranches'];
+  contextPinnedFiles: string[];
+  contextBranchesLoadError: string | null;
+  contextPinnedFilesLoadError: string | null;
+  activeKnowledgeBaseIds: string[];
+  activeKnowledgeBaseNames: Record<string, string>;
+  regenerateSiblingGroupId?: string;
+  regenerateInstruction?: string;
+  clearMentionReferences: () => void;
+}
+
+export interface ChatActionsMethods {
+  setMessages: (updater: (state: ChatState) => void) => void;
+  setLoading: (loading: boolean) => void;
+  /** Clear terminal stream state without aborting the already-completed transport. */
+  clearActiveStream?: () => void;
+  setMessageAppeared: (appeared: boolean) => void;
+  setHideAttachList: (hide: boolean) => void;
+  setHasUsedImagesInCurrentChat: (hasUsed: boolean) => void;
+  setIsWorkflowMode: (enabled: boolean) => void;
+  clearPendingWorkflowTemplate: () => void;
+  setSelectedModels: (models: { base: string | null; vision: string | null; reasoning: string | null }) => void;
+  setHasUserSelectedModel: (hasSelected: boolean) => void;
+  clearCurrentSessionMessageId: () => void;
+  _processSuggestions: (lastMsg: Message) => Promise<void>;
+  scheduleAutoSave: () => void;
+  setInputMessage: (message: string) => void;
+}
+
+const LINE_RANGE_REFERENCE_PATTERN = /^@(.+):(\d+)(?:-(\d+))?$/;
+// Selection snippets must stay under the server's 100KB per-part inline budget:
+// 32_000 chars * 3 bytes (worst-case UTF-8) = 96KB, so selections always inline
+// instead of tripping the protocol's field cap or the too-large degradation path.
+const SELECTION_CONTENT_MAX_CHARS = 32_000;
+const SELECTION_TRUNCATION_SUFFIX = '\n…[truncated]';
+
+function truncateSelectionContent(content: string): string {
+  if (content.length <= SELECTION_CONTENT_MAX_CHARS) {
+    return content;
+  }
+  return `${content.slice(0, SELECTION_CONTENT_MAX_CHARS)}${SELECTION_TRUNCATION_SUFFIX}`;
+}
+
+const mentionReferenceKey = (reference: MentionReference) =>
+  `${reference.type}:${reference.path ?? reference.fileId ?? reference.url ?? reference.label}:${reference.startLine ?? ''}:${reference.endLine ?? ''}`;
+
+const extractInlineMentionReferences = (input: string): MentionReference[] => {
+  const references: MentionReference[] = [];
+  for (const token of input.match(/@\S+/g) ?? []) {
+    if (token === '@staged') {
+      references.push({ type: 'git_staged', label: '@staged', source: 'special', size: null });
+    } else if (token === '@diff') {
+      references.push({ type: 'git_diff', label: '@diff', source: 'special', size: null });
+    } else if (token === '@codebase') {
+      references.push({ type: 'codebase', label: '@codebase', source: 'special', size: null });
+    } else if (token.startsWith('@folder:') && token.length > '@folder:'.length) {
+      const path = token.slice('@folder:'.length);
+      references.push({ type: 'workspace_folder', label: token, path, source: 'workspace', size: null });
+    } else if (token.startsWith('@url:') && token.length > '@url:'.length) {
+      const url = token.slice('@url:'.length);
+      references.push({ type: 'url', label: token, url, source: 'special', size: null });
+    } else if (token.startsWith('@wiki:') && token.length > '@wiki:'.length) {
+      const conceptName = token.slice('@wiki:'.length);
+      references.push({
+        type: 'wiki_concept',
+        label: token,
+        conceptName,
+        source: 'wiki',
+        size: null,
+      });
+    } else {
+      const lineMatch = LINE_RANGE_REFERENCE_PATTERN.exec(token);
+      if (!lineMatch) {
+        const cleanName = token.slice(1).toLowerCase();
+        if (cleanName) {
+          const agents = useAgentStore.getState().agents;
+          const matched = agents.find((a) => a.id.toLowerCase() === cleanName || a.name.toLowerCase() === cleanName);
+          if (matched) {
+            references.push({
+              type: 'agent',
+              label: token,
+              fileId: matched.id,
+              source: 'agent',
+              size: null,
+            });
+          }
+        }
+        continue;
+      }
+      const [, path, startRaw, endRaw] = lineMatch;
+      let startLine = Number(startRaw);
+      let endLine = endRaw ? Number(endRaw) : startLine;
+      if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(endLine)) {
+        continue;
+      }
+      if (endLine < startLine) {
+        [startLine, endLine] = [endLine, startLine];
+      }
+      references.push({
+        type: 'workspace_file',
+        label: token,
+        path,
+        startLine,
+        endLine,
+        source: 'workspace',
+        size: null,
+      });
+    }
+  }
+  return references;
+};
+
+/**
+ * 判断「通过输入框文本 @token 添加」（@ 菜单选中）的引用是否仍以文本形式存在。
+ *
+ * 仅对 `viaText` 引用生效：`selectReference` 写入输入框的 @token 与 store 引用字段一一对应，
+ * 用户若直接删除引用文本（而非点击引用 chip 的 ×），store 引用会残留，
+ * 提交前据此过滤，保证「文本有 @xxx → 生效；没有 → 不生效」语义一致，
+ * 避免 @agent 意外委派、@wiki/@chat 意外注入。
+ * 文件浏览器/全局搜索/拖拽/research 等非文本入口添加的引用不参与过滤。
+ */
+const isReferenceTokenAlive = (reference: MentionReference, input: string): boolean => {
+  if (!reference.viaText) {
+    return true;
+  }
+  switch (reference.type) {
+    case 'agent':
+      // toMentionReference 生成的 label 已带 @ 前缀（如 '@研究专家'），直接整体匹配文本 token
+      return input.includes(reference.label);
+    case 'wiki_concept':
+      return reference.conceptName ? input.includes(`@wiki:${reference.conceptName}`) : input.includes('@wiki:');
+    case 'prior_chat':
+      return input.includes(reference.label);
+    case 'workspace_folder':
+      return Boolean(reference.path) && input.includes(`@folder:${reference.path}`);
+    case 'workspace_file':
+      return Boolean(reference.path) && input.includes(`@${reference.path}`);
+    case 'url':
+      return Boolean(reference.url) && input.includes(`@url:${reference.url}`);
+    case 'git_staged':
+      return input.includes('@staged');
+    case 'git_diff':
+      return input.includes('@diff');
+    case 'codebase':
+      return input.includes('@codebase');
+    default:
+      // uploaded_file / generated_file / wiki_raw_file 等非文本 token 引用，不参与文本过滤
+      return true;
+  }
+};
+
+const mergeMentionReferences = (selected: MentionReference[], inline: MentionReference[]): MentionReference[] => {
+  const seen = new Set<string>();
+  const merged: MentionReference[] = [];
+  for (const reference of [...selected, ...inline]) {
+    const key = mentionReferenceKey(reference);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(reference);
+  }
+  return merged;
+};
+
+/**
+ * 获取基础模型选择信息（不含 API Key）
+ *
+ * 根据当前 actionMode 和智能体配置解析活动模型：
+ * - fast 模式：优先 fastModeModel，回退 baseModel
+ * - agent 模式：优先智能体绑定模型，回退 baseModel
+ * - 其他模式：使用 baseModel
+ */
+export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConfig | null): ModelSelection | null => {
+  const { defaultModelConfig, providers, getModelInfo } = useProviderStore.getState();
+
+  const resolved = resolveActiveModelConfig(actionMode, agentConfig, defaultModelConfig, providers);
+  const { selection } = resolved;
+  if (!selection) {
+    return null;
+  }
+
+  const provider = providers.find((p) => p.id === selection.providerId);
+  if (!provider) {
+    return null;
+  }
+
+  const hasActiveKey = provider.apiKeys?.some((k) => k.isActive && k.key) || Boolean(provider.oauthConnected);
+  if (!hasActiveKey && !supportsProviderNoAuth(provider)) {
+    return null;
+  }
+
+  const modelInfo = getModelInfo(selection.providerId, selection.model);
+  const modelLevelKwargs: Record<string, unknown> = {};
+  if (modelInfo?.temperature !== undefined) {
+    modelLevelKwargs.temperature = modelInfo.temperature;
+  }
+  const modelExtraParams = modelInfo?.extraParams || {};
+  const mergedKwargs: Record<string, unknown> = {
+    temperature: resolved.temperature,
+    ...resolved.modelKwargs,
+    ...modelLevelKwargs,
+    ...modelExtraParams,
+  };
+
+  const thinkingEffort = getThinkingEffort();
+  if (thinkingEffort) {
+    mergedKwargs.reasoning_effort = thinkingEffort;
+  } else {
+    delete mergedKwargs.reasoning_effort;
+  }
+
+  const activeKeyCount = provider.apiKeys.filter((k) => k.isActive && k.key).length;
+
+  return {
+    providerId: selection.providerId,
+    model: selection.model,
+    baseUrl: normalizeApiUrl(provider.apiUrl) || undefined,
+    modelKwargs: mergedKwargs,
+    supportsVision: modelInfo?.supports_vision ?? false,
+    credentialPoolStrategy: activeKeyCount > 1 ? provider.credentialPoolStrategy : undefined,
+  };
+};
+
+/**
+ * Resolve a SingleModelSelection into a ModelSelection (with provider validation).
+ * Shared by primary and fallback model resolution.
+ */
+const resolveSelectionToModelSelection = (
+  selection: import('@/store/config/providerTypes').SingleModelSelection | null | undefined,
+  extraKwargs?: Record<string, unknown>,
+): ModelSelection | null => {
+  if (!selection) {
+    return null;
+  }
+
+  const { providers, getModelInfo } = useProviderStore.getState();
+  const provider = providers.find((p) => p.id === selection.providerId);
+  if (!provider) {
+    return null;
+  }
+
+  // if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) return null;
+  // if (!provider.apiKeys.some((k) => k.isActive)) return null;
+
+  const modelInfo = getModelInfo(selection.providerId, selection.model);
+  const modelLevelKwargs: Record<string, unknown> = {};
+  if (modelInfo?.temperature !== undefined) {
+    modelLevelKwargs.temperature = modelInfo.temperature;
+  }
+  const modelExtraParams = modelInfo?.extraParams || {};
+  const mergedKwargs = { ...extraKwargs, ...modelLevelKwargs, ...modelExtraParams };
+
+  return {
+    providerId: selection.providerId,
+    model: selection.model,
+    baseUrl: normalizeApiUrl(provider.apiUrl) || undefined,
+    modelKwargs: Object.keys(mergedKwargs).length > 0 ? mergedKwargs : undefined,
+    supportsVision: modelInfo?.supports_vision ?? false,
+  };
+};
+
+export const getLiteModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  const globalModelKwargs = defaultModelConfig.liteModel.modelKwargs ?? {};
+  return resolveSelectionToModelSelection(defaultModelConfig?.liteModel?.primary, globalModelKwargs);
+};
+
+export const getFallbackModelSelection = (
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+): ModelSelection | null => {
+  if (actionMode === 'agent' && agentConfig?.fallbackModelSelection) {
+    return resolveSelectionToModelSelection(agentConfig.fallbackModelSelection);
+  }
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.baseModel?.fallback);
+};
+
+export const getSafetyFallbackModelSelection = (
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+): ModelSelection | null => {
+  if (actionMode === 'agent' && agentConfig?.safetyFallbackModelSelection) {
+    return resolveSelectionToModelSelection(agentConfig.safetyFallbackModelSelection);
+  }
+  // The system doesn't have a default safety fallback yet in defaultModelConfig
+  return null;
+};
+
+export const getFallbackLiteModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.liteModel?.fallback);
+};
+
+export interface RoutingModelSelections {
+  light: ModelSelection | null;
+  fallbackLight: ModelSelection | null;
+  reasoning: ModelSelection | null;
+  fallbackReasoning: ModelSelection | null;
+}
+
+const NO_ROUTING_SELECTIONS: RoutingModelSelections = {
+  light: null,
+  fallbackLight: null,
+  reasoning: null,
+  fallbackReasoning: null,
+};
+
+/**
+ * Light / reasoning slots sent with the request. Empty unless smart routing applies to this turn, so the
+ * server never routes a turn that the UI presents as un-routed (see `resolveSmartRouting`).
+ */
+export const getRoutingModelSelections = (
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+): RoutingModelSelections => {
+  const { providers, customModelInfo, defaultModelConfig } = useProviderStore.getState();
+  const routing = resolveSmartRouting(actionMode, agentConfig, defaultModelConfig, providers, customModelInfo);
+  if (!routing.active) {
+    return NO_ROUTING_SELECTIONS;
+  }
+  return {
+    light: resolveSelectionToModelSelection(routing.light.primary, routing.light.modelKwargs),
+    fallbackLight: resolveSelectionToModelSelection(routing.light.fallback),
+    reasoning: resolveSelectionToModelSelection(routing.reasoning.primary, routing.reasoning.modelKwargs),
+    fallbackReasoning: resolveSelectionToModelSelection(routing.reasoning.fallback),
+  };
+};
+
+export const getVisionFallbackModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.visionFallbackModel?.primary);
+};
+
+export const getCodeModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.codeModel?.primary);
+};
+
+export const getFallbackCodeModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.codeModel?.fallback);
+};
+
+export const getLongDocModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.longDocModel?.primary);
+};
+
+export const getFallbackLongDocModelSelection = (): ModelSelection | null => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return resolveSelectionToModelSelection(defaultModelConfig?.longDocModel?.fallback);
+};
+
+export const getAutoMoaReasoning = (agentConfig?: AgentConfig | null): boolean => {
+  const agentOverlay = agentConfig?.engineParams?.moa_overlay as Record<string, unknown> | undefined;
+  if (typeof agentOverlay?.auto_on_reasoning === 'boolean') {
+    return agentOverlay.auto_on_reasoning;
+  }
+  const { defaultModelConfig } = useProviderStore.getState();
+  return Boolean(defaultModelConfig?.routingConfig?.autoMoaReasoning);
+};
+
+export const getAutoMoaPresetId = (agentConfig?: AgentConfig | null): string | undefined => {
+  const { defaultModelConfig } = useProviderStore.getState();
+  return defaultModelConfig?.routingConfig?.autoMoaPresetId;
+};
+
+/**
+ * 检查聊天模型配置是否完整（与 Server model_resolver 对齐，无 env fallback）。
+ */
+export const validateChatModelConfig = (
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+): { valid: boolean; modelSelection: ModelSelection | null } => {
+  const modelSelection = getModelSelection(actionMode, agentConfig);
+  if (modelSelection) {
+    return { valid: true, modelSelection };
+  }
+
+  const { defaultModelConfig, providers } = useProviderStore.getState();
+  const hasAnyUsableProvider = providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
+  const primary = defaultModelConfig?.baseModel?.primary;
+  const missingDefaultOnly = hasAnyUsableProvider && (!primary || !isModelAvailable(primary, providers));
+
+  showI18nToast('chat.modelNotConfigured.title', undefined, {
+    descriptionKey: missingDefaultOnly
+      ? 'chat.defaultModelNotConfigured.description'
+      : 'chat.modelNotConfigured.description',
+    type: 'warning',
+    duration: 6000,
+    action: {
+      label: missingDefaultOnly ? 'chat.defaultModelNotConfigured.action' : 'chat.modelNotConfigured.action',
+      onClick: () => {
+        window.location.href = missingDefaultOnly ? '/settings/defaultModel' : '/settings/models';
+      },
+    },
+  });
+  return { valid: false, modelSelection: null };
+};
+
+const validateConfig = validateChatModelConfig;
+
+export const resolveEffectiveAgentId = (
+  actionMode: ActionMode,
+  agentConfig: AgentConfig | null,
+  _searchDepth?: 'normal' | 'deep',
+): string | undefined => {
+  if (actionMode === 'fast') {
+    return 'builtin-fast-search';
+  }
+  if (actionMode === 'deep_research') {
+    return resolveVisibleBuiltinAgentId(agentConfig?.agentId?.trim());
+  }
+  if (actionMode !== 'agent') {
+    return undefined;
+  }
+
+  const explicitAgentId = agentConfig?.agentId?.trim();
+  return resolveVisibleBuiltinAgentId(explicitAgentId);
+};
+
+/**
+ * 创建消息请求
+ *
+ * API Key 不再通过 HTTP 传输。只发送 modelSelection（providerId + model），
+ * 后端从 UserConfig 表读取并解密 API Key。
+ */
+export const createMessageRequest = async (
+  input: string,
+  messageId: string,
+  state: ChatActionsState,
+  modelSelection: ModelSelection | null,
+  resumeValue?: unknown,
+  archiveRestoreActions?: ArchiveRestoreAction[],
+  turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
+): Promise<Response> => {
+  const { fetchRawWebpage, mcpConfigs, systemInstructions, enableMemory } = useConfigStore.getState();
+  const { chatId, abortController, actionMode, searchDepth, agentConfig, currentBuiltinTools } = state;
+  if (!chatId) {
+    throw new Error('chatId is required to create a message request');
+  }
+
+  const isAgentMode = actionMode === 'agent';
+  const isStreamingMode = actionMode === 'agent' || actionMode === 'fast';
+
+  const normalizedMCPConfigs = normalizeMCPServiceConfigs(mcpConfigs);
+  const enabledMCPConfigs = agentConfig
+    ? normalizedMCPConfigs.filter((mcp) => agentConfig.selectedMcpNames.includes(mcp.name))
+    : [];
+
+  const { user } = useAuthStore.getState();
+  const userId = user?.id;
+
+  const buildUserInstructions = (): string => {
+    if (!isAgentMode) {
+      return systemInstructions || '';
+    }
+
+    if (!agentConfig) {
+      return systemInstructions || '';
+    }
+
+    const agentPrompt = agentConfig.systemPrompt || '';
+    if (agentConfig.useGlobalInstruction && systemInstructions) {
+      const parts = [systemInstructions, agentPrompt].filter(Boolean);
+      return parts.join('\n\n');
+    }
+    return agentPrompt;
+  };
+
+  let userInstructions = buildUserInstructions();
+  const effectiveAgentId = resolveEffectiveAgentId(actionMode, agentConfig, searchDepth);
+
+  const companionState = useCompanionStore.getState();
+  if (companionState.enabled && !companionState.muted && userId) {
+    const bones = generateCompanion(userId);
+    const name = companionState.nameOverride ?? bones.defaultName;
+    const effectiveRarity: Rarity = (companionState.evolvedRarity ?? bones.rarity) as Rarity;
+    const personality = getEnhancedPersonality(bones, effectiveRarity);
+    const title = getTitle(bones.peakStat, effectiveRarity);
+    const displayName = title ? `${title} ${name}` : name;
+    const intro = `\n# Companion\nA ${effectiveRarity} ${bones.species} named ${displayName} sits beside the user. Personality: ${personality}. It's a separate observer with its own speech bubble — you are NOT ${name}. If the user addresses ${name}, respond in ≤1 line; don't narrate what ${name} might say.`;
+    userInstructions = userInstructions ? userInstructions + intro : intro;
+  }
+
+  const liteModelSelection = getLiteModelSelection();
+  const fallbackModelSelection = getFallbackModelSelection(actionMode, agentConfig);
+  const safetyFallbackModelSelection = getSafetyFallbackModelSelection(actionMode, agentConfig);
+  const fallbackLiteModelSelection = getFallbackLiteModelSelection();
+  const {
+    light: lightModelSelection,
+    fallbackLight: fallbackLightModelSelection,
+    reasoning: reasoningModelSelection,
+    fallbackReasoning: fallbackReasoningModelSelection,
+  } = getRoutingModelSelections(actionMode, agentConfig);
+  const visionFallbackModelSelection = getVisionFallbackModelSelection();
+  const codeModelSelection = getCodeModelSelection();
+  const fallbackCodeModelSelection = getFallbackCodeModelSelection();
+  const longDocModelSelection = getLongDocModelSelection();
+  const fallbackLongDocModelSelection = getFallbackLongDocModelSelection();
+
+  const query = await buildMultimodalQuery(input, state.files, state.cameraFrames);
+
+  // Prioritize locale from personalSettings, fallback to cookie
+  const configStore = useConfigStore.getState();
+  const savedLocale = configStore.personalSettings?.locale;
+  const cookieLocale = getClientLocale();
+  const userLocale = normalizeLocaleForBackend(savedLocale || cookieLocale);
+  const reasoningDisplayMode =
+    configStore.personalSettings?.reasoningDisplayMode ?? configStore.reasoningDisplayMode ?? 'collapsed';
+
+  const migrationBoundProjectId = peekMigrationBoundProjectId();
+  const kanbanProjectScope = resolveKanbanProjectScope(migrationBoundProjectId);
+  const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools, kanbanProjectScope);
+  const migrationReadinessAnchor = effectiveAgentId ? consumeMigrationReadinessAnchorForAgent(effectiveAgentId) : null;
+
+  const activeMoaPresetId = useChatStore.getState().activeMoaPresetId;
+  const pendingWorkflowTemplateId = useChatStore.getState().pendingWorkflowTemplateId;
+  const pendingWorkflowTemplateArgs = useChatStore.getState().pendingWorkflowTemplateArgs;
+  const useWorkflowLane = state.isWorkflowMode || Boolean(pendingWorkflowTemplateId);
+
+  const requestBody = {
+    query,
+    message_id: messageId,
+    chat_id: chatId,
+    action_mode: actionMode,
+    multiplexed: shouldUseMultiplexedAgentStream(),
+    ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
+    ...(useWorkflowLane && { use_workflow: true }),
+    ...(pendingWorkflowTemplateId && { workflow_template_id: pendingWorkflowTemplateId }),
+    ...(pendingWorkflowTemplateArgs &&
+      Object.keys(pendingWorkflowTemplateArgs).length > 0 && {
+        workflow_template_args: pendingWorkflowTemplateArgs,
+      }),
+    ...(resumeValue !== undefined && { resume_value: resumeValue }),
+    ...(archiveRestoreActions && archiveRestoreActions.length > 0
+      ? {
+          archive_restore_actions: archiveRestoreActions.map((action) => ({
+            type: action.type,
+            restore_arg: action.restoreArg,
+          })),
+        }
+      : {}),
+    ...(turnCapabilityTelemetry && {
+      turn_capability_telemetry: {
+        source: turnCapabilityTelemetry.source,
+        effective_skill_count: turnCapabilityTelemetry.effectiveSkillCount,
+        effective_mcp_count: turnCapabilityTelemetry.effectiveMcpCount,
+      },
+    }),
+    ...(modelSelection && { model_selection: modelSelection }),
+    timezone: configStore.timezone || getBrowserTimezone(),
+    timestamp: getCurrentTimestamp(),
+    ...(userLocale && { locale: userLocale }),
+    reasoning_display_mode: reasoningDisplayMode,
+    ...(effectiveAgentId && { agent_id: effectiveAgentId }),
+    ...(migrationReadinessAnchor && {
+      migration_readiness_anchor: {
+        import_batch_id: migrationReadinessAnchor.importBatchId,
+        readiness_status: migrationReadinessAnchor.readinessStatus,
+      },
+    }),
+    ...(migrationBoundProjectId && { migration_bound_project_id: migrationBoundProjectId }),
+    ...(agentConfig?.ephemeralSubagents && { ephemeral_subagents: agentConfig.ephemeralSubagents }),
+    ...(userInstructions && { user_instructions: userInstructions }),
+    ...(liteModelSelection && { lite_model_selection: liteModelSelection }),
+    ...(fallbackModelSelection && { fallback_model_selection: fallbackModelSelection }),
+    ...(safetyFallbackModelSelection && { safety_fallback_model_selection: safetyFallbackModelSelection }),
+    ...(fallbackLiteModelSelection && {
+      fallback_lite_model_selection: fallbackLiteModelSelection,
+    }),
+    ...(lightModelSelection && { light_model_selection: lightModelSelection }),
+    ...(fallbackLightModelSelection && {
+      fallback_light_model_selection: fallbackLightModelSelection,
+    }),
+    ...(reasoningModelSelection && { reasoning_model_selection: reasoningModelSelection }),
+    ...(fallbackReasoningModelSelection && {
+      fallback_reasoning_model_selection: fallbackReasoningModelSelection,
+    }),
+    ...(visionFallbackModelSelection && { vision_fallback_model_selection: visionFallbackModelSelection }),
+    ...(codeModelSelection && { code_model_selection: codeModelSelection }),
+    ...(fallbackCodeModelSelection && { fallback_code_model_selection: fallbackCodeModelSelection }),
+    ...(longDocModelSelection && { long_doc_model_selection: longDocModelSelection }),
+    ...(fallbackLongDocModelSelection && { fallback_long_doc_model_selection: fallbackLongDocModelSelection }),
+    ...(isAgentMode && enabledMCPConfigs.length > 0 && { mcp_cfg: enabledMCPConfigs }),
+    ...(isAgentMode && { fetch_raw_webpage: fetchRawWebpage }),
+    ...(isStreamingMode && { enable_memory: enableMemory }),
+    ...(isStreamingMode && {
+      memory_require_confirmation: useConfigStore.getState().memoryRequireConfirmation,
+    }),
+    ...(isStreamingMode && {
+      enable_memory_auto_extraction: useConfigStore.getState().enableMemoryAutoExtraction,
+      enable_conversation_search: useConfigStore.getState().memoryEnableConversationSearch,
+      incognito_mode: useChatStore.getState().incognitoMode,
+      ...(useChatStore.getState().sandboxMode && { sandbox_mode: true }),
+    }),
+    ...(isStreamingMode && {
+      pre_compact_enabled: useConfigStore.getState().preCompactEnabled,
+    }),
+    ...(isStreamingMode && {
+      pre_compact_budget_tokens: useConfigStore.getState().preCompactBudgetTokens,
+    }),
+    ...(isAgentMode && {
+      enable_advanced_retrieval: useRetrievalStore.getState().enableAdvancedRetrieval ?? false,
+    }),
+    ...(isAgentMode && {
+      agent_config: {
+        skill_ids: agentConfig?.selectedSkillIds ?? [],
+        skill_configs: agentConfig?.skillConfigs,
+        enabled_builtin_tools: currentBuiltinTools,
+        browser_source: agentConfig?.browserSource,
+        dialog_policy: agentConfig?.dialogPolicy,
+        session_recording: agentConfig?.sessionRecording,
+        auto_restore_domains: agentConfig?.autoRestoreDomains ?? [],
+        orchestration_mode: state.isWorkflowMode ? 'orchestrated' : (agentConfig?.orchestrationMode ?? 'standard'),
+        ...(kanbanDefaultBoardId && { kanban_default_board_id: kanbanDefaultBoardId }),
+      },
+    }),
+    ...(isAgentMode &&
+      activeMoaPresetId && {
+        active_moa_preset_id: activeMoaPresetId,
+      }),
+    ...(isAgentMode &&
+      getAutoMoaReasoning(agentConfig) && {
+        auto_moa_reasoning: true,
+        ...(getAutoMoaPresetId(agentConfig) && {
+          auto_moa_preset_id: getAutoMoaPresetId(agentConfig),
+        }),
+      }),
+    ...(isAgentMode &&
+      agentConfig?.forceExternalAgent && {
+        force_external_agent: agentConfig.forceExternalAgent,
+      }),
+    ...(isAgentMode && {
+      security_preset: useChatStore.getState().securityPreset,
+    }),
+    ...(state.activeKnowledgeBaseIds?.length > 0 && {
+      session_knowledge_base_ids: state.activeKnowledgeBaseIds,
+    }),
+    ...(isStreamingMode &&
+      useConfigStore.getState().privacyEnabled && {
+        privacy_enabled: true,
+        privacy_s2_action: useConfigStore.getState().privacyS2Action,
+        privacy_s3_action: useConfigStore.getState().privacyS3Action,
+        ...(useConfigStore.getState().privacyRouting?.localModel && {
+          privacy_routing: useConfigStore.getState().privacyRouting,
+        }),
+        ...(useConfigStore.getState().privacyCustomKeywordsS2?.length && {
+          privacy_custom_keywords_s2: useConfigStore.getState().privacyCustomKeywordsS2,
+        }),
+        ...(useConfigStore.getState().privacyCustomKeywordsS3?.length && {
+          privacy_custom_keywords_s3: useConfigStore.getState().privacyCustomKeywordsS3,
+        }),
+        ...(useConfigStore.getState().privacyCustomPatternsS2?.length && {
+          privacy_custom_patterns_s2: useConfigStore.getState().privacyCustomPatternsS2,
+        }),
+        ...(useConfigStore.getState().privacyCustomPatternsS3?.length && {
+          privacy_custom_patterns_s3: useConfigStore.getState().privacyCustomPatternsS3,
+        }),
+        ...(useConfigStore.getState().privacySensitiveToolsS2?.length && {
+          privacy_sensitive_tools_s2: useConfigStore.getState().privacySensitiveToolsS2,
+        }),
+        ...(useConfigStore.getState().privacySensitiveToolsS3?.length && {
+          privacy_sensitive_tools_s3: useConfigStore.getState().privacySensitiveToolsS3,
+        }),
+        ...(useConfigStore.getState().privacyDeepScan && {
+          privacy_deep_scan: true,
+        }),
+      }),
+    ...(state.regenerateSiblingGroupId ? { sibling_group_id: state.regenerateSiblingGroupId } : {}),
+    ...(state.regenerateInstruction ? { regenerate_instruction: state.regenerateInstruction } : {}),
+    ...(state.isGoalMode && {
+      goal: {
+        ...(state.goalBudgetTokens !== null && { max_tokens: state.goalBudgetTokens }),
+        ...(state.goalBudgetUsd !== null && { max_usd: state.goalBudgetUsd }),
+        ...(state.goalMaxTimeSeconds !== null && { max_time_seconds: state.goalMaxTimeSeconds }),
+        ...(state.goalMaxTurns !== null && { max_turns: state.goalMaxTurns }),
+        ...(state.goalConvergenceWindow !== null && { convergence_window: state.goalConvergenceWindow }),
+        ...(state.goalLoopOnPause && { loop_on_pause: true }),
+        ...(state.goalCheckpointMode && { checkpoint_mode: 'per_todo' }),
+        ...(state.goalAcceptanceCriteria &&
+          state.goalAcceptanceCriteria.length > 0 && { acceptance_criteria: state.goalAcceptanceCriteria }),
+        ...(() => {
+          const filtered = state.goalConstraints?.filter((c) => c.trim().length > 0);
+          return filtered && filtered.length > 0 ? { constraints: filtered } : {};
+        })(),
+        ...(() => {
+          const filtered = state.goalProtectedPaths?.filter((p) => p.trim().length > 0);
+          return filtered && filtered.length > 0 ? { protected_paths: filtered } : {};
+        })(),
+      },
+    }),
+    ...(() => {
+      const references = mergeMentionReferences(
+        state.mentionReferences.filter((r) => isReferenceTokenAlive(r, input)),
+        extractInlineMentionReferences(input),
+      );
+      if (references.length === 0) {
+        return {};
+      }
+
+      const fileReferences = references.filter(
+        (r): r is Omit<MentionReference, 'type'> & { type: Exclude<MentionReferenceType, 'agent'> } =>
+          r.type !== 'agent',
+      );
+      const agentReferences = references.filter((r) => r.type === 'agent');
+
+      // Partition fresh vs redundant files in current session
+      const effectiveChatId = state.chatId ?? '';
+      const { fresh, redundant } = inSessionMentionDeduplicator.partitionMentions(effectiveChatId, fileReferences);
+      const redundantPaths = new Set(
+        redundant
+          .map((r) => inSessionMentionDeduplicator.normalizePath(r.path ?? r.label.replace(/^@/, '')))
+          .filter(Boolean),
+      );
+
+      // Register newly injected files in session deduplicator
+      const freshPaths = fresh.map((r) => r.path ?? r.label.replace(/^@/, '')).filter((p): p is string => Boolean(p));
+      if (freshPaths.length > 0 && effectiveChatId) {
+        inSessionMentionDeduplicator.markInjected(effectiveChatId, freshPaths);
+      }
+
+      const payload: Pick<StreamRequestBody, 'mention_references' | 'mentioned_agent_ids'> = {};
+      if (fileReferences.length > 0) {
+        payload.mention_references = fileReferences.map((reference) => {
+          const normPath = inSessionMentionDeduplicator.normalizePath(
+            reference.path ?? reference.label.replace(/^@/, ''),
+          );
+          const isRedundantInSession = redundantPaths.has(normPath);
+          const shouldOmitContent = isRedundantInSession && Boolean(reference.content);
+
+          return {
+            type: reference.type,
+            path: reference.path,
+            file_id: reference.fileId,
+            url: reference.url,
+            label: reference.label,
+            start_line: reference.startLine,
+            end_line: reference.endLine,
+            ...(reference.conceptName ? { concept_name: reference.conceptName } : {}),
+            ...(reference.range ? { range: reference.range } : {}),
+            ...(reference.content && !shouldOmitContent
+              ? { content: truncateSelectionContent(reference.content) }
+              : {}),
+          };
+        });
+      }
+      if (agentReferences.length > 0) {
+        payload.mentioned_agent_ids = agentReferences
+          .map((r) => r.fileId)
+          .filter((id): id is string => id !== undefined);
+      }
+      return payload;
+    })(),
+    ...(() => {
+      const fileIds = state.files.map((f) => f.id).filter(Boolean) as string[];
+      return fileIds.length > 0 ? { uploaded_file_ids: fileIds } : {};
+    })(),
+    ...(() => {
+      const scopedTarget = useScopedArtifactStore.getState().target;
+      if (!scopedTarget) {
+        return {};
+      }
+      return {
+        scoped_artifact: {
+          artifact_id: scopedTarget.artifactId,
+          artifact_name: scopedTarget.artifactName,
+          scope_label: scopedTarget.scopeLabel,
+          kind: scopedTarget.kind,
+          selected_snippet: scopedTarget.selectedSnippet,
+        },
+      };
+    })(),
+  };
+
+  state.clearMentionReferences();
+  useScopedArtifactStore.getState().clearTarget();
+
+  const quoteState = useQuoteStore.getState();
+  if (quoteState.quote) {
+    Object.assign(requestBody, {
+      quote: {
+        source_message_id: quoteState.quote.sourceMessageId,
+        quoted_text: quoteState.quote.quotedText,
+      },
+    });
+    quoteState.clearQuote();
+  }
+
+  const response = await createAISearchStream(requestBody, abortController || undefined);
+  return response;
+};
+
+/**
+ * 发送消息主函数
+ */
+
+import { produce } from 'immer';
+import useWorkspaceStore, { type PaneConfig } from '../useWorkspaceStore';
+import { resolvePaneSnapshotBase } from '@/store/chat/chatNavigationSnapshotCache';
+
+export const createSmartUpdater = (
+  chatId: string | undefined,
+  originalSetMessages: (updater: (state: ChatState) => void) => void,
+) => {
+  return (updater: (state: ChatState) => void) => {
+    if (!chatId) {
+      originalSetMessages(updater);
+      return;
+    }
+
+    const workspaceState = useWorkspaceStore.getState();
+    if (workspaceState.panes.length === 0) {
+      originalSetMessages(updater);
+      return;
+    }
+
+    const activePane = workspaceState.panes.find((p: PaneConfig) => p.id === workspaceState.activePaneId);
+
+    if (activePane && activePane.chatId === chatId) {
+      originalSetMessages(updater);
+      return;
+    }
+
+    const pane = workspaceState.panes.find((p: PaneConfig) => p.chatId === chatId);
+    if (pane) {
+      const currentSnapshot = resolvePaneSnapshotBase(chatId, pane.snapshot ?? null);
+      const nextSnapshot = produce(currentSnapshot, (draft: ChatState) => {
+        updater(draft);
+      });
+      useWorkspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
+      return;
+    }
+
+    originalSetMessages(updater);
+  };
+};
+
+export const sendMessage = async (
+  input: string,
+  messageId: string | undefined,
+  state: ChatActionsState,
+  actions: ChatActionsMethods,
+  getCurrentSessionMessageId: () => string,
+  allocateNewSessionMessageId: () => string,
+  resumeValue?: unknown,
+  archiveRestoreActions?: ArchiveRestoreAction[],
+  agentConfigOverride?: AgentConfig | null,
+  shouldRecordWikiQuerySuccess: boolean = false,
+  turnCapabilityTelemetry?: TurnCapabilityTerminalTelemetry,
+  queuedAttachments?: QueuedAttachments,
+): Promise<boolean> => {
+  const isHitlResume = resumeValue !== undefined;
+
+  if (state.loading && !isHitlResume) {
+    showI18nToast('chat.sendBlocked.title', undefined, {
+      descriptionKey: 'chat.sendBlocked.busyDescription',
+      type: 'warning',
+      duration: 3000,
+    });
+    return false;
+  }
+
+  if (!state.chatId?.trim()) {
+    showI18nToast('chat.sendBlocked.title', undefined, {
+      descriptionKey: 'chat.sendBlocked.noChatDescription',
+      type: 'warning',
+      duration: 5000,
+    });
+    return false;
+  }
+
+  if (state.actionMode === 'agent' && state.currentBuiltinTools.includes('kanban')) {
+    const migrationBoundProjectId = peekMigrationBoundProjectId();
+    const kanbanProjectScope = resolveKanbanProjectScope(migrationBoundProjectId);
+    const kanbanBlockReason = await resolveKanbanSendBlockReason(state.currentBuiltinTools, kanbanProjectScope);
+    if (kanbanBlockReason) {
+      showI18nToast('chat.sendBlocked.title', undefined, {
+        descriptionKey:
+          kanbanBlockReason === 'no_boards'
+            ? 'chat.sendBlocked.kanbanNoBoardDescription'
+            : 'chat.sendBlocked.kanbanNeedBoardDescription',
+        type: 'warning',
+        duration: 5000,
+      });
+      return false;
+    }
+  }
+
+  const requestMessageId = messageId ?? (isHitlResume ? getCurrentSessionMessageId() : allocateNewSessionMessageId());
+  const requestState = resolveRequestState(state, agentConfigOverride, queuedAttachments);
+
+  // 防重锁：检查该消息是否正在被处理（通过按钮审批或其他文本审批）
+  if (!isHitlResume && useToolApprovalStore.getState().isProcessing(requestMessageId)) {
+    showI18nToast('chat.sendBlocked.title', undefined, {
+      descriptionKey: 'chat.sendBlocked.processingDescription',
+      type: 'warning',
+      duration: 4000,
+    });
+    return false;
+  }
+
+  // 标记为正在处理，防止并发
+  useToolApprovalStore.getState().markProcessing(requestMessageId);
+
+  let pushedUserBubble = false;
+  let dispatched = false;
+  // The abort handle identifies this turn: whoever holds it owns the shared turn state until the turn ends.
+  const abortController = new AbortController();
+
+  try {
+    // 搜索服务检查：
+    // - 快速搜索/深度研究模式：严格要求搜索服务，否则拦截
+    // - agent 模式：未配置时由 stream preflight SSE capability_gap 通知（避免与 client toast 重复）
+    const requiresSearch = state.actionMode === 'fast' || state.actionMode === 'deep_research';
+
+    if (requiresSearch) {
+      const { guardSearchServiceConfigured } = await import('@/store/config/searchService');
+      const { searchServiceConfigs } = useConfigStore.getState();
+      if (!guardSearchServiceConfigured(searchServiceConfigs)) {
+        return false;
+      }
+    }
+
+    // 验证配置
+    const { valid, modelSelection } = validateConfig(requestState.actionMode, requestState.agentConfig);
+    if (!valid) {
+      return false;
+    }
+
+    // Auto-reset workflow mode after sending to prevent accidental high-cost subsequent messages
+    if (state.isWorkflowMode) {
+      actions.setIsWorkflowMode(false);
+    }
+
+    // 登记 AbortController 并设置 loading 状态
+    // Save the abort controller to the workspace store for the current pane
+    if (state.chatId) {
+      const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
+      if (paneId) {
+        useWorkspaceStore.getState().setPaneAbortController(paneId, abortController);
+      }
+    }
+
+    const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+    const smartActions = { ...actions, setMessages: smartSetMessages };
+
+    smartActions.setMessages((innerState) => {
+      innerState.loading = true;
+      innerState.messageAppeared = false;
+      innerState.abortController = abortController;
+    });
+
+    const added = false;
+    const recievedMessage = '';
+
+    const isRegenerate = !!state.regenerateSiblingGroupId;
+
+    const persistFiles =
+      requestState.files.length > 0 ? requestState.files.map(({ contentHash: _, ...rest }) => rest) : undefined;
+
+    if (!isRegenerate && !resumeValue) {
+      smartActions.setMessages((innerState) => {
+        if (!innerState.chatId) {
+          return;
+        }
+        innerState.messages.push({
+          content: input,
+          messageId: requestMessageId,
+          chatId: innerState.chatId,
+          role: 'user',
+          createdAt: new Date(),
+          files: persistFiles,
+        });
+      });
+      pushedUserBubble = true;
+    }
+
+    dispatched = true;
+    await executeStreamWithRetry(
+      input,
+      requestMessageId,
+      requestState,
+      smartActions,
+      modelSelection,
+      abortController,
+      added,
+      recievedMessage,
+      resumeValue,
+      archiveRestoreActions,
+      shouldRecordWikiQuerySuccess,
+      turnCapabilityTelemetry,
+    );
+    useCompanionStore.getState().incrementConversation();
+  } catch (error) {
+    const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+
+    if (error instanceof AgentBusyError) {
+      // The server refused the turn: retract the optimistic bubble so the caller's requeue
+      // does not leave a duplicate of the same message in the transcript.
+      if (pushedUserBubble) {
+        smartSetMessages(retractUserBubble(requestMessageId));
+      }
+      throw error;
+    }
+    if (error instanceof ApprovalAlreadyResolvedError) {
+      // Someone else (the timeout or another device) already resolved this interrupt: the caller owns the card and
+      // tells the user, no failure notice.
+      throw error;
+    }
+    if (isArchiveRestoreActionInvalidError(error)) {
+      smartSetMessages((innerState) => {
+        const lastMessageIndex = innerState.messages.length - 1;
+        if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === requestMessageId) {
+          innerState.messages.pop();
+        }
+      });
+      showI18nToast('chat.archiveRestore.invalidTitle', undefined, {
+        descriptionKey: 'chat.archiveRestore.invalidDescription',
+        descriptionValues: { error: error.detail || error.message },
+        type: 'error',
+        duration: 6000,
+      });
+      throw error;
+    }
+    if (error instanceof Error && error.name !== 'AbortError') {
+      const isNetworkError = isTransientNetworkError(error);
+      const refusal = error instanceof RequestRefusedError ? error : null;
+
+      if (isHitlResume) {
+        // The answered card already sits in the transcript, so a failed resume leaves it alone. When the server
+        // never took the answer (refused, or no request got a reply) it is reported undispatched and the caller
+        // that rolls its card back tells the user.
+        if (isNetworkError || refusal) {
+          dispatched = false;
+        }
+      } else if (isNetworkError) {
+        smartSetMessages((innerState) => {
+          const msg = innerState.messages.find((m) => m.messageId === requestMessageId);
+          if (msg) {
+            msg.sendFailed = true;
+          }
+        });
+      } else {
+        smartSetMessages((innerState) => {
+          const lastMessageIndex = innerState.messages.length - 1;
+          if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === requestMessageId) {
+            innerState.messages.pop();
+          }
+        });
+        // The server never took the turn: report it undispatched so a queued message is kept for the user.
+        if (refusal) {
+          dispatched = false;
+        }
+      }
+
+      // A text a risk rule holds has its notice already (shown by the risk event) and is no failure to report.
+      if (!(error instanceof RiskBlockedError)) {
+        console.error('[sendMessage] request failed:', error);
+        if (!isHitlResume || dispatched) {
+          showI18nToast('chat.messageFailed.title', undefined, sendFailureToast(isNetworkError, refusal?.detail));
+        }
+        if (resolveE2eApiBase()) {
+          throw error;
+        }
+      }
+    }
+  } finally {
+    const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+    // This turn can end after the next one took over (it was still reconciling with the server, or a stop reached it
+    // while it waited for the workspace stream): the turn state then belongs to that turn and stays untouched.
+    let heldByOtherTurn = false;
+    smartSetMessages((innerState) => {
+      heldByOtherTurn = isHeldByOtherTurn(innerState.abortController, abortController);
+      if (heldByOtherTurn) {
+        return;
+      }
+      innerState.loading = false;
+      innerState.abortController = null;
+      innerState.currentSessionMessageId = null;
+      // A queued message sends its own attachments; the live ones belong to the message being composed.
+      if (!queuedAttachments) {
+        innerState.files = [];
+        innerState.cameraFrames = [];
+      }
+    });
+
+    if (!heldByOtherTurn) {
+      if (state.chatId) {
+        const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === state.chatId)?.id;
+        if (paneId) {
+          useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+        }
+      }
+      actions.setHideAttachList(false);
+    }
+    actions.scheduleAutoSave();
+
+    // Always release the processing lock on finally
+    useToolApprovalStore.getState().unmarkProcessing(requestMessageId);
+
+    if (
+      typeof window !== 'undefined' &&
+      (window.__MYRM_E2E_DIRECT_SSE__ || resolveE2eApiBase()) &&
+      state.chatId?.trim() &&
+      useToolApprovalStore.getState().queue.length === 0
+    ) {
+      const smartActionsForE2e = { ...actions, setMessages: smartSetMessages };
+      const { tryE2eAttachForPendingApproval } = await import('./streamConsumer');
+      await tryE2eAttachForPendingApproval(
+        { ...state, loading: false, abortController: null },
+        smartActionsForE2e,
+        new AbortController(),
+      );
+    }
+  }
+  return dispatched;
+};
+
+export type AttachToChatOptions = {
+  /** SHPOIB E2E / stream recovery: attach while the primary POST stream still holds loading. */
+  allowWhileLoading?: boolean;
+};
+
+export type HitlRecoveryResult = {
+  ok: true;
+  attached: boolean;
+  queueLen: number;
+  source: 'attach' | 'probe' | 'none';
+};
+
+const HITL_ATTACH_RECOVERY_MS = 12_000;
+
+async function replayPendingHitlFromProbe(
+  chatId: string,
+  state: ChatActionsState,
+  actions: ChatActionsMethods,
+): Promise<number> {
+  if (!resolveE2eApiBase()) {
+    return useToolApprovalStore.getState().queue.length;
+  }
+  try {
+    const response = await fetchWithTimeout(
+      `/security/allowlist/test/hitl-probe?chat_id=${encodeURIComponent(chatId)}`,
+      { method: 'GET' },
+      10_000,
+    );
+    if (!response.ok) {
+      return useToolApprovalStore.getState().queue.length;
+    }
+    const probe = (await response.json()) as { pending_interrupt_events?: unknown[] };
+    const events = probe.pending_interrupt_events;
+    if (!Array.isArray(events) || events.length === 0) {
+      return useToolApprovalStore.getState().queue.length;
+    }
+
+    const { handleMessageStream } = await import('./messageStream/handleMessageStream');
+    const { parseSseEnvelope } = await import('./schema');
+    const { AdaptiveScheduler } = await import('./adaptiveScheduler');
+    const scheduler = new AdaptiveScheduler();
+    const streamState = {
+      chatId: state.chatId || chatId,
+      messages: state.messages,
+      messageAppeared: state.messageAppeared,
+      loading: state.loading,
+      scheduler,
+    };
+    const streamActions = {
+      setMessages: (updater: (draft: ChatActionsState) => void) => {
+        actions.setMessages((draft) => updater(draft));
+      },
+      setMessageAppeared: actions.setMessageAppeared,
+      setLoading: actions.setLoading,
+      _processSuggestions: actions._processSuggestions,
+      scheduleAutoSave: actions.scheduleAutoSave,
+    };
+    let added = false;
+    let recievedMessage = '';
+    for (const raw of events) {
+      const event = parseSseEnvelope(raw);
+      if (!event) {
+        continue;
+      }
+      ({ added, recievedMessage } = await handleMessageStream(
+        event,
+        '',
+        undefined,
+        added,
+        recievedMessage,
+        streamState,
+        streamActions,
+        state.files,
+      ));
+      if (useToolApprovalStore.getState().queue.length > 0) {
+        break;
+      }
+    }
+    scheduler.flush();
+    scheduler.cancel();
+  } catch (error) {
+    console.warn('SHPOIB HITL probe replay failed:', error);
+  }
+  return useToolApprovalStore.getState().queue.length;
+}
+
+/** Bounded attach for SHPOIB E2E: replay pending tool_approval_request without blocking on HITL wait. */
+export const attachForHitlRecovery = async (
+  chatId: string,
+  actions: ChatActionsMethods,
+  get: () => ChatState,
+): Promise<HitlRecoveryResult> => {
+  const normalized = chatId.trim();
+  if (!normalized) {
+    return { ok: true, attached: false, queueLen: 0, source: 'none' };
+  }
+
+  const existingQueue = useToolApprovalStore.getState().queue.length;
+  if (existingQueue > 0) {
+    return { ok: true, attached: true, queueLen: existingQueue, source: 'attach' };
+  }
+
+  const state = get();
+  const smartSetMessages = createSmartUpdater(normalized, actions.setMessages);
+  const smartActions = { ...actions, setMessages: smartSetMessages };
+  const attachAbort = new AbortController();
+
+  try {
+    await ensureMobileE2EE();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const headers = withMobilePairHeaders({
+      Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
+
+    const response = await fetchWithTimeout(
+      `/agents/chat/${normalized}/attach`,
+      {
+        method: 'GET',
+        headers,
+        signal: attachAbort.signal,
+      },
+      0,
+    );
+
+    if (!response.ok) {
+      const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+      return {
+        ok: true,
+        attached: queueLen > 0,
+        queueLen,
+        source: queueLen > 0 ? 'probe' : 'none',
+      };
+    }
+    if (!response.body) {
+      const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+      return {
+        ok: true,
+        attached: queueLen > 0,
+        queueLen,
+        source: queueLen > 0 ? 'probe' : 'none',
+      };
+    }
+
+    const streamResult = await consumeStream(response, '', state, smartActions, attachAbort, false, '', {
+      untilApprovalQueued: true,
+      maxWaitMs: HITL_ATTACH_RECOVERY_MS,
+    });
+    if (streamResult.queueLen > 0) {
+      return {
+        ok: true,
+        attached: true,
+        queueLen: streamResult.queueLen,
+        source: 'attach',
+      };
+    }
+
+    const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+    return {
+      ok: true,
+      attached: queueLen > 0,
+      queueLen,
+      source: queueLen > 0 ? 'probe' : 'none',
+    };
+  } catch (error) {
+    console.warn('SHPOIB HITL attach recovery failed:', error);
+    const queueLen = await replayPendingHitlFromProbe(normalized, get(), smartActions);
+    return {
+      ok: true,
+      attached: queueLen > 0,
+      queueLen,
+      source: queueLen > 0 ? 'probe' : 'none',
+    };
+  } finally {
+    attachAbort.abort();
+  }
+};
+
+export const attachToChat = async (
+  chatId: string,
+  actions: ChatActionsMethods,
+  get: () => ChatState,
+  options?: AttachToChatOptions,
+): Promise<boolean> => {
+  const state = get();
+  if (state.loading && !options?.allowWhileLoading) {
+    return false;
+  }
+
+  const smartSetMessages = createSmartUpdater(chatId, actions.setMessages);
+  const smartActions = { ...actions, setMessages: smartSetMessages };
+
+  const abortController = new AbortController();
+
+  const paneId = useWorkspaceStore.getState().panes.find((p: PaneConfig) => p.chatId === chatId)?.id;
+  if (paneId) {
+    useWorkspaceStore.getState().setPaneAbortController(paneId, abortController);
+  }
+
+  smartActions.setMessages((draft) => {
+    draft.loading = true;
+    draft.abortController = abortController;
+  });
+
+  try {
+    await ensureMobileE2EE();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const headers = withMobilePairHeaders({
+      Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
+
+    const response = await fetchWithTimeout(
+      `/agents/chat/${chatId}/attach`,
+      {
+        method: 'GET',
+        headers,
+        signal: abortController.signal,
+      },
+      0,
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No active task — still reconcile store with DB agent binding.
+        await finalizeAgentStreamTurn(chatId);
+        return false;
+      }
+      if (!isRetryableHttpStatus(response.status)) {
+        throw new FatalNetworkError(`Attach failed: ${response.statusText}`, response.status);
+      }
+      throw new Error(`Attach failed: ${response.statusText}`);
+    }
+
+    if (!response.body) {
+      await finalizeAgentStreamTurn(chatId);
+      return false;
+    }
+
+    await consumeStream(response, '', state, smartActions, abortController, false, '');
+    await finalizeAgentStreamTurn(chatId);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('Attach stream aborted');
+    } else {
+      console.error('Attach stream error:', error);
+      throw error;
+    }
+    return false;
+  } finally {
+    // The attach can end after a newer turn took over (it was still reconciling with the server): that turn owns the state.
+    let heldByOtherTurn = false;
+    smartActions.setMessages((draft) => {
+      heldByOtherTurn = isHeldByOtherTurn(draft.abortController, abortController);
+      if (heldByOtherTurn) {
+        return;
+      }
+      draft.loading = false;
+      draft.abortController = null;
+    });
+    if (paneId && !heldByOtherTurn) {
+      useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+    }
+  }
+};

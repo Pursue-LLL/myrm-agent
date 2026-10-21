@@ -1,0 +1,1452 @@
+"""Cron job blueprint definitions — single source of truth.
+
+Blueprints provide pre-configured templates for common recurring tasks.
+They define slots (user-fillable parameters), schedule generation logic,
+and high-quality prompt templates.
+
+Both the frontend and the Agent tool consume these definitions via the
+``/cron/blueprints`` API endpoint, ensuring GUI-created and Agent-created
+tasks use identical, professionally tuned prompts and schedules.
+
+[INPUT]
+- (none)
+
+[OUTPUT]
+- BlueprintSlot: Slot schema with optional flag for non-required text fields.
+- CronBlueprint: Single blueprint definition dataclass.
+- BUILTIN_BLUEPRINTS: Registry of all built-in blueprints.
+- BlueprintFillError: Slot validation error for fill operations.
+- fill_blueprint: Fills a blueprint with slot values; name from title[locale]; validates required text slots (optional slots may be empty).
+
+[POS]
+Cron blueprint single-source-of-truth definitions.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from typing import Literal
+
+from app.core.cron.blueprint_i18n_supplement import SUPPLEMENTAL_BY_ID
+
+
+class BlueprintFillError(ValueError):
+    """Raised when blueprint slot values fail validation."""
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintSlot:
+    """A user-fillable parameter in a blueprint."""
+
+    name: str
+    type: Literal["time", "text", "enum"]
+    label: str
+    default: str
+    options: tuple[str, ...] = ()
+    optional: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintScheduleResult:
+    """Generated schedule from blueprint slot values."""
+
+    kind: Literal["cron", "interval", "once"]
+    expr: str | None = None
+    tz: str | None = None
+    interval_ms: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintFillResult:
+    """Result of filling a blueprint with user-provided slot values."""
+
+    schedule: BlueprintScheduleResult
+    prompt: str
+    name: str
+    required_capabilities: tuple[str, ...] = ()
+    tools_allowed: tuple[str, ...] | None = None
+    skill_ids: tuple[str, ...] = ()
+    job_type: Literal["agent", "shell", "router", "reminder"] = "agent"
+    session_target: Literal["isolated", "main", "daily"] = "isolated"
+    deduplicate: bool = False
+    skip_if_active: bool = False
+    timeout_seconds: int | None = None
+    monitor_config: "BlueprintMonitorDefaults | None" = None
+    failure_alert: "BlueprintFailureAlertDefaults | None" = None
+    pre_condition_script: str | None = None
+    command: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintMonitorDefaults:
+    """Default monitor configuration to apply when creating a job from a blueprint."""
+
+    monitor_type: Literal["set", "hash"] = "set"
+    ttl_days: int = 30
+    enabled: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintFailureAlertDefaults:
+    """Default failure-alert policy to apply when creating a job from a blueprint."""
+
+    enabled: bool = True
+    after: int = 3
+    cooldown_seconds: int = 300
+
+
+@dataclass(frozen=True, slots=True)
+class BlueprintJobDefaults:
+    """Execution defaults used to materialize a full Cron create payload."""
+
+    job_type: Literal["agent", "shell", "router", "reminder"] = "agent"
+    session_target: Literal["isolated", "main", "daily"] = "isolated"
+    deduplicate: bool = False
+    skip_if_active: bool = False
+    timeout_seconds: int | None = None
+    monitor_config: BlueprintMonitorDefaults | None = None
+    failure_alert: BlueprintFailureAlertDefaults | None = None
+    pre_condition_script_template: dict[str, str] | None = None
+    command: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CronBlueprint:
+    """A reusable automation template."""
+
+    id: str
+    icon: str
+    title: dict[str, str]
+    description: dict[str, str]
+    prompt_template: dict[str, str]
+    slots: tuple[BlueprintSlot, ...]
+    category: str = "general"
+    tags: tuple[str, ...] = ()
+    sort_order: int = 0
+    default_required_capabilities: tuple[str, ...] = ()
+    default_tools_allowed: tuple[str, ...] | None = None
+    default_skill_ids: tuple[str, ...] = ()
+    job_defaults: BlueprintJobDefaults = field(default_factory=BlueprintJobDefaults)
+    _schedule_builder: str = field(default="", repr=False)
+
+
+_CAP_WEB = ("web_search_tool", "net_fetch")
+_TOOLS_WEB = ("web_search",)
+_CAP_RESEARCH = ("web_search_tool", "net_fetch", "file_read")
+_CAP_RESEARCH_SAVE = (*_CAP_RESEARCH, "file_write")
+_TOOLS_RESEARCH = ("web_search", "file_ops")
+_CAP_DEVOPS = ("shell_exec", "file_read", "file_write", "code_interpreter")
+_TOOLS_DEVOPS = ("web_search", "file_ops", "code_execute")
+# wiki_query_tool / wiki_apply_tool are gated by knowledge_* permissions, the raw/ scan by file_read.
+_CAP_WIKI = ("file_read", "knowledge_read", "knowledge_write")
+_TOOLS_WIKI = ("wiki", "memory", "file_ops")
+_ASSET_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+_QUOTE_CURRENCY_RE = re.compile(r"^[a-z0-9]{2,10}$")
+
+
+def _merge_locale_dict(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
+    merged = dict(base)
+    merged.update(extra)
+    return merged
+
+
+def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
+    """Attach ja/de/ko catalog fields from the supplemental locale module."""
+    supplement = SUPPLEMENTAL_BY_ID.get(bp.id)
+    if supplement is None:
+        return bp
+    return CronBlueprint(
+        id=bp.id,
+        icon=bp.icon,
+        title=_merge_locale_dict(bp.title, supplement["title"]),
+        description=_merge_locale_dict(bp.description, supplement["description"]),
+        prompt_template=_merge_locale_dict(bp.prompt_template, supplement["prompt_template"]),
+        slots=bp.slots,
+        category=bp.category,
+        tags=bp.tags,
+        sort_order=bp.sort_order,
+        default_required_capabilities=bp.default_required_capabilities,
+        default_tools_allowed=bp.default_tools_allowed,
+        default_skill_ids=bp.default_skill_ids,
+        job_defaults=bp.job_defaults,
+        _schedule_builder=bp._schedule_builder,
+    )
+
+
+def _time_to_cron(time_str: str) -> str:
+    parts = time_str.split(":")
+    h, m = int(parts[0]), int(parts[1])
+    return f"{m} {h} * * *"
+
+
+def _time_to_cron_weekday(time_str: str, day: str) -> str:
+    parts = time_str.split(":")
+    h, m = int(parts[0]), int(parts[1])
+    return f"{m} {h} * * {day}"
+
+
+def _time_to_cron_with_weekdays(time_str: str, weekdays: str) -> str:
+    parts = time_str.split(":")
+    h, m = int(parts[0]), int(parts[1])
+    dow = "1-5" if weekdays == "weekdays" else ("0,6" if weekdays == "weekends" else "*")
+    return f"{m} {h} * * {dow}"
+
+
+_RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
+    CronBlueprint(
+        id="morning_briefing",
+        icon="Sun",
+        title={"en": "Morning Briefing", "zh": "每日早报"},
+        description={
+            "en": "Get a daily briefing on topics you care about",
+            "zh": "每天获取你关心的话题简报",
+        },
+        prompt_template={
+            "en": (
+                "Provide a concise morning briefing covering: key news headlines, "
+                "weather outlook, and any important reminders for today. "
+                "Keep it brief and actionable."
+            ),
+            "zh": ("提供一份简洁的早间简报，涵盖：重要新闻头条、天气预报、以及今天的重要提醒事项。保持简短且可操作。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="08:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("daily", "news", "briefing"),
+        sort_order=0,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="weekly_review",
+        icon="ClipboardList",
+        title={"en": "Weekly Review", "zh": "每周回顾"},
+        description={
+            "en": "Summarize weekly progress and plan ahead",
+            "zh": "总结每周进展并规划下周",
+        },
+        prompt_template={
+            "en": (
+                "Conduct a comprehensive weekly review: summarize key accomplishments, "
+                "identify blockers or challenges faced, and suggest priorities for "
+                "the upcoming week. Organize by category."
+            ),
+            "zh": ("进行一次全面的每周回顾：总结本周关键成果、识别遇到的阻碍或挑战，并建议下周的优先事项。按类别组织。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="18:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="day",
+                default="5",
+                options=("1", "2", "3", "4", "5", "6", "0"),
+            ),
+        ),
+        category="productivity",
+        tags=("weekly", "review", "planning"),
+        sort_order=1,
+        _schedule_builder="time_weekday",
+    ),
+    CronBlueprint(
+        id="custom_reminder",
+        icon="Bell",
+        title={"en": "Custom Reminder", "zh": "自定义提醒"},
+        description={
+            "en": "Set a recurring reminder with your own message",
+            "zh": "设置一个自定义消息的定期提醒",
+        },
+        prompt_template={
+            "en": "Remind me: {message}",
+            "zh": "提醒我：{message}",
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(name="message", type="text", label="message", default=""),
+        ),
+        category="personal",
+        tags=("reminder", "custom"),
+        sort_order=2,
+        _schedule_builder="time_daily",
+    ),
+    CronBlueprint(
+        id="news_digest",
+        icon="Newspaper",
+        title={"en": "News Digest", "zh": "新闻摘要"},
+        description={
+            "en": "Get a curated digest on your chosen topics",
+            "zh": "获取你选择的话题的精选摘要",
+        },
+        prompt_template={
+            "en": (
+                "Search the web and compile a concise digest of the latest news and "
+                "developments about: {topic}. Include 3-5 key items with brief summaries. "
+                "Prioritize breaking news and significant developments."
+            ),
+            "zh": (
+                "搜索网络并编制一份关于以下话题的最新新闻和发展的精简摘要：{topic}。"
+                "包含 3-5 个关键条目并附简短摘要。优先报道突发新闻和重大进展。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="07:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="topic",
+                type="text",
+                label="topic",
+                default="AI and technology",
+            ),
+        ),
+        category="information",
+        tags=("news", "digest", "topics"),
+        sort_order=3,
+        default_required_capabilities=_CAP_WEB,
+        default_tools_allowed=_TOOLS_WEB,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="evening_winddown",
+        icon="Moon",
+        title={"en": "Evening Wind-down", "zh": "晚间放松"},
+        description={
+            "en": "End your day with a calming summary and tomorrow's preview",
+            "zh": "以平静的总结和明日预览结束一天",
+        },
+        prompt_template={
+            "en": (
+                "Provide a calming evening summary: briefly recap today's highlights, "
+                "preview tomorrow's schedule and priorities, and offer a relaxation tip "
+                "or inspirational thought for the evening."
+            ),
+            "zh": ("提供一份平和的晚间总结：简要回顾今天的亮点、预览明天的日程和优先事项，并提供一条放松建议或晚间灵感语录。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="21:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="personal",
+        tags=("evening", "relaxation", "summary"),
+        sort_order=4,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="local_health_check",
+        icon="Activity",
+        title={"en": "Local Health Check", "zh": "本地健康巡检"},
+        description={
+            "en": "Monitor your system's CPU, memory, and disk status",
+            "zh": "监控系统 CPU、内存和磁盘状态",
+        },
+        prompt_template={
+            "en": (
+                "Execute the host-server-ops health inspection workflow. Check CPU load, "
+                "memory utilization, remaining disk headroom, and critical daemon/service status. "
+                "Produce a structured health brief with status level (OK / WARN / CRIT) and triage advice."
+            ),
+            "zh": (
+                "执行 host-server-ops 主机健康巡检工作流。检查 CPU 负载、"
+                "内存利用率、剩余磁盘空间以及关键守护进程/服务运行状态。"
+                "生成包含状态评级（OK / WARN / CRIT）及排障处置建议的结构化健康简报。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="devops",
+        tags=("health", "monitoring", "system", "local"),
+        sort_order=5,
+        default_required_capabilities=_CAP_DEVOPS,
+        default_tools_allowed=_TOOLS_DEVOPS,
+        default_skill_ids=("host-server-ops",),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="competitor_watch",
+        icon="Eye",
+        title={"en": "Competitor Watch", "zh": "竞品动态监控"},
+        description={
+            "en": "Track competitor news and product updates weekly",
+            "zh": "每周追踪竞品新闻和产品更新",
+        },
+        prompt_template={
+            "en": (
+                "Search the web for the latest news, product updates, and announcements from: "
+                "{competitors}. Compile a concise competitive intelligence brief covering: "
+                "new features, pricing changes, partnerships, funding, and notable blog posts. "
+                "Highlight items that may impact our strategy."
+            ),
+            "zh": (
+                "搜索以下竞品的最新新闻、产品更新和公告：{competitors}。"
+                "编制一份简洁的竞争情报简报，涵盖：新功能、定价变化、合作伙伴关系、"
+                "融资动态和值得注意的博客文章。突出可能影响我们战略的条目。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="day",
+                default="1",
+                options=("1", "2", "3", "4", "5", "6", "0"),
+            ),
+            BlueprintSlot(
+                name="competitors",
+                type="text",
+                label="competitors",
+                default="",
+            ),
+        ),
+        category="business",
+        tags=("competitor", "intelligence", "weekly", "research"),
+        sort_order=6,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekday",
+    ),
+    CronBlueprint(
+        id="habit_checkin",
+        icon="CheckSquare",
+        title={"en": "Habit Check-in", "zh": "习惯打卡"},
+        description={
+            "en": "Daily reminder to track your habits and routines",
+            "zh": "每日提醒追踪你的习惯和日常",
+        },
+        prompt_template={
+            "en": (
+                "It's time for your daily habit check-in! Ask me about my progress on: "
+                "{habits}. Provide encouragement and track my streak. "
+                "If I've missed any, offer a gentle reminder without judgment."
+            ),
+            "zh": (
+                "是时候进行每日习惯打卡了！询问我在以下方面的进展：{habits}。"
+                "给予鼓励并追踪我的连续完成情况。"
+                "如果我遗漏了任何一项，请温和地提醒，不要评判。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="21:00"),
+            BlueprintSlot(
+                name="habits",
+                type="text",
+                label="habits",
+                default="exercise, reading, meditation",
+            ),
+        ),
+        category="personal",
+        tags=("habit", "tracking", "daily", "wellness"),
+        sort_order=7,
+        _schedule_builder="time_daily",
+    ),
+    CronBlueprint(
+        id="learn_daily",
+        icon="BookOpen",
+        title={"en": "Daily Learning", "zh": "每日学习"},
+        description={
+            "en": "Get a curated learning topic delivered daily",
+            "zh": "每天获得一个精选学习主题",
+        },
+        prompt_template={
+            "en": (
+                "Teach me something interesting and useful about: {subject}. "
+                "Explain one concept, technique, or recent development in 2-3 paragraphs. "
+                "Include a practical example or exercise I can try. "
+                "Make it accessible but not superficial."
+            ),
+            "zh": (
+                "教我一些关于以下主题的有趣且有用的知识：{subject}。"
+                "用 2-3 段解释一个概念、技术或近期发展。"
+                "包含一个我可以尝试的实际例子或练习。"
+                "内容要易懂但不肤浅。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="08:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="subject",
+                type="text",
+                label="subject",
+                default="programming and software architecture",
+            ),
+        ),
+        category="education",
+        tags=("learning", "education", "daily", "growth"),
+        sort_order=8,
+        default_required_capabilities=_CAP_WEB,
+        default_tools_allowed=_TOOLS_WEB,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="social_media_watch",
+        icon="Radio",
+        title={"en": "Social Media Watch", "zh": "社媒舆情监控"},
+        description={
+            "en": "Monitor social media for brand mentions, sentiment shifts, and trending topics",
+            "zh": "监控社交媒体上的品牌提及、情感变化和热门话题",
+        },
+        prompt_template={
+            "en": (
+                "Monitor the following social media platforms for mentions of: {brand}. "
+                "Search using keywords: {keywords}. "
+                "Platforms to check: {platforms}. "
+                "Collect recent posts (last 24 hours), classify sentiment, identify notable "
+                "positive and negative mentions, detect trends, and produce a structured report. "
+                "Flag any strongly negative posts that require immediate attention."
+            ),
+            "zh": (
+                "监控以下社交媒体平台上关于 {brand} 的提及。"
+                "使用关键词搜索：{keywords}。"
+                "需要检查的平台：{platforms}。"
+                "收集最近的帖子（过去24小时），分类情感倾向，识别值得关注的正面和负面提及，"
+                "检测趋势，并生成结构化报告。标记需要立即关注的强负面帖子。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="brand",
+                type="text",
+                label="brand",
+                default="",
+            ),
+            BlueprintSlot(
+                name="platforms",
+                type="text",
+                label="platforms",
+                default="Xiaohongshu, Weibo",
+            ),
+            BlueprintSlot(
+                name="keywords",
+                type="text",
+                label="keywords",
+                default="",
+                optional=True,
+            ),
+        ),
+        category="business",
+        tags=("social-media", "monitoring", "sentiment", "brand"),
+        sort_order=9,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="financial_monitor_simple",
+        icon="Activity",
+        title={"en": "Financial Monitor (Simple)", "zh": "金融监控（简单版）"},
+        description={
+            "en": "Zero-LLM threshold alert using a Python pre-flight probe",
+            "zh": "使用 Python 预检脚本的零 LLM 阈值告警",
+        },
+        prompt_template={
+            "en": (
+                "This job runs in router mode. Use the pre-flight probe output as the final message. "
+                "If the probe prints [SKIP], stay silent."
+            ),
+            "zh": ("该任务运行在 router 模式。将预检脚本输出作为最终消息。如果预检脚本输出 [SKIP]，保持静默。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="08:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(name="asset", type="text", label="asset", default="bitcoin"),
+            BlueprintSlot(
+                name="quote_currency",
+                type="enum",
+                label="quote_currency",
+                default="usd",
+                options=("usd", "usdt", "eur", "cny"),
+            ),
+            BlueprintSlot(name="lower_bound", type="text", label="lower_bound", default="58000"),
+            BlueprintSlot(name="upper_bound", type="text", label="upper_bound", default="68000"),
+            BlueprintSlot(
+                name="source",
+                type="enum",
+                label="source",
+                default="coingecko",
+                options=("coingecko", "binance"),
+            ),
+        ),
+        category="business",
+        tags=("finance", "monitoring", "threshold", "low-cost"),
+        sort_order=10,
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=90,
+            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
+            pre_condition_script_template={
+                "en": (
+                    "import json\n"
+                    "import urllib.request\n"
+                    "from datetime import datetime, timezone\n"
+                    "\n"
+                    'asset_id = "{asset}".strip().lower()\n'
+                    'vs_currency = "{quote_currency}".strip().lower()\n'
+                    'lower_bound = float("{lower_bound}")\n'
+                    'upper_bound = float("{upper_bound}")\n'
+                    'source = "{source}".strip().lower()\n'
+                    "\n"
+                    "def _fetch_from_binance() -> float:\n"
+                    "    symbol = asset_id.upper() + vs_currency.upper()\n"
+                    '    url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    '    return float(data["price"])\n'
+                    "\n"
+                    "def _fetch_from_coingecko() -> float:\n"
+                    '    url = "https://api.coingecko.com/api/v3/simple/price?ids=" + asset_id + "&vs_currencies=" + vs_currency\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    "    if asset_id not in data or vs_currency not in data[asset_id]:\n"
+                    '        raise RuntimeError("No quote returned for " + asset_id + "/" + vs_currency)\n'
+                    "    return float(data[asset_id][vs_currency])\n"
+                    "\n"
+                    "def _fetch_price() -> tuple[float, str]:\n"
+                    "    providers = [source]\n"
+                    '    if source == "binance":\n'
+                    '        providers.append("coingecko")\n'
+                    "    else:\n"
+                    '        providers.append("binance")\n'
+                    "    errors = []\n"
+                    "    for provider in providers:\n"
+                    "        try:\n"
+                    '            if provider == "binance":\n'
+                    "                return _fetch_from_binance(), provider\n"
+                    "            return _fetch_from_coingecko(), provider\n"
+                    "        except Exception as exc:\n"
+                    '            errors.append(provider + ":" + str(exc))\n'
+                    '    raise RuntimeError("all_sources_failed: " + " | ".join(errors))\n'
+                    "\n"
+                    "price, resolved_source = _fetch_price()\n"
+                    "timestamp = datetime.now(timezone.utc).isoformat()\n"
+                    "\n"
+                    "if price < lower_bound or price > upper_bound:\n"
+                    '    direction = "below" if price < lower_bound else "above"\n'
+                    "    print(\n"
+                    '        "[ALERT] "\n'
+                    "        + asset_id.upper()\n"
+                    '        + "/"\n'
+                    "        + vs_currency.upper()\n"
+                    '        + " is "\n'
+                    "        + direction\n"
+                    '        + " threshold (price="\n'
+                    '        + ("%.4f" % price)\n'
+                    '        + ", range="\n'
+                    '        + ("%.4f" % lower_bound)\n'
+                    '        + "-"\n'
+                    '        + ("%.4f" % upper_bound)\n'
+                    '        + ", source="\n'
+                    "        + resolved_source\n"
+                    '        + ", ts="\n'
+                    "        + timestamp\n"
+                    '        + ")"\n'
+                    "    )\n"
+                    "else:\n"
+                    '    print("[SKIP]")\n'
+                ),
+                "zh": (
+                    "import json\n"
+                    "import urllib.request\n"
+                    "from datetime import datetime, timezone\n"
+                    "\n"
+                    'asset_id = "{asset}".strip().lower()\n'
+                    'vs_currency = "{quote_currency}".strip().lower()\n'
+                    'lower_bound = float("{lower_bound}")\n'
+                    'upper_bound = float("{upper_bound}")\n'
+                    'source = "{source}".strip().lower()\n'
+                    "\n"
+                    "def _fetch_from_binance() -> float:\n"
+                    "    symbol = asset_id.upper() + vs_currency.upper()\n"
+                    '    url = "https://api.binance.com/api/v3/ticker/price?symbol=" + symbol\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    '    return float(data["price"])\n'
+                    "\n"
+                    "def _fetch_from_coingecko() -> float:\n"
+                    '    url = "https://api.coingecko.com/api/v3/simple/price?ids=" + asset_id + "&vs_currencies=" + vs_currency\n'
+                    "    with urllib.request.urlopen(url, timeout=12) as resp:\n"
+                    '        data = json.loads(resp.read().decode("utf-8"))\n'
+                    "    if asset_id not in data or vs_currency not in data[asset_id]:\n"
+                    '        raise RuntimeError("No quote returned for " + asset_id + "/" + vs_currency)\n'
+                    "    return float(data[asset_id][vs_currency])\n"
+                    "\n"
+                    "def _fetch_price() -> tuple[float, str]:\n"
+                    "    providers = [source]\n"
+                    '    if source == "binance":\n'
+                    '        providers.append("coingecko")\n'
+                    "    else:\n"
+                    '        providers.append("binance")\n'
+                    "    errors = []\n"
+                    "    for provider in providers:\n"
+                    "        try:\n"
+                    '            if provider == "binance":\n'
+                    "                return _fetch_from_binance(), provider\n"
+                    "            return _fetch_from_coingecko(), provider\n"
+                    "        except Exception as exc:\n"
+                    '            errors.append(provider + ":" + str(exc))\n'
+                    '    raise RuntimeError("all_sources_failed: " + " | ".join(errors))\n'
+                    "\n"
+                    "price, resolved_source = _fetch_price()\n"
+                    "timestamp = datetime.now(timezone.utc).isoformat()\n"
+                    "\n"
+                    "if price < lower_bound or price > upper_bound:\n"
+                    '    direction = "below" if price < lower_bound else "above"\n'
+                    "    print(\n"
+                    '        "[ALERT] "\n'
+                    "        + asset_id.upper()\n"
+                    '        + "/"\n'
+                    "        + vs_currency.upper()\n"
+                    '        + " is "\n'
+                    "        + direction\n"
+                    '        + " threshold (price="\n'
+                    '        + ("%.4f" % price)\n'
+                    '        + ", range="\n'
+                    '        + ("%.4f" % lower_bound)\n'
+                    '        + "-"\n'
+                    '        + ("%.4f" % upper_bound)\n'
+                    '        + ", source="\n'
+                    "        + resolved_source\n"
+                    '        + ", ts="\n'
+                    "        + timestamp\n"
+                    '        + ")"\n'
+                    "    )\n"
+                    "else:\n"
+                    '    print("[SKIP]")\n'
+                ),
+            },
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="financial_monitor_advanced",
+        icon="Eye",
+        title={"en": "Financial Monitor (Advanced)", "zh": "金融监控（高级版）"},
+        description={
+            "en": "Multi-signal financial watch with dedupe, monitor baseline, and failure alerts",
+            "zh": "带去重、增量监控与失败告警的多信号金融监控",
+        },
+        prompt_template={
+            "en": (
+                "Monitor these assets continuously: {watchlist}. "
+                "Evaluate each run with five lenses: price action, derivatives/funding, sentiment (X + news), "
+                "macro catalysts, and on-chain flow proxies. "
+                "Alert only when at least two independent risk signals align with: {signal_rules}. "
+                "Portfolio context: {portfolio_context}. "
+                "If there is no actionable change, reply with exactly [SILENT]. "
+                "If alerting, return ONLY a minified JSON array sorted by asset symbol. "
+                "Each item must contain keys: asset, trigger_reason, confidence, invalidation_level, follow_up_checks. "
+                "Do not include timestamps or any prose outside JSON."
+            ),
+            "zh": (
+                "持续监控以下资产：{watchlist}。"
+                "每次运行按五个维度评估：价格行为、衍生品/资金费率、情绪（X+新闻）、宏观催化、链上资金流。"
+                "仅当至少两个独立风险信号与以下规则同时成立时告警：{signal_rules}。"
+                "组合上下文：{portfolio_context}。"
+                "若无可执行变化，必须仅回复 [SILENT]。"
+                "若触发告警，只输出按资产符号排序的最小化 JSON 数组。"
+                "每个元素仅包含键：asset、trigger_reason、confidence、invalidation_level、follow_up_checks。"
+                "禁止输出时间戳和 JSON 之外的说明文字。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(name="watchlist", type="text", label="watchlist", default="BTC,ETH,SOL"),
+            BlueprintSlot(
+                name="signal_rules",
+                type="text",
+                label="signal_rules",
+                default="price breakdown + funding flip + sentiment deterioration",
+            ),
+            BlueprintSlot(
+                name="portfolio_context",
+                type="text",
+                label="portfolio_context",
+                default="",
+                optional=True,
+            ),
+        ),
+        category="business",
+        tags=("finance", "monitoring", "multi-signal", "advanced"),
+        sort_order=11,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        job_defaults=BlueprintJobDefaults(
+            job_type="agent",
+            session_target="daily",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=240,
+            monitor_config=BlueprintMonitorDefaults(monitor_type="hash", ttl_days=14, enabled=True),
+            failure_alert=BlueprintFailureAlertDefaults(enabled=True, after=2, cooldown_seconds=900),
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="read_it_later",
+        icon="BookmarkPlus",
+        title={"en": "Read-it-Later Ingestion", "zh": "稍后读知识内化"},
+        description={
+            "en": "Auto-ingest saved articles into your knowledge base daily",
+            "zh": "每天自动将收藏的文章内化到知识库",
+        },
+        prompt_template={
+            "en": (
+                "Wiki source sync job (router mode). The sync summary is produced by the server; "
+                "deliver it as-is. Reply [SILENT] when nothing was ingested."
+            ),
+            "zh": ("知识库来源同步任务（router 模式）。同步摘要由服务端生成，请原样投递。若无新内容则回复 [SILENT]。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="06:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("read-it-later", "knowledge", "ingestion", "wiki", "automation"),
+        sort_order=12,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=120,
+            command="__wiki_source_sync__",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="wiki_morning_delta",
+        icon="BookMarked",
+        title={"en": "Wiki Morning Delta", "zh": "知识库晨间摘要"},
+        description={
+            "en": "Daily vault delta digest: organize new raw notes and summarize changes",
+            "zh": "每日检查知识库变更，整理新 raw 笔记并输出简短摘要",
+        },
+        prompt_template={
+            "en": (
+                "Run the wiki morning delta routine for the last 24 hours:\n"
+                "1. Scan raw/ for new or updated source files that still need organizing.\n"
+                "2. Use wiki_query_tool to inspect related concepts; use wiki_apply_tool only "
+                "for small metadata or timeline updates when clearly needed.\n"
+                "3. Note outdated wiki pages that may need attention (do not rewrite whole articles).\n"
+                "4. Reply with at most 3 short lines summarizing what changed in the vault "
+                "(new ingests, compiles, edits, or maintenance findings).\n"
+                "If nothing meaningful changed, reply with exactly [SILENT]."
+            ),
+            "zh": (
+                "执行过去 24 小时的知识库晨间巡检：\n"
+                "1. 扫描 raw/ 中新增或更新、仍需整理的原始文件。\n"
+                "2. 用 wiki_query_tool 查看相关概念；仅在必要时用 wiki_apply_tool 做少量元数据或时间线条目更新。\n"
+                "3. 标记可能过时的 wiki 页面（不要整页重写）。\n"
+                "4. 用不超过 3 行简短总结 vault 发生了什么变化（新入库、编译、编辑或维护发现）。\n"
+                "若无实质变化，必须仅回复 [SILENT]。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="07:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "digest", "daily", "second-brain", "knowledge"),
+        sort_order=13,
+        default_required_capabilities=_CAP_WIKI,
+        default_tools_allowed=_TOOLS_WIKI,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="wiki_maintain",
+        icon="Wrench",
+        title={"en": "Wiki Vault Maintenance", "zh": "知识库自动维护"},
+        description={
+            "en": "Scheduled structural lint and auto-repair for broken links, stale raw, and vault hygiene",
+            "zh": "定时执行知识库结构巡检，自动修复断链、过期 raw 与安全项",
+        },
+        prompt_template={
+            "en": (
+                "Wiki maintain job (router mode). The maintenance summary is produced by the server; "
+                "deliver it as-is. Reply [SILENT] when nothing changed."
+            ),
+            "zh": ("知识库维护任务（router 模式）。维护摘要由服务端生成，请原样投递。若无变化则回复 [SILENT]。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="03:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekends",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="mode",
+                type="enum",
+                label="mode",
+                default="structural",
+                options=("structural", "full"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "maintenance", "lint", "automation", "second-brain"),
+        sort_order=14,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=900,
+            command="__wiki_maintain__:structural",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="wiki_vault_weekly_health",
+        icon="Activity",
+        title={"en": "Wiki Vault Weekly Health (List Only)", "zh": "知识库每周健康巡检（只列不修）"},
+        description={
+            "en": "Weekly zero-fix health check list for broken links, stale sources, and orphan notes",
+            "zh": "每周日定时只读巡检知识库，生成断链/过期事实/草稿体检清单，绝不擅自修改任何文件",
+        },
+        prompt_template={
+            "en": (
+                "Wiki vault health check job (router mode, list-only). The markdown health list is produced by the server; "
+                "deliver it directly to the user."
+            ),
+            "zh": ("知识库健康周检任务（router 模式，只列不修）。体检清单由服务端生成，请直接投递给用户。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="18:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="weekday",
+                default="0",
+                options=("0", "1", "2", "3", "4", "5", "6"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "health", "doctor", "list-only", "automation", "second-brain"),
+        sort_order=15,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=600,
+            command="__wiki_maintain__:list_only",
+        ),
+        _schedule_builder="time_weekday",
+    ),
+    CronBlueprint(
+        id="daily_review_compounding",
+        icon="NotebookPen",
+        title={"en": "Daily Review Compounding", "zh": "每日复盘知识化"},
+        description={
+            "en": "Compile today's daily-review journals into four-dimension knowledge drafts awaiting review",
+            "zh": "晚间汇总当日复盘日志，自动萃取为项目/知识/方法/对比四维知识草稿，等待人工审核",
+        },
+        prompt_template={
+            "en": (
+                "Daily review compounding job (router mode). The compounding summary is produced "
+                "by the server; deliver it as-is. Reply [SILENT] when nothing was ingested."
+            ),
+            "zh": ("每日复盘知识化任务（router 模式）。汇总摘要由服务端生成，请原样投递。若无复盘输入则回复 [SILENT]。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="21:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "daily-review", "knowledge", "compounding", "second-brain", "automation"),
+        sort_order=19,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=300,
+            command="__wiki_daily_review_compound__",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="wiki_corpus_dedup",
+        icon="Copy",
+        title={"en": "Wiki Corpus Dedup Scan", "zh": "知识库语料去重扫描"},
+        description={
+            "en": "Scheduled scan for exact, normalized, and near-duplicate raw sources with review queue",
+            "zh": "定时扫描 raw 语料的精确/归一化/近似重复，并写入待审核队列",
+        },
+        prompt_template={
+            "en": (
+                "Wiki corpus dedup job (router mode). The dedup summary is produced by the server; "
+                "deliver it as-is. Reply [SILENT] when no duplicate groups need review."
+            ),
+            "zh": ("知识库语料去重任务（router 模式）。去重摘要由服务端生成，请原样投递。若无待审核重复组则回复 [SILENT]。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="04:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekends",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "dedup", "hygiene", "automation", "second-brain"),
+        sort_order=16,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=600,
+            command="__wiki_dedup__",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="seo_weekly_audit",
+        icon="Search",
+        title={"en": "SEO & Site Health Weekly Audit", "zh": "SEO 与网站健康周度巡检"},
+        description={
+            "en": "Scheduled audit of technical SEO, robots, sitemap, meta tags, and AI search readiness with prioritized roadmap",
+            "zh": "定时巡检网站 technical SEO、robots、sitemap、标签与 AI 搜索就绪度，生成优先级路线图",
+        },
+        prompt_template={
+            "en": (
+                "Run a comprehensive technical SEO and site health audit for {target_url} (depth: {depth}).\n"
+                "1. Fetch and verify robots.txt, sitemap.xml, and /llms.txt if present.\n"
+                "2. Inspect core rendered pages for title, meta description, canonical, H1, JSON-LD, OpenGraph, and hreflang.\n"
+                "3. Check for dead internal links and broken images.\n"
+                "4. Generate a prioritized P0-P3 SEO-OPTIMIZATION-ROADMAP.md artifact in artifacts/ with concrete evidence.\n"
+                "5. Provide a crisp executive summary of critical issues and actionable next steps."
+            ),
+            "zh": (
+                "对目标站点 {target_url} 执行全面的技术 SEO 与站点健康巡检（检测深度: {depth}）。\n"
+                "1. 抓取并验证 robots.txt、sitemap.xml 以及 /llms.txt（若存在）。\n"
+                "2. 深度检查核心页面的 title、meta description、canonical、H1、JSON-LD 结构化数据、OpenGraph 及 hreflang。\n"
+                "3. 采样检测站内死链与缺失 alt 的图片。\n"
+                "4. 在 artifacts/ 目录生成带真实证据的 P0-P3 结构化 SEO-OPTIMIZATION-ROADMAP.md 工件。\n"
+                "5. 输出精炼的高管摘要，列出致命缺陷与本周可执行的优化动作。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(
+                name="target_url",
+                type="text",
+                label="target_url",
+                default="https://example.com",
+            ),
+            BlueprintSlot(
+                name="depth",
+                type="enum",
+                label="depth",
+                default="standard",
+                options=("quick", "standard", "deep"),
+            ),
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="day",
+                default="1",
+                options=("1", "2", "3", "4", "5", "6", "0"),
+            ),
+        ),
+        category="marketing-growth",
+        tags=("seo", "audit", "marketing", "website", "weekly"),
+        sort_order=17,
+        default_required_capabilities=_CAP_RESEARCH_SAVE,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekday",
+    ),
+    CronBlueprint(
+        id="viral_quote_discovery",
+        icon="Flame",
+        title={"en": "Viral Quote & Hook Discovery", "zh": "高潜爆款金句与选题提炼"},
+        description={
+            "en": "Daily surveillance of social networks and industry blogs to mine viral hooks, contrasting arguments, and quotes",
+            "zh": "定时巡检社媒网络与行业前沿，挖掘高传播金句、反共识论点与金牌选题",
+        },
+        prompt_template={
+            "en": (
+                "Execute viral quote and golden hook discovery for topic: {topic} across target channels: {channels}.\n"
+                "1. Search recent popular discussions (last 24-48 hours) for high-engagement posts.\n"
+                "2. Extract top 5 viral quote candidates featuring counter-intuitive insights or strong emotional resonance.\n"
+                "3. Deconstruct why each quote works (Hook formula, pain point addressed, audience reaction).\n"
+                "4. Synthesize adapted derivative ideas for X threads, Xiaohongshu notes, and WeChat newsletters.\n"
+                "5. Save the curated quotes into `docs/marketing/viral_quotes_{topic}.md` and summarize the top candidate."
+            ),
+            "zh": (
+                "执行关于主题【{topic}】的高潜爆款金句与选题提炼，覆盖渠道：{channels}。\n"
+                "1. 检索过去 24-48 小时内的全网热门讨论与高互动内容。\n"
+                "2. 提炼 Top 5 具备反共识视角、高传播力或强烈共鸣的金句候选。\n"
+                "3. 深度拆解爆款密码（钩子公式、击中的用户痛点、争议点与情绪价值）。\n"
+                "4. 为 X 串推、小红书图文和微信长文分别衍生对应的二创选题建议。\n"
+                "5. 将金句库归档至 `docs/marketing/viral_quotes_{topic}.md` 并精简输出最优主推金句。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(
+                name="topic",
+                type="text",
+                label="topic",
+                default="AI Agent & Vibe Coding",
+            ),
+            BlueprintSlot(
+                name="channels",
+                type="text",
+                label="channels",
+                default="X (Twitter), Xiaohongshu, HackerNews",
+            ),
+            BlueprintSlot(name="time", type="time", label="time", default="08:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="marketing-growth",
+        tags=("marketing", "viral", "quote", "social-media", "content"),
+        sort_order=18,
+        default_required_capabilities=_CAP_RESEARCH_SAVE,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="commerce_morning_digest",
+        icon="Store",
+        title={"en": "Daily Commerce Morning Digest", "zh": "店铺经营晨报与全盘诊断"},
+        description={
+            "en": "Automated headless morning briefing analyzing GMV, conversion rates, stockout risks, and staged promotions",
+            "zh": "自动化商业晨报诊断，深度分析销售大盘、缺货告警、两阶段调价提案与库存建议",
+        },
+        prompt_template={
+            "en": (
+                "Produce the morning commerce digest for store '{store_name}': review yesterday's GMV, "
+                "order volume, conversion rate, and inventory health. Highlight any critical low-stock items "
+                "or pending staged changes that require operator sign-off, and provide prioritized action recommendations."
+            ),
+            "zh": (
+                "为店铺「{store_name}」生成今日经营晨报与全盘诊断：汇总分析销售额(GMV)、订单量、转化率波动与库存健康度。"
+                "重点标出严重缺货预警与待审批的暂存调价变更，并给出优先级操作处置建议。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="store_name", type="text", label="store_name", default="Flagship Store"),
+            BlueprintSlot(name="time", type="time", label="time", default="08:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="commerce",
+        tags=("commerce", "merchant", "digest", "kpi"),
+        sort_order=20,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekdays",
+    ),
+)
+
+BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(_with_supplemental_locales(bp) for bp in _RAW_BUILTIN_BLUEPRINTS)
+
+_BLUEPRINT_MAP: dict[str, CronBlueprint] = {bp.id: bp for bp in BUILTIN_BLUEPRINTS}
+
+
+def get_blueprint(blueprint_id: str) -> CronBlueprint | None:
+    """Look up a blueprint by ID."""
+    return _BLUEPRINT_MAP.get(blueprint_id)
+
+
+def _resolve_locale_title(bp: CronBlueprint, locale: str) -> str:
+    lang = locale if locale in bp.title else "en"
+    return bp.title.get(lang, bp.title.get("en", bp.id))
+
+
+def _validate_slot_values(bp: CronBlueprint, values: dict[str, str]) -> dict[str, str]:
+    """Resolve and validate user slot values against the blueprint schema."""
+    known = {slot.name for slot in bp.slots}
+    unknown = sorted(set(values) - known)
+    if unknown:
+        raise BlueprintFillError(f"unknown slot(s): {', '.join(unknown)} — valid: {', '.join(sorted(known))}")
+
+    effective: dict[str, str] = {}
+    for slot in bp.slots:
+        raw = values.get(slot.name, slot.default)
+        if slot.type == "text" and slot.default == "" and not str(raw).strip() and not slot.optional:
+            raise BlueprintFillError(f"missing required value: {slot.name} ({slot.label})")
+        if slot.type == "enum" and slot.options and str(raw) not in slot.options:
+            raise BlueprintFillError(f"{slot.name}={raw!r} not allowed — one of {', '.join(slot.options)}")
+        effective[slot.name] = str(raw)
+    return effective
+
+
+def fill_blueprint(
+    blueprint_id: str | CronBlueprint,
+    values: dict[str, str],
+    *,
+    locale: str = "en",
+    tz: str | None = None,
+) -> BlueprintFillResult | None:
+    """Fill a blueprint's slots and produce schedule + prompt.
+
+    Returns None if blueprint_id is unknown.
+    Raises BlueprintFillError when slot values are invalid.
+    """
+    if isinstance(blueprint_id, CronBlueprint):
+        bp: CronBlueprint | None = blueprint_id
+    else:
+        bp = get_blueprint(blueprint_id)
+    if not bp:
+        return None
+
+    effective_values = _validate_slot_values(bp, values)
+
+    schedule = _build_schedule_from_blueprint(bp, effective_values, tz)
+    prompt = _build_prompt_from_blueprint(bp, effective_values, locale)
+    pre_condition_script = _build_pre_condition_script(bp, effective_values, locale)
+    name = _resolve_locale_title(bp, locale)[:40]
+    defaults = bp.job_defaults
+
+    command = defaults.command
+    if bp.id == "wiki_maintain":
+        mode = effective_values.get("mode", "structural")
+        if mode not in ("structural", "full"):
+            raise BlueprintFillError(f"mode={mode!r} not allowed — one of structural, full")
+        command = f"__wiki_maintain__:{mode}"
+
+    return BlueprintFillResult(
+        schedule=schedule,
+        prompt=prompt,
+        name=name,
+        required_capabilities=bp.default_required_capabilities,
+        tools_allowed=bp.default_tools_allowed,
+        skill_ids=bp.default_skill_ids,
+        job_type=defaults.job_type,
+        session_target=defaults.session_target,
+        deduplicate=defaults.deduplicate,
+        skip_if_active=defaults.skip_if_active,
+        timeout_seconds=defaults.timeout_seconds,
+        monitor_config=defaults.monitor_config,
+        failure_alert=defaults.failure_alert,
+        pre_condition_script=pre_condition_script,
+        command=command,
+    )
+
+
+def _build_schedule_from_blueprint(
+    bp: CronBlueprint,
+    values: dict[str, str],
+    tz: str | None,
+) -> BlueprintScheduleResult:
+    """Generate a schedule based on the blueprint's builder type."""
+    time_val = values.get("time", "08:00")
+    builder = bp._schedule_builder
+
+    if builder == "time_weekdays":
+        weekdays_val = values.get("weekdays", "everyday")
+        expr = _time_to_cron_with_weekdays(time_val, weekdays_val)
+    elif builder == "time_weekday":
+        day_val = values.get("day", "5")
+        expr = _time_to_cron_weekday(time_val, day_val)
+    elif builder == "time_daily":
+        expr = _time_to_cron(time_val)
+    else:
+        expr = _time_to_cron(time_val)
+
+    return BlueprintScheduleResult(kind="cron", expr=expr, tz=tz)
+
+
+def _build_prompt_from_blueprint(
+    bp: CronBlueprint,
+    values: dict[str, str],
+    locale: str,
+) -> str:
+    """Build the prompt by interpolating slot values into the template."""
+    lang = locale if locale in bp.prompt_template else "en"
+    template = bp.prompt_template.get(lang, bp.prompt_template.get("en", ""))
+    try:
+        return template.format(**values)
+    except KeyError as exc:
+        raise BlueprintFillError(f"blueprint prompt missing value for {exc}") from exc
+
+
+def _escape_for_python_double_quote(value: str) -> str:
+    """Escape a string for safe insertion into Python double-quoted literals."""
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r")
+
+
+def _parse_positive_number(raw: str, name: str) -> float:
+    value = raw.strip()
+    try:
+        num = float(value)
+    except ValueError as exc:
+        raise BlueprintFillError(f"{name} must be a number, got {raw!r}") from exc
+    if num <= 0:
+        raise BlueprintFillError(f"{name} must be > 0, got {raw!r}")
+    return num
+
+
+def _normalize_simple_financial_script_values(values: dict[str, str]) -> dict[str, str]:
+    asset = values["asset"].strip().lower()
+    if not _ASSET_ID_RE.fullmatch(asset):
+        raise BlueprintFillError(f"asset must match [a-z0-9-] and start with alphanumeric (got {values['asset']!r})")
+
+    quote_currency = values["quote_currency"].strip().lower()
+    if not _QUOTE_CURRENCY_RE.fullmatch(quote_currency):
+        raise BlueprintFillError(f"quote_currency must be alphanumeric (2-10 chars), got {values['quote_currency']!r}")
+
+    lower = _parse_positive_number(values["lower_bound"], "lower_bound")
+    upper = _parse_positive_number(values["upper_bound"], "upper_bound")
+    if lower >= upper:
+        raise BlueprintFillError(f"lower_bound must be less than upper_bound (got {lower:g} >= {upper:g})")
+
+    source = values["source"].strip().lower()
+    if source not in {"coingecko", "binance"}:
+        raise BlueprintFillError(f"source must be coingecko or binance, got {values['source']!r}")
+
+    return {
+        **values,
+        "asset": _escape_for_python_double_quote(asset),
+        "quote_currency": _escape_for_python_double_quote(quote_currency),
+        "lower_bound": f"{lower:g}",
+        "upper_bound": f"{upper:g}",
+        "source": source,
+    }
+
+
+def _build_pre_condition_script(
+    bp: CronBlueprint,
+    values: dict[str, str],
+    locale: str,
+) -> str | None:
+    """Build pre-condition script from locale-aware template if configured."""
+    templates = bp.job_defaults.pre_condition_script_template
+    if not templates:
+        return None
+
+    lang = locale if locale in templates else "en"
+    template = templates.get(lang, templates.get("en", ""))
+    if not template:
+        return None
+
+    fmt_values = values
+    if bp.id == "financial_monitor_simple":
+        fmt_values = _normalize_simple_financial_script_values(values)
+    try:
+        return template.format(**fmt_values)
+    except KeyError as exc:
+        raise BlueprintFillError(f"blueprint pre-condition script missing value for {exc}") from exc
+
+
+def _slot_name_for_tool_description(slot: BlueprintSlot) -> str:
+    """Compact optional marker for agent tool catalog (minimal prompt-cache footprint)."""
+    return f"{slot.name}?" if slot.optional else slot.name
+
+
+def get_blueprints_for_tool_description(locale: str = "en") -> str:
+    """Generate a concise blueprint catalog for injection into the cron_manage tool description.
+
+    Kept short to avoid bloating the tool schema and harming prompt cache.
+    """
+    lines: list[str] = ["Available blueprints (use blueprint param for pre-tuned prompts):"]
+    for bp in BUILTIN_BLUEPRINTS:
+        lang = locale if locale in bp.title else "en"
+        title = bp.title.get(lang, bp.title.get("en", bp.id))
+        slot_names = ", ".join(_slot_name_for_tool_description(s) for s in bp.slots)
+        lines.append(f'  - "{bp.id}": {title} (slots: {slot_names})')
+    return "\n".join(lines)

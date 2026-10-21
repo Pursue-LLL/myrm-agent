@@ -1,0 +1,314 @@
+"""A2A (Agent-to-Agent) Provider Server API endpoints.
+
+Implements standard Google A2A v1.0 discovery endpoints and JSON-RPC 2.0
+task lifecycle dispatch (tasks/send, tasks/get, tasks/cancel).
+
+[INPUT]
+- GET /.well-known/agent-card.json (or /api/v1/a2a/.well-known/agent-card.json)
+- GET /api/v1/a2a/agents/{agent_id}/.well-known/agent-card.json
+- POST /api/v1/a2a/rpc
+- POST /api/v1/a2a/agents/{agent_id}/rpc
+
+[OUTPUT]
+- AgentCard manifest JSON
+- JSON-RPC 2.0 response envelopes
+
+[POS]
+HTTP & JSON-RPC entry point for external agent interoperability.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter, Header, HTTPException, Request, status
+from myrm_agent_harness.toolkits.a2a.security import sanitize_bearer_token
+from myrm_agent_harness.toolkits.a2a.types import (
+    JsonRpcError,
+    JsonRpcErrorCode,
+    JsonRpcRequest,
+    JsonRpcResponse,
+)
+
+from app.database.dto import (
+    A2APeerCreate,
+    A2APeerProbeRequest,
+    A2APeerProbeResponse,
+    A2APeerResponse,
+    A2APeerUpdate,
+)
+from app.services.a2a.card_generator import AgentCardGenerator
+from app.services.a2a.peer_registry import get_a2a_peer_registry
+from app.services.a2a.service import get_a2a_server_service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+_card_generator = AgentCardGenerator()
+
+
+@router.get("/.well-known/agent-card.json")
+async def get_well_known_agent_card(request: Request) -> dict[str, object]:
+    """Standard root discovery endpoint for default AgentCard."""
+    base_url = str(request.base_url).rstrip("/")
+    card = await _card_generator.generate_card(base_url=base_url)
+    return card.model_dump(by_alias=True)
+
+
+@router.get("/agents/{agent_id}/.well-known/agent-card.json")
+async def get_agent_specific_card(agent_id: str, request: Request) -> dict[str, object]:
+    """Per-agent discovery endpoint for specific Agent Profile."""
+    base_url = str(request.base_url).rstrip("/")
+    card = await _card_generator.generate_card(agent_id=agent_id, base_url=base_url)
+    return card.model_dump(by_alias=True)
+
+
+@router.post("/rpc")
+async def handle_root_rpc(
+    request: Request,
+    body: JsonRpcRequest,
+    authorization: str | None = Header(default=None),
+) -> JsonRpcResponse:
+    """JSON-RPC 2.0 dispatch for default agent."""
+    return await _dispatch_rpc(request, body, agent_id=None, authorization=authorization)
+
+
+@router.post("/agents/{agent_id}/rpc")
+async def handle_agent_rpc(
+    agent_id: str,
+    request: Request,
+    body: JsonRpcRequest,
+    authorization: str | None = Header(default=None),
+) -> JsonRpcResponse:
+    """JSON-RPC 2.0 dispatch for specific agent profile."""
+    return await _dispatch_rpc(request, body, agent_id=agent_id, authorization=authorization)
+
+
+async def _dispatch_rpc(
+    request: Request,
+    req: JsonRpcRequest,
+    *,
+    agent_id: str | None,
+    authorization: str | None,
+) -> JsonRpcResponse:
+    """Handle standard A2A JSON-RPC 2.0 methods."""
+    clean_token = sanitize_bearer_token(authorization)
+    peer_registry = get_a2a_peer_registry()
+    is_trusted, peer = await peer_registry.verify_inbound_authorization(clean_token)
+    service = get_a2a_server_service()
+    req_id = req.id
+    method = (req.method or "").strip()
+    params = req.params or {}
+
+    try:
+        if method in ("tasks/send", "SendMessage"):
+            prompt_obj = params.get("prompt") or params.get("message")
+            if not isinstance(prompt_obj, str) or not prompt_obj.strip():
+                return JsonRpcResponse(
+                    id=req_id,
+                    error=JsonRpcError(
+                        code=int(JsonRpcErrorCode.INVALID_PARAMS),
+                        message="Missing or invalid required parameter 'prompt' (or 'message').",
+                    ),
+                )
+
+            task_id_param = str(params["taskId"]) if "taskId" in params else None
+            push_url_param = str(params["pushUrl"]) if "pushUrl" in params else None
+            push_secret_param = str(params["pushSecret"]) if "pushSecret" in params else None
+            target_agent = str(params.get("agentId")) if params.get("agentId") else agent_id
+
+            task = await service.send_task(
+                prompt_obj,
+                task_id=task_id_param,
+                agent_id=target_agent,
+                push_url=push_url_param,
+                push_secret=push_secret_param,
+                requires_approval=not is_trusted,
+                peer_id=peer.id if peer else None,
+            )
+            return JsonRpcResponse(
+                id=req_id,
+                result=task.model_dump(by_alias=True),
+            )
+
+        elif method in ("tasks/get", "GetTask"):
+            task_id = params.get("taskId") or params.get("id")
+            if not isinstance(task_id, str) or not task_id.strip():
+                return JsonRpcResponse(
+                    id=req_id,
+                    error=JsonRpcError(
+                        code=int(JsonRpcErrorCode.INVALID_PARAMS),
+                        message="Missing required parameter 'taskId'.",
+                    ),
+                )
+
+            task = await service.get_task(task_id.strip())
+            if task is None:
+                return JsonRpcResponse(
+                    id=req_id,
+                    error=JsonRpcError(
+                        code=int(JsonRpcErrorCode.TASK_NOT_FOUND),
+                        message=f"Task with id '{task_id}' not found.",
+                    ),
+                )
+
+            return JsonRpcResponse(
+                id=req_id,
+                result=task.model_dump(by_alias=True),
+            )
+
+        elif method in ("tasks/cancel", "CancelTask"):
+            task_id = params.get("taskId") or params.get("id")
+            if not isinstance(task_id, str) or not task_id.strip():
+                return JsonRpcResponse(
+                    id=req_id,
+                    error=JsonRpcError(
+                        code=int(JsonRpcErrorCode.INVALID_PARAMS),
+                        message="Missing required parameter 'taskId'.",
+                    ),
+                )
+
+            cancelled = await service.cancel_task(task_id.strip())
+            return JsonRpcResponse(
+                id=req_id,
+                result={"cancelled": cancelled, "taskId": task_id.strip()},
+            )
+
+        elif method in ("agent/card", "GetAgentCard"):
+            base_url = str(request.base_url).rstrip("/")
+            card = await _card_generator.generate_card(agent_id=agent_id, base_url=base_url)
+            return JsonRpcResponse(
+                id=req_id,
+                result=card.model_dump(by_alias=True),
+            )
+
+        else:
+            return JsonRpcResponse(
+                id=req_id,
+                error=JsonRpcError(
+                    code=int(JsonRpcErrorCode.METHOD_NOT_FOUND),
+                    message=f"Method '{method}' is not recognized.",
+                ),
+            )
+
+    except Exception as e:
+        logger.error("Error executing A2A RPC method '%s': %s", method, e, exc_info=True)
+        return JsonRpcResponse(
+            id=req_id,
+            error=JsonRpcError(
+                code=int(JsonRpcErrorCode.INTERNAL_ERROR),
+                message=f"Internal error processing request: {e}",
+            ),
+        )
+
+
+# ============================================================================
+# Trusted Peers Management Endpoints
+# ============================================================================
+
+
+@router.get("/peers", response_model=list[A2APeerResponse])
+async def list_a2a_peers(active_only: bool = False) -> list[A2APeerResponse]:
+    """List all registered trusted A2A peers."""
+    registry = get_a2a_peer_registry()
+    return await registry.list_peers(only_active=active_only)
+
+
+@router.post(
+    "/peers",
+    response_model=A2APeerResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_a2a_peer(body: A2APeerCreate) -> A2APeerResponse:
+    """Register a new trusted A2A peer."""
+    registry = get_a2a_peer_registry()
+    return await registry.create_peer(body)
+
+
+@router.get("/peers/{peer_id}", response_model=A2APeerResponse)
+async def get_a2a_peer(peer_id: str) -> A2APeerResponse:
+    """Get details of a single A2A peer."""
+    registry = get_a2a_peer_registry()
+    peer = await registry.get_peer(peer_id)
+    if not peer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"A2A peer '{peer_id}' not found.",
+        )
+    return peer
+
+
+@router.patch("/peers/{peer_id}", response_model=A2APeerResponse)
+async def update_a2a_peer(peer_id: str, body: A2APeerUpdate) -> A2APeerResponse:
+    """Update an existing A2A peer."""
+    registry = get_a2a_peer_registry()
+    updated = await registry.update_peer(peer_id, body)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"A2A peer '{peer_id}' not found.",
+        )
+    return updated
+
+
+@router.delete("/peers/{peer_id}")
+async def delete_a2a_peer(peer_id: str) -> dict[str, bool]:
+    """Delete an A2A peer."""
+    registry = get_a2a_peer_registry()
+    success = await registry.delete_peer(peer_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"A2A peer '{peer_id}' not found.",
+        )
+    return {"success": True}
+
+
+@router.post("/peers/probe", response_model=A2APeerProbeResponse)
+async def probe_a2a_peer(body: A2APeerProbeRequest) -> A2APeerProbeResponse:
+    """Probe connectivity to a remote A2A peer and retrieve its AgentCard."""
+    registry = get_a2a_peer_registry()
+    return await registry.probe(body)
+
+
+# ============================================================================
+# Inbound Tasks Approval Endpoints
+# ============================================================================
+
+
+@router.get("/tasks/pending-approval", response_model=list[dict[str, object]])
+async def list_pending_approval_tasks() -> list[dict[str, object]]:
+    """List all inbound tasks awaiting operator approval."""
+    service = get_a2a_server_service()
+    tasks = await service.list_pending_approval_tasks()
+    return [t.model_dump(by_alias=True) for t in tasks]
+
+
+@router.post("/tasks/{task_id}/approve", response_model=dict[str, object])
+async def approve_a2a_task(task_id: str) -> dict[str, object]:
+    """Approve a pending inbound task and dispatch execution."""
+    service = get_a2a_server_service()
+    task = await service.approve_task(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task '{task_id}' not found or not in pending_approval status.",
+        )
+    return task.model_dump(by_alias=True)
+
+
+@router.post("/tasks/{task_id}/reject", response_model=dict[str, object])
+async def reject_a2a_task(
+    task_id: str,
+    reason: str = "Rejected by operator",
+) -> dict[str, object]:
+    """Reject a pending inbound task."""
+    service = get_a2a_server_service()
+    task = await service.reject_task(task_id, reason=reason)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task '{task_id}' not found or not in pending_approval status.",
+        )
+    return task.model_dump(by_alias=True)
+

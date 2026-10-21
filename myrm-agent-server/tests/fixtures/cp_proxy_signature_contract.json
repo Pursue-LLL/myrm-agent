@@ -1,0 +1,21 @@
+{
+  "description": "Shared HMAC signature vectors for control-service gateway and agent-server verification.",
+  "vectors": [
+    {
+      "internal_service_key": "test-internal-key",
+      "timestamp": "1700000000",
+      "user_id": "alice",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "expected_signature": "2cd20a2353bd18674d77e009484c32a10181bce394c9342c7cd5e0fd1bfaf674"
+    },
+    {
+      "internal_service_key": "test-internal-key",
+      "timestamp": "1700000000",
+      "user_id": "alice",
+      "method": "POST",
+      "path": "/api/v1/agents/chat",
+      "expected_signature": "00b7df67b7b4be8200212f8a0e5eb16227908b1dbec0ace09b88195521da608b"
+    }
+  ]
+}

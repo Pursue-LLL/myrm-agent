@@ -1,0 +1,298 @@
+"""Adversarial Verifier E2E API Test
+
+Tests the Adversarial Verifier orchestration using the Chat API.
+"""
+
+import json
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
+from unittest.mock import patch
+
+import pytest
+from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
+
+from tests.api.agent.utils import get_model_selection
+
+
+@pytest.fixture
+async def async_client(app):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+
+
+def perform_verifier_task(
+    client: TestClient,
+    query: str,
+    *,
+    engine_params: dict[str, object] | None = None,
+) -> tuple[str, list[dict[str, object]], int, int]:
+    """Execute a task that requires verification and collect stream.
+
+    Returns (answer, events, business_events, verifier_events):
+    - business_events: subagent_start events for the visible business worker node
+    - verifier_events: subagent_start events mentioning the internal verifier
+      (must stay 0 — internal verification nodes are hidden from the UI)
+    """
+
+    model_selection = get_model_selection()
+
+    import uuid
+
+    request_payload: dict[str, object] = {
+        "messageId": f"verify-msg-{uuid.uuid4().hex[:12]}",
+        "chatId": f"verify-chat-{uuid.uuid4().hex[:10]}",
+        "query": query,
+        "modelSelection": model_selection,
+        "actionMode": "agent",
+    }
+    if engine_params is not None:
+        request_payload["engineParams"] = engine_params
+
+    print(f"\n{'=' * 60}")
+    print(f"🔍 Verifier Task: {query}")
+    print(f"{'=' * 60}")
+
+    collected_data: list[dict] = []
+    message_chunks: list[str] = []
+    tool_call_count = 0
+    business_events = 0
+    verifier_events = 0
+
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_payload) as response:
+        if response.status_code != 200:
+            response.read()
+            error_content = response.text
+            print(f"\n❌ HTTP Error {response.status_code}: {error_content}")
+        assert response.status_code == 200
+
+        for line in response.iter_lines():
+            if not line or not line.startswith("data: "):
+                continue
+
+            try:
+                data = json.loads(line[6:])
+                if data is None:
+                    continue
+                collected_data.append(data)
+                event_type = data.get("type", "unknown")
+
+                if event_type == "message":
+                    content = data.get("data", "")
+                    if content:
+                        message_chunks.append(content)
+                elif event_type == "subagent_start":
+                    # The visible business worker node must appear on the tree,
+                    # while the internal adversarial verifier must stay hidden.
+                    agent_data = data.get("data", {})
+                    description = agent_data.get("description", "")
+                    print(f"  🤖 Subagent Start: {description}")
+                    if (
+                        "独立审查中" in description
+                        or "Adversarial Verifier" in description
+                        or "Adversarial Sandbox Verifier" in description
+                    ):
+                        verifier_events += 1
+                    elif "Write a python script" in description:
+                        business_events += 1
+                elif event_type == "tasks_steps":
+                    tool_name = data.get("tool_name")
+                    if tool_name:
+                        tool_call_count += 1
+                        print(f"  🔧 Tool Call: {tool_name}")
+                elif event_type == "error":
+                    error_msg = data.get("error", "")
+                    print(f"  ❌ Error: {error_msg}")
+            except json.JSONDecodeError as e:
+                print(f"JSON Parse Error: {e}")
+
+    full_answer = "".join(message_chunks)
+
+    print(
+        f"\n📊 Stats: Events={len(collected_data)}, Messages={len(message_chunks)}, "
+        f"Tools={tool_call_count}, Business={business_events}, Verifier={verifier_events}"
+    )
+
+    return full_answer, collected_data, business_events, verifier_events
+
+
+@dataclass
+class _VerifierTrace:
+    """What the scripted model observed while the real delegate, verifier and executor chain ran."""
+
+    verifier_bash_output: str = ""
+    delegate_result: str = ""
+
+
+def _build_verifier_mock_patches(trace: _VerifierTrace):
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+
+    original_ainvoke = ChatLiteLLM.ainvoke
+
+    async def mock_ainvoke_func(self, *args, **kwargs):
+        messages = args[0] if args else kwargs.get("input", [])
+        messages_str = str(messages)
+        last_message = messages[-1] if messages else None
+
+        import uuid
+
+        from langchain_core.messages import AIMessage, ToolMessage
+
+        first_msg_content = getattr(messages[0], "content", "") if messages else ""
+
+        if "reviewing a recent Agent conversation" in messages_str:
+            return await original_ainvoke(self, *args, **kwargs)
+        if "Extract important user information" in messages_str:
+            return await original_ainvoke(self, *args, **kwargs)
+
+        if "Adversarial Sandbox Verifier" in messages_str:
+            last_tool = last_message.name if isinstance(last_message, ToolMessage) else None
+            # The registry may expose the verdict tool as `submit_verdict_tool`.
+            if last_tool is not None and last_tool.startswith("submit_verdict"):
+                return AIMessage(content="Verification completed and verdict submitted.")
+            if last_tool != "bash_code_execute_tool":
+                return AIMessage(
+                    content="Running a command to observe the real output.",
+                    tool_calls=[
+                        {
+                            "name": "bash_code_execute_tool",
+                            "args": {"reason": "Observe the real output", "command": "echo Hello World"},
+                            "id": f"call_{uuid.uuid4().hex[:8]}",
+                        }
+                    ],
+                )
+            trace.verifier_bash_output = str(last_message.content)
+            return AIMessage(
+                content="I have verified the output.",
+                tool_calls=[
+                    {
+                        "name": "submit_verdict",
+                        "args": {
+                            "passed": True,
+                            "summary": "The output is correct. STDOUT: Hello World",
+                            "confidence": "HIGH",
+                            "findings": [
+                                {
+                                    "description": "Printed Hello World correctly",
+                                    "severity": "low",
+                                }
+                            ],
+                        },
+                        "id": f"call_{uuid.uuid4().hex[:8]}",
+                    }
+                ],
+            )
+
+        if "Mock system prompt" in first_msg_content:
+            return AIMessage(
+                content=(
+                    '<handover>\n{\n  "task_completed": ["wrote script"],\n'
+                    '  "pending_todos": [],\n  "risks_or_notes": [],\n'
+                    '  "relevant_files": []\n}\n</handover>\n'
+                    "I have written and executed the python script. It printed Hello World."
+                )
+            )
+
+        if "<identity>" in first_msg_content:
+            if "I have written and executed the python script" in messages_str:
+                trace.delegate_result = messages_str
+                return AIMessage(content="I have completed the task by delegating it.")
+            return AIMessage(
+                content="Delegating task as requested...",
+                tool_calls=[
+                    {
+                        "name": "delegate_task_tool",
+                        "args": {
+                            "agent_type": "generalPurpose",
+                            "objective": "Write a python script that prints Hello World and run it",
+                            "wait": True,
+                            "verifier_prompt": "Please verify the python script prints Hello World",
+                        },
+                        "id": f"call_{uuid.uuid4().hex[:8]}",
+                    }
+                ],
+            )
+
+        return await original_ainvoke(self, *args, **kwargs)
+
+    async def mock_resolve(self, type_id: str):
+        from myrm_agent_harness.agent.sub_agents.types import (
+            SubagentConfig,
+            WorkspacePolicy,
+        )
+
+        return SubagentConfig(
+            system_prompt="Mock system prompt",
+            workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX,
+        )
+
+    return (
+        patch(
+            "myrm_agent_harness.toolkits.llms.adapters.chat_model.ChatLiteLLM.ainvoke",
+            new=mock_ainvoke_func,
+        ),
+        patch(
+            "app.ai_agents.subagent_catalog.DatabaseSubagentCatalog.resolve",
+            new=mock_resolve,
+        ),
+    )
+
+
+@contextmanager
+def _verifier_mock_patches() -> Iterator[_VerifierTrace]:
+    trace = _VerifierTrace()
+    p1, p2 = _build_verifier_mock_patches(trace)
+    with p1, p2:
+        yield trace
+
+
+def _assert_no_fatal_errors(collected_data: list[dict[str, object]]) -> None:
+    error_events = [d for d in collected_data if d.get("type") == "error"]
+    if not error_events:
+        return
+    error_msg = str(error_events[0].get("error", ""))
+    if any(
+        kw in error_msg
+        for kw in [
+            "Authentication",
+            "Authorization",
+            "timeout",
+            "ServiceUnavailableError",
+        ]
+    ):
+        pytest.skip(f"Environment/Network Error: {error_msg[:100]}")
+    pytest.fail(f"Agent execution error: {error_msg}")
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires BASIC_API_KEY environment variable",
+)
+class TestAdversarialVerifier:
+    def test_verifier_execution(self, client: TestClient):
+        """Test that the business worker node appears on the tree and the
+        internal adversarial verifier stays hidden from UI events."""
+        query = "请生成一个 Python 脚本来打印 Hello World，保存并运行它。"
+
+        with _verifier_mock_patches() as trace:
+            (
+                _full_answer,
+                collected_data,
+                business_events,
+                verifier_events,
+            ) = perform_verifier_task(client, query)
+
+        assert len(collected_data) > 0, "Should have received events"
+        _assert_no_fatal_errors(collected_data)
+        assert business_events > 0, "Expected the delegated business worker to appear as a visible subagent node"
+        assert verifier_events == 0, "Internal verifier nodes must be hidden from user-facing UI events"
+        assert "Hello World" in trace.verifier_bash_output, (
+            "The read-only verifier must be able to run a real command and observe its output"
+        )
+        assert "Verification: PASS" in trace.delegate_result, (
+            "A verifier that ran a command and submitted PASS must be reflected in the delegate result"
+        )
+        print("\n✅ Test Passed: Adversarial Verifier E2E Execution")

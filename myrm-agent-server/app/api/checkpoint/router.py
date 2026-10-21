@@ -1,0 +1,326 @@
+"""Checkpoint and file snapshot management REST API.
+
+Provides endpoints for:
+- Subagent checkpoint management (list, delete, cleanup)
+- File snapshot management (list, restore, diff, delete, cleanup)
+"""
+
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter, HTTPException, Query
+from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol
+from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
+from myrm_agent_harness.agent.sub_agents.checkpoint.saver import (
+    CheckpointCorruptedError,
+    SubagentCheckpointStorage,
+)
+
+from ._snapshot_notify import notify_agent_of_restore
+from .airbag import airbag_router
+from .schemas import (
+    CheckpointInfo,
+    CheckpointListResponse,
+    FileChangeResponse,
+    FileDiffResponse,
+    FileSnapshotCreateRequest,
+    FileSnapshotCreateResponse,
+    FileSnapshotInfoResponse,
+    FileSnapshotListResponse,
+    FileSnapshotRestoreRequest,
+    FileSnapshotRestoreResponse,
+)
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/checkpoint", tags=["checkpoint"])
+router.include_router(airbag_router)
+
+# Global instances
+_checkpoint_storage = SubagentCheckpointStorage()
+_file_snapshot_store: FileSnapshotProtocol | None = None
+
+
+async def _get_file_snapshot_store() -> FileSnapshotProtocol:
+    """Lazy-initialize the file snapshot store via the shared harness factory.
+
+    Uses create_file_snapshot_store() (ShadowGit preferred, LocalFile fallback) so
+    the API reads the same store written by SnapshotInterceptor.
+    """
+    global _file_snapshot_store
+    if _file_snapshot_store is None:
+        from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
+
+        _file_snapshot_store = await create_file_snapshot_store()
+    return _file_snapshot_store
+
+
+async def _get_snapshot_external_effects(store: FileSnapshotProtocol, snapshot_id: str) -> tuple[str, ...] | None:
+    """Retrieve external_effects from snapshot metadata via git log (best-effort).
+
+    Uses the store's internal git log parsing to find metadata for a specific commit.
+    Falls back gracefully if the store implementation doesn't support metadata.
+    """
+    try:
+        snap_info = await store.get_snapshot_info(snapshot_id)
+        if snap_info and snap_info.metadata:
+            effects = snap_info.metadata.get("external_effects", [])
+            if effects:
+                return tuple(effects)
+    except Exception:
+        # Some store implementations don't expose snapshot metadata; the
+        # warning is best-effort, so missing effects is not an error.
+        logger.debug("Snapshot metadata unavailable (snapshot=%s)", snapshot_id)
+    return None
+
+
+@router.get("/list", response_model=CheckpointListResponse)
+async def list_checkpoints(
+    session_id: str | None = Query(None, description="Filter by session ID"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of checkpoints to return"),
+) -> CheckpointListResponse:
+    """List all saved checkpoints.
+
+    Args:
+        session_id: Optional session ID filter
+        limit: Maximum number of checkpoints to return (1-100)
+
+    Returns:
+        List of checkpoints with metadata
+    """
+    try:
+        checkpoints = await _checkpoint_storage.list_checkpoints(session_id=session_id)
+
+        # Apply limit
+        checkpoints = checkpoints[:limit]
+
+        # Convert to response model
+        checkpoint_infos = [
+            CheckpointInfo(
+                task_id=cp.task_id,
+                agent_type=cp.agent_type,
+                session_id=cp.session_id,
+                timestamp=cp.timestamp,
+                progress=cp.progress,
+                last_tool=cp.last_tool,
+                task_description=cp.task_description,
+            )
+            for cp in checkpoints
+        ]
+
+        return CheckpointListResponse(
+            checkpoints=checkpoint_infos,
+            total=len(checkpoint_infos),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to list checkpoints") from e
+
+
+@router.delete("/{task_id}")
+async def delete_checkpoint(task_id: str) -> dict[str, str]:
+    """Delete saved checkpoint.
+
+    Corrupted checkpoints are also deletable — they carry no recoverable
+    state, so the user should be able to discard them instead of being
+    blocked by a 500.
+
+    Args:
+        task_id: Task ID to delete
+
+    Returns:
+        Delete status
+    """
+    try:
+        try:
+            checkpoint = await _checkpoint_storage.load(task_id)
+        except CheckpointCorruptedError:
+            # Corrupted file carries no recoverable state; delete it directly
+            # instead of failing with an error the user cannot clear.
+            await _checkpoint_storage.delete(task_id)
+            return {"status": "deleted", "task_id": task_id}
+        if not checkpoint:
+            raise HTTPException(status_code=404, detail=f"Checkpoint not found: {task_id}")
+
+        # Delete checkpoint
+        await _checkpoint_storage.delete(task_id)
+
+        return {"status": "deleted", "task_id": task_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to delete checkpoint") from e
+
+
+@router.post("/cleanup")
+async def cleanup_old_checkpoints(
+    ttl_days: int = Query(7, ge=1, le=30, description="Time-to-live in days (1-30)"),
+) -> dict[str, object]:
+    """Cleanup old checkpoints (default: 7 days TTL).
+
+    Args:
+        ttl_days: Time-to-live in days (1-30)
+
+    Returns:
+        Cleanup statistics
+    """
+    try:
+        ttl_seconds = ttl_days * 86400
+        deleted = await _checkpoint_storage.cleanup_old_checkpoints(ttl_seconds=ttl_seconds)
+
+        return {
+            "status": "success",
+            "deleted": deleted,
+            "ttl_days": ttl_days,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to cleanup checkpoints") from e
+
+
+# ============================================================================
+# File Snapshot Endpoints
+# ============================================================================
+
+
+@router.get("/file-snapshot/list", response_model=FileSnapshotListResponse)
+async def list_file_snapshots(
+    working_dir: str = Query(..., description="Working directory to list snapshots for"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum snapshots to return"),
+    agent_id: str | None = Query(None, description="Filter snapshots by agent ID"),
+) -> FileSnapshotListResponse:
+    """List file snapshots for a workspace."""
+    try:
+        store = await _get_file_snapshot_store()
+        fetch_limit = limit * 3 if agent_id else limit
+        snapshots = await store.list_snapshots(working_dir, limit=fetch_limit)
+        items: list[FileSnapshotInfoResponse] = []
+        for s in snapshots:
+            if len(items) >= limit:
+                break
+            meta = s.metadata or {}
+            snap_agent_id: str | None = meta.get("agent_id")
+            if agent_id and snap_agent_id != agent_id:
+                continue
+            items.append(
+                FileSnapshotInfoResponse(
+                    snapshot_id=s.snapshot_id,
+                    working_dir=s.working_dir,
+                    trigger=s.trigger.value,
+                    created_at=s.created_at,
+                    file_count=s.file_count,
+                    description=s.description,
+                    external_effects=meta.get("external_effects", []),
+                    agent_id=snap_agent_id,
+                )
+            )
+        return FileSnapshotListResponse(snapshots=items, total=len(items))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to list file snapshots") from e
+
+
+@router.post("/file-snapshot/create", response_model=FileSnapshotCreateResponse)
+async def create_file_snapshot(request: FileSnapshotCreateRequest) -> FileSnapshotCreateResponse:
+    """Create a manual snapshot of the current workspace state.
+
+    Lets the user checkpoint a workspace before risky changes, complementing
+    the automatic snapshots taken before destructive agent actions.
+    """
+    try:
+        store = await _get_file_snapshot_store()
+        snapshot_id = await store.take_snapshot(
+            working_dir=request.working_dir,
+            trigger=SnapshotTrigger.MANUAL,
+            description=request.description.strip(),
+        )
+        return FileSnapshotCreateResponse(
+            success=True,
+            snapshot_id=snapshot_id,
+            working_dir=request.working_dir,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create file snapshot") from e
+
+
+@router.post("/file-snapshot/restore", response_model=FileSnapshotRestoreResponse)
+async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnapshotRestoreResponse:
+    """Restore workspace to a file snapshot state.
+
+    Automatically takes a pre-rollback snapshot before restoring.
+    Notifies the Agent of the rollback so it won't operate on stale context.
+    """
+    try:
+        store = await _get_file_snapshot_store()
+        result = await store.restore(request.snapshot_id, files=request.files)
+
+        if result.success:
+            external_effects = await _get_snapshot_external_effects(store, request.snapshot_id)
+            notify_agent_of_restore(result.snapshot_id, result.files_restored, request.files, external_effects)
+
+        return FileSnapshotRestoreResponse(
+            success=result.success,
+            snapshot_id=result.snapshot_id,
+            files_restored=result.files_restored,
+            pre_rollback_snapshot_id=result.pre_rollback_snapshot_id,
+            error=result.error,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to restore file snapshot") from e
+
+
+@router.get("/file-snapshot/{snapshot_id}/diff", response_model=FileDiffResponse)
+async def get_file_snapshot_diff(snapshot_id: str) -> FileDiffResponse:
+    """Compare a file snapshot with current workspace state."""
+    try:
+        store = await _get_file_snapshot_store()
+        diff = await store.diff(snapshot_id)
+        changes = [
+            FileChangeResponse(
+                path=c.path,
+                change_type=c.change_type,
+                old_size=c.old_size,
+                new_size=c.new_size,
+                lines_added=c.lines_added,
+                lines_deleted=c.lines_deleted,
+            )
+            for c in diff.changes
+        ]
+        return FileDiffResponse(
+            snapshot_id=diff.snapshot_id,
+            changes=changes,
+            total_changes=diff.total_changes,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get file diff") from e
+
+
+@router.delete("/file-snapshot/{snapshot_id}")
+async def delete_file_snapshot(snapshot_id: str) -> dict[str, str]:
+    """Delete a specific file snapshot."""
+    try:
+        store = await _get_file_snapshot_store()
+        deleted = await store.delete_snapshot(snapshot_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"File snapshot not found or not deletable: {snapshot_id}")
+        return {"status": "deleted", "snapshot_id": snapshot_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to delete file snapshot") from e
+
+
+@router.post("/file-snapshot/cleanup")
+async def cleanup_file_snapshots(
+    working_dir: str = Query(..., description="Working directory to cleanup"),
+    max_snapshots: int = Query(20, ge=1, le=100, description="Maximum snapshots to keep"),
+) -> dict[str, object]:
+    """Cleanup old file snapshots, keeping the most recent."""
+    try:
+        store = await _get_file_snapshot_store()
+        deleted = await store.cleanup(working_dir, max_snapshots=max_snapshots)
+        return {
+            "status": "success",
+            "deleted": deleted,
+            "max_snapshots": max_snapshots,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to cleanup file snapshots") from e

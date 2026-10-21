@@ -1,0 +1,874 @@
+"""Main agent SSE stream loop.
+
+[INPUT]
+- app.services.agent.stream_session.stream_session_types::AgentStreamSession
+- app.services.agent.stream_session.stream_lane_factory (POS: lane constructors)
+
+[OUTPUT]
+- iter_agent_stream_chunks(): async SSE chunk generator with routing, approval/clarification timeout detection, compression, and end-to-end TTFT sampling
+
+[POS]
+Core streaming loop: routes to fast/reasoning/deep-research lanes, handles approval
+timeouts, compression exhaustion, workflow escalation, and context overflow reset.
+"""
+
+from __future__ import annotations
+
+import inspect
+import logging
+import re
+import time
+from collections.abc import AsyncGenerator, AsyncIterable
+from dataclasses import dataclass
+
+from myrm_agent_harness.api.security import (
+    MissingSemanticsBlockedError,
+    PrivacyFailClosedViolationError,
+)
+from myrm_agent_harness.utils.runtime.cancellation import CancelReason
+
+from app.schemas.streaming import SSEEnvelope
+from app.services.agent.memory_brief_telemetry import (
+    enqueue_memory_brief_status_telemetry,
+)
+from app.services.agent.stream_session._memory_status_helpers import (
+    build_memory_brief_status_payload,
+    enrich_memory_brief_status_with_session_ephemeral_deltas,
+    observe_memory_brief_status_payload,
+)
+from app.services.agent.stream_session.lanes.wiki_knowledge_lane import (
+    create_wiki_knowledge_lane_stream,
+)
+from app.services.agent.stream_session.lazy_session_gate import (
+    commit_lazy_session_barrier,
+    is_active_generation_chunk,
+)
+from app.services.agent.stream_session.stream_lane_factory import (
+    create_deep_research_stream,
+    create_fast_lane_stream,
+)
+from app.services.agent.stream_session.stream_session_types import AgentStreamSession
+from app.services.agent.stream_session.workflow_escalation import (
+    should_auto_escalate_workflow_for_session,
+    should_bypass_dw_for_admission,
+    should_suggest_workflow_for_session,
+)
+from app.services.agent.streaming import ai_agent_service_stream
+from app.services.agent.streaming_support.sse_helpers import (
+    extract_approval_timeout,
+    extract_clarification_required,
+    is_compression_exhausted,
+)
+from app.services.wiki.wiki_query_intent import should_use_wiki_knowledge_lane
+
+logger = logging.getLogger(__name__)
+_CITATION_PATTERN = re.compile(r"<cite:([^>]+)>")
+_TTFT_VISIBLE_EVENT_TYPES = frozenset({"message", "reasoning"})
+_REASONING_DISPLAY_MODE_OFF = "off"
+
+# User-visible stream copy. The web UI renders the SSE ``message`` payload verbatim, so it
+# follows the chat locale instead of a single hard-coded language.
+_BUDGET_EXHAUSTED_NOTICE: dict[str, str] = {
+    "en": "\n\n**Budget exhausted — the task paused automatically.**",
+    "zh": "\n\n**预算已耗尽，任务自动暂停。**",
+}
+_PRIVACY_BLOCKED_HEADER: dict[str, str] = {
+    "en": "🛑 **Execution blocked by the privacy fail-closed ladder**",
+    "zh": "🛑 **执行已被隐私安全门禁阻断 (Privacy Fail-Closed Ladder)**",
+}
+_PRIVACY_BLOCKED_FIELDS: dict[str, dict[str, str]] = {
+    "en": {
+        "level": "Level",
+        "violation": "Violation",
+        "reason": "Reason",
+        "target": "Target path",
+    },
+    "zh": {
+        "level": "违规层级",
+        "violation": "违规类型",
+        "reason": "阻断原因",
+        "target": "目标路径",
+    },
+}
+_GATE_BLOCKED_HEADER: dict[str, str] = {
+    "en": "🛑 **Execution blocked by the safety gate (MissingSemantics Gate)**",
+    "zh": "🛑 **执行已被安全门禁阻断 (MissingSemantics Gate)**",
+}
+_GATE_BLOCKED_FIELDS: dict[str, dict[str, str]] = {
+    "en": {
+        "code": "Error code",
+        "policy": "Gate policy",
+        "missing": "Missing component",
+        "hint": "Suggested fix",
+    },
+    "zh": {
+        "code": "错误代号",
+        "policy": "门禁策略",
+        "missing": "缺失组件",
+        "hint": "修复建议",
+    },
+}
+_GATE_POLICY_NOTE: dict[str, str] = {
+    "en": " (silent degradation or bare execution is not allowed)",
+    "zh": "（严禁静默降级/裸跑）",
+}
+
+
+def _stream_locale(locale: str | None) -> str:
+    """Two-way stream copy: Chinese readers get Chinese, everyone else gets the English baseline."""
+    return "zh" if (locale or "en").lower().startswith("zh") else "en"
+
+
+def _dynamic_workflow_unattended(params: object) -> bool:
+    """Auto-approve DW plan_confirm when YOLO or plan confirm is disabled in security config."""
+    raw = getattr(params, "security_config_raw", None)
+    if not isinstance(raw, dict):
+        return False
+    yolo_enabled = bool(raw.get("yolo_mode_enabled") or raw.get("yoloModeEnabled"))
+    plan_confirm_enabled = bool(
+        raw.get("plan_confirm_enabled") or raw.get("planConfirmEnabled")
+    )
+    return yolo_enabled or not plan_confirm_enabled
+
+
+@dataclass
+class ApprovalTimeoutHolder:
+    value: dict[str, object] | None = None
+
+
+@dataclass
+class ClarificationTimeoutHolder:
+    """Tracks a pending Web HITL clarification interrupt."""
+
+    pending: bool = False
+
+
+def _has_visible_text_for_ttft(event_type: str, payload: object) -> bool:
+    if event_type not in _TTFT_VISIBLE_EVENT_TYPES:
+        return False
+    return _payload_contains_visible_text(payload)
+
+
+def _payload_contains_visible_text(payload: object) -> bool:
+    if isinstance(payload, str):
+        return bool(payload.strip())
+    if isinstance(payload, list):
+        return any(_payload_contains_visible_text(item) for item in payload)
+    if isinstance(payload, dict):
+        content = payload.get("content")
+        if _payload_contains_visible_text(content):
+            return True
+        text = payload.get("text")
+        if _payload_contains_visible_text(text):
+            return True
+    return False
+
+
+def _capture_stream_ttft_if_needed(
+    *,
+    session: AgentStreamSession,
+    chunk: dict[str, object],
+) -> None:
+    if session.stream_ttft_ms is not None:
+        return
+    if session.stream_started_at_monotonic <= 0:
+        return
+
+    event_type = chunk.get("type")
+    if not isinstance(event_type, str) or event_type not in _TTFT_VISIBLE_EVENT_TYPES:
+        return
+    if not _has_visible_text_for_ttft(event_type, chunk.get("data")):
+        return
+
+    elapsed_ms = int(
+        max((time.perf_counter() - session.stream_started_at_monotonic) * 1000.0, 0.0)
+    )
+    session.stream_ttft_ms = elapsed_ms
+    logger.info(
+        "stream_ttft_captured message_id=%s ttft_ms=%d event_type=%s",
+        session.params.message_id,
+        elapsed_ms,
+        event_type,
+    )
+
+
+def _is_reasoning_hidden(session: AgentStreamSession) -> bool:
+    raw_mode = getattr(session.params, "reasoning_display_mode", None)
+    if not isinstance(raw_mode, str):
+        return False
+    return raw_mode.strip().lower() == _REASONING_DISPLAY_MODE_OFF
+
+
+def _inject_message_end_memory_insights(
+    *,
+    chunk: dict[str, object],
+    session: AgentStreamSession,
+) -> None:
+    citations: list[str] = []
+    try:
+        content = session.collector.content
+        if isinstance(content, str):
+            matches = _CITATION_PATTERN.findall(content)
+            if matches:
+                citations = list(dict.fromkeys(matches))
+    except Exception as e:
+        logger.warning("Failed to extract citations in stream_loop: %s", e)
+    if citations:
+        chunk["citations"] = citations
+
+    preview = (
+        session.extra_context.get("memory_brief_preview")
+        if isinstance(session.extra_context, dict)
+        else None
+    )
+    if isinstance(preview, dict):
+        snapshot_id = preview.get("snapshot_id")
+        if isinstance(snapshot_id, str) and snapshot_id.strip():
+            chunk["memory_brief_snapshot_id"] = snapshot_id.strip()
+    brief_status = (
+        session.extra_context.get("memory_brief_status")
+        if isinstance(session.extra_context, dict)
+        else None
+    )
+
+    budget = None
+    injection = None
+    try:
+        from myrm_agent_harness.api.hooks import (
+            get_memory_runtime_budget,
+            get_memory_runtime_injection,
+        )
+    except Exception as e:
+        logger.warning("Failed to import memory runtime hooks in stream_loop: %s", e)
+    else:
+        try:
+            budget = get_memory_runtime_budget()
+        except Exception as e:
+            logger.warning("Failed to read memory budget in stream_loop: %s", e)
+            budget = None
+        if budget is not None:
+            chunk["memoryBudget"] = budget
+
+        try:
+            injection = get_memory_runtime_injection()
+        except Exception as e:
+            logger.warning("Failed to read memory injection in stream_loop: %s", e)
+            injection = None
+
+    try:
+        status_payload = build_memory_brief_status_payload(brief_status, injection)
+        status_payload = enrich_memory_brief_status_with_session_ephemeral_deltas(
+            status_payload,
+            session.request.chat_id,
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to build memory brief status payload in stream_loop: %s", e
+        )
+        return
+    if status_payload is None:
+        return
+
+    chunk["memory_brief_status"] = status_payload
+
+    try:
+        observe_memory_brief_status_payload(phase="stream", payload=status_payload)
+    except Exception as e:
+        logger.warning("Failed to observe stream memory brief status payload: %s", e)
+
+    try:
+        enqueue_memory_brief_status_telemetry(
+            phase="stream",
+            payload=status_payload,
+        )
+    except Exception as e:
+        logger.warning("Failed to enqueue stream memory brief status telemetry: %s", e)
+
+
+async def iter_agent_stream_chunks(
+    session: AgentStreamSession,
+    approval: ApprovalTimeoutHolder,
+    clarification: ClarificationTimeoutHolder,
+) -> AsyncGenerator[str, None]:
+    if session.request.resume_value is None:
+        preview = (
+            session.extra_context.get("memory_brief_preview")
+            if isinstance(session.extra_context, dict)
+            else None
+        )
+        if isinstance(preview, dict):
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "memory_brief",
+                    "messageId": session.params.message_id,
+                    "data": preview,
+                }
+            ).to_sse_chunk()
+
+    stream: AsyncIterable[str | dict[str, object]]
+    agent_config = getattr(session.request, "agent_config", None)
+    orchestration_mode = (
+        getattr(agent_config, "orchestration_mode", None) if agent_config else None
+    )
+    use_workflow_requested = bool(
+        getattr(session.request, "use_workflow", False)
+        or (agent_config is not None and orchestration_mode == "orchestrated")
+    )
+    if getattr(session.request, "action_mode", None) == "deep_research":
+        stream = create_deep_research_stream(
+            session.params, session.cancel_token, session.research_model_cfg
+        )
+    elif (
+        use_workflow_requested or getattr(session.request, "workflow_template_id", None)
+    ) and not should_bypass_dw_for_admission(session):
+        from app.services.agent.stream_session.stream_lane_factory import (
+            create_dynamic_workflow_stream,
+        )
+
+        logger.info(
+            "Dynamic Workflow Engine activated for message_id=%s template_id=%s orchestration_mode=%s",
+            session.params.message_id,
+            getattr(session.request, "workflow_template_id", None),
+            orchestration_mode,
+        )
+        dw_stream = create_dynamic_workflow_stream(
+            session.params,
+            session.cancel_token,
+            (
+                session.request.resume_value
+                if isinstance(getattr(session.request, "resume_value", None), dict)
+                else None
+            ),
+            workflow_template_id=getattr(session.request, "workflow_template_id", None),
+            workflow_template_args=getattr(
+                session.request, "workflow_template_args", None
+            ),
+            unattended=_dynamic_workflow_unattended(session.params),
+        )
+        stream = await dw_stream if inspect.iscoroutine(dw_stream) else dw_stream
+    elif (
+        session.request.resume_value is None
+        and not use_workflow_requested
+        and not session.request.workflow_template_id
+        and should_auto_escalate_workflow_for_session(session)
+    ):
+        from app.services.agent.stream_session.stream_lane_factory import (
+            create_dynamic_workflow_stream,
+        )
+
+        logger.info(
+            "Dynamic Workflow Engine auto-escalated for message_id=%s",
+            session.params.message_id,
+        )
+        dw_stream = create_dynamic_workflow_stream(
+            session.params,
+            session.cancel_token,
+            None,
+            workflow_template_id=None,
+            workflow_template_args=None,
+            unattended=_dynamic_workflow_unattended(session.params),
+        )
+        stream = await dw_stream if inspect.iscoroutine(dw_stream) else dw_stream
+    elif (
+        session.routing_tier == "simple"
+        and session.request.blueprint_id is None
+        and not session.request.mention_references
+        and session.request.resume_value is None
+        and session.request.action_mode == "fast"
+        and not session.request.ephemeral_subagents
+        and not session.params.enable_web_search
+    ):
+        logger.info(
+            f"🚀 Fast Lane activated for message_id={session.params.message_id}"
+        )
+        stream = create_fast_lane_stream(session.params, session.cancel_token)
+    elif should_use_wiki_knowledge_lane(session):
+        logger.info(
+            "Wiki Knowledge Lane activated for message_id=%s",
+            session.params.message_id,
+        )
+        stream = create_wiki_knowledge_lane_stream(session.params, session.cancel_token)
+    else:
+        if (
+            session.request.resume_value is None
+            and not session.request.use_workflow
+            and should_suggest_workflow_for_session(session)
+        ):
+            logger.info(
+                f"💡 Workflow suggestion emitted for message_id={session.params.message_id}"
+            )
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "status",
+                    "messageId": session.params.message_id,
+                    "step_key": "workflow_suggestion",
+                    "data": {
+                        "phase": "workflow_suggestion",
+                        "status": "suggested",
+                        "routing_tier": session.routing_tier,
+                    },
+                }
+            ).to_sse_chunk()
+
+        stream = ai_agent_service_stream(
+            params=session.params,
+            cancel_token=session.cancel_token,
+            steering_token=session.steering_token,
+            extra_context=session.extra_context,
+        )
+
+    estimated_tokens = 0
+    last_reported_tokens = 0
+    accumulated_cost_usd = 0.0
+
+    from app.services.agent.stream_session.phase_stepper import PhaseTransitionTracker
+
+    phase_tracker = PhaseTransitionTracker(message_id=session.params.message_id, locale=getattr(session.params, "locale", None))
+    initial_phase_event = phase_tracker.emit_initial_if_needed()
+    if initial_phase_event:
+        yield SSEEnvelope.from_any(initial_phase_event).to_sse_chunk()
+
+    try:
+        async for chunk in stream:
+            transition_event = phase_tracker.on_chunk(chunk)
+            if transition_event:
+                yield SSEEnvelope.from_any(transition_event).to_sse_chunk()
+
+            if isinstance(chunk, dict):
+                if chunk.get("type") == "reasoning" and _is_reasoning_hidden(session):
+                    continue
+                _capture_stream_ttft_if_needed(session=session, chunk=chunk)
+
+            if (
+                session.pending_session_draft is not None
+                and not session.pending_session_draft.committed
+                and is_active_generation_chunk(chunk)
+            ):
+                await commit_lazy_session_barrier(session)
+
+            if session.cancel_token.is_cancelled:
+                logger.warning(
+                    "Agent cancelled: message_id=%s, reason=%s",
+                    session.params.message_id,
+                    session.cancel_token.cancel_reason,
+                )
+                # Cooperative cleanup: ``npm install`` / ``webpack --watch``
+                # backgrounded by the agent must not outlive the cancelled
+                # chat or they keep eating RAM/CPU/sandbox quota. Mirrors
+                # ``hermes-agent`` ``process_registry.kill_all(task_id=...)``
+                # called from its cleanup hook.
+                if session.request.chat_id:
+                    try:
+                        from myrm_agent_harness.api.hooks import (
+                            get_background_registry,
+                        )
+
+                        await get_background_registry().kill_session_jobs(
+                            session.request.chat_id
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to kill background jobs for cancelled session %s: %s",
+                            session.request.chat_id,
+                            exc,
+                        )
+                cancel_event = {
+                    "type": "agent_cancelled",
+                    "messageId": session.params.message_id,
+                    "data": {"reason": str(session.cancel_token.cancel_reason)},
+                }
+                yield SSEEnvelope.from_any(cancel_event).to_sse_chunk()
+                break
+
+            if isinstance(chunk, dict) and chunk.get("type") == "message":
+                text = chunk.get("data", "")
+                if isinstance(text, str):
+                    estimated_tokens += len(text)
+
+            if isinstance(chunk, dict) and chunk.get("type") == "token_usage":
+                data_val = chunk.get("data", {})
+                if isinstance(data_val, dict):
+                    cost_val = data_val.get("cost_usd")
+                    if isinstance(cost_val, (int, float)) and cost_val > 0:
+                        accumulated_cost_usd += cost_val
+                    usage = data_val.get("usage", {})
+                    if isinstance(usage, dict):
+                        total = usage.get("total_tokens")
+                        if isinstance(total, (int, float)):
+                            total_tokens = int(total)
+                            if total_tokens > estimated_tokens:
+                                estimated_tokens = total_tokens
+
+            if session.goal_provider and session.request.chat_id:
+                if estimated_tokens - last_reported_tokens >= 20:
+                    last_reported_tokens = estimated_tokens
+                    active_goal = await session.goal_provider.get_active_goal(
+                        session.request.chat_id
+                    )
+                    if active_goal and active_goal.budget:
+                        current_total = active_goal.tokens_used + estimated_tokens
+                        max_tokens = active_goal.budget.max_tokens
+
+                        from myrm_agent_harness.agent.goals.types import GoalStatus
+
+                        if (
+                            max_tokens is not None
+                            and current_total >= max_tokens
+                            and active_goal.status != GoalStatus.BUDGET_LIMITED
+                        ):
+                            logger.warning(
+                                f"🎯 Real-time circuit breaker triggered! Estimated tokens: {current_total} >= {max_tokens}"
+                            )
+                            await session.goal_provider.update_status(
+                                active_goal.goal_id, GoalStatus.BUDGET_LIMITED
+                            )
+                            active_goal.status = GoalStatus.BUDGET_LIMITED
+                            session.cancel_token.cancel(
+                                CancelReason.USER_CANCELLED
+                            )  # Using USER_CANCELLED as a fallback
+
+                        incremental_goal_status = {
+                            "goal_id": active_goal.goal_id,
+                            "objective": active_goal.objective,
+                            "ui_summary": active_goal.ui_summary,
+                            "status": active_goal.status.value,
+                            "tokens_used": current_total,
+                            "time_used_seconds": active_goal.time_used_seconds,
+                            "turns_used": active_goal.turns_used,
+                            "constraints": active_goal.constraints or [],
+                            "acceptance_criteria": active_goal.acceptance_criteria
+                            or [],
+                            "budget": {
+                                "max_tokens": active_goal.budget.max_tokens,
+                                "max_usd": active_goal.budget.max_usd,
+                                "max_time_seconds": active_goal.budget.max_time_seconds,
+                                "max_turns": active_goal.budget.max_turns,
+                            },
+                        }
+
+                        yield SSEEnvelope.from_any(
+                            {
+                                "type": "goal_status",
+                                "messageId": session.params.message_id,
+                                "data": incremental_goal_status,
+                            }
+                        ).to_sse_chunk()
+
+                        if active_goal.status == GoalStatus.BUDGET_LIMITED:
+                            warning_msg = _BUDGET_EXHAUSTED_NOTICE[
+                                _stream_locale(getattr(session.params, "locale", None))
+                            ]
+                            yield SSEEnvelope.from_any(
+                                {
+                                    "type": "message",
+                                    "messageId": session.params.message_id,
+                                    "data": warning_msg,
+                                }
+                            ).to_sse_chunk()
+                            session.collector.feed_sse(warning_msg)
+
+                            try:
+                                from app.services.infra.system_notification import (
+                                    SystemNotificationService,
+                                )
+
+                                await SystemNotificationService.create_notification(
+                                    title="Goal budget exhausted",
+                                    message=f"The agent session paused after reaching its token budget ({active_goal.budget.max_tokens} tokens). Add budget in the chat to resume.",
+                                    type="warning",
+                                    source="goal_budget",
+                                    meta_data={
+                                        "chat_id": session.request.chat_id,
+                                        "goal_id": active_goal.goal_id,
+                                        "i18n_title_key": "notifications.goalBudgetLimited",
+                                        "i18n_message_key": "Goal.budgetExhaustedMessage",
+                                    },
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    f"Failed to create system notification: {e}"
+                                )
+
+                            break
+
+            if isinstance(chunk, str):
+                sse_chunk = (
+                    chunk if chunk.startswith("data: ") else f"data: {chunk}\n\n"
+                )
+            else:
+                try:
+                    # Forward rate_limit_warning directly
+                    if (
+                        isinstance(chunk, dict)
+                        and chunk.get("type") == "rate_limit_warning"
+                    ):
+                        chunk["messageId"] = session.params.message_id
+
+                    if isinstance(chunk, dict) and chunk.get("messageId") is None:
+                        chunk["messageId"] = session.params.message_id
+
+                    # Inject goal_status into message_end and handle budget exhausted
+                    if isinstance(chunk, dict) and chunk.get("type") == "message_end":
+                        if accumulated_cost_usd > 0 and "cost_usd" not in chunk:
+                            chunk["cost_usd"] = round(accumulated_cost_usd, 6)
+                        if (
+                            session.stream_ttft_ms is not None
+                            and "stream_ttft_ms" not in chunk
+                        ):
+                            chunk["stream_ttft_ms"] = session.stream_ttft_ms
+                        from app.services.agent.stream_session.stream_lane_factory import (
+                            _inject_wu_consumed,
+                        )
+
+                        _inject_wu_consumed(chunk)
+                        _inject_message_end_memory_insights(
+                            chunk=chunk, session=session
+                        )
+                        if isinstance(session.extra_context, dict):
+                            if "turn_prewarm_hit" in session.extra_context:
+                                chunk["turn_prewarm_hit"] = session.extra_context[
+                                    "turn_prewarm_hit"
+                                ]
+                            prewarm_ms = session.extra_context.get("turn_prewarm_ms")
+                            if isinstance(prewarm_ms, int):
+                                chunk["turn_prewarm_ms"] = prewarm_ms
+
+                        if session.request.chat_id:
+                            from app.services.agent.goals.goal_registry import (
+                                GoalRegistry,
+                            )
+
+                            provider = GoalRegistry.get_provider(
+                                session.request.chat_id
+                            )
+                            if provider:
+                                latest = await provider.get_latest_goal(
+                                    session.request.chat_id
+                                )
+                                if latest:
+                                    goal_payload: dict[str, object] = {
+                                        "goal_id": latest.goal_id,
+                                        "objective": latest.objective,
+                                        "ui_summary": latest.ui_summary,
+                                        "status": latest.status.value,
+                                        "tokens_used": latest.tokens_used,
+                                        "time_used_seconds": latest.time_used_seconds,
+                                        "turns_used": latest.turns_used,
+                                        "constraints": latest.constraints or [],
+                                        "acceptance_criteria": latest.acceptance_criteria
+                                        or [],
+                                        "reason": latest.metadata.get("pause_reason"),
+                                        "budget": (
+                                            {
+                                                "max_tokens": latest.budget.max_tokens,
+                                                "max_usd": latest.budget.max_usd,
+                                                "max_time_seconds": latest.budget.max_time_seconds,
+                                                "max_turns": latest.budget.max_turns,
+                                            }
+                                            if latest.budget
+                                            else None
+                                        ),
+                                    }
+                                    deliverables = latest.metadata.get("deliverables")
+                                    if deliverables:
+                                        goal_payload["deliverables"] = deliverables
+                                    chunk["goal_status"] = goal_payload
+                                    if latest.status.value == "budget_limited":
+                                        # 1. Yield a message chunk to the chat
+                                        warning_msg = _BUDGET_EXHAUSTED_NOTICE[
+                                            _stream_locale(getattr(session.params, "locale", None))
+                                        ]
+                                        yield SSEEnvelope.from_any(
+                                            {
+                                                "type": "message",
+                                                "messageId": session.params.message_id,
+                                                "data": warning_msg,
+                                            }
+                                        ).to_sse_chunk()
+                                        session.collector.feed_sse(warning_msg)
+
+                                        # 2. Persist system notification
+                                        try:
+                                            from app.services.infra.system_notification import (
+                                                SystemNotificationService,
+                                            )
+
+                                            await SystemNotificationService.create_notification(
+                                                title="Goal budget exhausted",
+                                                message="The task paused after exhausting its budget. Add budget to continue.",
+                                                type="warning",
+                                                source="goal_budget",
+                                                meta_data={
+                                                    "chat_id": session.request.chat_id,
+                                                    "goal_id": latest.goal_id,
+                                                    "action_url": f"/{session.request.chat_id}",
+                                                    "i18n_title_key": "notifications.goalBudgetLimited",
+                                                    "i18n_message_key": "Goal.budgetExhaustedMessage",
+                                                },
+                                            )
+                                        except Exception as e:
+                                            logger.error(
+                                                f"Failed to create budget limit notification: {e}"
+                                            )
+
+                    envelope = SSEEnvelope.from_any(chunk)
+                    sse_chunk = envelope.to_sse_chunk()
+                except Exception as e:
+                    logger.error(
+                        "SSEEnvelope serialization failed: %s", e, exc_info=True
+                    )
+                    sse_chunk = f"data: {str(chunk)}\n\n"
+
+            session.collector.feed_sse(sse_chunk)
+            if extract_clarification_required(sse_chunk):
+                clarification.pending = True
+            updated = extract_approval_timeout(sse_chunk)
+            if updated is not None:
+                approval.value = updated
+                if session.request.chat_id:
+                    from app.services.agent.streaming_support.multiplexer import (
+                        WorkspaceMultiplexer,
+                    )
+
+                    WorkspaceMultiplexer.get().publish_session_status(
+                        session.request.chat_id, "awaiting_approval"
+                    )
+
+            if (
+                is_compression_exhausted(sse_chunk)
+                and session.request.chat_id
+                and session.request.resume_value is None
+            ):
+                from app.platform_utils import get_session_factory
+                from app.services.chat.chat_service import ChatService
+
+                try:
+                    session_factory = get_session_factory()
+                    async with session_factory() as _db:
+                        result = await ChatService.undo_last_turn(
+                            session.request.chat_id
+                        )
+                        if result.success and result.deleted_count > 0:
+                            logger.warning(
+                                "🧹 Compression exhausted: removed %d message(s) from chat %s to prevent death loop",
+                                result.deleted_count,
+                                session.request.chat_id,
+                            )
+                except Exception as undo_err:
+                    logger.error(
+                        "Failed to undo last turn after compression exhaustion: %s",
+                        undo_err,
+                    )
+
+                reset_event = {
+                    "type": "context_overflow_reset",
+                    "messageId": session.params.message_id,
+                    "data": {"chat_id": session.request.chat_id},
+                    "terminal_code": "context_overflow_after_compaction",
+                }
+                yield SSEEnvelope.from_any(reset_event).to_sse_chunk()
+
+            yield sse_chunk
+    except Exception as stream_err:
+        lang = _stream_locale(getattr(session.params, "locale", None))
+        if isinstance(stream_err, PrivacyFailClosedViolationError):
+            logger.error(
+                "PrivacyFailClosedViolationError intercepted in stream_loop: level=%s, type=%s, target=%s",
+                stream_err.verdict.level,
+                stream_err.verdict.violation_type,
+                stream_err.target_path,
+            )
+            blocked_payload = {
+                "type": "privacy_ladder_blocked",
+                "messageId": session.params.message_id,
+                "level": (
+                    stream_err.verdict.level.value
+                    if stream_err.verdict.level
+                    else "unknown"
+                ),
+                "violation_type": (
+                    stream_err.verdict.violation_type.value
+                    if stream_err.verdict.violation_type
+                    else "unknown"
+                ),
+                "reason": stream_err.verdict.reason,
+                "target_path": stream_err.target_path,
+            }
+            yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
+            privacy_copy = _PRIVACY_BLOCKED_FIELDS[lang]
+            error_message = (
+                f"\n\n{_PRIVACY_BLOCKED_HEADER[lang]}\n\n"
+                f"- **{privacy_copy['level']}**: `{stream_err.verdict.level}`\n"
+                f"- **{privacy_copy['violation']}**: `{stream_err.verdict.violation_type}`\n"
+                f"- **{privacy_copy['reason']}**: {stream_err.verdict.reason}\n"
+                f"- **{privacy_copy['target']}**: `{stream_err.target_path}`\n"
+            )
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message",
+                    "messageId": session.params.message_id,
+                    "data": error_message,
+                }
+            ).to_sse_chunk()
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message_end",
+                    "messageId": session.params.message_id,
+                    "completion_status": "privacy_ladder_blocked",
+                }
+            ).to_sse_chunk()
+            return
+
+        if isinstance(stream_err, MissingSemanticsBlockedError):
+            # Decorator-raised blocks carry no contract; the exception's own fields are always populated.
+            contract = stream_err.contract
+            blocked_category = (
+                str(contract.category) if contract else stream_err.component_name
+            )
+            blocked_message = (
+                contract.user_message
+                if contract
+                else (stream_err.detail or str(stream_err))
+            )
+            blocked_hint = stream_err.repair_hint or ""
+            logger.error(
+                "MissingSemanticsBlockedError intercepted in stream_loop: code=%s, category=%s, msg=%s",
+                stream_err.error_code,
+                blocked_category,
+                stream_err,
+            )
+            blocked_payload = {
+                "type": "missing_semantics_blocked",
+                "messageId": session.params.message_id,
+                "error_code": stream_err.error_code,
+                "category": blocked_category,
+                "policy": stream_err.policy.value,
+                "message": blocked_message,
+                "remediation_hint": blocked_hint,
+                "detail": stream_err.detail,
+            }
+            yield SSEEnvelope.from_any(blocked_payload).to_sse_chunk()
+            gate_copy = _GATE_BLOCKED_FIELDS[lang]
+            error_message = (
+                f"\n\n{_GATE_BLOCKED_HEADER[lang]}\n\n"
+                f"- **{gate_copy['code']}**: `{stream_err.error_code}`\n"
+                f"- **{gate_copy['policy']}**: `{stream_err.policy.value}`{_GATE_POLICY_NOTE[lang]}\n"
+                f"- **{gate_copy['missing']}**: {blocked_message}\n"
+                f"- **{gate_copy['hint']}**: {blocked_hint}\n"
+            )
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message",
+                    "messageId": session.params.message_id,
+                    "data": error_message,
+                }
+            ).to_sse_chunk()
+            yield SSEEnvelope.from_any(
+                {
+                    "type": "message_end",
+                    "messageId": session.params.message_id,
+                    "completion_status": "missing_semantics_blocked",
+                }
+            ).to_sse_chunk()
+            return
+        raise

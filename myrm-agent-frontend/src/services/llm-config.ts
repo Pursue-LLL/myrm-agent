@@ -1,0 +1,814 @@
+import { ApiError, apiRequest } from '@/lib/api';
+import { parseMcpFindingsFromApiErrorDetails } from '@/lib/utils/mcp-config';
+import type {
+  MCPScanBatchResult,
+  MCPScanResult,
+  MCPServiceConfig,
+  SearchServiceConfig,
+  ValidationResult,
+} from '@/store/config/types';
+
+export type { MCPScanBatchResult, MCPScanFinding, MCPScanResult } from '@/store/config/types';
+
+// 模型配置接口（用于验证 API）
+export interface ModelConfig {
+  model: string;
+  api_key: string;
+  base_url: string | null;
+  model_kwargs: Record<string, unknown>;
+  egress_proxy?: string | null;
+}
+
+// 模型能力信息接口
+export interface ModelCapabilities {
+  supports_vision: boolean;
+  supports_function_calling: boolean;
+  supports_reasoning: boolean;
+  supports_audio_input: boolean;
+  supports_video_input: boolean;
+  supports_web_search: boolean;
+  supports_prompt_caching: boolean;
+  input_cost_per_token: number | null;
+  output_cost_per_token: number | null;
+  max_tokens: number | null;
+  max_input_tokens: number | null;
+  max_output_tokens: number | null;
+}
+
+// 候选模型信息
+export interface ModelCandidate {
+  provider: string;
+  model_key: string;
+  capabilities: ModelCapabilities;
+}
+
+// 模型信息响应
+export interface ModelInfoResponse {
+  found: boolean;
+  capabilities: ModelCapabilities | null;
+  candidates: ModelCandidate[] | null;
+}
+
+// 重新导出类型，便于其他模块使用
+export type { ValidationResult, SearchServiceConfig, MCPServiceConfig };
+
+/**
+ * 验证 LLM 配置（提供商级别）
+ */
+export const validateLLM = async (config: ModelConfig): Promise<ValidationResult> => {
+  const startTime = performance.now();
+
+  try {
+    await apiRequest('/integrations/llm/verify', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+
+    const latency = Math.round(performance.now() - startTime);
+    return { success: true, latency };
+  } catch (error) {
+    const latency = Math.round(performance.now() - startTime);
+    const errorMessage = error instanceof Error ? error.message : 'Network request failed';
+    return { success: false, message: errorMessage, latency };
+  }
+};
+
+export interface ReachabilityResult {
+  reachable: boolean;
+  latency_ms: number | null;
+  error: string | null;
+  cached: boolean;
+}
+
+export interface DiscoverModelsResult {
+  success: boolean;
+  normalized_api_url: string;
+  models_url?: string | null;
+  models: string[];
+  no_auth_local?: boolean;
+  error?: string | null;
+}
+
+type ReachabilityApiResponse = Partial<ReachabilityResult> & {
+  data?: ReachabilityResult;
+};
+
+export interface VisionHealthResult {
+  configured: boolean;
+  healthy: boolean;
+  latency_ms?: number | null;
+  error?: string | null;
+  model?: string | null;
+  resolved_model?: string | null;
+  base_url?: string | null;
+}
+
+/**
+ * Lightweight reachability check using a single minimal prompt.
+ * Faster and cheaper than validateLLM — ideal for local model (Ollama) setup.
+ */
+export const checkModelReachability = async (config: ModelConfig): Promise<ReachabilityResult> => {
+  try {
+    const res = await apiRequest<ReachabilityApiResponse>('/integrations/llm/check-reachability', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+    if (res.data) {
+      return res.data;
+    }
+    return {
+      reachable: res.reachable ?? false,
+      latency_ms: res.latency_ms ?? null,
+      error: res.error ?? null,
+      cached: res.cached ?? false,
+    };
+  } catch {
+    return { reachable: false, latency_ms: null, error: 'Network request failed', cached: false };
+  }
+};
+
+/**
+ * Discover models from OpenAI-compatible endpoint.
+ * Uses backend SSRF-guarded probe contract.
+ */
+export const discoverModelsFromEndpoint = async (apiUrl: string, apiKey?: string): Promise<DiscoverModelsResult> => {
+  try {
+    const response = await apiRequest<DiscoverModelsResult>('/integrations/llm/discover-models', {
+      method: 'POST',
+      body: JSON.stringify({
+        api_url: apiUrl,
+        api_key: apiKey?.trim() || undefined,
+      }),
+    });
+    return {
+      success: response.success ?? false,
+      normalized_api_url: response.normalized_api_url ?? apiUrl,
+      models_url: response.models_url,
+      models: Array.isArray(response.models) ? response.models : [],
+      no_auth_local: response.no_auth_local ?? false,
+      error: response.error ?? null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      normalized_api_url: apiUrl,
+      models: [],
+      error: error instanceof Error ? error.message : 'Network request failed',
+      no_auth_local: false,
+    };
+  }
+};
+
+export interface TestProxyResult {
+  success: boolean;
+  latency_ms?: number | null;
+  error?: string | null;
+}
+
+/**
+ * 测试出网代理连通性及延迟
+ */
+export const testProxyConnection = async (proxyUrl: string, targetUrl?: string): Promise<TestProxyResult> => {
+  try {
+    const payload: { proxy_url: string; target_url?: string } = {
+      proxy_url: proxyUrl,
+    };
+    const trimmedTarget = targetUrl?.trim();
+    if (trimmedTarget) {
+      payload.target_url = trimmedTarget;
+    }
+    const response = await apiRequest<TestProxyResult>('/config/test-proxy', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return {
+      success: response.success ?? false,
+      latency_ms: response.latency_ms ?? null,
+      error: response.error ?? null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      latency_ms: null,
+      error: error instanceof Error ? error.message : 'Network request failed',
+    };
+  }
+};
+
+const softSearchServiceValidationFailurePatterns =
+  /quota exceeded|apiconnectionerror|rate limit|service unavailable|temporarily unavailable/i;
+
+export const isSoftSearchServiceValidationFailure = (
+  result: Pick<ValidationResult, 'message' | 'retriable'>,
+): boolean => {
+  return result.retriable === true || softSearchServiceValidationFailurePatterns.test(result.message ?? '');
+};
+
+export interface SearchProviderManifestEntry {
+  slug: string;
+  connector: string;
+  name: string;
+  nameZh: string;
+  deploymentScope: string;
+  requiresApiKey: boolean;
+  requiresApiBase: boolean;
+  backendReady: boolean;
+}
+
+export interface SearchProvidersResponse {
+  providers: SearchProviderManifestEntry[];
+  maxChainSize: number;
+}
+
+/** Fetch search provider manifest for Settings UI (server SSOT). */
+export const fetchSearchProviders = async (isLocal: boolean): Promise<SearchProvidersResponse> => {
+  return apiRequest<SearchProvidersResponse>(`/integrations/search/providers?isLocal=${isLocal ? 'true' : 'false'}`);
+};
+
+/**
+ * 验证搜索服务配置
+ */
+export const validateSearchServiceConfig = async (config: SearchServiceConfig): Promise<ValidationResult> => {
+  const startTime = performance.now();
+
+  try {
+    await apiRequest('/integrations/search/verify', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+
+    const latency = Math.round(performance.now() - startTime);
+    return { success: true, latency };
+  } catch (error) {
+    const latency = Math.round(performance.now() - startTime);
+    if (error instanceof ApiError) {
+      return {
+        success: false,
+        message: error.message,
+        latency,
+        retriable: error.retriable,
+        businessCode: error.businessCode,
+      };
+    }
+    const errorMessage = error instanceof Error ? error.message : 'Network request failed';
+    return { success: false, message: errorMessage, latency };
+  }
+};
+
+export interface MCPToolDetail {
+  name: string;
+  description: string;
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+}
+
+interface MCPVerifyData {
+  tools_count: number;
+  service_name: string;
+  instructions: string | null;
+  tools: MCPToolDetail[];
+  config_scan?: MCPScanResult;
+  runtime_scan?: MCPScanResult;
+}
+
+/**
+ * Static pre-flight scan for MCP configuration (no network connection).
+ */
+export const scanMCPConfig = async (config: MCPServiceConfig): Promise<MCPScanResult> => {
+  return apiRequest<MCPScanResult>('/integrations/mcp/scan', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+};
+
+export const scanMCPConfigBatch = async (configs: MCPServiceConfig[]): Promise<MCPScanBatchResult> => {
+  return apiRequest<MCPScanBatchResult>('/integrations/mcp/scan-batch', {
+    method: 'POST',
+    body: JSON.stringify({ configs }),
+  });
+};
+
+/**
+ * 验证MCP服务配置
+ */
+export const validateMCPConfig = async (
+  config: MCPServiceConfig,
+  acknowledgedHighRisks = false,
+): Promise<ValidationResult> => {
+  const startTime = performance.now();
+
+  try {
+    const query = acknowledgedHighRisks ? '?acknowledgedHighRisks=true' : '';
+    const data = await apiRequest<MCPVerifyData>(`/integrations/mcp/verify${query}`, {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+
+    const latency = Math.round(performance.now() - startTime);
+    return {
+      success: true,
+      latency,
+      instructions: data.instructions ?? undefined,
+    };
+  } catch (error) {
+    const latency = Math.round(performance.now() - startTime);
+    if (error instanceof ApiError) {
+      return {
+        success: false,
+        message: error.message,
+        latency,
+        scanFindings: parseMcpFindingsFromApiErrorDetails(error.details),
+        retriable: error.retriable,
+        businessCode: error.businessCode,
+      };
+    }
+    const errorMessage = error instanceof Error ? error.message : 'Network request failed';
+    return { success: false, message: errorMessage, latency };
+  }
+};
+
+export interface FetchMCPToolsResult {
+  tools: MCPToolDetail[];
+  error: boolean;
+}
+
+/**
+ * Fetch tool list for a given MCP server config (reuses verify endpoint).
+ */
+export const fetchMCPTools = async (config: MCPServiceConfig): Promise<FetchMCPToolsResult> => {
+  try {
+    const data = await apiRequest<MCPVerifyData>('/integrations/mcp/verify', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+    return { tools: data.tools ?? [], error: false };
+  } catch {
+    return { tools: [], error: true };
+  }
+};
+
+/**
+ * MCP 配置选项响应
+ */
+export interface MCPOptionsResponse {
+  allowStdio: boolean;
+  allowSse: boolean;
+  allowedTypes: string[];
+  // Security posture the server reports; the offline fallback below cannot know it, so it omits them.
+  requireHttps?: boolean;
+  ssrfProtectionEnabled?: boolean;
+  verifyTimeout?: number;
+}
+
+/**
+ * 获取 MCP 配置选项
+ * 返回当前部署环境下允许的 MCP 传输类型
+ */
+export const getMCPOptions = async (): Promise<MCPOptionsResponse> => {
+  try {
+    return await apiRequest<MCPOptionsResponse>('/integrations/mcp/options', {
+      method: 'GET',
+      silent: true,
+    });
+  } catch (error) {
+    console.error('Failed to fetch MCP options:', error);
+    // 默认允许所有类型
+    return {
+      allowStdio: true,
+      allowSse: true,
+      allowedTypes: ['sse', 'stdio', 'streamable_http'],
+    };
+  }
+};
+
+// Speed test result for a single model
+export interface SpeedTestResult {
+  model: string;
+  ttft_ms: number | null;
+  throughput_tps: number | null;
+  total_ms: number | null;
+  total_tokens: number | null;
+  status: 'ok' | 'error';
+  error: string | null;
+}
+
+/**
+ * Run speed test for multiple model configurations.
+ * Sequentially tests TTFT and throughput for each model.
+ */
+export const runSpeedTest = async (models: ModelConfig[]): Promise<SpeedTestResult[]> => {
+  try {
+    const response = await apiRequest<{ data: SpeedTestResult[] }>('/integrations/llm/speed-test', {
+      method: 'POST',
+      body: JSON.stringify({ models }),
+    });
+    return response.data ?? (response as unknown as SpeedTestResult[]);
+  } catch {
+    return models.map((m) => ({
+      model: m.model,
+      ttft_ms: null,
+      throughput_tps: null,
+      total_ms: null,
+      total_tokens: null,
+      status: 'error' as const,
+      error: 'Network request failed',
+    }));
+  }
+};
+
+// 模型能力信息缓存
+const modelCapabilitiesCache = new Map<string, ModelCapabilities>();
+
+// 默认能力信息
+const defaultCapabilities: ModelCapabilities = {
+  supports_vision: false,
+  supports_function_calling: false,
+  supports_reasoning: false,
+  supports_audio_input: false,
+  supports_video_input: false,
+  supports_web_search: false,
+  supports_prompt_caching: false,
+  input_cost_per_token: null,
+  output_cost_per_token: null,
+  max_tokens: null,
+  max_input_tokens: null,
+  max_output_tokens: null,
+};
+
+/**
+ * 获取单个模型的能力信息（新版本，支持候选模型）
+ *
+ * @returns ModelInfoResponse - 包含 found 标志和 capabilities 或 candidates
+ */
+export const fetchModelInfo = async (model: string): Promise<ModelInfoResponse> => {
+  // 检查缓存
+  const cached = modelCapabilitiesCache.get(model);
+  if (cached) {
+    return { found: true, capabilities: cached, candidates: null };
+  }
+
+  try {
+    const response = await apiRequest<ModelInfoResponse>('/integrations/llm/model-info', {
+      method: 'POST',
+      body: JSON.stringify({ model }),
+    });
+
+    // 如果精确匹配找到，缓存结果
+    if (response.found && response.capabilities) {
+      modelCapabilitiesCache.set(model, response.capabilities);
+    }
+
+    return response;
+  } catch {
+    // 返回未找到状态
+    return { found: false, capabilities: null, candidates: [] };
+  }
+};
+
+/**
+ * 获取单个模型的能力信息（兼容旧版本）
+ * @deprecated 请使用 fetchModelInfo 获取完整响应
+ */
+export const fetchModelCapabilities = async (model: string): Promise<ModelCapabilities> => {
+  const response = await fetchModelInfo(model);
+  if (response.found && response.capabilities) {
+    return response.capabilities;
+  }
+  return defaultCapabilities;
+};
+
+/**
+ * 批量获取模型的能力信息
+ */
+export const fetchModelCapabilitiesBatch = async (models: string[]): Promise<Record<string, ModelCapabilities>> => {
+  // 过滤出未缓存的模型
+  const uncachedModels = models.filter((m) => !modelCapabilitiesCache.has(m));
+
+  // 如果所有模型都已缓存，直接返回
+  if (uncachedModels.length === 0) {
+    const result: Record<string, ModelCapabilities> = {};
+    for (const model of models) {
+      const cached = modelCapabilitiesCache.get(model);
+      if (cached) {
+        result[model] = cached;
+      }
+    }
+    return result;
+  }
+
+  try {
+    const response = await apiRequest<Record<string, ModelCapabilities>>('/integrations/llm/model-info/batch', {
+      method: 'POST',
+      body: JSON.stringify({ models: uncachedModels }),
+    });
+
+    // 缓存结果
+    for (const [model, capabilities] of Object.entries(response)) {
+      modelCapabilitiesCache.set(model, capabilities);
+    }
+  } catch {
+    // 静默失败，使用默认值
+  }
+
+  // 构建返回结果
+  const result: Record<string, ModelCapabilities> = {};
+
+  for (const model of models) {
+    result[model] = modelCapabilitiesCache.get(model) || defaultCapabilities;
+  }
+  return result;
+};
+
+// ============================================================================
+// Model switch preflight (上下文压缩预警)
+// ============================================================================
+
+export interface ModelSwitchPreflightItem {
+  model: string;
+  max_input_tokens?: number | null;
+}
+
+export interface ModelSwitchPreflightResult {
+  model: string;
+  found: boolean;
+  new_window: number | null;
+  compress_threshold: number | null;
+  will_compress: boolean;
+}
+
+export interface ModelSwitchPreflightResponse {
+  results: ModelSwitchPreflightResult[];
+}
+
+const PREFLIGHT_CACHE_LIMIT = 100;
+
+/**
+ * 会话维度 preflight 缓存（LRU 上限，防 estimatedTokens 单调变化导致 key 无限累积）。
+ * key = `${chatId}:${model}:${max_input_tokens}:${ratio}:${prompt_mode}:${estimatedTokens}:${turn_count}`
+ * chatId 使不同会话隔离；streak 变化必伴随 estimatedTokens（current_tokens）变化，自动失效。
+ */
+const preflightCache = new Map<string, ModelSwitchPreflightResult>();
+
+function cacheSet(key: string, value: ModelSwitchPreflightResult): void {
+  preflightCache.delete(key);
+  preflightCache.set(key, value);
+  while (preflightCache.size > PREFLIGHT_CACHE_LIMIT) {
+    const oldestKey = preflightCache.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    preflightCache.delete(oldestKey);
+  }
+}
+
+/**
+ * 模型切换压缩预检：判断切换到目标模型后是否会在下一条消息立即触发上下文压缩。
+ *
+ * 请求复用 harness ContextConfig 的真实压缩阈值公式（server 端计算），
+ * 前端无需硬编码压缩比例，避免口径漂移。estimated_tokens 取自当前会话
+ * 最近一条 assistant 消息的 provider 真实 prompt_tokens。
+ *
+ * chatId 可选：提供时 server 消费压缩无效 streak（anti-thrash），
+ * 与运行时 should_block_automatic_compression 语义一致，避免误报。
+ */
+export const fetchModelSwitchPreflight = async (
+  estimatedTokens: number,
+  items: ModelSwitchPreflightItem[],
+  compressStartRatio?: number | null,
+  promptMode?: string | null,
+  turnCount?: number | null,
+  chatId?: string | null,
+): Promise<Record<string, ModelSwitchPreflightResult>> => {
+  const cacheKeyFor = (item: ModelSwitchPreflightItem) =>
+    `${chatId ?? ''}:${item.model}:${item.max_input_tokens ?? ''}:${compressStartRatio ?? ''}:${promptMode ?? ''}:${estimatedTokens}:${turnCount ?? ''}`;
+
+  const uncached = items.filter((item) => !preflightCache.has(cacheKeyFor(item)));
+  const hitMap: Record<string, ModelSwitchPreflightResult> = {};
+  for (const item of items) {
+    const cached = preflightCache.get(cacheKeyFor(item));
+    if (cached) {
+      hitMap[item.model] = cached;
+    }
+  }
+
+  if (uncached.length === 0) {
+    return hitMap;
+  }
+
+  try {
+    const response = await apiRequest<ModelSwitchPreflightResponse>('/integrations/llm/model-switch-preflight', {
+      method: 'POST',
+      body: JSON.stringify({
+        estimated_tokens: estimatedTokens,
+        compress_start_ratio: compressStartRatio ?? null,
+        prompt_mode: promptMode ?? null,
+        turn_count: turnCount ?? null,
+        chat_id: chatId ?? null,
+        models: uncached,
+      }),
+    });
+
+    const all: Record<string, ModelSwitchPreflightResult> = { ...hitMap };
+    for (const result of response.results) {
+      const item = uncached.find((candidate) => candidate.model === result.model);
+      cacheSet(cacheKeyFor(item ?? { model: result.model }), result);
+      all[result.model] = result;
+    }
+    return all;
+  } catch {
+    return hitMap;
+  }
+};
+
+// ============================================================================
+// MCP OAuth API
+// ============================================================================
+
+export interface MCPOAuthStartResponse {
+  authorization_url: string;
+  state: string;
+}
+
+export type MCPOAuthStatusMap = Record<string, { connected: boolean; expired: boolean; scope: string | null }>;
+
+export const startMCPOAuth = async (params: {
+  server_name: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  client_id: string;
+  client_secret?: string;
+  scope?: string;
+  redirect_uri: string;
+}): Promise<MCPOAuthStartResponse> => {
+  return apiRequest<MCPOAuthStartResponse>('/integrations/mcp/oauth/start', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+};
+
+export const checkMCPOAuthStateStatus = async (state: string): Promise<{ status: string }> => {
+  return apiRequest<{ status: string }>(`/integrations/mcp/oauth/status/${encodeURIComponent(state)}`, {
+    silent: true,
+  });
+};
+
+export const getMCPOAuthStatus = async (): Promise<MCPOAuthStatusMap> => {
+  return apiRequest<MCPOAuthStatusMap>('/integrations/mcp/oauth/status', {
+    method: 'GET',
+  });
+};
+
+export const disconnectMCPOAuth = async (serverName: string): Promise<void> => {
+  await apiRequest(`/integrations/mcp/oauth/${encodeURIComponent(serverName)}`, {
+    method: 'DELETE',
+  });
+};
+
+// ---------------------------------------------------------------------------
+// MCP Registry
+// ---------------------------------------------------------------------------
+
+export interface MCPRegistryServer {
+  qualifiedName: string;
+  displayName: string;
+  description: string;
+  iconUrl: string | null;
+  homepage: string | null;
+  useCount: number;
+}
+
+export interface MCPRegistrySearchResult {
+  servers: MCPRegistryServer[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface MCPRegistryEnvVar {
+  name: string;
+  description: string;
+  required: boolean;
+}
+
+export interface MCPRegistryServerDetail {
+  qualifiedName: string;
+  displayName: string;
+  description: string;
+  iconUrl: string | null;
+  homepage: string | null;
+  useCount: number;
+  transportType: string;
+  envVars: MCPRegistryEnvVar[];
+}
+
+export const searchMCPRegistry = async (
+  query: string = '',
+  page: number = 1,
+  pageSize: number = 20,
+): Promise<MCPRegistrySearchResult> => {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (query) {
+    params.set('q', query);
+  }
+  return apiRequest<MCPRegistrySearchResult>(`/integrations/mcp/registry/search?${params}`, {
+    method: 'GET',
+    silent: true,
+  });
+};
+
+export const getMCPRegistryDetail = async (qualifiedName: string): Promise<MCPRegistryServerDetail> => {
+  const encodedName = qualifiedName
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return apiRequest<MCPRegistryServerDetail>(`/integrations/mcp/registry/detail/${encodedName}`, {
+    method: 'GET',
+    silent: true,
+  });
+};
+
+export type VideoHealthResult = VisionHealthResult;
+
+export const checkVideoFallbackHealth = async (): Promise<VideoHealthResult> => {
+  return apiRequest<VideoHealthResult>('/config/video-health', {
+    method: 'POST',
+  });
+};
+
+export const checkVisionFallbackHealth = async (): Promise<VisionHealthResult> => {
+  return apiRequest<VisionHealthResult>('/config/vision-health', {
+    method: 'POST',
+  });
+};
+
+export interface CredentialPoolKeyStat {
+  suffix: string;
+  calls: number;
+  rate_limits: number;
+  consecutive_rate_limits: number;
+  errors: number;
+  in_cooldown: boolean;
+  cooldown_remaining_s: number;
+}
+
+export interface CredentialPoolStatItem {
+  cache_key: string;
+  model: string;
+  stats: {
+    strategy: string;
+    total_keys: number;
+    available_keys: number;
+    total_calls: number;
+    total_rate_limits: number;
+    max_consecutive_rate_limits: number;
+    total_errors: number;
+    keys: CredentialPoolKeyStat[];
+  };
+}
+
+export const fetchCredentialPoolStats = async (): Promise<CredentialPoolStatItem[]> => {
+  try {
+    const res = await apiRequest<{ data: CredentialPoolStatItem[] }>('/integrations/llm/credential-pool/stats');
+    return res.data || [];
+  } catch {
+    return [];
+  }
+};
+
+export const resetCredentialPoolCooldowns = async (keySuffix?: string): Promise<{ reset_count: number }> => {
+  try {
+    const res = await apiRequest<{ data: { reset_count: number } }>(
+      '/integrations/llm/credential-pool/reset-cooldowns',
+      {
+        method: 'POST',
+        body: JSON.stringify(keySuffix ? { key_suffix: keySuffix } : {}),
+      },
+    );
+    return res.data || { reset_count: 0 };
+  } catch {
+    return { reset_count: 0 };
+  }
+};
+
+export interface ValidateExternalSecretResult {
+  valid: boolean;
+  masked_preview?: string | null;
+  error?: string | null;
+}
+
+export const validateExternalSecretReference = async (reference: string): Promise<ValidateExternalSecretResult> => {
+  try {
+    const res = await apiRequest<{ data: ValidateExternalSecretResult }>(
+      '/integrations/llm/credential-pool/validate-secret-reference',
+      {
+        method: 'POST',
+        body: JSON.stringify({ reference }),
+      },
+    );
+    return res.data || { valid: false, error: 'Empty response' };
+  } catch (e) {
+    return { valid: false, error: e instanceof Error ? e.message : 'Request failed' };
+  }
+};

@@ -1,0 +1,20 @@
+# api/chats/
+
+## 架构概述
+
+聊天会话 CRUD、流式与分支 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)。
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | 挂载 `chat/` 子路由 | ✅ |
+| `test_fixtures/` | 测试 | local-only Chrome E2E seed 子包（`__init__.py` 聚合 + `_inline_core`/`_kanban`/21 个 seed 子模块） | ✅ |
+| `chat/` | 子模块 | 单会话消息、搜索、分支、turn 等子路由 | [chat/_ARCH.md](chat/_ARCH.md) |
+| `session_export_router.py` | 路由 | 会话自包含交互式 HTML 导出、敏感凭证脱敏预检与只读 HMAC 分享链接 API | ✅ |
+| `group_chat_router.py` | 路由 | Bot Mode 多 Agent 协同群聊、@-mention 路由与 Hermes peer 对等私信归档 API | ✅ |
+
+## 依赖
+
+- `app.services.chat.chat_service` — 会话/消息持久化
+- `app.services.agent.agent_service` — E2E seed 选取 agent scope

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Give platform-specific updater bundles stable names before gh release upload.
+set -euo pipefail
+
+PLATFORM="${1:?Usage: rename-updater-bundles.sh macos-intel}"
+ROOT="${2:-myrm-agent-desktop/src-tauri/target}"
+ROOT="${ROOT//\\//}"
+
+shopt -s nullglob
+
+rename_pair() {
+  local src="$1"
+  local dst="$2"
+  [[ -f "$src" ]] || return 0
+  if [[ "$src" == "$dst" ]]; then
+    return 0
+  fi
+  if [[ -f "$dst" ]]; then
+    echo "[rename-updater-bundles] ERROR: destination already exists: $(basename "$dst")" >&2
+    exit 1
+  fi
+  mv "$src" "$dst"
+  if [[ -f "${src}.sig" ]]; then
+    mv "${src}.sig" "${dst}.sig"
+  fi
+  echo "[rename-updater-bundles] $(basename "$src") -> $(basename "$dst")"
+}
+
+renamed=0
+
+case "$PLATFORM" in
+  macos-intel)
+    for dir in "$ROOT"/*/release/bundle/macos "$ROOT/release/bundle/macos"; do
+      [[ -d "$dir" ]] || continue
+      if [[ -f "$dir/MyrmAgent.app.tar.gz" ]]; then
+        rename_pair "$dir/MyrmAgent.app.tar.gz" "$dir/MyrmAgent_x64.app.tar.gz"
+        renamed=1
+      fi
+    done
+    ;;
+  *)
+    echo "[rename-updater-bundles] unknown platform: ${PLATFORM} (use rename-windows-updater-bundle.ps1 on Windows)" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "$renamed" -eq 0 ]]; then
+  echo "[rename-updater-bundles] ERROR: no ${PLATFORM} updater bundle renamed under ${ROOT}" >&2
+  ls -la "$ROOT"/*/release/bundle/macos 2>/dev/null >&2 || true
+  ls -la "$ROOT/release/bundle/macos" 2>/dev/null >&2 || true
+  exit 1
+fi

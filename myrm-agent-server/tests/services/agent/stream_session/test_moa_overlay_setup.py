@@ -1,0 +1,220 @@
+"""Tests for MoA overlay middleware setup (no main-model fallback)."""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from app.services.agent.stream_session.moa_overlay_setup import (
+    MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS,
+    MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS,
+    resolve_moa_overlay_skip_reason,
+)
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_disabled() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    result = await build_moa_overlay_middleware(None)
+    assert result is None
+
+    result = await build_moa_overlay_middleware({"moa_overlay": {"enabled": False}})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_disabled() -> None:
+    assert await resolve_moa_overlay_skip_reason(None) is None
+    assert await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": False}}) is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_no_reference_configs() -> None:
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True}, []),
+    ):
+        reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
+    assert reason == MOA_OVERLAY_SKIP_NO_REFERENCE_CONFIGS
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_no_reference_llms() -> None:
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True}, [mock_cfg]),
+    ):
+        with patch(
+            "app.services.agent.stream_session.moa_overlay_setup._build_reference_llms",
+            new_callable=AsyncMock,
+            return_value=[],
+        ):
+            reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
+    assert reason == MOA_OVERLAY_SKIP_NO_REFERENCE_LLMS
+
+
+@pytest.mark.asyncio
+async def test_resolve_moa_overlay_skip_reason_none_when_ready() -> None:
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    mock_llm = MagicMock()
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True}, [mock_cfg]),
+    ):
+        with patch(
+            "app.services.agent.stream_session.moa_overlay_setup._build_reference_llms",
+            new_callable=AsyncMock,
+            return_value=[mock_llm],
+        ):
+            reason = await resolve_moa_overlay_skip_reason({"moa_overlay": {"enabled": True}})
+    assert reason is None
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_no_refs_returns_none() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True}, []),
+    ):
+        result = await build_moa_overlay_middleware({"moa_overlay": {"enabled": True}})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_skips_failed_llm_creation() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=({"enabled": True, "fanout": "user_turn"}, [mock_cfg]),
+    ):
+        with patch(
+            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("bad key"),
+        ):
+            result = await build_moa_overlay_middleware({"moa_overlay": {"enabled": True}})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_creates_middleware() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    mock_llm = MagicMock()
+    overlay_raw = {
+        "enabled": True,
+        "fanout": "user_turn",
+        "privacy_filter": "display",
+        "reference_model_selections": [],
+    }
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=(overlay_raw, [mock_cfg]),
+    ):
+        with patch(
+            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+            new_callable=AsyncMock,
+            return_value=mock_llm,
+        ):
+            result = await build_moa_overlay_middleware({"moa_overlay": overlay_raw})
+    assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_injects_redact_leaks_when_privacy_active() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    mock_llm = MagicMock()
+    overlay_raw = {
+        "enabled": True,
+        "fanout": "user_turn",
+        "privacy_filter": "full",
+        "reference_model_selections": [],
+    }
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=(overlay_raw, [mock_cfg]),
+    ):
+        with patch(
+            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+            new_callable=AsyncMock,
+            return_value=mock_llm,
+        ):
+            with patch(
+                "myrm_agent_harness.agent.middlewares.moa_advisor_middleware.create_moa_advisor_middleware"
+            ) as create_mock:
+                await build_moa_overlay_middleware({"moa_overlay": overlay_raw})
+                assert create_mock.called
+                _, kwargs = create_mock.call_args
+                assert kwargs.get("privacy_redactor") is not None
+                from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
+
+                assert kwargs["privacy_redactor"] is redact_leaks
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_supports_risk_triggered_fanout() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    mock_llm = MagicMock()
+    overlay_raw = {
+        "enabled": True,
+        "fanout": "risk_triggered",
+        "risk_trigger_failure_threshold": 3,
+        "risk_trigger_immune_turns": 4,
+        "risk_trigger_max_per_session": 5,
+        "risk_trigger_timeout": 8.0,
+        "reference_model_selections": [],
+    }
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=(overlay_raw, [mock_cfg]),
+    ):
+        with patch(
+            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+            new_callable=AsyncMock,
+            return_value=mock_llm,
+        ):
+            with patch(
+                "myrm_agent_harness.agent.middlewares.moa_advisor_middleware.create_moa_advisor_middleware"
+            ) as create_mock:
+                await build_moa_overlay_middleware({"moa_overlay": overlay_raw})
+                assert create_mock.called
+                _, kwargs = create_mock.call_args
+                config = kwargs.get("config")
+                assert config is not None
+                assert config.fanout == "risk_triggered"
+                assert config.risk_trigger_failure_threshold == 3
+                assert config.risk_trigger_immune_turns == 4
+                assert config.risk_trigger_max_per_session == 5
+                assert config.risk_trigger_timeout == 8.0

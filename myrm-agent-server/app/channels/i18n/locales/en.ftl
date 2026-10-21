@@ -1,0 +1,410 @@
+mobile_hitl_open = Open mobile approval
+web_continue_chat = Continue in browser
+
+no_active_task_to_stop = ℹ No active task to stop.
+execution_stopped =  Execution stopped.
+placeholder_stopped =  Execution stopped.
+no_pending_approval = ℹ No pending approval requests.
+approval_processing =  Processing approval...
+approval_always_processing =  Approving and adding to allow-always list...
+approval_denial_processing =  Processing denial...
+approval_denial_with_reason_processing =  Processing denial: "{ $reason }"
+approval_batch_processing =  Processing { $approve_count } approvals, { $reject_count } rejections...
+approval_batch_processing_always =  Processing { $approve_count } approvals ({ $always_count } always), { $reject_count } rejections...
+approval_already_handled = ℹ This approval has already been handled (it timed out or was answered elsewhere). No action needed.
+permission_denied =  Permission denied: `/{ $cmd }` requires admin access.
+usage_steer = Usage: `/steer <new instruction>`
+steering_applied = Steering applied: _{ $preview }_
+usage_queue = Usage: `/queue <task description>`
+queue_queued = Queued. Will execute after the current task completes.
+queue_immediate = No active task — executing immediately.
+goal_system_not_configured =  Goal system is not configured in this environment.
+goal_management_not_available = Goal management is not available.
+agent_is_running_goal = Agent is running — use /goal status, /goal pause, or /goal clear mid-run. Stop the agent first with /stop before setting a new goal.
+usage_goal = Usage: `/goal <your objective>`
+goal_set =
+    Goal set: **{ $goal }**
+    Agent will start working on it now.
+goal_queued =
+    Goal queued: **{ $goal }**
+    It will start automatically after the current goal finishes.
+goal_active_exists =
+    A goal is already active: **{ $objective }**
+    Use `/goal clear` first, or `/goal status` to check progress.
+no_goal_is_set = No goal is set. Use `/goal <objective>` to set one.
+no_active_goal_to_pause = No active goal to pause.
+no_active_goal_session = No active goal session found.
+no_active_goal_subgoals = No active goal to manage subgoals for.
+goal_paused =
+    Goal paused: **{ $objective }**
+    Use `/goal resume` to continue.
+goal_wait =
+    Goal waiting: **{ $objective }**
+    Reason: { $reason }
+    Use `/goal unwait` to resume.
+goal_unwait = Goal resumed from wait: **{ $objective }**
+goal_not_waiting = Goal is not in wait state.
+goal_wait_not_supported = Wait is not supported in this environment.
+goal_resumed = Goal resumed: **{ $objective }**
+goal_cleared = Goal cleared: **{ $objective }**
+goal_cannot_resume = Cannot resume goal in '{ $status }' state.
+goal_budget_set = Budget set to **{ $max_turns } turns** for current goal.
+goal_status_queued = Queued
+goal_status_label = Active
+goal_status_paused = Paused
+goal_status_pending_approval = Pending Approval
+goal_status_budget_limited = Budget Limited
+goal_status_wait = Waiting
+goal_status_complete = Complete
+goal_status_cancelled = Cancelled
+goal_status_needs_review = Needs Review
+goal_status_header = **Goal:** { $objective }
+goal_status_line = **Status:** { $status }
+goal_budget_tokens = Tokens: { $used }/{ $max }
+goal_budget_turns = Turns: { $used }/{ $max }
+goal_budget_header = **Budget:** { $parts }
+usage_subgoal_add = Usage: `/subgoal add <text>`
+subgoal_added = Subgoal added: **{ $text }**
+no_subgoals_defined = No subgoals defined for the current goal.
+current_subgoals = **Current Subgoals:**
+usage_subgoal_remove = Usage: `/subgoal remove <index>`
+subgoal_removed = Subgoal removed: **{ $text }**
+subgoal_index_out_of_range = Subgoal index { $index } out of range.
+cleared_subgoals = Cleared { $count } subgoals.
+no_active_goal_constraint = No goal found. Set a goal first with `/goal <objective>`.
+no_constraints_set = No constraints set for the current goal.
+goal_constraint_added = Constraint added: **{ $constraint }**
+goal_constraints_cleared = All constraints cleared.
+goal_status_constraints = **Constraints:** { $items }
+goal_status_criteria = **Acceptance Criteria:** { $items }
+goal_status_subgoals = **Subgoals:** { $items }
+no_goal_to_resume = No goal to resume.
+no_goal_to_clear = No goal to clear.
+no_active_goal_to_clear = No active goal to clear.
+no_active_goal_set_first = No active goal. Set a goal first with `/goal <objective>`.
+no_active_goal_budget = No active goal to set budget for.
+usage_goal_budget = Usage: `/goal budget <max_turns>` — e.g. `/goal budget 10`
+budget_at_least_one = Budget must be at least 1.
+invalid_budget = Invalid budget value. Use a number, e.g. `/goal budget 10`
+background_tasks_not_available = Background tasks are not available.
+usage_btw = Usage: `/btw <task>` | `/btw list` | `/btw cancel <id>` | `/btw steer <id> <instruction>`
+background_none = No background tasks.
+background_header = **Background Tasks**
+background_cancel_usage = Usage: `/btw cancel <task_id>`
+background_steer_usage = Usage: `/btw steer <task_id> <instruction>`
+background_cancelled = Task `{ $task_id }` cancelled.
+background_not_found = Task `{ $task_id }` not found or already finished.
+background_steer_ok = Steering applied to `{ $task_id }`.
+background_steer_fail = Task `{ $task_id }` not found or already finished.
+background_started =
+    Background task started: `{ $task_id }`
+    I'll notify you when it's done.
+background_completed =
+    ✅ Background task completed: "{ $title }"
+    { $result }
+background_failed =
+    ❌ Background task failed: "{ $title }"
+    { $result }
+background_blocked =
+    ⚠️ Background task blocked: "{ $title }"
+    { $result }
+background_pending_review =
+    ⏳ Background task awaits your review: "{ $title }"
+    { $result }
+background_rejected =
+    ↩️ Background task was rejected for rework: "{ $title }"
+    { $result }
+bash_bg_finish_title = Background task finished
+bash_bg_finish_success =
+    Background task completed (pid={ $pid }).
+    Command: { $command }
+bash_bg_finish_with_error =
+    Background task ended with { $error_category } (pid={ $pid }, status={ $status }, exit_code={ $exit_code }).
+    Command: { $command }
+bash_bg_finish_generic =
+    Background task { $status } (pid={ $pid }, exit_code={ $exit_code }).
+    Command: { $command }
+goal_stream_failed_title = Goal needs your review
+goal_stream_failed_message =
+    The autonomous goal run stopped unexpectedly. Open the Goal panel to review and continue.
+goal_usage_limit_wait_title = Goal paused until your usage limit resets
+goal_usage_limit_wait_message =
+    It will resume on its own. No action is needed.
+goal_usage_limit_resumed_title = Goal resumed
+goal_usage_limit_resumed_message =
+    Your usage limit has reset and the goal is running again.
+goal_usage_limit_paused_title = Goal paused by your usage limit
+goal_usage_limit_paused_message =
+    The limit resets too far ahead to wait. Resume the goal from the Goal panel when you are ready.
+airbag_rolled_back_title = Changes undone
+airbag_rolled_back_message =
+    Your workspace files are back to how they were before the goal started.
+new_session_started =  New conversation started. Your next message begins a fresh session.
+compact_not_configured = ℹ Compaction not configured.
+compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }
+compact_skipped = ℹ Compaction skipped: { $reason }
+compact_failed =  Compaction failed: { $error }
+retry_not_configured = ℹ Retry not configured.
+retry_nothing = ℹ Nothing to retry.
+retry_failed = ℹ Retry failed.
+retry_failed_error =  Retry failed: { $error }
+retry_reverted = ↩ Reverted { $count } file(s) before retry.
+retry_files_not_revertible = ↩ { $count } file change(s) could not be reverted before retry (file too large or buffer full).
+undo_not_configured = ℹ Undo not configured.
+undo_nothing = ℹ Nothing to undo.
+undo_failed = ℹ Undo failed.
+undo_failed_error =  Undo failed: { $error }
+undo_success = ↩ Undone: { $count } message(s) removed.
+undo_reverted = ↩ Reverted { $count } file(s).
+undo_files_not_revertible = ↩ { $count } file change(s) could not be reverted automatically (file too large or buffer full).
+topic_not_configured = ℹ Topic management is not configured.
+topic_search_agent_rejected =
+    Search agents cannot be bound to channels.
+    Use a General agent here; use Web Fast mode for lightweight search.
+topic_bound =
+     { $scope } bound{ $agent_label }{ $workspace_label }{ $identity_label }.
+    Use /unbind to remove.
+topic_identity_only =  (identity: { $name })
+topic_identity_revoked =  (identity frozen; routing to default agent)
+followup_receipt_done = ✅ Done in { $elapsed } — reply in this thread if you need changes. [AI proactive]
+followup_stall_nudge = 👋 Checking in — this thread has been quiet with an open item. { $mention }Reply here and I'll pick it up. [AI proactive]
+topic_workspace_only =  (workspace: { $workspace })
+topic_workspace_unavailable =  Workspace binding failed: { $error }
+topic_status_workspace = Workspace: { $workspace }
+topic_status_workspace_default = Workspace: default
+topic_unbound =  { $scope } unbound.
+topic_no_binding = ℹ No binding found for this { $scope }.
+topic_status =
+     { $scope } Status
+    { $agent_label }
+    { $workspace_label }{ $identity_label }
+    Status: { $status }{ $bound_label }
+topic_no_binding_defaults =  No binding for this { $scope } (using defaults).
+topic_command_failed =  { $scope } command failed: { $error }
+topic_scope_topic = Topic
+topic_scope_channel = Channel
+topic_agent_switched =  (agent: { $from_agent } → { $to_agent })
+topic_agent_only =  (agent: { $agent_id })
+topic_status_agent = Agent: { $agent_id }
+topic_status_agent_default = Agent: default
+topic_status_bound_at =
+    
+    Bound: { $bound_at }
+topic_status_enabled = enabled
+topic_status_disabled = disabled
+yolo_off =  YOLO mode is **OFF** - tool approvals required
+yolo_on_expires =  YOLO mode is **ON** - expires in { $seconds }s
+yolo_off_expired =  YOLO mode is **OFF** (expired)
+yolo_on_no_expiration =  YOLO mode is **ON** (no expiration)
+yolo_disabled =  YOLO mode **disabled** - tool approvals re-enabled
+yolo_activated =
+     { "**" }YOLO mode activated** - all tool calls will auto-approve
+    
+     { "**" }Warning**: This bypasses all security checks. Use with caution!
+yolo_activated_timeout =
+     { "**" }YOLO mode activated** - expires in { $timeout }s
+    
+     { "**" }Warning**: All tool calls will auto-approve. Use with caution!
+yolo_already_off = ℹ YOLO mode was already OFF
+yolo_invalid =  Invalid YOLO action. Use: /yolo [on|off|toggle|status]
+yolo_invalid_usage =  Invalid /yolo command. Use: `/yolo [on|off|toggle|status] [timeout_seconds]`
+personality_header =  **Available Personality Styles**:
+personality_list_fallback =  Available styles:
+personality_current =
+    
+    
+     Current session style: **{ $style }**
+personality_reset =  Personality reset to **Professional** (default)
+personality_activated =
+    { $emoji } **{ $name }** activated!
+    
+    { $description }
+personality_set =  Personality set to **{ $style }**
+personality_invalid =  Invalid style '{ $style }'. Use `/personality list` to see available options.
+status_header = **Session Status**
+status_session = • **Session:** `{ $session_id }`
+status_title = • **Title:** { $title }
+status_created = • **Created:** { $created_at }
+status_last_activity = • **Last Activity:** { $last_activity }
+status_model = • **Model:** { $model_name }
+status_tokens = • **Tokens:** { $total_tokens }
+status_cost = • **Cost:** ${ $total_usd }
+status_calls = • **Calls:** { $total_calls }
+status_no_session = • No active session
+status_budget_header = 📊 **Channel Budget**
+status_budget_today = • Today: ${ $today_cost } / ${ $daily_limit } ({ $usage_pct }%)
+status_agent_running = • **Agent:** Running
+status_agent_idle = • **Agent:** Idle
+status_queued = • **Queued:** { $count }
+status_yolo_on = • **YOLO:** ON
+status_yolo_expires = • **YOLO:** ON (expires { $seconds }s)
+help_header =  **Available Commands**
+skill_not_configured = ℹ Skill command /{ $cmd } is not configured.
+skill_load_failed =  Failed to load skill for /{ $cmd }.
+pairing_pending = Your access request is pending approval.
+pairing_submitted = Your access request has been submitted. An admin will review it soon.
+daily_quota_exceeded = Daily conversation quota exceeded ({ $quota } msgs/day). Quota resets daily at 00:00 UTC (08:00 Beijing Time). Send /quota to view status and countdown, or contact admin.
+mute_confirm = Muted. I will only respond when mentioned now.
+search_not_configured = This agent requires web search, but no search service is configured. Please set up a search service in Settings first.
+analyzing_image = Analyzing image...
+search_unreachable = Search service is configured but currently unreachable. Please check your search service and ensure it is running, then try again.
+daily_budget_blocked = Daily budget limit reached. Execution was blocked. Adjust your budget limit in the Web Settings app, then try again.
+channel_budget_blocked = This channel's daily budget has been reached. Other channels and Web sessions are not affected. The channel owner can adjust the limit in Settings > Budget.
+config_next_steps =
+    { "\u000A\u000A" }Next steps:
+    { $steps }
+component_options_prefix = Options
+component_quick_reply_instruction = ↩ Reply with a number to select
+placeholder_thinking =  Thinking...
+placeholder_no_response =  No response generated.
+draft_review_pending = ✏️ Reply drafted — awaiting review before sending.
+draft_review_reason = AI-generated reply requires review before sending to channel.
+approval_card_title = ⚠️ **Approval Required: { $action }**
+approval_card_severity = Severity: `{ $severity }`
+approval_card_open_app = Open the Myrm AI app to review and decide.
+approval_draft_title = ✏️ **Reply awaiting your review**
+approval_draft_incoming = **Incoming message**
+approval_draft_reply = **Drafted reply**
+approval_draft_attachments = **Attachments:** { $names }
+approval_draft_expiry_discard = If nobody decides within { $minutes } min, the reply is discarded.
+approval_draft_expiry_send = If nobody decides within { $minutes } min, the reply is sent automatically.
+approval_draft_commands = To decide here, send `/draft approve { $code }` to send it or `/draft reject { $code }` to discard it.
+approval_button_approve = Approve
+approval_button_deny = Deny
+approval_resolved_approved = ✅ Approved by { $user }
+approval_resolved_denied = 🚫 Denied by { $user }
+approval_requires_admin = Only an admin can decide on this reply. Open the Myrm AI app to review it.
+approval_already_resolved = This request has already been handled.
+draft_not_sent_title = Reply not sent
+draft_not_sent_body = The approved reply could not be sent. Please follow up with the sender directly.
+draft_cmd_usage = Usage: `/draft approve <code>` or `/draft reject <code>`. The code is in the review request (at least 6 characters).
+draft_cmd_approved = ✅ Reply `{ $code }` approved. It is being sent.
+draft_cmd_rejected = ❌ Reply `{ $code }` rejected. Nothing was sent.
+draft_cmd_not_found = ℹ No reply awaiting review matches `{ $code }`. It may already have been handled.
+draft_cmd_ambiguous = ℹ More than one reply awaiting review matches `{ $code }`. Send more characters of the code.
+draft_cmd_error = ❌ Could not process that. Please try again.
+placeholder_execution_error =  Error: { $error }
+placeholder_request_timeout =  Request timed out.
+placeholder_retrying =
+    
+    
+    { "[" }Retrying... { $attempt }/{ $max_retries }]
+durable_outbound_recovered = Recovered delivery — you may receive a duplicate message.
+error_rate_limit = API rate limit reached — the model couldn't generate a response. Please try again in a moment.
+error_overloaded = The AI service is temporarily overloaded. Please try again in a moment.
+error_billing = Service temporarily unavailable due to a configuration issue. Please contact the administrator.
+error_auth = Service temporarily unavailable due to a configuration issue. Please contact the administrator.
+error_timeout = The request timed out. Please try again.
+error_context_overflow = The conversation is too long. Please start a new session.
+error_format = The AI generated an invalid format. Please try again.
+error_model_not_found = The requested model is not available. Please select a different model.
+error_safety_block = The request was blocked by safety filters.
+error_challenge_blocked = The request was blocked by an upstream challenge or verification.
+error_response_format = The AI generated an invalid format. Please try again.
+error_unknown = Something went wrong while processing your request. Please try again later.
+error_billing_owner = Your AI provider account has run out of balance or quota. Top up with your provider, then send your message again.
+error_billing_owner_platform = Your plan's credit has run out. Top up or upgrade in the web app, then send your message again.
+error_auth_owner = Your AI provider rejected the credentials. Check your API key in Settings > Model Services, or re-authorize your account in Settings > Credentials.
+error_model_not_found_owner = The configured model is not available from your provider. Choose another model in Settings > Model Services.
+cmd_stop = Stop the currently running agent task
+cmd_new = Start a new conversation session
+cmd_compact = Compress conversation context to reduce token cost
+cmd_retry = Retry the last message
+cmd_undo = Remove the last user/assistant exchange
+cmd_yolo = Toggle YOLO mode (skip tool approval prompts)
+cmd_personality = Switch session personality style
+cmd_bind = Bind an agent to this topic or channel
+cmd_unbind = Unbind agent from this topic or channel
+cmd_topic = Show current topic/channel binding status
+cmd_draft = Approve or reject a reply held for review
+cmd_goal = Set, manage, or check a persistent cross-turn goal
+cmd_subgoal = Dynamically add/remove/list subgoals for the running goal
+cmd_steer = Redirect the running agent mid-execution with a new instruction
+cmd_queue = Queue a task to run after the current agent task completes
+cmd_background = Run a task in a separate background session without blocking the current conversation
+cmd_status = Show current session status (tokens, cost, model, agent state)
+cmd_quota = Show your daily message quota and usage status
+cmd_help = Show available commands
+cat_Session = Session
+cat_Configuration = Configuration
+cat_Topic = Topic
+cat_Goals = Goals
+cat_Execution = Execution
+cat_Info = Info
+cat_Tasks = Tasks
+cmd_handoff = Transfer this conversation to another platform/channel
+cmd_kanban = Manage kanban board tasks without interrupting the agent
+handoff_success =
+     Conversation transferred to **{ $target }**.
+    You can continue this conversation on { $target } now.
+handoff_no_target = Please specify a target channel. Use `/handoff <target_channel>`.
+handoff_channel_not_found = Channel `{ $target }` not found or not connected.
+handoff_no_pairing = No user pairing found for `{ $target }`. Please send a message in that channel first to establish a connection.
+handoff_same_channel = Already on this channel — no transfer needed.
+handoff_failed = Handoff failed: { $error }
+help_alias =  (alias: { $aliases })
+kanban_not_available = Kanban task management is not available.
+kanban_usage =
+    📋 **Kanban Commands:**
+    `/kanban list` — list tasks
+    `/kanban show <id>` — task details
+    `/kanban create <title>` — create task
+    `/kanban comment <id> <msg>` — add comment
+    `/kanban edit <id> title|desc <text>` — edit task
+    `/kanban complete <id>` — mark done
+    `/kanban block <id> [reason]` — block
+    `/kanban unblock <id>` — unblock
+    `/kanban archive <id>` — archive
+    `/kanban stats` — board statistics
+kanban_error = ❌ Kanban command failed. Please check the syntax and try again.
+session_reset_notify_idle = ℹ️ Session auto-reset: no activity for { $minutes } minutes. This is a fresh conversation.
+session_reset_notify_daily = ℹ️ Session auto-reset: daily reset at { $hour }:00 UTC. This is a fresh conversation.
+memory_unavailable = ℹ Memory system is unavailable.
+memory_no_pending = ℹ No pending memories to review.
+memory_pending_header = 📋 **Pending Memories** ({ $count }):
+memory_pending_hint = Use `/memory approve <id>` or `/memory reject <id>` to review, or `/memory approve all` to approve all.
+memory_pending_correct = Replaces: { $target }
+memory_pending_trash = Moves to trash: { $target }
+memory_approved = ✅ Memory `{ $id }` approved.
+memory_rejected = ❌ Memory `{ $id }` rejected.
+memory_approved_all = ✅ Approved { $count } pending memories.
+memory_target_changed = ℹ Memory `{ $id }` is out of date: the memory it refers to has changed since it was proposed. It stays pending; reject it with `/memory reject { $id }` or leave it.
+memory_approved_partial = ⚠ Approved { $count } pending memories; { $skipped } could not be approved (the memory they refer to changed, or an error occurred). They stay pending; see `/memory pending`.
+memory_not_found = ℹ No pending memory matching `{ $id }`.
+memory_error = ❌ Memory command failed. Please try again.
+cmd_memory = Review pending memory writes (approve/reject)
+cmd_learn = Teach the agent a new skill from a URL, file, or conversation
+cat_Memory = Memory
+cat_Skills = Skills
+learn_not_configured = ℹ Skill learning is not configured in this environment.
+learn_failed = ❌ Failed to build the learning prompt. Please try again.
+reassurance_still_running = ⏳ Working — { $elapsed } min ({ $steps } steps{ $stage })
+busy_ack_queued = ✅ Received! Agent is busy — your message has been queued ({ $position }/{ $max_pending }).
+busy_ack_queue_full = ⚠️ Queue is full — message was not saved. Please resend later.
+agent_picker_no_agents = No agents configured.
+agent_picker_select = Select an agent:
+agent_picker_switched = Switched to: { $name }
+artifact_deep_link = View interactive page
+artifact_deep_link_named = { $filename }
+deliverable_attached_only = Deliverable attached.
+deliverable_oversized_note = { $filename } ({ $size }) exceeds the channel attachment size limit and wasn't attached.
+deliverable_compressed_note = { $filename } ({ $size }) exceeded the channel size limit — a compressed version was sent.
+attachment_stripped_note = The attachment couldn't be sent, so only the text was delivered.
+attachment_omitted_note = Attachment not sent: { $name } (not supported in this chat)
+attachment_withheld_note = Attachment not sent for security: { $name } (looks like a key or credentials file)
+attachment_failed_note = These attachments couldn't be delivered: { $names }
+goal_completed =
+    ✅ Goal completed: "{ $objective }"
+    { $turns } turns · { $duration } min · { $files } files modified
+goal_failed =
+    ❌ Goal ended: "{ $objective }"
+    { $turns } turns · { $duration } min · { $files } files modified
+bang_command_unsupported = ℹ️ For sandboxing and security protection, Myrm does not execute remote `!` shell commands from IM channels. Please use the WebUI/Desktop console, or ask via natural language.
+quota_header = [ Daily Quota & Usage ]
+quota_user = • User: { $user }
+quota_role = • Role: { $role }
+quota_usage = • Today's Usage: { $used } / { $limit }{ $progress }
+quota_remaining = • Remaining: { $remaining }
+quota_reset_time = • Reset Time: Daily at 00:00 UTC (08:00 Beijing Time) · Resets in ~{ $hours }h { $minutes }m
+quota_reset_time_static = • Reset Time: Daily at 00:00 UTC (08:00 Beijing Time)
+quota_unlimited = Unlimited

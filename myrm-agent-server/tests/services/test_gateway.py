@@ -1,0 +1,1462 @@
+"""Tests for AgentGateway — concurrency, interrupt, memory pressure, session tracking, and status events."""
+
+from __future__ import annotations
+
+import asyncio
+import weakref
+
+import pytest
+from myrm_agent_harness.runtime.survival.memory_pressure import PressureEvent, PressureLevel
+
+from app.services.agent.gateway import (
+    ActiveSessionInfo,
+    AgentBusyError,
+    AgentDrainingError,
+    AgentExecutionTimeout,
+    AgentGateway,
+    AgentQueueTimeout,
+    GatewayConfig,
+)
+from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+
+def _cfg(**overrides: float | int) -> GatewayConfig:
+    defaults: dict[str, float | int] = {
+        "max_global": 10,
+        "max_per_user": 3,
+        "queue_timeout": 2.0,
+        "execution_timeout": 5.0,
+        "execution_hard_ceiling": 60.0,
+    }
+    defaults.update(overrides)
+    return GatewayConfig(**defaults)  # type: ignore[arg-type]
+
+
+async def _dummy_stream(duration: float = 0.1, events: int = 3):
+    for i in range(events):
+        await asyncio.sleep(duration / events)
+        yield {"step": i}
+
+
+async def _collect(gw: AgentGateway, **kwargs) -> list[dict]:
+    return [e async for e in gw.execute_stream(_dummy_stream(), **kwargs)]
+
+
+class TestGatewayBasic:
+    @pytest.mark.asyncio
+    async def test_normal_execution(self) -> None:
+        gw = AgentGateway(_cfg())
+        events = await _collect(gw, agent_type="test", session_id="s1")
+        assert len(events) == 3
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_session_tracking(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def long_stream():
+            await asyncio.sleep(0.5)
+            yield {"done": True}
+
+        async def run():
+            async for _ in gw.execute_stream(long_stream(), agent_type="test", session_id="s1"):
+                pass
+
+        _task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        sessions = gw.get_active_sessions()
+        assert len(sessions) == 1
+        assert sessions[0]["chatId"] == "s1"
+        assert sessions[0]["agentType"] == "test"
+        assert gw.get_available_slots() == 2
+
+        await _task
+        assert len(gw.get_active_sessions()) == 0
+        assert gw.get_available_slots() == 3
+
+    @pytest.mark.asyncio
+    async def test_agent_id_propagated_in_active_sessions(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def long_stream():
+            await asyncio.sleep(0.5)
+            yield {"done": True}
+
+        async def run():
+            async for _ in gw.execute_stream(
+                long_stream(),
+                agent_type="general",
+                session_id="s-fleet",
+                agent_id="agent-xyz",
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        sessions = gw.get_active_sessions()
+        assert len(sessions) == 1
+        assert sessions[0]["agentId"] == "agent-xyz"
+        assert sessions[0]["chatId"] == "s-fleet"
+
+        await task
+
+    @pytest.mark.asyncio
+    async def test_agent_id_none_omitted_from_session_dict(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def long_stream():
+            await asyncio.sleep(0.3)
+            yield {"done": True}
+
+        async def run():
+            async for _ in gw.execute_stream(long_stream(), agent_type="general", session_id="s-no-agent"):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        sessions = gw.get_active_sessions()
+        assert len(sessions) == 1
+        assert "agentId" not in sessions[0]
+
+        await task
+
+
+class TestGatewayBusy:
+    @pytest.mark.asyncio
+    async def test_duplicate_session_raises(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def long_stream():
+            await asyncio.sleep(1)
+            yield {}
+
+        async def run():
+            async for _ in gw.execute_stream(long_stream(), agent_type="test", session_id="dup"):
+                pass
+
+        _task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        with pytest.raises(AgentBusyError):
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="dup"):
+                pass
+
+        _task.cancel()
+        try:
+            await _task
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+
+
+class TestGatewayReserveSession:
+    @pytest.mark.asyncio
+    async def test_reserve_blocks_duplicate_before_execute(self) -> None:
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-a", active_message_id="msg-a")
+        with pytest.raises(AgentBusyError):
+            gw.reserve_session("chat-a", active_message_id="msg-b")
+        gw.release_session("chat-a")
+        assert "chat-a" not in gw._active_sessions
+
+    @pytest.mark.asyncio
+    async def test_pre_reserved_session_allows_execute_stream(self) -> None:
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-b", active_message_id="msg-b")
+
+        async def run():
+            async for _ in gw.execute_stream(
+                _dummy_stream(),
+                agent_type="test",
+                session_id="chat-b",
+                active_message_id="msg-b",
+            ):
+                pass
+
+        await run()
+        assert "chat-b" not in gw._active_sessions
+
+    def test_release_if_reserved_only_releases_pending_reservation(self) -> None:
+        """A reservation never handed to execute_stream must be releasable."""
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-pending", active_message_id="msg-p")
+        assert gw.is_session_active("chat-pending")
+
+        assert gw.release_if_reserved_only("chat-pending") is True
+        assert not gw.is_session_active("chat-pending")
+        assert "chat-pending" not in gw._session_info
+
+    def test_release_if_reserved_only_keeps_executing_session(self) -> None:
+        """A session taken over by execute_stream must NOT be released here."""
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-active", active_message_id="msg-a")
+
+        # Simulate execute_stream hand-over: reserved_only flips to False.
+        info = gw._session_info["chat-active"]
+        info.reserved_only = False
+        assert gw.release_if_reserved_only("chat-active") is False
+
+        assert gw.is_session_active("chat-active")
+        assert "chat-active" in gw._session_info
+
+    def test_release_if_reserved_only_unknown_session_is_noop(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert gw.release_if_reserved_only("ghost-chat") is False
+        assert not gw.is_session_active("ghost-chat")
+
+
+class TestGatewayQueueTimeout:
+    @pytest.mark.asyncio
+    async def test_queue_timeout_cleans_session_info(self) -> None:
+        gw = AgentGateway(_cfg(max_global=1, queue_timeout=0.1))
+
+        async def blocker():
+            await asyncio.sleep(2)
+            yield {}
+
+        async def run_blocker():
+            async for _ in gw.execute_stream(blocker(), agent_type="test", session_id="blocker"):
+                pass
+
+        _task = asyncio.create_task(run_blocker())
+        await asyncio.sleep(0.05)
+
+        with pytest.raises(AgentQueueTimeout) as exc_info:
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="waiter"):
+                pass
+
+        assert "waiter" not in gw._session_info
+        assert "waiter" not in gw._active_sessions
+        assert exc_info.value.reason == "global_limit"
+        # The holder snapshot excludes the waiter itself and names the blocker.
+        assert any(h.get("chatId") == "blocker" for h in exc_info.value.active_sessions)
+
+        _task.cancel()
+        try:
+            await _task
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+
+    @pytest.mark.asyncio
+    async def test_queue_timeout_reason_user_limit(self) -> None:
+        """Per-user semaphore exhaustion must surface as user_limit, not global."""
+        gw = AgentGateway(_cfg(max_global=10, max_per_user=1, queue_timeout=0.1))
+
+        async def blocker():
+            await asyncio.sleep(2)
+            yield {}
+
+        async def run_blocker():
+            async for _ in gw.execute_stream(blocker(), agent_type="test", session_id="blocker"):
+                pass
+
+        _task = asyncio.create_task(run_blocker())
+        await asyncio.sleep(0.05)
+
+        with pytest.raises(AgentQueueTimeout) as exc_info:
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="waiter"):
+                pass
+
+        assert exc_info.value.reason == "user_limit"
+        assert any(h.get("chatId") == "blocker" for h in exc_info.value.active_sessions)
+
+        _task.cancel()
+        try:
+            await _task
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+
+    @pytest.mark.asyncio
+    async def test_queue_timeout_reason_memory_pressure(self) -> None:
+        """CRITICAL memory pressure must surface as memory_pressure reason."""
+        gw = AgentGateway(_cfg(queue_timeout=0.1))
+
+        await gw.on_pressure_change(_pressure_event(PressureLevel.CRITICAL))
+
+        with pytest.raises(AgentQueueTimeout) as exc_info:
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="blocked"):
+                pass
+
+        assert exc_info.value.reason == "memory_pressure"
+        assert "Memory pressure" in str(exc_info.value)
+
+
+class TestGatewayInterrupt:
+    @pytest.mark.asyncio
+    async def test_interrupt_single_agent(self) -> None:
+        gw = AgentGateway(_cfg())
+        interrupted = False
+
+        async def slow_stream():
+            nonlocal interrupted
+            for i in range(100):
+                await asyncio.sleep(0.01)
+                yield {"i": i}
+            interrupted = False
+
+        async def run():
+            nonlocal interrupted
+            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id="s1"):
+                pass
+            interrupted = True
+
+        _task = asyncio.create_task(run())
+        await asyncio.sleep(0.1)
+
+        assert gw.interrupt()
+        await asyncio.sleep(0.1)
+        assert interrupted
+
+    @pytest.mark.asyncio
+    async def test_interrupt_multiple_concurrent_agents(self) -> None:
+        gw = AgentGateway(_cfg())
+        results: dict[str, bool] = {}
+
+        async def slow_stream():
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                yield {}
+
+        async def run(sid: str):
+            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id=sid):
+                pass
+            results[sid] = True
+
+        t1 = asyncio.create_task(run("s1"))
+        t2 = asyncio.create_task(run("s2"))
+        t3 = asyncio.create_task(run("s3"))
+        await asyncio.sleep(0.1)
+
+        assert len(gw._interrupt_events.get("sandbox", {})) == 3
+        assert gw.interrupt()
+
+        await asyncio.gather(t1, t2, t3, return_exceptions=True)
+        assert len(results) == 3
+        assert "sandbox" not in gw._interrupt_events
+
+    @pytest.mark.asyncio
+    async def test_interrupt_nonexistent_user(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert not gw.interrupt()
+
+    @pytest.mark.asyncio
+    async def test_interrupt_session_single_agent(self) -> None:
+        gw = AgentGateway(_cfg())
+        interrupted = False
+
+        async def slow_stream():
+            for i in range(100):
+                await asyncio.sleep(0.01)
+                yield {"i": i}
+
+        async def run() -> None:
+            nonlocal interrupted
+            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id="chat-a"):
+                pass
+            interrupted = True
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.1)
+
+        assert gw.interrupt_session("chat-a")
+        await asyncio.sleep(0.1)
+        assert interrupted
+        await task
+
+    @pytest.mark.asyncio
+    async def test_interrupt_session_unknown_chat_returns_false(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert not gw.interrupt_session("missing-chat")
+
+    @pytest.mark.asyncio
+    async def test_get_active_message_id_tracks_stream(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def slow_stream():
+            for i in range(100):
+                await asyncio.sleep(0.01)
+                yield {"i": i}
+
+        async def run() -> None:
+            async for _ in gw.execute_stream(
+                slow_stream(),
+                agent_type="test",
+                session_id="chat-msg",
+                active_message_id="msg-42",
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        assert gw.get_active_message_id("chat-msg") == "msg-42"
+        gw.interrupt_session("chat-msg")
+        await task
+        assert gw.get_active_message_id("chat-msg") is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="Gateway API changed")
+    async def test_interrupt_all(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def slow():
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                yield {}
+
+        async def run(uid: str, sid: str):
+            async for _ in gw.execute_stream(slow(), agent_type="t", session_id=sid):
+                pass
+
+        tasks = [
+            asyncio.create_task(run("u1", "s1")),
+            asyncio.create_task(run("u2", "s2")),
+        ]
+        await asyncio.sleep(0.1)
+
+        count = gw.interrupt_all()
+        assert count == 2
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+        assert gw.active_count == 0
+
+
+class TestGatewayPerUserConcurrency:
+    @pytest.mark.skip(reason="Per-user concurrency removed - gateway now global-only")
+    @pytest.mark.asyncio
+    async def test_per_user_limit_blocks_fourth_agent(self) -> None:
+        gw = AgentGateway(_cfg(max_per_user=2, queue_timeout=0.2))
+
+        async def slow():
+            await asyncio.sleep(2)
+            yield {}
+
+        async def run(sid: str):
+            async for _ in gw.execute_stream(slow(), agent_type="t", session_id=sid):
+                pass
+
+        t1 = asyncio.create_task(run("s1"))
+        t2 = asyncio.create_task(run("s2"))
+        await asyncio.sleep(0.05)
+
+        with pytest.raises(AgentQueueTimeout):
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="t", session_id="s3"):
+                pass
+
+        t1.cancel()
+        t2.cancel()
+        await asyncio.gather(t1, t2, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="Per-user features removed")
+    async def test_different_users_independent(self) -> None:
+        gw = AgentGateway(_cfg(max_per_user=1))
+
+        async def slow():
+            await asyncio.sleep(0.5)
+            yield {"ok": True}
+
+        async def run(uid: str, sid: str):
+            async for _ in gw.execute_stream(slow(), agent_type="t", session_id=sid):
+                pass
+
+        tasks = [
+            asyncio.create_task(run("u1", "s1")),
+            asyncio.create_task(run("u2", "s2")),
+            asyncio.create_task(run("u3", "s3")),
+        ]
+        await asyncio.sleep(0.05)
+        assert gw.active_count == 3
+
+        await asyncio.gather(*tasks)
+        assert gw.active_count == 0
+
+
+class TestGatewayAnonymousExecution:
+    @pytest.mark.asyncio
+    async def test_session_id_none(self) -> None:
+        gw = AgentGateway(_cfg())
+        events = await _collect(gw, agent_type="test")
+        assert len(events) == 3
+        assert gw.active_count == 0
+        assert len(gw._active_sessions) == 0
+
+    @pytest.mark.asyncio
+    async def test_anonymous_interrupt(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def slow():
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                yield {}
+
+        async def run():
+            async for _ in gw.execute_stream(slow(), agent_type="t"):
+                pass
+
+        _task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        assert gw.interrupt()
+        await asyncio.sleep(0.1)
+        assert gw.active_count == 0
+
+
+class TestGatewayErrorCleanup:
+    @pytest.mark.asyncio
+    async def test_stream_exception_cleans_up(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def failing_stream():
+            yield {"step": 1}
+            raise RuntimeError("Agent crashed")
+
+        with pytest.raises(RuntimeError, match="Agent crashed"):
+            async for _ in gw.execute_stream(failing_stream(), agent_type="t", session_id="s1"):
+                pass
+
+        assert gw.active_count == 0
+        assert "s1" not in gw._active_sessions
+        assert "s1" not in gw._session_info
+        assert "u1" not in gw._interrupt_events
+
+
+class TestGatewayExecutionTimeout:
+    """Idle-silence watchdog with a hard wall-clock ceiling.
+
+    - 静默间隙超过分层 idle 阈值 → 杀
+    - 活跃事件流不会因总时长被杀（硬顶之内）
+    - 硬顶（execution_hard_ceiling）是总时长背板
+    """
+
+    @pytest.mark.asyncio
+    async def test_idle_silence_kills_session(self) -> None:
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def silent_after_first():
+            yield {"step": 0}
+            await asyncio.sleep(5.0)
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(silent_after_first(), agent_type="test"):
+                pass
+
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_idle_silence_kills_cleans_session(self) -> None:
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def silent_after_first():
+            yield {"step": 0}
+            await asyncio.sleep(5.0)
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(silent_after_first(), agent_type="t", session_id="timeout_sid"):
+                pass
+
+        assert "timeout_sid" not in gw._active_sessions
+        assert "timeout_sid" not in gw._session_info
+        assert "u1" not in gw._interrupt_events
+
+    @pytest.mark.asyncio
+    async def test_active_stream_survives_beyond_old_wall_clock(self) -> None:
+        """活跃流每 0.03s 产出事件：总时长 0.3s 远超 0.1s idle 阈值也必须存活。
+
+        旧实现（固定总时长墙）会把这条流杀死；idle 语义下事件即心跳。
+        """
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def chatty_stream():
+            for i in range(10):
+                await asyncio.sleep(0.03)
+                yield {"step": i}
+
+        events = [e async for e in gw.execute_stream(chatty_stream(), agent_type="test", session_id="chatty_s1")]
+        assert len(events) == 10
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_hard_ceiling_caps_total_runtime(self) -> None:
+        """永不静默的流仍会被硬顶背板杀死。"""
+        gw = AgentGateway(_cfg(execution_timeout=60.0, execution_hard_ceiling=0.15))
+
+        async def infinite():
+            while True:
+                await asyncio.sleep(0.01)
+                yield {}
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(infinite(), agent_type="test", session_id="ceiling_s1"):
+                pass
+
+        assert gw.active_count == 0
+        assert "ceiling_s1" not in gw._active_sessions
+
+    @pytest.mark.asyncio
+    async def test_default_tier_kills_long_idle_gap(self) -> None:
+        """对照：无 goal/fission 时，超过默认 idle 阈值的间隙被杀。"""
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def gap_stream():
+            yield {"step": 0}
+            await asyncio.sleep(0.15)
+            yield {"step": 1}
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(gap_stream(), agent_type="test", session_id="gap_s1"):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_goal_active_tolerates_long_idle_gap(self) -> None:
+        """goal_active=True 将 idle 阈值升至 3600s：0.15s 静默间隙在 0.1s 基础阈值下存活。"""
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def gap_stream():
+            yield {"step": 0}
+            await asyncio.sleep(0.15)
+            yield {"step": 1}
+
+        events = [
+            e
+            async for e in gw.execute_stream(
+                gap_stream(),
+                agent_type="test",
+                session_id="goal_s1",
+                goal_active=True,
+            )
+        ]
+        assert len(events) == 2
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_fission_active_tolerates_idle_gap(self) -> None:
+        """fission_active=True 将 idle 阈值翻倍：0.15s 间隙超过 0.1s 基础阈值但低于 0.2s。"""
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def gap_stream():
+            yield {"step": 0}
+            await asyncio.sleep(0.15)
+            yield {"step": 1}
+
+        events = [
+            e
+            async for e in gw.execute_stream(
+                gap_stream(),
+                agent_type="test",
+                session_id="fission_s1",
+                fission_active=True,
+            )
+        ]
+        assert len(events) == 2
+        assert gw.active_count == 0
+
+    def test_resolve_idle_threshold_tiers(self) -> None:
+        """确定性验证 idle 阈值分层：goal > fission > default（不依赖 wall-clock）。"""
+        gw = AgentGateway(_cfg(execution_timeout=5.0))
+        assert gw._resolve_idle_threshold(goal_active=False, fission_active=False) == 5.0
+        assert gw._resolve_idle_threshold(goal_active=False, fission_active=True) == 10.0
+        assert gw._resolve_idle_threshold(goal_active=True, fission_active=False) == 3600.0
+        # goal 优先级高于 fission
+        assert gw._resolve_idle_threshold(goal_active=True, fission_active=True) == 3600.0
+
+
+class TestGatewayMultipleActiveSessions:
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="get_user_active_sessions API removed")
+    async def test_get_user_active_sessions_multiple(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def slow():
+            await asyncio.sleep(1)
+            yield {}
+
+        async def run(sid: str, atype: str):
+            async for _ in gw.execute_stream(slow(), agent_type=atype, session_id=sid):
+                pass
+
+        tasks = [
+            asyncio.create_task(run("s1", "general")),
+            asyncio.create_task(run("s2", "search")),
+            asyncio.create_task(run("s3", "browser")),
+        ]
+        await asyncio.sleep(0.05)
+
+        sessions = gw.get_active_sessions()
+        assert len(sessions) == 3
+        types = {s["agentType"] for s in sessions}
+        assert types == {"general", "search", "browser"}
+
+        assert gw.get_available_slots() == 0
+        assert gw.get_available_slots() == 3
+
+        for t in tasks:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+def _pressure_event(
+    level: PressureLevel,
+    previous: PressureLevel = PressureLevel.NORMAL,
+    mem_pct: float = 92.0,
+) -> PressureEvent:
+    import time
+
+    return PressureEvent(
+        level=level,
+        previous_level=previous,
+        memory_percent=mem_pct,
+        timestamp=time.monotonic(),
+    )
+
+
+class TestGatewayMemoryPressure:
+    """Tests for memory pressure circuit breaker behavior."""
+
+    @pytest.mark.asyncio
+    async def test_critical_pressure_blocks_new_execution(self) -> None:
+        """CRITICAL pressure should block new agents until resolved."""
+        gw = AgentGateway(_cfg(queue_timeout=0.5))
+
+        await gw.on_pressure_change(_pressure_event(PressureLevel.CRITICAL))
+        assert not gw._pressure_resolved.is_set()
+
+        with pytest.raises(AgentQueueTimeout, match="Memory pressure"):
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="blocked"):
+                pass
+
+        assert "blocked" not in gw._active_sessions
+
+    @pytest.mark.asyncio
+    async def test_pressure_resolve_unblocks_execution(self) -> None:
+        """De-escalation to WARNING should unblock queued agents."""
+        gw = AgentGateway(_cfg(queue_timeout=2.0))
+
+        await gw.on_pressure_change(_pressure_event(PressureLevel.CRITICAL))
+
+        async def delayed_resolve() -> None:
+            await asyncio.sleep(0.2)
+            await gw.on_pressure_change(_pressure_event(PressureLevel.WARNING, PressureLevel.CRITICAL, 82.0))
+
+        asyncio.create_task(delayed_resolve())
+
+        events = [e async for e in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="unblocked")]
+        assert len(events) == 3
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_warning_pressure_does_not_block(self) -> None:
+        """WARNING pressure should NOT block new agents."""
+        gw = AgentGateway(_cfg())
+
+        await gw.on_pressure_change(_pressure_event(PressureLevel.WARNING))
+        assert gw._pressure_resolved.is_set()
+
+        events = await _collect(gw, agent_type="test", session_id="ok")
+        assert len(events) == 3
+
+    @pytest.mark.asyncio
+    async def test_emergency_pressure_blocks(self) -> None:
+        """EMERGENCY pressure should also block (>= CRITICAL)."""
+        gw = AgentGateway(_cfg(queue_timeout=0.3))
+
+        await gw.on_pressure_change(_pressure_event(PressureLevel.EMERGENCY, PressureLevel.CRITICAL, 96.0))
+        assert not gw._pressure_resolved.is_set()
+
+        with pytest.raises(AgentQueueTimeout, match="Memory pressure"):
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test"):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_running_agents_not_interrupted(self) -> None:
+        """Already-running agents should NOT be interrupted by pressure escalation."""
+        gw = AgentGateway(_cfg())
+        events_collected: list[dict] = []
+
+        async def slow_stream():
+            for i in range(5):
+                await asyncio.sleep(0.05)
+                yield {"i": i}
+
+        async def run() -> None:
+            async for e in gw.execute_stream(slow_stream(), agent_type="test", session_id="running"):
+                events_collected.append(e)
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        await gw.on_pressure_change(_pressure_event(PressureLevel.CRITICAL))
+
+        await task
+        assert len(events_collected) == 5
+        assert gw.active_count == 0
+
+
+class TestGetActiveBrowserSession:
+    """Tests for AgentGateway.get_active_browser_session."""
+
+    def test_no_active_sessions_returns_none(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert gw.get_active_browser_session() is None
+
+    def test_active_agent_without_browser_returns_none(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeAgent:
+            pass
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        assert gw.get_active_browser_session() is None
+
+    def test_active_agent_with_browser_returns_session(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeBrowserSession:
+            pass
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_session = FakeBrowserSession()
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        result = gw.get_active_browser_session(session_id="s1")
+        assert result is agent._browser_session
+
+    def test_without_session_id_returns_none_even_when_browser_active(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeBrowserSession:
+            pass
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_session = FakeBrowserSession()
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        assert gw.get_active_browser_session() is None
+        assert gw.get_active_browser_session(session_id="s1") is agent._browser_session
+
+    def test_get_first_active_browser_session_returns_first_match(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeAgent:
+            pass
+
+        class FakeAgentWithBrowser:
+            def __init__(self) -> None:
+                self._browser_session = "mock_browser"
+
+        agent_no_browser = FakeAgent()
+        agent_with_browser = FakeAgentWithBrowser()
+
+        info1 = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info1.agent = weakref.ref(agent_no_browser)
+        gw._session_info["s1"] = info1
+
+        info2 = ActiveSessionInfo(chat_id="s2", agent_type="test")
+        info2.agent = weakref.ref(agent_with_browser)
+        gw._session_info["s2"] = info2
+
+        result = gw.get_first_active_browser_session()
+        assert result == "mock_browser"
+
+    def test_dead_weakref_returns_none(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_session = object()
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        del agent
+
+        assert gw.get_active_browser_session(session_id="s1") is None
+
+    def test_agent_weakref_is_none(self) -> None:
+        """Session info exists but agent weakref was never set."""
+        gw = AgentGateway(_cfg())
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        gw._session_info["s1"] = info
+
+        assert gw.get_active_browser_session(session_id="s1") is None
+
+    def test_browser_session_is_none_attribute(self) -> None:
+        """Agent has _browser_session = None (browser not yet started)."""
+        gw = AgentGateway(_cfg())
+
+        class FakeAgent:
+            _browser_session = None
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        assert gw.get_active_browser_session(session_id="s1") is None
+
+    def test_get_active_browser_session_with_space_id(self) -> None:
+        """Resolves task space session from _browser_spaces when space_id is given."""
+        gw = AgentGateway(_cfg())
+
+        class FakeBrowserSession:
+            pass
+
+        class FakeSpaceSession:
+            pass
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_session = FakeBrowserSession()
+                self._browser_spaces = {"space-1": FakeSpaceSession()}
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        # Matching space_id returns space session
+        assert gw.get_active_browser_session(session_id="s1", space_id="space-1") is agent._browser_spaces["space-1"]
+        # Non-matching space_id falls back to default _browser_session
+        assert gw.get_active_browser_session(session_id="s1", space_id="space-other") is agent._browser_session
+
+    def test_list_browser_spaces(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeSpace:
+            def __init__(self, name: str) -> None:
+                self.task_space_name = name
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_spaces = {
+                    "sp-1": FakeSpace("Stripe Research"),
+                    "sp-2": FakeSpace("Adyen Research"),
+                }
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        spaces = gw.list_browser_spaces(session_id="s1")
+        assert len(spaces) == 2
+        assert spaces[0]["space_id"] == "sp-1"
+        assert spaces[0]["name"] == "Stripe Research"
+        assert spaces[1]["space_id"] == "sp-2"
+
+    @pytest.mark.asyncio
+    async def test_stop_browser_space(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeSpace:
+            def __init__(self) -> None:
+                self.closed = False
+
+            async def close(self) -> None:
+                self.closed = True
+
+        space1 = FakeSpace()
+        space2 = FakeSpace()
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_spaces = {"sp-1": space1, "sp-2": space2}
+                self._browser_session = space1
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        stopped = await gw.stop_browser_space(session_id="s1", space_id="sp-1")
+        assert stopped is True
+        assert space1.closed is True
+        assert "sp-1" not in agent._browser_spaces
+        # Main session falls back to remaining space
+        assert agent._browser_session is space2
+
+
+class TestGetActiveDesktopSession:
+    """Tests for AgentGateway.get_active_desktop_session."""
+
+    def test_no_active_sessions_returns_none(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert gw.get_active_desktop_session() is None
+
+    def test_active_agent_with_desktop_returns_session(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeDesktopSession:
+            pass
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = FakeDesktopSession()
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        result = gw.get_active_desktop_session()
+        assert result is agent._desktop_session
+
+
+class TestResetDesktopSessionPermissionCaches:
+    def test_clears_runtime_permission_flags(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeDesktopSession:
+            def __init__(self) -> None:
+                self._session_permission_granted = True
+                self._always_permission_granted = True
+                self._operation_foreground_waived = True
+
+            def reset_runtime_permission_cache(self) -> None:
+                self._session_permission_granted = False
+                self._always_permission_granted = False
+                self._operation_foreground_waived = False
+
+        session = FakeDesktopSession()
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = session
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        assert gw.reset_all_desktop_session_permission_caches() == 1
+        assert session._session_permission_granted is False
+        assert session._always_permission_granted is False
+        assert session._operation_foreground_waived is False
+
+
+class TestDesktopSessionCloseOnStreamEnd:
+    """Verify that gateway finally block calls desktop session close()."""
+
+    @pytest.mark.asyncio
+    async def test_desktop_close_called_on_stream_end(self) -> None:
+        gw = AgentGateway(_cfg())
+        close_called = False
+
+        class FakeDesktopSession:
+            async def close(self) -> None:
+                nonlocal close_called
+                close_called = True
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = FakeDesktopSession()
+
+        agent = FakeAgent()
+
+        async def _stream():
+            yield {"type": "done"}
+
+        events: list[dict[str, object]] = []
+        async for event in gw.execute_stream(
+            _stream(),
+            agent_type="general",
+            session_id="test-close",
+            agent_instance=agent,
+        ):
+            events.append(event)
+
+        assert close_called, "desktop session close() should be called on stream end"
+        assert len(events) == 1
+
+    @pytest.mark.asyncio
+    async def test_desktop_close_called_even_on_error(self) -> None:
+        """close() must fire in finally even when the stream raises."""
+        gw = AgentGateway(_cfg())
+        close_called = False
+
+        class FakeDesktopSession:
+            async def close(self) -> None:
+                nonlocal close_called
+                close_called = True
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = FakeDesktopSession()
+
+        agent = FakeAgent()
+
+        async def _failing_stream():
+            yield {"type": "partial"}
+            raise RuntimeError("agent exploded")
+
+        with pytest.raises(RuntimeError, match="agent exploded"):
+            async for _ in gw.execute_stream(
+                _failing_stream(),
+                agent_type="general",
+                session_id="test-close-err",
+                agent_instance=agent,
+            ):
+                pass
+
+        assert close_called, "desktop session close() must fire even on error"
+
+    @pytest.mark.asyncio
+    async def test_no_desktop_session_no_error(self) -> None:
+        """Stream without desktop session should not raise on cleanup."""
+        gw = AgentGateway(_cfg())
+
+        class FakeAgent:
+            pass
+
+        agent = FakeAgent()
+
+        async def _stream():
+            yield {"type": "done"}
+
+        events: list[dict[str, object]] = []
+        async for event in gw.execute_stream(
+            _stream(),
+            agent_type="general",
+            session_id="test-no-desktop",
+            agent_instance=agent,
+        ):
+            events.append(event)
+        assert len(events) == 1
+
+    @pytest.mark.asyncio
+    async def test_desktop_close_error_is_non_fatal(self) -> None:
+        """A failing close() must not propagate to the caller."""
+        gw = AgentGateway(_cfg())
+
+        class BadDesktopSession:
+            async def close(self) -> None:
+                raise OSError("pipe broken")
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = BadDesktopSession()
+
+        agent = FakeAgent()
+
+        async def _stream():
+            yield {"type": "done"}
+
+        events: list[dict[str, object]] = []
+        async for event in gw.execute_stream(
+            _stream(),
+            agent_type="general",
+            session_id="test-close-fail",
+            agent_instance=agent,
+        ):
+            events.append(event)
+        assert len(events) == 1
+
+
+class TestGatewaySessionStatusEvents:
+    """Verify that execute_stream publishes session_status events via WorkspaceMultiplexer."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_multiplexer(self):
+        WorkspaceMultiplexer._instance = None
+        yield
+        WorkspaceMultiplexer._instance = None
+
+    @pytest.mark.asyncio
+    async def test_publishes_generating_and_idle_on_success(self) -> None:
+        gw = AgentGateway(_cfg())
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+        original_publish = mux.publish_session_status
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+            original_publish(chat_id, status, agent_type)
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        events = await _collect(gw, agent_type="general", session_id="status-test")
+        assert len(events) == 3
+        assert published == ["status-test:generating", "status-test:idle"]
+
+    @pytest.mark.asyncio
+    async def test_publishes_idle_on_error(self) -> None:
+        gw = AgentGateway(_cfg())
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+        original_publish = mux.publish_session_status
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+            original_publish(chat_id, status, agent_type)
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        async def failing_stream():
+            yield {"step": 1}
+            raise RuntimeError("crash")
+
+        with pytest.raises(RuntimeError, match="crash"):
+            async for _ in gw.execute_stream(failing_stream(), agent_type="general", session_id="err-test"):
+                pass
+
+        assert published == ["err-test:generating", "err-test:idle"]
+
+    @pytest.mark.asyncio
+    async def test_no_status_without_session_id(self) -> None:
+        gw = AgentGateway(_cfg())
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        events = await _collect(gw, agent_type="test")
+        assert len(events) == 3
+        assert published == []
+
+    @pytest.mark.asyncio
+    async def test_publishes_idle_on_timeout(self) -> None:
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+        original_publish = mux.publish_session_status
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+            original_publish(chat_id, status, agent_type)
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        async def silent_after_first():
+            yield {}
+            await asyncio.sleep(5.0)
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(silent_after_first(), agent_type="test", session_id="timeout-test"):
+                pass
+
+        assert published == ["timeout-test:generating", "timeout-test:idle"]
+
+
+class TestGatewayDrain:
+    """Tests for graceful drain lifecycle: begin_drain, cancel_drain, AgentDrainingError."""
+
+    @pytest.mark.asyncio
+    async def test_draining_rejects_new_execution(self) -> None:
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain(timeout=1.0)
+
+        with pytest.raises(AgentDrainingError):
+            async for _ in gw.execute_stream(_dummy_stream(), agent_type="test", session_id="rejected"):
+                pass
+
+        assert "rejected" not in gw._active_sessions
+
+    @pytest.mark.asyncio
+    async def test_drain_completes_immediately_when_idle(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert gw.active_count == 0
+
+        await gw.begin_drain(timeout=5.0)
+        assert gw.is_draining
+
+    @pytest.mark.asyncio
+    async def test_drain_waits_for_active_sessions(self) -> None:
+        gw = AgentGateway(_cfg())
+        finished = False
+
+        async def slow_stream():
+            nonlocal finished
+            await asyncio.sleep(0.3)
+            yield {"done": True}
+            finished = True
+
+        async def run():
+            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id="active"):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+        assert gw.active_count == 1
+
+        await gw.begin_drain(timeout=5.0)
+        assert finished
+        assert gw.active_count == 0
+
+        await task
+
+    @pytest.mark.asyncio
+    async def test_drain_timeout_interrupts_remaining(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def infinite_stream():
+            while True:
+                await asyncio.sleep(0.01)
+                yield {"tick": True}
+
+        async def run():
+            async for _ in gw.execute_stream(infinite_stream(), agent_type="test", session_id="stuck"):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+        assert gw.active_count == 1
+
+        await gw.begin_drain(timeout=0.3)
+        assert gw.is_draining
+
+        await task
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_cancel_drain_re_accepts(self) -> None:
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining
+
+        assert gw.cancel_drain()
+        assert not gw.is_draining
+
+        events = await _collect(gw, agent_type="test", session_id="after-cancel")
+        assert len(events) == 3
+
+    @pytest.mark.asyncio
+    async def test_cancel_drain_returns_false_when_not_draining(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert not gw.cancel_drain()
+
+    @pytest.mark.asyncio
+    async def test_is_draining_property(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert not gw.is_draining
+
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining
+
+        gw.cancel_drain()
+        assert not gw.is_draining
+
+    @pytest.mark.asyncio
+    async def test_cancel_drain_stops_poll_loop_no_interrupt(self) -> None:
+        """cancel_drain during active drain must exit poll loop without interrupt_all."""
+        gw = AgentGateway(_cfg())
+        interrupted = False
+        orig_interrupt_all = gw.interrupt_all
+
+        def spy_interrupt_all() -> None:
+            nonlocal interrupted
+            interrupted = True
+            orig_interrupt_all()
+
+        gw.interrupt_all = spy_interrupt_all  # type: ignore[method-assign]
+
+        async def slow_stream():
+            await asyncio.sleep(5.0)
+            yield {"done": True}
+
+        async def run():
+            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id="cancel-test"):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+        assert gw.active_count == 1
+
+        drain_task = asyncio.create_task(gw.begin_drain(timeout=2.0))
+        await asyncio.sleep(0.1)
+        assert gw.is_draining
+
+        gw.cancel_drain()
+        assert not gw.is_draining
+
+        await drain_task
+        assert not interrupted, "cancel_drain should prevent interrupt_all"
+
+        gw.interrupt_all = orig_interrupt_all  # type: ignore[method-assign]
+        gw._draining = True
+        gw.interrupt_all()
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
+
+    @pytest.mark.asyncio
+    async def test_begin_drain_idempotent(self) -> None:
+        """Second begin_drain call while already draining returns immediately."""
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining
+
+        await gw.begin_drain(timeout=1.0)
+        assert gw.is_draining
+
+
+class TestGatewayCoverageBranches:
+    """Cover remaining defensive branches of AgentGateway."""
+
+    def test_config_property_exposes_settings(self) -> None:
+        gw = AgentGateway(_cfg(max_global=3))
+        assert gw.config.max_global == 3
+
+    def test_is_session_active_unknown_session(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert gw.is_session_active("ghost") is False
+
+    @pytest.mark.asyncio
+    async def test_reserve_rejects_while_draining(self) -> None:
+        gw = AgentGateway(_cfg())
+        await gw.begin_drain()
+        with pytest.raises(AgentDrainingError):
+            gw.reserve_session("chat-r")
+
+    @pytest.mark.asyncio
+    async def test_non_dict_event_wrapped_in_payload(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def raw_stream():
+            yield "plain-text-event"
+
+        events = [e async for e in gw.execute_stream(raw_stream(), agent_type="test")]
+        assert events == [{"payload": "plain-text-event"}]
+
+    @pytest.mark.asyncio
+    async def test_list_values_scrubbed_recursively(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def raw_stream():
+            yield {"items": ["alpha", "beta"]}
+
+        events = [e async for e in gw.execute_stream(raw_stream(), agent_type="test")]
+        assert events == [{"items": ["alpha", "beta"]}]
+
+    @pytest.mark.asyncio
+    async def test_reserve_and_release_flow(self) -> None:
+        gw = AgentGateway(_cfg())
+        gw.reserve_session("chat-pre", agent_type="kanban")
+        assert gw.is_session_active("chat-pre")
+        info = gw._session_info["chat-pre"]
+        assert info.agent_type == "kanban"
+        assert info.reserved_only is True
+        gw.release_session("chat-pre")
+        assert not gw.is_session_active("chat-pre")

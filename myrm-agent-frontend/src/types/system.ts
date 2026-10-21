@@ -1,0 +1,77 @@
+/**
+ * 系统配置类型定义
+ *
+ * 与 Rust 后端的 SystemConfig 结构保持一致
+ */
+
+export interface SystemConfig {
+  /** 是否启用 WebUI 模式 */
+  enableWebUIMode: boolean;
+
+  /** 是否允许远程访问 */
+  enableRemoteAccess: boolean;
+
+  /** WebUI 前端服务端口（Next.js Server） */
+  webuiPort: number;
+
+  /** API 后端服务端口（Python FastAPI） */
+  apiPort: number;
+
+  /** 是否需要密码（远程访问时强制开启） */
+  requirePassword: boolean;
+
+  /** 关闭窗口时隐藏到托盘（而不是直接退出） */
+  closeToTray: boolean;
+
+  /** 开机自动启动（登录后后台运行，仅显示托盘图标） */
+  autoLaunchAtLogin: boolean;
+
+  /** 配置文件版本（用于未来迁移） */
+  configVersion: number;
+
+  /** 全局唤醒快捷键 */
+  globalShortcut: string;
+
+  /** Appshot 截屏快捷键 */
+  appshotShortcut: string;
+
+  /** Appshot 截屏隐私黑名单 */
+  appshotExcludedApps: string[];
+
+  /** 是否启用 Locked Use（Computer Use 锁屏操作能力） */
+  lockedUseEnabled: boolean;
+
+  /** 是否启用工位防窥帷幕（锁屏时自动全屏遮蔽 + 截图通道排除） */
+  privacyCurtainEnabled: boolean;
+
+  /** 语音 Push-to-Talk 全局快捷键 */
+  voicePttShortcut: string;
+
+  /** 自定义数据存储目录（为 undefined 时 Server 使用默认 ~/.myrm） */
+  customDataDir?: string;
+
+  /** 会话空闲重资源回收超时时间（秒，0 表示禁用） */
+  idleReclaimTimeoutSeconds?: number;
+}
+
+/** 默认系统配置 */
+export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
+  enableWebUIMode: false,
+  enableRemoteAccess: false,
+  webuiPort: 3000,
+  apiPort: 25808,
+  requirePassword: true,
+  closeToTray: true,
+  autoLaunchAtLogin: true,
+  configVersion: 1,
+  globalShortcut: 'Option+Space',
+  appshotShortcut: 'CommandOrControl+Shift+A',
+  appshotExcludedApps: ['微信', 'WeChat', '1Password', 'Bitwarden', 'KeePassXC', 'LastPass'],
+  lockedUseEnabled: false,
+  privacyCurtainEnabled: false,
+  voicePttShortcut: 'CommandOrControl+Shift+V',
+  idleReclaimTimeoutSeconds: 1800,
+};
+
+/** 当前运行模式 */
+export type RunMode = 'desktop' | 'webui';

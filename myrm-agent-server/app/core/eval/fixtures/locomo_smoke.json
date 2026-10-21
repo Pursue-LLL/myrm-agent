@@ -1,0 +1,204 @@
+[
+  {
+    "id": "locomo-01-strict-ts",
+    "name": "Strict TypeScript Preference",
+    "category": "preference",
+    "turns": [
+      {
+        "user_input": "I am working on our frontend. Please remember: always use strict TypeScript and never use the 'any' type under any circumstances.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "Can you define an interface for our user profile payload?",
+        "expected_response_substring": "interface"
+      },
+      {
+        "user_input": "What is our rule regarding TypeScript types in this project?",
+        "expected_response_substring": "strict"
+      }
+    ],
+    "ground_truth": "Always use strict TypeScript and strictly forbid the 'any' type.",
+    "rubric": "Model must explicitly recall that strict TypeScript is required and 'any' is forbidden."
+  },
+  {
+    "id": "locomo-02-temporal-correction-city",
+    "name": "Temporal Fact Correction (City Relocation)",
+    "category": "temporal_correction",
+    "turns": [
+      {
+        "user_input": "I currently live and work in Tokyo.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "Recommend a good quiet coffee shop near Shibuya.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "Correction: I accepted a new offer and permanently moved to Singapore this morning.",
+        "expected_response_substring": "Singapore"
+      },
+      {
+        "user_input": "Where am I currently located and living?",
+        "expected_response_substring": "Singapore"
+      }
+    ],
+    "ground_truth": "Singapore (previously Tokyo, updated to Singapore after relocation)",
+    "rubric": "Model must state Singapore and must NOT claim the user currently lives in Tokyo."
+  },
+  {
+    "id": "locomo-03-database-engine-constraint",
+    "name": "Database Constraint Inheritance",
+    "category": "constraint",
+    "turns": [
+      {
+        "user_input": "Our backend infrastructure strictly standardizes on PostgreSQL 16. MySQL and SQLite are prohibited in production.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "We need to design the schema for the multi-tenant payment ledger.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "Which database engine should we generate our migration scripts for?",
+        "expected_response_substring": "PostgreSQL"
+      }
+    ],
+    "ground_truth": "PostgreSQL 16",
+    "rubric": "Model must identify PostgreSQL 16 as the standardized database."
+  },
+  {
+    "id": "locomo-04-privacy-local-llm",
+    "name": "Local LLM Privacy Rule",
+    "category": "negative_constraint",
+    "turns": [
+      {
+        "user_input": "Due to strict HIPAA regulations, we cannot send customer data to third-party commercial APIs like OpenAI or Anthropic. Only local Ollama models are permitted.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "We want to summarize these patient medical intake records.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "Which model provider should we invoke for this summarization?",
+        "expected_response_substring": "Ollama"
+      }
+    ],
+    "ground_truth": "Local Ollama models only; commercial third-party APIs like OpenAI/Anthropic are prohibited due to regulations.",
+    "rubric": "Model must insist on local Ollama models and explicitly refuse external commercial cloud APIs."
+  },
+  {
+    "id": "locomo-05-developer-profile",
+    "name": "Developer Profile & Tech Stack",
+    "category": "profile",
+    "turns": [
+      {
+        "user_input": "For your context, I am an ultra-low latency quantitative trader and my primary language is Rust.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "How can I implement an in-memory ring buffer for market data ticks?",
+        "expected_response_substring": "Rust"
+      }
+    ],
+    "ground_truth": "Quantitative trader specializing in Rust for ultra-low latency systems.",
+    "rubric": "Model must generate Rust code and acknowledge low-latency trading context."
+  },
+  {
+    "id": "locomo-06-procedural-deployment-gate",
+    "name": "Pre-deployment Verification Gate",
+    "category": "procedural",
+    "turns": [
+      {
+        "user_input": "In our engineering playbook, before running any deployment script, developers must always execute `cargo fmt --check` and `cargo test`.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "The fix is ready. I am about to run `./deploy.sh production`.",
+        "expected_response_substring": "cargo"
+      }
+    ],
+    "ground_truth": "Run `cargo fmt --check` and `cargo test` prior to deploying.",
+    "rubric": "Model must remind or verify that cargo fmt --check and cargo test were executed."
+  },
+  {
+    "id": "locomo-07-dietary-restriction-recall",
+    "name": "Dietary Health Constraint",
+    "category": "profile",
+    "turns": [
+      {
+        "user_input": "Note down that I have a severe peanut allergy and I am lactose intolerant.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "Plan a quick 3-dish dinner menu for tonight.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "What ingredients did you ensure to exclude from my dinner recipes?",
+        "expected_response_substring": "peanut"
+      }
+    ],
+    "ground_truth": "Peanuts and dairy/lactose.",
+    "rubric": "Model must cite peanut and dairy/lactose exclusion."
+  },
+  {
+    "id": "locomo-08-transient-vs-permanent-fact",
+    "name": "Transient Illness vs Permanent Habit",
+    "category": "transient_boundary",
+    "turns": [
+      {
+        "user_input": "I have a mild sore throat today, but generally I never consume caffeinated drinks after 2 PM.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "It is 4 PM and I need a beverage to refresh myself. What would you suggest?",
+        "expected_response_substring": "caffeine"
+      }
+    ],
+    "ground_truth": "Decaf or herbal beverage avoiding caffeine after 2 PM.",
+    "rubric": "Model must respect the permanent constraint of no caffeine after 2 PM."
+  },
+  {
+    "id": "locomo-09-cross-turn-entity-coreference",
+    "name": "Project Architecture & Role Attribution",
+    "category": "coreference",
+    "turns": [
+      {
+        "user_input": "Our agent runtime engine is called Myrmidon, and Dr. Aris leads the core runtime architecture team.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "We have an RFC proposed to refactor the memory indexing pipeline.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "Who should be the principal reviewer for this RFC?",
+        "expected_response_substring": "Aris"
+      }
+    ],
+    "ground_truth": "Dr. Aris (lead of Myrmidon core runtime architecture).",
+    "rubric": "Model must name Dr. Aris as the principal architecture lead/reviewer."
+  },
+  {
+    "id": "locomo-10-multi-hop-synthesis",
+    "name": "Multi-hop Cloud Budget Synthesis",
+    "category": "multi_hop",
+    "turns": [
+      {
+        "user_input": "Our analytics team has an annual cloud compute ceiling of $50,000.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "We already spent $42,000 this year on GPU training runs.",
+        "expected_response_substring": null
+      },
+      {
+        "user_input": "A vendor is pitching a continuous inference pipeline for $1,000/month for the remaining 6 months of this year. Can the analytics team afford it within budget?",
+        "expected_response_substring": "yes"
+      }
+    ],
+    "ground_truth": "Yes, remaining budget is $8,000 ($50,000 - $42,000) and the vendor costs $6,000 ($1,000 * 6), leaving $2,000 buffer.",
+    "rubric": "Model must conclude yes, calculating remaining $8,000 vs $6,000 required cost."
+  }
+]

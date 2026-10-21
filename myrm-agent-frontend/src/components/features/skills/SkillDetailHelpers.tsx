@@ -1,0 +1,201 @@
+'use client';
+
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { Shield, ShieldCheck, ShieldAlert, ShieldX, ChevronDown, FileCheck2 } from 'lucide-react';
+import { cn } from '@/lib/utils/classnameUtils';
+import { useScanRiskText } from '@/components/features/skills/useScanRiskText';
+import { Badge } from '@/components/primitives/badge';
+import type { SkillEvalCase, SecurityScanSummary } from '@/store/skill/types';
+
+/** next-intl translator compatible with useTranslations('settings.skills'). */
+export type SkillSectionTranslator = ReturnType<typeof useTranslations<'settings.skills'>>;
+
+/* ─── RequirementRow ─── */
+
+interface RequirementRowProps {
+  icon: React.ElementType;
+  label: string;
+  items: string[];
+}
+
+export function RequirementRow({ icon: Icon, label, items }: RequirementRowProps) {
+  return (
+    <div className="flex items-start gap-2">
+      <Icon size={14} className="text-muted-foreground mt-0.5 shrink-0" />
+      <div>
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {items.map((item) => (
+            <code key={item} className="text-xs px-1.5 py-0.5 rounded bg-muted font-mono">
+              {item}
+            </code>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SecurityScanSection ─── */
+
+const severityColors: Record<string, string> = {
+  critical: 'text-red-600 dark:text-red-400',
+  high: 'text-orange-600 dark:text-orange-400',
+  medium: 'text-yellow-600 dark:text-yellow-400',
+  low: 'text-blue-600 dark:text-blue-400',
+};
+
+function getScoreConfig(score: number) {
+  if (score >= 80) {
+    return {
+      icon: ShieldCheck,
+      color: 'text-green-600 dark:text-green-400',
+      bg: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800',
+    };
+  }
+  if (score >= 50) {
+    return {
+      icon: Shield,
+      color: 'text-yellow-600 dark:text-yellow-400',
+      bg: 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800',
+    };
+  }
+  if (score >= 25) {
+    return {
+      icon: ShieldAlert,
+      color: 'text-orange-600 dark:text-orange-400',
+      bg: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800',
+    };
+  }
+  return {
+    icon: ShieldX,
+    color: 'text-red-600 dark:text-red-400',
+    bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
+  };
+}
+
+interface SecurityScanSectionProps {
+  security: SecurityScanSummary;
+  t: SkillSectionTranslator;
+}
+
+export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
+  const [expanded, setExpanded] = useState(false);
+  const scanText = useScanRiskText();
+  const { icon: ScoreIcon, color, bg } = getScoreConfig(security.score);
+  const hasFindings = security.total_findings > 0;
+
+  return (
+    <div className={cn('rounded-lg border p-3', bg)}>
+      <button
+        className="w-full flex items-center justify-between"
+        onClick={() => hasFindings && setExpanded((v) => !v)}
+        disabled={!hasFindings}
+        type="button"
+      >
+        <div className="flex items-center gap-2">
+          <ScoreIcon size={18} className={color} />
+          <span className={cn('text-sm font-medium', color)}>{t('card.securityScore', { score: security.score })}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {hasFindings && (
+            <span className="text-xs text-muted-foreground">
+              {t('card.findings', { count: security.total_findings })}
+            </span>
+          )}
+          {hasFindings && (
+            <ChevronDown
+              size={14}
+              className={cn('text-muted-foreground transition-transform', expanded && 'rotate-180')}
+            />
+          )}
+        </div>
+      </button>
+
+      {expanded && hasFindings && (
+        <div className="mt-2 pt-2 border-t border-current/10 space-y-2">
+          {(['critical', 'high', 'medium', 'low'] as const).map((severity) => {
+            const items = security.findings.filter((f) => f.severity === severity);
+            if (items.length === 0) {
+              return null;
+            }
+            return (
+              <div key={severity}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={cn('text-xs font-medium', severityColors[severity])}>
+                    {scanText.severityLabel(severity)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">({items.length})</span>
+                </div>
+                <div className="space-y-0.5 pl-3">
+                  {items.map((finding, i) => (
+                    <div key={`${finding.threat_type}-${i}`} className="text-xs text-muted-foreground">
+                      <span className="text-[11px] opacity-70">[{scanText.threatLabel(finding.threat_type)}]</span>{' '}
+                      {finding.line_number != null && (
+                        <span className="font-mono text-[11px] opacity-70">L{finding.line_number} </span>
+                      )}
+                      {finding.description}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── EvalCasesSection ─── */
+
+export function EvalCasesSection({ cases, t }: { cases: SkillEvalCase[]; t: SkillSectionTranslator }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (cases.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <button type="button" className="w-full flex items-center justify-between" onClick={() => setExpanded((v) => !v)}>
+        <h4 className="text-sm font-medium flex items-center gap-2">
+          <FileCheck2 size={14} className="text-primary" />
+          {t('detail.evalCases')}
+          <Badge variant="secondary" className="text-xs">
+            {cases.length}
+          </Badge>
+        </h4>
+        <ChevronDown size={14} className={cn('text-muted-foreground transition-transform', expanded && 'rotate-180')} />
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          {cases.map((caseItem, i) => {
+            const message = typeof caseItem.message === 'string' ? caseItem.message : '';
+            const assertions = Array.isArray(caseItem.sandbox_assertions) ? caseItem.sandbox_assertions : [];
+            return (
+              <div key={i} className="rounded-lg border bg-muted/30 p-2.5 text-sm">
+                {message && <p className="font-medium text-foreground">{message}</p>}
+                {assertions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {assertions.map((assertion, j) => (
+                      <code
+                        key={j}
+                        className="text-[11px] px-1.5 py-0.5 rounded bg-muted font-mono text-muted-foreground"
+                      >
+                        {String(assertion.type)}
+                        {assertion.target ? `: ${String(assertion.target)}` : ''}
+                      </code>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

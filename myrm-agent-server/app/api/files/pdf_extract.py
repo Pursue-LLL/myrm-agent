@@ -1,0 +1,232 @@
+"""PDF content extraction API endpoint
+
+Extracts text and/or images from a PDF file.
+Strategy: text-first via pdfplumber; image-fallback via pypdfium2 when text is sparse;
+scanned PDFs get best-effort OCR text via RapidOCR when the optional `pdf-ocr` extra
+is installed (graceful degradation otherwise).
+
+Supports two resolution modes:
+- Sandbox: fileId → resolves via FilesService (StorageProvider)
+- Local: filePath → direct local filesystem path
+"""
+
+import logging
+import tempfile
+from pathlib import Path
+
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
+from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import PDFExtractConfig
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic.alias_generators import to_camel
+
+from app.config.deploy_mode import is_local_mode
+from app.config.settings import settings
+from app.core.infra.limiter import limiter
+from app.core.storage import files_service
+from app.core.storage.chat_bound import pdf_extract_source
+from app.core.utils.errors import not_found_error, validation_error
+from app.core.utils.response_utils import success_response
+from app.schemas.responses import StandardSuccessResponse
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+class PDFImageItem(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    data: str = Field(default="", description="Base64-encoded PNG data (empty when file_url is provided)")
+    mime_type: str = Field(default="image/png", description="MIME type")
+    file_url: str | None = Field(default=None, description="StorageProvider URL (preferred over inline base64)")
+    page_number: int = Field(default=0, description="1-based source page this image came from; 0 when unknown")
+
+
+class PDFTableItem(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    page_number: int
+    table_index: int
+    data: list[list[str]]
+    id: str
+    markdown: str
+    summary_l0: str
+
+
+class PDFExtractResponse(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    text: str = Field(
+        default="", description="Extracted text; scanned PDFs include OCR text when the optional pdf-ocr extra is installed"
+    )
+    images: list[PDFImageItem] = Field(default=[], description="Rendered page images (only when text is sparse)")
+    page_count: int = Field(default=0, description="Total pages in PDF")
+    parsed_pages: int = Field(
+        default=0,
+        description="Pages actually delivered (text or images); less than page_count when an extraction window cut the document",
+    )
+    pages_without_text: list[int] = Field(
+        default=[],
+        description=(
+            "1-based pages the text layer could not read (scanned images or blanks); "
+            "independent of parsedPages, which reports the delivery window"
+        ),
+    )
+    strategy: str = Field(default="", description="Extraction strategy: 'text', 'image', or 'hybrid'")
+    tables: list[PDFTableItem] = Field(default=[], description="Extracted table capsules with L0 summaries and L2 markdown")
+    image_trace: dict[str, object] = Field(
+        default_factory=dict,
+        description=(
+            "Diagnostic trace of the image ablation process (keys: totalProcessed, keptCount, "
+            "droppedCount, dropReasons, and truncated when the embedded-figure ceiling cut the scan "
+            "short; a truncated scan delivered fewer pages, which surfaces as parsedPages < pageCount)"
+        ),
+    )
+
+    @field_serializer("image_trace")
+    def _serialize_image_trace(self, trace: dict[str, object]) -> dict[str, object]:
+        """Camelize the trace's own keys.
+
+        ``alias_generator`` only rewrites declared model fields; a raw dict reaches the client
+        verbatim, so without this the frontend's ``droppedCount`` lookup never matches. Future
+        harness keys pass through unchanged on purpose: the harness ships independently, so the
+        trace must not be narrowed to the keys this version happens to know.
+        """
+        return {to_camel(key): value for key, value in trace.items()}
+
+
+class PDFExtractRequest(BaseModel):
+    """Sandbox mode: provide fileId.
+    Local mode: provide filePath (direct local path).
+    """
+
+    file_id: str | None = Field(default=None, description="File ID (sandbox mode)")
+    file_path: str | None = Field(default=None, description="Local file path (local mode)")
+    max_pages: int = Field(default=500, ge=1, le=2000, description="Max pages to process")
+    min_text_chars: int = Field(default=200, ge=0, description="Min chars before image fallback")
+    table_format: str = Field(default="placeholder", description="Table output: 'inline' or 'placeholder'")
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+async def _persist_pdf_images(
+    images: list,
+    body: PDFExtractRequest,
+) -> list[PDFImageItem]:
+    """Save extracted PDF images to StorageProvider and return URL references.
+
+    In sandbox mode, images are persisted to StorageProvider so the frontend
+    can reference them by URL instead of embedding raw base64.
+    In local mode, returns inline base64 (Tauri reads from disk anyway).
+    """
+    if not images:
+        return []
+
+    if is_local_mode():
+        return [PDFImageItem(data=img.data, mime_type=img.mime_type, page_number=img.page_number) for img in images]
+
+    import base64
+
+    items: list[PDFImageItem] = []
+    for idx, img in enumerate(images):
+        try:
+            content = base64.b64decode(img.data)
+            ext = "png" if "png" in img.mime_type else "jpeg"
+            source_id = body.file_id or "local"
+            file = await files_service.save_generated_file(
+                filename=f"pdf-page-{idx + 1}.{ext}",
+                content=content,
+                content_type=img.mime_type,
+                source_chat_id=pdf_extract_source(source_id),
+            )
+            url = f"/api/media/files/{file.id}/content"
+            items.append(PDFImageItem(mime_type=img.mime_type, file_url=url, page_number=img.page_number))
+        except Exception:
+            logger.warning("Failed to persist PDF image %d, falling back to inline", idx)
+            items.append(PDFImageItem(data=img.data, mime_type=img.mime_type, page_number=img.page_number))
+
+    return items
+
+
+async def _resolve_pdf_path(body: PDFExtractRequest) -> Path:
+    """Resolve the actual filesystem path from the request."""
+    if body.file_path:
+        if not is_local_mode():
+            raise validation_error("filePath is only allowed in local mode")
+        path = Path(body.file_path)
+        if not path.exists():
+            raise not_found_error("PDF file")
+        if path.suffix.lower() != ".pdf":
+            raise validation_error("Only PDF files are supported")
+        return path
+
+    if body.file_id:
+        file = await files_service.get_file(body.file_id)
+        if not file:
+            raise not_found_error("PDF file")
+        if not file.filename.lower().endswith(".pdf"):
+            raise validation_error("Only PDF files are supported")
+
+        content = await files_service.get_content(body.file_id)
+
+        # extract_pdf_content 需要文件路径，写入临时文件
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        tmp.write(content)
+        tmp.flush()
+        tmp.close()
+        return Path(tmp.name)
+
+    raise validation_error("Provide either filePath or fileId")
+
+
+@router.post("/extract-pdf", response_model=StandardSuccessResponse)
+@limiter.limit(settings.rate_limit.file_upload)
+async def extract_pdf(
+    body: PDFExtractRequest,
+    request: Request,
+) -> JSONResponse:
+    """Extract text and/or images from a PDF file.
+
+    Auth: required (single-tenant request identity)
+    """
+    file_path = await _resolve_pdf_path(body)
+
+    try:
+        config = PDFExtractConfig(
+            max_pages=body.max_pages,
+            min_text_chars=body.min_text_chars,
+            table_format=body.table_format,
+        )
+        from app.services.files.content_extraction import extract_pdf_from_path
+
+        result = await extract_pdf_from_path(file_path, config)
+    finally:
+        # 清理 Sandbox 模式下创建的临时文件
+        if body.file_id and file_path.exists():
+            file_path.unlink(missing_ok=True)
+
+    image_items = await _persist_pdf_images(result.images, body)
+
+    response_data = PDFExtractResponse(
+        text=result.text,
+        images=image_items,
+        page_count=result.page_count,
+        parsed_pages=result.parsed_pages,
+        pages_without_text=result.pages_without_text,
+        strategy=result.strategy,
+        tables=[
+            PDFTableItem(
+                page_number=t.page_number,
+                table_index=t.table_index,
+                data=t.data,
+                id=t.id,
+                markdown=t.markdown,
+                summary_l0=t.summary_l0,
+            )
+            for t in result.tables
+        ],
+        image_trace=result.image_trace,
+    )
+
+    return success_response(data=response_data.model_dump(by_alias=True))

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pet-surface-focus-main-window"
+description = "Enables the pet_surface_focus_main_window command without any pre-configured scope."
+commands.allow = ["pet_surface_focus_main_window"]
+
+[[permission]]
+identifier = "deny-pet-surface-focus-main-window"
+description = "Denies the pet_surface_focus_main_window command without any pre-configured scope."
+commands.deny = ["pet_surface_focus_main_window"]

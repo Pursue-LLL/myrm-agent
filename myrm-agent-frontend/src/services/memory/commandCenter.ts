@@ -1,0 +1,841 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest (POS: frontend API request helper)
+ * ./core::MemoryType (POS: Frontend memory API client)
+ *
+ * [OUTPUT]
+ * getMemoryCommandCenter, runMemoryCommandAction, getMemoryDiagnosticHistory: Personal Brain Command Center API client with migration diagnostics and cleanup DTOs.
+ *
+ * [POS]
+ * Frontend Personal Brain Command Center client. Owns command-center DTOs, GUI governance actions, executable diagnostics, migration integrity state, and import cleanup metrics.
+ */
+
+import { apiRequest } from '@/lib/api';
+import type { MemoryImportSource } from './archive';
+import type { MemoryType } from './core';
+
+export interface MemoryCommandOverview {
+  total_memories: number;
+  by_type: Record<MemoryType, number>;
+  pending_memories: number;
+  pending_shared_proposals: number;
+  active_shared_contexts: number;
+  health_score?: number | null;
+  health_status: 'healthy' | 'degraded' | 'critical' | 'unknown';
+  deploy_mode: string;
+}
+
+export interface MemoryCommandSpace {
+  namespace: string;
+  kind: string;
+  label: string;
+  target_id?: string | null;
+  context_id?: string | null;
+  active: boolean;
+  binding_count: number;
+}
+
+export interface MemoryCommandGovernanceItem {
+  id: string;
+  kind: string;
+  target_kind: 'pending_memory' | 'shared_context_proposal' | 'memory';
+  title: string;
+  description: string;
+  severity: 'info' | 'warning' | 'critical';
+  status: string;
+  created_at: string;
+  available_actions: string[];
+}
+
+export interface MemoryCommandHealth {
+  status: 'healthy' | 'degraded' | 'critical' | 'unknown';
+  total?: number | null;
+  dimensions: Record<string, number>;
+  suggestions: string[];
+  has_graph: boolean;
+  sample_size: number;
+  guardian_running: boolean;
+  seconds_until_next?: number | null;
+  checked_at?: string | null;
+  cache_status: 'fresh' | 'refreshed' | 'unavailable';
+}
+
+export interface MemoryCommandTimelineEvent {
+  id: string;
+  kind: string;
+  status: string;
+  occurred_at: string;
+  title: string;
+  description: string;
+  source: string;
+  memory_type?: MemoryType | string | null;
+  namespace?: string | null;
+  target_kind?: string | null;
+  target_id?: string | null;
+  influence_count: number;
+  metadata: Record<string, string | number | boolean | null>;
+}
+
+export interface MemoryCommandInfluenceRef {
+  memory_id: string;
+  memory_type: string;
+  score?: number | null;
+  content_preview: string;
+  primary_namespace?: string | null;
+  source_chat_id?: string | null;
+  source_message_id?: string | null;
+  reason?: string | null;
+}
+
+export interface MemoryCommandInfluenceItem {
+  id: string;
+  chat_id?: string | null;
+  message_id?: string | null;
+  occurred_at: string;
+  answer_preview: string;
+  influence_refs: MemoryCommandInfluenceRef[];
+  prompt_tokens: number;
+  cached_tokens: number;
+}
+
+export interface MemoryCommandCostProfile {
+  prompt_tokens: number;
+  cached_tokens: number;
+  completion_tokens: number;
+  cited_memory_refs: number;
+  estimated_memory_tokens: number;
+  cache_friendly: boolean;
+  construction_ms?: number;
+  retrieval_ms?: number;
+  injection_overhead_ms?: number;
+  effective_cited_tokens?: number;
+  background_construction_tokens?: number;
+  cache_preservation_score?: number;
+  roi_percentage?: number;
+  roi_grade?: 'optimal' | 'healthy' | 'diluted' | 'critical' | string;
+  parasitic_memory_count?: number;
+}
+
+export interface MemoryCommandTurnEconomics {
+  turn_index: number;
+  message_id?: string | null;
+  injected_tokens: number;
+  cited_tokens: number;
+  cached_tokens: number;
+  roi_percentage: number;
+  cache_aligned: boolean;
+  retrieval_ms: number;
+}
+
+export interface MemoryCommandParasiticMemory {
+  memory_id: string;
+  memory_type: string;
+  content_preview: string;
+  injected_turns_count: number;
+  cited_turns_count: number;
+  wasted_tokens_estimated: number;
+  suggested_action: 'archive' | 'suppress' | 'review';
+}
+
+export interface MemoryCommandEconomicsDashboard {
+  cost_profile: MemoryCommandCostProfile;
+  turn_trajectories: MemoryCommandTurnEconomics[];
+  parasitic_memories: MemoryCommandParasiticMemory[];
+  estimated_cost_savings_usd: number;
+  recommendations: string[];
+}
+
+export interface MemoryCommandConflictItem {
+  id: string;
+  kind: 'claim' | 'correction' | 'supersession' | 'pending_conflict';
+  status: 'pending' | 'active' | 'needs_review' | 'resolved';
+  memory_id?: string | null;
+  related_memory_id?: string | null;
+  title: string;
+  description: string;
+  existing_content?: string | null;
+  candidate_content?: string | null;
+  created_at?: string | null;
+}
+
+export interface MemoryCommandReplayOverlay {
+  chat_id: string;
+  message_id?: string | null;
+  event_count: number;
+  influence_count: number;
+  last_event_at: string;
+  last_summary: string;
+}
+
+export interface MemoryCommandReplayEvent {
+  id: string;
+  phase: 'observe' | 'govern' | 'write' | 'index' | 'recall' | 'inject' | 'verify';
+  status: string;
+  occurred_at: string;
+  title: string;
+  summary: string;
+  target_kind?: string | null;
+  target_id?: string | null;
+  correlation_id?: string | null;
+  influence_count: number;
+}
+
+export interface MemoryCommandWaterfallStep {
+  phase: 'observe' | 'scan' | 'propose' | 'approve' | 'write' | 'index' | 'recall' | 'inject' | 'cite' | 'verify';
+  status: 'ready' | 'active' | 'warning' | 'missing';
+  event_count: number;
+  evidence_count: number;
+  latest_at?: string | null;
+  description: string;
+}
+
+export interface MemoryCommandTraceStep {
+  id: string;
+  phase: string;
+  status: 'success' | 'warning' | 'error' | 'skipped';
+  title: string;
+  description: string;
+  occurred_at: string;
+  duration_ms?: number | null;
+  output_count: number;
+  result_count: number;
+  step_index: number;
+}
+
+export interface MemoryCommandTraceRun {
+  id: string;
+  trace_id: string;
+  message_id?: string | null;
+  chat_id?: string | null;
+  query_preview: string;
+  status: 'success' | 'warning' | 'error' | 'skipped';
+  occurred_at: string;
+  duration_ms?: number | null;
+  result_count: number;
+  steps: MemoryCommandTraceStep[];
+}
+
+export interface MemoryCommandEvalMetric {
+  id: string;
+  label: string;
+  status: 'ready' | 'partial' | 'missing';
+  score: number;
+  evidence: string;
+}
+
+export interface MemoryCommandConnectorStatus {
+  id: string;
+  label: string;
+  status: 'ready' | 'manual_config_required' | 'missing';
+  supported_actions: string[];
+  notes: string;
+}
+
+export interface MemoryCommandPrivacySignal {
+  id: string;
+  label: string;
+  status: 'ready' | 'warning' | 'missing';
+  evidence: string;
+  event_count: number;
+}
+
+export interface MemoryCommandDoctorCheck {
+  id: string;
+  category: 'storage' | 'index' | 'embedding' | 'ledger' | 'deployment' | 'quality' | 'migration' | 'governance';
+  label: string;
+  status: 'ready' | 'warning' | 'critical' | 'missing';
+  evidence: string;
+  impact: string;
+  next_action: string;
+  can_auto_fix: boolean;
+  safe_to_retry: boolean;
+  docs_ref?: string | null;
+  repair_actions: string[];
+  repair_plans: MemoryCommandRepairPlan[];
+}
+
+export interface MemoryCommandRepairPlan {
+  id: string;
+  label: string;
+  risk_level: 'safe' | 'confirmation_required' | 'manual';
+  dry_run_result: string;
+  expected_effect: string;
+  requires_confirmation: boolean;
+  executable: boolean;
+}
+
+export interface MemoryCommandBenchmarkSummary {
+  case_count: number;
+  passed_count: number;
+  recall_at_k: number;
+  ndcg_at_k: number;
+  mrr_score: number;
+  precision_at_k: number;
+  duplicate_rate?: number;
+  distinct_source_ratio?: number;
+  latency_p50_ms: number;
+  latency_p95_ms: number;
+  latency_p99_ms: number;
+  top_k: number;
+  categories: Record<string, string>;
+}
+
+export interface MemoryCommandDiagnosticProbeResult {
+  id: string;
+  category: 'storage' | 'index' | 'embedding' | 'ledger' | 'deployment' | 'quality' | 'migration' | 'governance';
+  label: string;
+  status: 'ready' | 'warning' | 'critical' | 'missing';
+  evidence: string;
+  impact: string;
+  next_action: string;
+  can_auto_fix: boolean;
+  safe_to_retry: boolean;
+  docs_ref?: string | null;
+  duration_ms?: number | null;
+  benchmark_summary?: MemoryCommandBenchmarkSummary | null;
+  repair_actions: string[];
+  repair_plans: MemoryCommandRepairPlan[];
+}
+
+export interface MemoryCommandDiagnosticSlo {
+  window_runs: number;
+  pass_rate: number;
+  failed_runs: number;
+  average_duration_ms: number;
+  status: 'ready' | 'warning' | 'critical' | 'missing';
+}
+
+export interface MemoryCommandDiagnosticRun {
+  id: string;
+  status: 'ready' | 'warning' | 'critical' | 'missing';
+  summary: string;
+  started_at: string;
+  completed_at: string;
+  duration_ms: number;
+  probe_count: number;
+  failed_count: number;
+  audit_recorded: boolean;
+  audit_error?: string | null;
+  slo?: MemoryCommandDiagnosticSlo | null;
+  probes: MemoryCommandDiagnosticProbeResult[];
+}
+
+export interface MemoryCommandMigrationProvenance {
+  source_manifest?: MemoryCommandMigrationSourceManifestItem[];
+  source_manifest_authoritative?: boolean;
+  tracked_imports: number;
+  unmapped_items: number;
+  coverage_status: 'not_tracked' | 'partial' | 'complete';
+  last_import_batch_id?: string | null;
+  verification_recommended: boolean;
+  last_import_diagnostic_status?: string | null;
+  last_import_diagnostic_run_id?: string | null;
+  last_import_readiness_status?: 'ready' | 'warning' | 'critical' | null;
+  last_import_first_turn_outcome?: 'success' | 'failed' | 'no_output' | null;
+  cleanup_pending_sessions: number;
+  cleanup_confirmed_sessions: number;
+  cleanup_expired_sessions: number;
+  cleanup_rolled_back_sessions: number;
+  cleanup_retention_days: number;
+}
+
+export interface MemoryCommandMigrationSourceManifestItem {
+  id: string;
+  display_name: string;
+  import_source: MemoryImportSource;
+  discover_modes: ('local_scan' | 'zip_upload')[];
+  deep_link_enabled: boolean;
+}
+
+export interface MemoryCommandPlaneSummary {
+  enabled: boolean;
+  content_visibility: 'not_shared';
+  health_status: string;
+  import_rollback_health_status: 'ready' | 'warning' | 'critical';
+  archive_restore_health_status: 'ready' | 'warning' | 'critical';
+  event_count: number;
+  failed_event_count: number;
+  queue_backlog: number;
+  import_rollback_in_progress: number;
+  import_rollback_failed: number;
+  import_rollback_partial: number;
+  import_rollback_missing_items: number;
+  import_rollback_failed_items: number;
+  archive_restore_in_progress: number;
+  archive_restore_failed: number;
+  archive_restore_partial: number;
+  archive_restore_rollback_in_progress: number;
+  archive_restore_rollback_failed: number;
+  archive_restore_missing_items: number;
+  archive_restore_failed_items: number;
+  last_event_at?: string | null;
+  redaction_scope: 'metadata_only';
+  sandbox_isolation: 'local_or_per_user_sandbox';
+}
+
+export interface MemoryCommandRuntimeStatus {
+  deploy_mode: string;
+  memory_base_path: string;
+  relational_status: 'available' | 'unavailable';
+  vector_status: 'available' | 'unavailable';
+  vector_persistence: 'persistent' | 'memory_fallback' | 'unavailable';
+  graph_status: 'available' | 'unavailable';
+  embedding_status: 'custom' | 'unavailable';
+  retrieval_mode: 'semantic' | 'keyword';
+  control_plane_status: 'not_used' | 'proxied_by_sandbox';
+  event_ledger_status: 'available' | 'unavailable';
+  health_snapshot_status: 'available' | 'unavailable';
+  supported_clients: ('local_web' | 'tauri_desktop' | 'saas_sandbox')[];
+}
+
+export interface MemoryCommandCenterResponse {
+  generated_at: string;
+  overview: MemoryCommandOverview;
+  spaces: MemoryCommandSpace[];
+  governance: MemoryCommandGovernanceItem[];
+  health: MemoryCommandHealth;
+  timeline: MemoryCommandTimelineEvent[];
+  live_stream: MemoryCommandTimelineEvent[];
+  influence: MemoryCommandInfluenceItem[];
+  cost: MemoryCommandCostProfile;
+  economics?: MemoryCommandEconomicsDashboard | null;
+  conflicts: MemoryCommandConflictItem[];
+
+  replay: MemoryCommandReplayOverlay[];
+  replay_events: MemoryCommandReplayEvent[];
+  waterfall: MemoryCommandWaterfallStep[];
+  trace_runs: MemoryCommandTraceRun[];
+  eval_metrics: MemoryCommandEvalMetric[];
+  connectors: MemoryCommandConnectorStatus[];
+  privacy: MemoryCommandPrivacySignal[];
+  doctor_checks: MemoryCommandDoctorCheck[];
+  migration: MemoryCommandMigrationProvenance;
+  plane_summary: MemoryCommandPlaneSummary;
+  runtime: MemoryCommandRuntimeStatus;
+}
+
+export interface MemoryCommandGraphNode {
+  id: string;
+  labels: string[];
+  properties: Record<string, string | number | boolean>;
+}
+
+export interface MemoryCommandGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  rel_type: string;
+  properties: Record<string, string | number>;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  superseded_by?: string | null;
+  supersedes_id?: string | null;
+}
+
+export interface MemoryCommandGraphStats {
+  node_count: number;
+  relationship_count: number;
+  node_label_counts: Record<string, number>;
+  relationship_type_counts: Record<string, number>;
+}
+
+export interface MemoryCommandGraphHubItem {
+  id: string;
+  label: string;
+  snippet: string;
+  primary_namespace?: string | null;
+  degree: number;
+  in_degree: number;
+  out_degree: number;
+  supported_count: number;
+  contradicted_count: number;
+  has_conflict: boolean;
+}
+
+export interface MemoryCommandGraphResponse {
+  nodes: MemoryCommandGraphNode[];
+  edges: MemoryCommandGraphEdge[];
+  stats: MemoryCommandGraphStats;
+  ranked_hubs?: MemoryCommandGraphHubItem[];
+  graph_state?: 'ready' | 'storage_disabled' | 'empty_knowledge' | 'sparse_islands';
+  has_graph: boolean;
+}
+
+export interface MemoryCommandActionRequest {
+  target_kind: 'pending_memory' | 'shared_context_proposal' | 'memory' | 'conflict_pair';
+  target_id: string;
+  action:
+    | 'approve'
+    | 'reject'
+    | 'edit'
+    | 'correct'
+    | 'correct_and_lock'
+    | 'forget'
+    | 'pin'
+    | 'unpin'
+    | 'keep_new'
+    | 'keep_old'
+    | 'coexist';
+  memory_type?: string;
+  content?: string;
+}
+
+export interface MemoryCommandActionResponse {
+  status: 'success';
+  target_kind: string;
+  target_id: string;
+  action: string;
+}
+
+export interface MemoryCommandDiagnosticHistoryItem {
+  run_id: string;
+  status: 'ready' | 'warning' | 'critical' | 'missing';
+  occurred_at: string;
+  duration_ms: number;
+  probe_count: number;
+  failed_count: number;
+  benchmark?: MemoryCommandBenchmarkSummary | null;
+  embedding_model?: string | null;
+}
+
+export interface MemoryCommandDiagnosticHistoryResponse {
+  items: MemoryCommandDiagnosticHistoryItem[];
+}
+
+export interface MemoryCommandRepairExecutionResult {
+  plan_id: string;
+  status: 'completed' | 'blocked' | 'failed' | 'dry_run';
+  message: string;
+  audit_event_id?: string | null;
+  probe_run_id?: string | null;
+  changed: boolean;
+}
+
+export interface MemoryCommandRepairActionRequest {
+  plan_id:
+    | 'run_diagnostics'
+    | 'run_health_refresh'
+    | 'review_storage_config'
+    | 'enable_vector_store'
+    | 'configure_embedding'
+    | 'review_retrieval_trace'
+    | 'restore_disciplined_defaults'
+    | 'elevate_mislayered_memories';
+  mode?: 'dry_run' | 'execute';
+}
+
+export interface MemoryCommandRepairActionResponse {
+  result: MemoryCommandRepairExecutionResult;
+  run?: MemoryCommandDiagnosticRun | null;
+}
+
+export const getMemoryCommandCenter = async (
+  projectId?: string | null,
+  options?: { signal?: AbortSignal },
+): Promise<MemoryCommandCenterResponse> => {
+  const params = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
+  return apiRequest<MemoryCommandCenterResponse>(`/memory/command-center/${params}`, {
+    signal: options?.signal,
+  });
+};
+
+export const runMemoryCommandAction = async (
+  body: MemoryCommandActionRequest,
+): Promise<MemoryCommandActionResponse> => {
+  return apiRequest<MemoryCommandActionResponse>('/memory/command-center/actions', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
+export const getMemoryDiagnosticHistory = async (
+  limit = 24,
+  offset = 0,
+): Promise<MemoryCommandDiagnosticHistoryResponse> => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return apiRequest<MemoryCommandDiagnosticHistoryResponse>(
+    `/memory/command-center/diagnostics/history?${params.toString()}`,
+  );
+};
+
+export const getMemoryGraph = async (
+  limit = 50,
+  offset = 0,
+  namespace?: string,
+  asOfTime?: string,
+  includeSuperseded = false,
+): Promise<MemoryCommandGraphResponse> => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (namespace) {
+    params.set('namespace', namespace);
+  }
+  if (asOfTime) {
+    params.set('as_of_time', asOfTime);
+  }
+  if (includeSuperseded) {
+    params.set('include_superseded', 'true');
+  }
+  return apiRequest<MemoryCommandGraphResponse>(`/memory/command-center/graph?${params.toString()}`);
+};
+
+export const runMemoryDiagnosticRepair = async (
+  body: MemoryCommandRepairActionRequest,
+): Promise<MemoryCommandRepairActionResponse> => {
+  return apiRequest<MemoryCommandRepairActionResponse>('/memory/command-center/diagnostics/repairs', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
+export interface ConsolidationLastSummary {
+  available: boolean;
+  event_id?: string;
+  timestamp?: string;
+  summary?: string;
+  affected_ids?: string[];
+  affected_count?: number;
+  rollback_available?: boolean;
+  conflict_ids?: string[];
+}
+
+export interface ConsolidationRollbackResult {
+  rolled_back: number;
+  skipped_conflict: number;
+  errors: number;
+  conflict_ids: string[];
+}
+
+export const getConsolidationLastSummary = async (): Promise<ConsolidationLastSummary> => {
+  return apiRequest<ConsolidationLastSummary>('/memory/command-center/consolidation/last-summary');
+};
+
+export const rollbackConsolidation = async (): Promise<ConsolidationRollbackResult> => {
+  return apiRequest<ConsolidationRollbackResult>('/memory/command-center/consolidation/rollback', {
+    method: 'POST',
+  });
+};
+
+export interface MemoryRecallScopeBoundary {
+  level: string;
+  label: string;
+  is_active: boolean;
+  namespace_pattern: string;
+  description: string;
+}
+
+export interface MemoryFourPartitionSummary {
+  identity_count: number;
+  working_memory_count: number;
+  operating_instructions_count: number;
+  retrievable_evidence_count: number;
+  identity_chars: number;
+  working_memory_chars: number;
+  operating_instructions_chars: number;
+  retrievable_evidence_chars: number;
+}
+
+export interface MemoryCandidateRecord {
+  id: string;
+  memory_type: string;
+  content_preview: string;
+  confidence: number;
+  source: string;
+  created_at: string;
+  status: 'pending' | 'review_required';
+}
+
+export interface MemoryApprovedRecord {
+  id: string;
+  memory_type: string;
+  content_preview: string;
+  namespace: string;
+  partition: 'identity' | 'working_memory' | 'operating_instructions' | 'retrievable_evidence';
+  importance: number;
+  access_count: number;
+  char_count: number;
+  is_pinned: boolean;
+}
+
+export interface MemoryRecallBoundaryData {
+  agent_id?: string | null;
+  task_id?: string | null;
+  read_scopes: MemoryRecallScopeBoundary[];
+  write_policy: string;
+  partitions: MemoryFourPartitionSummary;
+  candidate_records: MemoryCandidateRecord[];
+  approved_records: MemoryApprovedRecord[];
+  budget_chars_used: number;
+  budget_chars_total: number;
+  budget_overflow_risk: 'safe' | 'approaching_limit' | 'overflow';
+  total_candidates: number;
+  total_approved: number;
+}
+
+export interface MemoryBehavioralInsights {
+  hour_histogram: number[];
+  workday_hour_histogram: number[];
+  weekend_hour_histogram: number[];
+  weekday_histogram: number[];
+  reply_latency_p50_ms?: number | null;
+  reply_latency_p90_ms?: number | null;
+  self_message_count: number;
+  latency_sample_count: number;
+  channel_distribution: Record<string, number>;
+  peak_active_window?: string | null;
+  workday_peak_window?: string | null;
+  weekend_peak_window?: string | null;
+  top_collaborators: [string, number][];
+  offset_minutes?: number | null;
+  detected_timezone?: string | null;
+  locale_anchor?: string | null;
+  source: string;
+}
+
+export const getBehavioralInsights = async (
+  lookbackDays: number = 30,
+  offsetMinutes?: number,
+  clientTimezone?: string,
+  localeAnchor?: string,
+): Promise<MemoryBehavioralInsights> => {
+  const params = new URLSearchParams({ lookback_days: String(lookbackDays) });
+  if (offsetMinutes !== undefined) {
+    params.set('offset_minutes', String(offsetMinutes));
+  } else if (typeof new Date().getTimezoneOffset === 'function') {
+    params.set('offset_minutes', String(-new Date().getTimezoneOffset()));
+  }
+
+  const tz =
+    clientTimezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined);
+  if (tz) {
+    params.set('client_timezone', tz);
+  }
+  if (localeAnchor) {
+    params.set('locale_anchor', localeAnchor);
+  }
+
+  return apiRequest<MemoryBehavioralInsights>(`/memory/command-center/behavioral-insights?${params.toString()}`);
+};
+
+export const triggerBehavioralSync = async (
+  lookbackDays: number = 30,
+): Promise<{ status: string; updated_profile_keys: string[]; count: number }> => {
+  return apiRequest<{ status: string; updated_profile_keys: string[]; count: number }>(
+    `/memory/command-center/behavioral-sync?lookback_days=${lookbackDays}`,
+    {
+      method: 'POST',
+    },
+  );
+};
+
+export interface MemoryEvidencePlaybackTurn {
+  message_id: string;
+  role: string;
+  sender_name?: string | null;
+  content: string;
+  sent_at: string;
+  is_target: boolean;
+  is_self?: boolean | null;
+}
+
+export interface MemoryEvidencePlaybackResponse {
+  status: 'live_context' | 'archived_snapshot' | 'not_found';
+  source_type: 'chat' | 'channel' | 'unknown';
+  source_id?: string | null;
+  target_message_id?: string | null;
+  channel?: string | null;
+  quote_snippet?: string | null;
+  author_name?: string | null;
+  author_id?: string | null;
+  occurred_at?: string | null;
+  turns: MemoryEvidencePlaybackTurn[];
+  is_user_locked: boolean;
+}
+
+export interface MemoryRepoCommitDigestItem {
+  commit_hash: string;
+  short_hash: string;
+  author: string;
+  committed_at: string;
+  subject: string;
+  files_changed: string[];
+}
+
+export interface MemoryRepoEvidenceResponse {
+  repo_name: string;
+  repo_path: string;
+  current_branch: string;
+  is_dirty: boolean;
+  recent_commits: MemoryRepoCommitDigestItem[];
+  total_commits_examined: number;
+  extracted_at: string;
+  is_git_available: boolean;
+}
+
+export const getRepoEvidenceDigest = async (
+  workspacePath?: string,
+  maxCommits: number = 5,
+): Promise<MemoryRepoEvidenceResponse> => {
+  const params = new URLSearchParams({ max_commits: String(maxCommits) });
+  if (workspacePath) {
+    params.set('workspace_path', workspacePath);
+  }
+  return apiRequest<MemoryRepoEvidenceResponse>(`/memory/command-center/repo-evidence/digest?${params.toString()}`);
+};
+
+export const getEvidencePlayback = async (params: {
+  source_id?: string | null;
+  message_id?: string | null;
+  channel_id?: string | null;
+  quote_snippet?: string | null;
+  author_id?: string | null;
+  author_name?: string | null;
+}): Promise<MemoryEvidencePlaybackResponse> => {
+  const query = new URLSearchParams();
+  if (params.source_id) {
+    query.set('source_id', params.source_id);
+  }
+  if (params.message_id) {
+    query.set('message_id', params.message_id);
+  }
+  if (params.channel_id) {
+    query.set('channel_id', params.channel_id);
+  }
+  if (params.quote_snippet) {
+    query.set('quote_snippet', params.quote_snippet);
+  }
+  if (params.author_id) {
+    query.set('author_id', params.author_id);
+  }
+  if (params.author_name) {
+    query.set('author_name', params.author_name);
+  }
+  const qStr = query.toString() ? `?${query.toString()}` : '';
+  return apiRequest<MemoryEvidencePlaybackResponse>(`/memory/command-center/evidence/playback${qStr}`);
+};
+
+export const getMemoryRecallBoundary = async (agentId?: string, taskId?: string): Promise<MemoryRecallBoundaryData> => {
+  const params = new URLSearchParams();
+  if (agentId) {
+    params.set('agent_id', agentId);
+  }
+  if (taskId) {
+    params.set('task_id', taskId);
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest<MemoryRecallBoundaryData>(`/memory/command-center/recall-boundary${query}`);
+};
+
+export const getMemoryEconomics = async (options?: {
+  sessionId?: string;
+  limitTurns?: number;
+}): Promise<MemoryCommandEconomicsDashboard> => {
+  const params = new URLSearchParams();
+  if (options?.sessionId) {
+    params.set('session_id', options.sessionId);
+  }
+  if (options?.limitTurns) {
+    params.set('limit_turns', String(options.limitTurns));
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest<MemoryCommandEconomicsDashboard>(`/memory/command-center/economics${query}`);
+};

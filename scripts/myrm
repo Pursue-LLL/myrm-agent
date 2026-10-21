@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# Myrm CLI — product lifecycle (OSS myrm-agent). Harness from PyPI via uv sync.
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=lib/resolve_agent_root.sh
+source "${SCRIPT_DIR}/lib/resolve_agent_root.sh"
+# shellcheck source=lib/server_sync_flags.sh
+source "${SCRIPT_DIR}/lib/server_sync_flags.sh"
+# shellcheck source=lib/start_server.sh
+source "${SCRIPT_DIR}/lib/start_server.sh"
+# shellcheck source=lib/cn_mirrors.sh
+source "${SCRIPT_DIR}/lib/cn_mirrors.sh"
+resolve_agent_paths "${PROJECT_ROOT}"
+
+COMPOSE_FILE="${SERVER_DIR}/docker-compose.yaml"
+MYRM_PROCESS_PATTERN='[m]yrm-agent-server/run.py|[m]yrm-agent-server/.venv.*run.py'
+
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m'
+BOLD='\033[1m'
+
+show_help() {
+    echo -e "${CYAN}${BOLD}MyrmAgent CLI${NC}"
+    echo "Usage: myrm <command>"
+    echo "  setup    First-time install (PyPI harness)"
+    echo "  dev      Backend only (:8080)"
+    echo "  start    Backend + frontend (:8080 + :3000)"
+    echo "  stop | status | update"
+    echo "  doctor   Browser & environment diagnostics"
+    echo "  searxng start | stop | status"
+}
+
+require_docker() {
+    command -v docker &>/dev/null || { echo -e "${RED}Docker required${NC}"; exit 1; }
+    [[ -f "$COMPOSE_FILE" ]] || { echo -e "${RED}Missing compose file${NC}"; exit 1; }
+}
+
+searxng_start() {
+    require_docker
+    (cd "$SERVER_DIR" && docker compose --profile search up -d)
+    echo -e "${GREEN}SearXNG: http://127.0.0.1:8081${NC}"
+}
+
+searxng_stop() {
+    require_docker
+    (cd "$SERVER_DIR" && docker compose --profile search down)
+}
+
+searxng_status() {
+    require_docker
+    (cd "$SERVER_DIR" && docker compose --profile search ps)
+}
+
+cd "$PROJECT_ROOT"
+COMMAND=${1:-}
+shift || true
+
+case "$COMMAND" in
+    setup)
+        exec "${SCRIPT_DIR}/dev/setup.sh"
+        ;;
+
+    dev)
+        exec "${SCRIPT_DIR}/dev/dev.sh" "$@"
+        ;;
+
+    start)
+        exec "${SCRIPT_DIR}/dev/start.sh"
+        ;;
+
+    stop)
+        DEV_STACK="${SCRIPT_DIR}/dev/dev-stack.sh"
+        SUPERVISOR="${SCRIPT_DIR}/dev/stack-supervisor.sh"
+        CHROME_E2E_CLI="${SCRIPT_DIR}/dev/chrome-e2e/myrm-chrome-e2e.sh"
+        if [[ -f "${CHROME_E2E_CLI}" ]]; then
+            bash "${CHROME_E2E_CLI}" stop >/dev/null 2>&1 || true
+        fi
+        if [[ -f "${DEV_STACK}" ]]; then
+            bash "${DEV_STACK}" reset
+            if [[ -f "${SUPERVISOR}" ]]; then
+                bash "${SUPERVISOR}" stop >/dev/null 2>&1 || true
+            fi
+            exit 0
+        fi
+        # shellcheck source=dev/lib/dev_state_paths.sh
+        source "${SCRIPT_DIR}/dev/lib/dev_state_paths.sh"
+        fe_pid="$(read_frontend_dev_pid 2>/dev/null || true)"
+        if [[ -n "${fe_pid}" ]]; then
+            kill "${fe_pid}" 2>/dev/null || true
+        fi
+        rm -f "$(dev_frontend_pid_file)"
+        rm -f "${FRONTEND_DIR}/.next/dev-server.lock"
+        be_pid="$(read_backend_dev_pid 2>/dev/null || true)"
+        if [[ -n "${be_pid}" ]]; then
+            _kill_pid_gracefully "${be_pid}"
+        fi
+        rm -f "$(dev_backend_pid_file)"
+        cleanup_legacy_dev_artifacts "${SERVER_DIR}" "${FRONTEND_DIR}"
+        prune_stale_isolated_next_dirs "${FRONTEND_DIR}"
+        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
+        if [[ -n "$pids" ]]; then
+            kill $pids 2>/dev/null || true
+            sleep 2
+            pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
+            [[ -n "$pids" ]] && kill -9 $pids 2>/dev/null || true
+        fi
+        ;;
+    status)
+        port="${PORT:-8080}"
+        health_url="http://127.0.0.1:${port}/api/v1/health"
+        if health_json="$(curl -sf "${health_url}" 2>/dev/null)"; then
+            if command -v python3 &>/dev/null; then
+                echo "${health_json}" | python3 -m json.tool
+            else
+                echo "${health_json}"
+            fi
+        else
+            echo -e "${RED}Backend not reachable at ${health_url}${NC}"
+            pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
+            [[ -n "$pids" ]] && echo "Stale process PIDs: $pids" || echo "No backend process found"
+        fi
+        ;;
+    update)
+        apply_cn_mirrors_if_needed
+        git pull --ff-only || { echo -e "${RED}git pull failed${NC}"; exit 1; }
+        (cd "$SERVER_DIR" && uv sync "${SERVER_UV_SYNC_FLAGS[@]}") || { echo -e "${RED}Backend sync failed${NC}"; exit 1; }
+        (cd "$SERVER_DIR" && uv run patchright install chromium 2>/dev/null || true)
+        (cd "$FRONTEND_DIR" && bun install && bun run build) || { echo -e "${RED}Frontend build failed${NC}"; exit 1; }
+        echo -e "${GREEN}Update complete.${NC}"
+        ;;
+    doctor)
+        _py="${SERVER_DIR}/.venv/bin/python"
+        [[ -x "$_py" ]] || { echo -e "${RED}.venv not found. Run: myrm setup${NC}"; exit 1; }
+        "$_py" -c "import asyncio; from myrm_agent_harness.toolkits.browser.doctor import run_doctor, format_report; r = asyncio.run(run_doctor()); print(format_report(r)); exit(0 if r.overall_healthy else 1)"
+        ;;
+    searxng)
+        SUBCMD=${1:-}
+        case "$SUBCMD" in
+            start) searxng_start ;;
+            stop) searxng_stop ;;
+            status) searxng_status ;;
+            *) show_help; exit 1 ;;
+        esac
+        ;;
+    ""|help|-h|--help) show_help ;;
+    *) show_help; exit 1 ;;
+esac

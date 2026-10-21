@@ -1,0 +1,579 @@
+"""Supplemental UI locales (ja/de/ko) for cron blueprint catalog fields.
+
+Merged into ``BUILTIN_BLUEPRINTS`` at import time so the ``/cron/blueprints`` API
+serves five-locale title/description/prompt_template without duplicating en/zh in
+this file.
+
+[POS]
+ja/de/ko supplemental strings for cron blueprint SSOT.
+"""
+
+from __future__ import annotations
+
+from typing import TypedDict
+
+
+class BlueprintLocaleSupplement(TypedDict):
+    title: dict[str, str]
+    description: dict[str, str]
+    prompt_template: dict[str, str]
+
+
+BLUEPRINT_UI_LOCALES: tuple[str, ...] = ("en", "zh", "ja", "de", "ko")
+
+SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
+    "morning_briefing": {
+        "title": {
+            "ja": "モーニングブリーフィング",
+            "de": "Morgen-Briefing",
+            "ko": "모닝 브리핑",
+        },
+        "description": {
+            "ja": "ニュース、天気、予定のデイリーダイジェスト",
+            "de": "Tägliche Zusammenfassung von Nachrichten, Wetter und Terminen",
+            "ko": "뉴스, 날씨, 일정 하이라이트 데일리 다이제스트",
+        },
+        "prompt_template": {
+            "ja": (
+                "簡潔なモーニングブリーフィングを提供してください：重要ニュースの見出し、"
+                "天気の見通し、今日の重要なリマインダー。短く実行可能に。"
+            ),
+            "de": (
+                "Erstelle ein kompaktes Morgen-Briefing: wichtige Schlagzeilen, "
+                "Wetterausblick und wichtige Erinnerungen für heute. Kurz und umsetzbar."
+            ),
+            "ko": ("간결한 모닝 브리핑을 제공하세요: 주요 뉴스 헤드라인, 날씨 전망, 오늘의 중요 알림. 짧고 실행 가능하게."),
+        },
+    },
+    "weekly_review": {
+        "title": {
+            "ja": "週次レビュー",
+            "de": "Wochenrückblick",
+            "ko": "주간 리뷰",
+        },
+        "description": {
+            "ja": "週末の成果まとめと来週の計画",
+            "de": "Wochenend-Zusammenfassung mit Erfolgen und Plänen",
+            "ko": "주말 성과 요약 및 다음 주 계획",
+        },
+        "prompt_template": {
+            "ja": ("包括的な週次レビューを実施：今週の主要な成果、直面した障害や課題、来週の優先事項の提案。カテゴリ別に整理。"),
+            "de": (
+                "Führe einen umfassenden Wochenrückblick durch: wichtige Erfolge, "
+                "Blocker oder Herausforderungen, Prioritäten für die kommende Woche. "
+                "Nach Kategorien ordnen."
+            ),
+            "ko": (
+                "포괄적인 주간 리뷰를 진행하세요: 주요 성과, 직면한 장애물이나 과제, 다음 주 우선순위 제안. 카테고리별로 정리."
+            ),
+        },
+    },
+    "custom_reminder": {
+        "title": {
+            "ja": "カスタムリマインダー",
+            "de": "Eigene Erinnerung",
+            "ko": "맞춤 알림",
+        },
+        "description": {
+            "ja": "パーソナライズされたメッセージの日次リマインダー",
+            "de": "Tägliche Erinnerung mit persönlicher Nachricht",
+            "ko": "개인화된 메시지로 매일 알림",
+        },
+        "prompt_template": {
+            "ja": "リマインド：{message}",
+            "de": "Erinnere mich: {message}",
+            "ko": "알림: {message}",
+        },
+    },
+    "news_digest": {
+        "title": {
+            "ja": "ニュースダイジェスト",
+            "de": "Nachrichtenübersicht",
+            "ko": "뉴스 다이제스트",
+        },
+        "description": {
+            "ja": "選択したトピックの厳選ニュースまとめ",
+            "de": "Kuratierte Nachrichtenzusammenfassung zum gewählten Thema",
+            "ko": "선택한 주제의 큐레이션된 뉴스 요약",
+        },
+        "prompt_template": {
+            "ja": (
+                "「{topic}」に関する最新ニュースと動向を検索し、簡潔なダイジェストを作成。"
+                "3〜5件の要点と短い要約を含め、速報と重要な進展を優先。"
+            ),
+            "de": (
+                "Suche im Web und erstelle eine kompakte Übersicht der neuesten Nachrichten "
+                "zu: {topic}. 3–5 Kernpunkte mit kurzen Zusammenfassungen. "
+                "Breaking News und wichtige Entwicklungen priorisieren."
+            ),
+            "ko": (
+                "웹에서 {topic}에 관한 최신 뉴스와 동향을 검색해 간결한 다이제스트를 작성하세요. "
+                "3–5개 핵심 항목과 짧은 요약 포함. 속보와 중요 진전 우선."
+            ),
+        },
+    },
+    "evening_winddown": {
+        "title": {
+            "ja": "イブニング振り返り",
+            "de": "Abend-Rückblick",
+            "ko": "저녁 회고",
+        },
+        "description": {
+            "ja": "一日の振り返りとリラクゼーション提案",
+            "de": "Tagesrückblick und Entspannungsvorschläge",
+            "ko": "하루 리뷰 및 휴식 제안",
+        },
+        "prompt_template": {
+            "ja": (
+                "穏やかなイブニングサマリーを提供：今日のハイライトの簡潔な振り返り、"
+                "明日の予定と優先事項のプレビュー、リラックスのヒントや励ましの一言。"
+            ),
+            "de": (
+                "Gib eine beruhigende Abendzusammenfassung: kurze Highlights des Tages, "
+                "Vorschau auf morgen, Entspannungstipp oder inspirierender Gedanke."
+            ),
+            "ko": (
+                "차분한 저녁 요약을 제공하세요: 오늘 하이라이트 간략 회고, "
+                "내일 일정과 우선순위 미리보기, 휴식 팁이나 격려 한마디."
+            ),
+        },
+    },
+    "local_health_check": {
+        "title": {
+            "ja": "ローカルヘルスチェック",
+            "de": "Lokaler Gesundheitscheck",
+            "ko": "로컬 상태 점검",
+        },
+        "description": {
+            "ja": "CPU・メモリ・ディスクの状態を監視",
+            "de": "Überwacht CPU, Speicher und Festplattenstatus",
+            "ko": "CPU, 메모리, 디스크 상태 모니터링",
+        },
+        "prompt_template": {
+            "ja": (
+                "システムの健康状態を確認し、CPU・メモリ・ディスクと異常サービスを報告。注意が必要な問題のみ——正常なら簡潔に。"
+            ),
+            "de": (
+                "Prüfe den aktuellen Systemzustand. Melde CPU-, Speicher- und "
+                "Festplattenauslastung sowie nicht gesunde Dienste. "
+                "Bei normalem Zustand kurz halten."
+            ),
+            "ko": (
+                "현재 시스템 상태를 확인하세요. CPU, 메모리, 디스크 사용량과 비정상 서비스를 보고하세요. 정상이면 간단히 요약."
+            ),
+        },
+    },
+    "competitor_watch": {
+        "title": {
+            "ja": "競合ウォッチ",
+            "de": "Wettbewerber-Monitoring",
+            "ko": "경쟁사 모니터링",
+        },
+        "description": {
+            "ja": "競合のニュースと製品更新を毎週追跡",
+            "de": "Wöchentliche Nachrichten und Produktupdates von Wettbewerbern",
+            "ko": "경쟁사 뉴스와 제품 업데이트를 주간 추적",
+        },
+        "prompt_template": {
+            "ja": (
+                "次の競合の最新ニュース・製品更新・発表を検索：{competitors}。"
+                "新機能、価格変更、提携、資金調達、注目ブログを含む簡潔な競合ブリーフィング。"
+                "戦略に影響しうる項目を強調。"
+            ),
+            "de": (
+                "Suche im Web nach neuesten Nachrichten und Produktupdates von: {competitors}. "
+                "Kurzes Wettbewerbsbriefing mit Features, Preisen, Partnerschaften, "
+                "Finanzierung und Blogs. Strategisch relevante Punkte hervorheben."
+            ),
+            "ko": (
+                "다음 경쟁사의 최신 뉴스, 제품 업데이트, 발표를 검색하세요: {competitors}. "
+                "신기능, 가격 변경, 파트너십, 투자, 주목 블로그를 포함한 간결한 브리핑. "
+                "전략에 영향을 줄 항목 강조."
+            ),
+        },
+    },
+    "habit_checkin": {
+        "title": {
+            "ja": "習慣チェックイン",
+            "de": "Gewohnheits-Check-in",
+            "ko": "습관 체크인",
+        },
+        "description": {
+            "ja": "習慣とルーティンの毎日の記録リマインダー",
+            "de": "Tägliche Erinnerung, Gewohnheiten und Routinen zu tracken",
+            "ko": "습관과 루틴을 매일 기록하도록 알림",
+        },
+        "prompt_template": {
+            "ja": (
+                "毎日の習慣チェックインです。{habits} の進捗を確認し、"
+                "励ましと継続記録をお願いします。漏れがあれば優しくリマインド。"
+            ),
+            "de": (
+                "Zeit für den täglichen Gewohnheits-Check-in! Frage nach Fortschritt bei: "
+                "{habits}. Ermutigung und Serie verfolgen. Bei Lücken sanft erinnern."
+            ),
+            "ko": (
+                "매일 습관 체크인 시간입니다. {habits} 진행 상황을 물어보고 "
+                "격려와 연속 기록을 추적하세요. 누락 시 부드럽게 알려주세요."
+            ),
+        },
+    },
+    "learn_daily": {
+        "title": {
+            "ja": "毎日の学習",
+            "de": "Tägliches Lernen",
+            "ko": "매일 학습",
+        },
+        "description": {
+            "ja": "毎日キュレーションされた学習トピックを配信",
+            "de": "Täglich ein kuratiertes Lernthema erhalten",
+            "ko": "매일 큐레이션된 학습 주제 제공",
+        },
+        "prompt_template": {
+            "ja": ("{subject} について有益な内容を2–3段落で教え、実践例を含めてください。分かりやすく、かつ浅薄でない説明に。"),
+            "de": (
+                "Bringe etwas Nützliches über: {subject}. Ein Konzept in 2–3 Absätzen "
+                "mit praktischem Beispiel. Zugänglich, aber nicht oberflächlich."
+            ),
+            "ko": (
+                "{subject}에 대해 유익한 내용을 2–3문단으로 설명하고 실용 예시를 포함하세요. 이해하기 쉽지만 피상적이지 않게."
+            ),
+        },
+    },
+    "social_media_watch": {
+        "title": {
+            "ja": "ソーシャルメディア監視",
+            "de": "Social-Media-Monitoring",
+            "ko": "소셜 미디어 모니터링",
+        },
+        "description": {
+            "ja": "ブランド言及・感情変化・トレンドを監視",
+            "de": "Markenerwähnungen, Stimmungswechsel und Trends überwachen",
+            "ko": "브랜드 언급, 감성 변화, 트렌드 추적",
+        },
+        "prompt_template": {
+            "ja": (
+                "プラットフォーム {platforms} で {brand} の言及を監視。キーワード {keywords}。"
+                "過去24時間の投稿を収集し、感情分類・トレンド検出・構造化レポートを作成。"
+                "即時対応が必要な強いネガティブをフラグ。"
+            ),
+            "de": (
+                "Überwache Plattformen {platforms} auf Erwähnungen von: {brand}. "
+                "Schlüsselwörter: {keywords}. Posts der letzten 24h sammeln, "
+                "Sentiment klassifizieren, Trends erkennen, strukturierten Bericht erstellen. "
+                "Starke Negative sofort markieren."
+            ),
+            "ko": (
+                "플랫폼 {platforms}에서 {brand} 언급을 모니터링하세요. 키워드: {keywords}. "
+                "최근 24시간 게시물 수집, 감성 분류, 트렌드 감지, 구조화 보고서 작성. "
+                "즉시 대응이 필요한 강한 부정 게시물 표시."
+            ),
+        },
+    },
+    "financial_monitor_simple": {
+        "title": {
+            "ja": "金融モニター（シンプル）",
+            "de": "Finanz-Monitor (Einfach)",
+            "ko": "금융 모니터 (심플)",
+        },
+        "description": {
+            "ja": "Python 事前プローブで動くゼロLLMしきい値アラート",
+            "de": "Zero-LLM-Schwellwertalarm mit Python-Preflight-Probe",
+            "ko": "Python 사전 점검으로 동작하는 제로 LLM 임계치 알림",
+        },
+        "prompt_template": {
+            "ja": (
+                "このジョブは router モードです。事前プローブ出力を最終メッセージとしてそのまま配信します。"
+                "プローブが [SKIP] を出した場合は通知しません。"
+            ),
+            "de": (
+                "Dieser Job läuft im Router-Modus. Nutze die Ausgabe der Preflight-Probe "
+                "als finale Nachricht. Wenn die Probe [SKIP] ausgibt, bleibe still."
+            ),
+            "ko": (
+                "이 작업은 router 모드로 실행됩니다. 사전 점검 출력값을 최종 메시지로 그대로 전달합니다. "
+                "프로브가 [SKIP]를 출력하면 알림을 보내지 않습니다."
+            ),
+        },
+    },
+    "financial_monitor_advanced": {
+        "title": {
+            "ja": "金融モニター（アドバンスド）",
+            "de": "Finanz-Monitor (Erweitert)",
+            "ko": "금융 모니터 (고급)",
+        },
+        "description": {
+            "ja": "重複抑制・増分監視・障害アラート付きの複合シグナル監視",
+            "de": "Multi-Signal-Finanzüberwachung mit Dedupe, Baseline-Monitoring und Fehleralarm",
+            "ko": "중복 억제·증분 모니터링·실패 알림을 포함한 멀티 시그널 금융 모니터링",
+        },
+        "prompt_template": {
+            "ja": (
+                "次の資産を継続監視：{watchlist}。"
+                "価格、デリバティブ/資金調達、センチメント（X/ニュース）、マクロ、オンチェーン資金流を評価。"
+                "次の条件 {signal_rules} に対して、独立したリスク信号が2つ以上一致したときのみアラート。"
+                "ポートフォリオ文脈：{portfolio_context}。"
+                "実行可能な変化がなければ必ず [SILENT] のみを返す。"
+            ),
+            "de": (
+                "Überwache diese Assets kontinuierlich: {watchlist}. "
+                "Bewerte Preisverhalten, Derivate/Funding, Stimmung (X + News), Makro-Katalysatoren "
+                "und On-Chain-Flow-Proxys. Alarme nur, wenn mindestens zwei unabhängige "
+                "Risikosignale mit {signal_rules} übereinstimmen. "
+                "Portfolio-Kontext: {portfolio_context}. "
+                "Wenn keine umsetzbare Änderung vorliegt, antworte exakt mit [SILENT]."
+            ),
+            "ko": (
+                "다음 자산을 지속 모니터링하세요: {watchlist}. "
+                "가격 흐름, 파생/펀딩, 감성(X+뉴스), 거시 촉매, 온체인 자금 흐름을 함께 평가합니다. "
+                "{signal_rules} 기준과 독립된 리스크 신호 2개 이상이 동시에 맞을 때만 알림합니다. "
+                "포트폴리오 컨텍스트: {portfolio_context}. "
+                "실행 가능한 변화가 없으면 반드시 [SILENT]만 반환하세요."
+            ),
+        },
+    },
+    "read_it_later": {
+        "title": {
+            "ja": "後で読む取り込み",
+            "de": "Später-lesen-Erfassung",
+            "ko": "나중에 읽기 수집",
+        },
+        "description": {
+            "ja": "保存記事を毎日ナレッジベースに自動取り込み",
+            "de": "Gespeicherte Artikel täglich in die Wissensbasis übernehmen",
+            "ko": "저장한 기사를 매일 지식 베이스에 자동 수집",
+        },
+        "prompt_template": {
+            "ja": (
+                "後で読むパイプラインを実行：未処理項目を取得し Wiki に取り込み、処理済みタグを付与。既処理はスキップ。最大10件。"
+            ),
+            "de": (
+                "Führe die Später-lesen-Pipeline aus: unverarbeitete Einträge holen, "
+                "ins Wiki übernehmen, als verarbeitet markieren. Bereits verarbeitete "
+                "überspringen. Max. 10 pro Lauf."
+            ),
+            "ko": (
+                "나중에 읽기 파이프라인 실행: 미처리 항목을 가져와 위키에 수집하고 "
+                "처리 완료 태그를 붙이세요. 처리된 항목은 건너뛰기. 실행당 최대 10개."
+            ),
+        },
+    },
+    "wiki_morning_delta": {
+        "title": {
+            "ja": "Wiki 朝のデルタ",
+            "de": "Wiki-Morgen-Delta",
+            "ko": "위키 모닝 델타",
+        },
+        "description": {
+            "ja": "新規 raw ノートを整理し、Vault の変更を短く要約",
+            "de": "Neue Raw-Notizen ordnen und Vault-Änderungen kurz zusammenfassen",
+            "ko": "새 raw 노트를 정리하고 vault 변경을 짧게 요약",
+        },
+        "prompt_template": {
+            "ja": (
+                "過去24時間の Wiki 朝次ルーチンを実行：raw/ の新規・更新ファイルを確認し、"
+                "wiki_query_tool で関連概念を調べ、必要時のみ wiki_apply_tool で軽微更新。"
+                "Vault の変化を最大3行で要約。実質的な変化がなければ [SILENT] のみ。"
+            ),
+            "de": (
+                "Führe die Wiki-Morgen-Delta-Routine der letzten 24 Stunden aus: "
+                "prüfe raw/ auf neue oder aktualisierte Dateien, nutze wiki_query_tool, "
+                "wiki_apply_tool nur bei klarem Bedarf. Fasse Vault-Änderungen in "
+                "max. 3 Zeilen zusammen. Ohne relevante Änderung nur [SILENT]."
+            ),
+            "ko": (
+                "지난 24시간 위키 모닝 델타 루틴 실행: raw/ 신규·갱신 파일 확인, "
+                "wiki_query_tool로 관련 개념 조회, 필요할 때만 wiki_apply_tool로 경미 업데이트. "
+                "vault 변화를 최대 3줄로 요약. 실질 변화 없으면 [SILENT]만 반환."
+            ),
+        },
+    },
+    "wiki_maintain": {
+        "title": {
+            "ja": "Wiki 自動メンテ",
+            "de": "Wiki-Wartung",
+            "ko": "위키 자동 유지보수",
+        },
+        "description": {
+            "ja": "断链・stale raw・vault 衛生の定期構造 lint と自動修復",
+            "de": "Geplante strukturelle Lint- und Auto-Reparatur für Links, stale Raw und Vault-Hygiene",
+            "ko": "깨진 링크, stale raw, vault 위생을 위한 정기 구조 lint 및 자동 복구",
+        },
+        "prompt_template": {
+            "ja": ("Wiki メンテ job（router モード）。サーバー生成の要約をそのまま配信。変更がなければ [SILENT] のみ。"),
+            "de": (
+                "Wiki-Wartungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
+                "Bei keiner Änderung nur [SILENT]."
+            ),
+            "ko": ("위키 유지보수 작업(router モード). 서버 요약을 그대로 전달. 변경 없으면 [SILENT]만 반환."),
+        },
+    },
+    "wiki_vault_weekly_health": {
+        "title": {
+            "ja": "Wiki 週次健全性チェック（リストのみ）",
+            "de": "Wöchentliche Wiki-Gesundheitsprüfung (Nur Liste)",
+            "ko": "위키 주간 건강 점검 (목록 전용)",
+        },
+        "description": {
+            "ja": "毎週日曜日に Wiki を読み取り専用で巡回し、壊れたリンクや古い情報の一覧を生成（自動変更なし）",
+            "de": "Wöchentliche schreibgeschützte Prüfung auf defekte Links und veraltete Quellen ohne automatische Änderungen",
+            "ko": "매주 일요일 읽기 전용으로 위키를 점검하여 깨진 링크/오래된 사실 목록 생성 (자동 수정 없음)",
+        },
+        "prompt_template": {
+            "ja": ("Wiki 健全性チェックジョブ（router モード、リストのみ）。サーバー生成のリストをそのまま配信。"),
+            "de": ("Wiki-Gesundheitsprüfungsjob (Router-Modus, nur Liste). Server-Liste direkt ausliefern."),
+            "ko": ("위키 건강 점검 작업(router 모드, 목록 전용). 서버 생성 목록을 그대로 전달."),
+        },
+    },
+    "daily_review_compounding": {
+        "title": {
+            "ja": "デイリーレビューの知識化",
+            "de": "Tagesreview-Veredelung",
+            "ko": "일일 회고 지식화",
+        },
+        "description": {
+            "ja": "当日のデイリーレビューを Projects/Knowledge/Methods/Comparisons の四次元ドラフトに編訳し、人間レビュー待ちに",
+            "de": "Tagesreviews abends zu vierdimensionalen Wissensentwürfen (Projekte/Wissen/Methoden/Vergleiche) verdichten, wartend auf Prüfung",
+            "ko": "당일 회고를 프로젝트/지식/방법/비교 4차원 지식 초안으로 편찬하여 인간 검토 대기",
+        },
+        "prompt_template": {
+            "ja": ("デイリーレビュー知識化ジョブ（router モード）。サーバー生成の要約をそのまま配信。入力がなければ [SILENT] のみ。"),
+            "de": (
+                "Tagesreview-Veredelungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
+                "Ohne Eingabe nur [SILENT]."
+            ),
+            "ko": ("일일 회고 지식화 작업(router 모드). 서버 요약을 그대로 전달. 입력이 없으면 [SILENT]만 반환."),
+        },
+    },
+    "wiki_corpus_dedup": {
+        "title": {
+            "ja": "Wiki コーパス重複スキャン",
+            "de": "Wiki-Korpus-Duplikat-Scan",
+            "ko": "위키 코퍼스 중복 스캔",
+        },
+        "description": {
+            "ja": "raw ソースの完全/正規化/近似重複を定期スキャンし、レビュー待ちキューに書き込み",
+            "de": "Geplanter Scan auf exakte, normalisierte und annähernde Duplikate mit Review-Warteschlange",
+            "ko": "raw 소스의 정확/정규화/유사 중복을 정기 스캔하여 검토 대기열에 등록",
+        },
+        "prompt_template": {
+            "ja": (
+                "Wiki コーパス重複排除ジョブ（router モード）。サーバー生成の要約をそのまま配信。"
+                "レビュー対象がなければ [SILENT] のみ。"
+            ),
+            "de": (
+                "Wiki-Korpus-Deduplizierungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
+                "Bei keinen Duplikatgruppen nur [SILENT]."
+            ),
+            "ko": (
+                "위키 코퍼스 중복 제거 작업(router 모드). 서버 요약을 그대로 전달. 검토 대상 중복 그룹 없으면 [SILENT]만 반환."
+            ),
+        },
+    },
+    "seo_weekly_audit": {
+        "title": {
+            "ja": "SEO とサイト健全性の週次監査",
+            "de": "Wöchentliches SEO- & Website-Gesundheitsaudit",
+            "ko": "SEO 및 사이트 상태 주간 감사",
+        },
+        "description": {
+            "ja": "テクニカルSEO、robots、sitemap、メタタグ、AI検索準備状況の定期監査と優先ロードマップ生成",
+            "de": "Regelmäßiges Audit für technisches SEO, robots, sitemap, Meta-Tags und KI-Suchbereitschaft mit Roadmap",
+            "ko": "기술적 SEO, robots, sitemap, 메타 태그 및 AI 검색 준비 상태 정기 감사 및 로드맵 생성",
+        },
+        "prompt_template": {
+            "ja": (
+                "{target_url}（深さ: {depth}）のテクニカルSEOおよびサイト健全性の包括的な監査を実行してください。\n"
+                "1. robots.txt、sitemap.xml、/llms.txt を取得して検証。\n"
+                "2. 主要なレンダリング済みページで title、meta description、canonical、H1、JSON-LD、OpenGraph、hreflang を検査。\n"
+                "3. 内部リンク切れや画像の alt 属性の有無をサンプリング確認。\n"
+                "4. 証拠付きの優先度 P0-P3 SEO-OPTIMIZATION-ROADMAP.md アーティファクトを artifacts/ に生成。\n"
+                "5. 重要な課題と実行可能な次のステップをまとめたエグゼクティブサマリーを提示。"
+            ),
+            "de": (
+                "Führe ein umfassendes technisches SEO- und Website-Gesundheitsaudit für {target_url} (Tiefe: {depth}) durch.\n"
+                "1. robots.txt, sitemap.xml und /llms.txt abrufen und überprüfen.\n"
+                "2. Wichtige Seiten auf Title, Meta Description, Canonical, H1, JSON-LD, OpenGraph und hreflang prüfen.\n"
+                "3. Auf defekte interne Links und fehlende Alt-Texte bei Bildern prüfen.\n"
+                "4. Ein priorisiertes P0-P3 SEO-OPTIMIZATION-ROADMAP.md-Artefakt in artifacts/ mit Nachweisen erstellen.\n"
+                "5. Eine prägnante Zusammenfassung der kritischen Punkte und nächsten Schritte liefern."
+            ),
+            "ko": (
+                "{target_url}(깊이: {depth})에 대한 종합적인 기술적 SEO 및 사이트 상태 감사를 실행하세요.\n"
+                "1. robots.txt, sitemap.xml 및 /llms.txt를 확인 및 검증.\n"
+                "2. 주요 렌더링 페이지의 title, meta description, canonical, H1, JSON-LD, OpenGraph, hreflang 검사.\n"
+                "3. 내부 깨진 링크 및 이미지 alt 태그 누락 샘플링 검사.\n"
+                "4. 실제 증거가 포함된 P0-P3 우선순위 SEO-OPTIMIZATION-ROADMAP.md 아티팩트를 artifacts/에 생성.\n"
+                "5. 핵심 문제점과 실행 가능한 다음 조치를 담은 요약 보고서 제공."
+            ),
+        },
+    },
+    "viral_quote_discovery": {
+        "title": {
+            "ja": "バイラル金句＆フック発掘",
+            "de": "Virale Zitate & Hooks entdecken",
+            "ko": "바이럴 문구 및 훅 발굴",
+        },
+        "description": {
+            "ja": "SNSと業界ブログを毎日巡回し、拡散力の高いフック、反常識論調、金句を発掘",
+            "de": "Tägliche Überwachung von sozialen Netzwerken und Branchenblogs zur Gewinnung viraler Hooks, Kontra-Argumente und Zitate",
+            "ko": "소셜 네트워크와 업계 블로그를 매일 순회하며 바이럴 훅, 반합의 논조, 문구를 발굴",
+        },
+        "prompt_template": {
+            "ja": (
+                "テーマ【{topic}】のバイラル金句＆フック発掘を、対象チャネル（{channels}）で実行してください。\n"
+                "1. 過去24〜48時間の人気議論から高エンゲージメント投稿を検索。\n"
+                "2. 反直感的な洞察や強い感情的反響を備えた金句候補トップ5を抽出。\n"
+                "3. 各金句がなぜ機能するかを分解（フック公式、刺さった痛点、読者の反応）。\n"
+                "4. Xスレッド、小紅書ノート、WeChatレター向けの派生アイデアを設計。\n"
+                "5. 厳選した金句を `docs/marketing/viral_quotes_{topic}.md` に保存し、最有力候補を要約。"
+            ),
+            "de": (
+                "Führe die Entdeckung viraler Zitate und Gold-Hooks für Thema {topic} über die Zielkanäle {channels} durch.\n"
+                "1. Suche aktuelle populäre Diskussionen (letzte 24-48 Stunden) nach Beiträgen mit hoher Interaktion.\n"
+                "2. Extrahiere die Top-5-Kandidaten mit kontraintuitiven Einblicken oder starker emotionaler Resonanz.\n"
+                "3. Dekonstruiere, warum jedes Zitat funktioniert (Hook-Formel, adressierter Schmerzpunkt, Publikumsreaktion).\n"
+                "4. Synthese angepasster Derivatideen für X-Threads, Xiaohongshu-Notes und WeChat-Newsletter.\n"
+                "5. Speichere die kuratierten Zitate in `docs/marketing/viral_quotes_{topic}.md` und fasse den Top-Kandidaten zusammen."
+            ),
+            "ko": (
+                "주제 {topic}에 대한 바이럴 문구 및 골든 훅 발굴을 대상 채널 {channels}에서 실행하세요.\n"
+                "1. 최근 24-48시간 인기 논의에서 높은 반응을 얻은 게시물 검색.\n"
+                "2. 반직관적 통찰이나 강렬한 정서적 울림을 지닌 문구 후보 Top 5 추출.\n"
+                "3. 각 문구가 작동하는 이유 해부(훅 공식, 겨냥한 페인포인트, 독자 반응).\n"
+                "4. X 스레드, 샤오홍슈 노트, 위챗 뉴스레터용 파생 아이디어 설계.\n"
+                "5. 엄선한 문구를 `docs/marketing/viral_quotes_{topic}.md`에 저장하고 최고 후보 요약."
+            ),
+        },
+    },
+    "commerce_morning_digest": {
+        "title": {
+            "ja": "店舗運営モーニングダイジェスト",
+            "de": "Täglicher Commerce-Morgen-Digest",
+            "ko": "상점 운영 모닝 다이제스트",
+        },
+        "description": {
+            "ja": "GMV・コンバージョン率・在庫切れリスク・段階的値下げ提案を分析する自動モーニングブリーフィング",
+            "de": "Automatisiertes Morgen-Briefing mit Analyse von GMV, Konversionsraten, Lieferrisiken und gestuften Preisanpassungen",
+            "ko": "GMV, 전환율, 품절 위험, 단계적 가격 조정 제안을 분석하는 자동 모닝 브리핑",
+        },
+        "prompt_template": {
+            "ja": (
+                "店舗「{store_name}」の本日運営モーニングダイジェストを作成：前日のGMV、注文件数、"
+                "コンバージョン率の変動、在庫健全性を分析。深刻な在庫切れ警報と承認待ちの段階的価格変更を強調し、"
+                "優先度付きの対応提案を提示してください。"
+            ),
+            "de": (
+                "Erstelle den morgendlichen Commerce-Digest für den Laden '{store_name}': Analysiere GMV, "
+                "Bestellvolumen, Konversionsrate und Lagerbestand des Vortags. Hebe kritische Lückenbestände und "
+                "ausstehende gestufte Preisänderungen hervor, die eine Freigabe erfordern, und gib priorisierte "
+                "Handlungsempfehlungen."
+            ),
+            "ko": (
+                "상점 '{store_name}'의 오늘 운영 모닝 다이제스트를 생성하세요: 전일 GMV, 주문량, 전환율 변동 및 "
+                "재고 건강도를 분석하고, 심각한 품절 경고와 승인 대기 중인 단계적 가격 변경을 강조하며, "
+                "우선순위가 있는 조치 권고를 제공하세요."
+            ),
+        },
+    },
+}

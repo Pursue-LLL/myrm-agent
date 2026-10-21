@@ -1,0 +1,356 @@
+# MyrmAgent 服务端架构
+
+> **许可**: MIT。单机业务编排与 API 层（本仓库）。
+
+> 🔄 **AI 自维护规则**（必读）：任何功能、架构、写法更新后，必须更新相关目录的子文档。
+
+---
+
+## 分形文档系统规范
+
+本项目采用**分形自指文档系统**，实现局部与整体的双向绑定。
+
+### 规则一：文件夹架构文档
+
+每个文件夹必须包含 `_ARCH.md`（不使用 README.md），格式如下：
+
+```markdown
+# {文件夹路径} 模块架构
+
+{三行以内的极简架构说明}
+
+## 文件清单
+
+| 文件   | 地位     | 职责   | I/O/P |
+| ------ | -------- | ------ | ----- |
+| xxx.py | 核心入口 | 做什么 | ✅    |
+```
+
+### 规则二：文件头注释
+
+每个 Python 文件开头必须包含三行极简注释：
+
+```python
+"""
+@input: 依赖 {其他文件的 Pos 描述}
+@output: 对外提供 {什么能力}
+@pos: {在系统中的地位}
+
+🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
+"""
+```
+
+### 规则三：语义链接网络
+
+在 `@input` 中直接引用其他文件的 `@pos` 描述，形成横向连接。
+
+**示例**：
+
+```python
+"""
+@input: 依赖 sandbox_executor.py 的「沙箱执行引擎」，依赖 llm.py 的「LLM 调用层」
+@output: 对外提供代码执行工具
+@pos: 代码执行元工具
+"""
+```
+
+---
+
+## 系统全景
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         MyrmAgent                               │
+├──────────────────────────────────────────────────────────────────┤
+│  app/                                                            │
+│  ├── api/           HTTP 接口层 - FastAPI 路由与请求处理         │
+│  ├── schemas/       共享 Pydantic DTO（api + services 共用）   │
+│  ├── services/      业务服务层 - 按域组织(agent/chat/wiki/...)   │
+│  ├── ai_agents/     AI Agent 定义层 - Agent 配置、Prompt、工作流 │
+│  ├── channels/      渠道消息层 - 多平台IM渠道框架(14+提供商)     │
+│  ├── core/          核心基础设施 - 安全/Cron/检索/监控/工具/infra│
+│  ├── adapters/      适配器层 - 框架 Protocol 的业务实现          │
+│  ├── database/      数据层 - ORM/DTO/连接池 + Repository 仓储隔离层 │
+│  ├── middleware/     中间件层 - 认证/安全/限流/文本清洗           │
+│  ├── platform_utils/ 平台抽象层 - 本地/沙箱模式差异化实现       │
+│  ├── tasks/         后台任务 - 异步任务执行器与调度              │
+│  └── config/        配置层 - 环境变量、设置、部署模式            │
+├──────────────────────────────────────────────────────────────────┤
+│  支撑模块                                                        │
+│  ├── scripts/         运维脚本（部署、CLI）                      │
+│  └── tests/           测试套件                                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 一级目录说明
+
+| 目录                  | Pos（地位）  | 职责                                                                                                                             |
+| --------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `app/api/`            | HTTP 入口层  | FastAPI 路由、请求/响应处理、WebSocket                                                                                           |
+| `app/services/`       | 业务服务层   | 按业务域组织（agent/chat/wiki/config/skills/memory/...）                                                                         |
+| `app/ai_agents/`      | Agent 定义层 | AI Agent 配置、Prompt 模板、子 Agent 定义                                                                                        |
+| `app/channels/`       | 渠道消息层   | 多平台 IM 渠道框架：14+ 提供商（Feishu/Slack/Discord/Telegram/WhatsApp 等）、消息总线、路由、i18n、安全、可靠性。详见 [CHANNELS_SYSTEM.md](app/channels/CHANNELS_SYSTEM.md) |
+| `app/core/`           | 核心基础设施 | 安全认证、Cron 引擎、检索器、监控、通用工具                                                                                      |
+| `app/adapters/`       | 适配器层     | 实现 Harness 框架层定义的 Protocol（数据源、存储等）                                                                             |
+| `app/database/`       | 数据层       | SQLAlchemy ORM/DTO、连接管理及 Repositories 仓储模式                                                                             |
+| `app/middleware/`     | 中间件层     | 认证告警、Webhook 安全、文本清洗、沙箱认证                                                                                       |
+| `app/platform_utils/` | 平台抽象层   | 本地/沙箱模式差异化实现（文件存储、会话工厂、checkpointer 注入）                                                                 |
+| `app/tasks/`          | 后台任务层   | 消费 harness `toolkits/tasks/` 队列：worker、executor、crypto、SSE 事件；异步入图生产路径 |
+| `app/config/`         | 配置层       | 环境变量、设置、部署模式检测、预检                                                                                               |
+| `tests/`              | 测试套件     | 单元/集成/API 测试；默认 `pytest -m 'not e2e'`；WebUI E2E 用 MCP chrome-devtools（禁止 `@playwright/test`）；CI 见 `scripts/ci/run_default_tests.sh`                                                                                                     |
+| `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁（`check_fractal_docs.py`：`--strict-headers` + `--no-stub`；见 `scripts/ci/run_architecture_gates.sh`） |
+| `docker/`             | 容器构建     | Server runtime：`Dockerfile.official`（源码双 wheel）；`../Dockerfile`（PyPI / 预构建 wheel）；`sandbox/` 技能沙箱镜像 |
+| `deployments/`        | 部署配置     | Prometheus 规则等运维配置                                                                                                        |
+| `searxng/`            | 搜索引擎配置 | SearXNG 搜索引擎部署配置                                                                                                         |
+
+---
+
+## 核心架构约束
+
+### 0. 分层定位优先于功能堆叠
+
+`myrm-agent-server` 是**单机业务编排层**：
+
+- 在 `local` / `tauri` 场景中，它直接作为单机单用户后端运行。
+- 在 `sandbox` 场景中，它仍然是**单个用户沙箱内部**的业务后端，而不是 SaaS 多租户控制面。
+- 它负责承接自定义智能体、聊天、知识库、Cron、渠道、审批体验等产品能力，但不负责多租户身份、沙箱池化、全局路由、配额聚合等控制平面职责。
+- 全面剥离多租户感知：API 路由、Query 及内部调用已彻底移除 `user_id` 依赖，作为纯粹的单租户应用在独立的 `MYRM_DATA_DIR` 中运行。
+
+因此，本层新增任何竞品借鉴项前，都必须先确认：该能力究竟属于业务编排，还是应该下沉到 `myrm-agent-harness`、或上收至外部控制服务（SaaS 部署场景）。
+
+### 0.07 Vision 媒体路由（Settings → chat 预处理 + agent sandbox）
+
+- **路由 SSOT**：`app/core/vision/media_router.py` — 图/视频降级槽决策（native / frame / vlm）；`pick_video_fallback_configs` 委托 harness `pick_video_fallback_model_cfgs`
+- **配置解析**：`app/core/channel_bridge/config_parsers.py` — `visionFallbackModel` + `videoFallbackModel` 链
+- **预处理**：`app/core/utils/chat_utils.py` — `_process_image_item` / `_process_video_item` + SSE `vision_backend`
+- **Agent 运行时**：`GeneralAgent._build_runtime_context` 注入 `video_fallback_model_cfgs` + `supports_video` → harness `file_read_tool` / `video_reader`
+- **探活**：`POST /api/v1/config/vision-health` · `POST /api/v1/config/video-health`
+- **Harness 引擎**：`myrm-agent-harness/toolkits/llms/vision/` — fallback / video 分析与多模态降级基础设施（`file_read_tool` 多模态直读与自适应降级）
+
+### 代码智能（外部 MCP 集成）
+
+- 代码智能通过外部 MCP 服务提供。用户可在 **Settings → Communication & Integrations** 的 Integration Catalog 中一键接入 `code-review-graph`（28 工具）或 `CodeGraph`（10 工具）等社区 MCP 服务。
+
+### 0.05 Agent 模型凭据（WebUI only）
+
+- **HTTP 装配**：`app/services/agent/params/` 解析 `ModelSelection` 与用户 Provider 行；缺失密钥时抛出 `ConfigIncompleteError`（**禁止** `BASIC_*`/`LITE_*` 进程 env 回退）。
+- **平台默认模型**：后台 judge/embedding/Advisor/Companion 等读 WebUI via `platform_config.py`（`load_platform_llm` / `load_llm_from_model_config` wire-aware）；`model_resolver._fallback_model_from_providers` 仅从 `defaultModelConfig` + `providers` 解析，无 env 回退。OpenCode Go wire 路由见 `app/core/wire/`（muse-spark `responses` wire 默认 `reasoning.encrypted_content` include；多轮 replay 在 harness `myrm-agent-harness/src/myrm_agent_harness/toolkits/llms/adapters/wire/`）。
+- **启动提示**：`pre_flight.py` 在 local/tauri 下对未配置 WebUI 默认模型输出 **warning**（不阻塞启动）。
+- **前端 gate**：`messageRequest.validateChatModelConfig` 发送前拦截无 provider / 无 defaultModel；`LocalCapabilitiesBanner` / `SearchSetupChip` / Settings `SearchSection` 一键激活本地模型与免费搜索（SearXNG `:8081` / DuckDuckGo）；`GET /config/onboarding/probe-local` 统一探测；deploy `docker compose --profile search` 自动启动 SearXNG。
+
+### 0.06 环境变量分层（[P]/[O]/[X]/[T]/[S]）
+
+| 层 | 来源 | 运行时 | 示例 |
+|----|------|--------|------|
+| **[P]/[O]** | `.env` → `AppSettings` | server 进程 | `DEBUG`, `MCP_*`, DB 路径派生 |
+| **[X] 业务** | WebUI Settings → DB → inject | 请求路径注入 harness | LLM provider、search、embedding、reranker |
+| **[T] 测试** | `.env.test` → `tests/support/test_secrets.py` | **仅 pytest** | `BASIC_*`, `LITE_*`, E2E toggles |
+| **[S] 沙箱** | Control Plane 容器注入 / `.env.sandbox` | sandbox 进程 env | `CONTROL_PLANE_*`, `MYRM_MASTER_KEY`, `MYRM_PUBLIC_WIKI_VOLUMES` |
+
+- **环境变量清单**：`.env.example`（[P/O]）、`.env.sandbox.example`（[S]）、`.env.test.example`（[T]）为唯一权威索引；业务配置不得写入 `.env`。
+- **[S] 注入契约**：沙箱创建时由控制服务注入环境变量；`tests/unit/test_sandbox_env.py` 与 `validate_for_sandbox()` 双向对齐。
+- **部署能力注册表**：`app/platform_utils/deployment_capabilities.py` — 启动时构建语义能力位，替代散落的 `is_sandbox()` 分支。
+- **单租户认证**：`app/middleware/auth.py` — local 回环 / sandbox CP HMAC 验签（`cp_proxy.py`）→ `SANDBOX_API_KEY` → 回环 / WebUI Remote `SANDBOX_API_KEY`。
+- **WebUI 浏览器登录**（仅 local/remote 产品路径）：`app/api/webui/auth_routes.py` + `app/services/webui/auth_service.py` — admin 密码 + `myrm_webui_session` Cookie；与 CP 邮箱登录（sandbox 前端构建）分离。
+
+- **禁止**：server `app/` 运行时读取 `BASIC_*`/`LITE_*`/隐式 searxng fallback。
+- **Subagent 超时**：唯一来源 `app/config/subagents/*.yaml`（无 env policy 覆盖层）。
+- **Control Plane 遥测**：`ControlPlaneSettings` + `ContextCompactionTelemetrySettings` + `MemoryBriefStatusTelemetrySettings` + `MemoryGuardianGuardTelemetrySettings`（`settings.control_plane` / `settings.context_compaction_telemetry` / `settings.memory_brief_status_telemetry` / `settings.memory_guardian_guard_telemetry`）；memory brief 遥测实现位于 `app/services/agent/memory_brief_telemetry/`（`stream_loop` / `stream_finalize` 经 `enqueue_memory_brief_status_telemetry` 入队，`dispatcher` 批量 flush Control Plane；本地未配置 CP 时整包 no-op）；支持 `MEMORY_BRIEF_STATUS_TELEMETRY_ALLOWED_PHASES` 相位治理与有界队列批量上报，背压 dropped 指标按 `telemetry_subject` 维度归因，并在批次 payload 中携带 `dropped_aggregates`；dropped 聚合会持久化到 `MYRM_DATA_DIR/memory_brief_status_dropped_aggregates.json` 并在进程重启后恢复补发，写盘采用脏标记 + 节流策略降低高背压热路径 I/O 开销，且仅在写盘成功后清理 dirty 状态（失败保留 dirty+pending 并进入指数退避重试窗口）；即使当前批次为空，只要存在 pending dropped 聚合也会周期冲刷，避免低流量尾段观测盲区；`stop()` 阶段在 worker 退出后追加有重试上限的 dropped-only best-effort 冲刷并在残留时发告警；flush-loop unexpected exception 与 flush HTTP failures 均通过专用计数器输出时序监控信号；`deployments/prometheus/rules.yml` 对 memory brief 同时提供 `MemoryBriefTelemetryFlushHttpErrorDetected`（attempts-based）与 `MemoryBriefTelemetryDedupRejectDetected`（strict dedup reject ratio/burst）告警，并由 `tests/architecture/test_memory_brief_prometheus_rules_contract.py` 做契约守护（`scripts/ci/run_architecture_gates.sh` 与 CI 均强制 promtool 语义校验）；guardian guard 遥测实现位于 `app/services/agent/memory_guardian_guard_telemetry/`（`lifecycle/memory_guardian` fail-closed 经 `enqueue_memory_guardian_guard_telemetry` 入队，`dispatcher` 批量 flush `/api/telemetry/memory-guardian-guard/batch`；pending envelope 落盘 `MYRM_DATA_DIR/memory_guardian_guard_pending_envelopes.json`）。
+- **[T] 测试密钥**：仅 `tests/support/test_secrets.py`（server `env_loader` 不读取 `.env.test`）。
+
+### 0.07 Security Center（GitHub 供应链 + 平台审计）
+
+- **API**：`app/api/security/router.py` — `/api/v1/security/dashboard`、`/setup-hints`、`/rate-limits`、`/audit/*`（与 Agent 工具策略 `allowlist`/`profiles` 等同包不同域，见 `app/api/security/_ARCH.md`）。
+- **合并逻辑**：`app/services/security/merged_dashboard.py` — sandbox 时 CP internal 告警 + 可选 GitHub PR/SBOM；`data_source=merged` 仅当 GitHub 补充有数据。
+- **用户仓库配置**：Omni-Config 键 `securityDashboardSettings.monitoredGithubRepos`（≤3），`dashboard_settings.py` 读取；零告警时仍可拉 Dependabot PR。
+- **SaaS ingest**：Control Plane 接收 GitHub webhook 并聚合供应链告警；Server 经 `app/services/security/cp_security_dashboard.py` 拉取，**不**在 OSS server 实现多租户调度。
+- **前端**：`myrm-agent-frontend/src/app/security/page.tsx`；导航快捷入口 `NavBar` → `/security`。
+
+### 0.08 Browser Extension Bridge（CDP 代理）
+
+- **扩展包**：`myrm-agent-extension/`（Chrome/Edge MV3）— WebSocket 客户端 + `chrome.debugger` CDP 代理，使用用户真实浏览器会话。
+- **Server API**：`app/api/extension/` — `ws://…/api/v1/ws/extension` 持久连接（`chrome-extension://` origin 守卫；remote 模式强制 token）；REST `/api/v1/extension/status|domains|tabs|disconnect|setup-hints`。
+- **服务层**：`app/services/extension/bridge.py` — 连接生命周期、`hello.capabilities` 四动作合同门禁（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、`ExtensionStatus.handshake_ready` 握手可见性、extension 模式 CDP relay fail-closed（无 local direct CDP fallback）、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
+- **认证**：`settings.extension_auth_token`（SecretStr）；WS 查询参数 `token` 校验，remote 模式未配置 token 时拒绝连接。
+- **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制、Token/CDP 状态、握手三态与 relay 能力矩阵）；API 客户端 `src/services/extension.ts`（**`apiRequest('/extension/...')` 相对路径**，禁止 `getApiUrl()` 二次前缀）。Tab 路由 SSOT：前端 `settingsRoutes.ts`（`SETTINGS_TABS` / `SETTINGS_TAB_REDIRECTS`），`page.tsx`、`SettingsLayout.tsx`、`SettingsMenu` 均由它派生；`locales/*` 的 `metadata.settingsTabs` / `settings.menu` 由 `verify-i18n` 对账，服务端写死的 `/settings/<tab>` 深链由 `tests/architecture/test_settings_deep_links.py` 守门。
+
+### 0.09 Harness 集成契约（Integration Contract）
+
+Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
+
+- **Glue 层（强制）**：会话 ContextVar、记忆提取、后台 bash 注册表、权限失效、task intent 等集成胶水 **必须** 经 `myrm_agent_harness.api.hooks` 与 `myrm_agent_harness.api.skills` 导入；**禁止** `from myrm_agent_harness.*._*`。门禁：`tests/architecture/test_server_harness_imports.py::test_no_server_harness_private_module_imports`。
+- **工厂与 DTO**：Agent 创建与流式类型经 `myrm_agent_harness.api`（factory / types / config / protocols）。
+- **业务编排深 import**：对 harness 公开模块（如 `agent.skills.*`、`toolkits.*`）的路径由 `tests/architecture/data/server_harness_import_baseline.txt` **冻结**；新增路径须刻意更新 baseline（`test_no_new_server_deep_harness_imports`）。
+- **版本与升级路径**：local/tauri 通过 `uv.lock` 锁定 harness；SaaS 沙箱由 Control Plane 按用户滚动 **runtime Docker 镜像 tag**（`resolve_agent_server_image`，见 `myrm-control-plane/ARCHITECTURE.md`），非沙箱内单独 pip 换 wheel。
+- **SaaS 收益**：滚动新 runtime 镜像（内含新 harness）时，`api.hooks` / `api.skills` 稳定面保证 Server 胶水层不因 harness 内部重构而断裂。
+- **Harness 文档**：`myrm-agent-harness/src/myrm_agent_harness/api/_ARCH.md`。
+
+### 0.10 Server Import Layer Matrix（业务层 ↔ HTTP 层）
+
+`myrm-agent-server` 的 **import 方向** 与 Harness §0.09 并列 enforce：
+
+| 规则 | 说明 | 门禁 |
+| --- | --- | --- |
+| **禁止 inversion** | `app/core/`、`app/services/`、`app/lifecycle/` **不得** import `app.api.*`（DTO、Depends、router 模块状态） | `tests/architecture/test_no_core_services_api_imports.py` |
+| **共享 DTO** | HTTP 与 services 共用的 Pydantic 模型放在 `app/schemas/` | 例：`schemas/security/dashboard.py` |
+| **跨层单例** | 进程级 registry / store 放在 `core/*`、`channels/storage/*` 或 `services/*/bootstrap.py`，**不得**挂在 router 模块上 | 例：`login_session_registry.py` |
+| **API 层职责** | `app/api/` 仅做路由、Depends 装配、请求/响应映射；业务编排调用 `services/` | `tests/architecture/test_api_services_vocabulary.py` |
+
+违反上述规则会导致：lifecycle 清理 job 依赖 router 懒加载、services 单测被迫 import FastAPI 包、OpenAPI DTO 与业务层双路径漂移。
+
+### 0. 零开销本地模式 (Zero-Overhead Local Mode)
+
+在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：
+
+- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`regex>=2026.4.4`（风险规则引擎对每条规则的单次匹配设时间预算，标准库 `re` 做不到）、`myrm-agent-harness[...,computer-use]`（`litellm`/`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、monorepo `install_harness.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
+- **执行运行时绘图栈隔离**：`matplotlib`/`pandas`（`data-viz` extra 锁定 pandas 2.3.x，避开 yanked 的 3.0.4）收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
+- **动态监控隔离 (Metrics)**：`/metrics` 路由、内存直方图、数据库连接池采集器在 **local 与 sandbox 默认均关闭**；仅当 `METRICS_ENABLED=true` 时启用（见 `app/core/monitoring/__init__.py` + `DeploymentCapabilities.default_metrics_enabled`）。
+- **全链路追踪纯净化 (Tracing)**：依赖 Harness 层的 No-Op 降级机制，Server 层在本地模式下绝不初始化 OpenTelemetry SDK，彻底消除不必要的后台序列化与网络发送开销。
+
+### 0.1 统一本地存储架构 (Unified Local Storage)
+
+无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup/backup_remote.py` lazy import），未配置 S3 时不加载。
+
+**持久化分层（Agent-in-Sandbox）**：
+
+| 层 | 存储 | 职责 |
+| --- | --- | --- |
+| LangGraph checkpoint | Volume 上 SQLite（`{MYRM_DATA_DIR}/checkpoints`） | 对话 thread 状态、工具中间态、审批 interrupt 恢复 |
+| 业务 ORM | 同 Volume SQLite（`settings.database.sqlite_path`） | Chat、Agent 配置、Cron、渠道绑定等 |
+| 向量记忆 | Qdrant embedded 或远程 URL | 语义记忆检索 |
+| 可选图存储 | `DATABASE_URL` 设置时 PostgreSQL+AGE | **仅** episodic graph 扩展，**非** LangGraph checkpoint |
+
+Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test；默认 `sqlite` fail-fast），经 `lifespan.py` 注入 `platform_utils.set_checkpointer()`。不支持共享 PostgreSQL checkpoint（一用户一卷模型）。
+
+**对话历史单一权威**：checkpoint 线程保存模型实际看到的消息（含工具轨迹），Chat/Message 保存用户看到的消息。网页对话的回合开始时，server 比对 `chats.history_sync_token`（「活跃分支 + 压缩摘要」的摘要，只在回合完整结束后写入）与当前存储对话的摘要：一致则声明 `history_mode=continue`（只发新消息，前缀不变，provider 缓存命中），否则 `replace`（清空线程，由存储历史重建）。新聊天、升级前的旧聊天、分叉出的子聊天没有记录，首轮必然重建；撤销/重试/截断/回退立即清线程；重新生成、切换兄弟、压缩、服务端追加的通知、失败/取消/等待用户的回合都靠摘要失配重建。重建会丢掉线程里的工具轨迹（与撤销后重发的既有行为一致）。IM、定时、唤醒、目标重触发等调用方未接管线程卫生，沿用 `append`。详见 `app/services/chat/history_sync.py` 与 `app/services/agent/stream_session/turn_history_sync.py`。
+
+### 0.2 工业级单机并发安全 (Industrial-Grade Standalone Concurrency)
+
+针对单机环境（Sandbox/Local）中可能存在的跨进程资源竞争，系统拒绝引入 Redis 等外部锁服务，转而采用 **OS 原生文件锁 (File Locks)** 实现「精钢级」并发安全：
+
+- **跨进程互斥**：使用 `fcntl.flock` 实现内核级文件锁，确保多个 Server 实例或 Cron 进程在访问同一技能文件、SQLite WAL 日志时，具备微秒级的互斥性能且零基础设施开销。
+### 0.3 LLM 前缀缓存优化 (LLM Prefix Caching Optimization)
+
+为了极致降低持续进化的 LLM 调用成本（减少 90%+ 成本及延迟）：
+
+- **稳定前缀架构**：遵循「指令首发、数据居中、采样垫后」的 Prompt 构建原则，确保 Agent 优化指令等高频、大体积文本在 LLM 侧被高效识别为 **Prompt Cache Prefix**。
+- **Context Health 聚合**：`app/api/statistics/context_health.py` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。
+- **入账 Human 路由一致性**：`app/core/utils/delivery_provenance.py`。Server 在 GeneralAgent **`stream_pipeline`：INFO 记下 `general_agent_delivery_labels`** 后以 `apply_delivery_banner` 落横幅；FastLane/DeepResearch（`general_agent/streaming`，`apply_general_agent_pipeline_banner`/`params.channel_name`）；Fast Search 通过 `prompt_mode="search"` 统一走 GeneralAgent 路径（等价 `web_chat`→GUI 横幅）；IM `prepend_plain_banner`；Headless wakeup（`services/agent/wakeup_handler.py` 将 **`channel_name=headless_wakeup`** 且 **`memory_channel_id` 缺省时锁 `web_chat`**，防记忆命名空间漂移）。`web_chat` 仍映射 http_gui/browser_sse；`cron`/`eval`/其它见 `resolve_general_agent_pipeline_labels`。用户以 `[use skill]` 显式调用技能时，横幅落在该标签之后（`decorate_behind_skill_tag`，harness 只认位于文本最开头的标签）。
+
+### 0.4 进化驱动型技能观测 (Evolution-Driven Skill Observation)
+
+为了支持 Agent 技能的持续迭代与安全灰度：
+
+- **版本快照双写 (Dual-Write Snapshots)**：每次技能写入由 `write_orchestrator` 落 DB `skill_versions` 快照并原子同步磁盘 `SKILL.md`；`VersionAwareSkillBackend` 仅在载入技能正文时返回激活快照，系统提示词中的技能清单不经版本路由，前缀稳定、Prompt Cache 不受影响。
+- **回归守卫与安全扫描**：进化变体先经 harness 基线相对回归门（仅原版通过的 EvalCase 计入守卫，丢失按比例扣分，守卫用例全部丢失才淘汰），再经安全扫描；审批卡片只展示实际执行过的扫描结果（未扫描即无结论），由用户决定是否应用。
+- **原子应用与一键回滚**：应用前写前快照，`/skill-optimization/rollback/{skill_id}` 与 `/skill-optimization/mutations/{batch_id}/rollback` 分别回到指定版本与撤销整批技能修改。
+- **技能免疫闭环**：订阅 Harness `SkillFailureEvent`，在 Server 单机业务层完成运行时失败分类、幂等去重、修复提案生成与 GUI 审批落地，Control Plane 不参与技能业务。
+
+### 0.5 Shared Context 共享记忆治理 (Shared Memory Governance)
+
+借鉴 Hermes 的灵活记忆理念但保留 OpenClaw 式边界控制，Server 产品层提供 Shared Context：
+
+- **产品层治理**：`app/services/memory/shared_context/shared_context.py` 管理共享上下文、agent/channel/cron/conversation/task 绑定和写入提案；Harness 只接收 `shared:<context_id>` namespace，不感知 team 概念。
+- **运行时解析**：Web、Channel、Cron、Eval 入口在创建 Agent 前解析 Shared Context 绑定，通过 `memory_shared_context_ids` 下传给 GeneralAgent，再由 memory adapter 追加到 recall namespaces。
+- **写入安全**：共享记忆默认走 proposal_required 流程，批准后由 `SharedContextProposalMaterializer` 幂等写入对应 shared namespace，并携带 proposal/source 审计元数据；私有记忆仍写入 agent/channel/conversation/task 边界，避免共享上下文污染个人记忆。
+- **隐式反馈纠错**：`correction_propagation.py::make_correction_propagation_callback` 在会话结束时通过两阶段管道检测用户纠正信号（Stage 1: regex 快速筛 → Stage 2: LLM 隐式矛盾检测），由 `strategies/implicit_feedback.py` 生成结构化 `CorrectionProposal`（add/update/delete），双目标路由：①Agent 个人记忆 → 先召回相关记忆作为 planner 目标上下文，再经 `MemoryManager.submit_pending` 写入 Harness `pending_records` 审批队列（`resolution_action` 分派 STORE/CORRECT/DELETE，与记忆 Governance 面同一真相源；批准 DELETE 即归档目标记忆（回收站可恢复），审批者可改写提案文本）；②绑定的 SharedContext → 写入提案（仅 add/update 且为语义/情景类型；policy `correction_auto_approve` 控制自动物化）。以 `chat_id:content_hash` 作为 proposal source_id 实现幂等 dedup。实现"Agent 从对话信号自我纠错，纠正一个 Agent 所有 Agent 同步学习"。
+- **Goal 完成交付物汇总**：`goal_registry.py::ServerGoalManager._collect_deliverables_on_completion` 在 Goal COMPLETE 时汇总本会话未删除的 Artifact（id 与文件名），写入 `goal.metadata["deliverables"]` 并保存，供前端交付物 bundle 展示；汇总失败只记 warning，不影响 Goal 状态流转。
+- **历史证据提升**：`app/services/memory/shared_context/shared_context_history.py` 复用 ChatService 的 FTS5 会话搜索，把用户选中的历史消息转换为可审批写入提案，而不是直接污染共享记忆。
+- **历史会话召回**：`app/services/chat/conversation_search_service.py` 实现 Harness `ConversationSearchProtocol`，按当前 `chat_id` 排除本会话，并用 Server scope policy 和 `agent_id` 做硬过滤/排序加权；FTS5 命中来自消息段索引并同时带出 `compacted_summary`，空查询返回最近会话列表，semantic 路径必须经 Server 索引 hydration 后才返回可核验 snippet/source_ref，并与 FTS/recent/消息级历史搜索共享 active、excluded、scope/source/fork lineage 过滤。
+- **外部记忆导入治理**：`app/services/memory/imports/import_sessions.py` 持久化 dry-run 审查会话、payload hash、过期时间、normalized data 和 plan hash；确认导入只接受 `dry_run_id` 并校验计划一致性，写入时追加 `import_batch_id/import_source/import_payload_hash/import_item_id` 元数据，并把实际写入 id 映射为 item-level transaction ledger。服务端记录 profile 导入前后 revision snapshot，确认后自动运行内容安全 Memory Doctor 并回写迁移来源；回滚前提供 dry-run 摘要和 profile revision 覆盖风险提示，确认后先持久化 rollback journal，再按 `dry_run_id` 或 `import_batch_id` 删除本批次 semantic/episodic/conversation/procedural 记忆并恢复 profile，启动预热会恢复未完成回滚，回滚响应返回 deleted/missing/forbidden/failed refs 和完整性状态，已完成审查会话按保留窗口清理。Command Center 通过 adapter registry 展示 native-json/agentmemory 等来源状态、最近导入批次、自动诊断状态、导入审查清理指标、导入后验证建议和回滚预演入口，metadata-only plane summary 暴露导入回滚健康计数供控制平面读取。
+
+### 0.6 全域动作空间与准确度引擎 (Global Action Space & Decision Accuracy Engine)
+
+为了彻底解决大模型在面临海量工具时的“幻觉率上升”问题，系统实现了跨三层的架构级收束机制，将“配置大而全”的陷阱转变为**“动作空间越小，决策准确率越高”**的实战理念：
+
+- **Harness 层的协议与算力下沉**：不使用粗糙的“Token计数”来评估认知负载。原生内嵌了 `ActionSpaceProfiler` 协议，动态解析所有传入 Agent 的工具 JSON Schema（参数数、嵌套层级），科学地计算出 `ActionSpaceComplexityScore` (ASCS)，作为评估该 Agent 是否容易出现幻觉的标准基准。
+- **Harness 层的前缀缓存硬核保护**：动态外部工具（特别是不可控的 MCP 工具库）绝不能污染高频前缀。通过 `tool_layers.py` 严格的层级分发，所有 MCP 和 server vendor 集成被分配到 `ToolLayer.EXTERNAL`（Tools 数组尾部）。CORE 层 file/bash 工具与 frozen System Prompt 构成稳定前缀（API 序列化顺序：`Tools → System → Messages`），使 Prefix Cache 在 EXTERNAL 工具增减时仍命中 harness 段。
+- **Tool loading dual-track**：General（Web 非 fast、Channel/IM）CORE file/bash 始终加载；Search/Fast 仅 Web `action_mode=fast` 无 file/bash。详见 `app/services/agent/_ARCH.md` 与 harness `tool_management/_ARCH.md`。
+- **Server 工具可见性**：运行时由 harness `attenuator`（执行层）与 `SkillAttenuationMiddleware`（`tool_choice.allowed_tools` 模型层）约束；Server `app/tasks/` 不含闲置工具驱逐后台任务。
+
+### 0.7 Public Ingress Orchestration (公网入站流量编排)
+
+为了彻底解决本地桌面用户无法使用被动触发渠道（如 Twilio SMS、LINE、WeCom Webhook、外部 Cron 回调）的网络死胡同问题：
+
+- **控制平面注入 (SaaS 模式)**：在控制平面调度沙箱时，自动通过 `CP_PUBLIC_INGRESS_URL` 环境变量向 Server 注入租户专属公网域名。
+- **动态 Resolver API (单机模式)**：业务层提供 `/api/v1/system/ingress-url` 端点。优先级：`CP_PUBLIC_INGRESS_URL` → `UserConfig.personalSettings.publicIngressBaseUrl`（用户自选穿透工具粘贴）。实现一处配置，全局 Webhook 生成生效。
+- **纯粹的业务层分离**：Webhook 的公网路由补全纯属业务逻辑表现，绝不污染底层 Harness 的执行引擎。
+- **前端闭环与联通测试**：Settings > System 始终展示 Public Ingress 输入与文档链接；支持 `/api/v1/health` 探活。穿透工具（cpolar、NATAPP、frp 等）由用户自选，见文档站 `/guides/tunnel`。
+- **出站优先渠道默认**：飞书默认 `transport=websocket`（`FeishuChannel` credential_spec）；钉钉 Stream、企微 AI Bot、Telegram 无 `webhookUrl` 时为出站长连接，无需公网 Ingress。
+- **Ingress 需求 SSOT API**：`GET /api/v1/system/ingress-requirement` 基于 `channels/protocols/inbound_profile.py` 与 config store 汇总；前端 `useIngressRequirement` 单请求驱动渠道徽章与 System 引导文案。
+
+### 0.8 统一工具网关 (Unified Tool Gateway)
+
+Agent 级 `tool_gateway_config` 与 Harness `ToolGatewayConfig` 支持 Search / Image / TTS 经 Control Plane `tool_relay` 转发。CP 挂载 `/tool-relay`（2xx commit / 4xx release WU）；沙箱经 internal API 自动注入 gateway 凭据。Local BYOK 由 Models、Search、Media Generation 等 Settings 页配置。Harness 在 gateway 失败且本地 API key 可用时 fallback 至直连 provider。
+
+### 1. Core 模块独立性
+
+`app/core/` 是一个独立的包，未来会拆分为独立项目：
+
+- ✅ Core 内部模块可以相互引用
+- ✅ Core 对外暴露公共 API
+- ❌ Core 不应引用 Core 外部的资源
+
+### 2. 分层依赖
+
+```
+api/ → services/ → ai_agents/ → core/
+                              ↘ toolkits/
+```
+
+- 上层可以依赖下层
+- 下层不应依赖上层
+- 同层之间通过接口通信
+
+### 3. 错误处理
+
+使用框架层的 `ToolError` 进行统一的工具错误处理：
+
+```python
+from myrm_agent_harness.utils.errors import ToolError
+
+# 简单用法
+raise ToolError(message="Container exited with code 255", user_hint="Check if the return value is JSON serializable")
+
+# 完整用法（诊断信息 + 修复建议）
+raise ToolError(
+    message="Container exited with code 255",
+    user_hint="You may have used a return value with an unclear structure.",
+    diagnostic_info={"error_category": "execution_failure", "exit_code": 255, "last_output": "..."},
+    recovery_suggestions=[
+        "Check if the return value is JSON serializable",
+        "Verify the command syntax is correct",
+        "Try running the command with simpler arguments",
+    ],
+    error_code="SANDBOX_EXIT_255",
+)
+```
+
+---
+
+## 技术栈
+
+- **运行时**: Python 3.13
+- **Web 框架**: FastAPI + uvicorn (uvloop)
+- **AI 框架**: LangChain + LangGraph
+- **LLM 适配**: LiteLLM（多模型支持）
+- **包管理**: UV
+
+---
+
+## 更新日志
+
+| 日期       | 更新内容             | 更新者 |
+| ---------- | -------------------- | ------ |
+| 2024-12-22 | 创建分形文档系统规范 | AI     |
+
+## 可视化桌面流 (Visual Desktop Streaming)
+
+为了提供“直播 AI 操作”的极致用户体验，Server 镜像内集成了完整的图形化和推流基础设施：
+
+- **基础设施**：`Dockerfile` 中安装了 `xvfb` (虚拟显示器)、`fluxbox` (窗口管理器)、`x11vnc` (VNC 服务)、`websockify` (WebSocket 代理)、`scrot`/`xdotool` (Computer Use 截图与交互)、`at-spi2-core`/`dbus-x11` (无障碍服务)。
+- **启动编排**：`docker/entrypoint.sh` 监听 `VISUAL_DESKTOP=1` 环境变量。当开启时，按顺序拉起 Xvfb、D-Bus 会话总线、fluxbox、x11vnc、websockify，并 `export DISPLAY=:99` 使主服务进程继承图形显示。
+- **全栈打通**：配合 Harness 层的 `browser` 工具包（自动关闭无头模式并连接到 `:99`）、`computer_use` 工具包（LinuxBackend 通过 DISPLAY 环境变量驱动 scrot/xdotool）和前端的 `noVNC` 客户端，实现端到端的可视化桌面直播。
+- **Deploy 门控**：`app/config/computer_use_deploy.py` — LOCAL/TAURI 始终可用；SANDBOX 需 `VISUAL_DESKTOP=1` 且 CP `enable_vnc` 权益（30s 缓存）。Profile strip、factory setup、hybrid routing 与前端 BuiltinToolsPanel 共用同一 SSOT。

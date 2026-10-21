@@ -1,0 +1,1 @@
+"""Kanban route registration modules."""

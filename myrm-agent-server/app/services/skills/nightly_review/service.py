@@ -1,0 +1,306 @@
+"""Nightly review orchestration: score, watch, verify, digest.
+
+[INPUT]
+- experience_ledger list/record APIs (POS: shared event ledger)
+- scorer.score_day (POS: rules-only collaboration signal)
+- acceptance.open_watch/verify_watch (POS: no-recurrence bookkeeping)
+- curator diagnostics + remediate APIs (POS: existing fix path, called not owned)
+
+[OUTPUT]
+- run_nightly_review: one full nightly pass returning NightlyReport
+- start/stop_nightly_review_task: background loop lifecycle (mirrors curator)
+
+[POS]
+Thin nightly driver. Reads yesterday, writes findings/watches/digest, publishes
+one morning notification. Never sweeps curator itself, never mutates skills.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import uuid
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.database.models.skill import ExperienceLedgerEvent
+
+logger = logging.getLogger(__name__)
+
+LOOKBACK_HOURS = 24
+VERIFY_WINDOW_HOURS = 24
+WATCH_HISTORY_HOURS = 24 * 30
+WATCH_SCAN_LIMIT = 2000
+MIN_FINDING_COUNT = 3
+QUIET_START_HOUR = 2
+QUIET_END_HOUR = 5
+
+
+@dataclass(slots=True)
+class NightlyReport:
+    """Outcome of one nightly pass, also used for the morning digest."""
+
+    ran_at: datetime
+    events_scanned: int
+    findings_count: int
+    watches_opened: int
+    watches_verified: int
+    finding_summaries: list[str] = field(default_factory=list)
+
+
+def _in_quiet_hours(now: datetime) -> bool:
+    local_hour = now.astimezone().hour
+    return QUIET_START_HOUR <= local_hour < QUIET_END_HOUR
+
+
+async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
+    """Run one full pass: score yesterday, open watches, verify due ones."""
+    from ..experience_ledger import (
+        list_experience_events,
+    )
+    from .acceptance import NEGATIVE_EVENT_TYPES, open_watch
+    from .scorer import CATEGORY_LABELS, score_day
+
+    current = now or datetime.now(UTC)
+    since = current - timedelta(hours=LOOKBACK_HOURS)
+    recent = await list_experience_events(limit=WATCH_SCAN_LIMIT, event_types=NEGATIVE_EVENT_TYPES, since=since)
+    events: list[dict[str, object]] = [
+        {
+            "event_type": event.event_type,
+            "entity_type": event.entity_type,
+            "entity_id": event.entity_id,
+            "summary": event.summary,
+        }
+        for event in recent
+    ]
+    findings = score_day(events, min_count=MIN_FINDING_COUNT)
+
+    history = await _fetch_review_history(current)
+    watches_opened = 0
+    summaries: list[str] = []
+    already_open = _open_watch_keys(history)
+    for finding in findings:
+        label = CATEGORY_LABELS.get(finding.category, finding.category)
+        summary = f"{finding.entity_id}：{label}{finding.count}次"
+        summaries.append(summary)
+        if (finding.entity_type, finding.entity_id) in already_open:
+            continue
+        await open_watch(
+            entity_type=finding.entity_type,
+            entity_id=finding.entity_id,
+            summary=summary,
+        )
+        watches_opened += 1
+
+    watches_verified = await _verify_due_watches(current, history)
+
+    report = NightlyReport(
+        ran_at=current,
+        events_scanned=len(events),
+        findings_count=len(findings),
+        watches_opened=watches_opened,
+        watches_verified=watches_verified,
+        finding_summaries=summaries,
+    )
+    # Quiet nights stay quiet: the ledger mirror always lands (run proof),
+    # but the user-facing notification only fires when there is news.
+    if report.findings_count or report.watches_verified:
+        await _publish_digest(report)
+    await _record_digest_ledger(report)
+    return report
+
+
+async def _fetch_review_history(current: datetime) -> Sequence[ExperienceLedgerEvent]:
+    """Fetch review-entity approved events once per pass."""
+    from ..experience_ledger import list_experience_events
+    from .acceptance import WATCH_ENTITY, WATCH_EVENT
+
+    return await list_experience_events(
+        limit=WATCH_SCAN_LIMIT,
+        event_type=WATCH_EVENT,
+        entity_type=WATCH_ENTITY,
+        since=current - timedelta(hours=WATCH_HISTORY_HOURS),
+    )
+
+
+def _open_watch_keys(history: Sequence[ExperienceLedgerEvent]) -> set[tuple[str, str]]:
+    """Return (entity_type, entity_id) pairs with a still-open watch."""
+    from .acceptance import (
+        WATCH_OUTCOME_OPEN,
+        WATCH_OUTCOME_VERIFIED,
+    )
+
+    recent = history
+    verified_ids = {event.entity_id for event in recent if event.outcome == WATCH_OUTCOME_VERIFIED}
+    open_keys: set[tuple[str, str]] = set()
+    for event in recent:
+        if event.outcome != WATCH_OUTCOME_OPEN:
+            continue
+        if event.entity_id in verified_ids:
+            continue
+        detail = event.detail or {}
+        open_keys.add(
+            (
+                str(detail.get("entity_type") or "unknown"),
+                str(detail.get("entity_id") or "unknown"),
+            )
+        )
+    return open_keys
+
+
+async def _verify_due_watches(current: datetime, history: Sequence[ExperienceLedgerEvent]) -> int:
+    """Verify watches old enough to judge; returns verified count."""
+    from .acceptance import (
+        WATCH_OUTCOME_OPEN,
+        WATCH_OUTCOME_VERIFIED,
+        RegressionWatch,
+        verify_watch,
+    )
+
+    recent = history
+    verified_ids = {event.entity_id for event in recent if event.outcome == WATCH_OUTCOME_VERIFIED}
+    verified = 0
+    for event in recent:
+        if event.outcome != WATCH_OUTCOME_OPEN:
+            continue
+        if event.entity_id in verified_ids:
+            continue
+        if event.created_at is None:
+            continue
+        detail = event.detail or {}
+        watch = RegressionWatch(
+            watch_id=event.entity_id,
+            entity_type=str(detail.get("entity_type") or "unknown"),
+            entity_id=str(detail.get("entity_id") or "unknown"),
+            opened_at=event.created_at,
+        )
+        try:
+            if await verify_watch(watch, min_window_hours=VERIFY_WINDOW_HOURS, now=current):
+                verified += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[NightlyReview] Watch verify skipped: %s", exc)
+    return verified
+
+
+async def _publish_digest(report: NightlyReport) -> None:
+    """Persist + broadcast the morning digest (existing notification path)."""
+    from app.database.connection import get_session
+    from app.database.models.notification import SystemNotification
+    from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+    if report.findings_count:
+        lines = "；".join(report.finding_summaries[:5])
+        message = f"发现{report.findings_count}个协作问题，已建{report.watches_opened}个不再犯跟踪：{lines}"
+    else:
+        message = "昨夜一切正常，无协作问题，无需处理"
+    if report.watches_verified:
+        message += f"；另有{report.watches_verified}个旧问题确认不再犯"
+    title = "夜间体检报告"
+    try:
+        async with get_session() as session:
+            session.add(
+                SystemNotification(
+                    id=uuid.uuid4().hex,
+                    title=title,
+                    message=message,
+                    type="info",
+                    source="nightly-review",
+                    meta_data={
+                        "findings_count": report.findings_count,
+                        "watches_opened": report.watches_opened,
+                        "watches_verified": report.watches_verified,
+                    },
+                )
+            )
+            await session.commit()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[NightlyReview] Digest persist skipped: %s", exc)
+    try:
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.SYSTEM_NOTIFICATION,
+                data={
+                    "title": title,
+                    "message": message,
+                    "type": "info",
+                    "meta_data": {
+                        "source": "nightly-review",
+                        "findings_count": report.findings_count,
+                    },
+                },
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[NightlyReview] Digest publish skipped: %s", exc)
+
+
+async def _record_digest_ledger(report: NightlyReport) -> None:
+    """Mirror the digest into the ledger so dashboards can read it back."""
+    from ..experience_ledger import (
+        ExperienceEntityType,
+        ExperienceEventType,
+        ExperienceLedgerWrite,
+        record_experience_event,
+    )
+
+    try:
+        await record_experience_event(
+            ExperienceLedgerWrite(
+                event_type=ExperienceEventType.REVIEW_APPROVED.value,
+                entity_type=ExperienceEntityType.REVIEW.value,
+                entity_id=f"nightly-digest-{report.ran_at.strftime('%Y%m%d')}",
+                lineage_id=f"nightly-digest-{report.ran_at.strftime('%Y%m%d')}",
+                summary=(
+                    f"夜间体检：扫描{report.events_scanned}条，发现"
+                    f"{report.findings_count}个问题，验证通过{report.watches_verified}个"
+                ),
+                namespace="nightly-review",
+                outcome="digest",
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[NightlyReview] Digest ledger mirror skipped: %s", exc)
+
+
+_background_task: asyncio.Task[None] | None = None
+
+
+async def _nightly_loop() -> None:
+    """Background loop: one pass per day inside quiet hours."""
+    while True:
+        try:
+            current = datetime.now(UTC)
+            if _in_quiet_hours(current):
+                report = await run_nightly_review(now=current)
+                logger.info(
+                    "[NightlyReview] Pass done: %d findings, %d verified",
+                    report.findings_count,
+                    report.watches_verified,
+                )
+                await asyncio.sleep(20 * 3600)
+            else:
+                await asyncio.sleep(1800)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[NightlyReview] Pass failed: %s", exc)
+            await asyncio.sleep(3600)
+
+
+def start_nightly_review_task() -> None:
+    """Start the nightly loop (call at warmup, mirrors curator)."""
+    global _background_task
+    if _background_task is not None and not _background_task.done():
+        return
+    _background_task = asyncio.create_task(_nightly_loop())
+
+
+def stop_nightly_review_task() -> None:
+    """Stop the nightly loop (call at shutdown)."""
+    global _background_task
+    if _background_task is not None:
+        _background_task.cancel()
+        _background_task = None

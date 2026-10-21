@@ -1,0 +1,77 @@
+name: Frontend build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-frontend/**'
+      - 'shared/**'
+      - '.github/workflows/frontend-build.yml'
+  pull_request:
+    paths:
+      - 'myrm-agent-frontend/**'
+      - 'shared/**'
+      - '.github/workflows/frontend-build.yml'
+
+concurrency:
+  group: frontend-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: myrm-agent-frontend
+    steps:
+      # Full history: the orphan gate's diff mode needs the merge-base with the pull request's base branch.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Lockfile policy (bun SSOT, no package-lock.json)
+        run: test ! -f package-lock.json
+      # locales/namespaces/ is gitignored build output that source files import; tsc and the
+      # module-resolution gate need it present, exactly as `dev` and `pretest` generate it.
+      - name: Generate locale namespaces
+        run: bun run i18n:split
+      # The gates below are independent: one red gate must not hide the others, so a single
+      # run lists every failing gate instead of exposing them one push at a time.
+      # `lint` runs every static gate (stable mocks, a11y, theme colors, hardcoded copy, oxlint)
+      # and lists all the red ones; its gate list lives in scripts/run-lint-gates.ts.
+      - name: Lint gates (every gate runs; oxlint errors fail, warnings non-blocking)
+        if: ${{ !cancelled() }}
+        run: bun run lint
+      - name: TypeScript strict (no error count regression)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_typescript_strict.py
+      - name: Fractal docs (strict roots + recursive baseline)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_fractal_docs.py --no-stub
+      # Absolute zero-orphan cannot hold while unwired work is in flight, so a pull request may not
+      # introduce orphans relative to its merge-base; `pretest` keeps the absolute gate locally.
+      - name: Orphan modules (none introduced vs the PR base)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bun scripts/check-orphan-modules.mjs --base "origin/${BASE_REF}"
+      - name: Barrel export policy (cross-domain index.ts whitelist)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_barrel_exports.py
+      - name: Module resolution (no dangling import specifiers)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_module_resolution.py
+      - name: i18n completeness (verify:i18n + glyph sets fresh)
+        if: ${{ !cancelled() }}
+        run: bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n
+      - name: Vitest (shared provider remap contract)
+        if: ${{ !cancelled() }}
+        run: bunx vitest run src/store/config/__tests__/providerIdentityMigration.test.ts
+      # `build` ends with scripts/verify-sw-push.mjs, so the Web Push handler check runs here.
+      - name: Production build (module graph, Serwist SW inject, Web Push handler check)
+        if: ${{ !cancelled() }}
+        run: bun run build

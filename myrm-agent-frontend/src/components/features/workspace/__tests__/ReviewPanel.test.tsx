@@ -1,0 +1,245 @@
+/** @vitest-environment jsdom */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import ReviewPanel from '../ReviewPanel';
+
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  const translations: Record<string, string> = {
+    selectSessionToReview: 'Select an active session to review changes',
+    tabDiff: 'Diff ({count})',
+    tabMessages: 'Messages',
+    noChangesDetected: 'No file changes detected',
+    binaryFileDiff: 'Binary file — cannot display diff',
+    copyDiff: 'Copy diff',
+    copied: 'Copied',
+    expandLongDiff: 'Show {count} more lines',
+    collapseLongDiff: 'Collapse long diff',
+    feedbackPlaceholder: 'Send feedback to this agent...',
+    loadingMessages: 'Loading messages...',
+    noMessages: 'No messages yet',
+  };
+  let text = translations[key] || key;
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      text = text.replace(`{${k}}`, String(v));
+    });
+  }
+  return text;
+};
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
+
+vi.mock('@/lib/utils/apiConfig', () => ({
+  getBackendUrl: () => 'http://localhost:8080',
+}));
+
+vi.mock('@/lib/utils/authHeaders', () => ({
+  getAuthHeaders: () => ({ Authorization: 'Bearer test' }),
+}));
+
+vi.mock('@/services/chat', () => ({
+  getMessages: vi.fn().mockResolvedValue({ messages: [] }),
+}));
+
+describe('ReviewPanel Component', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Mock navigator.clipboard
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockImplementation(() => Promise.resolve()),
+      },
+    });
+  });
+
+  it('renders prompt to select session when sessionId is null', () => {
+    render(<ReviewPanel sessionId={null} />);
+    expect(screen.getByText('Select an active session to review changes')).toBeInTheDocument();
+  });
+
+  it('renders workspacePath badge when workspacePath prop is provided', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" workspacePath="/Users/dev/my-project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('/Users/dev/my-project')).toBeInTheDocument();
+    });
+  });
+
+  it('renders diffs list, expands diff, copies content, and supports long diff fold/expand', async () => {
+    // Generate a file with > 300 diff lines
+    const originalLines = Array.from({ length: 350 }, (_, i) => `line_${i + 1}_original`).join('\n');
+    const currentLines = Array.from({ length: 350 }, (_, i) => `line_${i + 1}_modified`).join('\n');
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        msg1: [
+          {
+            path: 'src/longFile.ts',
+            operation: 'modify',
+            original: originalLines,
+            current: currentLines,
+            isBinary: false,
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" workspacePath="~/code/app" />);
+
+    // Wait for diff item to load
+    await waitFor(() => {
+      expect(screen.getByText('longFile.ts')).toBeInTheDocument();
+    });
+
+    // Toggle file expansion
+    fireEvent.click(screen.getByText('longFile.ts'));
+
+    // Verify copy button is present and functional
+    const copyButton = screen.getByTitle('Copy diff');
+    expect(copyButton).toBeInTheDocument();
+    fireEvent.click(copyButton);
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
+
+    // Verify long diff fold button (showing count)
+    const expandButton = screen.getByText(/Show \d+ more lines/);
+    expect(expandButton).toBeInTheDocument();
+
+    // Click expand
+    fireEvent.click(expandButton);
+    expect(screen.getByText('Collapse long diff')).toBeInTheDocument();
+
+    // Click collapse
+    fireEvent.click(screen.getByText('Collapse long diff'));
+    expect(screen.getByText(/Show \d+ more lines/)).toBeInTheDocument();
+  });
+
+  it('resets list scroll when the search query changes', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        msg1: [
+          {
+            path: 'src/a.ts',
+            operation: 'modify',
+            original: 'aaa\n',
+            current: 'aab\n',
+            isBinary: false,
+          },
+          {
+            path: 'src/b.ts',
+            operation: 'create',
+            original: '',
+            current: 'bbb\n',
+            isBinary: false,
+          },
+        ],
+      }),
+    } as Response);
+
+    const { container } = render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('a.ts')).toBeInTheDocument();
+    });
+
+    const scroller = container.querySelector('.flex-1.overflow-auto') as HTMLElement;
+    scroller.scrollTop = 200;
+    fireEvent.change(screen.getByLabelText('Search files'), { target: { value: 'b.ts' } });
+    expect(scroller.scrollTop).toBe(0);
+    expect(screen.queryByText('a.ts')).not.toBeInTheDocument();
+    expect(screen.getByText('b.ts')).toBeInTheDocument();
+  });
+
+  it('renders truncated rows with stats hint and no inline diff', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        msg1: [
+          {
+            path: 'src/huge.bin.csv',
+            operation: 'modify',
+            original: null,
+            current: null,
+            isBinary: false,
+            truncated: true,
+            additions: 0,
+            deletions: 0,
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('huge.bin.csv')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('huge.bin.csv'));
+    expect(screen.getByText('Too large')).toBeInTheDocument();
+    expect(screen.getByText(/too large to preview/i)).toBeInTheDocument();
+  });
+
+  it('renders the virtualized branch for large file lists', async () => {
+    const files = Array.from({ length: 35 }, (_, i) => ({
+      path: `src/file_${i}.ts`,
+      operation: 'modify',
+      original: 'aaa\n',
+      current: 'aab\n',
+      isBinary: false,
+    }));
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ msg1: files }),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Showing 35 of 35 files')).toBeInTheDocument();
+    });
+  });
+
+  it('keeps same-path rows from different messages independent', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        msg1: [
+          {
+            path: 'src/shared.ts',
+            operation: 'modify',
+            original: 'aaa\n',
+            current: 'aab\n',
+            isBinary: false,
+          },
+        ],
+        msg2: [
+          {
+            path: 'src/shared.ts',
+            operation: 'modify',
+            original: 'aab\n',
+            current: 'aac\n',
+            isBinary: false,
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('shared.ts')).toHaveLength(2);
+    });
+
+    // Expand only the first row; the second must stay collapsed (no second copy button).
+    fireEvent.click(screen.getAllByText('shared.ts')[0]);
+    expect(screen.getAllByTitle('Copy diff')).toHaveLength(1);
+  });
+});

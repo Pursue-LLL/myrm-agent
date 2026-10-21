@@ -1,0 +1,807 @@
+"""Agent Execution Gateway — concurrency, timeout, memory pressure, drain, and observability.
+
+Unified entry point for all Agent executions.
+Provides global + per-user concurrency control, memory pressure circuit breaker,
+execution watchdog (idle-silence threshold with a hard wall-clock ceiling),
+graceful drain on shutdown, and structured logging.
+
+[INPUT]
+- AsyncGenerator[dict, None]: bound agent stream from any Agent type
+
+[OUTPUT]
+- AsyncGenerator[dict, None]: same events, wrapped with lifecycle management
+- AgentDrainingError: raised when gateway is draining (graceful shutdown)
+- AgentQueueTimeout: raised when queue wait exceeds limit
+- AgentExecutionTimeout: raised when execution exceeds limit
+
+[POS]
+Agent 执行网关。所有 Agent 执行（General / FastSearch）
+都经过此网关，确保并发控制、内存压力熔断、优雅排空、超时保护和可观测性。
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+import weakref
+from collections.abc import AsyncGenerator
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Protocol, cast
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.base_agent import BaseAgent
+    from myrm_agent_harness.runtime.survival.memory_pressure import PressureEvent
+    from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserSession
+    from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+
+logger = logging.getLogger(__name__)
+
+
+class AgentQueueTimeout(Exception):
+    """Raised when waiting for an execution slot exceeds the queue timeout.
+
+    Attributes:
+        reason: Machine-readable category for user-facing routing:
+            "memory_pressure" | "user_limit" | "global_limit".
+        active_sessions: Snapshot of currently active session metadata,
+            used to name the holders of occupied slots.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str = "global_limit",
+        active_sessions: list[dict[str, object]] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.active_sessions = active_sessions or []
+
+
+class AgentExecutionTimeout(Exception):
+    """Raised when agent execution exceeds the execution timeout."""
+
+
+class AgentBusyError(Exception):
+    """Raised when attempting to execute a request on a session that is already active."""
+
+
+class AgentDrainingError(Exception):
+    """Raised when the gateway is draining and cannot accept new executions."""
+
+
+@dataclass(frozen=True, slots=True)
+class GatewayConfig:
+    """Configuration for AgentGateway."""
+
+    max_global: int = 20
+    max_per_user: int = 3
+    queue_timeout: float = 10.0
+    execution_timeout: float = 300.0
+    execution_hard_ceiling: float = 3600.0
+
+    @classmethod
+    def from_settings(cls) -> GatewayConfig:
+        from app.config.settings import settings
+
+        ag = settings.agent
+        return cls(
+            max_global=ag.max_concurrent,
+            max_per_user=ag.max_per_user,
+            queue_timeout=ag.queue_timeout,
+            execution_timeout=ag.execution_timeout,
+            execution_hard_ceiling=ag.execution_hard_ceiling,
+        )
+
+
+class _BrowserSessionHost(Protocol):
+    """Browser-space attributes of the agent behind a session, which the gateway reads and rebinds."""
+
+    _browser_session: BrowserSession | None
+    _browser_spaces: dict[str, BrowserSession]
+
+
+@dataclass(slots=True)
+class ActiveSessionInfo:
+    """Metadata for a currently executing agent session."""
+
+    chat_id: str
+    agent_type: str
+    started_at: float = field(default_factory=time.monotonic)
+    agent: "weakref.ReferenceType[BaseAgent] | None" = None
+    current_message_id: str | None = None
+    agent_id: str | None = None
+    reserved_only: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        result: dict[str, object] = {
+            "chatId": self.chat_id,
+            "agentType": self.agent_type,
+            "elapsedSeconds": round(time.monotonic() - self.started_at, 1),
+        }
+        if self.agent_id is not None:
+            result["agentId"] = self.agent_id
+        return result
+
+
+class AgentGateway:
+    """Unified execution gateway for all Agent types.
+
+    Wraps any agent's async event stream with:
+    - Global concurrency limit (prevents server overload)
+    - Per-user concurrency limit (prevents single-user monopoly)
+    - Memory pressure circuit breaker (queues new agents until pressure resolves)
+    - Queue timeout (graceful 429 instead of infinite wait)
+    - Execution timeout (idle-silence watchdog + hard wall-clock ceiling)
+    - Structured logging (duration, status, agent_type)
+
+    Implements PressureSubscriber to receive memory pressure notifications.
+    When pressure reaches CRITICAL or EMERGENCY, new agent executions wait
+    until pressure de-escalates or queue_timeout expires.
+    """
+
+    _DRAIN_TIMEOUT_DEFAULT = 120.0
+
+    def __init__(self, config: GatewayConfig | None = None) -> None:
+        cfg = config or GatewayConfig.from_settings()
+        self._config = cfg
+        self._global_sem = asyncio.Semaphore(cfg.max_global)
+        self._user_sems: dict[str, asyncio.Semaphore] = {}
+        self._active_count = 0
+        self._interrupt_events: dict[str, dict[str, asyncio.Event]] = {}
+        self._active_sessions: set[str] = set()
+        self._session_info: dict[str, ActiveSessionInfo] = {}
+        self._draining = False
+
+        from myrm_agent_harness.runtime.survival.memory_pressure import PressureLevel
+
+        self._memory_pressure_level: PressureLevel = PressureLevel.NORMAL
+        self._pressure_resolved = asyncio.Event()
+        self._pressure_resolved.set()
+
+        logger.info(
+            "AgentGateway initialized: max_global=%d, max_per_user=%d, queue_timeout=%.0fs, idle_timeout=%.0fs, hard_ceiling=%.0fs",
+            cfg.max_global,
+            cfg.max_per_user,
+            cfg.queue_timeout,
+            cfg.execution_timeout,
+            cfg.execution_hard_ceiling,
+        )
+
+    @property
+    def active_count(self) -> int:
+        return self._active_count
+
+    @property
+    def config(self) -> GatewayConfig:
+        return self._config
+
+    def _get_user_sem(self, user_id: str) -> asyncio.Semaphore:
+        sem = self._user_sems.get(user_id)
+        if sem is None:
+            sem = asyncio.Semaphore(self._config.max_per_user)
+            self._user_sems[user_id] = sem
+        return sem
+
+    def interrupt(self) -> bool:
+        """Signal all running agents for a user to stop.
+
+        Returns True if any agent was interrupted, False if no active agent found.
+        Called by the CP pipeline via /api/agent/interrupt endpoint.
+        """
+        user_events = self._interrupt_events.get("sandbox")
+        if user_events:
+            for event in user_events.values():
+                event.set()
+            logger.info("Interrupt signal sent for sandbox (%d agents)", len(user_events))
+            return True
+        logger.debug("No active agent to interrupt for sandbox user")
+        return False
+
+    def interrupt_session(self, chat_id: str) -> bool:
+        """Signal a single chat session to stop.
+
+        Returns True when an interrupt event was set for ``chat_id``.
+        """
+        user_events = self._interrupt_events.get("sandbox")
+        if not user_events:
+            return False
+        event = user_events.get(chat_id)
+        if event is None:
+            return False
+        event.set()
+        logger.info("Interrupt signal sent for chat_id=%s", chat_id)
+        return True
+
+    def get_active_message_id(self, chat_id: str) -> str | None:
+        info = self._session_info.get(chat_id)
+        return info.current_message_id if info else None
+
+    def get_active_sessions(self) -> list[dict[str, object]]:
+        """Get active session info for a specific user (for Multi-Pane status)."""
+        return [info.to_dict() for info in self._session_info.values()]
+
+    def get_available_slots(self) -> int:
+        """Get the number of available concurrent execution slots for a user."""
+        sem = self._user_sems.get("sandbox")
+        if sem is None:
+            return self._config.max_per_user
+        return max(0, sem._value)
+
+    def get_active_browser_session(
+        self,
+        session_id: str | None = None,
+        space_id: str | None = None,
+    ) -> BrowserSession | None:
+        """Get BrowserSession for a specific chat/session id and optional task space id.
+
+        Args:
+            session_id: Chat/session id (required). Returns None when omitted.
+            space_id: Optional task space id. If provided, resolves matching space first.
+        """
+        if not session_id:
+            return None
+
+        info = self._session_info.get(session_id)
+        if not info or info.agent is None:
+            return None
+        agent = info.agent()
+        if not agent:
+            return None
+
+        if space_id:
+            spaces = getattr(agent, "_browser_spaces", None)
+            if isinstance(spaces, dict) and space_id in spaces:
+                return cast("BrowserSession", spaces[space_id])
+
+        return cast("BrowserSession | None", getattr(agent, "_browser_session", None))
+
+    def list_browser_spaces(self, session_id: str | None = None) -> list[dict[str, object]]:
+        """List active browser task spaces for a specific chat session."""
+        if not session_id:
+            return []
+        info = self._session_info.get(session_id)
+        if not info or info.agent is None:
+            return []
+        agent = info.agent()
+        if not agent:
+            return []
+
+        result: list[dict[str, object]] = []
+        browser_spaces = getattr(agent, "_browser_spaces", None)
+        if isinstance(browser_spaces, dict) and browser_spaces:
+            for s_id, s_obj in browser_spaces.items():
+                result.append(
+                    {
+                        "space_id": s_id,
+                        "name": getattr(s_obj, "task_space_name", None) or s_id,
+                        "is_active": True,
+                    }
+                )
+        elif (s_obj := getattr(agent, "_browser_session", None)) is not None:
+            s_id = str(getattr(s_obj, "task_space_id", "default") or "default")
+            s_name = getattr(s_obj, "task_space_name", None) or "Main Space"
+            result.append(
+                {
+                    "space_id": s_id,
+                    "name": s_name,
+                    "is_active": True,
+                }
+            )
+        return result
+
+    async def stop_browser_space(self, session_id: str, space_id: str) -> bool:
+        """Stop and release a specific browser task space."""
+        if not session_id or not space_id:
+            return False
+        info = self._session_info.get(session_id)
+        if not info or info.agent is None:
+            return False
+        agent = info.agent()
+        if not agent:
+            return False
+
+        host = cast("_BrowserSessionHost", agent)
+        browser_spaces = getattr(host, "_browser_spaces", None)
+        if isinstance(browser_spaces, dict) and space_id in browser_spaces:
+            s_obj = browser_spaces.pop(space_id)
+            if getattr(host, "_browser_session", None) is s_obj:
+                host._browser_session = next(iter(browser_spaces.values()), None)
+            if hasattr(s_obj, "close"):
+                try:
+                    await s_obj.close()
+                except Exception as e:
+                    logger.warning("Failed to close stopped space %s: %s", space_id, e)
+            return True
+
+        default_session = getattr(host, "_browser_session", None)
+        if space_id in ("default", "") and default_session is not None:
+            try:
+                await default_session.close()
+            except Exception as e:
+                logger.warning("Failed to close default browser session: %s", e)
+            finally:
+                host._browser_session = None
+            return True
+
+        return False
+
+    def get_first_active_browser_session(self) -> object | None:
+        """Return the first active browser session across chats (legacy internal callers only)."""
+        for info in self._session_info.values():
+            if info.agent is None:
+                continue
+            agent = info.agent()
+            if agent is None:
+                continue
+            session: object | None = getattr(agent, "_browser_session", None)
+            if session is not None:
+                return session
+        return None
+
+    def get_active_desktop_session(self, session_id: str | None = None) -> DesktopSession | None:
+        """Get the DesktopSession from any currently active agent, if available.
+
+        Args:
+            session_id: Optional chat/session ID to filter by.
+        """
+        if session_id:
+            info = self._session_info.get(session_id)
+            if not info or info.agent is None:
+                return None
+            agent = info.agent()
+            return getattr(agent, "_desktop_session", None) if agent else None
+
+        for info in self._session_info.values():
+            if info.agent is None:
+                continue
+            agent = info.agent()
+            if agent is None:
+                continue
+            session = cast("DesktopSession | None", getattr(agent, "_desktop_session", None))
+            if session is not None:
+                return session
+        return None
+
+    def reset_all_desktop_session_permission_caches(self) -> int:
+        """Reset harness desktop session in-memory approval shortcuts on all agents."""
+        cleared = 0
+        for info in self._session_info.values():
+            if info.agent is None:
+                continue
+            agent = info.agent()
+            if agent is None:
+                continue
+            session = getattr(agent, "_desktop_session", None)
+            if session is None:
+                continue
+            reset_fn = getattr(session, "reset_runtime_permission_cache", None)
+            if callable(reset_fn):
+                reset_fn()
+                cleared += 1
+        return cleared
+
+    def get_active_event_log_backend(self) -> tuple[str, object] | None:
+        """Get (session_id, EventLogBackend) from the first active agent that has one."""
+        for info in self._session_info.values():
+            if info.agent is None:
+                continue
+            agent = info.agent()
+            if agent is None:
+                continue
+            backend = getattr(agent, "event_log_backend", None)
+            if backend is not None:
+                return info.chat_id, backend
+        return None
+
+    def interrupt_all(self) -> int:
+        """Interrupt all running agents. Returns count of interrupted users."""
+        count = 0
+        for user_events in self._interrupt_events.values():
+            for event in user_events.values():
+                event.set()
+            count += 1
+        return count
+
+    @property
+    def is_draining(self) -> bool:
+        return self._draining
+
+    async def begin_drain(self, timeout: float | None = None) -> None:
+        """Enter draining state: reject new turns, wait for in-flight ones to finish.
+
+        Idempotent: if already draining, returns immediately to avoid
+        duplicate polling loops.
+
+        Called during graceful shutdown. Sets ``_draining`` so ``execute_stream``
+        rejects new executions with ``AgentDrainingError``. Then polls
+        ``_active_sessions`` until empty or *timeout* expires. On timeout the
+        remaining agents are interrupted via ``interrupt_all()``.
+        """
+        if self._draining:
+            logger.info("[Drain] Already draining, skipping duplicate drain request")
+            return
+        self._draining = True
+        effective_timeout = timeout if timeout is not None else self._DRAIN_TIMEOUT_DEFAULT
+        active = len(self._active_sessions)
+        if active == 0:
+            logger.info("[Drain] No active sessions, drain complete immediately")
+            return
+
+        logger.info(
+            "[Drain] Waiting for %d active session(s) (timeout=%.0fs)",
+            active,
+            effective_timeout,
+        )
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + effective_timeout
+        poll_interval = 0.5
+        while self._active_sessions and self._draining:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                still_active = len(self._active_sessions)
+                logger.warning(
+                    "[Drain] Timeout after %.0fs with %d session(s) still active, interrupting",
+                    effective_timeout,
+                    still_active,
+                )
+                if self._draining:
+                    self.interrupt_all()
+                    await asyncio.sleep(1.0)
+                break
+            await asyncio.sleep(min(poll_interval, remaining))
+
+        if not self._draining:
+            logger.info("[Drain] Drain cancelled externally, exiting poll loop")
+        else:
+            logger.info(
+                "[Drain] Drain complete (sessions remaining: %d)",
+                len(self._active_sessions),
+            )
+
+    def cancel_drain(self) -> bool:
+        """Revert draining state, re-accept new executions.
+
+        Returns True if the gateway was draining; False if it was not.
+        Intended for CP-driven drain that gets cancelled before shutdown.
+        """
+        if not self._draining:
+            return False
+        self._draining = False
+        logger.info("[Drain] Drain cancelled, re-accepting new executions")
+        return True
+
+    async def on_pressure_change(self, event: "PressureEvent") -> None:
+        """PressureSubscriber callback — update circuit breaker state.
+
+        CRITICAL/EMERGENCY → block new executions (clear the Event).
+        NORMAL/WARNING → allow new executions (set the Event).
+        Already-running agents are NOT interrupted — only new ones are queued.
+        """
+        from myrm_agent_harness.runtime.survival.memory_pressure import PressureLevel
+
+        self._memory_pressure_level = event.level
+        if event.level >= PressureLevel.CRITICAL:
+            self._pressure_resolved.clear()
+            logger.warning(
+                "AgentGateway: memory pressure circuit breaker OPEN (level=%s, mem=%.1f%%)",
+                event.level.name,
+                event.memory_percent,
+            )
+        else:
+            self._pressure_resolved.set()
+            if event.de_escalated:
+                logger.info(
+                    "AgentGateway: memory pressure circuit breaker CLOSED (level=%s, mem=%.1f%%)",
+                    event.level.name,
+                    event.memory_percent,
+                )
+
+    # 长时目标（代码重构、大规模分析）禁用常规超时所用的上限
+    GOAL_ACTIVE_TIMEOUT_SECONDS = 3600.0
+
+    def reserve_session(
+        self,
+        session_id: str,
+        *,
+        active_message_id: str | None = None,
+        agent_type: str = "general",
+        agent_id: str | None = None,
+    ) -> None:
+        """Claim a chat session before persist/stream setup.
+
+        Raises:
+            AgentDrainingError: Gateway is draining.
+            AgentBusyError: Session is already active.
+        """
+        if self._draining:
+            raise AgentDrainingError("Gateway is draining, not accepting new executions")
+        if session_id in self._active_sessions:
+            raise AgentBusyError(f"Session {session_id} is already active")
+        self._active_sessions.add(session_id)
+        self._session_info[session_id] = ActiveSessionInfo(
+            chat_id=session_id,
+            agent_type=agent_type,
+            current_message_id=active_message_id,
+            agent_id=agent_id,
+            reserved_only=True,
+        )
+        callback = getattr(self, "on_session_reserved", None)
+        if callable(callback):
+            try:
+                callback(
+                    session_id,
+                    active_message_id=active_message_id,
+                    agent_type=agent_type,
+                    agent_id=agent_id,
+                )
+            except Exception:
+                logger.debug("on_session_reserved callback failed", exc_info=True)
+
+    def release_session(self, session_id: str) -> None:
+        """Release a pre-reserved session that never reached execute_stream."""
+        self._active_sessions.discard(session_id)
+        self._session_info.pop(session_id, None)
+
+    def release_if_reserved_only(self, session_id: str) -> bool:
+        """Release a session still in the pre-reserved (not yet executing) state.
+
+        A turn reserves the chat before stream setup and hands ownership to
+        ``execute_stream``. If the turn exits before that hand-over (e.g. the
+        user cancels while queued on the project turn lock), the reservation
+        would otherwise leak and leave the chat permanently busy. Only
+        ``reserved_only`` reservations are released here — sessions already
+        taken over by ``execute_stream`` are owned by its own ``finally``.
+
+        Returns:
+            True when a reservation that never reached ``execute_stream`` was released.
+        """
+        info = self._session_info.get(session_id)
+        if info is None or not info.reserved_only:
+            return False
+        self._active_sessions.discard(session_id)
+        self._session_info.pop(session_id, None)
+        return True
+
+    def is_session_active(self, session_id: str) -> bool:
+        """Return True when an agent execution is in-flight for the session."""
+        return session_id in self._active_sessions
+
+    def active_session_ids(self) -> frozenset[str]:
+        """Snapshot of the sessions with an agent execution in flight."""
+        return frozenset(self._active_sessions)
+
+    def _resolve_idle_threshold(self, *, goal_active: bool, fission_active: bool) -> float:
+        """Resolve the idle-silence threshold by tier (goal > fission > default).
+
+        The threshold bounds the longest gap between two consecutive agent
+        events, not total runtime — an actively streaming session is never
+        killed no matter how long it runs (up to the hard ceiling).
+
+        - goal_active: long-running goals tolerate long silent phases.
+        - fission_active: Swarm Fission parallel subtasks need 2x patience.
+        - default: the configured execution_timeout.
+        """
+        if goal_active:
+            return self.GOAL_ACTIVE_TIMEOUT_SECONDS
+        if fission_active:
+            return self._config.execution_timeout * 2
+        return self._config.execution_timeout
+
+    async def execute_stream(
+        self,
+        stream: AsyncGenerator[dict[str, object], None],
+        *,
+        agent_type: str,
+        session_id: str | None = None,
+        agent_instance: "BaseAgent | None" = None,
+        active_message_id: str | None = None,
+        goal_active: bool = False,
+        fission_active: bool = False,
+        agent_id: str | None = None,
+    ) -> AsyncGenerator[dict[str, object], None]:
+        """Execute an agent stream with full lifecycle management.
+
+        Args:
+            stream: Bound agent event stream (from agent.process_stream).
+            agent_type: Agent category for logging ("general").
+            session_id: Optional chat/session ID for concurrency protection.
+            agent_instance: Optional BaseAgent for weak-ref tracking.
+            goal_active: When True, disables execution timeout to allow
+                long-running goals (code refactoring, large-scale analysis)
+                to complete without interruption.
+            fission_active: When True, extends execution timeout for Swarm
+                Fission parallel subagent batches.
+            agent_id: Optional agent profile ID for Fleet Overview status.
+
+        Yields:
+            Agent events (dict), transparently forwarded.
+
+        Raises:
+            AgentDrainingError: Gateway is draining (graceful shutdown).
+            AgentQueueTimeout: Queue wait exceeded queue_timeout.
+            AgentExecutionTimeout: Stream stayed silent beyond the tiered
+                idle threshold, or total runtime exceeded the hard ceiling.
+            AgentBusyError: Session is already active.
+        """
+        if self._draining:
+            raise AgentDrainingError("Gateway is draining, not accepting new executions")
+
+        if session_id:
+            if session_id in self._active_sessions:
+                existing = self._session_info.get(session_id)
+                if existing is None or not existing.reserved_only:
+                    raise AgentBusyError(f"Session {session_id} is already active")
+                self._session_info[session_id] = ActiveSessionInfo(
+                    chat_id=session_id,
+                    agent_type=agent_type,
+                    started_at=existing.started_at,
+                    agent=weakref.ref(agent_instance) if agent_instance else None,
+                    current_message_id=active_message_id or existing.current_message_id,
+                    agent_id=agent_id or existing.agent_id,
+                    reserved_only=False,
+                )
+            else:
+                self._active_sessions.add(session_id)
+                self._session_info[session_id] = ActiveSessionInfo(
+                    chat_id=session_id,
+                    agent_type=agent_type,
+                    agent=weakref.ref(agent_instance) if agent_instance else None,
+                    current_message_id=active_message_id,
+                    agent_id=agent_id,
+                    reserved_only=False,
+                )
+
+        user_sem = self._get_user_sem("sandbox")
+
+        try:
+            async with asyncio.timeout(self._config.queue_timeout):
+                # Phase 1: Wait for memory pressure to resolve (if CRITICAL/EMERGENCY)
+                if not self._pressure_resolved.is_set():
+                    logger.info(
+                        "AgentGateway: queuing new %s execution — memory pressure %s",
+                        agent_type,
+                        self._memory_pressure_level.name,
+                    )
+                    await self._pressure_resolved.wait()
+
+                # Phase 2: Acquire concurrency slots
+                await self._global_sem.acquire()
+                try:
+                    await user_sem.acquire()
+                except BaseException:
+                    self._global_sem.release()
+                    raise
+        except TimeoutError:
+            if session_id:
+                self._active_sessions.discard(session_id)
+                self._session_info.pop(session_id, None)
+            if not self._pressure_resolved.is_set():
+                reason = "memory_pressure"
+                detail = f"Memory pressure ({self._memory_pressure_level.name})"
+            elif self._global_sem._value <= 0:
+                reason = "global_limit"
+                detail = f"active={self._active_count}/{self._config.max_global}"
+            elif user_sem._value <= 0:
+                reason = "user_limit"
+                detail = f"user concurrency limit reached ({self._config.max_per_user} active)"
+            else:
+                reason = "global_limit"
+                detail = f"active={self._active_count}/{self._config.max_global}"
+            raise AgentQueueTimeout(
+                f"Queue timeout ({self._config.queue_timeout:.0f}s) — {detail}",
+                reason=reason,
+                active_sessions=self.get_active_sessions(),
+            ) from None
+
+        self._active_count += 1
+        started_at = time.monotonic()
+        status = "success"
+
+        if session_id:
+            from app.services.agent.streaming_support.multiplexer import (
+                WorkspaceMultiplexer,
+            )
+
+            WorkspaceMultiplexer.get().publish_session_status(session_id, "generating", agent_type)
+
+        interrupt_event = asyncio.Event()
+        event_key = session_id or f"_anon_{id(interrupt_event)}"
+        self._interrupt_events.setdefault("sandbox", {})[event_key] = interrupt_event
+
+        def _recursive_scrub(data: object) -> object:
+            from myrm_agent_harness.toolkits.code_execution.executors.models import (
+                scrub_sensitive_info,
+            )
+
+            if isinstance(data, dict):
+                return {k: _recursive_scrub(v) for k, v in data.items()}
+            if isinstance(data, list):
+                return [_recursive_scrub(item) for item in data]
+            if isinstance(data, str):
+                return scrub_sensitive_info(data)
+            return data
+
+        idle_threshold = self._resolve_idle_threshold(goal_active=goal_active, fission_active=fission_active)
+        loop = asyncio.get_running_loop()
+        hard_deadline = loop.time() + self._config.execution_hard_ceiling
+
+        def _next_deadline() -> float:
+            """Watchdog deadline: idle silence or the hard wall-clock cap, whichever hits first."""
+            return min(loop.time() + idle_threshold, hard_deadline)
+
+        try:
+            async with asyncio.timeout_at(_next_deadline()) as watchdog:
+                async for event in stream:
+                    # Every arriving event proves the agent is alive: push the
+                    # idle deadline forward (still capped by the hard ceiling).
+                    watchdog.reschedule(_next_deadline())
+                    if interrupt_event.is_set():
+                        status = "interrupted"
+                        logger.info("Agent interrupted for sandbox user")
+                        break
+
+                    # Myrm-Guard: Final outbound filter at the very edge of the server
+                    scrubbed = _recursive_scrub(event)
+                    if isinstance(scrubbed, dict):
+                        yield {str(k): v for k, v in scrubbed.items()}
+                    else:
+                        yield {"payload": scrubbed}
+        except TimeoutError:
+            status = "timeout"
+            raise AgentExecutionTimeout(
+                f"Execution timeout (idle>{idle_threshold:.0f}s or ceiling {self._config.execution_hard_ceiling:.0f}s)"
+            ) from None
+        except GeneratorExit:
+            status = "cancelled"
+            raise
+        except Exception:
+            status = "error"
+            raise
+        finally:
+            duration = time.monotonic() - started_at
+            self._active_count -= 1
+            user_events = self._interrupt_events.get("sandbox")
+            if user_events is not None:
+                user_events.pop(event_key, None)
+                if not user_events:
+                    del self._interrupt_events["sandbox"]
+            if session_id:
+                desktop = self.get_active_desktop_session(session_id)
+                if desktop is not None:
+                    close_fn = getattr(desktop, "close", None)
+                    if close_fn is not None:
+                        try:
+                            await close_fn()
+                        except Exception as exc:
+                            logger.debug("Desktop session close error (non-fatal): %s", exc)
+                self._active_sessions.discard(session_id)
+                self._session_info.pop(session_id, None)
+                from app.services.agent.streaming_support.multiplexer import (
+                    WorkspaceMultiplexer,
+                )
+
+                WorkspaceMultiplexer.get().publish_session_status(session_id, "idle", agent_type)
+            user_sem.release()
+            self._global_sem.release()
+            logger.info(
+                "AgentGateway: %s user=%s type=%s duration=%.1fs active=%d",
+                status,
+                "sandbox",
+                agent_type,
+                duration,
+                self._active_count,
+            )
+
+
+_gateway: AgentGateway | None = None
+
+
+def get_agent_gateway() -> AgentGateway:
+    """Get the singleton AgentGateway instance."""
+    global _gateway  # noqa: PLW0603
+    if _gateway is None:
+        _gateway = AgentGateway()
+    return _gateway

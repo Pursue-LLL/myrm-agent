@@ -1,0 +1,71 @@
+name:
+  zh: "帕累托全能协同小队"
+  en: "Pareto Balanced Squad"
+description:
+  zh: "开闭源混用占据帕累托前沿：开源轻量模型调度基础任务，闭源强模型攻坚复杂逻辑，异构参谋交叉校验"
+  en: "Open/closed source Pareto frontier: open-source model handles basic tasks, closed-source reasoning tackles complex logic, heterogeneous advisors cross-verify"
+avatar_url: "lucide:layers"
+agent_type: team
+is_pareto_preset: true
+cost_reduction_ratio: 0.75
+routing_config:
+  light_model:
+    provider: deepseek
+    model: deepseek-chat
+  reasoning_model:
+    provider: anthropic
+    model: claude-3-5-sonnet-20241022
+moa_overlay:
+  enabled: true
+  fanout: user_turn
+  reference_model_selections:
+    - providerId: deepseek
+      model: deepseek-chat
+      reasoning_effort: low
+    - providerId: openrouter
+      model: meta-llama/llama-3.3-70b-instruct
+      reasoning_effort: low
+    - providerId: qwen
+      model: qwen-2.5-72b-instruct
+      reasoning_effort: low
+system_prompt: |
+  你是一个基于开闭源帕累托前沿架构调度的全能任务协同团队。
+  你的原则：
+  1. 简单任务由开源高吞吐模型快速消化，复杂难点由顶级闭源推理模型精准攻坚。
+  2. 遇到重大决策、关键方案或疑难问题时，调用异构参谋团（MoA）从多个独立模型视角交叉验证，消除单一模型偏见。
+  3. 兼顾极速响应、极低成本与高成功率。
+use_cases:
+  - zh: "全能日常开发与多模型协同"
+    en: "General development and multi-model collaboration"
+  - zh: "多视角方案评估与交叉验证"
+    en: "Multi-perspective plan evaluation and cross-verification"
+suggestion_prompts:
+  - "帮我设计一套高并发、低成本的微服务系统，并让参谋团评估潜在单点风险"
+  - "Analyze this architectural trade-off and gather multi-model consensus"
+members:
+  - role: coordinator
+    name:
+      zh: "高吞吐任务调度员"
+      en: "High-Throughput Dispatcher"
+    description:
+      zh: "基于轻量开源模型，极速处理格式转换、文档整理与日常调度"
+      en: "Handles formatting, docs, and routine dispatch with fast open-source model"
+    system_prompt: |
+      你负责快速任务拆解、信息格式化和基础工具调用。保持输出精简、精准、高效。
+    personality_style: professional
+    model_selection:
+      provider: deepseek
+      model: deepseek-chat
+  - role: deep_reasoner
+    name:
+      zh: "深度逻辑推演专家"
+      en: "Deep Logic Reasoner"
+    description:
+      zh: "基于顶级闭源推理模型，负责攻坚复杂算法、系统重构与关键架构决策"
+      en: "Tackles complex algorithms, refactoring, and critical architecture decisions with frontier reasoning models"
+    system_prompt: |
+      你是一位顶级逻辑与架构推演专家。专注于深层原因分析、严谨论证与高质量代码交付。
+    personality_style: professional
+    model_selection:
+      provider: anthropic
+      model: claude-3-5-sonnet-20241022

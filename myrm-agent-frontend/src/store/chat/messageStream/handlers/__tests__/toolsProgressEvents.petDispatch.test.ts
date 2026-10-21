@@ -1,0 +1,173 @@
+/**
+ * Tests for pet-status-event behavior in toolsProgressEvents handler.
+ * Approval/clarify waiting is store-driven in PetOverlay — handlers must not dispatch pet events.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/approval/buildToolApprovalRequest', () => ({
+  buildToolApprovalRequest: vi.fn(() => ({ id: 'mock-req' })),
+}));
+
+vi.mock('./handlerDeps', () => {
+  const AgentEventType = {
+    TOOL_HEARTBEAT: 'tool_heartbeat',
+    TASKS_STEPS: 'tasks_steps',
+    SOURCES: 'sources',
+    APPROVAL_REQUIRED: 'approval_required',
+    CLARIFICATION_REQUIRED: 'clarification_required',
+    TOOL_APPROVAL_REQUEST: 'tool_approval_request',
+    TOOLS_SNAPSHOT: 'tools_snapshot',
+  } as const;
+
+  return {
+    AgentEventType,
+    findAssistantMessageIndex: vi.fn(() => 0),
+    useChatStore: {
+      getState: vi.fn(() => ({ chatId: 'c1', actionMode: 'auto' })),
+    },
+    useToolApprovalStore: {
+      getState: vi.fn(() => ({
+        addRequest: vi.fn(),
+        queue: [],
+      })),
+    },
+    useToolsSnapshotStore: {
+      getState: vi.fn(() => ({ setTools: vi.fn() })),
+    },
+    useConfigStore: {
+      getState: vi.fn(() => ({ enableWebNotifications: false })),
+    },
+    mapTaskStepStatus: vi.fn(() => 'success'),
+    mergeMessageSources: vi.fn(),
+    resolveStreamChatId: (state: { chatId?: string; messages?: Array<{ chatId?: string }> }) =>
+      state.chatId?.trim() || state.messages?.[0]?.chatId?.trim() || '',
+  };
+});
+
+import { toolsProgressEvents } from '../toolsProgressEvents';
+import type { StreamCtx } from '../../streamContext';
+import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
+
+function makeCtx(eventType: string, extra: Record<string, unknown> = {}): StreamCtx {
+  return {
+    data: { type: eventType, messageId: 'msg-1', ...extra } as never,
+    input: '',
+    sources: undefined,
+    added: true,
+    recievedMessage: '',
+    state: { chatId: 'c1', messages: [] } as never,
+    actions: {
+      setLoading: vi.fn(),
+      setMessages: vi.fn(),
+    } as never,
+    files: [],
+  };
+}
+
+describe('toolsProgressEvents pet-status-event dispatches', () => {
+  const dispatchedEvents: CustomEvent[] = [];
+  let origDispatch: typeof window.dispatchEvent;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    dispatchedEvents.length = 0;
+    origDispatch = window.dispatchEvent;
+    window.dispatchEvent = vi.fn((e: Event) => {
+      if (e instanceof CustomEvent && e.type === 'pet-status-event') {
+        dispatchedEvents.push(e);
+      }
+      return true;
+    });
+  });
+
+  afterEach(() => {
+    window.dispatchEvent = origDispatch;
+    vi.useRealTimers();
+  });
+
+  it('APPROVAL_REQUIRED does not dispatch pet-status-event', async () => {
+    const ctx = makeCtx('approval_required', { data: { type: 'manual', message: 'test' } });
+    await toolsProgressEvents(ctx);
+    vi.advanceTimersByTime(0);
+    expect(dispatchedEvents).toHaveLength(0);
+  });
+
+  it('APPROVAL_REQUIRED calls setLoading(false)', async () => {
+    const ctx = makeCtx('approval_required', { data: { type: 'manual', message: 'test' } });
+    await toolsProgressEvents(ctx);
+    expect(ctx.actions.setLoading).toHaveBeenCalledWith(false);
+  });
+
+  it('CLARIFICATION_REQUIRED does not dispatch pet-status-event', async () => {
+    const ctx = makeCtx('clarification_required', {
+      data: {
+        type: 'ask_question',
+        form: {
+          title: 'Question',
+          questions: [{ id: 'q1', prompt: 'Pick one', options: [{ id: 'a', label: 'A' }] }],
+        },
+      },
+    });
+    await toolsProgressEvents(ctx);
+    vi.advanceTimersByTime(0);
+    expect(dispatchedEvents).toHaveLength(0);
+  });
+
+  it('TOOL_APPROVAL_REQUEST does not dispatch pet-status-event', async () => {
+    const ctx = makeCtx('tool_approval_request', {
+      data: {
+        actionRequests: [{ action: 'bash', args: { command: 'ls' } }],
+        reviewConfigs: [null],
+        extensions: { approval: { requestId: 'r1' } },
+      },
+    });
+    await toolsProgressEvents(ctx);
+    expect(dispatchedEvents).toHaveLength(0);
+  });
+
+  it('returns done StreamTurn for HITL event types', async () => {
+    const types = [
+      { type: 'approval_required', extra: { data: { type: 'manual' } } },
+      { type: 'clarification_required', extra: { data: { title: 'Q', questions: [] } } },
+      {
+        type: 'tool_approval_request',
+        extra: {
+          data: {
+            actionRequests: [{ action: 'bash', args: {} }],
+            reviewConfigs: [null],
+            extensions: { approval: { requestId: 'r1' } },
+          },
+        },
+      },
+    ];
+
+    for (const { type, extra } of types) {
+      const ctx = makeCtx(type, extra);
+      const result = await toolsProgressEvents(ctx);
+      expect(result, `${type} should return StreamTurn`).not.toBeNull();
+    }
+  });
+});
+
+describe('toolsProgressEvents browser takeover approval fallback', () => {
+  beforeEach(() => {
+    useBrowserTakeoverStore.getState().completeTakeover();
+  });
+
+  it('APPROVAL_REQUIRED with browser_takeover opens extension takeover store', async () => {
+    const ctx = makeCtx('approval_required', {
+      data: {
+        action_type: 'browser_takeover',
+        reason: 'Please click Done',
+        url: 'https://example.com',
+        is_managed: false,
+      },
+    });
+
+    await toolsProgressEvents(ctx);
+
+    expect(useBrowserTakeoverStore.getState().pending).toBe(true);
+    expect(useBrowserTakeoverStore.getState().uiMode).toBe('extension');
+    expect(useBrowserTakeoverStore.getState().reason).toBe('Please click Done');
+  });
+});

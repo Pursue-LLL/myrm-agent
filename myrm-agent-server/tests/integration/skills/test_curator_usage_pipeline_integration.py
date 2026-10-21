@@ -1,0 +1,373 @@
+"""Integration: skill usage stats → curator sweep (no mock on key path).
+
+Exercises real SkillStatsCollector, usage_recorder injection, LocalSkillBackend,
+DefaultForgettingStrategy, and run_curator_sweep end-to-end.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+from myrm_agent_harness.agent.skills.market.helpers import write_origin
+from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
+from myrm_agent_harness.backends.skills.usage_recorder import (
+    begin_skill_run_usage,
+    commit_skill_run_usage,
+    get_injected_stats_collector,
+    record_skill_selection,
+    set_stats_collector,
+)
+
+
+@pytest.fixture
+def curator_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Isolated skills root + curator data dir; resets service singletons."""
+    import app.core.skills.curator.service as curator_service
+    import app.core.skills.models as models_mod
+
+    skills_root = tmp_path / "skills"
+    skills_root.mkdir()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+
+    monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
+    monkeypatch.setattr(curator_service, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
+    monkeypatch.setattr(curator_service, "_get_data_dir", lambda: data_dir)
+
+    curator_service._stats_collector = None
+    curator_service._curator_config = None
+    set_stats_collector(None)
+    begin_skill_run_usage()
+
+    yield skills_root
+
+    curator_service._stats_collector = None
+    curator_service._curator_config = None
+    set_stats_collector(None)
+
+
+def _write_skill(skills_root: Path, name: str, *, stats: dict[str, object] | None = None) -> Path:
+    skill_dir = skills_root / name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: Test skill {name}\n---\nBody.\n",
+        encoding="utf-8",
+    )
+    if stats is not None:
+        (skill_dir / ".stats.json").write_text(json.dumps(stats), encoding="utf-8")
+    return skill_dir
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_curator_sweep_marks_inactive_skill_stale(
+    curator_workspace: Path,
+) -> None:
+    """Long-inactive skill with usage history → stale on real sweep."""
+    old = (datetime.now(UTC) - timedelta(days=60)).isoformat()
+    _write_skill(
+        curator_workspace,
+        "inactive_integration_skill",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "failure_count": 0,
+            "last_used_at": old,
+            "created_at": old,
+            "lifecycle_status": "active",
+        },
+    )
+
+    from app.core.skills.curator.service import (
+        get_stats_collector,
+        run_curator_sweep,
+        update_curator_config,
+    )
+
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+    collector = get_stats_collector()
+    assert get_injected_stats_collector() is collector
+
+    result = await run_curator_sweep(force=True, trigger="manual")
+    assert result.skills_scanned >= 1
+    assert result.stale_count >= 1
+
+    stats_file = curator_workspace / "inactive_integration_skill" / ".stats.json"
+    persisted = json.loads(stats_file.read_text())
+    assert persisted["lifecycle_status"] == SkillLifecycleStatus.STALE
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_never_used_young_skill_not_stale(curator_workspace: Path) -> None:
+    """Regression: never-used skill within stale_after_days must stay active."""
+    recent = datetime.now(UTC).isoformat()
+    _write_skill(
+        curator_workspace,
+        "young_never_used",
+        stats={
+            "call_count": 0,
+            "success_count": 0,
+            "failure_count": 0,
+            "created_at": recent,
+            "lifecycle_status": "active",
+        },
+    )
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+    result = await run_curator_sweep(force=True, trigger="manual")
+
+    stats_file = curator_workspace / "young_never_used" / ".stats.json"
+    persisted = json.loads(stats_file.read_text())
+    assert persisted["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
+    assert result.stale_count == 0 or "young_never_used" not in {t.skill_name for t in result.transitions}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("protect_installed", "authored_status", "installed_status"),
+    [
+        (True, SkillLifecycleStatus.STALE, SkillLifecycleStatus.ACTIVE),
+        (False, SkillLifecycleStatus.STALE, SkillLifecycleStatus.STALE),
+    ],
+)
+async def test_sweep_spares_installed_skills_only_while_protection_is_on(
+    curator_workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    protect_installed: bool,
+    authored_status: SkillLifecycleStatus,
+    installed_status: SkillLifecycleStatus,
+) -> None:
+    """Equally idle skills: the authored one goes stale; a store install and another tool's skill follow the switch."""
+    import app.core.skills.models as models_mod
+
+    other_tool_root = curator_workspace.parent / "other-tool-skills"
+    other_tool_root.mkdir()
+    monkeypatch.setattr(models_mod, "DEFAULT_LOCAL_SKILL_PATHS", [str(curator_workspace), str(other_tool_root)])
+
+    old = (datetime.now(UTC) - timedelta(days=60)).isoformat()
+    idle_stats = {"call_count": 3, "success_count": 3, "last_used_at": old, "created_at": old, "lifecycle_status": "active"}
+    authored = _write_skill(curator_workspace, "my-notes", stats=idle_stats)
+    from_store = _write_skill(curator_workspace, "from-store", stats=idle_stats)
+    write_origin(from_store, source="registry", skill_id="registry::from-store")
+    other_tool = _write_skill(other_tool_root, "their-skill", stats=idle_stats)
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    update_curator_config(
+        {"stale_after_days": 30, "grace_period_days": 0, "protect_installed_skills": protect_installed, "enabled": True}
+    )
+    result = await run_curator_sweep(force=True, trigger="manual")
+
+    assert json.loads((authored / ".stats.json").read_text())["lifecycle_status"] == authored_status
+    for installed in (from_store, other_tool):
+        assert json.loads((installed / ".stats.json").read_text())["lifecycle_status"] == installed_status
+    assert result.skipped_protected == (2 if protect_installed else 0)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_usage_recorder_to_curator_via_api_client(
+    curator_workspace: Path,
+) -> None:
+    """POST /curator/run after usage_recorder write — API layer, real sweep."""
+    from datetime import UTC, datetime, timedelta
+
+    from fastapi.testclient import TestClient
+
+    from tests.api.skills.conftest import _load_curator_module
+
+    skill_dir = _write_skill(curator_workspace, "api_pipeline_skill")
+    old_date = datetime.now(UTC) - timedelta(days=45)
+
+    from myrm_agent_harness.backends.skills.types import SkillMetadata
+
+    from app.core.skills.curator.service import (
+        get_stats_collector,
+        update_curator_config,
+    )
+
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+    get_stats_collector()  # wires the production collector into the run recorder
+    begin_skill_run_usage()
+    record_skill_selection(
+        SkillMetadata(
+            name="api_pipeline_skill",
+            description="API test",
+            storage_path=str(skill_dir),
+        ),
+    )
+    commit_skill_run_usage()
+
+    stats = json.loads((skill_dir / ".stats.json").read_text())
+    assert stats["call_count"] == 1
+
+    # Age last_used_at on disk so sweep marks stale (recorder just wrote fresh timestamp)
+    stats["last_used_at"] = old_date.isoformat()
+    (skill_dir / ".stats.json").write_text(json.dumps(stats), encoding="utf-8")
+
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    curator_module = _load_curator_module()
+    app.include_router(curator_module.router, prefix="/api/v1/skills")
+    client = TestClient(app)
+
+    response = client.post("/api/v1/skills/curator/run")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["skills_scanned"] >= 1
+
+    persisted = json.loads((skill_dir / ".stats.json").read_text())
+    assert persisted["lifecycle_status"] == SkillLifecycleStatus.STALE
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_spares_skill_bound_by_a_cron_job(curator_workspace: Path) -> None:
+    """A skill a scheduled job depends on stays active while an equally idle unbound one goes stale."""
+    from myrm_agent_harness.backends.skills.local_skill_id import local_skill_id_from_path
+    from sqlalchemy import delete
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+    from app.database.connection import get_session
+    from app.database.models import CronJobModel
+
+    old = (datetime.now(UTC) - timedelta(days=60)).isoformat()
+    idle_stats = {"call_count": 3, "success_count": 3, "last_used_at": old, "created_at": old, "lifecycle_status": "active"}
+    bound_dir = _write_skill(curator_workspace, "bound-by-cron", stats=idle_stats)
+    free_dir = _write_skill(curator_workspace, "unbound-idle", stats=idle_stats)
+
+    job_id = "curator-bound-job"
+    async with get_session() as session:
+        session.add(
+            CronJobModel(
+                id=job_id,
+                name=job_id,
+                job_type="agent",
+                schedule={"kind": "cron", "expr": "0 8 * * *"},
+                status="active",
+                skill_ids=[local_skill_id_from_path(bound_dir)],
+            )
+        )
+        await session.commit()
+
+    try:
+        update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+        result = await run_curator_sweep(force=True, trigger="manual")
+    finally:
+        async with get_session() as session:
+            await session.execute(delete(CronJobModel).where(CronJobModel.id == job_id))
+            await session.commit()
+
+    assert result.skipped_protected == 1
+    assert json.loads((bound_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ACTIVE
+    assert json.loads((free_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.STALE
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_archiving_a_skill_refreshes_warm_chats(
+    curator_workspace: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An archived skill must leave warm chats too, so a sweep that archives bumps the config version."""
+    from app.core.skills.config_version import get_skill_config_version
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path / "version-root"))
+    long_idle = (datetime.now(UTC) - timedelta(days=400)).isoformat()
+    skill_dir = _write_skill(
+        curator_workspace,
+        "long-idle",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": long_idle,
+            "created_at": long_idle,
+            "lifecycle_status": "stale",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "archive_after_days": 90, "grace_period_days": 0, "enabled": True})
+    assert get_skill_config_version() == 0.0
+
+    result = await run_curator_sweep(force=True, trigger="manual")
+
+    assert result.archived_count == 1
+    assert json.loads((skill_dir / ".stats.json").read_text())["lifecycle_status"] == SkillLifecycleStatus.ARCHIVED
+    assert get_skill_config_version() > 0.0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_archiving_a_skill_announces_the_new_pool(
+    curator_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The frontend only learns a skill left the pool from SKILL_POOL_UPDATED, so the sweep must speak up."""
+    from unittest.mock import patch
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+    from app.services.event.app_event_bus import AppEventType
+
+    long_idle = (datetime.now(UTC) - timedelta(days=400)).isoformat()
+    _write_skill(
+        curator_workspace,
+        "archived-by-sweep",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": long_idle,
+            "created_at": long_idle,
+            "lifecycle_status": "stale",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "archive_after_days": 90, "grace_period_days": 0, "enabled": True})
+
+    with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
+        result = await run_curator_sweep(force=True, trigger="background")
+
+    assert result.archived_count == 1
+    mock_bus = mock_get_bus.return_value
+    assert mock_bus.publish.call_count == 1
+    event = mock_bus.publish.call_args[0][0]
+    assert event.event_type == AppEventType.SKILL_POOL_UPDATED
+    assert event.data == {"action": "archive", "skill_names": ["archived-by-sweep"]}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sweep_without_archives_stays_silent(
+    curator_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A sweep that archived nothing must not wake every connected client for no reason."""
+    from unittest.mock import patch
+
+    from app.core.skills.curator.service import run_curator_sweep, update_curator_config
+
+    recent = datetime.now(UTC).isoformat()
+    _write_skill(
+        curator_workspace,
+        "still-active",
+        stats={
+            "call_count": 3,
+            "success_count": 3,
+            "last_used_at": recent,
+            "created_at": recent,
+            "lifecycle_status": "active",
+        },
+    )
+
+    update_curator_config({"stale_after_days": 30, "grace_period_days": 0, "enabled": True})
+
+    with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
+        result = await run_curator_sweep(force=True, trigger="background")
+
+    assert result.archived_count == 0
+    mock_get_bus.return_value.publish.assert_not_called()

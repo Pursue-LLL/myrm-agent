@@ -1,0 +1,622 @@
+"""Chrome LIVE E2E: ToolsPanel shows semantic ToolLayer badges after real agent-stream."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import sys
+import time
+import urllib.error
+import uuid
+from pathlib import Path
+
+import pytest
+
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat.mcp_ui import McpChatSession, is_mux_parallel_fail_fast  # noqa: E402
+from cdp_chat.support import (
+    BRIDGE_TURN_SNAPSHOT_JS,
+    E2E_API_BINDING_PROBE_JS,
+    STREAM_API_BINDING_JS,
+    WAIT_WORKSPACE_STREAM_JS,
+    chat_user_message_count,
+    e2e_runtime_bootstrap_apply_js,
+    fetch_config_value,
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    put_config_value,
+    require_e2e_api_binding_probe,
+    shared_hot_e2e_api_base,
+    shpoib_parallel_shell_timeout_sec,
+    signoff_parallel_force_chat_timeout_sec,
+    wait_e2e_provider_ready,
+)  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+
+from tests.support.chrome_mcp_e2e import (
+    OpenMcpPageSession,
+    open_mcp_page_async,
+    prepare_e2e_ui_session,
+)
+from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
+
+_RECOVER_HITL_JS = """((chatId) => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.recoverHitlStream) {
+    return { ok: false, err: 'missing-recoverHitlStream' };
+  }
+  return bridge.recoverHitlStream(String(chatId || ''));
+})"""
+
+BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+_MAX_ATTEMPTS = 2
+_TRANSPORT_RETRY_MARKERS: tuple[str, ...] = (
+    "MUX_RECLAIM_STALL",
+    "MUX_TRANSPORT",
+    "MUX_CONTEXT_RESET",
+    "MUX_EVALUATE_ORPHAN",
+    "R96_MUX",
+    "bridge-ready-timeout",
+    "E2E_SHARED_UI_SESSION_BRIDGE",
+    "open_mcp_page",
+    "detached",
+    "Execution context was destroyed",
+    "transport unavailable",
+    "reset_after_orphan",
+    "sync evaluate orphaned",
+    "evaluate orphaned",
+)
+
+
+def _search_configs_from_value(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, dict):
+        return []
+    raw = value.get("searchServiceConfigs")
+    if not isinstance(raw, list):
+        return []
+    return [row for row in raw if isinstance(row, dict) and row.get("enabled") is True]
+
+
+def _minimal_e2e_search_services() -> dict[str, object]:
+    return {
+        "searchServiceConfigs": [
+            {
+                "id": f"e2e-search-{uuid.uuid4().hex[:8]}",
+                "name": "E2E Search",
+                "enabled": True,
+                "priority": 1,
+                "search_service": "tavily",
+                "api_key": "test-tavily-key",
+                "createdAt": int(time.time() * 1000),
+            }
+        ]
+    }
+
+
+def _ensure_private_search_for_tools_panel(api_url: str) -> None:
+    """SHPOIB private API starts without searchServices; web_search_tool needs config for common layer badge."""
+    private = fetch_config_value("searchServices", api_url=api_url)
+    if _search_configs_from_value(private):
+        return
+    shared: dict[str, object] | None = None
+    try:
+        shared_raw = fetch_config_value("searchServices", api_url=shared_hot_e2e_api_base())
+        shared = shared_raw if isinstance(shared_raw, dict) else None
+    except (OSError, urllib.error.URLError, TimeoutError):
+        shared = None
+    if shared and _search_configs_from_value(shared):
+        put_config_value("searchServices", shared, api_url=api_url)
+    else:
+        put_config_value("searchServices", _minimal_e2e_search_services(), api_url=api_url)
+    deadline = time.monotonic() + 30.0
+    last: object = None
+    while time.monotonic() < deadline:
+        last = fetch_config_value("searchServices", api_url=api_url)
+        if _search_configs_from_value(last):
+            return
+        time.sleep(0.5)
+    raise RuntimeError(
+        f"searchServices not persisted on {api_url} for tools_panel E2E; last={json.dumps(last, ensure_ascii=False)}"
+    )
+
+
+def _is_transport_retryable(exc: BaseException) -> bool:
+    if is_mux_parallel_fail_fast(exc):
+        return False
+    text = str(exc)
+    return any(marker in text for marker in _TRANSPORT_RETRY_MARKERS)
+
+
+def _is_tools_panel_flow_retryable(exc: BaseException) -> bool:
+    text = str(exc)
+    # Evaluate orphan reclaim under parallel mux — outer heal+retry is required (run75).
+    if "evaluate orphaned" in text:
+        return True
+    if _is_transport_retryable(exc):
+        return True
+    if not isinstance(exc, AssertionError):
+        return False
+    text = str(exc)
+    return "State not ready" in text and (
+        "hasToolsSnapshotEvent': False" in text
+        or 'hasToolsSnapshotEvent": False' in text
+        or "'hasToolsSnapshotEvent': False" in text
+    )
+
+
+async def _force_mux_heal_before_retry() -> None:
+    from mux.attach_force_restart import force_mux_attach_restart_scoped
+
+    await asyncio.to_thread(
+        force_mux_attach_restart_scoped,
+        reason="tools_panel layer badges outer retry",
+    )
+    await asyncio.sleep(3.0)
+
+
+def _touch_wall_progress(node: str) -> None:
+    try:
+        from e2e_session_runtime.lifecycle import touch_wall_progress
+
+        touch_wall_progress(current_node=node)
+    except ImportError:
+        pass
+
+
+_PREP_AGENT_TURN_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge) return { ready: false, err: 'no-bridge' };
+  await bridge.ensureProviders?.();
+  bridge.setActionMode?.('agent');
+  await bridge.ensureChatSession?.({ preserveActionMode: true });
+  bridge.setSseCaptureMessageId?.(null);
+  // Turn1 togglables — web_search supplies common layer badge; no network on "Reply OK."
+  const turn1Tools = ['web_search', 'memory', 'structured_clarify'];
+  bridge.setCurrentBuiltinTools?.(turn1Tools);
+  delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
+  if (bridge.pinLiteModelForE2e) {
+    await bridge.pinLiteModelForE2e({ preserveActionMode: true });
+  }
+  if (bridge.syncSearchServicesFromE2eApi) {
+    await bridge.syncSearchServicesFromE2eApi();
+  }
+  const debug = bridge.debugProviderState?.() ?? null;
+  const sendReady = bridge.isSendReady?.() === true;
+  const hasInput = !!document.querySelector('[data-chat-input]');
+  const hasSelection = !!debug?.selection;
+  return {
+    ready: hasInput && sendReady && hasSelection,
+    ok: hasInput && sendReady && hasSelection,
+    sendReady,
+    hasInput,
+    hasSelection,
+    debug,
+    tools: bridge.getCurrentBuiltinTools?.() ?? [],
+  };
+})()"""
+
+
+_WAIT_TOOLS_PANEL_READY_JS = """(async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const deadline = Date.now() + 30000;
+  let last = {};
+  while (Date.now() < deadline) {
+    const bridge = window.__MYRM_E2E_CHAT__;
+    const trigger = document.querySelector('[data-testid="tools-panel-trigger"]');
+    const streamMessageId = bridge?.debugProviderState?.()?.streamRequestMessageId ?? null;
+    const allSse = bridge?.sseSnapshot?.() ?? [];
+    let sseTypes = allSse;
+    if (streamMessageId) {
+      const filtered = bridge?.sseSnapshot?.(streamMessageId) ?? [];
+      if (filtered.length > 0) {
+        sseTypes = filtered;
+      }
+    }
+    const muxMessageId = window.__MYRM_MULTIPLEX_STATS__?.()?.lastMessageId ?? null;
+    if (!sseTypes.includes('tools_snapshot') && typeof muxMessageId === 'string' && muxMessageId.trim()) {
+      const muxSse = bridge?.sseSnapshot?.(muxMessageId.trim()) ?? [];
+      if (muxSse.includes('tools_snapshot')) {
+        sseTypes = muxSse;
+      }
+    }
+    if (!sseTypes.includes('tools_snapshot') && allSse.includes('tools_snapshot')) {
+      sseTypes = allSse;
+    }
+    let toolsCount = 0;
+    let layerSlugs = [];
+    try {
+      const mod = await import('/src/store/useToolsSnapshotStore');
+      const tools = mod.default.getState().tools ?? [];
+      toolsCount = tools.length;
+      layerSlugs = tools.map((row) => String(row.layer ?? '').trim().toLowerCase()).filter(Boolean);
+    } catch (_) {}
+    const hasToolsSnapshotEvent = sseTypes.includes('tools_snapshot') || toolsCount > 0;
+    last = {
+      ready: hasToolsSnapshotEvent && (!!trigger || toolsCount > 0),
+      hasTrigger: !!trigger,
+      hasToolsSnapshotEvent,
+      toolsCount,
+      layerSlugs: layerSlugs.slice(0, 16),
+      sseTypes: sseTypes.slice(0, 12),
+      allSseTypes: allSse.slice(0, 12),
+      streamMessageId,
+      muxMessageId: typeof muxMessageId === 'string' ? muxMessageId : null,
+      directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
+      turn: bridge?.turnSnapshot?.() ?? null,
+    };
+    if (last.ready) {
+      return last;
+    }
+    await sleep(500);
+  }
+  return last;
+})()"""
+
+
+async def _wait_for_tools_panel_ready(
+    chat: McpChatSession,
+    *,
+    api_url: str,
+    chat_id: str,
+    timeout_sec: float = 130.0,
+) -> dict[str, object]:
+    del api_url, chat_id
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        _touch_wall_progress("tools_panel_wait_snapshot")
+        raw = await chat.evaluate(
+            _WAIT_TOOLS_PANEL_READY_JS,
+            intent=EvaluateIntent.AGENT_SUBMIT,
+        )
+        last = raw if isinstance(raw, dict) else {"value": raw}
+        if last.get("ready") is True:
+            return last
+        await asyncio.sleep(0.5)
+    raise AssertionError(f"ToolsPanel not ready within {timeout_sec:.0f}s: {last}")
+
+
+_OPEN_TOOLS_PANEL_JS = """(() => {
+  const trigger = document.querySelector('[data-testid="tools-panel-trigger"]');
+  if (!trigger) return { ok: false, err: 'no-trigger' };
+  trigger.click();
+  return { ok: true };
+})()"""
+
+_LAYER_BADGES_READY_JS = """(() => {
+  const panel = document.querySelector('[data-testid="tools-panel-content"]');
+  if (!panel) return { ready: false, reason: 'no-panel' };
+  const text = panel.innerText || '';
+  const badges = Array.from(panel.querySelectorAll('span'))
+    .map((el) => (el.textContent || '').trim())
+    .filter(Boolean);
+  const hasCore = /(?:^|\\s)(核心|Core)(?:\\s|$)/m.test(text);
+  const hasHighPriority = /(?:^|\\s)(高优|High Priority)(?:\\s|$)/m.test(text);
+  const hasExtended = /(?:^|\\s)(扩展|Extended)(?:\\s|$)/m.test(text);
+  const hasDigitLayer = badges.some((label) => /^[1-4]$/.test(label));
+  return {
+    ready: hasCore && hasHighPriority && hasExtended && !hasDigitLayer,
+    hasCore,
+    hasHighPriority,
+    hasExtended,
+    hasDigitLayer,
+    badges: badges.slice(0, 40),
+    sample: text.slice(0, 400),
+  };
+})()"""
+
+
+async def _wait_for_eval_ready(
+    chat: McpChatSession,
+    expression: str,
+    *,
+    timeout_sec: float,
+    intent: EvaluateIntent = EvaluateIntent.BRIDGE_POLL,
+    poll_sec: float = 1.0,
+    progress_node: str = "tools_panel_eval_wait",
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        _touch_wall_progress(progress_node)
+        raw = await chat.evaluate(
+            expression,
+            intent=intent,
+        )
+        last = raw if isinstance(raw, dict) else {"value": raw}
+        if last.get("ready") is True or last.get("ok") is True:
+            return last
+        await asyncio.sleep(poll_sec)
+    raise AssertionError(f"State not ready within {timeout_sec:.0f}s: {last}")
+
+
+async def _apply_e2e_runtime_bootstrap(chat: McpChatSession) -> None:
+    bootstrap_js = e2e_runtime_bootstrap_apply_js()
+    if not bootstrap_js:
+        await chat.ensure_e2e_api_base_binding()
+        return
+    result = await chat.evaluate(
+        bootstrap_js,
+        intent=EvaluateIntent.AGENT_SUBMIT,
+    )
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
+
+
+async def _wait_api_user_messages(
+    chat_id: str,
+    *,
+    api_url: str,
+    min_count: int,
+    timeout_sec: float,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last = 0
+    while time.monotonic() < deadline:
+        heartbeat_once()
+        _touch_wall_progress("tools_panel_api_user_gate")
+        try:
+            last = await asyncio.wait_for(
+                asyncio.to_thread(
+                    chat_user_message_count,
+                    chat_id,
+                    api_url=api_url,
+                    timeout_sec=8.0,
+                    max_attempts=1,
+                ),
+                timeout=12.0,
+            )
+        except (TimeoutError, OSError):
+            last = 0
+        if last >= min_count:
+            return
+        await asyncio.sleep(1.0)
+    raise AssertionError(
+        f"Backend did not persist user message within {timeout_sec:.0f}s (chat_id={chat_id!r} last={last} api={api_url})"
+    )
+
+
+async def _assert_private_api_binding(chat: McpChatSession, *, api_url: str) -> None:
+    probe = await chat.evaluate(
+        E2E_API_BINDING_PROBE_JS,
+        intent=EvaluateIntent.SYNC_PROBE,
+    )
+    require_e2e_api_binding_probe(probe, api_url)
+    stream_binding = await chat.evaluate(
+        STREAM_API_BINDING_JS,
+        intent=EvaluateIntent.SYNC_PROBE,
+    )
+    binding = stream_binding if isinstance(stream_binding, dict) else {}
+    if binding.get("usesRelativeProxy") is True or binding.get("hasPrivateBinding") is not True:
+        raise AssertionError(
+            f"SHPOIB stream binding missing — agent-stream may hit shared :8080; binding={binding!r}; expected={api_url!r}"
+        )
+
+
+async def _run_tools_panel_layer_badges_flow(
+    chat: McpChatSession,
+    *,
+    api_url: str,
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    _USER_PROMPT = "Reply OK."
+    heartbeat_once()
+    _touch_wall_progress("tools_panel_flow_start")
+    chat._client.set_tool_wall_deadline(None)
+
+    await chat.dismiss_modals()
+    await chat.click_new_chat()
+    await chat.ensure_chat_surface(BASE_URL)
+    await _apply_e2e_runtime_bootstrap(chat)
+    await _assert_private_api_binding(chat, api_url=api_url)
+
+    chat_ready = await _wait_for_eval_ready(
+        chat,
+        _PREP_AGENT_TURN_JS,
+        timeout_sec=90.0,
+        intent=EvaluateIntent.AGENT_SUBMIT,
+        progress_node="tools_panel_prep_agent_turn",
+    )
+    assert chat_ready.get("sendReady") is True, chat_ready
+
+    heartbeat_once()
+    workspace = await chat.evaluate(
+        WAIT_WORKSPACE_STREAM_JS,
+        intent=EvaluateIntent.AGENT_SUBMIT,
+    )
+    assert isinstance(workspace, dict) and workspace.get("ok") is True, workspace
+
+    heartbeat_once()
+    _touch_wall_progress("tools_panel_kickoff")
+    send_result = await chat.send_message(_USER_PROMPT, _USER_PROMPT)
+    assert isinstance(send_result, dict), send_result
+    submit = send_result.get("submit")
+    assert isinstance(submit, dict) and submit.get("ok") is True, send_result
+
+    chat_id = str(
+        submit.get("chatId")
+        or (send_result.get("started", {}).get("chatId") if isinstance(send_result.get("started"), dict) else None)
+        or (await chat.bridge_chat_id())
+        or ""
+    ).strip()
+    assert chat_id, f"SendTurnContract missing chatId: {send_result}"
+
+    await chat._attach_chat_session(chat_id)
+
+    submit_debug = submit.get("debug") if isinstance(submit.get("debug"), dict) else {}
+    baseline_users = int(submit_debug.get("baselineUsers") or 0)
+    seal_api_users = int(submit_debug.get("apiUsers") or 0)
+    seal_streaming = submit_debug.get("streaming") is True
+    _touch_wall_progress(f"tools_panel_seal apiUsers={seal_api_users} streaming={seal_streaming} baseline={baseline_users}")
+
+    if seal_api_users <= baseline_users and not (seal_streaming and submit.get("ok") is True):
+        # LIVE sendTurnSealed may seal on uiProgress+streaming before API row persists (parallel SHPOIB).
+        api_gate_sec = (
+            signoff_parallel_force_chat_timeout_sec(180.0) if seal_streaming else signoff_parallel_force_chat_timeout_sec(45.0)
+        )
+        await _wait_api_user_messages(
+            chat_id,
+            api_url=api_url,
+            min_count=1,
+            timeout_sec=api_gate_sec,
+        )
+    elif seal_api_users <= baseline_users:
+        _touch_wall_progress("tools_panel_api_gate_skipped sendTurnSealed streaming=true")
+
+    # SSOT: stay on the streaming tab — do not navigate_to_chat after sendTurnSealed;
+    # full navigation drops direct SSE (userCount=0, sseTypes=[]).
+    turn_probe = await chat.evaluate(
+        BRIDGE_TURN_SNAPSHOT_JS,
+        intent=EvaluateIntent.BRIDGE_POLL,
+    )
+    turn = turn_probe if isinstance(turn_probe, dict) else {}
+    if int(turn.get("userCount") or 0) < 1 and turn.get("isStreaming") is not True:
+        await chat.evaluate(
+            f"({_RECOVER_HITL_JS})({json.dumps(chat_id)})",
+            intent=EvaluateIntent.AGENT_SUBMIT,
+        )
+
+    await _wait_for_eval_ready(
+        chat,
+        """(() => {
+          const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+          const sse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
+          return {
+            ready:
+              sse.includes('tools_snapshot') ||
+              (turn.userCount ?? 0) >= 1 ||
+              turn.isStreaming === true,
+            turn,
+            sseTypes: sse.slice(0, 16),
+          };
+        })()""",
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
+        intent=EvaluateIntent.BRIDGE_POLL,
+        progress_node="tools_panel_live_stream_gate",
+    )
+
+    await _assert_private_api_binding(chat, api_url=api_url)
+
+    e2e_resource_ledger.register("chat", chat_id)
+
+    heartbeat_once()
+    await _wait_for_eval_ready(
+        chat,
+        """(() => {
+          const turn = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+          const sse = window.__MYRM_E2E_CHAT__?.sseSnapshot?.() ?? [];
+          return {
+            ready: sse.includes('tools_snapshot'),
+            turn,
+            sseTypes: sse.slice(0, 16),
+          };
+        })()""",
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
+        intent=EvaluateIntent.BRIDGE_POLL,
+        progress_node="tools_panel_stream_settle",
+    )
+
+    panel = await _wait_for_tools_panel_ready(
+        chat,
+        api_url=api_url,
+        chat_id=chat_id,
+        timeout_sec=signoff_parallel_force_chat_timeout_sec(180.0),
+    )
+    assert panel.get("hasTrigger") is True, panel
+    assert panel.get("hasToolsSnapshotEvent") is True, panel
+
+    opened = await chat.evaluate(
+        _OPEN_TOOLS_PANEL_JS,
+        intent=EvaluateIntent.SYNC_PROBE,
+    )
+    assert isinstance(opened, dict) and opened.get("ok") is True, opened
+
+    badges = await _wait_for_eval_ready(
+        chat,
+        _LAYER_BADGES_READY_JS,
+        timeout_sec=30.0,
+        intent=EvaluateIntent.BRIDGE_POLL,
+        poll_sec=0.5,
+    )
+    assert badges.get("hasCore") is True, badges
+    assert badges.get("hasHighPriority") is True, badges
+    assert badges.get("hasExtended") is True, badges
+    assert badges.get("hasDigitLayer") is False, badges
+
+
+async def _run_tools_panel_e2e_once(
+    api_url: str,
+    ui_url: str,
+    *,
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    session: OpenMcpPageSession = await open_mcp_page_async(
+        f"{ui_url}/",
+        timeout_ms=90_000,
+        request_timeout_sec=120.0,
+    )
+    try:
+        chat = McpChatSession(session.client, session.page)
+        chat._base_url = BASE_URL
+        session.client.set_tool_wall_deadline(None)
+        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(shpoib_parallel_shell_timeout_sec(240.0))
+        _touch_wall_progress("tools_panel_bootstrap")
+        await chat.bootstrap(BASE_URL, timeout_sec=bootstrap_timeout)
+        _touch_wall_progress("tools_panel_page_ready")
+        await _run_tools_panel_layer_badges_flow(
+            chat,
+            api_url=api_url,
+            e2e_resource_ledger=e2e_resource_ledger,
+        )
+    finally:
+        await session.aclose()
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("hydrate_private")
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_tools_panel_shows_semantic_layer_badges_after_tools_snapshot(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """Real chat kickoff → tools_snapshot SSE → ToolsPanel i18n layer badges (no digit layers)."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=90.0):
+        pytest.fail(
+            "Provider config not ready for tools_panel Chrome LIVE E2E — "
+            "run via ./myrm test -m chrome_e2e after ./myrm ready --chrome",
+        )
+
+    prepare_e2e_ui_session(api_url)
+    _ensure_private_search_for_tools_panel(api_url)
+
+    last_error: BaseException | None = None
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            await _run_tools_panel_e2e_once(
+                api_url,
+                ui_url,
+                e2e_resource_ledger=e2e_resource_ledger,
+            )
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt >= _MAX_ATTEMPTS or not _is_tools_panel_flow_retryable(exc):
+                raise
+            await _force_mux_heal_before_retry()
+
+    if last_error is not None:
+        raise last_error

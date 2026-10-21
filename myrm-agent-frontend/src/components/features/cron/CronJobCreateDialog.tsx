@@ -1,0 +1,956 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
+import {
+  Bot,
+  Terminal,
+  Plus,
+  Loader2,
+  FileCode2,
+  CalendarDays,
+  Cpu,
+  MessageCircle,
+  Send,
+  Sparkles,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
+import useAgentStore from '@/store/useAgentStore';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Textarea } from '@/components/primitives/textarea';
+import { Label } from '@/components/primitives/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/primitives/toggle-group';
+import { cn } from '@/lib/utils/classnameUtils';
+import { toast } from 'sonner';
+import useCronStore from '@/store/useCronStore';
+import useChatStore from '@/store/useChatStore';
+import useProviderStore from '@/store/useProviderStore';
+import useConfigStore from '@/store/useConfigStore';
+import { getBrowserTimezone } from '@/lib/utils/messageUtils';
+import { apiRequest } from '@/lib/api';
+import { checkCronPrerequisite, type CronSchedule, type PrerequisiteCheckResponse } from '@/services/cron';
+import { isRiskHeldError } from '@/services/riskHeldToast';
+import {
+  estimateCronMonthlyExecutions,
+  estimateIntervalMonthlyExecutions,
+  formatMonthlyExecutions,
+  getFrequencyRiskLevel,
+} from '@/lib/utils/cronEstimate';
+import { IM_CHANNELS, needsDeliveryTarget, toApiChannel } from './CronDeliveryEditors';
+import { listChannelStatuses } from '@/services/channels';
+import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
+import BlueprintCatalog from './BlueprintCatalog';
+import BlueprintInlineFill from './BlueprintInlineFill';
+import CronDeployModeNotice from './CronDeployModeNotice';
+import { CRON_PRESETS, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
+import type { CronJob } from '@/services/cron.types';
+import { prepareJobForSettingsAudit, canDismissSettingsAuditFlow } from '@/lib/cron/cronCreateAuditGate';
+import { CronJobAuditPanel } from './CronJobAuditPanel';
+import { CronPrerequisiteCard } from './CronPrerequisiteCard';
+import { fetchWorkflowTemplates, type WorkflowTemplateSummary } from '@/services/workflowTemplates';
+import WorkflowTemplateArgsDialog from '@/components/features/settings/sections/ai-tools/WorkflowTemplateArgsDialog';
+
+type JobType = 'agent' | 'shell' | 'router' | 'reminder';
+type UIJobMode = 'agent' | 'shell' | 'script' | 'reminder';
+type ScheduleKind = 'cron' | 'interval' | 'once';
+
+const TOGGLE_CLS =
+  'gap-1.5 text-xs h-8 px-3 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40';
+
+interface CronJobCreateDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  presetChatId?: string | null;
+  presetChatTitle?: string | null;
+}
+
+export default function CronJobCreateDialog({
+  open,
+  onOpenChange,
+  presetChatId,
+  presetChatTitle,
+}: CronJobCreateDialogProps) {
+  const t = useTranslations('cron');
+  const locale = useLocale();
+  const { createJob } = useCronStore();
+  const userTz = useConfigStore((s) => s.personalSettings?.timezone) || getBrowserTimezone();
+
+  const { agents, fetchAgents } = useAgentStore();
+  const { defaultModelConfig } = useProviderStore();
+
+  const [uiMode, setUiMode] = useState<UIJobMode>('agent');
+  const [shellEnabled, setShellEnabled] = useState<boolean | null>(null);
+  const [name, setName] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [command, setCommand] = useState('');
+  const [scriptCode, setScriptCode] = useState('');
+  const [agentId, setAgentId] = useState('__default__');
+  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>('cron');
+  const [cronExpr, setCronExpr] = useState('');
+  const [intervalMinutes, setIntervalMinutes] = useState('');
+  const [onceAt, setOnceAt] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [sessionTarget, setSessionTarget] = useState<'isolated' | 'main'>(presetChatId ? 'main' : 'isolated');
+  const [selectedChatId, setSelectedChatId] = useState<string>('');
+  const [deliveryChannel, setDeliveryChannel] = useState<string>('chat');
+  const [deliveryTarget, setDeliveryTarget] = useState('');
+  const [connectedChannels, setConnectedChannels] = useState<string[]>([]);
+  const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
+  const [createMode, setCreateMode] = useState<'template' | 'custom'>('template');
+  const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<Array<{ type: string; description: string }>>([]);
+  const [createdJob, setCreatedJob] = useState<CronJob | null>(null);
+  const [workflowTemplateId, setWorkflowTemplateId] = useState('__none__');
+  const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplateSummary[]>([]);
+  const [workflowTemplateArgs, setWorkflowTemplateArgs] = useState<Record<string, string> | null>(null);
+  const [workflowArgsDialogOpen, setWorkflowArgsDialogOpen] = useState(false);
+  const [prerequisiteStats, setPrerequisiteStats] = useState<PrerequisiteCheckResponse | null>(null);
+  const [prerequisiteLoading, setPrerequisiteLoading] = useState(false);
+  const [overridePrerequisite, setOverridePrerequisite] = useState(false);
+
+  const selectedWorkflowTemplate = useMemo(
+    () => workflowTemplates.find((template) => template.template_id === workflowTemplateId) ?? null,
+    [workflowTemplates, workflowTemplateId],
+  );
+
+  useEffect(() => {
+    if (open) {
+      listChannelStatuses()
+        .then((statuses) => {
+          const NON_IM = new Set(['chat', 'webhook', 'none', 'web']);
+          setConnectedChannels(
+            statuses.filter((s) => s.status === 'running' && !NON_IM.has(s.name)).map((s) => s.name),
+          );
+        })
+        .catch(() => setConnectedChannels([]));
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && uiMode === 'agent') {
+      void fetchWorkflowTemplates()
+        .then((response) => setWorkflowTemplates(response.templates.filter((template) => template.trust_latch)))
+        .catch(() => setWorkflowTemplates([]));
+    }
+  }, [open, uiMode]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const activePrompt = uiMode === 'agent' || uiMode === 'reminder' ? prompt : '';
+      const activeCmd = uiMode === 'shell' ? command : uiMode === 'script' ? scriptCode : '';
+      if (!activePrompt && !activeCmd) {
+        setPrerequisiteStats(null);
+        return;
+      }
+      setPrerequisiteLoading(true);
+      void checkCronPrerequisite({
+        prompt: activePrompt || undefined,
+        command: activeCmd || undefined,
+        agent_id: agentId !== '__default__' ? agentId : undefined,
+        workflow_template_id: workflowTemplateId !== '__none__' ? workflowTemplateId : undefined,
+        chat_id: presetChatId || selectedChatId || undefined,
+      })
+        .then((res) => {
+          setPrerequisiteStats(res);
+        })
+        .catch(() => {
+          setPrerequisiteStats(null);
+        })
+        .finally(() => {
+          setPrerequisiteLoading(false);
+        });
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [open, uiMode, prompt, command, scriptCode, agentId, workflowTemplateId, presetChatId, selectedChatId]);
+
+  useEffect(() => {
+    if (open) {
+      fetchAgents();
+      if (presetChatId) {
+        setSessionTarget('main');
+      }
+      apiRequest<{ deploy_mode: string }>('/health/info')
+        .then((info) => {
+          const enabled = info.deploy_mode !== 'sandbox';
+          setShellEnabled(enabled);
+          if (!enabled && uiMode === 'shell') {
+            setUiMode('agent');
+          }
+        })
+        .catch(() => {
+          setShellEnabled(false);
+          if (uiMode === 'shell') {
+            setUiMode('agent');
+          }
+        });
+    }
+  }, [open, fetchAgents, presetChatId]); // eslint-disable-line react-hooks/exhaustive-deps -- uiMode read only for reset guard
+
+  const reset = useCallback(() => {
+    setUiMode('agent');
+    setName('');
+    setPrompt('');
+    setCommand('');
+    setScriptCode('');
+    setAgentId('__default__');
+    setScheduleKind('cron');
+    setCronExpr('');
+    setIntervalMinutes('');
+    setOnceAt('');
+    setSessionTarget(presetChatId ? 'main' : 'isolated');
+    setSelectedChatId('');
+    setDeliveryChannel('chat');
+    setDeliveryTarget('');
+    setCreateMode('template');
+    setSelectedBlueprint(null);
+    setAcceptanceCriteria([]);
+    setCreatedJob(null);
+    setWorkflowTemplateId('__none__');
+    setWorkflowTemplateArgs(null);
+    setWorkflowArgsDialogOpen(false);
+    setPrerequisiteStats(null);
+    setPrerequisiteLoading(false);
+    setOverridePrerequisite(false);
+  }, [presetChatId]);
+
+  const schedule = useMemo((): CronSchedule | null => {
+    if (scheduleKind === 'cron') {
+      const expr = cronExpr.trim();
+      if (!expr) {
+        return null;
+      }
+      return { kind: 'cron', expr, tz: userTz };
+    }
+    if (scheduleKind === 'interval') {
+      const mins = parseInt(intervalMinutes, 10);
+      if (!mins || mins < 5) {
+        return null;
+      }
+      return { kind: 'interval', interval_ms: mins * 60_000, tz: userTz };
+    }
+    if (scheduleKind === 'once') {
+      const at = onceAt.trim();
+      if (!at) {
+        return null;
+      }
+      const d = new Date(at);
+      if (isNaN(d.getTime())) {
+        return null;
+      }
+      return { kind: 'once', run_at: d.toISOString() };
+    }
+    return null;
+  }, [scheduleKind, cronExpr, intervalMinutes, onceAt, userTz]);
+
+  const monthlyExecutions = useMemo(() => {
+    if (scheduleKind === 'cron') {
+      const expr = cronExpr.trim();
+      if (!expr) {
+        return null;
+      }
+      return estimateCronMonthlyExecutions(expr);
+    }
+    if (scheduleKind === 'interval') {
+      const mins = parseInt(intervalMinutes, 10);
+      if (!mins || mins < 5) {
+        return null;
+      }
+      return estimateIntervalMonthlyExecutions(mins * 60_000);
+    }
+    if (scheduleKind === 'once') {
+      return 1;
+    }
+    return null;
+  }, [scheduleKind, cronExpr, intervalMinutes]);
+
+  const defaultModel = useMemo(() => {
+    const primary = defaultModelConfig.baseModel.primary;
+    if (!primary) {
+      return null;
+    }
+    return { providerId: primary.providerId, model: primary.model };
+  }, [defaultModelConfig]);
+
+  const jobType: JobType = uiMode === 'script' ? 'router' : uiMode === 'reminder' ? 'reminder' : uiMode;
+
+  const effectiveChatId = presetChatId || selectedChatId || null;
+  const contentValid =
+    uiMode === 'agent' || uiMode === 'reminder'
+      ? prompt.trim().length > 0
+      : uiMode === 'shell'
+        ? command.trim().length > 0
+        : scriptCode.trim().length > 0;
+  const sessionValid = sessionTarget === 'isolated' || effectiveChatId !== null;
+  const canSubmit = contentValid && schedule !== null && sessionValid;
+
+  const executeCreate = useCallback(
+    async (templateArgs: Record<string, string> | null) => {
+      if (!canSubmit || !schedule) {
+        return;
+      }
+      setSaving(true);
+      try {
+        const taskName =
+          name.trim() ||
+          (uiMode === 'agent'
+            ? prompt.trim().slice(0, 30)
+            : uiMode === 'shell'
+              ? command.trim().slice(0, 30)
+              : scriptCode.trim().slice(0, 30));
+
+        const payload: Parameters<typeof createJob>[0] = {
+          name: taskName,
+          job_type: jobType,
+          schedule,
+          session_target: sessionTarget,
+          ...(sessionTarget === 'main' && effectiveChatId ? { chat_id: effectiveChatId } : {}),
+        };
+
+        if (uiMode === 'agent') {
+          payload.prompt = prompt.trim();
+          if (agentId !== '__default__') {
+            payload.agent_id = agentId;
+          }
+          if (workflowTemplateId !== '__none__') {
+            payload.workflow_template_id = workflowTemplateId;
+            if (templateArgs && Object.keys(templateArgs).length > 0) {
+              payload.workflow_template_args = templateArgs;
+            }
+          }
+        } else if (uiMode === 'reminder') {
+          payload.prompt = prompt.trim();
+        } else if (uiMode === 'shell') {
+          payload.command = command.trim();
+        } else {
+          payload.pre_condition_script = scriptCode.trim();
+        }
+
+        if (deliveryChannel !== 'chat') {
+          const target = deliveryTarget.trim() || undefined;
+          payload.delivery = { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
+        }
+
+        const validCriteria = acceptanceCriteria.filter((c) => c.description.trim());
+        if (validCriteria.length > 0) {
+          payload.acceptance_criteria = validCriteria.map((c) => ({
+            type: c.type,
+            description: c.description.trim(),
+          }));
+        }
+
+        if (overridePrerequisite) {
+          payload.override_prerequisite = true;
+        }
+
+        const job = await createJob(payload);
+        try {
+          const auditJob = await prepareJobForSettingsAudit(job);
+          setCreatedJob(auditJob);
+          toast.success(t('createSuccess'));
+        } catch {
+          toast.error(t('auditPauseFail'));
+        }
+      } catch (error) {
+        // `apiRequest` has already shown the notice for a held prompt or criteria; the form keeps the text.
+        if (!isRiskHeldError(error)) {
+          toast.error(t('actionFail'));
+        }
+      } finally {
+        setSaving(false);
+      }
+    },
+    [
+      canSubmit,
+      schedule,
+      name,
+      uiMode,
+      jobType,
+      prompt,
+      command,
+      scriptCode,
+      agentId,
+      workflowTemplateId,
+      sessionTarget,
+      effectiveChatId,
+      deliveryChannel,
+      deliveryTarget,
+      acceptanceCriteria,
+      overridePrerequisite,
+      createJob,
+      t,
+    ],
+  );
+
+  const handleSubmit = useCallback(async () => {
+    if (
+      uiMode === 'agent' &&
+      selectedWorkflowTemplate &&
+      selectedWorkflowTemplate.placeholders.length > 0 &&
+      !workflowTemplateArgs
+    ) {
+      setWorkflowArgsDialogOpen(true);
+      return;
+    }
+    await executeCreate(workflowTemplateArgs);
+  }, [executeCreate, selectedWorkflowTemplate, uiMode, workflowTemplateArgs]);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          reset();
+        }
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            {t('createTitle')}
+          </DialogTitle>
+        </DialogHeader>
+
+        {createdJob ? (
+          <div className="space-y-4 pt-2">
+            <CronJobAuditPanel
+              jobId={createdJob.id}
+              initialJob={createdJob}
+              enforceSettingsGate
+              onJobChange={setCreatedJob}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                size="sm"
+                disabled={!canDismissSettingsAuditFlow(createdJob)}
+                title={!canDismissSettingsAuditFlow(createdJob) ? t('auditDoneHint') : undefined}
+                onClick={() => {
+                  reset();
+                  onOpenChange(false);
+                }}
+              >
+                {t('auditDone')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 pt-2">
+            {/* Mode Toggle */}
+            <div className="flex gap-1 border-b pb-0">
+              <button
+                type="button"
+                data-testid="cron-create-mode-template"
+                onClick={() => setCreateMode('template')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors flex items-center gap-1',
+                  createMode === 'template'
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Sparkles className="h-3 w-3" />
+                {t('blueprint.tabTemplate')}
+              </button>
+              <button
+                type="button"
+                data-testid="cron-create-mode-custom"
+                onClick={() => setCreateMode('custom')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
+                  createMode === 'custom'
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t('blueprint.tabCustom')}
+              </button>
+            </div>
+
+            {/* Template Mode */}
+            {createMode === 'template' && !selectedBlueprint && (
+              <BlueprintCatalog
+                onSelect={(bp) => {
+                  setSelectedBlueprint(bp);
+                }}
+              />
+            )}
+
+            {/* Template Fill View (inline) */}
+            {createMode === 'template' && selectedBlueprint && (
+              <BlueprintInlineFill
+                blueprint={selectedBlueprint}
+                onBack={() => setSelectedBlueprint(null)}
+                onCreated={(job) => {
+                  setCreatedJob(job);
+                }}
+              />
+            )}
+
+            {/* Custom Mode */}
+            {createMode === 'custom' && (
+              <>
+                {/* Job Type */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('createTypeLabel')}</Label>
+                  <ToggleGroup
+                    type="single"
+                    value={uiMode}
+                    onValueChange={(v) => v && setUiMode(v as UIJobMode)}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="agent" className={TOGGLE_CLS}>
+                      <Bot className="h-3.5 w-3.5" />
+                      {t('jobTypeAgent')}
+                    </ToggleGroupItem>
+                    {shellEnabled === true && (
+                      <ToggleGroupItem value="shell" className={TOGGLE_CLS}>
+                        <Terminal className="h-3.5 w-3.5" />
+                        {t('jobTypeShell')}
+                      </ToggleGroupItem>
+                    )}
+                    <ToggleGroupItem value="script" className={TOGGLE_CLS}>
+                      <FileCode2 className="h-3.5 w-3.5" />
+                      {t('jobTypeScript')}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="reminder" className={TOGGLE_CLS}>
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {t('jobTypeReminder')}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+
+                {/* Name */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('createNameLabel')}</Label>
+                  <Input
+                    placeholder={t('createNamePlaceholder')}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* Content: Agent prompt */}
+                {(uiMode === 'agent' || uiMode === 'reminder') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">
+                      {uiMode === 'reminder' ? t('createReminderLabel') : t('createPromptLabel')}
+                    </Label>
+                    <Textarea
+                      placeholder={
+                        uiMode === 'reminder' ? t('createReminderPlaceholder') : t('createPromptPlaceholder')
+                      }
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      className="min-h-[80px] text-sm resize-none"
+                    />
+                    {uiMode === 'reminder' ? (
+                      <p className="text-[11px] text-muted-foreground">{t('createReminderHint')}</p>
+                    ) : null}
+                    {uiMode === 'agent' ? (
+                      <div className="space-y-1.5 pt-1">
+                        <Label className="text-xs">{t('createWorkflowTemplateLabel')}</Label>
+                        <Select
+                          value={workflowTemplateId}
+                          onValueChange={(value) => {
+                            setWorkflowTemplateId(value);
+                            setWorkflowTemplateArgs(null);
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">{t('createWorkflowTemplateNone')}</SelectItem>
+                            {workflowTemplates.map((template) => (
+                              <SelectItem key={template.template_id} value={template.template_id}>
+                                {template.display_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground">{t('createWorkflowTemplateHint')}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Content: Shell command */}
+                {uiMode === 'shell' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('createCommandLabel')}</Label>
+                    <Input
+                      placeholder={t('createCommandPlaceholder')}
+                      value={command}
+                      onChange={(e) => setCommand(e.target.value)}
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                )}
+
+                {/* Content: Python script */}
+                {uiMode === 'script' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('scriptLabel')}</Label>
+                    <Textarea
+                      placeholder={t('scriptPlaceholder')}
+                      value={scriptCode}
+                      onChange={(e) => setScriptCode(e.target.value)}
+                      className="min-h-[100px] text-sm resize-none font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">{t('scriptHint')}</p>
+                  </div>
+                )}
+
+                {/* Delivery Target */}
+                {connectedChannels.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('deliveryLabel')}</Label>
+                    <ToggleGroup
+                      type="single"
+                      value={deliveryChannel}
+                      onValueChange={(v) => v && setDeliveryChannel(v)}
+                      className="flex-wrap justify-start"
+                      size="sm"
+                    >
+                      <ToggleGroupItem value="chat" className={TOGGLE_CLS}>
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {t('deliveryChat')}
+                      </ToggleGroupItem>
+                      {connectedChannels.map((ch) => (
+                        <ToggleGroupItem key={ch} value={ch} className={TOGGLE_CLS}>
+                          <ChannelIcon channelId={ch} size={14} />
+                          {IM_CHANNELS[ch]?.label ?? ch}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                    {needsDeliveryTarget(deliveryChannel) && (
+                      <div className="flex items-center gap-2">
+                        <Send className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <Input
+                          placeholder={IM_CHANNELS[deliveryChannel]?.hint ?? ''}
+                          value={deliveryTarget}
+                          onChange={(e) => setDeliveryTarget(e.target.value)}
+                          className="h-7 text-xs flex-1"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Agent Binding */}
+                {uiMode === 'agent' && agents.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('createAgentLabel')}</Label>
+                    <Select value={agentId} onValueChange={setAgentId}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder={t('createAgentDefault')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">{t('createAgentDefault')}</SelectItem>
+                        {agents.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {getBuiltinAgentName(a.id, a.name, locale)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Schedule */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t('createScheduleLabel')}</Label>
+                  <Select
+                    value={scheduleKind}
+                    onValueChange={(v) => {
+                      const kind = v as ScheduleKind;
+                      setScheduleKind(kind);
+                      if (kind === 'once') {
+                        setSessionTarget('isolated');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cron">{t('createScheduleCron')}</SelectItem>
+                      <SelectItem value="interval">{t('createScheduleInterval')}</SelectItem>
+                      <SelectItem value="once">{t('createScheduleOnce')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {scheduleKind === 'cron' && (
+                    <div className="space-y-1.5">
+                      <Input
+                        placeholder={t('createCronPlaceholder')}
+                        value={cronExpr}
+                        onChange={(e) => setCronExpr(e.target.value)}
+                        className="h-8 text-sm font-mono"
+                      />
+                      <div className="flex flex-wrap gap-1">
+                        {CRON_PRESETS.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setCronExpr(p.expr)}
+                            className="text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
+                          >
+                            {t(p.labelKey)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {scheduleKind === 'interval' && (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={5}
+                        placeholder="30"
+                        value={intervalMinutes}
+                        onChange={(e) => setIntervalMinutes(e.target.value)}
+                        className="h-8 text-sm w-24"
+                      />
+                      <span className="text-xs text-muted-foreground">{t('createIntervalUnit')}</span>
+                    </div>
+                  )}
+                  {scheduleKind === 'once' && (
+                    <Input
+                      type="datetime-local"
+                      value={onceAt}
+                      onChange={(e) => setOnceAt(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  )}
+
+                  {schedule && (
+                    <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">
+                        <Sparkles className="h-3 w-3 inline mr-1" />
+                        {humanizeSchedule(schedule, t, locale)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Schedule Estimation */}
+                {monthlyExecutions !== null && monthlyExecutions > 0 && (
+                  <div
+                    className={cn(
+                      'rounded-full border px-3 py-2.5 flex gap-2',
+                      getFrequencyRiskLevel(monthlyExecutions) === 'high'
+                        ? 'border-amber-500/20 bg-amber-500/10'
+                        : 'border-border bg-muted/30',
+                    )}
+                  >
+                    <CalendarDays
+                      className={cn(
+                        'h-4 w-4 shrink-0 mt-0.5',
+                        getFrequencyRiskLevel(monthlyExecutions) === 'high'
+                          ? 'text-amber-500'
+                          : 'text-muted-foreground',
+                      )}
+                    />
+                    <div className="flex-1 space-y-0.5">
+                      <p
+                        className={cn(
+                          'text-xs',
+                          getFrequencyRiskLevel(monthlyExecutions) === 'high'
+                            ? 'font-bold text-amber-500'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {t('estMonthlyExecutions', { count: formatMonthlyExecutions(monthlyExecutions) })}
+                      </p>
+                      {getFrequencyRiskLevel(monthlyExecutions) === 'high' && (
+                        <p className="text-xs text-amber-500/80">{t('estHighFrequencyWarning')}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {scheduleKind !== 'once' && <CronDeployModeNotice />}
+
+                {/* Session Mode — only for recurring agent schedules */}
+                {uiMode === 'agent' && scheduleKind !== 'once' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t('createSessionModeLabel')}</Label>
+                    <Select value={sessionTarget} onValueChange={(v) => setSessionTarget(v as 'isolated' | 'main')}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="isolated">{t('createSessionIsolated')}</SelectItem>
+                        <SelectItem value="main">{t('createSessionThread')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {sessionTarget === 'isolated' ? t('createSessionIsolatedDesc') : t('createSessionThreadDesc')}
+                    </p>
+                    {sessionTarget === 'main' && presetChatId && presetChatTitle && (
+                      <div className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 flex items-center gap-2">
+                        <MessageCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="text-xs text-primary truncate">{presetChatTitle}</span>
+                      </div>
+                    )}
+                    {sessionTarget === 'main' && !presetChatId && (
+                      <Select value={selectedChatId} onValueChange={setSelectedChatId}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder={t('createSessionSelectChat')} />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {chatHistoryItems.map((chat) => (
+                            <SelectItem key={chat.id} value={chat.id}>
+                              <span className="truncate">{chat.title}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+
+                {/* Default Model Info */}
+                {uiMode === 'agent' && agentId === '__default__' && defaultModel && (
+                  <div className="rounded-full border border-border bg-muted/30 px-3 py-2.5 flex gap-2">
+                    <Cpu className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">
+                      {t('estDefaultModel', {
+                        provider: defaultModel.providerId,
+                        model: defaultModel.model,
+                      })}
+                    </p>
+                  </div>
+                )}
+
+                {/* Acceptance Criteria */}
+                {uiMode === 'agent' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" />
+                      {t('acceptanceCriteria')}
+                    </Label>
+                    {acceptanceCriteria.map((criterion, idx) => (
+                      <div key={idx} className="flex items-start gap-1.5">
+                        <Select
+                          value={criterion.type}
+                          onValueChange={(v) => {
+                            const next = [...acceptanceCriteria];
+                            next[idx] = { ...next[idx], type: v };
+                            setAcceptanceCriteria(next);
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-24 shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="semantic">{t('criterionSemantic')}</SelectItem>
+                            <SelectItem value="shell">{t('criterionShell')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder={
+                            criterion.type === 'shell'
+                              ? t('criterionShellPlaceholder')
+                              : t('criterionSemanticPlaceholder')
+                          }
+                          value={criterion.description}
+                          onChange={(e) => {
+                            const next = [...acceptanceCriteria];
+                            next[idx] = { ...next[idx], description: e.target.value };
+                            setAcceptanceCriteria(next);
+                          }}
+                          className="h-7 text-xs flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setAcceptanceCriteria(acceptanceCriteria.filter((_, i) => i !== idx))}
+                          className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive shrink-0"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {acceptanceCriteria.length < 10 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAcceptanceCriteria([...acceptanceCriteria, { type: 'semantic', description: '' }])
+                        }
+                        className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        {t('addCriterion')}
+                      </button>
+                    )}
+                    {acceptanceCriteria.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground">{t('acceptanceCriteriaHint')}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Prerequisite Gate Card */}
+                {contentValid && (
+                  <CronPrerequisiteCard
+                    stats={prerequisiteStats}
+                    loading={prerequisiteLoading}
+                    override={overridePrerequisite}
+                    onOverrideChange={setOverridePrerequisite}
+                  />
+                )}
+
+                {/* Submit */}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      reset();
+                      onOpenChange(false);
+                    }}
+                    disabled={saving}
+                  >
+                    {t('cancel')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => void handleSubmit()}
+                    disabled={!canSubmit || saving}
+                    className={cn('gap-1.5', saving && 'opacity-70')}
+                  >
+                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {t('createSubmit')}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </DialogContent>
+      {selectedWorkflowTemplate ? (
+        <WorkflowTemplateArgsDialog
+          open={workflowArgsDialogOpen}
+          templateName={selectedWorkflowTemplate.display_name}
+          placeholders={selectedWorkflowTemplate.placeholders}
+          onOpenChange={setWorkflowArgsDialogOpen}
+          onConfirm={(args) => {
+            setWorkflowTemplateArgs(args);
+            void executeCreate(args);
+          }}
+        />
+      ) : null}
+    </Dialog>
+  );
+}

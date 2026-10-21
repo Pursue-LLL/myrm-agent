@@ -1,0 +1,106 @@
+import json
+import os
+from unittest.mock import AsyncMock, patch
+
+import httpx
+import pytest
+from httpx import ASGITransport
+
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(
+    "projects",
+    "chats",
+    "agents_general",
+    "memory",
+    "files",
+    "wiki",
+)
+from tests.api.agent.conftest import _build_mock_user_configs
+from tests.api.agent.utils import (
+    check_e2e_errors,
+    get_model_selection,
+)
+
+
+@pytest.fixture
+async def async_client() -> httpx.AsyncClient:
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Content-Type": "application/json"},
+        timeout=60.0,
+    ) as client:
+        yield client
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires BASIC_API_KEY environment variable",
+)
+class TestProjectWorkspaceE2E:
+    """Project Workspace & Multi-Agent Collaboration E2E Tests"""
+
+    async def test_project_workspace_agent_routing(self, async_client: httpx.AsyncClient):
+        from langgraph.checkpoint.memory import MemorySaver
+
+        from app.platform_utils import (
+            _reset_checkpointer_for_testing,
+            set_checkpointer,
+        )
+
+        _reset_checkpointer_for_testing()
+        set_checkpointer(MemorySaver())
+        mock_configs = _build_mock_user_configs()
+        try:
+            with patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new=AsyncMock(return_value=mock_configs),
+            ):
+                # 1. Create a project
+                project_resp = await async_client.post("/api/v1/projects/", json={"name": "E2E Project Workspace"})
+                assert project_resp.status_code == 200
+                project_id = project_resp.json()["data"]["project"]["id"]
+
+                # 2. Create a chat and assign it to the project
+                chat_id = "c-test-proj-e2e"
+                await async_client.post("/api/v1/chats/", json={"id": chat_id, "title": "E2E Chat"})
+                await async_client.patch(f"/api/v1/projects/chats/{chat_id}/project", json={"projectId": project_id})
+
+                # 3. Send a message referencing an agent
+                model_selection = get_model_selection()
+                search_request = {
+                    "query": "Hello, @builtin-fast-search please tell me what is 1+1?",
+                    "message_id": "test-msg-id-1",
+                    "chat_id": chat_id,
+                    "action_mode": "chat",
+                    "mentioned_agent_ids": ["builtin-fast-search"],
+                    "model_selection": model_selection,
+                    "timezone": "UTC",
+                }
+
+                collected_data = []
+
+                async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
+                    assert response.status_code == 200
+                    async for line in response.aiter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+                        try:
+                            data = json.loads(line[6:])
+                            if not isinstance(data, dict):
+                                continue
+                            collected_data.append(data)
+                        except json.JSONDecodeError:
+                            pass
+
+                check_e2e_errors(collected_data)
+                has_message_end = any(d.get("type") == "message_end" for d in collected_data)
+                assert has_message_end, "Should have message_end event"
+
+                # Clean up
+                await async_client.delete(f"/api/v1/projects/{project_id}")
+        finally:
+            _reset_checkpointer_for_testing()

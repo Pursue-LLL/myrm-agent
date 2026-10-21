@@ -1,0 +1,201 @@
+"""
+[INPUT]
+myrm_agent_harness.toolkits.memory.config::{AgentMemoryPolicy, MemoryScopeLevel, MemoryWritePolicy} (POS: 记忆策略配置)
+
+[OUTPUT]
+memory_policy_from_dict: Agent memory_policy 反序列化
+memory_policy_to_dict: Agent memory_policy 序列化
+derive_binding_namespaces: Server 运行时 binding 到 Harness namespaces 的派生
+compartment_memory_policy: 把策略收窄到会话舱（读限会话域、关闭后台抽取）
+
+[POS]
+记忆策略适配层。统一 AgentProfile memory_policy 与 Shared Context namespaces 的解析规则。
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import replace
+
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryScopeLevel, MemoryWritePolicy
+
+_SCOPE_ORDER: tuple[MemoryScopeLevel, ...] = (
+    MemoryScopeLevel.GLOBAL,
+    MemoryScopeLevel.AGENT,
+    MemoryScopeLevel.CHANNEL,
+    MemoryScopeLevel.CONVERSATION,
+    MemoryScopeLevel.TASK,
+)
+
+
+def memory_policy_from_dict(raw: Mapping[str, object] | None) -> AgentMemoryPolicy | None:
+    if raw is None:
+        return None
+
+    read_scopes_raw = raw.get("read_scopes")
+    read_scopes = None
+    if isinstance(read_scopes_raw, (list, tuple)):
+        read_scopes = tuple(
+            scope if isinstance(scope, MemoryScopeLevel) else MemoryScopeLevel(scope)
+            for scope in read_scopes_raw
+            if isinstance(scope, (MemoryScopeLevel, str))
+        )
+
+    write_policy_raw = raw.get("write_policy")
+    write_policy = (
+        write_policy_raw
+        if isinstance(write_policy_raw, MemoryWritePolicy)
+        else MemoryWritePolicy(write_policy_raw)
+        if isinstance(write_policy_raw, str)
+        else MemoryWritePolicy.INHERIT
+    )
+    agent_id_raw = raw.get("agent_id")
+    channel_id_raw = raw.get("channel_id")
+    conversation_id_raw = raw.get("conversation_id")
+    task_id_raw = raw.get("task_id")
+
+    allow_l3_raw = raw.get("allow_l3_extraction")
+    allow_l3_extraction = allow_l3_raw if isinstance(allow_l3_raw, bool) else True
+
+    auto_cleanup_raw = raw.get("auto_cleanup")
+    auto_cleanup = auto_cleanup_raw if isinstance(auto_cleanup_raw, bool) else False
+
+    return AgentMemoryPolicy(
+        agent_id=agent_id_raw if isinstance(agent_id_raw, str) else None,
+        channel_id=channel_id_raw if isinstance(channel_id_raw, str) else None,
+        conversation_id=conversation_id_raw if isinstance(conversation_id_raw, str) else None,
+        task_id=task_id_raw if isinstance(task_id_raw, str) else None,
+        read_scopes=read_scopes,
+        write_policy=write_policy,
+        allow_l3_extraction=allow_l3_extraction,
+        auto_cleanup=auto_cleanup,
+    )
+
+
+def memory_policy_to_dict(policy: AgentMemoryPolicy | None) -> dict[str, object] | None:
+    if policy is None:
+        return None
+    return {
+        "agent_id": policy.agent_id,
+        "channel_id": policy.channel_id,
+        "conversation_id": policy.conversation_id,
+        "task_id": policy.task_id,
+        "read_scopes": [scope.value for scope in policy.read_scopes] if policy.read_scopes is not None else None,
+        "write_policy": policy.write_policy.value,
+        "allow_l3_extraction": policy.allow_l3_extraction,
+        "auto_cleanup": policy.auto_cleanup,
+    }
+
+
+def resolve_scope_identifiers(
+    *,
+    agent_id: str | None,
+    channel_id: str | None,
+    conversation_id: str | None,
+    task_id: str | None,
+    memory_policy: AgentMemoryPolicy | None,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    if memory_policy is None:
+        return agent_id, channel_id, conversation_id, task_id
+    return (
+        memory_policy.agent_id if memory_policy.agent_id is not None else agent_id,
+        memory_policy.channel_id if memory_policy.channel_id is not None else channel_id,
+        memory_policy.conversation_id if memory_policy.conversation_id is not None else conversation_id,
+        memory_policy.task_id if memory_policy.task_id is not None else task_id,
+    )
+
+
+def derive_binding_namespaces(
+    *,
+    namespaces: list[str] | None,
+    shared_context_ids: list[str] | None,
+    agent_id: str | None,
+    channel_id: str | None,
+    conversation_id: str | None,
+    task_id: str | None,
+    project_id: str | None = None,
+    memory_policy: AgentMemoryPolicy | None,
+) -> list[str]:
+    resolved_agent_id, resolved_channel_id, resolved_conversation_id, resolved_task_id = resolve_scope_identifiers(
+        agent_id=agent_id,
+        channel_id=channel_id,
+        conversation_id=conversation_id,
+        task_id=task_id,
+        memory_policy=memory_policy,
+    )
+
+    clean_project_id = project_id.strip() if project_id else None
+
+    candidates: dict[MemoryScopeLevel, str] = {
+        MemoryScopeLevel.GLOBAL: "global",
+        MemoryScopeLevel.AGENT: f"agent:{resolved_agent_id or 'default'}",
+    }
+    if resolved_channel_id:
+        candidates[MemoryScopeLevel.CHANNEL] = f"channel:{resolved_channel_id}"
+    if resolved_conversation_id:
+        candidates[MemoryScopeLevel.CONVERSATION] = f"conversation:{resolved_conversation_id}"
+    if resolved_task_id:
+        candidates[MemoryScopeLevel.TASK] = f"task:{resolved_task_id}"
+
+    if clean_project_id:
+        project_ns = f"project:{clean_project_id}"
+        # Zero-leakage immunity: strip any foreign project namespaces
+        clean_incoming = [ns for ns in (namespaces or []) if not (ns.startswith("project:") and ns != project_ns)]
+        shared_ns = _shared_context_namespaces(shared_context_ids)
+
+        if memory_policy is not None:
+            levels = memory_policy.read_scopes or _SCOPE_ORDER
+            scoped = [candidates[level] for level in _SCOPE_ORDER if level in levels and level in candidates]
+            # Primary namespace is always project_ns for writes; read scopes provide one-way inheritance
+            return list(dict.fromkeys([project_ns, *scoped, *clean_incoming, *shared_ns]))
+
+        derived = [project_ns, candidates[MemoryScopeLevel.GLOBAL]]
+        if resolved_channel_id:
+            derived.append(candidates[MemoryScopeLevel.CHANNEL])
+        if resolved_conversation_id:
+            derived.append(candidates[MemoryScopeLevel.CONVERSATION])
+        if resolved_task_id:
+            derived.append(candidates[MemoryScopeLevel.TASK])
+        return list(dict.fromkeys([project_ns, *derived, *clean_incoming, *shared_ns]))
+
+    if memory_policy is not None:
+        levels = memory_policy.read_scopes or _SCOPE_ORDER
+        scoped = [candidates[level] for level in _SCOPE_ORDER if level in levels and level in candidates]
+        return list(dict.fromkeys([*scoped, *(namespaces or []), *_shared_context_namespaces(shared_context_ids)]))
+
+    base_namespaces = list(namespaces or [candidates[MemoryScopeLevel.GLOBAL], candidates[MemoryScopeLevel.AGENT]])
+    derived = [candidates[MemoryScopeLevel.GLOBAL], candidates[MemoryScopeLevel.AGENT]]
+    if resolved_channel_id:
+        derived.append(candidates[MemoryScopeLevel.CHANNEL])
+    if resolved_conversation_id:
+        derived.append(candidates[MemoryScopeLevel.CONVERSATION])
+    if resolved_task_id:
+        derived.append(candidates[MemoryScopeLevel.TASK])
+    return list(dict.fromkeys([*base_namespaces, *derived, *_shared_context_namespaces(shared_context_ids)]))
+
+
+def compartment_memory_policy(base: AgentMemoryPolicy | None) -> AgentMemoryPolicy:
+    """Confine a turn to its own conversation compartment.
+
+    Reads shrink to the conversation scope (the caller adds the compartment namespace through
+    ``namespaces``), writes follow the derived chain, and background LLM extraction stays off so
+    chatter from other senders never reaches long-term memory automatically. Scope identifiers and
+    ``auto_cleanup`` of ``base`` are kept.
+    """
+    return replace(
+        base or AgentMemoryPolicy(),
+        read_scopes=(MemoryScopeLevel.CONVERSATION,),
+        write_policy=MemoryWritePolicy.INHERIT,
+        allow_l3_extraction=False,
+    )
+
+
+def _shared_context_namespaces(shared_context_ids: list[str] | None) -> list[str]:
+    if not shared_context_ids:
+        return []
+    namespaces: list[str] = []
+    for context_id in shared_context_ids:
+        normalized = context_id.strip()
+        if normalized:
+            namespaces.append(f"shared:{normalized}")
+    return namespaces

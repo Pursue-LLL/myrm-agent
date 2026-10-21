@@ -1,0 +1,143 @@
+/**
+ * [POS]
+ * Chat SSE event handler slice (artifactEvents).
+ */
+
+import type { StreamCtx, StreamTurn } from '../streamContext';
+import type { Artifact, ArtifactType } from '../../types/artifacts';
+import * as H from './handlerDeps';
+
+export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
+  const { data, actions } = ctx;
+
+  if (data.type === H.AgentEventType.ARTIFACT_FOCUS) {
+    const payload = data.data as { short_file_id?: string; path?: string } | undefined;
+    const shortFileId = payload?.short_file_id;
+    if (shortFileId) {
+      actions.setMessages((state) => {
+        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1) {
+          return;
+        }
+        const artifacts = state.messages[messageIndex].artifacts ?? [];
+        const matched = artifacts.find((item) => item.short_file_id === shortFileId || item.id === shortFileId);
+        if (matched) {
+          void import('@/services/deliverable/openWorkspaceDeliverable').then(({ openArtifactDeliverable }) =>
+            openArtifactDeliverable(matched),
+          );
+          return;
+        }
+        const path = payload?.path ?? shortFileId;
+        const filename = path.split('/').pop() ?? shortFileId;
+        void import('@/services/deliverable/openWorkspaceDeliverable').then(({ openArtifactDeliverable }) =>
+          openArtifactDeliverable({
+            id: shortFileId,
+            filename,
+            short_file_id: shortFileId,
+            type: 'document',
+            content_type: 'text/plain',
+            size: 0,
+            preview_url: '',
+            download_url: '',
+          }),
+        );
+      });
+    }
+    return null;
+  }
+
+  if (data.type === H.AgentEventType.ARTIFACTS) {
+    actions.setMessages((state) => {
+      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (messageIndex === -1) {
+        return;
+      }
+
+      // 初始化 artifacts 数组
+      if (!state.messages[messageIndex].artifacts) {
+        state.messages[messageIndex].artifacts = [];
+      }
+
+      // 添加 artifacts
+      if (Array.isArray(data.data)) {
+        state.messages[messageIndex].artifacts.push(...data.data);
+
+        // 如果 Portal 正在显示 artifact，更新其信息（包括 preview_url）
+        const portalStore = H.useArtifactPortalStore.getState();
+        const activeTab =
+          portalStore.activeTabIndex >= 0 && portalStore.activeTabIndex < portalStore.openTabs.length
+            ? portalStore.openTabs[portalStore.activeTabIndex]
+            : null;
+        if (activeTab) {
+          // 检查是否是当前正在预览的 artifact
+          const updatedArtifact = data.data.find((a: { id: string }) => a.id === activeTab.artifact?.id);
+          if (updatedArtifact) {
+            portalStore.updateCurrentArtifact(updatedArtifact);
+            // 如果仍在生成中，结束实时预览
+            if (activeTab.isGenerating) {
+              portalStore.endRealtimePreview();
+            }
+          }
+        }
+      }
+
+      if (!state.messageAppeared) {
+        state.messageAppeared = true;
+      }
+    });
+  }
+
+  // 处理 artifact 内容实时更新事件（用于实时预览）
+  if (data.type === H.AgentEventType.ARTIFACT_CONTENT) {
+    const portalStore = H.useArtifactPortalStore.getState();
+    const activeTab =
+      portalStore.activeTabIndex >= 0 && portalStore.activeTabIndex < portalStore.openTabs.length
+        ? portalStore.openTabs[portalStore.activeTabIndex]
+        : null;
+
+    // 如果是完整内容（文件创建完成）
+    if (data.subtype === 'complete' && data.content) {
+      // 创建临时 artifact 对象用于实时预览
+      const tempArtifact: Artifact = {
+        id: data.artifactId ?? '',
+        filename: data.filename ?? '',
+        type: (data.artifactType ?? 'code') as ArtifactType,
+        content_type: 'text/plain',
+        size: data.content.length,
+        preview_url: '',
+        download_url: '',
+        language: data.language,
+      };
+
+      // 自动打开 Portal 并显示内容
+      portalStore.startRealtimePreview(tempArtifact);
+      portalStore.appendContent(data.content);
+      portalStore.endRealtimePreview();
+    }
+
+    // 如果是新 artifact 开始生成（流式）
+    if (data.subtype === 'start') {
+      const artifact = data.artifact;
+      if (artifact) {
+        portalStore.startRealtimePreview(artifact);
+      }
+    }
+
+    // 如果是内容增量更新（流式）
+    if (data.subtype === 'chunk' && data.content) {
+      if (activeTab?.isGenerating && activeTab?.artifact?.id === data.artifactId) {
+        portalStore.appendContent(data.content);
+      }
+    }
+
+    // 如果是生成完成（流式）
+    if (data.subtype === 'end') {
+      if (activeTab?.isGenerating && activeTab?.artifact?.id === data.artifactId) {
+        portalStore.endRealtimePreview();
+      }
+    }
+  }
+
+  // UI_UPDATE 由通用隧道承载（子代理进度转发），本 slice 不解释其 payload
+  return null;
+}

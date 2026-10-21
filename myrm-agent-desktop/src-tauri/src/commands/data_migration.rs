@@ -1,0 +1,531 @@
+//! 数据目录迁移核心引擎
+//!
+//! [INPUT]
+//! - std::fs / libc::statvfs (POS: 底层文件系统操作与磁盘余量查询)
+//!
+//! [OUTPUT]
+//! - `should_migrate_entry`: 动态判定条目是否随数据根目录迁移
+//! - `validate_target_directory`: 目标路径前置安全校验（防嵌套死循环、防同名破坏）
+//! - `get_available_disk_space`: 跨平台探测目标路径所在文件系统的剩余字节数
+//! - `calculate_dir_size`: 递归统计源目录有效业务数据总体积
+//! - `perform_data_migration`: 执行全量数据流式复制并支持异常自动清理
+//! - `perform_data_migration_with_progress`: 带逐条目进度回调的全量复制
+//! - `verify_migrated_size`: 拷贝后源与目标体积对账（静默损坏拦截）
+//! - `cleanup_migrated_entries`: 迁移失败时回滚清理目标目录已写入文件
+//!
+//! [POS]
+//! 桌面端数据存储目录迁移引擎。为 config::migrate_data_dir 提供原子性、容灾回滚与安全校验能力。
+
+use std::path::Path;
+
+/// 检查某个文件名是否需要随数据目录一起迁移
+#[must_use]
+pub fn should_migrate_entry(file_name: &str) -> bool {
+    let ignored_exact = [
+        ".myrm_write_test",
+        ".DS_Store",
+        "Thumbs.db",
+        "backend.pid",
+        "desktop.lock",
+    ];
+    if ignored_exact.contains(&file_name) {
+        return false;
+    }
+    if file_name.ends_with(".sock") || file_name.ends_with(".lock") || file_name.starts_with(".tmp")
+    {
+        return false;
+    }
+    true
+}
+
+/// 校验迁移目标路径的合法性、防嵌套保护以及写权限
+pub fn validate_target_directory(old_path: &Path, new_path: &Path) -> Result<(), String> {
+    if !new_path.exists() {
+        std::fs::create_dir_all(new_path)
+            .map_err(|e| format!("Failed to create target directory: {}", e))?;
+    }
+
+    if !new_path.is_dir() {
+        return Err("Target path is not a directory".to_string());
+    }
+
+    let canonical_old = old_path
+        .canonicalize()
+        .unwrap_or_else(|_| old_path.to_path_buf());
+    let canonical_new = new_path
+        .canonicalize()
+        .unwrap_or_else(|_| new_path.to_path_buf());
+
+    if canonical_old == canonical_new {
+        return Err("Target directory is identical to current data directory".to_string());
+    }
+
+    if canonical_new.starts_with(&canonical_old) {
+        return Err("Target directory cannot be inside the current data directory".to_string());
+    }
+
+    let sensitive_conflict_files = ["data.db", "checkpoints.db", "tasks.db"];
+    for file_name in &sensitive_conflict_files {
+        if new_path.join(file_name).exists() {
+            return Err(format!(
+                "Target directory already contains existing data file ({}). Please choose an empty directory.",
+                file_name
+            ));
+        }
+    }
+
+    let test_file = new_path.join(".myrm_write_test");
+    std::fs::write(&test_file, b"test")
+        .map_err(|_| "Target directory is not writable".to_string())?;
+    let _ = std::fs::remove_file(&test_file);
+
+    Ok(())
+}
+
+/// 全局迁移互斥锁，防止并发触发数据迁移造成数据竞争或回滚冲突
+static MIGRATION_IN_PROGRESS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// 迁移互斥锁 RAII 守卫
+#[derive(Debug)]
+pub struct MigrationGuard;
+
+impl Drop for MigrationGuard {
+    fn drop(&mut self) {
+        MIGRATION_IN_PROGRESS.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// 尝试获取迁移互斥锁
+pub fn acquire_migration_lock() -> Result<MigrationGuard, String> {
+    if MIGRATION_IN_PROGRESS
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+        )
+        .is_ok()
+    {
+        Ok(MigrationGuard)
+    } else {
+        Err("A data migration is already in progress. Please wait.".to_string())
+    }
+}
+
+/// 递归计算目录下待迁移有效条目的总字节大小（跳过符号链接防无限递归与越界）
+#[must_use]
+pub fn calculate_dir_size(path: &Path) -> u64 {
+    if !path.exists() {
+        return 0;
+    }
+    if let Ok(meta) = std::fs::symlink_metadata(path) {
+        if meta.file_type().is_symlink() {
+            return 0;
+        }
+    }
+    if path.is_file() {
+        return std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    }
+    let mut total_size: u64 = 0;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+                continue;
+            }
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            if should_migrate_entry(&file_name) {
+                let entry_path = entry.path();
+                if entry_path.is_dir() {
+                    total_size = total_size.saturating_add(calculate_dir_size(&entry_path));
+                } else if let Ok(meta) = entry.metadata() {
+                    total_size = total_size.saturating_add(meta.len());
+                }
+            }
+        }
+    }
+    total_size
+}
+
+/// 获取指定路径所在分区的可用磁盘空间（字节）
+#[must_use]
+#[cfg(unix)]
+pub fn get_available_disk_space(path: &Path) -> Option<u64> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let c_path = CString::new(path.as_os_str().as_bytes()).ok()?;
+    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) } == 0 {
+        Some((stat.f_bavail as u64).saturating_mul(stat.f_frsize as u64))
+    } else {
+        None
+    }
+}
+
+/// 获取指定路径所在分区的可用磁盘空间（字节）
+#[must_use]
+#[cfg(windows)]
+pub fn get_available_disk_space(path: &Path) -> Option<u64> {
+    use std::os::windows::ffi::OsStrExt;
+
+    let wide_path: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut free_bytes_available: u64 = 0;
+    let mut total_number_of_bytes: u64 = 0;
+    let mut total_number_of_free_bytes: u64 = 0;
+
+    extern "system" {
+        fn GetDiskFreeSpaceExW(
+            lpDirectoryName: *const u16,
+            lpFreeBytesAvailableToCaller: *mut u64,
+            lpTotalNumberOfBytes: *mut u64,
+            lpTotalNumberOfFreeBytes: *mut u64,
+        ) -> i32;
+    }
+
+    let res = unsafe {
+        GetDiskFreeSpaceExW(
+            wide_path.as_ptr(),
+            &mut free_bytes_available,
+            &mut total_number_of_bytes,
+            &mut total_number_of_free_bytes,
+        )
+    };
+    if res != 0 {
+        Some(free_bytes_available)
+    } else {
+        None
+    }
+}
+
+/// 非 Unix/Windows 平台的降级实现
+#[must_use]
+#[cfg(not(any(unix, windows)))]
+pub fn get_available_disk_space(_path: &Path) -> Option<u64> {
+    None
+}
+
+/// 带字节累积的递归复制；`bytes_copied` 累加每个成功落盘文件的体积
+/// （跳过符号链接防无限递归与越界逃逸）
+pub fn copy_dir_recursive_tracked(
+    src: &Path,
+    dst: &Path,
+    bytes_copied: &mut u64,
+) -> Result<(), String> {
+    std::fs::create_dir_all(dst).map_err(|e| format!("Failed to create dir {:?}: {}", dst, e))?;
+    for entry in
+        std::fs::read_dir(src).map_err(|e| format!("Failed to read dir {:?}: {}", src, e))?
+    {
+        let entry = entry.map_err(|e| format!("Dir entry error: {}", e))?;
+        if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+            continue;
+        }
+        let src_path = entry.path();
+        let file_name = entry.file_name();
+        let file_name_str = file_name.to_string_lossy();
+        if !should_migrate_entry(&file_name_str) {
+            continue;
+        }
+        let dst_path = dst.join(file_name);
+        if src_path.is_dir() {
+            copy_dir_recursive_tracked(&src_path, &dst_path, bytes_copied)?;
+        } else {
+            let copied = std::fs::copy(&src_path, &dst_path)
+                .map_err(|e| format!("Failed to copy {:?}: {}", src_path, e))?;
+            *bytes_copied = bytes_copied.saturating_add(copied);
+        }
+    }
+    Ok(())
+}
+
+/// 清理迁移失败时在目标目录中已复制的顶层条目
+pub fn cleanup_migrated_entries(dst_dir: &Path, copied_entries: &[String]) {
+    for entry_name in copied_entries {
+        let entry_path = dst_dir.join(entry_name);
+        if entry_path.is_dir() {
+            let _ = std::fs::remove_dir_all(&entry_path);
+        } else if entry_path.is_file() {
+            let _ = std::fs::remove_file(&entry_path);
+        }
+    }
+}
+
+/// 迁移进度快照（按顶层条目 emit，供前端进度条消费）
+#[derive(Debug, Clone)]
+pub struct MigrationProgress {
+    pub done_entries: usize,
+    pub total_entries: usize,
+    pub current_entry: String,
+    pub bytes_copied: u64,
+    pub bytes_total: u64,
+}
+
+/// 执行动态全量数据迁移，返回已复制的条目清单
+#[cfg(test)]
+pub fn perform_data_migration(old_path: &Path, new_path: &Path) -> Result<Vec<String>, String> {
+    perform_data_migration_with_progress(old_path, new_path, 0, &|_| {})
+}
+
+/// 带逐条目进度回调的全量复制；`bytes_total` 为预检体积（0 表示未知，不阻塞）
+pub fn perform_data_migration_with_progress(
+    old_path: &Path,
+    new_path: &Path,
+    bytes_total: u64,
+    on_progress: &dyn Fn(MigrationProgress),
+) -> Result<Vec<String>, String> {
+    let mut copied_entries: Vec<String> = Vec::new();
+    let mut bytes_copied: u64 = 0;
+    if !old_path.exists() {
+        return Ok(copied_entries);
+    }
+
+    let read_res = std::fs::read_dir(old_path)
+        .map_err(|e| format!("Failed to read source directory {:?}: {}", old_path, e))?;
+
+    let mut pending: Vec<(String, std::path::PathBuf)> = Vec::new();
+    for entry in read_res {
+        let entry = entry.map_err(|e| format!("Read entry error: {}", e))?;
+        if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+            continue;
+        }
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        if !should_migrate_entry(&file_name) {
+            continue;
+        }
+        pending.push((file_name, entry.path()));
+    }
+    let total_entries = pending.len();
+
+    for (index, (file_name, src)) in pending.into_iter().enumerate() {
+        let dst = new_path.join(&file_name);
+
+        let copy_step = if src.is_dir() {
+            copy_dir_recursive_tracked(&src, &dst, &mut bytes_copied)
+        } else {
+            if let Some(parent) = dst.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            match std::fs::copy(&src, &dst) {
+                Ok(copied) => {
+                    bytes_copied = bytes_copied.saturating_add(copied);
+                    Ok(())
+                }
+                Err(e) => Err(format!("Failed to copy file {}: {}", file_name, e)),
+            }
+        };
+
+        if let Err(err) = copy_step {
+            cleanup_migrated_entries(new_path, &copied_entries);
+            return Err(err);
+        }
+
+        copied_entries.push(file_name.clone());
+        on_progress(MigrationProgress {
+            done_entries: index + 1,
+            total_entries,
+            current_entry: file_name,
+            bytes_copied,
+            bytes_total,
+        });
+    }
+
+    Ok(copied_entries)
+}
+
+/// 拷贝后体积对账：源与目标有效业务体积必须一致，否则视为静默损坏
+pub fn verify_migrated_size(old_path: &Path, new_path: &Path) -> Result<u64, String> {
+    let src_bytes = calculate_dir_size(old_path);
+    let dst_bytes = calculate_dir_size(new_path);
+    if src_bytes != dst_bytes {
+        return Err(format!(
+            "Migration integrity check failed: source {} bytes but target {} bytes. Target left for inspection; original data untouched.",
+            src_bytes, dst_bytes
+        ));
+    }
+    Ok(dst_bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_should_migrate_entry() {
+        for valid in &[
+            "data.db",
+            "data.db-wal",
+            "data.db-shm",
+            "checkpoints.db",
+            "tasks.db",
+            "config_version",
+            "skills",
+            "blobs",
+            "memory",
+            "qdrant",
+        ] {
+            assert!(
+                should_migrate_entry(valid),
+                "Expected {} to be migrated",
+                valid
+            );
+        }
+        for invalid in &[
+            ".myrm_write_test",
+            ".DS_Store",
+            "Thumbs.db",
+            "backend.pid",
+            "desktop.lock",
+            "server.sock",
+            "session.lock",
+            ".tmp_file",
+        ] {
+            assert!(
+                !should_migrate_entry(invalid),
+                "Expected {} to be ignored",
+                invalid
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_target_directory_prevents_nesting() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("myrm_old");
+        let nested_new_dir = old_dir.join("sub_dir");
+        std::fs::create_dir_all(&old_dir).unwrap();
+
+        let res = validate_target_directory(&old_dir, &nested_new_dir);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("cannot be inside"));
+    }
+
+    #[test]
+    fn test_validate_target_directory_prevents_conflict() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("myrm_old");
+        let new_dir = parent_tmp.path().join("myrm_new");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        std::fs::create_dir_all(&new_dir).unwrap();
+        std::fs::write(new_dir.join("data.db"), b"existing data").unwrap();
+
+        let res = validate_target_directory(&old_dir, &new_dir);
+        assert!(res.is_err());
+        assert!(res
+            .unwrap_err()
+            .contains("already contains existing data file"));
+    }
+
+    #[test]
+    fn test_migration_and_cleanup() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("source");
+        let new_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&old_dir).unwrap();
+
+        std::fs::write(old_dir.join("data.db"), b"main database").unwrap();
+        std::fs::write(old_dir.join("tasks.db"), b"tasks database").unwrap();
+        std::fs::write(old_dir.join(".DS_Store"), b"junk").unwrap();
+        let skills_dir = old_dir.join("skills");
+        std::fs::create_dir_all(&skills_dir).unwrap();
+        std::fs::write(skills_dir.join("test_skill.py"), b"print(1)").unwrap();
+
+        let copied = perform_data_migration(&old_dir, &new_dir).unwrap();
+        assert!(copied.contains(&"data.db".to_string()));
+        assert!(copied.contains(&"tasks.db".to_string()));
+        assert!(copied.contains(&"skills".to_string()));
+        assert!(!copied.contains(&".DS_Store".to_string()));
+
+        assert!(new_dir.join("data.db").exists());
+        assert!(new_dir.join("skills/test_skill.py").exists());
+        assert!(!new_dir.join(".DS_Store").exists());
+
+        cleanup_migrated_entries(&new_dir, &copied);
+        assert!(!new_dir.join("data.db").exists());
+        assert!(!new_dir.join("skills").exists());
+    }
+
+    #[test]
+    fn test_verify_migrated_size_matches() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("source");
+        let new_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        std::fs::write(old_dir.join("data.db"), b"0123456789").unwrap();
+
+        let copied = perform_data_migration(&old_dir, &new_dir).unwrap();
+        assert_eq!(copied, vec!["data.db".to_string()]);
+        assert_eq!(verify_migrated_size(&old_dir, &new_dir), Ok(10));
+    }
+
+    #[test]
+    fn test_verify_migrated_size_detects_truncation() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("source");
+        let new_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        std::fs::create_dir_all(&new_dir).unwrap();
+        std::fs::write(old_dir.join("data.db"), b"0123456789").unwrap();
+        std::fs::write(new_dir.join("data.db"), b"01234").unwrap();
+
+        assert!(verify_migrated_size(&old_dir, &new_dir).is_err());
+    }
+
+    #[test]
+    fn test_progress_callback_per_entry() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("source");
+        let new_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        std::fs::write(old_dir.join("a.db"), b"aaa").unwrap();
+        std::fs::write(old_dir.join("b.db"), b"bb").unwrap();
+
+        let seen = std::sync::Mutex::new(Vec::new());
+        let copied = perform_data_migration_with_progress(&old_dir, &new_dir, 5, &|p| {
+            seen.lock().unwrap().push((p.done_entries, p.bytes_copied));
+        })
+        .unwrap();
+        assert_eq!(copied.len(), 2);
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[1], (2, 5));
+    }
+
+    #[test]
+    fn test_migration_lock_concurrency() {
+        let lock1 = acquire_migration_lock();
+        assert!(lock1.is_ok());
+        let lock2 = acquire_migration_lock();
+        assert!(lock2.is_err());
+        assert!(lock2.unwrap_err().contains("already in progress"));
+        drop(lock1);
+        let lock3 = acquire_migration_lock();
+        assert!(lock3.is_ok());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_symlink_ignored() {
+        use std::os::unix::fs::symlink;
+        let parent_tmp = tempdir().unwrap();
+        let src_dir = parent_tmp.path().join("source");
+        let external_dir = parent_tmp.path().join("external");
+        let dst_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&external_dir).unwrap();
+
+        std::fs::write(external_dir.join("secret.txt"), b"top_secret").unwrap();
+        symlink(&external_dir, src_dir.join("skills_link")).unwrap();
+
+        let size = calculate_dir_size(&src_dir);
+        assert_eq!(size, 0);
+
+        let copied = perform_data_migration(&src_dir, &dst_dir).unwrap();
+        assert!(!copied.contains(&"skills_link".to_string()));
+        assert!(!dst_dir.join("skills_link").exists());
+    }
+}

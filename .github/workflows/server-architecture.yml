@@ -1,0 +1,70 @@
+name: Server architecture gates
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-server/app/**'
+      - 'myrm-agent-server/assets/**'
+      - 'myrm-agent-server/tests/architecture/**'
+      - 'myrm-agent-server/**/*.md'
+      - 'myrm-agent-server/pyproject.toml'
+      - 'myrm-agent-server/uv.lock'
+      - 'myrm-agent-server/Dockerfile'
+      - 'myrm-agent-server/docker/**'
+      - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
+  pull_request:
+    paths:
+      - 'myrm-agent-server/app/**'
+      - 'myrm-agent-server/assets/**'
+      - 'myrm-agent-server/tests/architecture/**'
+      - 'myrm-agent-server/**/*.md'
+      - 'myrm-agent-server/pyproject.toml'
+      - 'myrm-agent-server/uv.lock'
+      - 'myrm-agent-server/Dockerfile'
+      - 'myrm-agent-server/docker/**'
+      - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
+      - 'shared/**'
+      - '.github/workflows/server-architecture.yml'
+
+concurrency:
+  group: server-architecture-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  architecture:
+    name: Harness contract & arch tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: myrm-agent-server
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Run architecture gates
+        run: bash scripts/ci/run_architecture_gates.sh
+
+  docker-image:
+    name: OSS server Docker image (PyPI harness)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Build public server image
+        run: docker build -f myrm-agent-server/Dockerfile -t myrm-server:ci .
+
+      - name: Smoke import shared provider remap in container
+        run: |
+          docker run --rm myrm-server:ci python -c "
+          from app.services.agent.params.providers import LEGACY_STORAGE_PROVIDER_ID_REMAP
+          assert LEGACY_STORAGE_PROVIDER_ID_REMAP.get('google') == 'gemini'
+          print('provider remap ok', len(LEGACY_STORAGE_PROVIDER_ID_REMAP))
+          "

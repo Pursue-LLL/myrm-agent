@@ -1,0 +1,256 @@
+"""Memory brief preflight for General Agent streams.
+
+[INPUT]
+- app.ai_agents.agents::GeneralAgentParams (POS: General Agent 单轮执行参数)
+- app.core.memory.adapters.setup::create_memory_manager, resolve_context_binding (POS: 业务层记忆管理器构建与命名空间绑定解析)
+
+[OUTPUT]
+- build_memory_brief_snapshot(): 生成同源 memory preview + snapshot（供 SSE 展示与执行复用）
+
+[POS]
+流式会话的记忆预检构建器。在首 token 前产出用户可见的 Memory Brief，并生成执行侧复用快照以保证简报与注入同源一致。
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
+import logging
+from datetime import UTC, datetime
+
+from app.ai_agents.agents import GeneralAgentParams
+from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+
+logger = logging.getLogger(__name__)
+
+MemoryContextPayload = dict[str, object]
+LearnedMemoryItem = dict[str, str]
+LearnedMemoryPayload = dict[str, list[LearnedMemoryItem]]
+MemoryBriefPreview = dict[str, object]
+MemoryBriefSnapshot = dict[str, object]
+
+
+def _normalize_learned_payload(raw: object) -> LearnedMemoryPayload:
+    if not isinstance(raw, dict):
+        return {"learned_rules": [], "learned_preferences": []}
+    learned_rules_raw = raw.get("learned_rules", [])
+    learned_prefs_raw = raw.get("learned_preferences", [])
+    learned_rules = [item for item in learned_rules_raw if isinstance(item, dict)]
+    learned_prefs = [item for item in learned_prefs_raw if isinstance(item, dict)]
+    return {
+        "learned_rules": learned_rules,
+        "learned_preferences": learned_prefs,
+    }
+
+
+def _safe_ids(items: list[dict[str, str]], *, limit: int = 3) -> list[str]:
+    output: list[str] = []
+    for item in items:
+        mem_id = item.get("id")
+        if isinstance(mem_id, str) and mem_id.strip():
+            output.append(mem_id.strip())
+        if len(output) >= limit:
+            break
+    return output
+
+
+def _snapshot_id(memory_ctx: MemoryContextPayload) -> str:
+    """Digest for execution snapshot — matches middleware inject (stable memory_ctx only)."""
+    raw = json.dumps({"memory_ctx": memory_ctx}, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.blake2s(raw, digest_size=10).hexdigest()
+
+
+_EMPTY_LEARNED_CTX: LearnedMemoryPayload = {"learned_rules": [], "learned_preferences": []}
+
+
+async def _resolve_proactive_knowledge_pack(
+    params: GeneralAgentParams,
+) -> dict[str, object] | None:
+    """Asynchronously retrieve paragraph snippets for mounted knowledge bases under 150ms timeout."""
+    if not params.memory_shared_context_ids:
+        return None
+
+    query_text = ""
+    if isinstance(params.query, str):
+        query_text = params.query
+    elif isinstance(params.query, list):
+        query_text = " ".join(
+            str(item.get("text", "")) for item in params.query if isinstance(item, dict) and item.get("type") == "text"
+        )
+    if not query_text.strip():
+        return None
+
+    try:
+        from app.services.wiki.knowledge_pack import resolve_proactive_snippets_from_vaults
+        from app.services.wiki.vault import (
+            resolve_shared_wiki_vault_labels,
+            resolve_shared_wiki_vault_paths,
+        )
+
+        vault_paths = resolve_shared_wiki_vault_paths(
+            params.memory_shared_context_ids,
+            must_exist=True,
+        )
+        if not vault_paths:
+            return None
+
+        vault_labels = resolve_shared_wiki_vault_labels(
+            params.memory_shared_context_ids,
+            context_name_map=params.memory_shared_context_names,
+        )
+
+        result = await resolve_proactive_snippets_from_vaults(
+            query=query_text,
+            vault_paths=vault_paths,
+            vault_labels=vault_labels,
+            timeout_seconds=0.150,
+        )
+        if result.snippets:
+            return result.to_dict()
+    except Exception as exc:
+        logger.debug("Proactive knowledge pack resolution skipped: %s", exc)
+    return None
+
+
+def _build_preview(
+    *,
+    snapshot_id: str,
+    namespaces: list[str],
+    memory_ctx: MemoryContextPayload,
+    learned_ctx: LearnedMemoryPayload,
+    proactive_pack: dict[str, object] | None = None,
+) -> MemoryBriefPreview:
+    global_profile = memory_ctx.get("global_profile")
+    if isinstance(global_profile, dict):
+        profile_keys = sorted(str(key) for key in global_profile.keys())[:5]
+    else:
+        profile_keys = []
+
+    instructions = memory_ctx.get("agent_instructions")
+    rules = memory_ctx.get("rules")
+    learned_prefs = learned_ctx.get("learned_preferences", [])
+    learned_rules = learned_ctx.get("learned_rules", [])
+
+    instructions_count = len(instructions) if isinstance(instructions, list) else 0
+    rules_count = len(rules) if isinstance(rules, list) else 0
+    correction_count = sum(1 for item in learned_prefs if item.get("source_error"))
+    working_state = bool(memory_ctx.get("working_state"))
+
+    is_cold_start = (
+        not working_state
+        and not profile_keys
+        and instructions_count == 0
+        and rules_count == 0
+        and len(learned_prefs) == 0
+        and len(learned_rules) == 0
+    )
+
+    preview_data: MemoryBriefPreview = {
+        "snapshot_id": snapshot_id,
+        "generated_at_ms": int(datetime.now(tz=UTC).timestamp() * 1000),
+        "namespaces": namespaces,
+        "is_cold_start": is_cold_start,
+        "stable": {
+            "working_state": working_state,
+            "profile_keys": profile_keys,
+            "instruction_count": instructions_count,
+            "rule_count": rules_count,
+        },
+        "learned": {
+            "preference_count": len(learned_prefs),
+            "rule_count": len(learned_rules),
+            "correction_count": correction_count,
+            "preference_ids": _safe_ids(learned_prefs),
+            "rule_ids": _safe_ids(learned_rules),
+            "injected_in_turn_prefix": False,
+        },
+    }
+    if proactive_pack is not None:
+        snippets = proactive_pack.get("snippets")
+        preview_data["proactive_knowledge_pack"] = {
+            "snippet_count": len(snippets) if isinstance(snippets, list) else 0,
+            "source_count": proactive_pack.get("source_count", 0),
+            "total_chars": proactive_pack.get("total_chars", 0),
+            "latency_ms": proactive_pack.get("latency_ms", 0.0),
+        }
+    return preview_data
+
+
+async def build_memory_brief_snapshot(
+    params: GeneralAgentParams,
+) -> tuple[MemoryBriefPreview, MemoryBriefSnapshot] | None:
+    """Build preview + same-source snapshot for a single stream turn.
+
+    Returns:
+      (preview, snapshot) when memory preflight is available.
+      None when memory is disabled / unsupported for this request.
+    """
+    if not params.enable_memory or params.incognito_mode:
+        return None
+    if params.embedding_config is None:
+        return None
+
+    effective_chat_id = (params.memory_conversation_id or params.chat_id or "").strip()
+    if not effective_chat_id:
+        return None
+
+    binding = resolve_context_binding(
+        namespaces=None,
+        agent_id=params.agent_id or "default",
+        channel_id=params.memory_channel_id or params.channel_name,
+        conversation_id=effective_chat_id,
+        task_id=params.memory_task_id,
+        shared_context_ids=params.memory_shared_context_ids,
+        memory_policy=params.memory_policy,
+    )
+
+    manager = await create_memory_manager(
+        binding,
+        params.embedding_config,
+        approval_required=params.memory_require_confirmation,
+    )
+
+    gather_tasks = [
+        manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True),
+        manager.get_learned_context(),
+        _resolve_proactive_knowledge_pack(params),
+    ]
+    static_result, learned_result, proactive_result = await asyncio.gather(
+        *gather_tasks,
+        return_exceptions=True,
+    )
+
+    if isinstance(static_result, BaseException):
+        logger.warning("Memory brief static context failed: %s", static_result)
+        return None
+    if isinstance(learned_result, BaseException):
+        logger.warning("Memory brief learned context failed: %s", learned_result)
+        learned_payload: LearnedMemoryPayload = {"learned_rules": [], "learned_preferences": []}
+    else:
+        learned_payload = _normalize_learned_payload(learned_result)
+
+    proactive_pack = proactive_result if isinstance(proactive_result, dict) else None
+
+    if not isinstance(static_result, dict):
+        logger.warning("Memory brief static context has unexpected type: %s", type(static_result).__name__)
+        return None
+    memory_payload = dict(static_result)
+    if proactive_pack is not None:
+        memory_payload["proactive_knowledge_pack"] = proactive_pack
+
+    snapshot_id = _snapshot_id(memory_payload)
+    preview = _build_preview(
+        snapshot_id=snapshot_id,
+        namespaces=list(binding.namespaces),
+        memory_ctx=memory_payload,
+        learned_ctx=learned_payload,
+        proactive_pack=proactive_pack,
+    )
+    snapshot: MemoryBriefSnapshot = {
+        "snapshot_id": snapshot_id,
+        "memory_ctx": memory_payload,
+        "learned_ctx": dict(_EMPTY_LEARNED_CTX),
+        "proactive_knowledge_pack": proactive_pack,
+    }
+    return preview, snapshot

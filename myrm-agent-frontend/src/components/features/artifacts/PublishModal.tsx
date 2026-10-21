@@ -1,0 +1,460 @@
+'use client';
+
+import Link from 'next/link';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Label } from '@/components/primitives/label';
+import { Globe, XCircle } from 'lucide-react';
+import { Artifact } from '@/store/chat/types';
+import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import { PublishShareCard } from './PublishShareCard';
+import { PublishLogsViewer } from './PublishLogsViewer';
+import {
+  buildPublishStatusWsUrl,
+  fetchArtifactPublications,
+  fetchHostingTargets,
+  fetchPublishPreflight,
+  fetchTargetCredentialStatus,
+  publishArtifact,
+  PROVIDER_LABELS,
+  type HostingTarget,
+  type PublishPreflight,
+  type ArtifactPublication,
+} from '@/services/hosting';
+
+const selectClassName =
+  'w-full h-11 rounded-xl border border-border bg-background/80 px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40';
+
+export interface PublishedArtifactUpdate {
+  publications: ArtifactPublication[];
+  latest_version_id?: string | null;
+}
+
+interface PublishModalProps {
+  artifact: Artifact;
+  open: boolean;
+  onClose: () => void;
+  onPublished?: (update: PublishedArtifactUpdate) => void;
+  initialTargetId?: string;
+}
+
+export const PublishModal: React.FC<PublishModalProps> = ({
+  artifact,
+  open,
+  onClose,
+  onPublished,
+  initialTargetId,
+}) => {
+  const t = useTranslations('artifacts.publish');
+  const [targets, setTargets] = useState<HostingTarget[]>([]);
+  const [selectedTargetId, setSelectedTargetId] = useState('');
+  const [tokenOverride, setTokenOverride] = useState('');
+  const [enablePassword, setEnablePassword] = useState(false);
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState<'IDLE' | 'PUBLISHING' | 'SUCCESS' | 'ERROR'>('IDLE');
+  const [logs, setLogs] = useState<string[]>([]);
+  const [publishUrl, setPublishUrl] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [copiedType, setCopiedType] = useState<'none' | 'url' | 'password' | 'all'>('none');
+  const [loading, setLoading] = useState(false);
+  const [platformAvailable, setPlatformAvailable] = useState(false);
+  const [preflight, setPreflight] = useState<PublishPreflight | null>(null);
+  const isIntentionalClose = useRef(false);
+
+  const selectedTarget = targets.find((item) => item.id === selectedTargetId) ?? null;
+  const showVercelToken = selectedTarget?.provider_type === 'vercel';
+
+  const canPublish =
+    Boolean(selectedTargetId) &&
+    (platformAvailable || !showVercelToken || tokenOverride.trim().length > 0) &&
+    (!enablePassword || password.trim().length > 0) &&
+    preflight?.deployable !== false;
+
+  const notifyPublished = useCallback(
+    (payload: PublishedArtifactUpdate) => {
+      onPublished?.(payload);
+    },
+    [onPublished],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setStatus('IDLE');
+    setLogs([]);
+    setPublishUrl('');
+    setErrorMsg('');
+    setCopiedType('none');
+    setPlatformAvailable(false);
+    setTokenOverride('');
+    setEnablePassword(false);
+    setPassword('');
+    isIntentionalClose.current = false;
+
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      setLoading(true);
+      try {
+        const loadedTargets = await fetchHostingTargets();
+        if (cancelled) {
+          return;
+        }
+        setTargets(loadedTargets);
+        const preferred =
+          initialTargetId ?? loadedTargets.find((item) => item.is_default)?.id ?? loadedTargets[0]?.id ?? '';
+        setSelectedTargetId(preferred);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialTargetId]);
+
+  useEffect(() => {
+    if (!open || !selectedTargetId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPreflightAndCreds = async () => {
+      setLoading(true);
+      try {
+        const [preflightResult, credStatus] = await Promise.all([
+          fetchPublishPreflight(artifact.id, selectedTargetId),
+          fetchTargetCredentialStatus(selectedTargetId),
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setPreflight(preflightResult);
+        setPlatformAvailable(credStatus.platform_available || credStatus.configured);
+        if (preflightResult && !preflightResult.deployable) {
+          setErrorMsg(preflightResult.message);
+        } else {
+          setErrorMsg('');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadPreflightAndCreds();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, artifact.id, selectedTargetId]);
+
+  const handlePublish = async () => {
+    if (!selectedTargetId) {
+      setErrorMsg(t('errors.noTarget'));
+      return;
+    }
+    if (preflight && !preflight.deployable) {
+      toast.error(preflight.message, { description: preflight.hint ?? undefined });
+      return;
+    }
+    if (!canPublish) {
+      setErrorMsg(t('errors.tokenRequired'));
+      return;
+    }
+
+    setStatus('PUBLISHING');
+    setLogs([t('logs.initiating')]);
+    setErrorMsg('');
+    isIntentionalClose.current = false;
+
+    try {
+      const data = await publishArtifact(
+        artifact.id,
+        selectedTargetId,
+        tokenOverride.trim(),
+        enablePassword ? password.trim() : '',
+      );
+      const providerRef = data.provider_publication_ref;
+      const initialUrl = data.publication_url || data.url;
+      const publicationStatus = data.publication_status || data.status || 'PUBLISHING';
+      const latestVersionId = data.latest_version_id ?? data.publication_version_id ?? null;
+
+      const syncPublications = async () => {
+        const publications = await fetchArtifactPublications(artifact.id);
+        notifyPublished({ publications, latest_version_id: latestVersionId });
+      };
+
+      if (initialUrl) {
+        setPublishUrl(initialUrl);
+      }
+      await syncPublications();
+
+      if (!providerRef) {
+        if (publicationStatus === 'READY' && initialUrl) {
+          setStatus('SUCCESS');
+          return;
+        }
+        throw new Error(t('errors.noPublicationId'));
+      }
+
+      setLogs((prev) => [...prev, t('logs.created', { id: providerRef }), t('logs.connecting')]);
+
+      const wsUrl = buildPublishStatusWsUrl(artifact.id, providerRef, selectedTargetId);
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'auth' }));
+      };
+
+      ws.onmessage = (event) => {
+        const statusData = JSON.parse(event.data) as { status?: string; url?: string };
+        const currentStatus = statusData.status ?? 'UNKNOWN';
+
+        setLogs((prev) => [...prev, t('logs.status', { status: currentStatus })]);
+
+        if (currentStatus === 'READY' || currentStatus === 'ready') {
+          const url = statusData.url ?? initialUrl;
+          setStatus('SUCCESS');
+          setPublishUrl(url);
+          void syncPublications();
+          isIntentionalClose.current = true;
+          ws.close();
+        } else if (currentStatus === 'ERROR' || currentStatus === 'CANCELED') {
+          setStatus('ERROR');
+          setErrorMsg(t('errors.publicationStatus', { status: currentStatus.toLowerCase() }));
+          isIntentionalClose.current = true;
+          ws.close();
+        }
+      };
+
+      ws.onclose = () => {
+        setStatus((currentStatus) => {
+          if (currentStatus === 'PUBLISHING' && !isIntentionalClose.current) {
+            setErrorMsg(t('errors.networkLost'));
+            return 'ERROR';
+          }
+          return currentStatus;
+        });
+      };
+
+      ws.onerror = () => {
+        setLogs((prev) => [...prev, t('logs.wsError')]);
+      };
+    } catch (error: unknown) {
+      setStatus('ERROR');
+      const errorMessage = error instanceof Error ? error.message : t('errors.unexpected');
+      setErrorMsg(errorMessage);
+      setLogs((prev) => [...prev, t('logs.error', { message: errorMessage })]);
+    }
+  };
+
+  const handleCopy = async (text: string, type: 'url' | 'password' | 'all', successMsg: string) => {
+    if (!text) {
+      return;
+    }
+    try {
+      await writeToClipboard(text);
+      setCopiedType(type);
+      toast.success(successMsg);
+      setTimeout(() => setCopiedType('none'), 2000);
+    } catch (err) {
+      console.error(`Failed to copy ${type}`, err);
+    }
+  };
+
+  const handleCopyUrl = () => handleCopy(publishUrl, 'url', t('urlCopied'));
+  const handleCopyPassword = () => handleCopy(password, 'password', t('passwordCopied'));
+  const handleCopyShareDetails = () => {
+    const title = artifact.filename || t('title');
+    const shareText =
+      enablePassword && password
+        ? `${title}\n${publishUrl}\n${t('passwordLabel')}: ${password}`
+        : `${title}\n${publishUrl}`;
+    return handleCopy(shareText, 'all', t('shareInfoCopied'));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="sm:max-w-lg w-[calc(100vw-2rem)] bg-background border border-border overflow-hidden rounded-2xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+
+        <DialogHeader className="relative z-10">
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <div className="p-2 bg-primary/10 rounded-xl text-primary">
+              <Globe className="w-5 h-5" />
+            </div>
+            {t('title')}
+          </DialogTitle>
+          <DialogDescription className="pt-2">{t('description')}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6 py-4 relative z-10">
+          {status === 'IDLE' && (
+            <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {targets.length === 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground bg-muted/40 border border-dashed border-border rounded-xl px-3 py-3">
+                    {t('noTargetsHint')}
+                  </p>
+                  <Button asChild variant="outline" className="w-full rounded-xl">
+                    <Link href="/settings/hosting">{t('openHostingSettings')}</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="hosting-target">{t('targetLabel')}</Label>
+                  <select
+                    id="hosting-target"
+                    value={selectedTargetId}
+                    onChange={(e) => setSelectedTargetId(e.target.value)}
+                    disabled={loading}
+                    className={selectClassName}
+                  >
+                    {targets.map((target) => (
+                      <option key={target.id} value={target.id}>
+                        {target.name} ({PROVIDER_LABELS[target.provider_type]})
+                        {target.is_default ? ` · ${t('defaultTarget')}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {platformAvailable && showVercelToken && (
+                <p className="text-sm text-primary bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
+                  {t('platformHostingHint')}
+                </p>
+              )}
+
+              {showVercelToken && targets.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="token" className="text-sm font-medium">
+                    {platformAvailable ? t('tokenLabelOptional') : t('tokenLabel')}
+                  </Label>
+                  <Input
+                    id="token"
+                    type="password"
+                    value={tokenOverride}
+                    onChange={(e) => setTokenOverride(e.target.value)}
+                    placeholder={t('tokenPlaceholder')}
+                    disabled={loading}
+                    className="w-full font-mono text-sm rounded-xl bg-muted/40 border-border focus-visible:ring-primary/40"
+                  />
+                  <p className="text-xs text-muted-foreground">{t('tokenHint')}</p>
+                </div>
+              )}
+
+              {targets.length > 0 && (
+                <div className="space-y-3 pt-1 border-t border-border/50">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="enable-password-protection" className="text-sm font-medium cursor-pointer">
+                      {t('enablePasswordProtection')}
+                    </Label>
+                    <input
+                      id="enable-password-protection"
+                      type="checkbox"
+                      checked={enablePassword}
+                      onChange={(e) => setEnablePassword(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary/40 cursor-pointer"
+                    />
+                  </div>
+
+                  {enablePassword && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <Label htmlFor="publish-password" className="text-sm font-medium">
+                        {t('passwordLabel')}
+                      </Label>
+                      <Input
+                        id="publish-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={t('passwordPlaceholder')}
+                        disabled={loading}
+                        className="w-full font-mono text-sm rounded-xl bg-muted/40 border-border focus-visible:ring-primary/40"
+                      />
+                      <p className="text-xs text-muted-foreground">{t('passwordHint')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {preflight && !preflight.deployable && preflight.hint && (
+                <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-xl border border-amber-200 dark:border-amber-900">
+                  {preflight.hint}
+                </p>
+              )}
+              {errorMsg && (
+                <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-xl border border-destructive/20">
+                  {errorMsg}
+                </p>
+              )}
+              <Button
+                onClick={() => void handlePublish()}
+                className="w-full rounded-xl transition-all hover:scale-[1.01]"
+                disabled={!canPublish || loading || targets.length === 0}
+              >
+                {t('publishNow')}
+              </Button>
+            </div>
+          )}
+
+          {status === 'PUBLISHING' && <PublishLogsViewer logs={logs} />}
+
+          {status === 'SUCCESS' && (
+            <PublishShareCard
+              publishUrl={publishUrl}
+              artifactTitle={artifact.filename}
+              isProtected={enablePassword}
+              password={password}
+              copiedType={copiedType}
+              onCopyUrl={() => void handleCopyUrl()}
+              onCopyPassword={() => void handleCopyPassword()}
+              onCopyShareDetails={() => void handleCopyShareDetails()}
+              onDone={onClose}
+            />
+          )}
+
+          {status === 'ERROR' && (
+            <div className="space-y-5 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex justify-center">
+                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
+                  <XCircle className="w-10 h-10 text-red-500" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-red-500">{t('failedTitle')}</h3>
+                <p className="text-sm text-muted-foreground mt-2 bg-destructive/10 p-3 rounded-xl border border-destructive/20">
+                  {errorMsg}
+                </p>
+              </div>
+              <Button
+                onClick={() => setStatus('IDLE')}
+                variant="outline"
+                className="w-full rounded-xl hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30"
+              >
+                {t('tryAgain')}
+              </Button>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default PublishModal;

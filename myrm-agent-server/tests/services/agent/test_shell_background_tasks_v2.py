@@ -1,0 +1,312 @@
+"""Unit tests for shell background task DTO facade."""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from myrm_agent_harness.agent.meta_tools.bash._background.types import (
+    BackgroundProcessInfo,
+)
+
+from app.services.agent.shell_background_tasks import (
+    _redact_preview,
+    cancel_shell_background_task,
+    find_shell_background_task,
+    list_shell_background_tasks,
+    shell_registry_is_ephemeral,
+    write_shell_background_stdin,
+)
+
+
+def test_shell_dto_includes_waiting_for_input_when_running() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-wait",
+        pid=99,
+        command="python -c 'input()'",
+        session_id="chat-wait",
+        started_at=1.0,
+        status="running",
+        waiting_for_input=True,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert len(rows) == 1
+    assert rows[0].waiting_for_input is True
+
+
+def test_shell_dto_builds_prompt_from_registry_output() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-prompt",
+        pid=101,
+        command="npm create vite",
+        session_id="chat-prompt",
+        started_at=1.0,
+        status="running",
+        waiting_for_input=True,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+        def get_output(self, pid: int, *, max_lines: int = 100) -> dict[str, object]:
+            assert pid == 101
+            assert max_lines == 12
+            return {
+                "stdout": [
+                    "Select the deployment target:",
+                    "1) staging",
+                    "2) production",
+                    "Enter choice:",
+                ],
+                "stderr": [],
+            }
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    prompt = rows[0].interactive_prompt
+    assert prompt is not None
+    assert prompt.kind == "choice"
+    assert prompt.question == "Select the deployment target:"
+    assert [option.value for option in prompt.options] == ["1", "2"]
+
+
+def test_shell_dto_skips_output_without_recognized_prompt() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-no-prompt",
+        pid=102,
+        command="npm install",
+        session_id="chat-prompt",
+        started_at=1.0,
+        status="running",
+        waiting_for_input=True,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+        def get_output(self, pid: int, *, max_lines: int = 100) -> dict[str, object]:
+            assert pid == 102
+            return {"stdout": ["added 12 packages"], "stderr": []}
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert rows[0].interactive_prompt is None
+
+
+def test_shell_dto_includes_stdin_closed_when_running() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-closed",
+        pid=100,
+        command="npm create vite",
+        session_id="chat-closed",
+        started_at=1.0,
+        status="running",
+        stdin_closed=True,
+        waiting_for_input=False,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert len(rows) == 1
+    assert rows[0].stdin_closed is True
+    assert rows[0].waiting_for_input is False
+
+
+def test_shell_dto_includes_exit_code_and_error_category() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-42",
+        pid=42,
+        command="npm test",
+        session_id="chat-1",
+        started_at=1.0,
+        status="exited",
+        exit_code=1,
+        error_category="nonzero_exit",
+        last_stdout_tail=["failed test"],
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.exit_code == 1
+    assert row.error_category == "nonzero_exit"
+    assert row.result_preview is not None
+    assert "failed test" in row.result_preview
+
+
+def test_shell_registry_is_ephemeral() -> None:
+    assert shell_registry_is_ephemeral() is True
+
+
+def test_redact_preview_strips_secrets() -> None:
+    secret = "Authorization: Bearer sk-live-abcdefghijklmnopqrstuvwxyz"
+    redacted = _redact_preview(secret)
+    assert redacted is not None
+    assert "sk-live-abcdefghijklmnopqrstuvwxyz" not in redacted
+
+
+def test_redact_preview_none_returns_none() -> None:
+    assert _redact_preview(None) is None
+    assert _redact_preview("") is None
+
+
+def test_list_shell_maps_killed_status_and_stderr_preview() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-88",
+        pid=88,
+        command="npm run dev",
+        session_id="chat-killed",
+        started_at=1.0,
+        status="killed",
+        last_stderr_tail=["terminated"],
+    )
+    fake_registry = MagicMock()
+    fake_registry.list_processes.return_value = [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        rows = list_shell_background_tasks()
+
+    assert rows[0].status == "cancelled"
+    assert rows[0].result_preview == "terminated"
+
+
+def test_list_shell_running_includes_stdout_preview() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-run",
+        pid=99,
+        command="npm run build",
+        session_id="chat-run",
+        started_at=1.0,
+        status="running",
+        last_stdout_tail=["Compiling page 3/12"],
+    )
+    fake_registry = MagicMock()
+    fake_registry.list_processes.return_value = [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        rows = list_shell_background_tasks()
+
+    assert rows[0].status == "running"
+    assert rows[0].result_preview == "Compiling page 3/12"
+
+
+@pytest.mark.asyncio
+async def test_cancel_shell_background_task_returns_false_when_unknown() -> None:
+    fake_registry = MagicMock()
+    fake_registry.kill = AsyncMock(return_value=False)
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        ok = await cancel_shell_background_task(404)
+
+    assert ok is False
+
+
+@pytest.mark.asyncio
+async def test_write_shell_background_stdin_forwards_to_registry() -> None:
+    fake_registry = MagicMock()
+    fake_registry.write_stdin = AsyncMock(return_value={"ok": True, "pid": 55, "bytes_written": 2})
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        result = await write_shell_background_stdin(55, "y", submit=True, close=False)
+
+    assert result["ok"] is True
+    fake_registry.write_stdin.assert_awaited_once_with(
+        55,
+        "y",
+        append_newline=True,
+        close=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_write_shell_background_stdin_close_forwards_to_registry() -> None:
+    fake_registry = MagicMock()
+    fake_registry.write_stdin = AsyncMock(return_value={"ok": True, "pid": 56, "bytes_written": 0, "closed": True})
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        result = await write_shell_background_stdin(56, "", submit=False, close=True)
+
+    assert result["closed"] is True
+    fake_registry.write_stdin.assert_awaited_once_with(
+        56,
+        "",
+        append_newline=False,
+        close=True,
+    )
+
+
+def test_find_shell_background_task_by_job_id() -> None:
+
+    info = BackgroundProcessInfo(
+        job_id="abc123",
+        pid=301,
+        command="npm test",
+        session_id="chat-find",
+        started_at=1.0,
+        status="running",
+    )
+    fake_registry = MagicMock()
+    fake_registry.list_processes.return_value = [info]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=fake_registry,
+    ):
+        row = find_shell_background_task("abc123")
+        missing = find_shell_background_task("missing")
+
+    assert row is not None
+    assert row.pid == 301
+    assert missing is None

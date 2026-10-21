@@ -1,0 +1,91 @@
+'use client';
+
+/**
+ * [INPUT] services/wikiService (POS: Wiki REST 客户端)
+ * [OUTPUT] useWikiConceptClaimActions: 词条 Claim 状态更新与证据修复操作
+ * [POS] Settings Wiki 词条声明与证据链交互 Hook
+ */
+import type { RefObject } from 'react';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import { wikiService, Concept } from '@/services/wikiService';
+import { getWikiOperationErrorMessage } from './wikiTreeUtils';
+
+export interface UseWikiConceptClaimActionsProps {
+  selectedConcept: Concept | null;
+  setSelectedConcept: (concept: Concept | null) => void;
+  /** 详情区正在展示的词条名：操作期间详情已换成别的词条或被重置时，迟到的刷新结果不再写入 */
+  shownConceptNameRef: RefObject<string | null>;
+  agentScopeId?: string | null;
+  onVaultMutated?: () => void;
+}
+
+export function useWikiConceptClaimActions({
+  selectedConcept,
+  setSelectedConcept,
+  shownConceptNameRef,
+  agentScopeId,
+  onVaultMutated,
+}: UseWikiConceptClaimActionsProps) {
+  const t = useTranslations('settings.wiki.concepts');
+
+  const refreshSelectedConcept = async (name: string) => {
+    const refreshed = await wikiService.getConcept(name, agentScopeId);
+    if (shownConceptNameRef.current === name) {
+      setSelectedConcept(refreshed);
+    }
+  };
+
+  const handleUpdateClaimStatus = async (claimId: string, status: 'supported' | 'contested') => {
+    if (!selectedConcept) {
+      return;
+    }
+    const currentClaims = selectedConcept.claims || [];
+    const patchClaims = currentClaims.map((c) => ({
+      id: c.id,
+      text: c.text,
+      status: c.id === claimId ? status : c.status,
+      confidence: c.confidence,
+      evidence: c.evidence,
+    }));
+    try {
+      await wikiService.applyWiki(
+        {
+          op: 'update_metadata',
+          concept_name: selectedConcept.name,
+          claims: patchClaims,
+        },
+        agentScopeId,
+        'settings',
+      );
+      await refreshSelectedConcept(selectedConcept.name);
+      toast.success(t('claimsStatusUpdated'));
+      onVaultMutated?.();
+    } catch (error) {
+      toast.error(getWikiOperationErrorMessage(error, t('updateFailed')));
+    }
+  };
+
+  const handleHealClaims = async () => {
+    if (!selectedConcept) {
+      return;
+    }
+    try {
+      const result = await wikiService.healConceptClaims([selectedConcept.name], agentScopeId);
+      if (result.total_healed_evidence > 0) {
+        toast.success(t('claimsHealSuccess', { count: result.total_healed_evidence }));
+      } else {
+        toast.info(t('claimsHealNone'));
+      }
+      await refreshSelectedConcept(selectedConcept.name);
+      onVaultMutated?.();
+    } catch (error) {
+      toast.error(getWikiOperationErrorMessage(error, t('operationFailed')));
+    }
+  };
+
+  return {
+    handleUpdateClaimStatus,
+    handleHealClaims,
+  };
+}

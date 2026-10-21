@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Myrm Agent Bridge</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .header img { width: 32px; height: 32px; border-radius: 6px; }
+    .header h1 { font-size: 16px; font-weight: 600; color: #fff; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+    .status-badge.connected { background: rgba(76, 175, 80, 0.15); color: #4CAF50; }
+    .status-badge.connecting { background: rgba(245, 158, 11, 0.15); color: #F59E0B; }
+    .status-badge.disconnected { background: rgba(158, 158, 158, 0.15); color: #9E9E9E; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .section { margin-bottom: 14px; }
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #16213e;
+      color: #e0e0e0;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color: #6366f1; }
+    textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size: 12px; }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-secondary { background: #333; color: #e0e0e0; }
+    .btn + .btn { margin-top: 8px; }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #e0e0e0;
+      cursor: pointer;
+    }
+    .checkbox-row:not(:last-child) { margin-bottom: 8px; }
+    .checkbox-row input { width: auto; flex: none; margin: 0; }
+    .hint {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .hint a {
+      color: #818cf8;
+      text-decoration: underline;
+    }
+    .clip-success-hint {
+      font-size: 11px;
+      color: #4CAF50;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .tabs-list {
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .tab-item {
+      padding: 4px 0;
+      border-bottom: 1px solid #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tab-item .domain { color: #6366f1; margin-right: 6px; }
+
+    /* 系统偏好减少动态效果时把过渡收到瞬时：弹窗是独立文档，宿主样式表的守卫到不了这里。 */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 data-i18n="extName">Myrm Agent Bridge</h1>
+  </div>
+
+  <div id="status-container">
+    <div class="status-badge disconnected" id="status-badge">
+      <span class="status-dot"></span>
+      <span id="status-text" data-i18n="statusDisconnected">Disconnected</span>
+    </div>
+    <div id="error-hint" style="display:none; font-size:11px; color:#ef4444; margin-top:4px;"></div>
+    <div id="error-link-wrap" style="display:none; margin-top:6px;">
+      <a id="error-link" href="#" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:#818cf8;" data-i18n="openDuplicateReview">Open Duplicate Review</a>
+    </div>
+    <div id="clip-success-hint" class="clip-success-hint" style="display:none;"></div>
+    <div id="clip-target-row" class="hint" style="display:none; margin-top:8px;">
+      <span data-i18n="clipTargetPrefix">Clip target:</span> <span id="clip-target-label" data-i18n="defaultAgent">Default</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="sectionPairingCode">Pairing Code</div>
+    <input type="text" id="pairing-code" data-i18n-placeholder="placeholderPairingCode" placeholder="Paste one-time code from WebUI" />
+    <button class="btn btn-secondary" id="btn-apply-pairing" data-i18n="btnApplyPairing">Apply Pairing</button>
+    <div class="hint" data-i18n="hintPairingCode">Generate the code in Settings → Browser Extension, then paste it here.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="sectionServerWsUrl">Server WebSocket URL</div>
+    <input type="text" id="server-url" data-i18n-placeholder="placeholderServerUrl" placeholder="ws://localhost:25808/api/v1/ws/extension" />
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="sectionAuthToken">Auth Token (optional)</div>
+    <input type="password" id="auth-token" data-i18n-placeholder="placeholderAuthToken" placeholder="Extension authentication token" />
+  </div>
+
+  <div class="section">
+    <label class="checkbox-row">
+      <input type="checkbox" id="allow-all-tabs" />
+      <span data-i18n="allowAllEligibleTabs">Allow all eligible websites</span>
+    </label>
+    <div class="section-title" data-i18n="sectionAuthorizedDomains">Authorized Domains (one per line)</div>
+    <textarea id="domains" data-i18n-placeholder="placeholderDomains" placeholder="github.com&#10;*.google.com&#10;mail.example.com"></textarea>
+    <div class="hint" data-i18n="hintAuthorizedDomains">Only tabs matching these domains can be controlled by the Agent.</div>
+  </div>
+
+  <div class="section">
+    <label class="checkbox-row">
+      <input type="checkbox" id="approval-notify" />
+      <span data-i18n="approvalNotifyLabel">Notify me when the agent needs my approval</span>
+    </label>
+  </div>
+
+  <button class="btn btn-primary" id="btn-connect" data-i18n="btnConnect">Connect</button>
+  <button class="btn btn-danger" id="btn-disconnect" style="display:none;" data-i18n="btnDisconnect">Disconnect</button>
+
+  <div class="section" id="tabs-section" style="display:none; margin-top: 14px;">
+    <div class="section-title" data-i18n="sectionAvailableTabs">Available Tabs</div>
+    <div class="tabs-list" id="tabs-list"></div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

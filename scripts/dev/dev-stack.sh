@@ -1,0 +1,1411 @@
+#!/usr/bin/env bash
+# Dev stack lifecycle — ensure/attach/reset/status for local :8080/:3000.
+# Mutations delegate to stack_supervisor daemon; only its direct child may enter internals.
+# Usage: dev-stack.sh ensure|attach|reset|status
+#   ensure  — mkdir atomic lock + start stack if unhealthy (idempotent)
+#   attach  — wait for healthy stack, zero start/kill side effects
+#   reset   — stop backend + frontend (only legal kill entry)
+#   status  — JSON-ish health snapshot
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# shellcheck source=lib/stack_stage.sh
+source "${SCRIPT_DIR}/lib/stack_stage.sh"
+_stack_stage enter
+# shellcheck source=../lib/resolve_agent_root.sh
+source "${REPO_ROOT}/scripts/lib/resolve_agent_root.sh"
+# shellcheck source=lib/backend_bg.sh
+source "${SCRIPT_DIR}/lib/backend_bg.sh"
+# shellcheck source=lib/frontend-warmup.sh
+source "${SCRIPT_DIR}/lib/frontend-warmup.sh"
+# shellcheck source=lib/stack-epoch.sh
+source "${SCRIPT_DIR}/lib/stack-epoch.sh"
+# shellcheck source=lib/dev_state_paths.sh
+source "${SCRIPT_DIR}/lib/dev_state_paths.sh"
+resolve_agent_paths "${REPO_ROOT}"
+_stack_stage libs_loaded
+
+STATE_DIR="$(dev_state_dir)"
+BACKEND_PORT="${MYRM_BACKEND_PORT:-${PORT:-8080}}"
+FRONTEND_PORT="${MYRM_FRONTEND_PORT:-3000}"
+APP_URL="${E2E_UI_BASE:-http://127.0.0.1:${FRONTEND_PORT}}"
+# Private SHPOIB backends must probe their assigned port — inherited shared
+# E2E_API_BASE (:8080) makes ensure succeed against the wrong API while :18080
+# lacks identity, triggering orphan reclaim loops.
+if [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]] \
+  || [[ "${MYRM_DEV_STATE_DIR:-}" != "$(_real_home_default_state_dir)" ]]; then
+  API_BASE="http://127.0.0.1:${BACKEND_PORT}"
+else
+  API_BASE="${E2E_API_BASE:-http://127.0.0.1:${BACKEND_PORT}}"
+fi
+API_HEALTH="${API_BASE}/api/v1/health"
+
+BACKEND_PID="${MYRM_BACKEND_PID_FILE:-${STATE_DIR}/backend.pid}"
+BACKEND_LOG="${MYRM_BACKEND_LOG_FILE:-${STATE_DIR}/backend.log}"
+BACKEND_IDENTITY="${MYRM_BACKEND_IDENTITY_FILE:-${STATE_DIR}/backend-process.json}"
+FRONTEND_PID="${MYRM_FRONTEND_PID_FILE:-${STATE_DIR}/frontend.pid}"
+FRONTEND_LOG="${MYRM_FRONTEND_LOG_FILE:-${STATE_DIR}/frontend.log}"
+export STATE_DIR PORT="${BACKEND_PORT}" MYRM_BACKEND_PORT="${BACKEND_PORT}" MYRM_DEV_STATE_DIR="${STATE_DIR}"
+# Private backend-only pools reuse the shared UI (:3000) while owning a private backend
+# port. The UI bakes its /api/v1 upstream at spawn time, so any frontend (re)start from
+# such a pool must keep pointing at the shared backend — never at the pool's private one.
+if [[ "${FRONTEND_PORT}" == "3000" ]] \
+  && [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]]; then
+  FRONTEND_API_PORT="${MYRM_SHARED_BACKEND_PORT:-8080}"
+else
+  FRONTEND_API_PORT="${BACKEND_PORT}"
+fi
+export MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${BACKEND_PORT}"
+export E2E_UI_BASE="${APP_URL}" E2E_API_BASE="${API_BASE}"
+export MYRM_BACKEND_PID_FILE="${BACKEND_PID}" MYRM_BACKEND_LOG_FILE="${BACKEND_LOG}"
+export MYRM_BACKEND_IDENTITY_FILE="${BACKEND_IDENTITY}"
+export MYRM_RUNTIME_NAMESPACE="${MYRM_RUNTIME_NAMESPACE:-shared}"
+
+ENSURE_FRONTEND_WAIT_SEC="${MYRM_STACK_FRONTEND_WAIT_SEC:-180}"
+# Wait budget must cover a full ensure (frontend cold compile) plus lock handoff.
+ATTACH_WAIT_SEC="${MYRM_STACK_ATTACH_WAIT_SEC:-$((ENSURE_FRONTEND_WAIT_SEC + 60))}"
+
+mkdir -p "${STATE_DIR}"
+
+_resolve_bun() {
+  if command -v bun >/dev/null 2>&1; then
+    command -v bun
+    return 0
+  fi
+  local candidate
+  for candidate in "${HOME}/.bun/bin/bun" /opt/homebrew/bin/bun /usr/local/bin/bun; do
+    if [[ -x "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+MYRM_BUN="$(_resolve_bun || true)"
+if [[ -n "${MYRM_BUN}" ]]; then
+  export PATH="$(dirname "${MYRM_BUN}"):${PATH}"
+fi
+
+export_myrm_next_dist_dir
+if [[ "${STATE_DIR}" != "$(_real_home_default_state_dir)" ]]; then
+  export MYRM_FRONTEND_DEV_WEBPACK="${MYRM_FRONTEND_DEV_WEBPACK:-0}"
+fi
+mkdir -p "${FRONTEND_DIR}/${MYRM_NEXT_DIST_DIR}"
+FRONTEND_LOCK="$(resolve_frontend_lock_path "${FRONTEND_DIR}")"
+
+_lock_dir="${STATE_DIR}/ensure.lock.d"
+
+_acquire_dir_lock() {
+  local lockdir="$1"
+  local wait_sec="$2"
+  local reclaim_hung="${3:-1}"
+  local i
+
+  if [[ -d "${lockdir}" ]]; then
+    local owner=""
+    if [[ -f "${lockdir}/pid" ]]; then
+      owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+    fi
+    if [[ -n "${owner}" ]] && dev_pid_alive "${owner}"; then
+      local lock_mtime now age
+      lock_mtime="$(stat -f %m "${lockdir}/pid" 2>/dev/null || stat -c %Y "${lockdir}/pid" 2>/dev/null || echo 0)"
+      now="$(date +%s)"
+      age=$((now - lock_mtime))
+      if [[ "${reclaim_hung}" == "1" && "${age}" -gt "${wait_sec}" ]]; then
+        echo "STACK_WARN: reclaiming hung lock ${lockdir} owner=${owner} age=${age}s" >&2
+        kill -TERM "${owner}" 2>/dev/null || true
+        sleep 1
+        _release_dir_lock "${lockdir}"
+      fi
+    elif [[ -z "${owner}" ]] || ! dev_pid_alive "${owner}"; then
+      echo "STACK_WARN: reclaiming stale lock ${lockdir}" >&2
+      _release_dir_lock "${lockdir}"
+    fi
+  fi
+
+  for i in $(seq 1 "${wait_sec}"); do
+    if mkdir "${lockdir}" 2>/dev/null; then
+      echo "$$" >"${lockdir}/pid"
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_release_dir_lock() {
+  local lockdir="$1"
+  rm -f "${lockdir}/pid" 2>/dev/null || true
+  rmdir "${lockdir}" 2>/dev/null || true
+}
+
+_ensure_lock_owner_alive() {
+  local lockdir="$1"
+  local owner=""
+
+  [[ -d "${lockdir}" ]] || return 1
+  if [[ -f "${lockdir}/pid" ]]; then
+    owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+  fi
+  [[ -n "${owner}" ]] && dev_pid_alive "${owner}"
+}
+
+_join_ensure_in_progress() {
+  local lockdir="$1"
+  local wait_sec="$2"
+  local owner=""
+
+  if ! _ensure_lock_owner_alive "${lockdir}"; then
+    return 1
+  fi
+  owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+  echo "STACK_JOIN: ensure in progress (pid=${owner}) — waiting for shell_hot" >&2
+  if _wait_stack_warm "${wait_sec}"; then
+    _try_optional_client_hot
+    echo "STACK_ENSURE_OK: joined in-progress ensure api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+    return 0
+  fi
+  return 1
+}
+
+_backend_only_lock_wait_sec() {
+  local raw="${MYRM_BACKEND_ONLY_LOCK_WAIT_SEC:-60}"
+  if [[ "${raw}" =~ ^[0-9]+$ && "${raw}" -ge 15 ]]; then
+    echo "${raw}"
+  else
+    echo 60
+  fi
+}
+
+_wait_backend_health() {
+  local max="${1:-60}"
+  local i
+  for i in $(seq 1 "${max}"); do
+    if _api_healthy 1; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_join_backend_ensure_in_progress() {
+  local lockdir="$1"
+  local wait_sec="$2"
+  local owner=""
+
+  if ! _ensure_lock_owner_alive "${lockdir}"; then
+    return 1
+  fi
+  owner="$(tr -d '[:space:]' <"${lockdir}/pid")"
+  echo "STACK_JOIN: backend ensure in progress (pid=${owner}) — waiting for API health" >&2
+  if _wait_backend_health "${wait_sec}"; then
+    echo "STACK_BACKEND_ONLY_ENSURE_OK: joined in-progress backend api=:${BACKEND_PORT}" >&2
+    return 0
+  fi
+  return 1
+}
+
+_http_ok() {
+  local url="$1"
+  local max_time="${2:-8}"
+  curl -sf --max-time "${max_time}" "${url}" >/dev/null 2>&1
+}
+
+_frontend_http_probe_timeout_sec() {
+  local raw="${MYRM_E2E_ATTACH_UI_PROBE_TIMEOUT_SEC:-}"
+  if [[ "${raw}" =~ ^[0-9]+$ && "${raw}" -gt 0 ]]; then
+    echo "${raw}"
+    return 0
+  fi
+  local resolved=""
+  resolved="$("${PREFLIGHT_PY:-python3}" -c "
+import sys
+sys.path.insert(0, '${SCRIPT_DIR}/lib')
+from dev_gate.contract import attach_ui_probe_timeout_sec
+print(int(attach_ui_probe_timeout_sec()))
+" 2>/dev/null)" || true
+  if [[ "${resolved}" =~ ^[0-9]+$ && "${resolved}" -gt 0 ]]; then
+    echo "${resolved}"
+    return 0
+  fi
+  echo 8
+}
+
+_frontend_http_status() {
+  local max_time
+  max_time="$(_frontend_http_probe_timeout_sec)"
+  curl -s -o /dev/null -w "%{http_code}" --max-time "${max_time}" "${APP_URL}/" 2>/dev/null || echo "000"
+}
+
+_wait_frontend_http_200() {
+  local max="${1:-${ENSURE_FRONTEND_WAIT_SEC}}"
+  local i code port_seen=0
+  for i in $(seq 1 "${max}"); do
+    if _frontend_port_listening; then
+      port_seen=1
+    fi
+    code="$(_frontend_http_status)"
+    if [[ "${code}" == "200" ]]; then
+      return 0
+    fi
+    if ! _api_healthy 3; then
+      if [[ "${i}" -eq 1 || $((i % 10)) -eq 0 ]]; then
+        echo "STACK_HEAL: backend down during frontend wait (${i}/${max}s) — re-ensure backend" >&2
+        _ensure_backend || true
+      fi
+    fi
+    _sync_frontend_pid_from_lock
+    if [[ -f "${FRONTEND_PID}" ]]; then
+      local supervisor_pid
+      supervisor_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+      if [[ -n "${supervisor_pid}" ]] && ! dev_pid_alive "${supervisor_pid}" && ! _lock_supervisor_alive; then
+        echo "STACK_WARN: frontend supervisor exited before HTTP readiness — check ${FRONTEND_LOG}" >&2
+        return 1
+      fi
+    fi
+    if [[ "${port_seen}" -eq 1 ]] && [[ "${i}" == "1" || $((i % 15)) -eq 0 ]]; then
+      echo "STACK_WAIT: frontend GET / → HTTP ${code} (${i}/${max}s, cold compile tolerated)..." >&2
+    fi
+    sleep 1
+  done
+  if [[ "${port_seen}" -eq 1 ]]; then
+    echo "STACK_WARN: :${FRONTEND_PORT} listening but GET / never returned 200 (last=${code})" >&2
+  else
+    echo "STACK_WARN: :${FRONTEND_PORT} never listened within ${max}s" >&2
+  fi
+  return 1
+}
+
+_spawn_detached() {
+  local log_file="$1"
+  shift
+  if command -v setsid >/dev/null 2>&1; then
+    setsid nohup "$@" >>"${log_file}" 2>&1 &
+  else
+    nohup "$@" >>"${log_file}" 2>&1 &
+    disown $! 2>/dev/null || true
+  fi
+}
+
+_api_healthy() {
+  _http_ok "${API_HEALTH}" "${1:-5}"
+}
+
+_frontend_healthy() {
+  local probe_timeout
+  probe_timeout="$(_frontend_http_probe_timeout_sec)"
+  _http_ok "${APP_URL}/" "${1:-${probe_timeout}}"
+}
+
+_frontend_proxy_healthy() {
+  # The static shell can serve 200 while the API rewrite behind it is dead: the
+  # frontend bakes its upstream at spawn time, so it can point at a backend that has
+  # since gone away. A shell-only probe reports that broken state as healthy, which
+  # silently fails every UI test that reads data. Kept separate from
+  # `_frontend_healthy` so the frontend restart path never churns on an API blip.
+  _http_ok "${APP_URL}/api/v1/health" "${1:-5}"
+}
+
+_stack_healthy() {
+  _api_healthy 5 && _frontend_healthy 8 && _frontend_proxy_healthy 5 && _frontend_binding_matches 2>/dev/null
+}
+
+_stack_warm() {
+  _backend_supervisor_alive || return 1
+  _lock_supervisor_alive || return 1
+  _api_healthy 5 || return 1
+  _frontend_healthy 8 || return 1
+  _frontend_proxy_healthy 5 || return 1
+  _frontend_binding_matches 2>/dev/null || return 1
+  [[ "$(_frontend_compile_hot_status)" == "yes" ]]
+}
+
+_wait_stack_health() {
+  local max="${1:-${ATTACH_WAIT_SEC}}"
+  local i
+  for i in $(seq 1 "${max}"); do
+    if _stack_healthy; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_wait_stack_warm() {
+  local max="${1:-${ATTACH_WAIT_SEC}}"
+  local i
+  for i in $(seq 1 "${max}"); do
+    if _stack_warm; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+_backend_supervisor_alive() {
+  [[ -f "${BACKEND_PID}" ]] || return 1
+  local pid
+  pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
+  [[ -n "${pid}" ]] && dev_pid_alive "${pid}"
+}
+
+_frontend_port_listening() {
+  python3 -c '
+import socket, sys
+try:
+    with socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=0.25):
+        pass
+except (OSError, ValueError):
+    raise SystemExit(1)
+' "${FRONTEND_PORT}" >/dev/null 2>&1
+}
+
+_frontend_bound_api_port() {
+  # The frontend rewrites /api/v1 to whichever port it was spawned with; recover that
+  # port from the live process so a stale binding can be detected before adoption.
+  local pid
+  pid="$(lsof -nP -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | head -1)"
+  if [[ -z "${pid}" ]]; then
+    if [[ -f "${FRONTEND_PID}" ]]; then
+      pid="$(cat "${FRONTEND_PID}" 2>/dev/null)"
+    fi
+  fi
+  [[ -n "${pid}" ]] || return 1
+  ps eww -p "${pid}" 2>/dev/null | tr ' ' '\n' | sed -n 's/^API_PORT=//p' | head -1
+}
+
+_frontend_binding_matches() {
+  # Reusing a frontend whose upstream moved means every /api/v1 call can hit a dead or
+  # foreign port while the shell still answers 200. Only adopt it when the bound port
+  # is the backend this ensure targets.
+  local bound
+  bound="$(_frontend_bound_api_port)" || return 0
+  [[ -z "${bound}" ]] && return 0
+  if [[ "${bound}" == "${FRONTEND_API_PORT}" ]]; then
+    return 0
+  fi
+  echo "STACK_REBIND: frontend :${FRONTEND_PORT} bound to api=:${bound} but this ensure targets :${FRONTEND_API_PORT} — restarting frontend" >&2
+  return 1
+}
+
+_sync_frontend_pid_from_lock() {
+  if [[ ! -f "${FRONTEND_LOCK}" ]]; then
+    return 0
+  fi
+  local pid
+  pid="$(python3 -c "
+import json
+from pathlib import Path
+p = Path('${FRONTEND_LOCK}')
+data = json.loads(p.read_text())
+print(data.get('pid', ''))
+" 2>/dev/null)" || return 0
+  if [[ -n "${pid}" ]] && [[ "${pid}" =~ ^[0-9]+$ ]]; then
+    echo "${pid}" >"${FRONTEND_PID}"
+  fi
+}
+
+# --- Restart admission (frontend_lifecycle) ---------------------------------------------
+# A slow Next dev server is not a dead one. Every SIGTERM of the frontend asks the gate,
+# which admits heuristic restarts only on proof of a stall (flat CPU/log of the whole
+# process tree, or an unhealthy episode longer than three cold compiles) and journals the
+# caller and evidence. Deterministic reasons (operator reset, pause, API-binding mismatch,
+# Turbopack panic residue) carry their own proof and skip the gate.
+FRONTEND_GATE_HEALTHY=10
+FRONTEND_GATE_DENIED=11
+
+_frontend_restart_reason_deterministic() {
+  case "$1" in
+    reset | pause | binding_mismatch | panic_residue) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_frontend_lifecycle() {
+  PYTHONPATH="${SCRIPT_DIR}/lib${PYTHONPATH:+:${PYTHONPATH}}" \
+    "${PREFLIGHT_PY:-python3}" -m frontend_lifecycle "$@"
+}
+
+# $1 = reason. Returns 0 allow | 10 frontend healthy (do not restart) | 11 denied.
+# A gate failure denies: a stuck heal is recoverable, a wrongly killed compile is not.
+_frontend_restart_admit() {
+  local reason="$1" rc=0
+  if _frontend_restart_reason_deterministic "${reason}"; then
+    return 0
+  fi
+  _frontend_lifecycle admit --reason "${reason}" --port "${FRONTEND_PORT}" \
+    --url "${APP_URL}/" --state-dir "${STATE_DIR}" \
+    --pid-file "${FRONTEND_PID}" --log-file "${FRONTEND_LOG}" || rc=$?
+  case "${rc}" in
+    0 | "${FRONTEND_GATE_HEALTHY}" | "${FRONTEND_GATE_DENIED}") return "${rc}" ;;
+    *)
+      echo "STACK_WARN: frontend restart gate error (rc=${rc}) — refusing restart (fail closed)" >&2
+      return "${FRONTEND_GATE_DENIED}"
+      ;;
+  esac
+}
+
+_frontend_journal_kill() {
+  _frontend_lifecycle journal --reason "$1" --state-dir "${STATE_DIR}" \
+    --port "${FRONTEND_PORT}" --pids "${2:-}" >/dev/null 2>&1 || true
+}
+
+# Gate + kill + orphan cleanup ahead of a relaunch. $1 = reason. Returns 0 (clear to
+# launch) | 10 (frontend healthy — do not launch) | 11 (denied: still compiling or not
+# proven dead) | 1 (kill refused by the wave gate).
+_frontend_restart_prepare() {
+  local reason="$1" rc=0
+  _kill_frontend_supervisor "${reason}" || rc=$?
+  if [[ "${rc}" -ne 0 ]]; then
+    return "${rc}"
+  fi
+  _repair_orphan_frontend "${reason}" || rc=$?
+  return "${rc}"
+}
+
+_repair_orphan_frontend() {
+  local reason="${1:-orphan}" admit_rc=0
+  if _frontend_healthy; then
+    _sync_frontend_pid_from_lock
+    return 0
+  fi
+  if ! _frontend_port_listening; then
+    return 0
+  fi
+  if _lock_supervisor_alive; then
+    return 0
+  fi
+  if ! _wave_assert_stack_write_allowed; then
+    echo "STACK_FAIL: orphan frontend cleanup denied while wave pins stack" >&2
+    return 1
+  fi
+  _frontend_restart_admit "${reason}" || admit_rc=$?
+  if [[ "${admit_rc}" -ne 0 ]]; then
+    return "${admit_rc}"
+  fi
+  echo "STACK_WARN: orphan :${FRONTEND_PORT} listener without dev-server.lock — clearing" >&2
+  local pids
+  pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+  if [[ -n "${pids}" ]]; then
+    _frontend_journal_kill "${reason}" "${pids}"
+    # shellcheck disable=SC2086
+    kill ${pids} 2>/dev/null || true
+    sleep 1
+  fi
+  rm -f "${FRONTEND_PID}" "${FRONTEND_LOCK}"
+}
+
+_frontend_heal_stack_write_allowed() {
+  [[ "${MYRM_CHROME_E2E_FRONTEND_HEAL:-}" == "1" ]] || [[ "${MYRM_E2E_ATTACH_FRONTEND_HEAL:-}" == "1" ]]
+}
+
+_wave_assert_stack_write_allowed() {
+  if [[ "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+    return 0
+  fi
+  if _frontend_heal_stack_write_allowed; then
+    return 0
+  fi
+  local wave_sh="${SCRIPT_DIR}/wave.sh"
+  if [[ ! -f "${wave_sh}" ]]; then
+    return 0
+  fi
+  bash "${wave_sh}" check-stack-write
+}
+
+# $1 = reason (frontend_lifecycle.policy.Reason; unknown/empty is treated as heuristic).
+# Returns 0 killed | 1 wave gate refused | 10 frontend healthy | 11 restart denied.
+_kill_frontend_supervisor() {
+  local reason="${1:-unresponsive}" admit_rc=0
+  if ! _wave_assert_stack_write_allowed; then
+    echo "STACK_FAIL: frontend kill denied while wave pins stack" >&2
+    return 1
+  fi
+  _frontend_restart_admit "${reason}" || admit_rc=$?
+  if [[ "${admit_rc}" -ne 0 ]]; then
+    return "${admit_rc}"
+  fi
+  local fe_pid=""
+  if [[ -f "${FRONTEND_PID}" ]]; then
+    fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+  fi
+  _frontend_journal_kill "${reason}" \
+    "${fe_pid} $(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+  if [[ -n "${fe_pid}" ]]; then
+    kill -TERM "${fe_pid}" 2>/dev/null || true
+    sleep 1
+    kill -9 "${fe_pid}" 2>/dev/null || true
+  fi
+  rm -f "${FRONTEND_PID}"
+  if _frontend_port_listening; then
+    local pids
+    pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+    if [[ -n "${pids}" ]]; then
+      # shellcheck disable=SC2086
+      kill -TERM ${pids} 2>/dev/null || true
+      sleep 1
+      # shellcheck disable=SC2086
+      kill -9 ${pids} 2>/dev/null || true
+    fi
+  fi
+  rm -f "${FRONTEND_LOCK}"
+}
+
+_frontend_dev_paused() {
+  # Only clear-pause lifts the stamp — MYRM_FRONTEND_DEV_FORCE alone cannot bypass cleanup.
+  "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" check >/dev/null 2>&1
+}
+
+_launch_frontend_supervisor() {
+  # Hard gate: every cold-start path goes through here (ensure / frontend-only / clean fallback).
+  if _frontend_dev_paused; then
+    echo "STACK_FRONTEND_SKIP: launch blocked — frontend dev paused; run: frontend-only clear-pause" >&2
+    return 1
+  fi
+  local use_clean="${1:-0}"
+  local dev_script="${MYRM_FRONTEND_DEV_SCRIPT:-${FRONTEND_DIR}/scripts/dev.ts}"
+  local webpack_args=()
+  if [[ "${MYRM_FRONTEND_DEV_WEBPACK:-0}" == "1" ]]; then
+    webpack_args=(--webpack)
+  fi
+  cd "${FRONTEND_DIR}"
+  # Frontend child must run under real user home so next cache/harness paths
+  # don't leak into sandboxed ~/.cursor-3.
+  export_spawn_home
+  bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
+  if [[ -f "${FRONTEND_LOG}" ]]; then
+    local log_bytes=0
+    log_bytes="$(wc -c <"${FRONTEND_LOG}" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "${log_bytes}" =~ ^[0-9]+$ && "${log_bytes}" -gt 52428800 ]]; then
+      echo "STACK_HEAL: rotating oversized frontend.log (${log_bytes} bytes)" >&2
+      mv "${FRONTEND_LOG}" "${FRONTEND_LOG}.1" 2>/dev/null || : >"${FRONTEND_LOG}"
+    fi
+  fi
+  _frontend_clear_warmth
+  if [[ "${use_clean}" == "1" ]]; then
+    echo "STACK_START: frontend with --clean (.next purge)" >&2
+    if ((${#webpack_args[@]} > 0)); then
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean "${webpack_args[@]}"
+    else
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" --clean
+    fi
+  else
+    if ((${#webpack_args[@]} > 0)); then
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}" "${webpack_args[@]}"
+    else
+      _spawn_detached "${FRONTEND_LOG}" env MYRM_FRONTEND_PORT="${FRONTEND_PORT}" API_PORT="${FRONTEND_API_PORT}" PORT="${FRONTEND_API_PORT}" MYRM_NEXT_DIST_DIR="${MYRM_NEXT_DIST_DIR:-.next}" "${MYRM_BUN}" run "${dev_script}"
+    fi
+  fi
+  echo $! >"${FRONTEND_PID}"
+  echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}") (setsid detached)"
+}
+
+_frontend_turbopack_panic_residue() {
+  # Turbopack persistent-cache restore failure aborts the dev server mid-compile
+  # ("panicked at turbopack" + "Aborting."). A non-clean cold start reuses the
+  # corrupted .next cache and re-panics on later routes — force --clean instead.
+  [[ -f "${FRONTEND_LOG}" ]] || return 1
+  grep -qE "panicked at turbopack|turbo-tasks: an internal panic|Aborting\." "${FRONTEND_LOG}" 2>/dev/null
+}
+
+_heal_stale_next_dev_lock() {
+  # Next.js dev-server.lock can reference a stale next-server PID on an alt port
+  # (e.g. :13301) while :3000 stays dead — kills the stale PID once per ensure.
+  [[ -f "${FRONTEND_LOG}" ]] || return 1
+  local tail_log=""
+  tail_log="$(tail -n 120 "${FRONTEND_LOG}" 2>/dev/null || true)"
+  [[ -n "${tail_log}" ]] || return 1
+  grep -q "Another next dev server is already running" <<<"${tail_log}" || return 1
+  local stale_pid=""
+  stale_pid="$(grep -E '^- PID:' <<<"${tail_log}" | tail -1 | sed -E 's/^- PID:[[:space:]]+//')"
+  [[ "${stale_pid}" =~ ^[0-9]+$ ]] || return 1
+  if [[ -f "${FRONTEND_PID}" ]]; then
+    local fe_pid=""
+    fe_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
+    if [[ "${stale_pid}" == "${fe_pid}" ]]; then
+      return 1
+    fi
+  fi
+  if ! kill -0 "${stale_pid}" 2>/dev/null; then
+    return 1
+  fi
+  # The pid comes from a log line of an earlier run; a recycled pid must never be signalled.
+  local stale_cmd=""
+  stale_cmd="$(ps -p "${stale_pid}" -o command= 2>/dev/null || true)"
+  if [[ "${stale_cmd}" != *next* ]]; then
+    return 1
+  fi
+  echo "STACK_HEAL: stale Next.js dev lock PID ${stale_pid} — terminating orphan next-server" >&2
+  kill -TERM "${stale_pid}" 2>/dev/null || true
+  sleep 1
+  kill -9 "${stale_pid}" 2>/dev/null || true
+  return 0
+}
+
+# Returns 0 ready | 1 failed | 11 restart denied (server still compiling or not proven dead).
+_try_frontend_start_with_clean_fallback() {
+  local gate_rc=0
+  if _frontend_turbopack_panic_residue; then
+    echo "STACK_WARN: Turbopack panic residue — skip non-clean, force --clean cold start" >&2
+    _kill_frontend_supervisor panic_residue || return 1
+    _repair_orphan_frontend panic_residue || return 1
+    _launch_frontend_supervisor 1
+    if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_OK: frontend → ${APP_URL} (after --clean; panic residue)"
+      return 0
+    fi
+    echo "STACK_WARN: frontend still not HTTP 200 after --clean (panic residue) — check ${FRONTEND_LOG}" >&2
+    return 1
+  fi
+  _launch_frontend_supervisor 0
+  if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+    _sync_frontend_pid_from_lock
+    echo "STACK_OK: frontend → ${APP_URL}"
+    return 0
+  fi
+  local last_code
+  last_code="$(_frontend_http_status)"
+  if [[ "${last_code}" == "000" ]] && _heal_stale_next_dev_lock; then
+    _frontend_restart_prepare unresponsive || gate_rc=$?
+    case "${gate_rc}" in
+      0) ;;
+      "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend → ${APP_URL} (healthy at restart gate)"; return 0 ;;
+      "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+      *) return 1 ;;
+    esac
+    _launch_frontend_supervisor 0
+    if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_OK: frontend → ${APP_URL} (after stale next-server heal)"
+      return 0
+    fi
+    last_code="$(_frontend_http_status)"
+  fi
+  if [[ "${last_code}" != "404" && "${last_code}" != "000" ]]; then
+    echo "STACK_WARN: frontend slow to start (last HTTP ${last_code}) — check ${FRONTEND_LOG}" >&2
+    return 1
+  fi
+  echo "STACK_WARN: frontend HTTP ${last_code} — retry with bun run dev --clean" >&2
+  local clean_reason="unresponsive"
+  [[ "${last_code}" == "404" ]] && clean_reason="bad_http"
+  gate_rc=0
+  _frontend_restart_prepare "${clean_reason}" || gate_rc=$?
+  case "${gate_rc}" in
+    0) ;;
+    "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend → ${APP_URL} (healthy at restart gate)"; return 0 ;;
+    "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+    *) return 1 ;;
+  esac
+  _launch_frontend_supervisor 1
+  if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+    _sync_frontend_pid_from_lock
+    echo "STACK_OK: frontend → ${APP_URL} (after --clean)"
+    return 0
+  fi
+  echo "STACK_WARN: frontend still not HTTP 200 after --clean — check ${FRONTEND_LOG}" >&2
+  return 1
+}
+
+# Returns 0 ready | 1 failed | 11 restart denied (server still compiling or not proven dead).
+_start_frontend_supervisor() {
+  local gate_rc=0
+  if _frontend_dev_paused; then
+    if _frontend_healthy || _frontend_port_listening; then
+      echo "STACK_FRONTEND_RECLAIM: pause active — stopping existing frontend on :${FRONTEND_PORT}" >&2
+      _kill_frontend_supervisor pause || true
+      _repair_orphan_frontend pause || true
+    fi
+    echo "STACK_FRONTEND_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
+    return 0
+  fi
+  if _frontend_healthy && _frontend_binding_matches; then
+    _sync_frontend_pid_from_lock
+    echo "STACK_OK: frontend already healthy → ${APP_URL}"
+    return 0
+  fi
+
+  if _frontend_port_listening && ! _frontend_binding_matches; then
+    # Reusing this frontend would keep serving /api/v1 from the wrong backend, and the
+    # compile wait below would be satisfied by the same stale process. Stop it so the
+    # launch path starts a fresh server with the current API_PORT.
+    _kill_frontend_supervisor binding_mismatch || return 1
+  fi
+
+  if _lock_supervisor_alive; then
+    echo "STACK_WAIT: frontend compiling — up to ${ENSURE_FRONTEND_WAIT_SEC}s..."
+    if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_OK: frontend ready after compile wait"
+      return 0
+    fi
+    echo "STACK_WARN: frontend still not HTTP-ready after compile wait — check ${FRONTEND_LOG}" >&2
+    local last_code
+    last_code="$(_frontend_http_status)"
+    if [[ "${last_code}" == "404" ]]; then
+      echo "STACK_WARN: compile wait got HTTP 404 — retry with --clean" >&2
+      _frontend_restart_prepare bad_http || gate_rc=$?
+      case "${gate_rc}" in
+        0) _try_frontend_start_with_clean_fallback || return $?; return 0 ;;
+        "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend ready (healthy at restart gate)"; return 0 ;;
+        "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+      esac
+    fi
+    return 1
+  fi
+
+  _repair_orphan_frontend orphan || gate_rc=$?
+  case "${gate_rc}" in
+    0) ;;
+    "${FRONTEND_GATE_HEALTHY}") _sync_frontend_pid_from_lock; echo "STACK_OK: frontend ready (healthy at restart gate)"; return 0 ;;
+    "${FRONTEND_GATE_DENIED}") return "${FRONTEND_GATE_DENIED}" ;;
+    *) return 1 ;;
+  esac
+
+  if [[ -z "${MYRM_BUN}" ]]; then
+    echo "STACK_FAIL: bun not found — run: myrm setup" >&2
+    return 1
+  fi
+
+  _try_frontend_start_with_clean_fallback
+}
+
+_ensure_backend() {
+  if ! _start_backend_bg "${SERVER_DIR}"; then
+    echo "STACK_FAIL: backend start failed" >&2
+    return 1
+  fi
+  if _wait_backend_health "${MYRM_BACKEND_ENSURING_HEALTH_SEC:-60}"; then
+    echo "STACK_OK: backend → ${API_BASE}"
+    return 0
+  fi
+  echo "STACK_FAIL: backend not healthy after start" >&2
+  return 1
+}
+
+cmd_attach() {
+  local attach_start="${SECONDS}"
+  local elapsed remaining probe_sec
+
+  _attach_wall_remaining() {
+    elapsed=$((SECONDS - attach_start))
+    remaining=$((ATTACH_WAIT_SEC - elapsed))
+    if (( remaining <= 0 )); then
+      return 1
+    fi
+    echo "${remaining}"
+  }
+
+  probe_sec="$(_attach_wall_remaining)" || {
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    exit 1
+  }
+  if _api_healthy "${probe_sec}" && _frontend_healthy "${probe_sec}"; then
+    echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
+    exit 0
+  fi
+
+  remaining="$(_attach_wall_remaining)" || {
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    exit 1
+  }
+  if _wait_stack_warm "${remaining}"; then
+    echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+    exit 0
+  fi
+
+  remaining="$(_attach_wall_remaining)" || {
+    echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+    exit 1
+  }
+  if _wait_stack_health "${remaining}"; then
+    echo "STACK_ATTACH_OK api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=http"
+    exit 0
+  fi
+  echo "STACK_ATTACH_TIMEOUT: stack not healthy within ${ATTACH_WAIT_SEC}s — run: ./myrm ready" >&2
+  exit 1
+}
+
+_try_optional_client_hot() {
+  local cdp_port="${MYRM_CHROME_E2E_PORT:-9333}"
+  local py="${SERVER_DIR}/.venv/bin/python"
+  if ! curl -sf --max-time 2 "http://127.0.0.1:${cdp_port}/json/version" >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  export MYRM_CHROME_E2E_PORT="${cdp_port}"
+  export PREFLIGHT_PY="${py}"
+  unset MYRM_CHROME_E2E_ATTACH
+  if _warmup_frontend_client; then
+    echo "STACK_OK: client_hot during ensure"
+    return 0
+  fi
+  echo "STACK_WARN: client_hot failed during ensure — run: ./myrm ready --chrome" >&2
+  return 0
+}
+
+cmd_ensure() {
+  if _stack_warm; then
+    _ensure_backend || exit 1
+    _try_optional_client_hot
+    echo "STACK_ENSURE_OK: already shell_hot api=:${BACKEND_PORT} ui=:${FRONTEND_PORT}"
+    exit 0
+  fi
+
+  if ! _wave_assert_stack_write_allowed; then
+    if _frontend_port_listening || _api_healthy 5; then
+      echo "STACK_JOIN: ensure deferred — wave/lease active; attach-wait for shell_hot" >&2
+      if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
+        _try_optional_client_hot
+        echo "STACK_ENSURE_OK: attach-wait during wave pin api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+        exit 0
+      fi
+      echo "STACK_ATTACH_TIMEOUT: stack not shell_hot within ${ATTACH_WAIT_SEC}s during wave pin" >&2
+      exit 1
+    fi
+    echo "STACK_FAIL: ensure denied while wave pins stack — use: ./myrm ready --attach --chrome" >&2
+    exit 1
+  fi
+
+  if _join_ensure_in_progress "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
+    exit 0
+  fi
+
+  if ! _acquire_dir_lock "${_lock_dir}" "${ATTACH_WAIT_SEC}"; then
+    if _wait_stack_warm "${ATTACH_WAIT_SEC}"; then
+      _try_optional_client_hot
+      echo "STACK_ENSURE_OK: joined late ensure api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+      exit 0
+    fi
+    echo "STACK_FAIL: could not acquire stack ensure lock within ${ATTACH_WAIT_SEC}s" >&2
+    exit 1
+  fi
+  trap '_release_dir_lock "${_lock_dir}"' EXIT
+
+  if _stack_warm; then
+    _ensure_backend || exit 1
+    _try_optional_client_hot
+    echo "STACK_ENSURE_OK: already shell_hot api=:${BACKEND_PORT} ui=:${FRONTEND_PORT}"
+    exit 0
+  fi
+
+  _ensure_backend || exit 1
+  _start_frontend_supervisor || exit 1
+
+  if ! _wait_stack_health "${ENSURE_FRONTEND_WAIT_SEC}"; then
+    if ! _api_healthy 5 || ! _wait_frontend_http_200 30; then
+      echo "STACK_FAIL: stack not HTTP healthy after ensure" >&2
+      exit 1
+    fi
+  fi
+
+  if _warmup_frontend_compile; then
+    _try_optional_client_hot
+    echo "STACK_ENSURE_OK: api=:${BACKEND_PORT} ui=:${FRONTEND_PORT} shell_hot=yes"
+    exit 0
+  fi
+  echo "STACK_FAIL: stack not shell_hot after ensure" >&2
+  exit 1
+}
+
+cmd_reset() {
+  _wave_assert_stack_write_allowed || exit 3
+
+  _frontend_journal_kill reset \
+    "$(cat "${FRONTEND_PID}" 2>/dev/null || true) $(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+  if [[ -f "${FRONTEND_PID}" ]]; then
+    local fe_pid
+    fe_pid="$(cat "${FRONTEND_PID}")"
+    kill "${fe_pid}" 2>/dev/null || true
+    rm -f "${FRONTEND_PID}"
+  fi
+  rm -f "${FRONTEND_LOCK}"
+  _frontend_clear_warmth
+  _clear_stack_epoch
+
+  if [[ -f "${BACKEND_PID}" ]]; then
+    local dev_pid
+    dev_pid="$(cat "${BACKEND_PID}")"
+    if dev_pid_alive "${dev_pid}"; then
+      kill -TERM "${dev_pid}" 2>/dev/null || true
+      local _
+      for _ in $(seq 1 15); do
+        dev_pid_alive "${dev_pid}" || break
+        sleep 1
+      done
+      if dev_pid_alive "${dev_pid}"; then
+        kill -9 "${dev_pid}" 2>/dev/null || true
+      fi
+    fi
+    rm -f "${BACKEND_PID}"
+  fi
+
+  if _frontend_port_listening; then
+    local pids
+    pids="$(lsof -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ')"
+    if [[ -n "${pids}" ]]; then
+      # shellcheck disable=SC2086
+      kill ${pids} 2>/dev/null || true
+    fi
+  fi
+
+  local backend_listener_pids
+  backend_listener_pids="$(lsof -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+  if [[ -n "${backend_listener_pids}" ]]; then
+    # shellcheck disable=SC2086
+    kill ${backend_listener_pids} 2>/dev/null || true
+  fi
+
+  _clear_stack_epoch
+
+  echo "STACK_RESET_OK"
+}
+
+cmd_status() {
+  local api="down" fe="down" lock="missing" shell_hot="down" stack_epoch=""
+  _api_healthy 3 && api="up"
+  _frontend_healthy 5 && fe="up"
+  shell_hot="$(_frontend_compile_hot_status)"
+  stack_epoch="$(_read_stack_epoch 2>/dev/null || true)"
+  _lock_supervisor_alive && lock="alive"
+  [[ -f "${FRONTEND_LOCK}" ]] && [[ "${lock}" == "missing" ]] && lock="stale"
+  echo "stack_status api=${api} frontend=${fe} shell_hot=${shell_hot} client_hot=$(_frontend_client_hot_status) stack_epoch=${stack_epoch:-none} dev_lock=${lock}"
+}
+
+_stop_private_backend() {
+  local py="${SERVER_DIR}/.venv/bin/python"
+  local identity_helper="${SCRIPT_DIR}/lib/e2e_core/process_identity.py"
+  local runtime_id="${MYRM_RUNTIME_NAMESPACE:-shared}"
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  if [[ -f "${BACKEND_IDENTITY}" ]]; then
+    if ! "${py}" "${identity_helper}" terminate \
+      --identity-file "${BACKEND_IDENTITY}" \
+      --pid-file "${BACKEND_PID}" \
+      --expected-runtime-id "${runtime_id}"; then
+      echo "STACK_FAIL: private backend process ownership mismatch" >&2
+      return 1
+    fi
+  elif [[ -f "${BACKEND_PID}" ]] || dev_port_in_use "${BACKEND_PORT}"; then
+    echo "STACK_FAIL: private backend ownership identity missing; refusing to kill pid/port" >&2
+    return 1
+  fi
+  if ! dev_wait_ports_released 45 "${BACKEND_PORT}"; then
+    echo "STACK_FAIL: private backend port :${BACKEND_PORT} still owned by an unknown listener" >&2
+    return 1
+  fi
+  _clear_stack_epoch
+}
+
+_private_backend_identity_valid() {
+  [[ -f "${BACKEND_IDENTITY}" ]] || return 1
+  local dev_pid port_owner_pid py="${SERVER_DIR}/.venv/bin/python"
+  dev_pid=""
+  if [[ -f "${BACKEND_PID}" ]]; then
+    dev_pid="$(tr -d '[:space:]' <"${BACKEND_PID}")"
+  fi
+  port_owner_pid="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
+  if [[ -n "${port_owner_pid}" && "${port_owner_pid}" =~ ^[0-9]+$ ]]; then
+    dev_pid="${port_owner_pid}"
+  fi
+  [[ "${dev_pid}" =~ ^[0-9]+$ ]] || return 1
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  "${py}" "${SCRIPT_DIR}/lib/e2e_core/process_identity.py" verify \
+    --identity-file "${BACKEND_IDENTITY}" \
+    --expected-pid "${dev_pid}" \
+    --expected-runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" >/dev/null
+}
+
+_private_backend_scope() {
+  [[ "${MYRM_PRIVATE_BACKEND:-}" == "1" || "${MYRM_E2E_PRIVATE_BACKEND:-}" == "1" ]] \
+    || [[ "${MYRM_DEV_STATE_DIR:-}" != "$(_real_home_default_state_dir)" ]]
+}
+
+_shared_backend_listens_on_port() {
+  local port="$1" shared_pid="$2" owner_pid
+  [[ -n "${shared_pid}" && "${shared_pid}" =~ ^[0-9]+$ ]] || return 1
+  dev_pid_alive "${shared_pid}" || return 1
+  for owner_pid in $(lsof -nP -iTCP:"${port}" -sTCP:LISTEN -t 2>/dev/null); do
+    [[ "${owner_pid}" == "${shared_pid}" ]] && return 0
+  done
+  return 1
+}
+
+_sync_private_backend_identity_from_port() {
+  if _private_backend_identity_valid; then
+    return 0
+  fi
+  dev_port_in_use "${BACKEND_PORT}" || return 1
+  local port_owner_pid py="${SERVER_DIR}/.venv/bin/python"
+  port_owner_pid="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | head -1 || true)"
+  [[ -n "${port_owner_pid}" && "${port_owner_pid}" =~ ^[0-9]+$ ]] || return 1
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+  fi
+  if ! "${py}" "${SCRIPT_DIR}/lib/e2e_core/process_identity.py" record \
+    --pid "${port_owner_pid}" \
+    --identity-file "${BACKEND_IDENTITY}" \
+    --runtime-id "${MYRM_RUNTIME_NAMESPACE:-shared}" \
+    --role backend \
+    --expected-command-token run.py >/dev/null 2>&1; then
+    return 1
+  fi
+  echo "${port_owner_pid}" >"${BACKEND_PID}"
+  _private_backend_identity_valid
+}
+
+_repair_orphan_private_backend() {
+  if ! _private_backend_scope; then
+    return 1
+  fi
+  if _private_backend_identity_valid; then
+    return 0
+  fi
+  # Port ownership truth: refuse reclaim only when the shared backend (default
+  # state dir) is the actual LISTEN owner on BACKEND_PORT — not merely alive on
+  # :8080 while a private orphan occupies :18080.
+  local shared_pid_file shared_pid
+  shared_pid_file="$(_real_home_default_state_dir)/backend.pid"
+  shared_pid=""
+  if [[ -f "${shared_pid_file}" ]]; then
+    shared_pid="$(tr -d '[:space:]' <"${shared_pid_file}")"
+  fi
+  if _shared_backend_listens_on_port "${BACKEND_PORT}" "${shared_pid}"; then
+    echo "STACK_FAIL: private backend port :${BACKEND_PORT} owned by shared backend pid=${shared_pid} — refuse orphan reclaim" >&2
+    return 1
+  fi
+  echo "STACK_HEAL: reclaiming orphan private backend on :${BACKEND_PORT}" >&2
+  if [[ -f "${BACKEND_IDENTITY}" ]]; then
+    _stop_private_backend 2>/dev/null || true
+  fi
+  rm -f "${BACKEND_PID}" "${BACKEND_IDENTITY}"
+  if dev_port_in_use "${BACKEND_PORT}"; then
+    local pids pid cmd
+    pids="$(lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' ' || true)"
+    for pid in ${pids}; do
+      [[ "${pid}" =~ ^[0-9]+$ ]] || continue
+      cmd="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
+      if [[ "${cmd}" == *run.py* && "${cmd}" == *myrm-agent-server* ]]; then
+        kill -TERM "${pid}" 2>/dev/null || true
+      fi
+    done
+    sleep 1
+    dev_kill_port_listeners "${BACKEND_PORT}" 2>/dev/null || true
+  fi
+  if ! dev_wait_ports_released 45 "${BACKEND_PORT}"; then
+    echo "STACK_FAIL: private backend port :${BACKEND_PORT} still busy after orphan reclaim" >&2
+    return 1
+  fi
+  _clear_stack_epoch
+  return 0
+}
+
+cmd_backend_only_ensure() {
+  # 与 cmd_ensure 共用 ensure.lock.d，但 backend-only 恢复不能等待前端
+  # shell_hot：那会把一次 backend heal 放大成 360s 的前端冷编译等待。
+  # 只等待 API 健康，并在锁仍被完整 ensure 持有时 fail-fast；禁止恢复路径
+  # 误杀正在进行的完整 ensure。
+  local backend_lock_wait
+  backend_lock_wait="$(_backend_only_lock_wait_sec)"
+  if _join_backend_ensure_in_progress "${_lock_dir}" "${backend_lock_wait}"; then
+    exit 0
+  fi
+  if ! _acquire_dir_lock "${_lock_dir}" "${backend_lock_wait}" 0; then
+    echo "STACK_FAIL: backend-only ensure lock busy after ${backend_lock_wait}s; retry via bounded supervisor heal" >&2
+    exit 1
+  fi
+  trap '_release_dir_lock "${_lock_dir}"' EXIT
+  _stack_stage lock_acquired
+
+  if ! _ensure_backend; then
+    echo "STACK_FAIL: private backend start failed" >&2
+    exit 1
+  fi
+
+  if _api_healthy 5; then
+    if ! _private_backend_identity_valid; then
+      if ! _sync_private_backend_identity_from_port; then
+        if ! _repair_orphan_private_backend; then
+          echo "STACK_FAIL: healthy private port lacks matching process ownership" >&2
+          exit 1
+        fi
+        if ! _ensure_backend; then
+          echo "STACK_FAIL: private backend restart after orphan reclaim failed" >&2
+          exit 1
+        fi
+      fi
+      if ! _private_backend_identity_valid; then
+        echo "STACK_FAIL: healthy private port lacks matching process ownership after reclaim" >&2
+        exit 1
+      fi
+    fi
+    echo "STACK_OK: private backend already healthy → ${API_BASE}"
+    _stack_stage ensure_done
+    echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
+    exit 0
+  fi
+
+  if _wait_backend_health "${MYRM_BACKEND_ENSURING_HEALTH_SEC:-60}"; then
+    _stack_stage ensure_done
+    echo "STACK_BACKEND_ONLY_ENSURE_OK: api=:${BACKEND_PORT} ui=shared:${FRONTEND_PORT}"
+    exit 0
+  fi
+  echo "STACK_FAIL: private backend not healthy after ensure" >&2
+  exit 1
+}
+
+cmd_backend_only_stop() {
+  if ! _stop_private_backend; then
+    exit 1
+  fi
+  echo "STACK_BACKEND_ONLY_STOP_OK"
+}
+
+cmd_frontend_only_ensure() {
+  local gate_rc=0 start_rc=0
+  if _frontend_dev_paused; then
+    if _frontend_healthy || _frontend_port_listening; then
+      echo "STACK_FRONTEND_RECLAIM: pause active — stopping existing frontend on :${FRONTEND_PORT}" >&2
+      _kill_frontend_supervisor pause || true
+      _repair_orphan_frontend pause || true
+    fi
+    echo "STACK_FRONTEND_ONLY_ENSURE_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
+    exit 0
+  fi
+  local needs_client_hot=0
+  # Only the attach heal path requires client_hot (SHPOIB shell binds a hydrated
+  # page). warm_ui_route heal sets MYRM_CHROME_E2E_FRONTEND_HEAL but runs before
+  # Chrome opens any page, so client_hot is legitimately "no" there — requiring
+  # it would clean-restart the frontend every warm heal (heal loop, §26.30).
+  if [[ "${MYRM_E2E_ATTACH_FRONTEND_HEAL:-}" == "1" ]]; then
+    needs_client_hot=1
+  fi
+  if _frontend_healthy; then
+    if [[ "${needs_client_hot}" -eq 0 ]] || [[ "$(_frontend_client_hot_status)" == "yes" ]]; then
+      echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT}"
+      exit 0
+    fi
+    echo "STACK_HEAL: frontend HTTP 200 but client_hot=no — clean restart (attach frontend heal)" >&2
+    if _frontend_heal_stack_write_allowed; then
+      _frontend_restart_prepare client_hot_no || gate_rc=$?
+      case "${gate_rc}" in
+        0)
+          _frontend_clear_warmth || true
+          if _try_frontend_start_with_clean_fallback; then
+            echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot_heal=clean_retry"
+            exit 0
+          fi
+          ;;
+        "${FRONTEND_GATE_HEALTHY}")
+          # A missing hydration record is the normal state after any restart and the attach
+          # flow's own CDP warmup writes it; killing a serving frontend would only cost every
+          # peer a cold compile (the restart clears the record again).
+          echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} client_hot=pending"
+          exit 0
+          ;;
+      esac
+    fi
+    echo "STACK_FAIL: frontend client_hot heal failed within attach frontend heal" >&2
+    exit 1
+  fi
+  if _frontend_port_listening; then
+    if _wait_frontend_http_200 "${ATTACH_WAIT_SEC}"; then
+      _sync_frontend_pid_from_lock
+      echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=yes"
+      exit 0
+    fi
+    if _frontend_heal_stack_write_allowed; then
+      echo "STACK_HEAL: frontend listening but not HTTP 200 — clean retry (E2E attach heal)" >&2
+      _frontend_restart_prepare unresponsive || gate_rc=$?
+      case "${gate_rc}" in
+        0)
+          if _try_frontend_start_with_clean_fallback; then
+            echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=clean_retry"
+            exit 0
+          fi
+          ;;
+        "${FRONTEND_GATE_HEALTHY}")
+          _sync_frontend_pid_from_lock
+          echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} compile_wait=yes"
+          exit 0
+          ;;
+        "${FRONTEND_GATE_DENIED}")
+          echo "STACK_FAIL: frontend still compiling — restart denied, nothing was killed (retry later)" >&2
+          exit 1
+          ;;
+      esac
+    fi
+    echo "STACK_FAIL: frontend listening but not HTTP 200 within ${ATTACH_WAIT_SEC}s" >&2
+    exit 1
+  fi
+  echo "STACK_HEAL: shared frontend port :${FRONTEND_PORT} dead — cold start (no kill)" >&2
+  _start_frontend_supervisor || start_rc=$?
+  if [[ "${start_rc}" -eq "${FRONTEND_GATE_DENIED}" ]]; then
+    echo "STACK_FAIL: frontend still compiling — restart denied, nothing was killed (retry later)" >&2
+    exit 1
+  fi
+  if [[ "${start_rc}" -ne 0 ]]; then
+    if _frontend_heal_stack_write_allowed; then
+      echo "STACK_HEAL: frontend cold start failed — retry with --clean (E2E attach heal)" >&2
+      _frontend_restart_prepare unresponsive || gate_rc=$?
+      case "${gate_rc}" in
+        0)
+          if _try_frontend_start_with_clean_fallback; then
+            echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=clean_retry"
+            exit 0
+          fi
+          ;;
+        "${FRONTEND_GATE_HEALTHY}")
+          _sync_frontend_pid_from_lock
+          echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=yes"
+          exit 0
+          ;;
+        "${FRONTEND_GATE_DENIED}")
+          echo "STACK_FAIL: frontend still compiling — restart denied, nothing was killed (retry later)" >&2
+          exit 1
+          ;;
+      esac
+    fi
+    echo "STACK_FAIL: frontend cold start failed" >&2
+    exit 1
+  fi
+  echo "STACK_FRONTEND_ONLY_ENSURE_OK: ui=:${FRONTEND_PORT} cold_start=yes"
+}
+
+usage() {
+  echo "Usage: dev-stack.sh ensure|attach|reset|status|backend-only ensure|backend-only stop|frontend-only ensure|frontend-only clear-pause|frontend-only restart-report [--mark]" >&2
+}
+
+_supervisor_delegate_or_fail() {
+  local cmd="$1"
+  if bash "${SCRIPT_DIR}/stack-supervisor.sh" rpc "${cmd}"; then
+    return 0
+  fi
+  echo "STACK_FAIL: supervisor rpc ${cmd} failed — run: bash ${SCRIPT_DIR}/stack-supervisor.sh start && cd open-perplexity && ./myrm ready" >&2
+  exit 1
+}
+
+_supervisor_internal_call() {
+  local supervisor_pid_file="${STATE_DIR}/supervisor.pid" supervisor_pid=""
+  [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]] || return 1
+  [[ -f "${supervisor_pid_file}" ]] || return 1
+  supervisor_pid="$(tr -d '[:space:]' <"${supervisor_pid_file}")"
+  [[ "${supervisor_pid}" =~ ^[0-9]+$ ]] || return 1
+  [[ "${supervisor_pid}" == "${PPID}" ]] || return 1
+  dev_pid_alive "${supervisor_pid}"
+}
+
+main() {
+  local cmd="${1:-}"
+  case "${cmd}" in
+    ensure)
+      if _supervisor_internal_call; then cmd_ensure; exit $?; fi
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_ensure; exit $?; fi
+      _supervisor_delegate_or_fail ensure
+      ;;
+    attach)
+      # Read plane: attach only observes/waits for health and must never queue
+      # behind supervisor mutations such as ensure/reset.
+      cmd_attach
+      ;;
+    reset)
+      if _supervisor_internal_call; then cmd_reset; exit $?; fi
+      if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" ]]; then cmd_reset; exit $?; fi
+      _supervisor_delegate_or_fail reset
+      ;;
+    status)
+      # Read plane: status is side-effect free and must remain available while
+      # a long ensure is in flight; routing it through RPC caused false hangs.
+      cmd_status
+      ;;
+    backend-only)
+      local subcmd="${2:-}"
+      case "${subcmd}" in
+        ensure)
+          if _supervisor_internal_call; then cmd_backend_only_ensure; exit $?; fi
+          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+            cmd_backend_only_ensure
+            exit $?
+          fi
+          echo "STACK_FAIL: backend-only ensure requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_WAVE_GATE_BYPASS=1" >&2
+          exit 1
+          ;;
+        stop)
+          if _supervisor_internal_call; then cmd_backend_only_stop; exit $?; fi
+          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_WAVE_GATE_BYPASS:-}" == "1" ]]; then
+            cmd_backend_only_stop
+            exit $?
+          fi
+          echo "STACK_FAIL: backend-only stop requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_WAVE_GATE_BYPASS=1" >&2
+          exit 1
+          ;;
+        *)
+          echo "Unknown backend-only command: ${subcmd}" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      ;;
+    frontend-only)
+      local subcmd="${2:-}"
+      case "${subcmd}" in
+        clear-pause)
+          "${PREFLIGHT_PY:-python3}" "${SCRIPT_DIR}/lib/e2e_core/frontend_dev_pause.py" clear
+          exit $?
+          ;;
+        restart-report)
+          # Read plane: journal kills vs SIGTERMs in frontend.log; "--mark" restarts the window.
+          _frontend_lifecycle report --state-dir "${STATE_DIR}" --log-file "${FRONTEND_LOG}" \
+            ${3:+"$3"}
+          exit $?
+          ;;
+        ensure)
+          if _supervisor_internal_call; then cmd_frontend_only_ensure; exit $?; fi
+          if [[ "${MYRM_FRONTEND_ENSURE_INNER:-}" == "1" ]]; then
+            cmd_frontend_only_ensure
+            exit $?
+          fi
+          if [[ "${MYRM_SUPERVISOR_BYPASS:-}" == "1" || "${MYRM_E2E_SHPOIB:-}" == "1" ]]; then
+            local monorepo_root heal_py heal_rc
+            monorepo_root="$(cd "${REPO_ROOT}/.." && pwd)"
+            heal_py="${SCRIPT_DIR}/lib/e2e_core/warm_ui_heal.py"
+            if [[ -f "${heal_py}" ]]; then
+              heal_rc=0
+              "${PREFLIGHT_PY:-python3}" "${heal_py}" attach "${monorepo_root}" || heal_rc=$?
+              exit "${heal_rc}"
+            fi
+            cmd_frontend_only_ensure
+            exit $?
+          fi
+          echo "STACK_FAIL: frontend-only ensure requires MYRM_SUPERVISOR_BYPASS=1 or MYRM_E2E_SHPOIB=1" >&2
+          exit 1
+          ;;
+        *)
+          echo "Unknown frontend-only command: ${subcmd}" >&2
+          usage
+          exit 1
+          ;;
+      esac
+      ;;
+    ""|-h|--help) usage; exit 1 ;;
+    *)
+      echo "Unknown command: ${cmd}" >&2
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

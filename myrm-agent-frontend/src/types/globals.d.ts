@@ -1,0 +1,464 @@
+/**
+ * 全局类型声明
+ */
+
+interface Window {
+  SpeechRecognition?: typeof SpeechRecognition;
+  webkitSpeechRecognition?: typeof SpeechRecognition;
+  __MYRM_TRACE_ID__?: string;
+  /** Chrome E2E SHPOIB: private backend API base injected before chat automation. */
+  __MYRM_E2E_API_BASE__?: string;
+  /** SHPOIB Chrome E2E: force POST agent-stream direct SSE (skip workspace multiplex). */
+  __MYRM_E2E_DIRECT_SSE__?: boolean;
+  /** Chrome E2E: block outbound ConfigSync for searchServices (gap toast tests). */
+  __MYRM_E2E_BLOCK_SEARCH_SYNC__?: boolean;
+  /** Chrome E2E: attachToChat poll deadline (ms); scaled under parallel load. */
+  __MYRM_E2E_ATTACH_TIMEOUT_MS__?: number;
+  /** SHPOIB E2E: last attach fallback diagnostics from streamConsumer. */
+  __MYRM_E2E_ATTACH_DIAG__?: {
+    attached: boolean;
+    queueLen: number;
+    attempt?: number;
+    error?: string;
+    source?: string;
+  };
+  /** E2E ephemeral subagent application diagnostic (set right before message POST). */
+  __MYRM_E2E_EPH_APPLIED__?: {
+    keys: string[];
+    at: number;
+    forced?: boolean;
+  };
+  /** E2E ephemeral subagent raw opts as received by sendChatMessage (for post-mortem). */
+  __MYRM_E2E_EPH_OPTS__?: {
+    hasOpts: boolean;
+    hasEph: boolean;
+    keys: string[];
+    at: number;
+  };
+  /** Page-local private runtime identity parsed from window.name before hydration. */
+  __MYRM_E2E_RUNTIME__?: Readonly<{
+    version: 1;
+    runId: string;
+    runtimeId: string;
+    apiBase: string;
+    uiOrigin: string;
+  }>;
+  /** Rejects before any routed API fetch when the page is bound to the wrong Backend. */
+  __MYRM_E2E_RUNTIME_READY__?: Promise<
+    Readonly<{
+      version: 1;
+      runId: string;
+      runtimeId: string;
+      apiBase: string;
+      uiOrigin: string;
+    }>
+  >;
+  __TAURI_INTERNALS__?: unknown;
+  /** Dev E2E: last DESKTOP_VIEW_UPDATE refs (survives TOOL_END inspector re-fetch). */
+  __MYRM_E2E_DESKTOP_REFS__?: {
+    refs: Record<string, { role?: string; name?: string }>;
+    appName: string;
+    updatedAt: number;
+  };
+  /** Dev E2E: last BROWSER_VIEW_UPDATE refs (survives TOOL_END inspector re-fetch). */
+  __MYRM_E2E_BROWSER_REFS__?: {
+    refs: Record<string, { role?: string; name?: string }>;
+    pageUrl: string;
+    updatedAt: number;
+  };
+  /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
+  __MYRM_E2E_SKILLS_DISCOVER__?: {
+    showInstallResultToast: (payload: {
+      skillName: string;
+      response: import('@/services/skill').DiscoveryInstallResponse;
+      marketUpdate: boolean;
+    }) => void;
+  };
+  __MYRM_DEVICE_INSPECTOR_STORE__?: typeof import('@/store/useDeviceInspectorStore').default;
+  __MYRM_E2E_CHAT__?: {
+    __e2eFallback: boolean;
+    setInputMessage: (message: string) => void;
+    sendChatMessage?: (
+      text: string,
+      opts?: {
+        baselineUserCount?: number;
+        waitForStreamCompletion?: boolean;
+        preserveActionMode?: boolean;
+        ephemeralSubagents?: Record<string, unknown>;
+      },
+    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
+    kickoffChatMessage?: (
+      text: string,
+      opts?: { baselineUserCount?: number; preserveActionMode?: boolean; profile?: 'live' | 'read' },
+    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
+    submitAndObserveTurn?: (
+      text: string,
+      opts?: { baselineUserCount?: number; preserveActionMode?: boolean; profile?: 'live' | 'read' },
+    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
+    handleSubmit: () => void | Promise<void>;
+    getInputMessage: () => string;
+    peekOutboundUserMessage?: () => string;
+    prefetchSlashSkillCatalog?: () => Promise<{
+      marketSkillCount: number;
+      slashBoundSkillResolvedCount: number;
+      slashSkillCatalogReady: boolean;
+      skillStoreError: string | null;
+    }>;
+    ensureProviders?: () => Promise<void>;
+    prepareAutomationSend?: () => void;
+    ensureChatSession?: (opts?: { preserveActionMode?: boolean }) => Promise<void>;
+    ephSubagentsStatus?: () => {
+      hasConfig: boolean;
+      ephKeys: string[];
+      applied: { keys: string[]; at: number; forced?: boolean } | null;
+      sendOpts: {
+        hasOpts: boolean;
+        hasEph: boolean;
+        keys: string[];
+        at: number;
+      } | null;
+    };
+    attachToChat?: (chatId: string) => Promise<void>;
+    recoverHitlStream?: (
+      chatId: string,
+    ) => Promise<{ ok: boolean; err?: string; attached?: boolean; queueLen?: number; source?: string }>;
+    resetChat?: () => void;
+    isSendReady?: () => boolean;
+    isProvidersInitialized?: () => boolean;
+    setWorkflowMode?: (enabled: boolean) => void;
+    isWorkflowMode?: () => boolean;
+    debugProviderState?: () => Record<string, unknown>;
+    clearStreamRequestMessageId?: () => void;
+    submitSteerNudge?: (message: string) => Promise<{ ok: boolean; mode?: string; err?: string; detail?: unknown }>;
+    abortActiveStream?: () => void;
+    releaseActiveStreamForApiResume?: () => void;
+    /** CDP E2E: API-confirmed user message count before submit. */
+    _submitBaselineUsers?: number;
+    turnSnapshot: () => {
+      chatId: string | null;
+      messageCount?: number;
+      userCount: number;
+      assistantCount?: number;
+      isStreaming: boolean;
+      hasOk: boolean;
+      hasDone: boolean;
+      lastAssistantSample: string;
+      marketSkillCount: number;
+      slashBoundSkillResolvedCount: number;
+      slashSkillCatalogReady: boolean;
+    };
+    lastSubmitResult?: {
+      ok: boolean;
+      err?: string;
+      chatId?: string | null;
+      mode?: string;
+      debug?: Record<string, unknown>;
+    };
+    setGoalMode: (enabled: boolean) => void;
+    setGoalBudgetTokens: (tokens: number | null) => void;
+    setGoalConvergenceWindow?: (window: number | null) => void;
+    getGoalMode: () => boolean;
+    openRewindDialog?: (userIndex?: number) => boolean;
+    closeRewindDialog?: () => void;
+    getRewindTarget?: () => { chatId: string; messageId: string; messageIndex: number } | null;
+    getActiveGoalSnapshot?: () => {
+      status: string;
+      reason: string | null;
+      objective: string;
+    } | null;
+    loadActiveGoalFromApi?: () => Promise<{
+      ok: boolean;
+      err?: string;
+      status?: string;
+      reason?: string | null;
+    }>;
+    getGoalDraftState?: () => {
+      composerObjective: string;
+      acceptanceCount: number;
+      constraintsCount: number;
+      draftButtonDisabled: boolean;
+    };
+    runGoalDraftFromComposer?: () => Promise<{
+      ok: boolean;
+      err?: string;
+      acceptanceCount?: number;
+      constraintsCount?: number;
+    }>;
+    dispatchSystemNotification?: (detail: Record<string, unknown>) => void;
+    dispatchBackgroundJobFinishAndRefresh?: (chatId: string) => Promise<{
+      ok: boolean;
+      err?: string;
+      status?: string | null;
+      reason?: string | null;
+    }>;
+    setCurrentBuiltinTools?: (tools: string[]) => void;
+    getCurrentBuiltinTools?: () => string[];
+    /** CDP E2E: pin agent chat to defaultModelConfig.liteModel (matches API get_lite_model_selection). */
+    pinLiteModelForE2e?: (opts?: { preserveActionMode?: boolean }) => Promise<{ providerId: string; model: string }>;
+    /** CDP E2E SHPOIB: mirror private-backend searchServices into useConfigStore. */
+    syncSearchServicesFromE2eApi?: () => Promise<{ ok: boolean; err?: string; count?: number }>;
+    /** CDP E2E gap: force empty searchServices in FE store (no :8080 fallback). */
+    clearSearchServicesForE2e?: () => { ok: boolean; count: number };
+    debugSearchState?: () => {
+      count: number;
+      enabledCount: number;
+      blockSearchSync: boolean;
+    };
+    debugSecurityState?: () => {
+      securityPreset: string | null;
+      boundAgentId: string | null;
+      yoloModeEnabled: boolean | null;
+      configInitialized: boolean;
+      hasSecurityConfig: boolean;
+    };
+    /** CDP E2E: pin agent chat to defaultModelConfig.baseModel (matches API get_model_selection). */
+    pinBasicModelForE2e?: () => Promise<{ providerId: string; model: string }>;
+    /** CDP E2E: clear the agent's pinned model (a pinned agent opts out of smart routing). */
+    releaseAgentModelPinForE2e?: () => void;
+    /** CDP E2E: fork first snapshot bookmark (same services path as CompactedSummaryView). */
+    forkFirstContextBranchBookmark?: () => Promise<
+      | { ok: true; newChatId: string; parentChatId: string }
+      | { ok: false; reason: string; error?: string; branchCount?: number }
+    >;
+    completeBrowserTakeoverWithResume?: () => Promise<{
+      ok: boolean;
+      reason?: string;
+      chatId?: string | null;
+      resumeMessageId?: string | null;
+      storeMessageId?: string | null;
+      resumeStarted?: boolean;
+    }>;
+    retryStreamWithSameMessageId?: (
+      query: string,
+      messageId: string,
+    ) => Promise<{ ok: boolean; busy: boolean; err?: string }>;
+    /** CDP E2E: resume active clarification with empty answer (Skip parity). */
+    skipActiveClarificationForE2e?: () => { messageId: string };
+    setBrowserSource?: (source: string) => void;
+    getBrowserSource?: () => string | null | undefined;
+    ensureComputerUseReady?: () => void;
+    getActionMode?: () => 'fast' | 'agent' | 'deep_research';
+    setActionMode?: (mode: 'fast' | 'agent' | 'deep_research') => void;
+    getBrowserToolProgress?: () => {
+      active: boolean;
+      takeoverPending: boolean;
+      takeoverUiMode: 'managed' | 'extension' | null;
+      stepCount: number;
+      lastTool: string;
+    };
+    getBrowserInspectorSnapshot?: () => {
+      isOpen: boolean;
+      isBrowserActive: boolean;
+      hasScreenshot: boolean;
+      scopedHasScreenshot: boolean;
+      sourceChatId: string;
+      activeChatId: string;
+      pageUrl: string;
+      pageTitle: string;
+      refCount: number;
+      updatedAt: number | null;
+    };
+    simulateBrowserViewUpdate?: (
+      chatId: string,
+      refs?: Record<string, import('@/store/chat/types').BrowserRefInfo>,
+      screenshotBase64?: string,
+    ) => Promise<{ ok: true; chatId: string } | { ok: false; reason: string }>;
+    simulateBrowserToolStart?: (
+      chatId: string,
+      toolName?: string,
+    ) => Promise<{ ok: true; chatId: string; toolName: string } | { ok: false; reason: string }>;
+    getDesktopInspectorSnapshot?: () => {
+      isOpen: boolean;
+      isDesktopActive: boolean;
+      hasScreenshot: boolean;
+      scopedHasScreenshot: boolean;
+      sourceChatId: string;
+      activeChatId: string;
+      appName: string;
+      refCount: number;
+      updatedAt: number | null;
+    };
+    getDeviceInspectorSnapshot?: () => {
+      isOpen: boolean;
+      isDeviceActive: boolean;
+      hasScreenshot: boolean;
+      scopedHasScreenshot: boolean;
+      sourceChatId: string;
+      activeChatId: string;
+      mode: string;
+      notificationRedaction: boolean;
+      updatedAt: number | null;
+    };
+    simulateDesktopViewUpdate?: (
+      chatId: string,
+    ) => Promise<{ ok: true; chatId: string } | { ok: false; reason: string }>;
+    getDesktopToolProgress?: () => {
+      active: boolean;
+      isStreaming?: boolean;
+      pending: boolean;
+      requestId: string;
+      stepCount: number;
+      lastTool: string;
+    };
+    getFirstDesktopDref?: () => string | null;
+    getDesktopApprovalSnapshot?: () => {
+      pending: boolean;
+      requestId: string;
+      reason: string;
+      operation: string;
+      appName: string;
+      requireAppApproval: boolean;
+    };
+    syncDesktopControlApproval?: (payload: {
+      request_id: string;
+      reason: string;
+      operation: string;
+      app_name?: string;
+      window_title?: string;
+      require_app_approval?: boolean;
+    }) => void;
+    hideApprovalDrawer?: () => void;
+    isApprovalDrawerOpen?: () => boolean;
+    triggerBrowserTakeover?: (payload: {
+      reason: string;
+      ui_mode?: 'managed' | 'extension';
+      auto_detect_completion?: boolean;
+      messageId?: string;
+      url?: string;
+    }) => void;
+    getBrowserTakeoverSnapshot?: () => {
+      pending: boolean;
+      uiMode: 'managed' | 'extension';
+      autoDetectCompletion: boolean;
+      reason: string;
+    };
+    dismissBrowserTakeover?: () => void;
+    getChatShellState?: () => {
+      chatId: string | null;
+      notFound: boolean;
+      loadError: boolean;
+      isMessagesLoaded: boolean;
+      loading: boolean;
+      messageCount: number;
+    };
+    setLoading?: (loading: boolean) => void;
+  };
+  /** Dev-only bridge for Mobile Command Center Chrome E2E. */
+  __MYRM_E2E_MOBILE_CC__?: {
+    setLoading: (loading: boolean) => void;
+  };
+  /** Dev-only bridge for Wiki settings Chrome E2E (E2EWikiBridge + WikiSection). */
+  __MYRM_E2E_WIKI__?: {
+    inject: (payload: { stats?: Record<string, unknown>; health?: Record<string, unknown> }) => void;
+    isHandlersReady: () => boolean;
+    registerHandlers: (handlers: {
+      applyStats: (stats: unknown) => void;
+      applyHealth: (health: unknown) => void;
+    }) => void;
+    unregisterHandlers: () => void;
+  };
+  /** Dev-only bridge for migration wizard Chrome E2E (E2EMigrationBridge). */
+  __MYRM_E2E_MIGRATION__?: {
+    showCodexCompletionLane: (payload: {
+      targetAgentId: string;
+      vaultCandidate?: {
+        path: string;
+        label: string;
+        has_obsidian_config: boolean;
+        markdown_file_count: number;
+      } | null;
+    }) => void;
+    clearCodexCompletionLane: () => void;
+  };
+  /** Dev-only bridge for companion health-check Chrome E2E (AppLayout E2ECompanionBridge). */
+  __MYRM_E2E_COMPANION__?: {
+    enableCompanionModeForE2e: () => void;
+    prepareBrokenSpriteForE2e: () => void;
+    openHealthCheck: () => void;
+    getHealthCheckState: () => {
+      petPaletteOpen: boolean;
+      doctorExpandPending: boolean;
+      companionModeEnabled: boolean;
+    };
+    closePetPaletteForE2e: () => void;
+  };
+  /** Dev-only bridge for subagent dashboard Chrome E2E hydration. */
+  __MYRM_E2E_SUBAGENT__?: {
+    hydrate: (rows: Array<Record<string, unknown>>) => void;
+    nodeCount: () => number;
+    refresh: () => void | Promise<void>;
+  };
+  /** Dev-only bridge for Wiki markdown editor Chrome E2E (Monaco instance). */
+  __wikiMarkdownEditor?: import('monaco-editor').editor.IStandaloneCodeEditor;
+}
+
+declare class SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+
+  start(): void;
+  stop(): void;
+  abort(): void;
+
+  onstart: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => unknown) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => unknown) | null;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  isFinal: boolean;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+declare module '@novnc/novnc' {
+  interface NoVncOptions {
+    credentials?: {
+      username?: string;
+      password?: string;
+      target?: string;
+    };
+  }
+
+  export default class RFB extends EventTarget {
+    constructor(target: HTMLElement, url: string, options?: NoVncOptions);
+    scaleViewport: boolean;
+    resizeSession: boolean;
+    disconnect(): void;
+  }
+}
+
+declare module 'docshift' {
+  export function toDocx(html: string): Promise<Blob>;
+  export function toHtml(docx: ArrayBuffer): Promise<string>;
+}
+
+declare module '*.svg' {
+  const src: string;
+  export default src;
+}

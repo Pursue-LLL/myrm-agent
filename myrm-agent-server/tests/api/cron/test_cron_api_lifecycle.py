@@ -1,0 +1,817 @@
+"""End-to-end lifecycle test for cron REST API.
+
+Uses InMemoryCronStore (no DB) to validate the full API lifecycle:
+create → get → pause → resume → update → list → delete.
+
+Covers max_fires, expires_at, active_hours, and error scenarios.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from typing import Generator
+from unittest.mock import patch
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.cron import (
+    CronConfig,
+    CronManager,
+    CronScheduler,
+)
+from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
+
+
+class FakeDelivery:
+    async def deliver(self, job, result):  # noqa: ANN001
+        pass
+
+
+@pytest.fixture
+def cron_manager() -> CronManager:
+    store = InMemoryCronStore()
+    scheduler = CronScheduler(
+        store=store,
+        runners={},
+        delivery=FakeDelivery(),
+        config=CronConfig(),
+    )
+    return CronManager(store, scheduler, shell_enabled=True)
+
+
+@pytest.fixture
+def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
+    from app.api.cron.routes import (
+        actions_router,
+        blueprints_router,
+        connector_health_router,
+        heartbeat_router,
+        helpers,
+        jobs_router,
+        prerequisite_router,
+        push_messages_router,
+        runs_router,
+        scheduler_health_router,
+        stats_router,
+        triggers_router,
+    )
+
+    test_app = FastAPI()
+    test_app.include_router(blueprints_router, prefix="/cron")
+    test_app.include_router(connector_health_router, prefix="/cron")
+    test_app.include_router(heartbeat_router, prefix="/cron")
+    test_app.include_router(prerequisite_router, prefix="/cron")
+    test_app.include_router(scheduler_health_router, prefix="/cron")
+    test_app.include_router(triggers_router, prefix="/cron")
+    test_app.include_router(stats_router, prefix="/cron")
+    test_app.include_router(push_messages_router, prefix="/cron")
+    test_app.include_router(runs_router, prefix="/cron")
+    test_app.include_router(actions_router, prefix="/cron")
+    test_app.include_router(jobs_router, prefix="/cron")
+
+    with patch.object(helpers, "_get_manager", return_value=cron_manager):
+        yield test_app
+
+
+@pytest.fixture
+def client(app: FastAPI) -> TestClient:
+    return TestClient(app)
+
+
+class TestCronApiLifecycle:
+    """Full lifecycle: create → get → pause → resume → update → list → delete."""
+
+    def _create_job(self, client: TestClient) -> dict[str, object]:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "test-monitor",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check stock",
+            },
+        )
+        assert resp.status_code == 201
+        return resp.json()
+
+    def test_create_job(self, client: TestClient) -> None:
+        data = self._create_job(client)
+        assert data["name"] == "test-monitor"
+        assert data["status"] == "active"
+        assert data["job_type"] == "agent"
+
+    def test_get_job(self, client: TestClient) -> None:
+        data = self._create_job(client)
+        resp = client.get(f"/cron/{data['id']}")
+        assert resp.status_code == 200
+        assert resp.json()["id"] == data["id"]
+
+    def test_get_nonexistent_job(self, client: TestClient) -> None:
+        resp = client.get("/cron/nonexistent")
+        assert resp.status_code == 404
+
+    def test_pause_job(self, client: TestClient) -> None:
+        data = self._create_job(client)
+        resp = client.post(f"/cron/{data['id']}/pause")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "paused"
+
+    def test_resume_job(self, client: TestClient) -> None:
+        data = self._create_job(client)
+        client.post(f"/cron/{data['id']}/pause")
+        resp = client.post(f"/cron/{data['id']}/resume")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "active"
+
+    def test_pause_nonexistent_job(self, client: TestClient) -> None:
+        resp = client.post("/cron/nonexistent/pause")
+        assert resp.status_code == 404
+
+    def test_resume_nonexistent_job(self, client: TestClient) -> None:
+        resp = client.post("/cron/nonexistent/resume")
+        assert resp.status_code == 404
+
+    def test_delete_job(self, client: TestClient) -> None:
+        data = self._create_job(client)
+        resp = client.delete(f"/cron/{data['id']}")
+        assert resp.status_code == 204
+
+        resp = client.get(f"/cron/{data['id']}")
+        assert resp.status_code == 404
+
+    def test_delete_nonexistent_job(self, client: TestClient) -> None:
+        resp = client.delete("/cron/nonexistent")
+        assert resp.status_code == 404
+
+    def test_list_jobs(self, client: TestClient) -> None:
+        self._create_job(client)
+        resp = client.get("/cron")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
+
+    def test_list_empty(self, client: TestClient) -> None:
+        resp = client.get("/cron")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 0
+
+    def test_update_job_name(self, client: TestClient) -> None:
+        data = self._create_job(client)
+        resp = client.patch(f"/cron/{data['id']}", json={"name": "renamed"})
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "renamed"
+
+    def test_update_nonexistent_job(self, client: TestClient) -> None:
+        resp = client.patch("/cron/nonexistent", json={"name": "new"})
+        assert resp.status_code == 404
+
+
+class TestCronApiMaxFiresExpires:
+    """Tests for max_fires and expires_at API fields."""
+
+    def test_create_with_max_fires(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "limited-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "max_fires": 100,
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["max_fires"] == 100
+
+    def test_create_with_expires_at(self, client: TestClient) -> None:
+        future = (datetime.now(UTC) + timedelta(days=30)).isoformat()
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "expiring-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "expires_at": future,
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["expires_at"] is not None
+
+    def test_create_with_both(self, client: TestClient) -> None:
+        future = (datetime.now(UTC) + timedelta(days=7)).isoformat()
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "combo-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "max_fires": 50,
+                "expires_at": future,
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["max_fires"] == 50
+        assert data["expires_at"] is not None
+
+    def test_update_max_fires(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "test",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        job_id = resp.json()["id"]
+        resp = client.patch(f"/cron/{job_id}", json={"max_fires": 200})
+        assert resp.status_code == 200
+        assert resp.json()["max_fires"] == 200
+
+
+class TestCronApiScheduleTypes:
+    """Tests for different schedule types."""
+
+    def test_cron_expr_schedule(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "daily",
+                "job_type": "agent",
+                "schedule": {"kind": "cron", "expr": "0 9 * * *"},
+                "prompt": "daily check",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["schedule"]["kind"] == "cron"
+
+    def test_once_schedule(self, client: TestClient) -> None:
+        future = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "one-shot",
+                "job_type": "agent",
+                "schedule": {"kind": "once", "run_at": future},
+                "prompt": "remind me",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["schedule"]["kind"] == "once"
+
+    def test_interval_schedule(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "interval",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 600_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["schedule"]["kind"] == "interval"
+
+
+class TestCronApiValidation:
+    """Tests for input validation."""
+
+    def test_reserved_name_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "__system-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_empty_name_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "  ",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 422
+
+
+class TestCronApiPauseResumeRoundTrip:
+    """Pause→resume preserves state."""
+
+    def test_round_trip_preserves_config(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "persistent",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "max_fires": 50,
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        client.post(f"/cron/{job_id}/pause")
+        resp = client.post(f"/cron/{job_id}/resume")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "active"
+        assert data["max_fires"] == 50
+        assert data["next_run_at"] is not None
+
+
+class TestCronApiAgentIdBinding:
+    """Full lifecycle for agent_id binding on cron jobs."""
+
+    def test_create_with_agent_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "agent-bound-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "analyse logs",
+                "agent_id": "custom-agent-42",
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["agent_id"] == "custom-agent-42"
+
+    def test_create_without_agent_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "default-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["agent_id"] is None
+
+    def test_update_agent_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "rebindable",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        job_id = resp.json()["id"]
+
+        resp = client.patch(f"/cron/{job_id}", json={"agent_id": "new-agent"})
+        assert resp.status_code == 200
+        assert resp.json()["agent_id"] == "new-agent"
+
+    def test_pause_resume_preserves_agent_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "agent-persistent",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "agent_id": "persist-agent",
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        client.post(f"/cron/{job_id}/pause")
+        resp = client.post(f"/cron/{job_id}/resume")
+        assert resp.status_code == 200
+        assert resp.json()["agent_id"] == "persist-agent"
+
+
+class TestCronApiSessionTargetChatId:
+    """Tests for session_target and chat_id API fields."""
+
+    def test_create_with_session_target_main_and_chat_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "thread-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check progress",
+                "session_target": "main",
+                "chat_id": "chat-abc-123",
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["session_target"] == "main"
+        assert data["chat_id"] == "chat-abc-123"
+
+    def test_create_default_isolated(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "isolated-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["session_target"] == "isolated"
+        assert data["chat_id"] is None
+
+    def test_update_chat_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "rebind-chat",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "session_target": "main",
+                "chat_id": "chat-old",
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        resp = client.patch(f"/cron/{job_id}", json={"chat_id": "chat-new"})
+        assert resp.status_code == 200
+        assert resp.json()["chat_id"] == "chat-new"
+
+    def test_clear_chat_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "clear-chat",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "session_target": "main",
+                "chat_id": "chat-to-clear",
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        resp = client.patch(f"/cron/{job_id}", json={"chat_id": None})
+        assert resp.status_code == 200
+        assert resp.json()["chat_id"] is None
+
+    def test_switch_to_isolated_clears_chat_id(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "switch-mode",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "session_target": "main",
+                "chat_id": "chat-bound",
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        resp = client.patch(
+            f"/cron/{job_id}",
+            json={"session_target": "isolated", "chat_id": None},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["session_target"] == "isolated"
+        assert data["chat_id"] is None
+
+    def test_update_preserves_chat_id_when_not_sent(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "preserve-chat",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "session_target": "main",
+                "chat_id": "chat-keep",
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        resp = client.patch(f"/cron/{job_id}", json={"name": "renamed"})
+        assert resp.status_code == 200
+        assert resp.json()["chat_id"] == "chat-keep"
+
+
+class TestCronApiAcceptanceCriteria:
+    """Tests for acceptance_criteria CRUD through the REST API."""
+
+    def test_create_with_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [
+            {"type": "shell", "command": "echo ok"},
+            {"type": "semantic", "description": "output must contain 'success'"},
+        ]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "verified-task",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "do work",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["acceptance_criteria"] == criteria
+
+    def test_create_without_acceptance_criteria(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "no-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["acceptance_criteria"] is None
+
+    def test_update_acceptance_criteria(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "update-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        new_criteria = [{"type": "shell", "command": "test -f /tmp/done"}]
+        resp = client.patch(f"/cron/{job_id}", json={"acceptance_criteria": new_criteria})
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] == new_criteria
+
+    def test_clear_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [{"type": "shell", "command": "echo ok"}]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "clear-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+        assert resp.json()["acceptance_criteria"] == criteria
+
+        resp = client.patch(f"/cron/{job_id}", json={"acceptance_criteria": None})
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] is None
+
+    def test_get_preserves_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [{"type": "semantic", "description": "must mention price"}]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "get-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        resp = client.get(f"/cron/{job_id}")
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] == criteria
+
+    def test_pause_resume_preserves_acceptance_criteria(self, client: TestClient) -> None:
+        criteria = [{"type": "shell", "command": "curl -s http://example.com"}]
+        resp = client.post(
+            "/cron",
+            json={
+                "name": "persist-criteria",
+                "job_type": "agent",
+                "schedule": {"kind": "interval", "interval_ms": 300_000},
+                "prompt": "check",
+                "acceptance_criteria": criteria,
+            },
+        )
+        assert resp.status_code == 201
+        job_id = resp.json()["id"]
+
+        client.post(f"/cron/{job_id}/pause")
+        resp = client.post(f"/cron/{job_id}/resume")
+        assert resp.status_code == 200
+        assert resp.json()["acceptance_criteria"] == criteria
+
+
+class TestCronChatIdFilter:
+    def test_list_jobs_filters_by_chat_id(self, client: TestClient) -> None:
+        for chat_id, name in (("chat-a", "job-a"), ("chat-b", "job-b")):
+            resp = client.post(
+                "/cron",
+                json={
+                    "name": name,
+                    "job_type": "agent",
+                    "schedule": {"kind": "interval", "interval_ms": 300_000},
+                    "prompt": "check",
+                    "session_target": "main",
+                    "chat_id": chat_id,
+                },
+            )
+            assert resp.status_code == 201
+
+        resp = client.get("/cron?chat_id=chat-a")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["chat_id"] == "chat-a"
+        assert data["items"][0]["name"] == "job-a"
+
+
+class TestCronPrerequisiteGateApi:
+    """Validate POST /cron/prerequisite-check endpoint behavior."""
+
+    def test_prerequisite_check_endpoint(self, client: TestClient) -> None:
+        payload = {
+            "prompt": "Daily market report generation",
+            "agent_id": "research-agent",
+            "threshold": 2,
+        }
+        with patch("app.services.cron.prerequisite_service.CronPrerequisiteService.get_prerequisite_stats") as mock_stats:
+            from app.services.cron.prerequisite_service import CronPrerequisiteStats
+
+            async def _fake_stats(*args, **kwargs):
+                return CronPrerequisiteStats(
+                    fingerprint="mock_hash_12345",
+                    manual_success_count=3,
+                    threshold=2,
+                    is_satisfied=True,
+                    chat_verified_count=2,
+                    kanban_verified_count=1,
+                    override_allowed=True,
+                )
+
+            mock_stats.side_effect = _fake_stats
+            resp = client.post("/cron/prerequisite-check", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["fingerprint"] == "mock_hash_12345"
+            assert data["manual_success_count"] == 3
+            assert data["threshold"] == 2
+            assert data["is_satisfied"] is True
+            assert data["chat_verified_count"] == 2
+            assert data["kanban_verified_count"] == 1
+            assert data["override_allowed"] is True
+
+
+class TestCronConnectorHealthApi:
+    """Validate GET /cron/connectors/health endpoint behavior."""
+
+    def test_connectors_health_endpoint(self, client: TestClient) -> None:
+        from app.services.cron.connector_health_service import ConnectorHealthSummary
+
+        mock_item = ConnectorHealthSummary(
+            target="https://api.example.com/webhook",
+            channel="webhook",
+            status="degraded",
+            total_deliveries=10,
+            failed_deliveries=2,
+            consecutive_failures=2,
+            last_status_code=502,
+            last_error_category="http_server_error",
+            last_error_message="502 Bad Gateway",
+            fix_suggestion="Check server logs.",
+            bound_job_ids=["job-1"],
+        )
+
+        with patch("app.services.cron.connector_health_service.ConnectorHealthService.get_all_connectors_health") as mock_health:
+
+            async def _fake_health(*args, **kwargs):
+                return [mock_item]
+
+            mock_health.side_effect = _fake_health
+            resp = client.get("/cron/connectors/health?window_hours=12")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["total"] == 1
+            assert data["degraded_count"] == 1
+            assert data["down_count"] == 0
+            assert len(data["items"]) == 1
+            item = data["items"][0]
+            assert item["target"] == "https://api.example.com/webhook"
+            assert item["channel"] == "webhook"
+            assert item["status"] == "degraded"
+            assert item["last_error_category"] == "http_server_error"
+            assert item["fix_suggestion"] == "Check server logs."
+            assert item["bound_job_ids"] == ["job-1"]
+
+    def test_connector_health_service_aggregation_direct(self) -> None:
+        """Direct unit test of ConnectorHealthService without active DB IO."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+
+        from myrm_agent_harness.api import ConnectorErrorCategory, ConnectorHealthStatus
+
+        from app.database.models.cron import CronJobModel, CronRunModel
+        from app.services.cron.connector_health_service import ConnectorHealthService
+
+        job = CronJobModel(
+            id="job_sync_1",
+            name="Sync Data",
+            job_type="agent",
+            status="active",
+            schedule={"kind": "interval", "interval_ms": 60000},
+            delivery={
+                "channel": "webhook",
+                "target": "https://api.example.com/hook?token=secret123",
+            },
+            consecutive_failures=3,
+            last_error="Webhook returned 502: Bad Gateway",
+        )
+
+        run1 = CronRunModel(
+            id="run_1",
+            job_id="job_sync_1",
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
+            duration_ms=100,
+            status="ok",
+            delivery_status="failed",
+            delivery_error="Webhook returned 502: Bad Gateway",
+        )
+
+        with patch("app.services.cron.connector_health_service.UnitOfWork") as mock_uow_cls:
+            sync_job_res = MagicMock()
+            sync_job_res.scalars.return_value.all.return_value = [job]
+
+            sync_run_res = MagicMock()
+            sync_run_res.scalars.return_value.all.return_value = [run1]
+
+            mock_session = AsyncMock()
+            mock_session.execute = AsyncMock(side_effect=[sync_job_res, sync_run_res])
+
+            mock_uow = MagicMock()
+            mock_uow.session = mock_session
+            mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
+            mock_uow.__aexit__ = AsyncMock(return_value=None)
+            mock_uow_cls.return_value = mock_uow
+
+            summaries = asyncio.run(ConnectorHealthService.get_all_connectors_health(window_hours=24))
+
+            assert len(summaries) == 1
+            s = summaries[0]
+            assert s.channel == "webhook"
+            assert "secret123" not in s.target
+            assert s.status in (
+                ConnectorHealthStatus.DEGRADED,
+                ConnectorHealthStatus.DOWN,
+            )
+            assert s.last_error_category == ConnectorErrorCategory.HTTP_SERVER_ERROR
+            assert s.fix_suggestion is not None
+            assert "job_sync_1" in s.bound_job_ids
+
+    def test_prerequisite_check_endpoint(self, client: TestClient) -> None:
+        """Integration test for POST /cron/prerequisite-check endpoint."""
+        resp = client.post(
+            "/cron/prerequisite-check",
+            json={
+                "prompt": "Daily summary of AI news",
+                "agent_id": "test_agent",
+                "threshold": 2,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "fingerprint" in data
+        assert len(data["fingerprint"]) == 64
+        assert data["threshold"] == 2
+        assert "is_satisfied" in data
+        assert "manual_success_count" in data
+        assert data["override_allowed"] is True

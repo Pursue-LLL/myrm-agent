@@ -1,0 +1,384 @@
+"""Cloud migration ZIP upload endpoint.
+
+[INPUT]
+Multipart/form-data ZIP file containing competitor AI assistant data.
+
+[OUTPUT]
+DiscoveryResponse with detected sources from the uploaded archive.
+
+[POS]
+Cloud/SaaS migration bridge — accepts a user-uploaded ZIP of competitor data,
+safely extracts to a temporary directory, runs existing source probes, and
+returns the same DiscoveryResponse used by the local discover endpoint.
+Enables three-deployment parity for the Migration Wizard.
+Also detects ChatGPT export ZIPs (containing conversations.json) and
+gbrain export ZIPs (directories of .md files with YAML frontmatter containing type:).
+"""
+
+from __future__ import annotations
+
+import io
+import json
+import logging
+import os
+import shutil
+import tempfile
+import zipfile
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, UploadFile
+
+from app.api.migration.discovery import (
+    DiscoveredFileResponse,
+    DiscoveryResponse,
+    ExternalSourceResponse,
+    MigrationSourceManifestItemResponse,
+    _to_response,
+    build_source_manifest_response,
+)
+from app.services.migration.source.source_discovery import discover_external_sources
+from app.services.migration.source.source_manifest import (
+    migration_source_manifest_authoritative,
+    migration_source_manifest_authoritative_for_ids,
+)
+from app.services.migration.source.source_payload_loader import (
+    MIGRATION_UPLOAD_DIR_PREFIX,
+    sweep_stale_migration_uploads,
+)
+from app.services.migration.source.source_probes import count_plur_engrams
+
+router = APIRouter(prefix="/migration", tags=["migration"])
+logger = logging.getLogger(__name__)
+
+MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MB compressed
+MAX_EXTRACTED_FILES = 5000
+MAX_UNCOMPRESSED_BYTES = 500 * 1024 * 1024  # 500 MB expanded
+MAX_UNCOMPRESSED_FILE_BYTES = 50 * 1024 * 1024  # 50 MB per member
+
+
+def _is_safe_path(member_name: str) -> bool:
+    """Reject path-traversal attempts (../ or absolute paths)."""
+    normalized = os.path.normpath(member_name)
+    return not normalized.startswith(("../", "..\\", "/")) and ".." not in normalized.split(os.sep)
+
+
+def _oversized_member(members: list[zipfile.ZipInfo]) -> str | None:
+    """Return the member that breaks the expansion budget, if any.
+
+    ``member.file_size`` is the declared uncompressed size, and ``zipfile`` stops
+    reading each member at exactly that many bytes (``ZipExtFile._read1`` truncates
+    to the remaining declared size), so refusing oversized members here bounds
+    what extraction can write before a single byte touches disk.
+    """
+
+    expanded = 0
+    for member in members:
+        if member.is_dir():
+            continue
+        if member.file_size > MAX_UNCOMPRESSED_FILE_BYTES:
+            return member.filename
+        expanded += member.file_size
+        if expanded > MAX_UNCOMPRESSED_BYTES:
+            return member.filename
+    return None
+
+
+_CHATGPT_HEADER_PROBE_BYTES = 4096
+
+
+def _detect_chatgpt_zip(tmpdir: str) -> str | None:
+    """Return path to conversations.json if this looks like a ChatGPT export ZIP."""
+
+    top_level = os.path.join(tmpdir, "conversations.json")
+    if os.path.isfile(top_level) and _is_chatgpt_conversations_file(top_level):
+        return top_level
+
+    for dirpath, _dirs, files in os.walk(tmpdir):
+        for fname in files:
+            if fname == "conversations.json":
+                fpath = os.path.join(dirpath, fname)
+                if _is_chatgpt_conversations_file(fpath):
+                    return fpath
+    return None
+
+
+def _is_chatgpt_conversations_file(path: str) -> bool:
+    """Probe file header for ChatGPT conversation structure markers."""
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(_CHATGPT_HEADER_PROBE_BYTES)
+        return b'"mapping"' in header and b'"current_node"' in header
+    except OSError:
+        return False
+
+
+_GBRAIN_FRONTMATTER_PROBE_BYTES = 512
+_GBRAIN_MIN_PAGES_FOR_DETECTION = 3
+
+
+def _detect_gbrain_zip(tmpdir: str) -> tuple[str, int] | None:
+    """Return (root_dir, page_count) if this looks like a gbrain export directory.
+
+    gbrain export produces .md files with YAML frontmatter containing a ``type:`` field.
+    We require at least _GBRAIN_MIN_PAGES_FOR_DETECTION matching files for high confidence.
+    """
+
+    matched = 0
+    root_dir = tmpdir
+
+    for dirpath, _dirs, files in os.walk(tmpdir):
+        for fname in files:
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.join(dirpath, fname)
+            if _is_gbrain_page_file(fpath):
+                matched += 1
+                if matched >= _GBRAIN_MIN_PAGES_FOR_DETECTION:
+                    return root_dir, _count_md_files(tmpdir)
+    return None
+
+
+def _is_gbrain_page_file(path: str) -> bool:
+    """Probe an .md file header for gbrain YAML frontmatter with type: field."""
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(_GBRAIN_FRONTMATTER_PROBE_BYTES)
+        if not header.startswith(b"---"):
+            return False
+        return b"\ntype:" in header or b"\ntype :" in header
+    except OSError:
+        return False
+
+
+def _count_md_files(directory: str) -> int:
+    """Count .md files in a directory tree."""
+
+    count = 0
+    for _dirpath, _dirs, files in os.walk(directory):
+        count += sum(1 for f in files if f.endswith(".md"))
+    return count
+
+
+_PLUR_ENGRAM_PROBE_BYTES = 4096
+
+
+def _detect_plur_zip(tmpdir: str) -> str | None:
+    """Return path to engrams.yaml if this looks like a PLUR store export."""
+
+    for dirpath, _dirs, files in os.walk(tmpdir):
+        for fname in files:
+            if fname != "engrams.yaml":
+                continue
+            fpath = os.path.join(dirpath, fname)
+            if _is_plur_engrams_file(fpath):
+                return fpath
+    return None
+
+
+def _is_plur_engrams_file(path: str) -> bool:
+    """Probe an engrams.yaml header for the official store shape."""
+
+    try:
+        with open(path, "rb") as f:
+            header = f.read(_PLUR_ENGRAM_PROBE_BYTES)
+        return b"engrams:" in header and b"statement:" in header
+    except OSError:
+        return False
+
+
+def _resolve_manifest_authoritative(manifest: list[MigrationSourceManifestItemResponse]) -> bool:
+    """Resolve authoritative flag with SSOT completeness guard."""
+
+    authoritative = migration_source_manifest_authoritative_for_ids(item.id for item in manifest)
+    if authoritative:
+        return True
+    if migration_source_manifest_authoritative():
+        logger.warning(
+            "Migration source manifest incomplete in /migration/upload; authoritative flag downgraded",
+        )
+    return False
+
+
+@router.post("/upload", response_model=DiscoveryResponse)
+async def upload_migration_zip(file: UploadFile) -> DiscoveryResponse:
+    """Accept a ZIP of competitor data and return discovered sources.
+
+    Cloud users package their local competitor directories (e.g. ~/.hermes,
+    ~/.openclaw) into a ZIP and upload here. The server extracts to a temp
+    directory, runs the same probes used by GET /migration/discover, and
+    returns matching results so the frontend can continue with the standard
+    Wizard flow.
+
+    Also detects ChatGPT export ZIPs (containing conversations.json) and
+    returns a synthetic chatgpt source so the frontend can proceed with import.
+    """
+
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only .zip files are accepted")
+
+    content = await file.read()
+    if len(content) > MAX_ZIP_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds {MAX_ZIP_BYTES // (1024 * 1024)} MB limit")
+
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(content))
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file") from exc
+
+    members = archive.infolist()
+    if len(members) > MAX_EXTRACTED_FILES:
+        archive.close()
+        raise HTTPException(status_code=400, detail=f"ZIP contains too many files (max {MAX_EXTRACTED_FILES})")
+
+    oversized = _oversized_member(members)
+    if oversized:
+        archive.close()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"ZIP expands beyond the {MAX_UNCOMPRESSED_BYTES // (1024 * 1024)} MB limit "
+                f"({oversized}); exclude caches, model weights, or logs from the archive"
+            ),
+        )
+
+    unsafe = [m.filename for m in members if not _is_safe_path(m.filename)]
+    if unsafe:
+        archive.close()
+        raise HTTPException(status_code=400, detail="ZIP contains unsafe paths")
+
+    sweep_stale_migration_uploads()
+    tmpdir = tempfile.mkdtemp(prefix=MIGRATION_UPLOAD_DIR_PREFIX)
+    archive.extractall(tmpdir)
+    archive.close()
+    manifest = build_source_manifest_response()
+    manifest_authoritative = _resolve_manifest_authoritative(manifest)
+
+    chatgpt_path = _detect_chatgpt_zip(tmpdir)
+    if chatgpt_path:
+        return _build_chatgpt_discovery(chatgpt_path, manifest, manifest_authoritative)
+
+    gbrain_result = _detect_gbrain_zip(tmpdir)
+    if gbrain_result:
+        return _build_gbrain_discovery(tmpdir, gbrain_result[1], manifest, manifest_authoritative)
+
+    plur_path = _detect_plur_zip(tmpdir)
+    if plur_path:
+        return _build_plur_discovery(plur_path, manifest, manifest_authoritative)
+
+    result = discover_external_sources(home_dir=tmpdir)
+
+    if not result.sources:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        return DiscoveryResponse(
+            sources=[],
+            scan_path="upload",
+            available=True,
+            source_manifest=manifest,
+            source_manifest_authoritative=manifest_authoritative,
+        )
+
+    return DiscoveryResponse(
+        sources=[_to_response(s) for s in result.sources],
+        scan_path="upload",
+        available=True,
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
+    )
+
+
+def _build_chatgpt_discovery(
+    conversations_path: str,
+    manifest: list[MigrationSourceManifestItemResponse],
+    manifest_authoritative: bool,
+) -> DiscoveryResponse:
+    """Build a discovery response for a ChatGPT export ZIP."""
+
+    count = 0
+    size_bytes = 0
+    try:
+        size_bytes = os.path.getsize(conversations_path)
+        with open(conversations_path, encoding="utf-8") as f:
+            data = json.load(f)
+        count = len(data) if isinstance(data, list) else 0
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    source = ExternalSourceResponse(
+        competitor="chatgpt",
+        root=conversations_path,
+        confidence="high",
+        files=[DiscoveredFileResponse(path=conversations_path, kind="conversations_json", size_bytes=size_bytes)],
+        memory_count_estimate=count,
+    )
+    return DiscoveryResponse(
+        sources=[source],
+        scan_path="upload",
+        available=True,
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
+    )
+
+
+def _build_gbrain_discovery(
+    root_dir: str,
+    page_count: int,
+    manifest: list[MigrationSourceManifestItemResponse],
+    manifest_authoritative: bool,
+) -> DiscoveryResponse:
+    """Build a discovery response for a gbrain export ZIP."""
+
+    md_files: list[DiscoveredFileResponse] = []
+    for dirpath, _dirs, files in os.walk(root_dir):
+        for fname in files:
+            if fname.endswith(".md"):
+                fpath = os.path.join(dirpath, fname)
+                try:
+                    sz = os.path.getsize(fpath)
+                except OSError:
+                    sz = 0
+                if len(md_files) < 20:
+                    md_files.append(DiscoveredFileResponse(path=fpath, kind="gbrain_page", size_bytes=sz))
+
+    source = ExternalSourceResponse(
+        competitor="gbrain",
+        root=root_dir,
+        confidence="high",
+        files=md_files,
+        memory_count_estimate=page_count,
+    )
+    return DiscoveryResponse(
+        sources=[source],
+        scan_path="upload",
+        available=True,
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
+    )
+
+
+def _build_plur_discovery(
+    engrams_path: str,
+    manifest: list[MigrationSourceManifestItemResponse],
+    manifest_authoritative: bool,
+) -> DiscoveryResponse:
+    """Build a discovery response for a PLUR store export ZIP."""
+
+    try:
+        size_bytes = os.path.getsize(engrams_path)
+    except OSError:
+        size_bytes = 0
+    source = ExternalSourceResponse(
+        competitor="plur",
+        root=os.path.dirname(engrams_path),
+        confidence="high",
+        files=[DiscoveredFileResponse(path=engrams_path, kind="engrams", size_bytes=size_bytes)],
+        memory_count_estimate=count_plur_engrams(Path(engrams_path)),
+    )
+    return DiscoveryResponse(
+        sources=[source],
+        scan_path="upload",
+        available=True,
+        source_manifest=manifest,
+        source_manifest_authoritative=manifest_authoritative,
+    )

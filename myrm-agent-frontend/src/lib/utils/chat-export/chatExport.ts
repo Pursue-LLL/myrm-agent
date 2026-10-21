@@ -1,0 +1,407 @@
+import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { sanitizeFilename, triggerDownload } from '@/lib/utils/fileUtils';
+import { redactSensitiveClientText } from '@/lib/utils/error-handling';
+import type { Message, Source } from '@/store/chat/types';
+/**
+ * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
+ *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
+ *         fileUtils::triggerDownload (POS: 通用文件工具 — 文件下载，Web a[download] / Tauri 系统保存对话框)；
+ *         error-handling::redactSensitiveClientText (POS: 客户端轻量敏感凭据脱敏清洗工具 — OpenAI/GitHub/AWS/私钥/JWT/密钥对脱敏，CWE-312 防护)。
+ * [OUTPUT] Types: ExportMessage, ExportChat, ExportData, ToolUsageEntry, ToolSummary,
+ *          UsageSummary, AgentInfo, ToolCallDetail, ExportFormatOptions;
+ *          formatChatAsMarkdown, formatChatAsJson, downloadFile,
+ *          downloadAsMarkdown, downloadAsJson, downloadAsHtml, copyAsMarkdown, printChat,
+ *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage;
+ *          formatDuration, formatUsd (package-internal: consumed by chatExportHtmlTemplates).
+ * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级 + 打印）。
+ */
+export interface ExportMessage {
+  role: string;
+  content: string;
+  createdAt: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ExportChat {
+  id: string;
+  title: string | null;
+  source: string;
+  createdAt: string;
+}
+
+export interface ToolUsageEntry {
+  name: string;
+  count: number;
+  totalMs: number;
+}
+
+export interface ToolSummary {
+  totalToolCalls: number;
+  totalDurationMs: number;
+  toolsUsed: ToolUsageEntry[];
+}
+
+export interface UsageSummary {
+  totalCalls: number;
+  totalTokens: number;
+  totalUsd: number;
+}
+
+export interface AgentInfo {
+  name: string;
+  model: string | null;
+  description: string | null;
+}
+
+export interface ToolCallDetail {
+  turnIndex: number;
+  name: string;
+  argsSummary: string;
+  durationMs: number | null;
+  success: boolean;
+}
+
+export interface ExportData {
+  chat: ExportChat;
+  messages: ExportMessage[];
+  toolSummary?: ToolSummary | null;
+  usageSummary?: UsageSummary | null;
+  agentInfo?: AgentInfo | null;
+  toolCallDetails?: ToolCallDetail[] | null;
+  redacted?: boolean;
+}
+
+const VISIBLE_ROLES = new Set(['user', 'assistant']);
+
+function buildFilename(title: string | null, ext: string): string {
+  const safe = sanitizeFilename(title || 'Untitled');
+  const date = new Date().toISOString().slice(0, 10);
+  return `${safe}-${date}.${ext}`;
+}
+
+function formatTimestamp(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+export function formatDuration(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  if (ms < 60_000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+  return `${(ms / 60_000).toFixed(1)}m`;
+}
+
+function formatTokenCount(n: number): string {
+  if (n < 1000) {
+    return String(n);
+  }
+  if (n < 10_000) {
+    return `${(n / 1000).toFixed(1)}k`;
+  }
+  return `${Math.round(n / 1000)}k`;
+}
+
+export function formatUsd(n: number): string {
+  return n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`;
+}
+
+function buildSummarySection(data: ExportData): string[] {
+  const lines: string[] = [];
+  const usage = data.usageSummary;
+  if (usage && (usage.totalCalls > 0 || usage.totalTokens > 0)) {
+    lines.push('## Session Summary', '');
+    if (usage.totalCalls > 0) {
+      lines.push(`- **API Calls**: ${usage.totalCalls}`);
+    }
+    if (usage.totalTokens > 0) {
+      lines.push(`- **Tokens**: ${formatTokenCount(usage.totalTokens)}`);
+    }
+    if (usage.totalUsd > 0) {
+      lines.push(`- **Cost**: ${formatUsd(usage.totalUsd)}`);
+    }
+    lines.push('');
+  }
+
+  const tools = data.toolSummary;
+  if (tools && tools.toolsUsed.length > 0) {
+    lines.push('## Tool Activity', '', '| Tool | Calls | Duration |', '|------|-------|----------|');
+    for (const t of tools.toolsUsed) {
+      lines.push(`| ${t.name} | ${t.count} | ${formatDuration(t.totalMs)} |`);
+    }
+    lines.push(`| **Total** | **${tools.totalToolCalls}** | **${formatDuration(tools.totalDurationMs)}** |`, '');
+  }
+
+  if (lines.length > 0) {
+    lines.push('---', '');
+  }
+  return lines;
+}
+
+export interface ExportFormatOptions {
+  includeReasoning?: boolean;
+  includeToolCalls?: boolean;
+}
+
+export function formatChatAsMarkdown(data: ExportData, options?: ExportFormatOptions): string {
+  const includeReasoning = options?.includeReasoning ?? true;
+  const includeToolCalls = options?.includeToolCalls ?? true;
+  const title = data.chat.title || 'Untitled';
+  const lines: string[] = [`# ${title}`, '', `> Exported from Myrm · ${new Date().toLocaleString()}`, ''];
+
+  if (data.redacted) {
+    lines.push('> [Security] Sensitive secrets and credentials have been automatically redacted.', '');
+  }
+
+  if (data.agentInfo) {
+    const a = data.agentInfo;
+    const parts = [`> **Agent**: ${a.name}`];
+    if (a.model) {
+      parts.push(`· Model: ${a.model}`);
+    }
+    lines.push(parts.join(' '));
+    if (a.description) {
+      lines.push(`> ${a.description}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('---', '');
+  if (includeToolCalls) {
+    lines.push(...buildSummarySection(data));
+  }
+
+  let mdTurnIndex = 0;
+  for (const msg of data.messages) {
+    if (!VISIBLE_ROLES.has(msg.role)) {
+      continue;
+    }
+    const role = msg.role === 'user' ? 'User' : 'Assistant';
+    lines.push(`**${role}** · ${formatTimestamp(msg.createdAt)}`);
+    lines.push('');
+    if (includeReasoning) {
+      const reasoning = (msg.metadata?.reasoning_content ?? msg.metadata?.reasoning) as string | undefined;
+      if (reasoning) {
+        lines.push('<details>', '<summary>Thinking</summary>', '', reasoning, '', '</details>', '');
+      }
+    }
+    lines.push(msg.content);
+    lines.push('');
+    if (includeToolCalls && msg.role === 'assistant' && data.toolCallDetails) {
+      const turnCalls = data.toolCallDetails.filter((d) => d.turnIndex === mdTurnIndex);
+      if (turnCalls.length > 0) {
+        const totalMs = turnCalls.reduce((s, d) => s + (d.durationMs ?? 0), 0);
+        lines.push('<details>', `<summary>${turnCalls.length} tool calls (${formatDuration(totalMs)})</summary>`, '');
+        for (const tc of turnCalls) {
+          const mark = tc.success ? '+' : 'x';
+          const dur = tc.durationMs !== null ? ` ${formatDuration(tc.durationMs)}` : '';
+          const args = tc.argsSummary ? `(${tc.argsSummary})` : '';
+          lines.push(`- [${mark}] ${tc.name}${args}${dur}`);
+        }
+        lines.push('', '</details>', '');
+      }
+      mdTurnIndex++;
+    }
+    lines.push('---');
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+export function formatChatAsJson(data: ExportData, options?: ExportFormatOptions): string {
+  const includeReasoning = options?.includeReasoning ?? true;
+  const includeToolCalls = options?.includeToolCalls ?? true;
+
+  const messages = data.messages.map((msg) => {
+    if (includeReasoning) {
+      return msg;
+    }
+    const cleanMeta = { ...msg.metadata };
+    delete cleanMeta.reasoning;
+    delete cleanMeta.reasoning_content;
+    return { ...msg, metadata: cleanMeta };
+  });
+
+  return JSON.stringify(
+    {
+      title: data.chat.title,
+      source: data.chat.source,
+      exportedAt: new Date().toISOString(),
+      ...(data.agentInfo ? { agentInfo: data.agentInfo } : {}),
+      messages,
+      ...(data.usageSummary ? { usageSummary: data.usageSummary } : {}),
+      ...(includeToolCalls && data.toolSummary ? { toolSummary: data.toolSummary } : {}),
+      ...(includeToolCalls && data.toolCallDetails ? { toolCallDetails: data.toolCallDetails } : {}),
+    },
+    null,
+    2,
+  );
+}
+
+export function downloadFile(content: string, filename: string, mimeType: string): void {
+  void triggerDownload(new Blob([content], { type: mimeType }), filename).catch((err) => {
+    console.error('[chatExport] download failed:', err);
+  });
+}
+
+export function downloadAsMarkdown(data: ExportData, options?: ExportFormatOptions): void {
+  const content = formatChatAsMarkdown(data, options);
+  downloadFile(content, buildFilename(data.chat.title, 'md'), 'text/markdown;charset=utf-8');
+}
+
+export function downloadAsJson(data: ExportData, options?: ExportFormatOptions): void {
+  const content = formatChatAsJson(data, options);
+  downloadFile(content, buildFilename(data.chat.title, 'json'), 'application/json;charset=utf-8');
+}
+
+export async function downloadAsHtml(
+  data: ExportData,
+  theme: 'light' | 'dark' = 'light',
+  lang: 'en' | 'zh' = 'en',
+  options?: ExportFormatOptions,
+): Promise<void> {
+  const { buildHtmlDocument } = await import('./chatExportHtml');
+  const html = await buildHtmlDocument(data, theme, lang, options);
+  downloadFile(html, buildFilename(data.chat.title, 'html'), 'text/html;charset=utf-8');
+}
+
+export async function copyAsMarkdown(data: ExportData, options?: ExportFormatOptions): Promise<void> {
+  const content = formatChatAsMarkdown(data, options);
+  try {
+    await writeToClipboard(content);
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = content;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+}
+
+export async function printChat(
+  data: ExportData,
+  theme: 'light' | 'dark' = 'light',
+  lang: 'en' | 'zh' = 'en',
+): Promise<void> {
+  const { buildHtmlDocument } = await import('./chatExportHtml');
+  const html = await buildHtmlDocument(data, theme, lang);
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none';
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (!iframeDoc) {
+    document.body.removeChild(iframe);
+    throw new Error('Failed to access iframe document');
+  }
+
+  iframeDoc.open();
+  iframeDoc.write(html);
+  iframeDoc.close();
+
+  await new Promise<void>((resolve) => {
+    iframe.onload = () => resolve();
+    setTimeout(resolve, 1500);
+  });
+
+  iframe.contentWindow?.print();
+  setTimeout(() => document.body.removeChild(iframe), 3000);
+}
+
+// ---------------------------------------------------------------------------
+// 单条消息导出
+// ---------------------------------------------------------------------------
+
+function formatSourcesFootnotes(sources?: Source[]): string {
+  if (!sources || sources.length === 0) {
+    return '';
+  }
+  const lines = sources.map((s, i) => `[${i + 1}] ${s.url || s.title || 'Unknown source'}`);
+  return `\n\nCitations:\n${lines.join('\n')}`;
+}
+
+function formatMessageMarkdown(message: Message, includeReasoning: boolean, redact = true): string {
+  const lines: string[] = [];
+  const reasoning = redact && message.reasoning ? redactSensitiveClientText(message.reasoning) : message.reasoning;
+  if (includeReasoning && reasoning) {
+    lines.push('<details>', '<summary>Thinking</summary>', '', reasoning, '', '</details>', '');
+  }
+  const content = redact ? redactSensitiveClientText(message.content) : message.content;
+  lines.push(content);
+  lines.push(formatSourcesFootnotes(message.sources));
+  return lines.join('\n').trim();
+}
+
+function extractMessageTitle(content: string): string {
+  return content.split('\n')[0]?.slice(0, 80) || 'message';
+}
+
+function buildSingleMessageExportData(message: Message, markdown: string, redacted = true): ExportData {
+  const ts = message.createdAt?.toISOString?.() ?? new Date().toISOString();
+  return {
+    chat: { id: message.chatId, title: null, source: 'myrm', createdAt: ts },
+    messages: [{ role: message.role, content: markdown, createdAt: ts, metadata: {} }],
+    redacted,
+  };
+}
+
+export function downloadMessageAsMarkdown(message: Message, includeReasoning: boolean, redact = true): void {
+  const content = formatMessageMarkdown(message, includeReasoning, redact);
+  downloadFile(content, buildFilename(extractMessageTitle(message.content), 'md'), 'text/markdown;charset=utf-8');
+}
+
+export async function downloadMessageAsHtml(
+  message: Message,
+  includeReasoning: boolean,
+  theme: 'light' | 'dark' = 'light',
+  lang: 'en' | 'zh' = 'en',
+  redact = true,
+): Promise<void> {
+  const markdown = formatMessageMarkdown(message, includeReasoning, redact);
+  const { buildHtmlDocument } = await import('./chatExportHtml');
+  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), theme, lang);
+  downloadFile(html, buildFilename(extractMessageTitle(message.content), 'html'), 'text/html;charset=utf-8');
+}
+
+export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean, redact = true): Promise<void> {
+  const markdown = formatMessageMarkdown(message, includeReasoning, redact);
+  const { buildHtmlDocument } = await import('./chatExportHtml');
+  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), 'light', 'en');
+  const { toDocx } = await import('docshift');
+  const docxBlob = await toDocx(html);
+  await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
+}
+
+export async function downloadMessageAsImage(element: HTMLElement, message: Message, redact = true): Promise<void> {
+  const { default: html2canvas } = await import('html2canvas');
+  const canvas = await html2canvas(element, {
+    useCORS: true,
+    backgroundColor: null,
+    scale: 2,
+    onclone: (clonedDoc: Document, clonedEl: HTMLElement) => {
+      if (redact) {
+        const walker = clonedDoc.createTreeWalker(clonedEl, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          if (node.nodeValue) {
+            node.nodeValue = redactSensitiveClientText(node.nodeValue);
+          }
+        }
+      }
+    },
+  });
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))), 'image/png');
+  });
+  await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
+}

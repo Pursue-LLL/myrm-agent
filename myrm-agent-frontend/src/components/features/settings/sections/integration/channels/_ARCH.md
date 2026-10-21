@@ -1,0 +1,58 @@
+# settings/sections/integration/channels 模块架构
+
+## 架构概述
+
+设置页「通信」域全部 UI：渠道连接卡片、DM/群组策略、渠道路由、语音 STT/TTS、配对与连接状态。由 `integration/CommunicationSection` 以 Tab 聚合本目录组件。
+
+**渠道路由 Agent 策略**：UI 下拉仅 General Agent（`@/services/channels/channelAgentBinding`）；服务端 `SqlTopicManager.bind_topic` 写拒 + `resolve_topic`/`get_all_topics` 读清 legacy Search 绑定。
+
+## 文件清单
+
+| 文件                                                                          | 职责                                                                                                                                                       |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ChannelsSection.tsx`                                                         | 渠道总览、安装依赖、各 Provider 配置卡片                                                                                                                   |
+| `ChannelRoutingSection.tsx`                                                   | 渠道路由页壳与布局                                                                                                                                         |
+| `useChannelRouting.ts`                                                        | 渠道路由状态与 API 绑定 handlers；暴露 `channelBindableAgents`（`filterChannelBindableAgents(agents)` 结果，General-only）                                 |
+| `ChannelRoutingTopicRow.tsx`                                                  | 单 Topic 绑定行（Agent / Project workspace / 线程共享 / 回复模式 / 团队身份名·作用域·冻结 / 主动跟进两档开关）；展示 `{项目名} · {路径}`；草稿审核通知提示 |
+| `topicWorkspaceLabel.ts`                                                      | `resolveTopicWorkspaceDisplayLabel`：从已加载 projects 解析人类可读 workspace 路径                                                                         |
+| `VoiceSection.tsx`                                                            | 语音输入输出设置                                                                                                                                           |
+| `ChannelList.tsx` / `ChannelIcon.tsx`                                         | 渠道列表与图标                                                                                                                                             |
+| `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx`                             | 连接状态、Ingress 提示                                                                                                                                     |
+| `PairingManager.tsx`                                                          | 外部渠道配对审批管理容器（数据获取、状态更新、角色切换与配额管理回调编排）                                                                                 |
+| `PairingItem.tsx`                                                             | 单条配对卡片项（所有者/协作成员角色 Badge 切换、行内每日限额编辑与保存、状态切换与删除）                                                                   |
+| `PairingForm.tsx`                                                             | 新增配对表单（Channel/Sender ID 输入、角色选择与每日调用上限配置）                                                                                         |
+| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks（含 handleUpdatePairingRole、handleUpdatePairingQuota）                                                                                     |
+| `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                                                         |
+| `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatConfigCard` 微信多实例+风控披露+企微跳转闭环、`WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
+| `WeChatRiskDisclosureBanner.tsx`                                              | 个人微信接入风控告示横幅（可折叠持久化记忆、企微官方通道跳转分流引导）                                                                                     |
+| `WeChatTroubleshootGuide.tsx`                                                 | 个人微信装死/无响应 Art146 结构化排查面板（4 步自查诊断、状态刷新、重扫登录、诊断报告一键脱敏复制）                                                        |
+| `FeishuQrRegisterDialog.tsx`                                                  | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫）                                                             |
+| `FeishuCredentialsEditDialog.tsx`                                             | 多应用实例「编辑凭据」弹窗（App ID / Secret / Lark；Secret 留空保留旧值，merge 落库后重建实例生效）                                                        |
+| `FeishuMultiAppSection.tsx`                                                   | 飞书多应用管理区（实例列表/添加/删除/重命名/编辑凭据，上限 UX；删除实例不可逆，需二次确认）                                                                |
+| `DmPolicySelector.tsx` / `GroupManager.tsx`                                   | DM 策略与群组管理                                                                                                                                          |
+| `NotificationChannelEditor.tsx`                                               | 通知渠道编辑（Preferences 复用）                                                                                                                           |
+
+## 测试
+
+- `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
+- `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文（如德语）不撑出卡片
+- `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
+- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
+- `__tests__/WeChatRiskDisclosureBanner.test.tsx` — 个人微信风控告示展开/收起/本地持久化记忆与企微跳转
+- `__tests__/WeChatTroubleshootGuide.test.tsx` — Art146 假死排障指南展开、4步清单、状态刷新、重扫登录与诊断报告复制
+- 后端 `tests/e2e/test_channel_delete_confirmation_chrome_e2e.py` — 删除确认 Chrome MCP E2E（PRIVATE：主账号登出取消/确认 + wechat extra 实例删除取消/确认 + 删除失败容错保持对话框打开，均走真实 API；依赖本模块 `ConfirmDialog` 的 `data-testid="confirm-dialog-confirm/cancel"` 探针）
+- `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
+- `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
+- `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互断言）
+- `__tests__/GitHubConfigCard.test.tsx` — GitHub 卡片仅出站：只要求访问令牌一个输入，不出现 Webhook 密钥/地址
+
+## Reaction 配置链路
+
+Settings `saveChannelsConfig` → DB `channels` → `config/router` 调用 `refresh_reaction_policy()` → `AgentRouter.set_reaction_policy()` → 入站 ack/completion/failure reaction（`router.py`）。
+
+## 依赖
+
+- `@/services/channels`
+- `sections/SettingsSection.tsx`（相对 `../../SettingsSection`）
+- `settings/common/SettingsSkeleton`（相对 `../../../common/SettingsSkeleton`）
+- 父模块 [sections/_ARCH.md](../../_ARCH.md)

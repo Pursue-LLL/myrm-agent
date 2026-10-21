@@ -1,0 +1,468 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
+import BrandLogo from '@/components/features/app-shell/BrandLogo';
+import { cn } from '@/lib/utils/classnameUtils';
+import { discoverMigrationSources, type DiscoveryResponse } from '@/services/migrationDiscovery';
+import { probeLocalCapabilities, type ProbeLocalResponse } from '@/services/localCapabilitiesProbe';
+import { completeOnboarding } from '@/services/onboarding';
+import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
+import useProviderStore from '@/store/useProviderStore';
+import useConfigStore from '@/store/useConfigStore';
+import { getActiveSearchServiceConfig } from '@/store/config/searchService';
+import { hasUsableProviderAuth } from '@/store/config/providerTypes';
+import { getTelegramCredentials, type TelegramCredentials } from '@/services/channels';
+
+import { RestoreEntry } from '@/components/features/instance-archive/RestoreEntry';
+import MigrationWizardSection from '@/components/features/settings/sections/knowledge/MigrationWizardSection';
+import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
+import DeployChoiceStep from './DeployChoiceStep';
+import PowerStackLane from './PowerStackLane';
+import FirstRunDoctorCard from './FirstRunDoctorCard';
+import {
+  getOnboardingDeployChoice,
+  setOnboardingDeployChoice,
+  type OnboardingDeployChoice,
+} from '@/lib/onboarding-deploy-choice';
+import SmartRoutingStep from './SmartRoutingStep';
+import SmartGuardStep from './SmartGuardStep';
+import TelegramAssistantOnboardingStep from './TelegramAssistantOnboardingStep';
+import SyncFolderOnboardingStep from './SyncFolderOnboardingStep';
+import ToolsConnectOnboardingStep from './ToolsConnectOnboardingStep';
+import ThemeOnboardingStep from './ThemeOnboardingStep';
+import { Button } from '@/components/primitives/button';
+import { getConfigSyncManager } from '@/services/config';
+import type { SecurityConfigValue } from '@/services/config/types';
+
+interface OnboardingWizardProps {
+  onComplete: () => void;
+}
+
+type Step =
+  | 'welcome'
+  | 'deployment'
+  | 'migration'
+  | 'capabilities'
+  | 'tools_connect'
+  | 'health'
+  | 'sync_folder'
+  | 'routing'
+  | 'smart_guard'
+  | 'telegram_assistant'
+  | 'theme_pick'
+  | 'finishing';
+
+const WELCOME_DURATION_MS = 2500;
+
+function isTelegramConfiguredForOnboarding(creds: TelegramCredentials | null): boolean {
+  if (!creds) {
+    return false;
+  }
+  if ((creds.botToken ?? '').trim()) {
+    return true;
+  }
+  return isSandbox();
+}
+
+export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
+  const t = useTranslations('boot');
+  const [step, setStep] = useState<Step>('welcome');
+  const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
+  const [probe, setProbe] = useState<ProbeLocalResponse | null>(null);
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
+  const [initDone, setInitDone] = useState(false);
+  const [deployChoice, setDeployChoice] = useState<OnboardingDeployChoice | null>(() => getOnboardingDeployChoice());
+
+  const providers = useProviderStore((s) => s.providers);
+  const isInitialized = useProviderStore((s) => s.isInitialized);
+  const searchServiceConfigs = useConfigStore((s) => s.searchServiceConfigs);
+
+  const defaultModelConfig = useProviderStore((s) => s.defaultModelConfig);
+  const getEnabledModels = useProviderStore((s) => s.getEnabledModels);
+
+  const hasEnabledProvider = providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
+  const searchConfigured = !!getActiveSearchServiceConfig(searchServiceConfigs);
+  const routingAlreadyEnabled = defaultModelConfig.routingConfig?.enabled ?? false;
+  const isLocalDeployment = isLocalMode();
+  const shouldOfferMigrationStep = isLocalDeployment ? Boolean(discovery && discovery.sources.length > 0) : true;
+
+  const shouldShowRouting = useCallback(() => {
+    if (routingAlreadyEnabled) {
+      return false;
+    }
+    return getEnabledModels().length >= 2;
+  }, [routingAlreadyEnabled, getEnabledModels]);
+
+  const shouldShowSmartGuard = useCallback(() => {
+    if (getEnabledModels().length === 0) {
+      return false;
+    }
+    const secConfig = getConfigSyncManager().get('securityConfig') as SecurityConfigValue | null;
+    return !secConfig?.autoReviewEnabled;
+  }, [getEnabledModels]);
+
+  // We only run the async probes once on mount
+  useEffect(() => {
+    let mounted = true;
+    const startTime = Date.now();
+
+    const runProbes = async () => {
+      try {
+        const [discRes, probeRes, telegramCreds] = await Promise.all([
+          isLocalDeployment ? discoverMigrationSources(false).catch(() => null) : Promise.resolve(null),
+          isLocalDeployment ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
+          getTelegramCredentials().catch(() => null),
+        ]);
+
+        if (!mounted) {
+          return;
+        }
+
+        setDiscovery(discRes);
+        setProbe(probeRes);
+        setTelegramConfigured(isTelegramConfiguredForOnboarding(telegramCreds));
+
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, WELCOME_DURATION_MS - elapsed);
+
+        setTimeout(() => {
+          if (mounted) {
+            setInitDone(true);
+          }
+        }, remaining);
+      } catch {
+        if (mounted) {
+          setInitDone(true);
+        }
+      }
+    };
+
+    void runProbes();
+
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const decidePostWelcome = useCallback(() => {
+    if (shouldOfferMigrationStep) {
+      setStep('migration');
+    } else if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
+      setStep('capabilities');
+    } else {
+      setStep('tools_connect');
+    }
+  }, [shouldOfferMigrationStep, isLocalDeployment, hasEnabledProvider, searchConfigured]);
+
+  // When both the minimum welcome duration has passed AND the stores are initialized, we decide the next step
+  useEffect(() => {
+    if (initDone && isInitialized && step === 'welcome') {
+      if (isSandbox()) {
+        decidePostWelcome();
+      } else {
+        setStep('deployment');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initDone, isInitialized, step, decidePostWelcome]);
+
+  const handleDeployComplete = useCallback(
+    (choice: OnboardingDeployChoice) => {
+      setDeployChoice(choice);
+      decidePostWelcome();
+    },
+    [decidePostWelcome],
+  );
+
+  const handleDeploySkip = useCallback(() => {
+    setOnboardingDeployChoice('local');
+    setDeployChoice('local');
+    decidePostWelcome();
+  }, [decidePostWelcome]);
+
+  const advanceToThemePick = useCallback(() => {
+    setStep('theme_pick');
+  }, []);
+
+  const moveToSmartGuardOrNext = useCallback(() => {
+    if (shouldShowSmartGuard()) {
+      setStep('smart_guard');
+      return;
+    }
+    if (!telegramConfigured) {
+      setStep('telegram_assistant');
+      return;
+    }
+    advanceToThemePick();
+  }, [advanceToThemePick, shouldShowSmartGuard, telegramConfigured]);
+
+  const decidePostToolsConnect = useCallback(() => {
+    if (isLocalDeployment) {
+      setStep('sync_folder');
+      return;
+    }
+    if (shouldShowRouting()) {
+      setStep('routing');
+    } else {
+      moveToSmartGuardOrNext();
+    }
+  }, [isLocalDeployment, moveToSmartGuardOrNext, shouldShowRouting]);
+
+  const handleFinish = useCallback(async () => {
+    setStep('finishing');
+    setFadeOut(true);
+    try {
+      await completeOnboarding();
+    } catch {
+      // Ignore errors
+    }
+    setTimeout(onComplete, 400);
+  }, [onComplete]);
+
+  const handleRoutingCompleteOrSkip = useCallback(() => {
+    moveToSmartGuardOrNext();
+  }, [moveToSmartGuardOrNext]);
+
+  const handleSmartGuardCompleteOrSkip = useCallback(() => {
+    if (!telegramConfigured) {
+      setStep('telegram_assistant');
+      return;
+    }
+    advanceToThemePick();
+  }, [advanceToThemePick, telegramConfigured]);
+
+  const handleCapabilitiesComplete = useCallback(() => {
+    setStep('tools_connect');
+  }, []);
+
+  const handleToolsConnectCompleteOrSkip = useCallback(() => {
+    setStep('health');
+  }, []);
+
+  const handleHealthCompleteOrSkip = useCallback(() => {
+    decidePostToolsConnect();
+  }, [decidePostToolsConnect]);
+
+  const handleSyncFolderCompleteOrSkip = useCallback(() => {
+    if (shouldShowRouting()) {
+      setStep('routing');
+    } else {
+      moveToSmartGuardOrNext();
+    }
+  }, [moveToSmartGuardOrNext, shouldShowRouting]);
+
+  const handleMigrationCompleteOrSkip = useCallback(() => {
+    if (isLocalDeployment && (!hasEnabledProvider || !searchConfigured)) {
+      setStep('capabilities');
+    } else {
+      setStep('tools_connect');
+    }
+  }, [isLocalDeployment, hasEnabledProvider, searchConfigured]);
+
+  if (step === 'welcome' || step === 'finishing') {
+    return (
+      <div
+        className={cn(
+          'fixed inset-0 z-50 flex flex-col items-center justify-center',
+          'bg-background select-none',
+          'transition-opacity duration-400 ease-out',
+          fadeOut ? 'opacity-0' : 'opacity-100',
+        )}
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute -top-24 left-1/4 h-72 w-72 rounded-full bg-primary/10 blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-accent-warm/10 blur-3xl animate-pulse" />
+        </div>
+
+        <div className="relative flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-700">
+          <BrandLogo size={64} priority className="w-16 h-16" />
+          <div className="text-2xl font-semibold brand-gradient-text">{t('title')}</div>
+          <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
+            <span className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            {t('step.initServices')}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-y-auto">
+      <div className="flex-1 w-full max-w-4xl mx-auto p-6 sm:p-10 flex flex-col justify-center min-h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-8 flex items-center justify-center">
+          <BrandLogo size={40} className="w-10 h-10" />
+        </div>
+
+        {step === 'deployment' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.deploymentTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.deploymentDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <DeployChoiceStep onComplete={handleDeployComplete} />
+            </div>
+            <RestoreEntry />
+            <div className="flex justify-center mt-6">
+              <Button variant="ghost" onClick={handleDeploySkip}>
+                {t('onboarding.skipStep')}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'migration' && (
+          <div className="space-y-6">
+            {!isLocalDeployment && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 mb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-1 text-center sm:text-left">
+                  <div className="font-semibold text-foreground flex items-center justify-center sm:justify-start gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    {t('onboarding.instantStartTitle')}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('onboarding.instantStartDescription')}</p>
+                </div>
+                <Button onClick={handleFinish} className="gap-2 shrink-0">
+                  {t('onboarding.instantStartButton')}
+                </Button>
+              </div>
+            )}
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">
+                {isLocalDeployment ? t('onboarding.migrationTitle') : t('onboarding.migrationCloudTitle')}
+              </h1>
+              <p className="text-muted-foreground">
+                {isLocalDeployment ? t('onboarding.migrationDescription') : t('onboarding.migrationCloudDescription')}
+              </p>
+            </div>
+            {isLocalDeployment && <PowerStackLane />}
+            <div className="bg-card border rounded-xl p-6">
+              <MigrationWizardSection
+                onMigrationComplete={handleMigrationCompleteOrSkip}
+                vaultBindHandoffMode="onboarding"
+              />
+            </div>
+            {/* A sandbox skips the deployment step, which is where everyone else is offered the restore. */}
+            {isSandbox() && <RestoreEntry />}
+            <div className="flex justify-center mt-6">
+              <Button variant="ghost" onClick={handleMigrationCompleteOrSkip}>
+                {t('onboarding.skipStep')}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'capabilities' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.capabilitiesTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.capabilitiesDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <LocalCapabilitiesSetup probeResult={probe} onComplete={handleCapabilitiesComplete} />
+            </div>
+          </div>
+        )}
+
+        {step === 'tools_connect' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.toolsConnect.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.toolsConnect.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <ToolsConnectOnboardingStep
+                onComplete={handleToolsConnectCompleteOrSkip}
+                onSkip={handleToolsConnectCompleteOrSkip}
+              />
+            </div>
+          </div>
+        )}
+
+        {step === 'health' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.doctorTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.doctorDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <FirstRunDoctorCard deployChoice={deployChoice} />
+            </div>
+            <div className="flex justify-center gap-3 mt-6">
+              <Button variant="ghost" onClick={handleHealthCompleteOrSkip}>
+                {t('onboarding.skipStep')}
+              </Button>
+              <Button onClick={handleHealthCompleteOrSkip}>{t('onboarding.doctorContinueButton')}</Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'sync_folder' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.syncFolder.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.syncFolder.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <SyncFolderOnboardingStep
+                onComplete={handleSyncFolderCompleteOrSkip}
+                onSkip={handleSyncFolderCompleteOrSkip}
+              />
+            </div>
+          </div>
+        )}
+
+        {step === 'routing' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.routing.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.routing.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <SmartRoutingStep onComplete={handleRoutingCompleteOrSkip} onSkip={handleRoutingCompleteOrSkip} />
+            </div>
+          </div>
+        )}
+
+        {step === 'smart_guard' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.smartGuard.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.smartGuard.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <SmartGuardStep onComplete={handleSmartGuardCompleteOrSkip} onSkip={handleSmartGuardCompleteOrSkip} />
+            </div>
+          </div>
+        )}
+
+        {step === 'telegram_assistant' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.telegramAssistant.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.telegramAssistant.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <TelegramAssistantOnboardingStep onComplete={advanceToThemePick} onSkip={advanceToThemePick} />
+            </div>
+          </div>
+        )}
+
+        {step === 'theme_pick' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">{t('onboarding.themePick.pageTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.themePick.pageDescription')}</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6">
+              <ThemeOnboardingStep onComplete={() => void handleFinish()} onSkip={() => void handleFinish()} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,511 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-frontend:
+    name: Prepare frontend (build once)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+        with:
+          bun-version: latest
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+
+      - name: Check updater pubkey vs signing secrets
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: bash scripts/ci/desktop-release/check-updater-pubkey.sh
+
+      - name: Install frontend dependencies
+        run: |
+          cd myrm-agent-frontend
+          bun install
+
+      - name: Build frontend for Tauri
+        run: |
+          cd myrm-agent-frontend
+          bun run build:tauri
+
+      - name: Upload frontend standalone artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+          retention-days: 1
+
+  build-macos-arm:
+    name: Build macOS Apple Silicon (primary)
+    needs: prepare-frontend
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.13'
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+
+      - name: Set TARGET_ARCH for Sidecar Build
+        run: echo "TARGET_ARCH=arm64" >> $GITHUB_ENV
+
+      - name: Sync server venv (desktop production)
+        env:
+          MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+
+      - name: Build Sidecars
+        run: |
+          cd myrm-agent-desktop/sidecar
+          python build.py
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: myrm-agent-desktop
+          args: --target aarch64-apple-darwin
+
+      - name: Launch runtime smoke
+        run: |
+          APP="$(find myrm-agent-desktop/src-tauri/target -path '*/release/bundle/macos/*.app' -type d 2>/dev/null | head -1)"
+          if [[ -z "$APP" ]]; then
+            echo "[launch-smoke] no .app bundle found under target/release/bundle/macos" >&2
+            exit 1
+          fi
+          bash scripts/ci/desktop-release/smoke-launch-runtime.sh --bundle-app "$APP"
+
+      - name: Ensure updater bundle signatures
+        env:
+          REQUIRE_UPDATER_BUNDLES: '1'
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: bash scripts/ci/desktop-release/sign-updater-bundles.sh
+
+      - name: Upload macOS ARM artifacts
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: artifacts-macos-apple-silicon
+          path: |
+            myrm-agent-desktop/src-tauri/target/**/release/bundle/dmg/*.dmg
+            myrm-agent-desktop/src-tauri/target/**/release/bundle/macos/*.tar.gz
+            myrm-agent-desktop/src-tauri/target/**/*.sig
+          retention-days: 1
+
+  publish-release:
+    name: Publish GitHub Release (macOS ARM)
+    needs: build-macos-arm
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.build-macos-arm.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download macOS ARM artifacts
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: artifacts-macos-apple-silicon
+          path: artifacts
+
+      - name: Flatten release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" \) -exec cp {} release-assets/ \;
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+          generate_release_notes: true
+
+  build-macos-x64:
+    name: Build macOS Intel (x86_64)
+    needs:
+      - prepare-frontend
+      - publish-release
+    if: needs.publish-release.result == 'success'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.13'
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+
+      - name: Set TARGET_ARCH for Sidecar Build
+        run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
+
+      - name: Sync server venv (desktop production)
+        env:
+          MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+
+      - name: Build Sidecars
+        run: |
+          cd myrm-agent-desktop/sidecar
+          python build.py
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: myrm-agent-desktop
+          args: --target x86_64-apple-darwin
+
+      - name: Rename Intel updater bundle (avoid ARM tar.gz collision)
+        run: bash scripts/ci/desktop-release/rename-updater-bundles.sh macos-intel
+
+      - name: Ensure updater bundle signatures
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: bash scripts/ci/desktop-release/sign-updater-bundles.sh
+
+      - name: Upload macOS Intel assets to existing GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          files=()
+          while IFS= read -r f; do
+            [[ -n "$f" ]] && files+=("$f")
+          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
+          gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
+        shell: bash
+
+  build-windows:
+    name: Build windows
+    needs:
+      - prepare-frontend
+      - publish-release
+    if: needs.publish-release.result == 'success'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.13'
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+        shell: bash
+
+      - name: Set TARGET_ARCH for Sidecar Build
+        run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Sync server venv (desktop production)
+        env:
+          MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+        shell: bash
+
+      - name: Build Sidecars
+        run: |
+          cd myrm-agent-desktop/sidecar
+          python build.py
+        shell: bash
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: myrm-agent-desktop
+          args: ''
+
+      - name: Rename Windows updater bundle (stable OTA asset name)
+        shell: pwsh
+        run: ./scripts/ci/desktop-release/rename-windows-updater-bundle.ps1
+
+      - name: Launch runtime smoke (Windows)
+        shell: pwsh
+        run: ./scripts/ci/desktop-release/smoke-launch-runtime.ps1 -Dev
+
+      - name: Ensure updater bundle signatures
+        env:
+          REQUIRE_UPDATER_BUNDLES: '1'
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: bash scripts/ci/desktop-release/sign-updater-bundles.sh
+        shell: bash
+
+      - name: Upload assets to existing GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          files=()
+          while IFS= read -r f; do
+            [[ -n "$f" ]] && files+=("$f")
+          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
+          gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
+        shell: bash
+
+  build-linux:
+    name: Build linux
+    needs:
+      - prepare-frontend
+      - publish-release
+    if: needs.publish-release.result == 'success'
+    runs-on: ubuntu-22.04
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      NO_STRIP: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+
+      - name: Prune linuxmusl native packages from frontend standalone
+        run: bash scripts/ci/desktop-release/prune-frontend-linuxmusl.sh
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 \
+            build-essential curl wget file libssl-dev
+
+      - name: Configure AppImage bundler env
+        run: |
+          echo "APPIMAGE_EXTRACT_AND_RUN=1" >> "$GITHUB_ENV"
+          echo "NO_STRIP=true" >> "$GITHUB_ENV"
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7 # v1.2.2
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@6dfebec6ddbcd197e02256fbdf54deb334fb7f06 # v2.1.2
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.13'
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+
+      - name: Set TARGET_ARCH for Sidecar Build
+        run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
+
+      - name: Sync server venv (desktop production)
+        env:
+          MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+
+      - name: Build Sidecars
+        run: |
+          cd myrm-agent-desktop/sidecar
+          python build.py
+
+      - name: Install dummy sidecars for AppImage bundling
+        run: bash scripts/ci/desktop-release/linux-appimage-sidecar-workaround.sh pre-bundle
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: myrm-agent-desktop
+          # Website distributes AppImage only; skip deb/rpm to cut Linux CI time ~40%.
+          args: --bundles appimage --verbose
+
+      - name: Repack AppImage with real sidecars
+        run: bash scripts/ci/desktop-release/linux-appimage-sidecar-workaround.sh post-bundle
+
+      - name: Ensure updater bundle signatures
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: bash scripts/ci/desktop-release/sign-updater-bundles.sh
+
+      - name: Upload assets to existing GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          files=()
+          while IFS= read -r f; do
+            [[ -n "$f" ]] && files+=("$f")
+          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
+          gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
+
+  finalize-release:
+    name: Finalize manifest (latest.json + sha256)
+    needs:
+      - publish-release
+      - build-macos-x64
+      - build-windows
+    if: >-
+      always() &&
+      needs.publish-release.result == 'success' &&
+      needs.build-macos-x64.result == 'success' &&
+      needs.build-windows.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Generate and upload latest.json + checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64
+        run: bash scripts/ci/desktop-release/finalize-release.sh
+
+      - name: Verify release manifest and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REQUIRE_MIN_OTA_PLATFORMS: '3'
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64
+          REQUIRED_INSTALLER_GLOBS: '*aarch64*.dmg *x64*.dmg *.msi'
+        run: bash scripts/ci/desktop-release/verify-release.sh
+
+  refinalize-after-linux:
+    name: Refinalize manifest after Linux upload
+    needs:
+      - finalize-release
+      - build-linux
+    if: >-
+      always() &&
+      needs.finalize-release.result == 'success' &&
+      needs.build-linux.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Regenerate latest.json + checksums (include Linux)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64
+        run: bash scripts/ci/desktop-release/finalize-release.sh
+
+      - name: Verify release manifest and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REQUIRE_MIN_OTA_PLATFORMS: '4'
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64
+          REQUIRED_INSTALLER_GLOBS: '*aarch64*.dmg *x64*.dmg *.msi'
+          REQUIRE_BARE_LINUX_APPIMAGE: '1'
+        run: bash scripts/ci/desktop-release/verify-release.sh

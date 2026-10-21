@@ -1,0 +1,39 @@
+'use client';
+
+/**
+ * [INPUT]
+ * @/components/features/memory/shared-context/SharedContextTargetBinding (POS: Shared Context runtime binding component)
+ *
+ * [OUTPUT]
+ * AgentSharedContextBinding: Agent-scoped Shared Context binding entry with optional onBindingsChanged passthrough.
+ *
+ * [POS]
+ * Agent settings adapter that binds the reusable Shared Context target UI to the current Agent.
+ */
+
+import { useTranslations } from 'next-intl';
+
+import { SharedContextTargetBinding } from '@/components/features/memory/shared-context/SharedContextTargetBinding';
+
+interface AgentSharedContextBindingProps {
+  agentId: string | null;
+  isNew: boolean;
+  onBindingsChanged?: () => void;
+}
+
+export function AgentSharedContextBinding({ agentId, isNew, onBindingsChanged }: AgentSharedContextBindingProps) {
+  const t = useTranslations('agent.sharedContexts');
+
+  return (
+    <SharedContextTargetBinding
+      targetType="agent"
+      targetId={agentId}
+      targetLabel={t('targetLabel')}
+      disabled={isNew || !agentId}
+      disabledMessage={t('saveFirst')}
+      onBindingsChanged={onBindingsChanged}
+      className="scroll-mt-24"
+      id="shared-context-binding"
+    />
+  );
+}

@@ -1,0 +1,479 @@
+'use client';
+
+/**
+ * [INPUT]
+ * @/services/memory/commandCenter::getMemoryCommandCenter (POS: Frontend Personal Brain Command Center client)
+ * @/services/projects::getProjects (POS: 项目管理 API 服务层)
+ * ../hooks/useMemoryCommandCenterActions::useMemoryCommandCenterActions (POS: 治理、Doctor、导入回滚、归档导出等写操作及其提示)
+ *
+ * [OUTPUT]
+ * MemoryCommandCenter: Personal Brain Command Center container with health dashboard, governance, diagnostics, archive export, rollback preview orchestration, SSE-backed live memory stream, and project-scoped memory filtering.
+ *
+ * [POS]
+ * 个人大脑指挥中心容器。按观察、理解、治理、验证分区展示记忆快照，编排治理动作、Memory Doctor 动作、
+ * 导入回滚预演强确认、migration missing 状态的迁移向导跳转，支持按项目过滤 SharedContext 记忆空间。
+ */
+
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
+import { cn } from '@/lib/utils/classnameUtils';
+import useChatStore from '@/store/useChatStore';
+import { toast } from '@/hooks/shared/useToast';
+import { getProjects, type Project } from '@/services/projects';
+import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
+import { ConnectWizardDialog } from '../dialogs/ConnectWizardDialog';
+import {
+  isMemoryTimelineEvent,
+  LIVE_STREAM_LIMIT,
+  mergeLiveStreamEvents,
+  resolveReplaySessionId,
+} from '@/components/features/memory/replay/memoryLiveStream';
+import { ActSection, ObserveSection, VerifySection } from './MemoryCommandCenterPanels';
+import { UnderstandSection } from './MemoryCommandCenterUnderstandSection';
+import {
+  getMemoryCommandCenter,
+  getConsolidationLastSummary,
+  getMemoryDiagnosticHistory,
+  type ConsolidationLastSummary,
+  type MemoryCommandCenterResponse,
+  type MemoryCommandDiagnosticHistoryItem,
+  type MemoryCommandDiagnosticRun,
+  type MemoryCommandTimelineEvent,
+} from '@/services/memory/commandCenter';
+import { MemoryArchiveRestoreDialog } from '../dialogs/MemoryArchiveRestoreDialog';
+import { CommandCenterSkeleton, MetricTile, RollbackPreviewDialog, StatusPill } from './MemoryCommandCenterChrome';
+import { useMemoryArchiveRestoreActions } from '../hooks/useMemoryArchiveRestoreActions';
+import { useMemoryDemoSeed } from '../hooks/useMemoryDemoSeed';
+import { useMemoryCommandCenterActions } from '../hooks/useMemoryCommandCenterActions';
+import { IconGlow } from '@/components/features/icons/PremiumIcons';
+import MemoryHealthDashboard from '../insights/MemoryHealthDashboard';
+import { registerMigrationSourceManifest } from '@/services/migrationDiscovery';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { MemoryRecallBoundaryPanel } from './MemoryRecallBoundaryPanel';
+
+const SECTIONS = ['observe', 'understand', 'act', 'verify', 'boundary'] as const;
+const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
+
+type Section = (typeof SECTIONS)[number];
+type HealthStatus = (typeof HEALTH_STATUSES)[number];
+
+const formatTime = (value: string): string =>
+  new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+
+const isHealthStatus = (value: string): value is HealthStatus => HEALTH_STATUSES.includes(value as HealthStatus);
+
+const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
+  const t = useTranslations('memory');
+  const searchParams = useSearchParams();
+  const [snapshot, setSnapshot] = useState<MemoryCommandCenterResponse | null>(null);
+  const [activeSection, setActiveSection] = useState<Section>('observe');
+  const [loading, setLoading] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [diagnosticRun, setDiagnosticRun] = useState<MemoryCommandDiagnosticRun | null>(null);
+  const [diagnosticHistory, setDiagnosticHistory] = useState<MemoryCommandDiagnosticHistoryItem[]>([]);
+  const [connectWizardOpen, setConnectWizardOpen] = useState(false);
+  const [liveStream, setLiveStream] = useState<MemoryCommandTimelineEvent[]>([]);
+  const [replaySessionId, setReplaySessionId] = useState<string | null>(null);
+  const [healthExpanded, setHealthExpanded] = useState(false);
+  const [consolidationSummary, setConsolidationSummary] = useState<ConsolidationLastSummary | null>(null);
+  const activeChatId = useChatStore((state) => state.chatId);
+
+  const urlProjectId = searchParams.get('project') ?? null;
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(urlProjectId);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const projectsLoaded = useRef(false);
+
+  useEffect(() => {
+    if (projectsLoaded.current) {
+      return;
+    }
+    projectsLoaded.current = true;
+    getProjects()
+      .then(setProjects)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setSelectedProjectId(urlProjectId);
+  }, [urlProjectId]);
+
+  const abortRef = useRef<AbortController | null>(null);
+
+  const loadSnapshot = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const [snap, consolSummary, history] = await Promise.all([
+        getMemoryCommandCenter(selectedProjectId, { signal: controller.signal }),
+        getConsolidationLastSummary().catch(() => null),
+        getMemoryDiagnosticHistory(24).catch(() => ({ items: [] })),
+      ]);
+      if (controller.signal.aborted) {
+        return;
+      }
+      registerMigrationSourceManifest(snap.migration.source_manifest, {
+        authoritative: snap.migration.source_manifest_authoritative,
+      });
+      setSnapshot(snap);
+      setConsolidationSummary(consolSummary);
+      setDiagnosticHistory(history.items);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
+      setError(err instanceof Error ? err.message : t('unknownError'));
+    } finally {
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [t, selectedProjectId]);
+
+  const archiveRestore = useMemoryArchiveRestoreActions({ setActionId, loadSnapshot });
+  const { seedDemoData, isSeeding, rollbackDemoData, isRollingBack, hasDemoData } = useMemoryDemoSeed({
+    setActionId,
+    loadSnapshot,
+  });
+
+  useEffect(() => {
+    void loadSnapshot();
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, [loadSnapshot]);
+
+  useEffect(() => {
+    const refresh = () => void loadSnapshot();
+    window.addEventListener('app_resync_required', refresh);
+    return () => {
+      window.removeEventListener('app_resync_required', refresh);
+    };
+  }, [loadSnapshot]);
+
+  useEffect(() => {
+    if (snapshot?.live_stream) {
+      setLiveStream(snapshot.live_stream.slice(0, LIVE_STREAM_LIMIT));
+    }
+  }, [snapshot?.live_stream]);
+
+  useEffect(() => {
+    const onMemoryOperation = (event: Event) => {
+      const incoming = (event as CustomEvent<unknown>).detail;
+      if (!isMemoryTimelineEvent(incoming)) {
+        return;
+      }
+      setLiveStream((previous) => mergeLiveStreamEvents(previous, incoming));
+    };
+    window.addEventListener('memory_operation', onMemoryOperation);
+    return () => window.removeEventListener('memory_operation', onMemoryOperation);
+  }, []);
+
+  const openReplayForEvent = useCallback(
+    (event: MemoryCommandTimelineEvent) => {
+      const sessionId = resolveReplaySessionId(event);
+      if (!sessionId) {
+        toast({
+          title: t('commandCenter.replayUnavailable'),
+          description: t('commandCenter.replayUnavailableHint'),
+        });
+        return;
+      }
+      setReplaySessionId(sessionId);
+    },
+    [t],
+  );
+
+  const showVerifySection = useCallback(() => setActiveSection('verify'), []);
+  const {
+    runAction,
+    resolveConflict,
+    runDoctorAction,
+    previewRollbackImport,
+    confirmRollbackImport,
+    openMigrationWizard,
+    handleConsolidationRollback,
+    exportArchive,
+    rollbackPreview,
+    rollbackResult,
+    rollbackDialogOpen,
+    setRollbackDialogOpen,
+  } = useMemoryCommandCenterActions({ loadSnapshot, setActionId, showVerifySection, setDiagnosticRun });
+
+  const generatedAt = useMemo(() => (snapshot ? formatTime(snapshot.generated_at) : ''), [snapshot]);
+
+  if (loading && !snapshot) {
+    return <CommandCenterSkeleton className={className} />;
+  }
+
+  if (error && !snapshot) {
+    return (
+      <section className={cn('rounded-xl border border-destructive/20 bg-destructive/5 p-4', className)}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{t('commandCenter.title')}</h3>
+            <p className="mt-1 text-sm text-destructive">{t('commandCenter.loadFailed')}</p>
+          </div>
+          <button type="button" onClick={loadSnapshot} className="rounded-lg border border-border px-3 py-2 text-xs">
+            {t('commandCenter.refresh')}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const healthStatus = isHealthStatus(snapshot.health.status) ? snapshot.health.status : 'unknown';
+
+  return (
+    <section className={cn('space-y-4 rounded-xl border border-border/60 bg-background/60 p-4', className)}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">{t('commandCenter.title')}</h3>
+            <button
+              type="button"
+              onClick={() => setHealthExpanded((prev) => !prev)}
+              className="inline-flex items-center gap-1 transition-opacity hover:opacity-80"
+              aria-expanded={healthExpanded}
+              aria-controls="memory-health-dashboard"
+            >
+              <StatusPill
+                label={
+                  snapshot.health.total !== null
+                    ? `${t(`commandCenter.healthStatus.${healthStatus}`)} ${snapshot.health.total}`
+                    : t(`commandCenter.healthStatus.${healthStatus}`)
+                }
+                status={healthStatus}
+              />
+              <svg
+                viewBox="0 0 16 16"
+                className={cn(
+                  'h-3 w-3 text-muted-foreground/60 transition-transform duration-200',
+                  healthExpanded && 'rotate-180',
+                )}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </button>
+          </div>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{t('commandCenter.description')}</p>
+          {projects.length > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <Select
+                value={selectedProjectId ?? '__all__'}
+                onValueChange={(v) => setSelectedProjectId(v === '__all__' ? null : v)}
+              >
+                <SelectTrigger className="h-8 w-auto min-w-[10rem] rounded-md text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-md">
+                  <SelectItem value="__all__">{t('commandCenter.allProjects')}</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedProjectId && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedProjectId(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t('commandCenter.clearFilter')}
+                </button>
+              )}
+            </div>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground/80">
+            {t('commandCenter.lastUpdated', { time: generatedAt })}
+          </p>
+        </div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {snapshot.health.total === 0 && !hasDemoData && (
+            <button
+              type="button"
+              onClick={seedDemoData}
+              disabled={actionId !== null}
+              className="w-full rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-60 sm:w-auto flex items-center justify-center gap-1.5"
+            >
+              <IconGlow className="h-3.5 w-3.5" />
+              {isSeeding
+                ? t('commandCenter.seedingDemo', { fallback: 'Seeding demo data...' })
+                : t('commandCenter.seedDemo', { fallback: 'Experience a 30-second memory demo' })}
+            </button>
+          )}
+          {hasDemoData && (
+            <button
+              type="button"
+              onClick={rollbackDemoData}
+              disabled={actionId !== null}
+              className="w-full rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-60 sm:w-auto flex items-center justify-center gap-1.5"
+            >
+              {isRollingBack
+                ? t('commandCenter.rollingBackDemo', { fallback: 'Removing demo data...' })
+                : t('commandCenter.rollbackDemo', { fallback: 'Remove demo data' })}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={exportArchive}
+            disabled={actionId === 'archive:export'}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60 sm:w-auto"
+          >
+            {actionId === 'archive:export' ? t('commandCenter.exportingArchive') : t('commandCenter.exportArchive')}
+          </button>
+          <button
+            type="button"
+            onClick={archiveRestore.selectFile}
+            disabled={actionId === 'archive:restore-dry-run'}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60 sm:w-auto"
+          >
+            {actionId === 'archive:restore-dry-run'
+              ? t('commandCenter.reviewingArchiveRestore')
+              : t('commandCenter.restoreArchive')}
+          </button>
+          <input
+            ref={archiveRestore.inputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={archiveRestore.handleFile}
+          />
+          <button
+            type="button"
+            onClick={loadSnapshot}
+            disabled={loading}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60 sm:w-auto"
+          >
+            {loading ? t('commandCenter.refreshing') : t('commandCenter.refresh')}
+          </button>
+        </div>
+      </div>
+
+      {healthExpanded && (
+        <div
+          id="memory-health-dashboard"
+          className="rounded-lg border border-border/50 bg-accent/10 p-4 animate-in fade-in slide-in-from-top-1 duration-200"
+        >
+          <MemoryHealthDashboard health={snapshot.health} t={t} />
+        </div>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricTile label={t('commandCenter.totalMemories')} value={snapshot.overview.total_memories} />
+        <MetricTile label={t('commandCenter.pendingReview')} value={snapshot.overview.pending_memories} />
+        <MetricTile label={t('commandCenter.influenceCount')} value={snapshot.cost.cited_memory_refs} />
+        <MetricTile label={t('commandCenter.estimatedMemoryTokens')} value={snapshot.cost.estimated_memory_tokens} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-1 rounded-lg border border-border/60 bg-accent/20 p-1 sm:grid-cols-5">
+        {SECTIONS.map((section) => (
+          <button
+            key={section}
+            type="button"
+            onClick={() => setActiveSection(section)}
+            className={cn(
+              'rounded-full px-3 py-2 text-xs font-medium transition-colors',
+              activeSection === section
+                ? 'bg-background text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t(`commandCenter.sections.${section}`)}
+          </button>
+        ))}
+      </div>
+
+      {activeSection === 'observe' && (
+        <ObserveSection snapshot={snapshot} liveStream={liveStream} t={t} onEventClick={openReplayForEvent} />
+      )}
+      {activeSection === 'understand' && (
+        <UnderstandSection
+          snapshot={snapshot}
+          t={t}
+          onResolveConflict={resolveConflict}
+          actionId={actionId}
+          defaultChatId={activeChatId}
+        />
+      )}
+      {activeSection === 'act' && (
+        <ActSection
+          snapshot={snapshot}
+          t={t}
+          actionId={actionId}
+          onAction={runAction}
+          onDoctorAction={runDoctorAction}
+          onRollbackImport={previewRollbackImport}
+          onOpenMigrationWizard={openMigrationWizard}
+          consolidationSummary={consolidationSummary}
+          onConsolidationRollback={handleConsolidationRollback}
+        />
+      )}
+      {activeSection === 'verify' && (
+        <VerifySection
+          snapshot={snapshot}
+          t={t}
+          actionId={actionId}
+          diagnosticRun={diagnosticRun}
+          diagnosticHistory={diagnosticHistory}
+          onDoctorAction={runDoctorAction}
+          onConnectClick={() => setConnectWizardOpen(true)}
+        />
+      )}
+      {activeSection === 'boundary' && <MemoryRecallBoundaryPanel />}
+      <RollbackPreviewDialog
+        open={rollbackDialogOpen}
+        preview={rollbackPreview}
+        result={rollbackResult}
+        loading={actionId === `migration:rollback:${rollbackPreview?.import_batch_id ?? ''}`}
+        t={t}
+        onOpenChange={setRollbackDialogOpen}
+        onConfirm={confirmRollbackImport}
+      />
+      <ConnectWizardDialog open={connectWizardOpen} onOpenChange={setConnectWizardOpen} />
+      {replaySessionId ? (
+        <SessionAnalyticsDialog sessionId={replaySessionId} onClose={() => setReplaySessionId(null)} />
+      ) : null}
+      <MemoryArchiveRestoreDialog
+        open={archiveRestore.open}
+        preview={archiveRestore.preview}
+        result={archiveRestore.result}
+        rollbackPreview={archiveRestore.rollbackPreview}
+        rollbackResult={archiveRestore.rollbackResult}
+        selectedSections={archiveRestore.selectedSections}
+        reviewing={actionId === 'archive:restore-dry-run'}
+        restoring={actionId === 'archive:restore-confirm'}
+        rollingBack={Boolean(actionId?.startsWith('archive:restore-rollback:'))}
+        onOpenChange={archiveRestore.setOpen}
+        onToggleSection={archiveRestore.toggleSection}
+        onConfirm={archiveRestore.confirm}
+        onRollback={archiveRestore.rollback}
+      />
+    </section>
+  );
+});
+
+MemoryCommandCenter.displayName = 'MemoryCommandCenter';
+
+export default MemoryCommandCenter;

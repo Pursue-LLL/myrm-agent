@@ -1,0 +1,112 @@
+"""Task safety airbag REST endpoints for unattended autonomous runs.
+
+[INPUT]
+- app.services.checkpoint.task_airbag_service::get_task_airbag_service (POS: Singleton service managing airbag lifecycle and persistence.)
+
+[OUTPUT]
+- airbag_router: APIRouter for inspecting status, rolling back, and dismissing airbags.
+- AirbagStatusResponse: DTO model for cumulative mutation summary.
+- RollbackAirbagRequest / RollbackAirbagResponse: DTO models for triggering time-travel rollback.
+- DismissAirbagRequest / DismissAirbagResponse: DTO models for dismissing airbag.
+
+[POS]
+Server-layer checkpoint API: REST endpoints for task safety airbag.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Literal
+
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+
+from app.services.checkpoint.task_airbag_service import get_task_airbag_service
+
+logger = logging.getLogger(__name__)
+
+airbag_router = APIRouter(prefix="/airbag", tags=["checkpoint-airbag"])
+
+
+class AirbagStatusResponse(BaseModel):
+    task_id: str
+    total_files_changed: int
+    modified_files: list[str]
+    added_files: list[str]
+    deleted_files: list[str]
+    external_effects: list[str]
+    can_rollback: bool
+
+
+class RollbackAirbagRequest(BaseModel):
+    task_id: str
+    workspace_path: str | None = None
+
+
+class RollbackAirbagResponse(BaseModel):
+    success: bool
+    task_id: str
+    status: Literal["rolled_back", "failed"]
+    rescue_snapshot_id: str | None = None
+
+
+class DismissAirbagRequest(BaseModel):
+    task_id: str
+    workspace_path: str | None = None
+
+
+class DismissAirbagResponse(BaseModel):
+    success: bool
+    task_id: str
+    status: Literal["dismissed", "failed"]
+
+
+@airbag_router.get("/{task_id}/status", response_model=AirbagStatusResponse)
+async def get_airbag_status(
+    task_id: str,
+    workspace_path: str | None = Query(None, description="Workspace path for cold hydration"),
+) -> AirbagStatusResponse:
+    """Retrieve cumulative changes and external effect warnings since task airbag was armed."""
+    service = get_task_airbag_service()
+    diff = await service.get_airbag_status(task_id, workspace_path)
+    if diff is None:
+        raise HTTPException(status_code=404, detail=f"No active or persisted airbag found for task: {task_id}")
+    return AirbagStatusResponse(
+        task_id=diff.task_id,
+        total_files_changed=diff.total_files_changed,
+        modified_files=diff.modified_files,
+        added_files=diff.added_files,
+        deleted_files=diff.deleted_files,
+        external_effects=diff.external_effects,
+        can_rollback=diff.can_rollback,
+    )
+
+
+@airbag_router.post("/rollback", response_model=RollbackAirbagResponse)
+async def rollback_airbag(req: RollbackAirbagRequest) -> RollbackAirbagResponse:
+    """Trigger atomic time-travel rollback for a task to its pre-flight baseline."""
+    service = get_task_airbag_service()
+    success = await service.rollback_airbag(req.task_id, req.workspace_path)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Time-travel rollback failed for task: {req.task_id}")
+    manifest = service._active_manifests.get(req.task_id)
+    return RollbackAirbagResponse(
+        success=True,
+        task_id=req.task_id,
+        status="rolled_back",
+        rescue_snapshot_id=manifest.rescue_snapshot_id if manifest else None,
+    )
+
+
+@airbag_router.post("/dismiss", response_model=DismissAirbagResponse)
+async def dismiss_airbag(req: DismissAirbagRequest) -> DismissAirbagResponse:
+    """Dismiss airbag after user confirms task output is satisfactory."""
+    service = get_task_airbag_service()
+    success = service.dismiss_airbag(req.task_id, req.workspace_path)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Airbag not found for task: {req.task_id}")
+    return DismissAirbagResponse(
+        success=True,
+        task_id=req.task_id,
+        status="dismissed",
+    )

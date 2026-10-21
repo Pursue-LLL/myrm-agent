@@ -1,0 +1,220 @@
+"""
+[INPUT] services.project::ProjectService
+[OUTPUT] Project CRUD REST API
+[POS] 项目管理 API 路由。提供项目增删改查和会话归属管理端点。
+"""
+
+from __future__ import annotations
+
+import re
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from app.core.utils.errors import internal_error, not_found_error, validation_error
+from app.core.utils.response_utils import success_response
+from app.schemas.responses import StandardSuccessResponse
+from app.services.project.project_service import ProjectService
+
+router = APIRouter()
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255, description="项目名称")
+    color: str | None = Field(None, description="项目颜色 (hex format)")
+    description: str = Field("", max_length=5000, description="项目描述")
+    workspace_path: str | None = Field(None, max_length=4096, description="项目工作目录绝对路径")
+
+
+class ProjectAdoptRequest(BaseModel):
+    workspace_path: str = Field(..., min_length=1, max_length=4096, description="要接纳的工作目录绝对路径")
+    name: str | None = Field(None, max_length=255, description="项目名称（若不提供则自动从目录名提取）")
+    color: str | None = Field(None, description="项目颜色 (hex format)")
+    description: str = Field("", max_length=5000, description="项目描述")
+
+
+class ProjectUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255, description="项目名称")
+    color: str | None = Field(None, description="项目颜色 (hex format)")
+    workspace_path: str | None = Field(None, max_length=4096, description="项目工作目录绝对路径")
+    description: str | None = Field(None, max_length=5000, description="项目描述")
+    goal_summary: str | None = Field(None, max_length=2000, description="项目当前目标摘要")
+    default_agent_id: str | None = Field(None, max_length=255, description="默认智能体 ID (null=清除)")
+
+
+class ChatMoveRequest(BaseModel):
+    projectId: str | None = Field(None, description="目标项目 ID (null=取消归属)")
+
+
+class BatchMoveRequest(BaseModel):
+    chatIds: list[str] = Field(..., min_length=1, description="会话 ID 列表")
+    projectId: str | None = Field(None, description="目标项目 ID (null=取消归属)")
+
+
+@router.get("/", response_model=StandardSuccessResponse)
+async def list_projects() -> JSONResponse:
+    """获取所有项目列表"""
+    try:
+        projects = await ProjectService.list_projects()
+        return success_response(data={"projects": projects})
+    except Exception as e:
+        raise internal_error(operation="List projects", exception=e) from e
+
+
+@router.post("/", response_model=StandardSuccessResponse)
+async def create_project(req: ProjectCreateRequest) -> JSONResponse:
+    """创建新项目"""
+    if req.color and not _HEX_COLOR_RE.match(req.color):
+        raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
+
+    try:
+        project = await ProjectService.create_project(
+            name=req.name,
+            color=req.color,
+            description=req.description,
+            workspace_path=req.workspace_path,
+        )
+        return success_response(data={"project": project})
+    except ValueError as exc:
+        raise validation_error(str(exc)) from exc
+    except Exception as e:
+        raise internal_error(operation="Create project", exception=e) from e
+
+
+@router.post("/adopt", response_model=StandardSuccessResponse)
+async def adopt_project_workspace(req: ProjectAdoptRequest) -> JSONResponse:
+    """接纳本地或已有工程文件夹为 Myrm 项目并绑定工作区路径"""
+    if req.color and not _HEX_COLOR_RE.match(req.color):
+        raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
+
+    from pathlib import Path
+
+    raw_path = req.workspace_path.strip()
+    if not raw_path:
+        raise validation_error("workspace_path cannot be empty")
+
+    folder_name = Path(raw_path).expanduser().name.strip() or "Untitled Project"
+    effective_name = (req.name or "").strip() or folder_name
+
+    try:
+        project = await ProjectService.create_project(
+            name=effective_name,
+            color=req.color,
+            description=req.description,
+            workspace_path=raw_path,
+        )
+        return success_response(data={"project": project})
+    except ValueError as exc:
+        raise validation_error(str(exc)) from exc
+    except Exception as e:
+        raise internal_error(operation="Adopt project workspace", exception=e) from e
+
+
+@router.put("/{project_id}", response_model=StandardSuccessResponse)
+async def update_project(project_id: str, req: ProjectUpdateRequest) -> JSONResponse:
+    """更新项目（名称/颜色/工作目录/描述/目标摘要）"""
+    if req.color and not _HEX_COLOR_RE.match(req.color):
+        raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
+    agent_id_provided = "default_agent_id" in req.model_fields_set
+    has_update = agent_id_provided or any(
+        v is not None
+        for v in (
+            req.name,
+            req.color,
+            req.workspace_path,
+            req.description,
+            req.goal_summary,
+        )
+    )
+    if not has_update:
+        raise validation_error("At least one field must be provided")
+
+    try:
+        kwargs: dict[str, str | None] = {}
+        if agent_id_provided:
+            kwargs["default_agent_id"] = req.default_agent_id
+        project = await ProjectService.update_project(
+            project_id,
+            name=req.name,
+            color=req.color,
+            workspace_path=req.workspace_path,
+            description=req.description,
+            goal_summary=req.goal_summary,
+            **kwargs,
+        )
+        if not project:
+            raise not_found_error("Project")
+        return success_response(data={"project": project})
+    except ValueError as exc:
+        raise validation_error(str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update project", exception=e) from e
+
+
+@router.delete("/{project_id}", response_model=StandardSuccessResponse)
+async def delete_project(project_id: str) -> JSONResponse:
+    """删除项目（会话仅取消归属，不会被删除）"""
+    try:
+        deleted = await ProjectService.delete_project(project_id)
+        if not deleted:
+            raise not_found_error("Project")
+        return success_response(data={"deleted": True})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Delete project", exception=e) from e
+
+
+@router.patch("/chats/{chat_id}/project", response_model=StandardSuccessResponse)
+async def move_chat_to_project(chat_id: str, req: ChatMoveRequest) -> JSONResponse:
+    """设置/取消会话的项目归属"""
+    try:
+        moved = await ProjectService.move_chat_to_project(chat_id, req.projectId)
+        if not moved:
+            raise not_found_error("Chat or Project")
+        return success_response(data={"moved": True})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Move chat to project", exception=e) from e
+
+
+@router.post("/chats/batch-move", response_model=StandardSuccessResponse)
+async def batch_move_chats(req: BatchMoveRequest) -> JSONResponse:
+    """批量移动会话到项目"""
+    try:
+        count = await ProjectService.batch_move_chats(req.chatIds, req.projectId)
+        return success_response(data={"movedCount": count})
+    except Exception as e:
+        raise internal_error(operation="Batch move chats", exception=e) from e
+
+
+@router.get("/{project_id}/activity-feed", response_model=StandardSuccessResponse)
+async def get_project_activity_feed(
+    project_id: str,
+    limit: int = 50,
+    offset: int = 0,
+) -> JSONResponse:
+    """获取项目协同动态 Feed（任务完成、移交协作、定时运行、里程碑）"""
+    from app.services.project.activity_feed_service import ProjectActivityFeedService
+
+    try:
+        project = await ProjectService.get_project(project_id)
+        if not project:
+            raise not_found_error("Project")
+
+        feed = await ProjectActivityFeedService.get_activity_feed(
+            project_id,
+            limit=limit,
+            offset=offset,
+        )
+        return success_response(data=feed.model_dump())
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Get project activity feed", exception=e) from e

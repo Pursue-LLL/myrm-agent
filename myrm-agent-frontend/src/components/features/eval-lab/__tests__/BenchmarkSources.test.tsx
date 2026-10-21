@@ -1,0 +1,431 @@
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+import BenchmarkSources from '../components/BenchmarkSources';
+
+interface ReportItem {
+  timestamp?: number;
+  total_cases?: number;
+  pass_count?: number;
+  skip_count?: number;
+  pass_rate?: number;
+  avg_pass_rate?: number | null;
+  manifest?: {
+    task_set_id?: string;
+  };
+}
+
+function sourcesPayload() {
+  return {
+    status: 'success',
+    sources: [
+      {
+        id: 'office',
+        benchmark_id: 'wb-bench-office',
+        name: 'Office',
+        description: 'WorkBuddy Bench Office track',
+        task_count: 50,
+        approx_size_mb: 12,
+        is_downloaded: true,
+        local_size_bytes: 12 * 1024 * 1024,
+        scoring: 'composite',
+        supports_memory_ab: true,
+        provider: 'wb_bench',
+      },
+    ],
+  };
+}
+
+function renderSources(history: ReportItem[]) {
+  const props = {
+    running: false,
+    history,
+    onRun: vi.fn(),
+    onDownload: vi.fn(),
+    onMemoryAb: vi.fn(),
+    onLayerEval: vi.fn(),
+    refreshToken: 0,
+    downloadingBenchmarkId: null,
+    downloadProgress: null,
+  };
+  return render(<BenchmarkSources {...props} />);
+}
+
+describe('BenchmarkSources Memory A/B entry', () => {
+  it('renders a Memory A/B button on the card', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    const button = screen.getByRole('button', { name: /memoryab/i });
+    expect(button).toBeInTheDocument();
+  });
+
+  it('opens the confirmation dialog and confirms start with the benchmark id', async () => {
+    const onMemoryAb = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={onMemoryAb}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /memoryab/i }));
+    expect(await screen.findByText('confirmTitle')).toBeInTheDocument();
+    expect(screen.getByText('confirmBody')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('confirmStart'));
+    await waitFor(() => expect(onMemoryAb).toHaveBeenCalledWith('wb-bench-office', undefined));
+  });
+
+  it('shows the selected profile in the layered eval confirmation dialog', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+        selectedProfileName="Hermes Assistant"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'button' }));
+    expect(await screen.findByText('confirmTitle')).toBeInTheDocument();
+    expect(screen.getByText('confirmBody')).toBeInTheDocument();
+    expect(screen.getByText('confirmProfileHint: Hermes Assistant')).toBeInTheDocument();
+  });
+
+  it('omits the profile hint when no profile is selected', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'button' }));
+    await screen.findByText('confirmTitle');
+    expect(screen.queryByText(/confirmProfileHint/)).not.toBeInTheDocument();
+  });
+
+  it('cancels the confirmation dialog without starting', async () => {
+    const onMemoryAb = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={onMemoryAb}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /memoryab/i }));
+    await screen.findByText('confirmTitle');
+
+    fireEvent.click(screen.getByText('confirmCancel'));
+    expect(onMemoryAb).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText('confirmTitle')).not.toBeInTheDocument());
+  });
+
+  it('disables the Memory A/B button while an evaluation is running', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={true}
+        history={[]}
+        onRun={vi.fn()}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /memoryab/i })).toBeDisabled();
+  });
+
+  it('hides the Memory A/B button when the benchmark does not support it', async () => {
+    const payload = sourcesPayload();
+    payload.sources[0] = { ...payload.sources[0], supports_memory_ab: false };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /memoryab/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('BenchmarkSources', () => {
+  it('renders dataset cards and the downloaded badge', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    // The badge and the download button both read "downloaded" on a downloaded card.
+    expect(screen.getAllByText('downloaded').length).toBeGreaterThan(0);
+    expect(screen.getByText('scoringComposite')).toBeInTheDocument();
+  });
+
+  it('shows the avg_pass_rate (test pass rate) badge when a scored report exists', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const history: ReportItem[] = [
+      {
+        timestamp: 1750000000,
+        total_cases: 10,
+        pass_count: 8,
+        skip_count: 0,
+        avg_pass_rate: 0.75,
+        manifest: { task_set_id: 'wb-bench-office' },
+      },
+    ];
+
+    renderSources(history);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.getByText('testPassRate')).toBeInTheDocument();
+    // avg_pass_rate 0.75 → 75%
+    expect(screen.getByText('75%')).toBeInTheDocument();
+  });
+
+  it('renders pending-scoring state when a report exists but was skipped entirely', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const history: ReportItem[] = [
+      {
+        timestamp: 1750000000,
+        total_cases: 10,
+        pass_count: 0,
+        skip_count: 10,
+        avg_pass_rate: null,
+        manifest: { task_set_id: 'wb-bench-office' },
+      },
+    ];
+
+    renderSources(history);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    // isScored requires skip_count < total_cases → here fully skipped, so pending.
+    expect(screen.getByText('pendingScoring')).toBeInTheDocument();
+    expect(screen.queryByText('testPassRate')).not.toBeInTheDocument();
+  });
+
+  it('does not show a report section at all when no matching report exists', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    // A report for a different subset must not leak into this card.
+    const history: ReportItem[] = [
+      {
+        timestamp: 1750000000,
+        total_cases: 10,
+        pass_count: 8,
+        skip_count: 0,
+        avg_pass_rate: 0.75,
+        manifest: { task_set_id: 'wb-bench-code' },
+      },
+    ];
+
+    renderSources(history);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.getByText('noReport')).toBeInTheDocument();
+    expect(screen.queryByText('testPassRate')).not.toBeInTheDocument();
+  });
+
+  it('shows the web-search requirement badge when the benchmark declares it', async () => {
+    const payload = {
+      status: 'success',
+      sources: [
+        {
+          benchmark_id: 'browsecomp',
+          name: 'BrowseComp',
+          description: 'OpenAI web-research benchmark',
+          task_count: 1266,
+          approx_size_mb: 1,
+          is_downloaded: false,
+          local_size_bytes: 0,
+          scoring: 'llm_judge',
+          supports_memory_ab: true,
+          provider: 'external',
+          required_tools: ['web_search'],
+        },
+      ],
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('BrowseComp')).toBeInTheDocument());
+    expect(screen.getByText('requiresWebSearch')).toBeInTheDocument();
+  });
+
+  it('prefills a default sample size for large benchmarks', async () => {
+    const payload = {
+      status: 'success',
+      sources: [
+        {
+          benchmark_id: 'browsecomp',
+          name: 'BrowseComp',
+          description: 'OpenAI web-research benchmark',
+          task_count: 1266,
+          approx_size_mb: 1,
+          is_downloaded: true,
+          local_size_bytes: 1024,
+          scoring: 'llm_judge',
+          supports_memory_ab: true,
+          provider: 'external',
+          required_tools: ['web_search'],
+        },
+      ],
+    };
+    const onRun = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    render(
+      <BenchmarkSources
+        running={false}
+        history={[]}
+        onRun={onRun}
+        onDownload={vi.fn()}
+        onMemoryAb={vi.fn()}
+        onLayerEval={vi.fn()}
+        refreshToken={0}
+        downloadingBenchmarkId={null}
+        downloadProgress={null}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('BrowseComp')).toBeInTheDocument());
+    const limitInput = screen.getByRole('spinbutton');
+    expect(limitInput).toHaveValue(20);
+
+    fireEvent.click(screen.getByRole('button', { name: /run/i }));
+    await waitFor(() => expect(onRun).toHaveBeenCalledWith('browsecomp', 20));
+  });
+
+  it('omits the web-search badge for benchmarks without that requirement', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(sourcesPayload()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    renderSources([]);
+
+    await waitFor(() => expect(screen.getByText('Office')).toBeInTheDocument());
+    expect(screen.queryByText('requiresWebSearch')).not.toBeInTheDocument();
+  });
+});

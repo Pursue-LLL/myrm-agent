@@ -1,0 +1,227 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
+import { RefreshCw, Undo2, CheckCircle2, XCircle, FileClock, History } from 'lucide-react';
+import { cn } from '@/lib/utils/classnameUtils';
+import { Button } from '@/components/primitives/button';
+import { Badge } from '@/components/primitives/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
+import { toast } from '@/hooks/shared/useToast';
+import { useTheme } from 'next-themes';
+import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
+import { apiRequest } from '@/lib/api';
+import { rollbackSkillEvolution } from '@/services/skill/growth';
+
+interface EvolutionRecord {
+  id: string;
+  skill_id: string;
+  skill_name: string;
+  evolution_type: string;
+  reason: string;
+  original_content: string;
+  evolved_content: string;
+  confidence: number;
+  test_passed: boolean | null;
+  status: 'approved' | 'rejected' | 'rolled_back';
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export function SkillHistoryPanel({ className }: { className?: string }) {
+  const t = useTranslations('settings.skills.history');
+  const [records, setRecords] = useState<EvolutionRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isRollingBack, setIsRollingBack] = useState<string | null>(null);
+  const [pendingRollback, setPendingRollback] = useState<{ id: string; name: string } | null>(null);
+  const { theme } = useTheme();
+  const appLocale = useLocale();
+
+  const fetchHistory = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiRequest<{ items: EvolutionRecord[] }>('/evolution/history?limit=20', { silent: true });
+      setRecords(data.items || []);
+    } catch {
+      toast({ title: t('fetchError'), variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const confirmRollback = async () => {
+    if (!pendingRollback) {
+      return;
+    }
+    const { id, name } = pendingRollback;
+    setPendingRollback(null);
+    setIsRollingBack(id);
+    try {
+      await rollbackSkillEvolution(id);
+      toast({ title: t('rollbackSuccess', { name }) });
+      await fetchHistory();
+    } catch {
+      toast({ title: t('rollbackFailed', { name }), variant: 'destructive' });
+    } finally {
+      setIsRollingBack(null);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'rolled_back':
+        return <Undo2 className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <FileClock className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  return (
+    <div className={cn('rounded-xl border bg-card/50', className)}>
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-primary/10 rounded-full">
+            <History className="h-4 w-4 text-primary" />
+          </div>
+          <h3 className="font-semibold">{t('title')}</h3>
+          <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-xs">
+            {records.length}
+          </Badge>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={fetchHistory}
+          disabled={isLoading}
+          className="h-8 w-8 p-0"
+          title={t('refresh')}
+        >
+          <RefreshCw className={cn('h-4 w-4 text-muted-foreground', isLoading && 'animate-spin')} />
+        </Button>
+      </div>
+
+      {isLoading && records.length === 0 ? (
+        <div className="p-8 text-center text-sm text-muted-foreground">{t('loading')}</div>
+      ) : records.length === 0 ? (
+        <div className="p-8 text-center text-sm text-muted-foreground">{t('empty')}</div>
+      ) : (
+        <div className="divide-y divide-border/50 max-h-[500px] overflow-y-auto">
+          {records.map((record) => {
+            const isExpanded = expandedId === record.id;
+            const timeAgo = formatRelativeTime(record.resolved_at || record.created_at, appLocale);
+
+            return (
+              <div key={record.id} className="p-4 transition-colors hover:bg-muted/30">
+                <div className="flex items-start justify-between gap-4">
+                  <button
+                    type="button"
+                    className="flex-1 min-w-0 cursor-pointer group text-left"
+                    onClick={() => setExpandedId(isExpanded ? null : record.id)}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      {getStatusIcon(record.status)}
+                      <h4 className="font-medium text-sm group-hover:text-primary transition-colors truncate">
+                        {record.skill_name}
+                      </h4>
+                      <Badge variant="outline" className="text-[10px] py-0 h-4 px-1.5 font-mono">
+                        {record.evolution_type}
+                      </Badge>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          'text-[10px] py-0 h-4 px-1.5 font-mono',
+                          record.status === 'approved' && 'bg-green-500/10 text-green-600 dark:text-green-400',
+                          record.status === 'rolled_back' && 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+                          record.status === 'rejected' && 'bg-red-500/10 text-red-600 dark:text-red-400',
+                        )}
+                      >
+                        {t(`status.${record.status}`)}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-1 mb-1">{record.reason}</p>
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground/70">
+                      <span>{timeAgo}</span>
+                      <span>ID: {record.skill_id.split('::').pop()}</span>
+                    </div>
+                  </button>
+
+                  {record.status === 'approved' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPendingRollback({ id: record.id, name: record.skill_name })}
+                      disabled={isRollingBack === record.id}
+                      className="h-8 shrink-0 text-xs gap-1.5 border-dashed"
+                    >
+                      <Undo2 className="h-3.5 w-3.5" />
+                      {t('rollback')}
+                    </Button>
+                  )}
+                </div>
+
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-border/40 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="mb-2 text-xs font-medium text-muted-foreground">{t('codeChanges')}</div>
+                    <div className="rounded-xl border overflow-hidden bg-background h-[300px]">
+                      <DiffEditor
+                        height="300px"
+                        original={record.original_content}
+                        modified={record.evolved_content}
+                        theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                        options={{
+                          readOnly: true,
+                          renderSideBySide: false,
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          wordWrap: 'on',
+                          lineNumbersMinChars: 3,
+                          padding: { top: 12, bottom: 12 },
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <AlertDialog open={!!pendingRollback} onOpenChange={(open) => !open && setPendingRollback(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('rollback')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRollback ? t('confirmRollback', { name: pendingRollback.name }) : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRollback}>{t('rollback')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+export default SkillHistoryPanel;

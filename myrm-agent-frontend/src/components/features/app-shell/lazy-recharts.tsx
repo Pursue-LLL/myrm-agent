@@ -1,0 +1,38 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import type { ComponentType } from 'react';
+
+type RechartsExport = keyof typeof import('recharts');
+
+function lazyRechartsComponent(name: RechartsExport): ComponentType<Record<string, unknown>> {
+  const component = dynamic<Record<string, unknown>>(
+    () => import('recharts').then((mod) => mod[name] as ComponentType<Record<string, unknown>>),
+    { ssr: false },
+  );
+  // recharts finds data-only children such as `Cell` by `type.displayName || type.name`; the lazy wrapper
+  // would otherwise be called `LoadableComponent` and every per-slice / per-bar colour would be dropped.
+  component.displayName = name;
+  return component;
+}
+
+export const Area = lazyRechartsComponent('Area');
+export const AreaChart = lazyRechartsComponent('AreaChart');
+export const Bar = lazyRechartsComponent('Bar');
+export const BarChart = lazyRechartsComponent('BarChart');
+export const CartesianGrid = lazyRechartsComponent('CartesianGrid');
+export const Cell = lazyRechartsComponent('Cell');
+export const Legend = lazyRechartsComponent('Legend');
+export const Line = lazyRechartsComponent('Line');
+export const LineChart = lazyRechartsComponent('LineChart');
+export const Pie = lazyRechartsComponent('Pie');
+export const PieChart = lazyRechartsComponent('PieChart');
+export const PolarAngleAxis = lazyRechartsComponent('PolarAngleAxis');
+export const PolarGrid = lazyRechartsComponent('PolarGrid');
+export const Radar = lazyRechartsComponent('Radar');
+export const RadarChart = lazyRechartsComponent('RadarChart');
+export const ReferenceLine = lazyRechartsComponent('ReferenceLine');
+export const ResponsiveContainer = lazyRechartsComponent('ResponsiveContainer');
+export const Tooltip = lazyRechartsComponent('Tooltip');
+export const XAxis = lazyRechartsComponent('XAxis');
+export const YAxis = lazyRechartsComponent('YAxis');

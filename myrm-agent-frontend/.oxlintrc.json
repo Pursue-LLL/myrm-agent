@@ -1,0 +1,67 @@
+{
+  "$schema": "https://oxc.rs/schema/oxlintrc.json",
+  "plugins": ["react", "typescript", "jsx-a11y", "nextjs", "import"],
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "globals": {
+    "React": "readonly",
+    "JSX": "readonly"
+  },
+  "settings": {
+    "next": {
+      "rootDir": "."
+    }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+      "env": {
+        "vitest": true
+      }
+    }
+  ],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/no-unescaped-entities": "warn",
+    "react/jsx-key": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-undef": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-children-prop": "warn",
+    "react/no-danger-with-children": "error",
+    "react/no-unknown-property": ["warn", { "ignore": ["jsx"] }],
+    "react/require-render-return": "error",
+    "react/self-closing-comp": "warn",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-non-null-assertion": "warn",
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "jsx-a11y/alt-text": "warn",
+    "jsx-a11y/aria-props": "warn",
+    "jsx-a11y/aria-role": "warn",
+    "jsx-a11y/role-has-required-aria-props": "warn",
+    "jsx-a11y/role-supports-aria-props": "warn",
+    "jsx-a11y/label-has-associated-control": ["warn", { "depth": 6 }],
+    "import/no-anonymous-default-export": "warn",
+    "import/no-cycle": "error",
+    "no-console": "off",
+    "no-debugger": "warn",
+    "no-unused-vars": "off",
+    "no-undef": "error",
+    "eqeqeq": ["warn", "smart"],
+    "curly": ["warn", "all"],
+    "prefer-const": "warn",
+    "no-var": "error"
+  }
+}

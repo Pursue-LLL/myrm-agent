@@ -1,0 +1,209 @@
+import { apiRequest } from '@/lib/api';
+
+export type IngressRequirementSnapshot = {
+  required: boolean;
+  has_public_ingress: boolean;
+  reasons: string[];
+  channels: Record<string, 'outbound' | 'inbound'>;
+};
+
+/** What the storage ledger attributes space to; the governance card carries one localized label per key. */
+export type StorageCategoryKey =
+  | 'sqlite_database'
+  | 'checkpoints'
+  | 'workspaces'
+  | 'vector_store'
+  | 'memory_archive'
+  | 'event_logs'
+  | 'sqlite_backups'
+  | 'snapshots'
+  | 'other';
+
+/**
+ * Measuring the space ledger walks every file under the state directory, so a large instance on a slow disk
+ * needs far more than the default request budget.
+ */
+const STORAGE_REPORT_TIMEOUT_MS = 120_000;
+
+export const systemService = {
+  /**
+   * Get the computed public ingress base URL.
+   */
+  async getIngressRequirement(): Promise<IngressRequirementSnapshot> {
+    return apiRequest<IngressRequirementSnapshot>(`/system/ingress-requirement?t=${Date.now()}`);
+  },
+
+  async getIngressUrl(): Promise<string> {
+    const data = await apiRequest<{ ingress_url: string }>(`/system/ingress-url?t=${Date.now()}`);
+    return data.ingress_url;
+  },
+
+  async getLocalNetwork(port: number): Promise<{ ip: string; url: string; hint: string }> {
+    return apiRequest<{ ip: string; url: string; hint: string }>(`/system/local-network?port=${port}`);
+  },
+
+  async testIngressHealth(baseUrl: string): Promise<boolean> {
+    const normalized = baseUrl.replace(/\/+$/, '');
+    const response = await fetch(`${normalized}/api/v1/health`, { method: 'GET' });
+    return response.ok;
+  },
+
+  /**
+   * Export technical support debug zip bundle.
+   */
+  getSupportDebugBundleUrl(options?: { includeTraces?: boolean; includeProfiles?: boolean }): string {
+    const params = new URLSearchParams();
+    if (options?.includeTraces !== undefined) {
+      params.set('include_traces', String(options.includeTraces));
+    }
+    if (options?.includeProfiles !== undefined) {
+      params.set('include_profiles', String(options.includeProfiles));
+    }
+    const qs = params.toString();
+    return `/api/v1/system/debug-bundle${qs ? `?${qs}` : ''}`;
+  },
+
+  /**
+   * Storage Governance APIs. The report request is silent: the card renders its own localized failure state
+   * with a retry instead of a global error toast.
+   */
+  async getStorageGovernanceReport(): Promise<{
+    total_storage_bytes: number;
+    disk_total_bytes: number;
+    disk_free_bytes: number;
+    disk_used_percentage: number;
+    categories: Array<{
+      category: StorageCategoryKey;
+      bytes: number;
+      item_count: number;
+      percentage: number;
+    }>;
+    snapshots: Array<{
+      snapshot_id: string;
+      label: string;
+      size_bytes: number;
+      created_at: string;
+      checksum: string;
+      file_count: number;
+    }>;
+    generated_at: string;
+  }> {
+    return apiRequest(`/system/storage/governance?t=${Date.now()}`, {
+      silent: true,
+      timeout: STORAGE_REPORT_TIMEOUT_MS,
+    });
+  },
+
+  async createStateSnapshot(label: string): Promise<{
+    success: boolean;
+    message: string;
+    snapshot?: {
+      snapshot_id: string;
+      label: string;
+      size_bytes: number;
+      created_at: string;
+      checksum: string;
+      file_count: number;
+    };
+  }> {
+    return apiRequest('/system/storage/snapshots', {
+      method: 'POST',
+      body: JSON.stringify({ label }),
+    });
+  },
+
+  /** The restore is queued and applied while the backend boots; `requires_restart` asks the caller to prompt a restart. */
+  async restoreStateSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    message: string;
+    requires_restart: boolean;
+  }> {
+    return apiRequest(`/system/storage/snapshots/${snapshotId}/restore`, {
+      method: 'POST',
+    });
+  },
+
+  async deleteStateSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return apiRequest(`/system/storage/snapshots/${snapshotId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Database storage optimization (FTS B-tree compaction, VACUUM freelist reclaim, WAL truncate)
+   */
+  async getStorageOptimizePreflight(): Promise<StorageOptimizePreflightResponse> {
+    return apiRequest<StorageOptimizePreflightResponse>('/system/storage/optimize-preflight', {
+      method: 'POST',
+    });
+  },
+
+  async executeStorageOptimize(req: StorageOptimizeRequest): Promise<StorageOptimizeResponse> {
+    return apiRequest<StorageOptimizeResponse>('/system/storage/optimize', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  },
+
+  /**
+   * OpenTelemetry APM posture and diagnostic metadata.
+   */
+  async getTelemetryPosture(): Promise<TelemetryPosture> {
+    return apiRequest<TelemetryPosture>(`/system/telemetry-posture?t=${Date.now()}`);
+  },
+};
+
+export interface DatabaseStorageBreakdown {
+  main_db_bytes: number;
+  wal_bytes: number;
+  shm_bytes: number;
+  total_bytes: number;
+}
+
+export interface TelemetryPosture {
+  status: 'active' | 'console' | 'degraded_console' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
+  initialized: boolean;
+  has_sdk: boolean;
+  endpoint: string | null;
+  protocol: string;
+  headers_configured: boolean;
+  local_trace_only: boolean;
+  exporter_type?: string;
+  degraded_reason?: string | null;
+  git_branch?: string | null;
+  git_commit?: string | null;
+  three_tier_semantics: boolean;
+  prompt_cache_metering: boolean;
+  error?: string;
+}
+
+export interface StorageOptimizePreflightResponse {
+  data_dir: string;
+  db_breakdown: DatabaseStorageBreakdown;
+  disk_free_bytes: number;
+  can_deep_optimize: boolean;
+  recommended_mode: 'deep' | 'light';
+  active_background_jobs: number;
+  is_safe_to_optimize: boolean;
+  reason: string | null;
+}
+
+export interface StorageOptimizeRequest {
+  mode: 'deep' | 'light';
+  create_backup?: boolean;
+}
+
+export interface StorageOptimizeResponse {
+  status: string;
+  mode: string;
+  before_bytes: number;
+  after_bytes: number;
+  reclaimed_bytes: number;
+  reclaimed_percentage: number;
+  backup_path: string | null;
+  duration_ms: number;
+  message: string;
+}

@@ -1,0 +1,639 @@
+"""General Agent — LangGraph-based autonomous agent with progressive disclosure.
+
+[INPUT]
+- tool_setup::ToolSetupMixin (POS: 工具初始化混入)
+- compression_intent (POS: 压缩意图构建)
+- llm_factory (POS: LLM 实例创建工厂)
+- core.memory.adapters.setup (POS: 记忆系统适配器)
+
+[OUTPUT]
+- GeneralAgent: 通用 Agent 主类
+
+[POS]
+通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），
+工具创建委托给 ToolSetupMixin。
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+from langchain_core.messages import BaseMessage
+from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
+from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
+
+from app.core.memory.adapters.setup import resolve_context_binding
+from app.core.memory.adapters.types import ResolvedContextBinding
+from app.core.types import MCPServerConfig, ModelConfig
+
+from .compression_intent import build_compression_intent
+from .tool_setup import ToolSetupMixin
+
+if TYPE_CHECKING:
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
+    from myrm_agent_harness.api import SkillAgent
+    from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
+    from myrm_agent_harness.toolkits.browser import BrowserSession
+    from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
+    from myrm_agent_harness.utils import CancellationToken
+    from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
+    from app.ai_agents.agents import ImageGenerationParams, TTSParams, VideoGenerationParams
+
+logger = logging.getLogger(__name__)
+
+TOOL_CALL_PLACEHOLDER = "(tool calls only)"
+SYSTEM_PROMPT_MARKER = "(system prompt detected"
+
+
+class GeneralAgent(ToolSetupMixin):
+    """General Agent - LangGraph-based autonomous agent.
+
+    Uses LangGraph StateGraph for fully autonomous decision-making.
+    Provides streaming events, progressive disclosure, and quality assessment.
+    """
+
+    def __init__(
+        self,
+        model_cfg: ModelConfig,
+        mcp_config: list[MCPServerConfig] | None,
+        search_service_cfg: SearchServiceConfig | None = None,
+        user_instructions: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+        lite_model_cfg: ModelConfig | None = None,
+        fallback_model_cfg: ModelConfig | None = None,
+        fallback_model_cfgs: list[ModelConfig] | None = None,
+        safety_fallback_model_cfg: ModelConfig | None = None,
+        fallback_lite_model_cfg: ModelConfig | None = None,
+        fallback_lite_model_cfgs: list[ModelConfig] | None = None,
+        vision_fallback_model_cfg: ModelConfig | None = None,
+        vision_fallback_model_cfgs: list[ModelConfig] | None = None,
+        video_fallback_model_cfgs: list[ModelConfig] | None = None,
+        memory_require_confirmation: bool = True,
+        enable_memory_auto_extraction: bool = True,
+        enable_conversation_search: bool = False,
+        incognito_mode: bool = False,
+        enable_advanced_retrieval: bool = False,
+        embedding_config: "EmbeddingConfig | None" = None,
+        reranker_config: "RerankerConfig | None" = None,
+        enable_structured_clarify: bool = False,
+        enable_web_search: bool = True,
+        enable_web_fetch: bool = True,
+        benchmark_blocked_hostnames: tuple[str, ...] = (),
+        benchmark_blocked_terms: tuple[str, ...] = (),
+        enable_browser: bool = False,
+        browser_source: str | None = None,
+        dialog_policy: str | None = None,
+        session_recording: str | None = None,
+        enable_computer_use: bool = False,
+        file_access_mode: FileAccessMode = FileAccessMode.FULL,
+        enable_shell_tools: bool = True,
+        enable_wiki: bool = False,
+        enable_kanban: bool = False,
+        enable_cron_eager: bool = False,
+        enable_answer_tool: bool = False,
+        enable_planning: bool = False,
+        enable_plan_confirm: bool = False,
+        enable_external_cli: bool = False,
+        enable_skill_market: bool = False,
+        enable_skill_manage: bool = False,
+        force_skill_manage: bool = False,
+        kanban_tool_mode: str = "orchestrator",
+        kanban_default_board_id: str | None = None,
+        kanban_current_task_id: str | None = None,
+        kanban_max_runtime_seconds: int | None = None,
+        kanban_zombie_timeout_seconds: int = 120,
+        unattended_mode: bool = False,
+        desktop_preapproved_trust_keys: Collection[str] | None = None,
+        desktop_unattended_fail_fast: bool = False,
+        auto_restore_domains: list[str] | None = None,
+        skill_ids: list[str] | None = None,
+        skill_configs: dict[str, dict] | None = None,
+        fetch_raw_webpage: bool = False,
+        enable_memory: bool = True,
+        security_config_raw: dict[str, object] | None = None,
+        agent_security_raw: dict[str, object] | None = None,
+        channel_name: str = "web_chat",
+        providers_dict: dict[str, object] | None = None,
+        light_model_cfg: ModelConfig | None = None,
+        reasoning_model_cfg: ModelConfig | None = None,
+        memory_channel_id: str | None = None,
+        memory_conversation_id: str | None = None,
+        memory_task_id: str | None = None,
+        memory_shared_context_ids: list[str] | None = None,
+        memory_shared_context_names: dict[str, str] | None = None,
+        memory_extra_namespaces: list[str] | None = None,
+        memory_base_path: str | None = None,
+        declared_capabilities: tuple[str, ...] = (),
+        declared_allowed_roots: tuple[str, ...] = (),
+        external_agents_config: list[dict[str, object]] | None = None,
+        force_external_agent: str | None = None,
+        image_generation_params: "ImageGenerationParams | None" = None,
+        video_generation_params: "VideoGenerationParams | None" = None,
+        tts_params: "TTSParams | None" = None,
+        privacy_enabled: bool = False,
+        privacy_s2_action: str = "warn",
+        privacy_s3_action: str = "redact",
+        privacy_routing_raw: dict[str, object] | None = None,
+        privacy_custom_keywords_s2: list[str] | None = None,
+        privacy_custom_keywords_s3: list[str] | None = None,
+        privacy_custom_patterns_s2: list[str] | None = None,
+        privacy_custom_patterns_s3: list[str] | None = None,
+        privacy_sensitive_tools_s2: list[str] | None = None,
+        privacy_sensitive_tools_s3: list[str] | None = None,
+        privacy_deep_scan: bool = False,
+        code_execution_allow_network: bool | None = None,
+        event_log_backend: "EventLogBackend | None" = None,
+        locale: str | None = None,
+        agent_id: str | None = None,
+        subagent_ids: list[str] | None = None,
+        jit_subagents: dict[str, object] | None = None,
+        session_loaded_skill_names: list[str] | None = None,
+        sandbox_base_dir: str | None = None,
+        max_iterations: int | None = None,
+        memory_policy: AgentMemoryPolicy | None = None,
+        memory_decay_profile: str | None = None,
+        memory_extraction_preset: str | None = None,
+        engine_params: dict[str, object] | None = None,
+        quote: str | None = None,
+        goal: dict[str, object] | None = None,
+        openapi_services: list[dict[str, object]] | None = None,
+        prompt_mode: str = "full",
+        search_depth: str = "normal",
+        tail_budget_ratio: float = 0.20,
+        notify_targets: tuple[dict[str, str], ...] = (),
+        a2a_enabled: bool = False,
+        a2a_trusted_peer_ids: list[str] | None = None,
+    ) -> None:
+        self.model_cfg = model_cfg
+        self.fallback_model_cfg = fallback_model_cfg
+        self.fallback_model_cfgs = fallback_model_cfgs
+        self.safety_fallback_model_cfg = safety_fallback_model_cfg
+        self.lite_model_cfg = lite_model_cfg
+        self.fallback_lite_model_cfg = fallback_lite_model_cfg
+        self.fallback_lite_model_cfgs = fallback_lite_model_cfgs
+        self.vision_fallback_model_cfg = vision_fallback_model_cfg
+        self.vision_fallback_model_cfgs = vision_fallback_model_cfgs
+        self.video_fallback_model_cfgs = video_fallback_model_cfgs
+        self.mcp_config = mcp_config
+        self.search_service_cfg = search_service_cfg
+        self.user_instructions = user_instructions
+        self.chat_id = chat_id
+        self.project_id = project_id
+        self.agent_id = agent_id
+        self.subagent_ids = subagent_ids
+        self.jit_subagents = jit_subagents
+        self.session_loaded_skill_names = session_loaded_skill_names
+        self.sandbox_base_dir = sandbox_base_dir
+        self.skill_ids = skill_ids or []
+        self.skill_configs = skill_configs
+        self.memory_require_confirmation = memory_require_confirmation
+        self.enable_memory_auto_extraction = enable_memory_auto_extraction
+        self.enable_conversation_search = enable_conversation_search
+        self.incognito_mode = incognito_mode
+        self.enable_advanced_retrieval = enable_advanced_retrieval
+        self.embedding_config = embedding_config
+        self.reranker_config = reranker_config
+        self.enable_structured_clarify = enable_structured_clarify
+        self.enable_web_search = enable_web_search
+        self.enable_web_fetch = enable_web_fetch
+        # Benchmark-only web content policy (hosts/queries) installed by the
+        # eval executor; empty in normal chat so product use is never filtered.
+        self.benchmark_blocked_hostnames = benchmark_blocked_hostnames
+        self.benchmark_blocked_terms = benchmark_blocked_terms
+        self.enable_browser = enable_browser
+        self.browser_source = browser_source
+        self.dialog_policy = dialog_policy
+        self.session_recording = session_recording
+        self.enable_computer_use = enable_computer_use
+        self.file_access_mode = file_access_mode
+        self.enable_shell_tools = enable_shell_tools
+        self.enable_wiki = enable_wiki
+        self.enable_kanban = enable_kanban
+        self.enable_cron_eager = enable_cron_eager
+        self.enable_answer_tool = enable_answer_tool
+        self.enable_planning = enable_planning
+        self.enable_plan_confirm = enable_plan_confirm
+        self.enable_external_cli = enable_external_cli
+        self.enable_skill_market = enable_skill_market
+        self.enable_skill_manage = enable_skill_manage
+        self.force_skill_manage = force_skill_manage
+        self.kanban_tool_mode = kanban_tool_mode
+        self.kanban_default_board_id = kanban_default_board_id
+        self.kanban_current_task_id = kanban_current_task_id
+        self.kanban_max_runtime_seconds = kanban_max_runtime_seconds
+        self.kanban_zombie_timeout_seconds = kanban_zombie_timeout_seconds
+        self.unattended_mode = unattended_mode
+        self.desktop_preapproved_trust_keys = tuple(desktop_preapproved_trust_keys or ())
+        self.desktop_unattended_fail_fast = desktop_unattended_fail_fast
+        self.auto_restore_domains = auto_restore_domains or []
+        self.fetch_raw_webpage = fetch_raw_webpage
+        self.enable_memory = enable_memory
+        self.security_config_raw = security_config_raw
+        self.agent_security_raw = agent_security_raw
+        self.channel_name = channel_name
+        self.memory_channel_id = memory_channel_id
+        self.memory_conversation_id = memory_conversation_id
+        self.memory_task_id = memory_task_id
+        self.memory_shared_context_ids = list(memory_shared_context_ids or [])
+        self.memory_shared_context_names = dict(memory_shared_context_names or {})
+        self.memory_extra_namespaces = list(memory_extra_namespaces or [])
+        self.memory_base_path = memory_base_path
+        self.declared_capabilities = declared_capabilities
+        self.declared_allowed_roots = declared_allowed_roots
+        self.external_agents_config = external_agents_config
+        self.force_external_agent = force_external_agent
+        self.image_generation_params = image_generation_params
+        self.video_generation_params = video_generation_params
+        self.tts_params = tts_params
+        self.privacy_enabled = privacy_enabled
+        self.privacy_s2_action = privacy_s2_action
+        self.privacy_s3_action = privacy_s3_action
+        self.privacy_routing_raw = privacy_routing_raw
+        self.privacy_custom_keywords_s2 = privacy_custom_keywords_s2 or []
+        self.privacy_custom_keywords_s3 = privacy_custom_keywords_s3 or []
+        self.providers_dict = providers_dict
+        self.light_model_cfg = light_model_cfg
+        self.reasoning_model_cfg = reasoning_model_cfg
+        self.privacy_custom_patterns_s2 = privacy_custom_patterns_s2 or []
+        self.privacy_custom_patterns_s3 = privacy_custom_patterns_s3 or []
+        self.privacy_sensitive_tools_s2 = privacy_sensitive_tools_s2 or []
+        self.privacy_sensitive_tools_s3 = privacy_sensitive_tools_s3 or []
+        self.privacy_deep_scan = privacy_deep_scan
+        self.code_execution_allow_network = code_execution_allow_network
+        self.event_log_backend = event_log_backend
+        self.locale = locale
+        self.max_iterations = max_iterations
+        self.memory_policy = memory_policy
+        self.memory_decay_profile = memory_decay_profile
+        self.memory_extraction_preset = memory_extraction_preset or "auto"
+        self.engine_params = engine_params
+        self.prompt_mode = prompt_mode
+        self.search_depth = search_depth
+        self.tail_budget_ratio = tail_budget_ratio
+        self.approval_session_key: str | None = None
+        self.agent: SkillAgent | None = None
+        self._lite_llm: BaseChatModel | object | None = None
+        self._browser_session: BrowserSession | None = None
+        self._browser_spaces: dict[str, BrowserSession] = {}
+        self._desktop_session: object | None = None
+        self._executor: CodeExecutor | None = None
+        self._current_chat_id: str | None = None
+        self._session_vault = None
+        self._runtime_pool: RuntimePool | None = None
+        self._runtime_pool_scope_id: str | None = None
+        self._runtime_pool_from_registry = False
+        self._runtime_pool_ephemeral = False
+        self.quote = quote
+        self.goal = goal
+        self.openapi_services = openapi_services or []
+        self.notify_targets = notify_targets
+        self.a2a_enabled = a2a_enabled
+        self.a2a_trusted_peer_ids = list(a2a_trusted_peer_ids or [])
+        self.moa_overlay_skip_reason: str | None = None
+
+    def _resolve_wiki_base_dir(self) -> str | None:
+        """Resolve writable wiki base directory for this agent."""
+        from app.services.wiki.vault import resolve_agent_wiki_vault_path
+
+        return str(resolve_agent_wiki_vault_path(self.agent_id))
+
+    def _resolve_wiki_public_dirs(self) -> list[str]:
+        """Resolve shared read-only wiki vaults bound to this agent."""
+        from app.services.wiki.vault import resolve_shared_wiki_vault_paths
+
+        return [str(path) for path in resolve_shared_wiki_vault_paths(self.memory_shared_context_ids)]
+
+    def _resolve_wiki_public_dir_labels(self) -> dict[str, str]:
+        """Resolve friendly display labels for shared wiki vaults."""
+        from app.services.wiki.vault import resolve_shared_wiki_vault_labels
+
+        context_name_map = dict(getattr(self, "memory_shared_context_names", None) or {})
+        return resolve_shared_wiki_vault_labels(
+            self.memory_shared_context_ids,
+            context_name_map=context_name_map or None,
+        )
+
+    def _build_wiki_search_fn(
+        self,
+    ) -> Callable[[str, list[Path]], Coroutine[None, None, list[tuple[Path, float]]]]:
+        """Build BM25 search function for wiki query engine.
+
+        Returns path for wiki storage.
+        BM25 provides significantly better relevance than simple keyword overlap
+        via TF-IDF weighting and document length normalization.
+        """
+        from myrm_agent_harness.toolkits.retriever.bm25_retrieval import bm25_retrieval
+
+        async def _wiki_bm25_search(
+            query: str,
+            concept_paths: list[Path],
+        ) -> list[tuple[Path, float]]:
+            """BM25 search over wiki concept files."""
+            docs: list[tuple[Path, str]] = []
+            for p in concept_paths:
+                try:
+                    docs.append((p, p.read_text(encoding="utf-8")))
+                except Exception:
+                    continue
+
+            if not docs:
+                return []
+
+            texts = [content for _, content in docs]
+            paths = [path for path, _ in docs]
+
+            scored = bm25_retrieval(texts, query, top_k=len(texts), only_relevant=True)
+            return [(paths[idx], score) for idx, score in scored]
+
+        return _wiki_bm25_search
+
+    def _resolve_context_binding(self, effective_chat_id: str) -> ResolvedContextBinding | None:
+        """Resolve the unified context binding contract for the current agent run."""
+
+        if not self.enable_memory or self.incognito_mode:
+            return None
+
+        return resolve_context_binding(
+            namespaces=self.memory_extra_namespaces or None,
+            agent_id=self.agent_id or "default",
+            channel_id=self.memory_channel_id or self.channel_name,
+            conversation_id=self.memory_conversation_id or effective_chat_id,
+            task_id=self.memory_task_id,
+            project_id=self.project_id,
+            shared_context_ids=self.memory_shared_context_ids,
+            memory_policy=self.memory_policy,
+        )
+
+    def _build_runtime_context(
+        self,
+        *,
+        query: object,
+        chat_history: (list[list[str]] | list[list[str | object]] | Sequence[BaseMessage] | None),
+        effective_chat_id: str,
+    ) -> dict[str, object]:
+        """Build server-layer runtime context passed into the harness."""
+        context: dict[str, object] = {}
+        from app.services.context.context_assembly import ContextAssemblyService
+
+        bundle = ContextAssemblyService.build_facade(ensure_layout=False)
+        context["workspaces_storage_root"] = ContextAssemblyService.harness_storage_root()
+        context["context_bundle_id"] = bundle.spec.bundle_id
+        if self.agent_id:
+            context["agent_id"] = self.agent_id
+        if self.user_instructions:
+            context["user_instructions"] = self.user_instructions
+        if self.prompt_mode != "full":
+            context["prompt_mode"] = self.prompt_mode
+        if self.locale:
+            context["prompt_locale"] = self.locale
+
+        session_id = f"chat_{effective_chat_id}"
+        context["session_id"] = session_id
+
+        if self.declared_allowed_roots:
+            from myrm_agent_harness.agent.types import WorkspaceBinding
+
+            context["workspace_binding"] = WorkspaceBinding(
+                mode="chat",
+                root_path=self.declared_allowed_roots[0],
+                chat_id=effective_chat_id,
+            )
+
+        if self.approval_session_key:
+            context["approval_session_key"] = self.approval_session_key
+
+        context["chat_id"] = effective_chat_id
+        if self.project_id:
+            context["project_id"] = self.project_id
+        if self.model_cfg.max_context_tokens:
+            context["max_context_tokens"] = self.model_cfg.max_context_tokens
+
+        if self.engine_params and self.engine_params.get("compress_start_ratio") is not None:
+            context["compress_start_ratio"] = self.engine_params["compress_start_ratio"]
+
+        context["supports_vision"] = self.model_cfg.supports_vision
+        context["supports_video"] = bool(getattr(self.model_cfg, "supports_video", False))
+        if self.vision_fallback_model_cfgs:
+            context["vision_fallback_model_cfgs"] = self.vision_fallback_model_cfgs
+        if self.vision_fallback_model_cfg:
+            context["vision_fallback_model_cfg"] = self.vision_fallback_model_cfg
+        if self.video_fallback_model_cfgs:
+            context["video_fallback_model_cfgs"] = self.video_fallback_model_cfgs
+
+        from app.core.utils.media_file_reader import read_uploaded_media_file_content
+
+        context["file_content_reader"] = read_uploaded_media_file_content
+
+        history_messages: Sequence[BaseMessage] | None = None
+        if chat_history is not None and len(chat_history) > 0:
+            first = chat_history[0]
+            if isinstance(first, BaseMessage):
+                history_messages = cast(Sequence[BaseMessage], chat_history)
+        compression_intent = build_compression_intent(
+            query=query,
+            chat_history=history_messages,
+            chat_id=self.chat_id,
+        )
+        if compression_intent is not None:
+            context["compression_intent"] = compression_intent
+
+        if self.quote:
+            from myrm_agent_harness.agent.types import QuoteAttachment
+
+            context["quote_attachment"] = QuoteAttachment(
+                source_message_id="",
+                quoted_text=self.quote,
+            )
+
+        if hasattr(self, "goal") and self.goal:
+            context["goal"] = self.goal
+
+        if self.session_loaded_skill_names and not self.incognito_mode:
+            from myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate import (
+                SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY,
+            )
+
+            context[SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY] = list(self.session_loaded_skill_names)
+
+        return context
+
+    async def process_stream(
+        self,
+        query: object,
+        chat_history: list[list[str]] | list[list[str | object]] | None = None,
+        message_id: str | None = None,
+        chat_id: str | None = None,
+        cancel_token: "CancellationToken | None" = None,
+        steering_token: "SteeringToken | None" = None,
+        timezone: str | None = None,
+        force_external_agent: str | None = None,
+        context: dict[str, object] | None = None,
+    ) -> AsyncGenerator[dict[str, object], None]:
+        from .stream_pipeline import execute_stream_pipeline
+
+        async for chunk in execute_stream_pipeline(
+            self,
+            query,
+            chat_history,
+            message_id,
+            chat_id,
+            cancel_token,
+            steering_token,
+            timezone,
+            force_external_agent,
+            extra_context=context,
+        ):
+            yield chunk
+
+    async def release_pooled_session(self) -> None:
+        """Release per-turn server resources without closing pooled SkillAgent/Browser."""
+        if self._runtime_pool is not None:
+            scope_id = getattr(self, "_runtime_pool_scope_id", None)
+            from_registry = getattr(self, "_runtime_pool_from_registry", False)
+            ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
+            try:
+                if from_registry and isinstance(scope_id, str) and scope_id.strip():
+                    from app.services.external_agents.runtime_pool_registry import (
+                        get_chat_runtime_pool_registry,
+                    )
+
+                    await get_chat_runtime_pool_registry().release(scope_id.strip())
+                elif ephemeral:
+                    await self._runtime_pool.close_all()
+            except Exception as e:
+                logger.warning("RuntimePool release failed: %s", e)
+            finally:
+                self._runtime_pool = None
+
+        if self._executor is not None and self._current_chat_id is not None:
+            try:
+                from myrm_agent_harness.runtime.context.offload import (
+                    cleanup_session_context_files,
+                )
+
+                await cleanup_session_context_files(self._current_chat_id, self._executor)
+            except Exception as e:
+                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
+
+    async def close(self) -> None:
+        """Close Agent and release resources."""
+        if self._runtime_pool is not None:
+            scope_id = getattr(self, "_runtime_pool_scope_id", None)
+            from_registry = getattr(self, "_runtime_pool_from_registry", False)
+            ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
+            try:
+                if from_registry and isinstance(scope_id, str) and scope_id.strip():
+                    from app.services.external_agents.runtime_pool_registry import (
+                        get_chat_runtime_pool_registry,
+                    )
+
+                    await get_chat_runtime_pool_registry().release(scope_id.strip())
+                elif ephemeral:
+                    await self._runtime_pool.close_all()
+            except Exception as e:
+                logger.warning("RuntimePool release failed: %s", e)
+            finally:
+                self._runtime_pool = None
+
+        if hasattr(self, "_browser_spaces") and self._browser_spaces:
+            for s_id, s_session in list(self._browser_spaces.items()):
+                try:
+                    await s_session.close()
+                except Exception as e:
+                    logger.warning(f"⚠️ BrowserSpace {s_id} close failed: {e}")
+            self._browser_spaces.clear()
+
+        if self._browser_session is not None:
+            try:
+                await self._browser_session.close()
+                self._capture_session_recording_info()
+            except Exception as e:
+                logger.warning(f"⚠️ BrowserSession close failed: {e}")
+            finally:
+                self._browser_session = None
+
+        if self._executor is not None:
+            try:
+                if self._current_chat_id is not None:
+                    from myrm_agent_harness.runtime.context.offload import (
+                        cleanup_session_context_files,
+                    )
+
+                    await cleanup_session_context_files(self._current_chat_id, self._executor)
+                await self._executor.close()
+            except Exception as e:
+                logger.warning(f"⚠️ Executor cleanup failed for chat_id={self._current_chat_id}: {e}")
+            finally:
+                self._executor = None
+
+        if self.agent is not None:
+            try:
+                await self.agent.close()
+                logger.info("Agent 资源已完全释放")
+            except Exception as e:
+                logger.warning(f"⚠️ 关闭 Agent 时发生错误: {e}")
+            finally:
+                self.agent = None
+
+    def _capture_session_recording_info(self) -> None:
+        """Store session recording metadata for SSE delivery after close."""
+        try:
+            session = self._browser_session
+            if session is None:
+                return
+            obs = getattr(session, "_observability", None)
+            if obs is None or not obs.recording_enabled:
+                return
+            video_path = obs.video_path
+            if video_path is None or not Path(video_path).exists():
+                return
+
+            from app.config.settings import get_settings
+
+            harness_dir = get_settings().database.harness_dir
+            relative_path = str(video_path)
+            if relative_path.startswith(harness_dir):
+                relative_path = relative_path[len(harness_dir) :]
+                if relative_path.startswith("/"):
+                    relative_path = relative_path[1:]
+
+            self._session_recording_info: dict[str, str] = {
+                "filename": Path(video_path).name,
+                "preview_url": f"/api/v1/files/vault/render?filepath={relative_path}&workspace={harness_dir}",
+                "content_type": "video/webm",
+            }
+            logger.info("Session recording captured: %s", video_path)
+        except Exception as e:
+            logger.debug("Session recording capture skipped: %s", e)
+
+    def register_browser_space(
+        self,
+        space_id: str,
+        session: BrowserSession,
+        name: str | None = None,
+    ) -> None:
+        """Register a browser session under a task space identifier."""
+        norm_space_id = space_id.strip() if space_id else "default"
+        session.task_space_id = norm_space_id
+        if name:
+            session.task_space_name = name
+        self._browser_spaces[norm_space_id] = session
+        if self._browser_session is None or norm_space_id == "default":
+            self._browser_session = session
+
+    def unregister_browser_space(self, space_id: str) -> BrowserSession | None:
+        """Unregister and return a browser session from task space."""
+        norm_space_id = space_id.strip() if space_id else "default"
+        session = self._browser_spaces.pop(norm_space_id, None)
+        if self._browser_session is session:
+            self._browser_session = next(iter(self._browser_spaces.values()), None)
+        return session

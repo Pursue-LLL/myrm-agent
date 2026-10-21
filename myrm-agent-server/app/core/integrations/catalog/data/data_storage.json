@@ -1,0 +1,109 @@
+[
+  {
+    "id": "postgres",
+    "name": "PostgreSQL",
+    "name_zh": "PostgreSQL 数据库",
+    "description": "Query and explore your PostgreSQL databases",
+    "description_zh": "查询和探索你的 PostgreSQL 数据库",
+    "icon": "database",
+    "category": "data_storage",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "postgres",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "description": "PostgreSQL - query, describe tables, explore schema"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "POSTGRES_CONNECTION_STRING",
+      "help_text": "Provide your PostgreSQL connection string (e.g. postgresql://user:pass@host:5432/db)",
+      "help_text_zh": "提供你的 PostgreSQL 连接字符串（如 postgresql://user:pass@host:5432/db）"
+    },
+    "tags": [
+      "database",
+      "sql",
+      "query",
+      "tables"
+    ],
+    "website": "https://postgresql.org"
+  },
+  {
+    "id": "filesystem",
+    "name": "File System",
+    "name_zh": "本地文件系统",
+    "description": "Read, write, and manage files on the local filesystem",
+    "description_zh": "读取、写入和管理本地文件系统中的文件",
+    "icon": "folder",
+    "category": "data_storage",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "filesystem",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/tmp"
+      ],
+      "description": "Local filesystem - read, write, list, search files"
+    },
+    "auth": {
+      "type": "none"
+    },
+    "tags": [
+      "files",
+      "local",
+      "filesystem",
+      "directory"
+    ]
+  },
+  {
+    "id": "supabase",
+    "name": "Supabase",
+    "name_zh": "Supabase",
+    "description": "Inspect and manage Supabase projects, databases, and storage",
+    "description_zh": "检查和管理 Supabase 项目、数据库和存储",
+    "icon": "supabase",
+    "category": "data_storage",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "supabase",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "{{access_token}}"
+      ],
+      "description": "Supabase - projects, databases, edge functions, storage"
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "{{access_token}}",
+          "label": "Access Token",
+          "label_zh": "访问令牌",
+          "inject": "arg_placeholder"
+        }
+      ],
+      "help_url": "https://supabase.com/dashboard/account/tokens",
+      "help_text": "Create an access token in Supabase Dashboard → Account → Access Tokens",
+      "help_text_zh": "在 Supabase Dashboard → 账户 → 访问令牌中创建"
+    },
+    "tags": [
+      "database",
+      "supabase",
+      "baas",
+      "storage",
+      "edge-functions"
+    ],
+    "website": "https://supabase.com"
+  }
+]

@@ -1,0 +1,210 @@
+import { describe, expect, it } from 'vitest';
+import {
+  sanitizeArchitectureIR,
+  computeDagreLayout,
+  traceFullConnectedCausalityGraph,
+  findShortestPath,
+} from '../layout';
+import { computeArchitectureDiff } from '../diff';
+import type { ArchitectureIR } from '../types';
+import { isArchitectureType } from '../../../artifactUtils';
+
+describe('Architecture Layout & Sanitization', () => {
+  it('sanitizes dangling edges and normalizes node fields', () => {
+    const raw: ArchitectureIR = {
+      title: 'Test Topology',
+      nodes: [
+        { id: 'node-1', label: 'Service A' },
+        { id: 'node-2', label: 'Service B' },
+        { id: 'node-1', label: 'Duplicate Service A' }, // duplicate id
+      ],
+      edges: [
+        { id: 'e-1', source: 'node-1', target: 'node-2', label: 'Calls' },
+        { id: 'e-2', source: 'node-1', target: 'nonexistent', label: 'Dangling' },
+      ],
+    };
+
+    const sanitized = sanitizeArchitectureIR(raw);
+    expect(sanitized.nodes.length).toBe(2);
+    expect(sanitized.nodes[0].id).toBe('node-1');
+    expect(sanitized.nodes[1].id).toBe('node-2');
+    expect(sanitized.edges.length).toBe(1);
+    expect(sanitized.edges[0].target).toBe('node-2');
+    expect(sanitized.edges[0].id).toBeDefined();
+  });
+
+  it('computes DAG layout with Dagre positioning nodes and edges', () => {
+    const raw: ArchitectureIR = {
+      title: 'DAG Test',
+      direction: 'TB',
+      nodes: [
+        { id: 'gateway', label: 'API Gateway', category: 'gateway' },
+        { id: 'order', label: 'Order Service', category: 'backend' },
+      ],
+      edges: [{ id: 'e1', source: 'gateway', target: 'order' }],
+    };
+
+    const layouted = computeDagreLayout(raw);
+    expect(layouted.nodes.length).toBe(2);
+    expect(layouted.edges.length).toBe(1);
+
+    const gatewayNode = layouted.nodes.find((n) => n.id === 'gateway');
+    const orderNode = layouted.nodes.find((n) => n.id === 'order');
+
+    expect(gatewayNode).toBeDefined();
+    expect(orderNode).toBeDefined();
+    if (gatewayNode && orderNode) {
+      // In TB (Top to Bottom) layout, gateway should have lower Y coordinate than order
+      expect(gatewayNode.position.y).toBeLessThan(orderNode.position.y);
+    }
+  });
+});
+
+describe('Architecture Evolution Diff', () => {
+  it('correctly categorizes added, deleted, modified, and unchanged elements', () => {
+    const before: ArchitectureIR = {
+      title: 'v1',
+      nodes: [
+        { id: 'frontend', label: 'Web UI', category: 'frontend' },
+        { id: 'monolith', label: 'Legacy Monolith', category: 'backend', description: 'v1.0' },
+      ],
+      edges: [{ id: 'e1', source: 'frontend', target: 'monolith' }],
+    };
+
+    const after: ArchitectureIR = {
+      title: 'v2',
+      nodes: [
+        { id: 'frontend', label: 'Web UI', category: 'frontend' }, // unchanged
+        { id: 'monolith', label: 'Legacy Monolith', category: 'backend', description: 'v2.0 modified' }, // modified
+        { id: 'microservice', label: 'New Service', category: 'backend' }, // added
+      ],
+      edges: [
+        { id: 'e2', source: 'frontend', target: 'microservice' }, // added
+      ],
+    };
+
+    const diff = computeArchitectureDiff(before, after);
+
+    const frontendNode = diff.nodes.find((n) => n.id === 'frontend');
+    const monolithNode = diff.nodes.find((n) => n.id === 'monolith');
+    const microserviceNode = diff.nodes.find((n) => n.id === 'microservice');
+
+    expect(frontendNode?.diffState).toBe('unchanged');
+    expect(monolithNode?.diffState).toBe('modified');
+    expect(microserviceNode?.diffState).toBe('added');
+
+    const addedEdge = diff.edges.find((e) => e.source === 'frontend' && e.target === 'microservice');
+    const deletedEdge = diff.edges.find((e) => e.source === 'frontend' && e.target === 'monolith');
+
+    expect(addedEdge?.diffState).toBe('added');
+    expect(deletedEdge?.diffState).toBe('deleted');
+
+    // Diff metrics check
+    expect(diff.diffSummary).toBeDefined();
+    expect(diff.diffSummary?.addedNodes).toBe(1);
+    expect(diff.diffSummary?.deletedNodes).toBe(0);
+    expect(diff.diffSummary?.modifiedNodes).toBe(1);
+    expect(diff.diffSummary?.addedEdges).toBe(1);
+    expect(diff.diffSummary?.deletedEdges).toBe(1);
+  });
+});
+
+describe('Full Multi-hop Path Tracer & Shortest Path Algorithm', () => {
+  it('finds directed shortest path between two points correctly', () => {
+    // web -> gateway -> order -> payment -> db
+    // web -> static_cdn (no path to db)
+    const edges = [
+      { id: 'e1', source: 'web', target: 'gateway' },
+      { id: 'e2', source: 'gateway', target: 'order' },
+      { id: 'e3', source: 'order', target: 'payment' },
+      { id: 'e4', source: 'payment', target: 'db' },
+      { id: 'e5', source: 'web', target: 'static_cdn' },
+    ];
+
+    const result = findShortestPath('web', 'db', edges);
+    expect(result.found).toBe(true);
+    expect(result.nodeIds).toEqual(['web', 'gateway', 'order', 'payment', 'db']);
+    expect(result.edgeIds).toEqual(['e1', 'e2', 'e3', 'e4']);
+
+    const noPathResult = findShortestPath('static_cdn', 'db', edges);
+    expect(noPathResult.found).toBe(false);
+    expect(noPathResult.nodeIds).toEqual([]);
+
+    const sameNodeResult = findShortestPath('web', 'web', edges);
+    expect(sameNodeResult.found).toBe(true);
+    expect(sameNodeResult.nodeIds).toEqual(['web']);
+  });
+
+  it('traverses full upstream and downstream causality graph and handles cycles gracefully', () => {
+    // Topology: client -> gateway -> order -> db
+    //                          \-> order -> cache
+    // Also cycle: order -> audit -> order
+    const edges = [
+      { id: 'e1', source: 'client', target: 'gateway' },
+      { id: 'e2', source: 'gateway', target: 'order' },
+      { id: 'e3', source: 'order', target: 'db' },
+      { id: 'e4', source: 'order', target: 'cache' },
+      { id: 'e5', source: 'order', target: 'audit' },
+      { id: 'e6', source: 'audit', target: 'order' }, // cycle
+      { id: 'e7', source: 'isolated_1', target: 'isolated_2' }, // isolated branch
+    ];
+
+    // Selecting 'order' should trace upstream to gateway & client, and downstream to db, cache, audit
+    const connectedToOrder = traceFullConnectedCausalityGraph('order', edges);
+    expect(connectedToOrder.has('order')).toBe(true);
+    expect(connectedToOrder.has('gateway')).toBe(true);
+    expect(connectedToOrder.has('client')).toBe(true);
+    expect(connectedToOrder.has('db')).toBe(true);
+    expect(connectedToOrder.has('cache')).toBe(true);
+    expect(connectedToOrder.has('audit')).toBe(true);
+    expect(connectedToOrder.has('isolated_1')).toBe(false);
+    expect(connectedToOrder.has('isolated_2')).toBe(false);
+
+    // Selecting 'client' should reach gateway, order, db, cache, audit
+    const connectedToClient = traceFullConnectedCausalityGraph('client', edges);
+    expect(connectedToClient.has('client')).toBe(true);
+    expect(connectedToClient.has('gateway')).toBe(true);
+    expect(connectedToClient.has('order')).toBe(true);
+    expect(connectedToClient.has('db')).toBe(true);
+    expect(connectedToClient.has('cache')).toBe(true);
+    expect(connectedToClient.has('audit')).toBe(true);
+    expect(connectedToClient.has('isolated_1')).toBe(false);
+  });
+});
+
+describe('Architecture Artifact Utility Contract', () => {
+  it('identifies architecture artifact files correctly', () => {
+    function isArch(contentType: string, filename: string): boolean {
+      return (
+        contentType.includes('application/x-architecture') ||
+        filename.endsWith('.arch.json') ||
+        filename.endsWith('.architecture.json')
+      );
+    }
+    expect(isArch('application/json', 'system.arch.json')).toBe(true);
+    expect(isArch('application/x-architecture', 'diagram.json')).toBe(true);
+    expect(isArch('application/json', 'architecture.json')).toBe(false);
+    expect(isArch('application/json', 'system.architecture.json')).toBe(true);
+    expect(isArch('text/plain', 'readme.txt')).toBe(false);
+  });
+
+  it('handles empty or malformed input gracefully without crashing', () => {
+    const emptyIR: ArchitectureIR = {
+      title: 'Empty',
+      nodes: [],
+      edges: [],
+    };
+    const sanitized = sanitizeArchitectureIR(emptyIR);
+    expect(sanitized.nodes).toEqual([]);
+    expect(sanitized.edges).toEqual([]);
+
+    const layout = computeDagreLayout(emptyIR);
+    expect(layout.nodes).toEqual([]);
+    expect(layout.edges).toEqual([]);
+
+    const diff = computeArchitectureDiff(emptyIR, emptyIR);
+    expect(diff.nodes).toEqual([]);
+    expect(diff.edges).toEqual([]);
+    expect(diff.diffSummary?.addedNodes).toBe(0);
+  });
+});

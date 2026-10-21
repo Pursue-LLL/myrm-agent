@@ -1,0 +1,79 @@
+# services/kanban/ 模块架构
+
+## 架构概述
+
+Kanban 看板业务编排层。协调 Harness 的 KanbanStore/KanbanDispatcher 与 Server 层的
+SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。根目录仅含门面与单域模块；
+同域实现细节分别位于 `task_runner/`、`service_mixins/`、`diagnostics/`、`pipeline/`、
+`decompose/`、`specify/` 六个子包。
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | 导出 KanbanService | ❌ |
+| `service.py` | ✅ 入口 | KanbanService 单例 facade（mixin 组合） | ✅ |
+| `service_mixins/` | ✅ 子包 | KanbanService 组合域（聚合入口被 service.py 门面与包根 `__init__.py` 消费；根操作模块因 mixin 依赖链须穿透 `.types`，见其 `__init__.py` IMPORT CONSTRAINT） | - |
+| ├─ `core.py` | ✅ 核心 | 单例状态、runner/specifier/decomposer 注入、`_wake_dispatcher`、agent 校验 | ❌ |
+| ├─ `types.py` | ✅ 核心 | DTO/异常/常量 | ❌ |
+| ├─ `ai_mixin.py` | ✅ 核心 | specify/decompose 工作流薄壳（直连 orchestrator） | ❌ |
+| ├─ `board_task_mixin.py` | ✅ 核心 | Board/Task 写操作薄壳（`update_board` 透传 `dispatchers` 使 settings 变更热生效） | ❌ |
+| └─ `query_dispatcher_mixin.py` | ✅ 核心 | 读查询薄壳 + dispatcher 生命周期（`KanbanReadMixin` / `KanbanDispatcherMixin`） | ❌ |
+| `task_runner/` | ✅ 子包 | TaskRunner 执行域（聚合出口见其 `__init__.py`） | - |
+| ├─ `runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；worker 工具绑定 + goal-mode GoalProvider 注入（未终结 PAUSED/BUDGET_LIMITED/WAIT 目标智能断点续跑，终态及 PAUSED/WAIT 挂起态向 KanbanTask 存储原子同步 `BLOCKED` 状态、`block_kind`、`blocked_reason` 与 `acceptance_results` 结构化元数据）；team protocol 与 **`profile_output_suffixes`**（人格 + `response_locale_policy`）注入 `user_instructions` 尾；注入 `event_log_dir` 使 kanban 任务写 event_log（供 RunsHub/看板 drawer trace 回放）；per-task `model_override` 优先于 agent profile 默认模型解析（override 无效时回退默认模型并记录 WARNING）；**`enable_memory` 遵循用户全局 `enableMemory` 开关（`resolve_memory_enabled`，与 channel/voice/cron 一致），看板无人值守任务不写用户已关闭的记忆**；`_augment_context` 把 `workspace_root`（工作目录）与 metadata `context_annotations`（业务注入的执行指令，如批量目录产物要求）追加进 worker 上下文；**`_workspace_lock` 对共享工作目录做 per-workspace 写串行化**（realpath 规范化 key + 同 workspace 任务互斥，worktree/None workspace 天然不阻塞，等待时按用户 locale 写友好 `progress_note`，锁表用后即清；**供应商额度窗口：`MyrmLLMError` 携带可等待的 `cooldown_remaining_ms`（≤24h）时返回 `BLOCKED` + `BlockKind.SCHEDULED` + `scheduled_until`，不计失败、窗口结束由 dispatcher 自动解除，超界或无信号走原失败路径**） | ✅ |
+| ├─ `stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query；PDF/Office 提取经 `files_service.get_content` SSOT | ❌ |
+| ├─ `profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |
+| └─ `worktree/` | ✅ 子包 | Git worktree 隔离域（聚合出口见其 `__init__.py`；`lifecycle.py` 路径解析/创建/合并编排，`merge.py` merge 前置 git 步骤，`cleanup.py` 清理，`landing_gate.py` 父任务合并失败时拦住依赖任务的运行入口；worktree add/remove/分支删除/merge 组合与 per-base_dir merge 锁/auto-commit/身份兜底复用共享 git 层 `app.core.utils.git_worktree`） | - |
+|    ├─ `__init__.py` | ✅ 核心 | 聚合门面：re-export `resolve_base_dir`/`resolve_workspace`/`create_worktree`/`merge_task_worktree`/`cleanup_worktree`/`worktree_dir`/`_sanitize_git_branch`/`_worktree_branch_name` | ❌ |
+|    ├─ `lifecycle.py` | ✅ 核心 | Worktree 生命周期编排：`resolve_base_dir`/`resolve_workspace`/`create_worktree`/`merge_task_worktree`/`_worktree_branch_name`（分支唯一化） | ❌ |
+|    ├─ `merge.py` | ✅ 核心 | merge 前置 git 辅助（`_branch_has_commits` / `_ensure_target_branch_checked_out` / `_is_valid_git_branch`） | ✅ |
+|    ├─ `cleanup.py` | ✅ 核心 | safe/force 清理（`cleanup_worktree`，dirty 保留防丢数据） | ✅ |
+|    └─ `landing_gate.py` | ✅ 核心 | `KanbanTaskRunner.run` 入口闸门 `hold_for_unlanded_parents`：先等父任务在途合并，再按父任务事件流里最新的 `MERGE_CONFLICT` 事件判定其代码没进分支，命中且用户未确认则返回 HUMAN 阻塞；在构造上下文之前返回，不调用模型 | ✅ |
+| `diagnostics/` | ✅ 子包 | 诊断域（聚合出口即 `__init__.py`，保留原 `diagnostics.py` 公共 API） | - |
+| ├─ `__init__.py` | ✅ 核心 | 诊断引擎工厂、摘要（`create_diagnostic_engine`、`CARD_FAST_RULES`、`compute_diagnostics_summary`） | ✅ |
+| ├─ `rules.py` | ✅ 核心 | 5 条诊断规则（滞留/失败/阻塞/死依赖/triage）+ 阈值与 helpers | ❌ |
+| └─ `cycle_rules.py` | ✅ 核心 | 循环阻塞 / IN_REVIEW 审批滞留 2 条诊断规则 | ❌ |
+| `pipeline/` | ✅ 子包 | Pipeline 模板域（聚合出口见其 `__init__.py`） | - |
+| ├─ `instantiator.py` | ✅ 核心 | Pipeline 模板实例化与 DAG 预估（`estimate_pipeline_plan`）；依赖父任务时继承 `source_chat_id`；`repeat_for_item_skills` 按平台注入 `extra_skill_ids` | ✅ |
+| └─ `spec_io.py` | ✅ 核心 | Pipeline frontmatter 解析；`TaskSeed.repeat_for_item_skills` 按 repeat 项注入技能 | ✅ |
+| `board_ops.py` | ✅ 核心 | Board CRUD + `project_id/milestone_id` 作用域校验与绑定；`update_board` 在 settings 变更时热刷新运行中 dispatcher（`refresh_board`） | ❌ |
+| `replan_ops.py` | ✅ 核心 | Plan Revision 业务编排：单事务原子修订、自动取消/熔断 RUNNING worker、级联 promote 解锁子任务与 SSE 广播 | ✅ |
+| `task_ops.py` | ✅ 核心 | Task add/update/delete；update 对 `require_approval` 有状态守卫（IN_REVIEW/COMPLETED/FAILED/ARCHIVED 禁改，仅活动状态 TRIAGE/BACKLOG/READY/RUNNING/BLOCKED 可改，避免审批流程开始后语义矛盾） | ❌ |
+| `move_orchestrator.py` | ✅ 核心 | move/reclaim/cancel 编排；IN_REVIEW 源/目标守卫（手动 move 绕过审批禁止）；带分支任务移到 COMPLETED / ARCHIVED 时，worktree 合并 / 清理经 `spawn_worktree_op` 在请求之外执行（先等 `git_slot`），请求不等 git（大仓库每条要数秒，批量会拖过客户端超时）；COMPLETED 的下游任务在合并落地后才放行（`_merge_then_release_dependents`，合并抛错或被取消也放行，否则下游永远停在 BACKLOG；在排队时被关机取消、合并根本没有开始，会记一条 `MERGE_CONFLICT` 事件），ARCHIVED 与无分支任务的下游立即放行；该后台合并经 `spawn_worktree_op(lands=…)` 登记为该任务的落地，在合并落地前被手动晋升、或被另一个父任务提前放行的下游，建工作区前仍会等它；`moved` 事件经 `publish_task_event` 发布（detail 与 `block_kind` 同派发器事件） | ❌ |
+| `worktree_ops.py` | ✅ 核心 | worktree 生命周期委派：`cleanup_task_worktree`（ARCHIVED safe cleanup，dirty 保留）、`merge_task_worktree`（COMPLETED 合并，失败经 `record_merge_failure` 追加 `MERGE_CONFLICT` 事件含 `conflicts` 列表）；`spawn_worktree_op`：登记到 harness 的 `track_background_task`（强引用 + 优雅关闭等待），失败写日志而不是消失，`lands=<task_id>` 把该后台合并登记为任务的落地（见 `worktree_landing.py`）；`git_slot`：后台合并 / 清理同时跑 git 的上限（`_MAX_CONCURRENT_GIT_OPS`=2，每个事件循环一个信号量），否则一次批量排队的几十条会同时占满线程池，拖慢排队它们的那条请求；派发器自己的合并不使用它，免得排在批量清理后面而它的下游已经被放行 | ❌ |
+| `worktree_landing.py` | ✅ 核心 | 进行中的已完成任务合并登记表（每个事件循环一张，按 task_id）：`register_landing` 由 `spawn_worktree_op(lands=…)` 调用，合并结束即移除；`wait_parents_landed` 由 `resolve_workspace`（建工作区前）与 `hold_for_unlanded_parents`（判定前）调用——依赖任务先等它父任务进行中的合并落地。调度器在父任务完成后立刻放行子任务而合并在后台跑，没有它子任务的 worktree 会从还不含父任务产出的 HEAD 切出。登记表为空时不读库；合并失败也结束等待（失败记在父任务上，是否放行由 `landing_gate` 判定）；最长等 120 秒后照常启动；用 `asyncio.wait`，超时与等待者被取消都不会取消合并 | ✅ |
+| `review_ops.py` | ✅ 核心 | IN_REVIEW 审批编排：approve→COMPLETED（promote dependents、error 清空）、reject→READY（reason 回写 error、retry_count 重置），优先委托 dispatcher，fallback 走 store 原子 CAS 流转 + 统一 action（task_completed/task_rejected）+ 完成/驳回通知补发（emit_task_rejected）；非 IN_REVIEW 幂等 no-op | ✅ |
+| `retry_ops.py` | ✅ 核心 | FAILED 任务人工重试编排：委托 dispatcher.retry_task（harness 单一实现：重置预算 + CAS FAILED→READY + `RETRYING` 事件 + emit/wake），无 dispatcher 时直接调用 harness `retry_failed_task` 并补发 `task_retrying` SSE；非 FAILED 幂等 no-op（返回当前状态），任务不存在返回 None | ✅ |
+| `race_orchestrator.py` | ✅ 核心 | 赛马编排：1 task→N lane 子任务扇出（`parent_task_id` 分组，各绑智能体/`model_override`，继承分支+`completion_criteria`，`require_approval=True`）；槽位门禁（N≤`max_concurrent_tasks`）+成本确认门禁（`estimate_race_cost` 走 runs 聚合，260 前 interim）；`pick_race_winner` 走 approve 合并 winner、ARCHIVED 归档 loser（分支保留）、无分支父任务 COMPLETED 无 git 副作用；`RACE_STARTED`/`RACE_DECIDED` 审计事件 | ✅ |
+| `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
+| `board_summary.py` | ✅ 核心 | `build_board_summary`（含 `stale_running_count`） | ❌ |
+| `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery；注册 task_completed/failed/blocked、task_review_requested 与 task_rejected 通知回调（SSE 经 `publish_task_event`）；task_completed 钩子经 `spawn_worktree_op(lands=task_id)` 在被追踪的后台任务里 merge（store 传入，失败可追加 `MERGE_CONFLICT` 事件；该合并登记为任务落地，下游建工作区前等它）；注册 `BatchDirectoryService.dispatcher_event_hook`（批量目录项目终态检测 → 完成/失败通知） | ❌ |
+| `event_publisher.py` | ✅ 核心 | SSE ServerEventBus 发布、`publish_task_event`（任务级更新：detail 是任务当前状态的原因，派发器的 `task_*` 与手动 `moved` 共用；已阻塞任务带 `block_kind`，定时阻塞的 detail 为空，由消费者安静处理）、`emit_btw_done`、`emit_source_chat_done`（completed/failed/blocked，scheduled block 跳过，共用 `_terminal_status`/`_terminal_result`；`_terminal_result` 每种终态只读自己的字段：完成读 `result`、阻塞读 `blocked_reason`、失败不带文本（`error` 是运行的异常原文，含供应商类名、工具名、SQL，用户无法据此行动，完整内容留在看板运行记录；与 `friendly_errors.py`「原文不进聊天」同一取向），不跨字段回退，因为任务被驳回或重试后仍带着上一次的 `result`，手动移动的卡片仍带着原有的 `error`）、`emit_review_requested`（IN_REVIEW 进入时 pending_review 通知）、`emit_task_rejected`（reject 时 rejected 通知，原因只取 `error`，共用 `_publish_task_notice`）；`_build_background_done_payload` 统一构造 BACKGROUND_TASK_DONE 载荷（BTW/source_chat 路由，thread_id/user_id 空值兜底，含 board_id 供通知点击直达看板 in_review 列） | ❌ |
+| `query_ops.py` | ✅ 核心 | Store 只读查询（含 `source_chat_id` / `project_id` 过滤）与 user comment | ❌ |
+| `kanban_attach_handler.py` | ✅ 核心 | Worker `kanban_attach` 回调：workspace 路径（相对路径与 `/workspace/...` 抽象路径按 resolve_workspace 基准解析，适配 worktree 隔离）+ HTTPS URL（SSRF guard）→ files vault + task attachment_ids | ✅ |
+| `decompose/` | ✅ 子包 | 分解域（聚合出口见其 `__init__.py`） | - |
+| ├─ `decomposer.py` | ✅ 核心 | PlatformTaskDecomposer（`load_platform_llm` + WebUI config） | ✅ |
+| └─ `orchestrator.py` | ✅ 核心 | TRIAGE→子任务图编排；子任务继承父任务 `source_chat_id` 与 `model_override`，不继承 `require_approval`（审批门禁作用于聚合交付物）；子任务按 body 提取 `completion_criteria` | ✅ |
+| `specify/` | ✅ 子包 | 规范化域（聚合出口见其 `__init__.py`） | - |
+| ├─ `specifier.py` | ✅ 核心 | PlatformTaskSpecifier | ✅ |
+| └─ `orchestrator.py` | ✅ 核心 | TRIAGE→spec 编排（`SPECIFY_ALL_MAX_CONCURRENT`、批扫） | ✅ |
+| `llm_utils.py` | ✅ 核心 | LLM 辅助工具（specify/decompose 共用） | ✅ |
+| `criteria_parser.py` | ✅ 核心 | Markdown `- [ ]` checklist → `completion_criteria` semantic 数组；`parse_markdown_criteria` 提取（section 感知：仅识别 `Acceptance criteria`/`验收条件` 标题后清单，无标题 fallback 全局扫描）+ `attach_completion_criteria` 安全附加（不覆盖用户已有 criteria，纯函数不原地修改；specify/decompose apply 时使用，schema 对齐 goal_handler `_parse_im_goal_text`） | ❌ |
+| `task_attachment_ids.py` | ✅ 核心 | 任务附件 ID 持久化 | ❌ |
+| `gc.py` | ✅ 核心 | KanbanGCService 自动垃圾回收 | ✅ |
+
+## 依赖关系
+
+### 内部依赖
+- `app/core/kanban/adapters/`：SqlAlchemyKanbanStore 持久化实现
+- `app/services/event/app_event_bus`：AppEvent、AppEventType、get_event_bus（SSE 实时事件发布）
+- `myrm_agent_harness/toolkits/kanban/`：KanbanDispatcher、TaskRunner Protocol、域类型、context_builder
+- `myrm_agent_harness/toolkits/kanban/diagnostics`：诊断框架 DTO/Protocol/Engine
+- `app/services/agent/profile_resolver`：AgentProfileResolver
+- `app/services/files/attachment_settings`：`extractDocumentText` 开关
+- `app/services/files/content_extraction`：PDF/Office 字节流提取
+- `app/ai_agents/agents`：AgentFactory、GeneralAgentParams
+
+### 被依赖方
+- `app/api/kanban/`：HTTP 路由层调用 KanbanService、诊断引擎
+- `app/services/agent/`：AgentService.delete_agent() 级联调用 clear_agent_references()

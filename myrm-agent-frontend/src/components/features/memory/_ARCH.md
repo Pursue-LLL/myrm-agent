@@ -1,0 +1,191 @@
+# memory/
+
+## 架构概述
+
+记忆中心：浏览、编辑、归档与召回相关 UI。
+
+组件按功能域收进子目录，根目录仅保留本架构文档与 `__tests__/`：
+
+| 子目录            | 职责                                                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `cards/`          | 单条记忆卡片与展示件（MemoryCard/ConflictCard/TypeIcon/Stats/详情 Sheet/摘要卡/EvidenceBadge） |
+| `drawers/`        | 抽屉浮层组件（EvidenceDrawer 证据溯源与上下文切片回放抽屉）                                    |
+| `command-center/` | 记忆命令中心（主布局/高级面板/Chrome/Doctor 诊断/主内容区面板编排）                            |
+| `dialogs/`        | 记忆相关对话框（创建/编辑/清空/归档恢复/导入审阅/共享规则/Connect Wizard）                     |
+| `guides/`         | 引导与说明卡（首次引导/分层说明）                                                              |
+| `hooks/`          | 记忆域自定义 hooks（归档恢复动作/Demo 种子）                                                   |
+| `insights/`       | 洞察展示（健康仪表盘/知识图谱/Shared Context 编辑预览）                                        |
+| `mesh/`           | 三域认知网格（DomainMesh 面板/三域卡片/追溯下钻/迁移弹窗）                                     |
+| `pending/`        | 待审批记忆（计数徽章/审批弹窗/批量列表）                                                       |
+| `replay/`         | 会话回放（回放器/消息气泡/召回面板/实时流/时间线工具）                                         |
+| `settings/`       | 设置区（功能开关/Tab 切换/回收站）                                                             |
+| `shared-context/` | 共享上下文（面板/目标绑定/健康横幅/面板 hook）                                                 |
+
+## 文件清单
+
+### cards/
+
+| 文件                           | 地位 | 职责                                                                                                                                                                                         | I/O/P |
+| ------------------------------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `MemoryCard.tsx`               | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数；受保护记忆（`is_user_locked`，规则锁定/语义情景固定）统一显示锁图标与本地化提示；集成 EvidenceBadge） | ✅    |
+| `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）                                                                                                        | ✅    |
+| `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                                                                                                                          | ✅    |
+| `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                                                                                                                                   | ✅    |
+| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源/演变历史时间线与纠正链）                                                                                                                                  | ✅    |
+| `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                                                                                                                          | ✅    |
+| `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                                                                                                                        | ✅    |
+| `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                                                                                                                                   | ✅    |
+| `RepoEvidenceCard.tsx`         | 组件 | 仓库历史证据卡片（Git 分支状态、未提交更改提示、最新 Commit 历史摘要与文件数量）                                                                                                             | ✅    |
+| `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                                                                                                                                 | ✅    |
+| `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                                                                                                                                   | ✅    |
+
+### drawers/
+
+| 文件                 | 地位 | 职责                                                                                                                            | I/O/P |
+| -------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `EvidenceDrawer.tsx` | 组件 | 证据溯源抽屉浮层（异步拉取上下文切片、原话模糊高亮、工具执行原话/报错切片展示与一键复制、敏感凭据屏蔽、一键误判标记与纠偏加锁） | ✅    |
+
+### command-center/
+
+| 文件                                    | 地位 | 职责                                                                                                                                                                                                     | I/O/P |
+| --------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `MemoryCommandCenter.tsx`               | 核心 | 记忆命令中心主布局入口；消费 migration manifest authoritative 语义并驱动向导深链；支持通过 URL `?project=` 或下拉筛选器按项目过滤 SharedContext 记忆空间                                                 | ✅    |
+| `MemoryCommandCenterAdvancedPanels.tsx` | 组件 | 高级面板：导入/导出/图谱/Doctor                                                                                                                                                                          | ✅    |
+| `MemoryCommandCenterChrome.tsx`         | 组件 | 命令中心顶栏、Tab 与搜索框                                                                                                                                                                               | ✅    |
+| `MemoryCommandCenterDoctorPanel.tsx`    | 组件 | 记忆系统 Doctor 诊断面板；含静态检查、可执行诊断、结构化 benchmark 指标卡片与历史趋势（最近 N 次 recall@5/ndcg@5/mrr/latency p50/p95 + 上次 delta + 类别通过率 + run 状态徽章 + embedding 模型漂移提示） | ✅    |
+| `MemoryCommandCenterPanels.tsx`         | 组件 | 主内容区观察/治理/验证分区面板编排（含 migration 最近导入 batch 的执行就绪/首轮 outcome 展示与迁移入口编排）                                                               | ✅    |
+| `MemoryCommandCenterUnderstandSection.tsx` | 组件 | 「理解」分区面板：记忆能力卡片挂载与影响/冲突展示 | ✅    |
+| `MemoryCommandCenterObservationPanels.tsx` | 组件 | 只读观测子面板：影响行、实时事件流、运行时状态、成本与回放 | ✅    |
+| `MemoryCommandCenterGovernancePanels.tsx` | 组件 | 治理子面板：治理动作行、迁移覆盖与来源清单（manifest chips 深链导入向导）、整合回滚卡片 | ✅    |
+| `MemoryCommandCenterPrimitives.tsx`     | 组件 | 分区面板共用原子组件：版块、指标块、运行时行、空态 | ✅    |
+| `memoryCommandCenterFormat.ts`          | 组件 | 分区面板共用枚举守卫与文案格式化 | ✅    |
+
+### dialogs/
+
+| 文件                             | 地位 | 职责                                                                                                                                                                                                      | I/O/P |
+| -------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `ConnectWizardDialog.tsx`        | 组件 | 外部 AI 工具 Connect Wizard：Myrm Agent Profile 选择器 + 外部工具 profile 选择 → 生成 MCP 配置（token 携带 agent_id 作用域）→ Agent Plugins bundle 生成/逐文件与整体 zip 下载 → doctor 验证 → revoke 管理 | ✅    |
+| `MemoryArchiveRestoreDialog.tsx` | 组件 | 记忆归档批量恢复确认对话框                                                                                                                                                                                | ✅    |
+| `MemoryClearAllDialog.tsx`       | 组件 | 清空全部记忆二次确认                                                                                                                                                                                      | ✅    |
+| `MemoryCreateDialog.tsx`         | 组件 | 手动创建记忆对话框                                                                                                                                                                                        | ✅    |
+| `MemoryEditDialog.tsx`           | 组件 | 编辑记忆内容与标签                                                                                                                                                                                        | ✅    |
+| `MemoryImportReviewDialog.tsx`   | 组件 | 批量导入 dry-run 结果审阅                                                                                                                                                                                 | ✅    |
+| `ShareRulesDialog.tsx`           | 组件 | 共享规则对话框                                                                                                                                                                                            | ✅    |
+
+### guides/
+
+| 文件                   | 地位 | 职责                                                                           | I/O/P |
+| ---------------------- | ---- | ------------------------------------------------------------------------------ | ----- |
+| `MemoryGuide.tsx`      | 组件 | 首次使用记忆功能引导                                                           | ✅    |
+| `MemoryLayerGuide.tsx` | 组件 | Command Center 记忆分层说明卡（工作集/任务状态/长期记忆/原始证据，只读注释型） | ✅    |
+
+### hooks/
+
+| 文件                                | 地位 | 职责                   | I/O/P |
+| ----------------------------------- | ---- | ---------------------- | ----- |
+| `useMemoryArchiveRestoreActions.ts` | 辅助 | 记忆归档恢复动作 hooks | ✅    |
+| `useMemoryDemoSeed.ts`              | 辅助 | Demo 种子数据 hooks    | ✅    |
+| `useMemoryCommandCenterActions.ts`  | 核心 | 命令中心写操作 hooks   | ✅    |
+
+### insights/
+
+| 文件                         | 地位 | 职责                                                                                              | I/O/P |
+| ---------------------------- | ---- | ------------------------------------------------------------------------------------------------- | ----- |
+| `BehavioralMetricsPanel.tsx` | 组件 | 零大模型开销本地确定性行为特征看板（双轨作息直方图、响应时延胶囊、高频协作者排名）                | ✅    |
+| `MemoryContextPanel.tsx`     | 组件 | Shared Context 编辑与预览                                                                         | ✅    |
+| `MemoryHealthDashboard.tsx`  | 组件 | 记忆健康度指标仪表盘                                                                              | ✅    |
+| `MemoryKnowledgeGraph.tsx`   | 组件 | 记忆知识图谱 force-graph 与核心主张排名列表双重视图看板（集成 RankedHubSidebar、GraphEmptyState） | ✅    |
+| `RankedHubSidebar.tsx`       | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                                  | ✅    |
+| `GraphEmptyState.tsx`        | 组件 | 知识图谱三态精细化诊断引导与恢复空态组件（存储离线、零主张与孤岛散点态）                          | ✅    |
+
+### mesh/
+
+| 文件                        | 地位 | 职责                                                                                   | I/O/P |
+| --------------------------- | ---- | -------------------------------------------------------------------------------------- | ----- |
+| `MemoryDomainMeshPanel.tsx` | 核心 | 三域认知网格主看板（User/Assistant/Task 域划分、条目统计、精选摘要卡片与导入迁移触发） | ✅    |
+| `DomainMeshCard.tsx`        | 组件 | 领域卡片呈现组件（域标识、高亮条目渲染与下钻详情触发）                                 | ✅    |
+| `MemoryDrillDownDialog.tsx` | 组件 | 记忆下钻追溯弹窗（消费级 ToC 纯净化展示、核心摘要与长文本滚动防爆容器、一键内容复制）  | ✅    |
+| `HermesMigrationModal.tsx`  | 组件 | 零摩擦外部记忆导入与迁移弹窗（支持 Hermes / Markdown / JSON 自动归类与无缝同步）       | ✅    |
+| `useMeshLabels.ts`          | 辅助 | 域、类别、记忆类型标识符 → 当前语言名称（未知标识符原样返回）                          | ✅    |
+
+### pending/
+
+| 文件                      | 地位 | 职责                                                                                                                                                                       | I/O/P |
+| ------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `PendingMemoryBadge.tsx`  | 组件 | 待审批记忆计数徽章（ChatWindow 顶栏入口，待审批与冲突总数均为 0 时隐藏；纯展示，新冲突通知由全局 memory_operation SSE toast 承担）                                         | ✅    |
+| `PendingMemoryDialog.tsx` | 组件 | 待审批记忆审批弹窗（支持结构化元数据胶囊条、提取依据可折叠展示、编辑（档案条目与遗忘提案无可编辑文本，不提供编辑）、批准、拒绝、来源跳转；连续审批：处理完自动显示下一条） | ✅    |
+| `PendingMemoryList.tsx`   | 组件 | 待审批记忆列表（含批量操作与结构化卡片展示，用于 MemorySection pending tab）                                                                                               | ✅    |
+
+### replay/
+
+| 文件                          | 地位 | 职责                                                                          | I/O/P |
+| ----------------------------- | ---- | ----------------------------------------------------------------------------- | ----- |
+| `ConversationRecallPanel.tsx` | 组件 | 历史会话召回搜索与插入面板                                                    | ✅    |
+| `ExternalHarnessSyncCard.tsx` | 组件 | 外部 Agent 会话召回管理卡片（本地目录增量同步与浏览器端目录一键选择上传）     | ✅    |
+| `ModelViewportView.tsx`       | 组件 | 结构化模型视口检视卡片（按角色展开提示词、遥测摘要、截断提示与一键复制）      | ✅    |
+| `ReplayControls.tsx`          | 组件 | 回放控制条（标题/跳错/速度/播放暂停/带事件标记的进度条）                      | ✅    |
+| `ReplayInspector.tsx`         | 组件 | 回放明细检查器（当前时间线事件的错误/工具结果/安全标签/LLM 视口与一键 Fork）  | ✅    |
+| `ReplayMessageBubble.tsx`     | 组件 | 回放消息气泡                                                                  | ✅    |
+| `ReplayMindView.tsx`          | 组件 | 回放脑图面板（LLM 调用/记忆事件/人工反馈/推理轨迹/带安全徽标的工具行）        | ✅    |
+| `SessionReplayPlayer.tsx`     | 组件 | 会话回放播放器（编排 Controls/MindView/Inspector 三栏，支持时间机器派生分支） | ✅    |
+| `memoryLiveStream.ts`         | 工具 | 记忆实时流事件解析与 replay session 解析                                      | ✅    |
+| `replayTimeline.ts`           | 工具 | 回放时间线构建                                                                | ✅    |
+| `viewportParser.ts`           | 工具 | 模型视口纯函数解析器（从 prompt_preview 提取结构化角色消息与遥测元数据）      | ✅    |
+
+### settings/
+
+| 文件                        | 地位 | 职责                                  | I/O/P |
+| --------------------------- | ---- | ------------------------------------- | ----- |
+| `MemorySettingsToggles.tsx` | 组件 | 记忆功能开关组（auto-save/recall 等） | ✅    |
+| `MemoryTabSwitcher.tsx`     | 组件 | All/Pending/Archive Tab 切换          | ✅    |
+| `MemoryTrashPanel.tsx`      | 组件 | 已删除记忆回收站                      | ✅    |
+
+### shared-context/
+
+| 文件                                  | 地位 | 职责                     | I/O/P |
+| ------------------------------------- | ---- | ------------------------ | ----- |
+| `SharedContextPanel.tsx`              | 组件 | 共享上下文面板           | ✅    |
+| `SharedContextTargetBinding.tsx`      | 组件 | 共享上下文目标绑定       | ✅    |
+| `SharedContextMemoryHealthBanner.tsx` | 组件 | 共享上下文健康横幅       | ✅    |
+| `useSharedContextPanel.ts`            | 辅助 | 共享上下文面板状态 hooks | ✅    |
+
+### 测试
+
+| 文件                                                | 职责                                                                         | I/O/P |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- | ----- |
+| `__tests__/MemoryCommandCenterDoctorPanel.test.tsx` | Doctor 诊断面板渲染与健康指标卡测试                                          | ✅    |
+| `__tests__/MemoryCommandCenterPanels.test.tsx`      | 迁移入口常显、manifest chips 深链与渲染守卫测试                              |
+| `__tests__/MemoryImportReviewDialog.test.tsx`       | 导入审阅弹窗：解析样例、告警文案与未知来源标签回退测试                        | ✅    |
+| `__tests__/MemoryCommandCenterSections.test.tsx`    | 观察/理解分区渲染、事件流回放入口守卫与影响/冲突空态测试                     | ✅    |
+| `__tests__/memoryCommandCenterFormat.test.ts`       | 命令中心文案格式化：枚举翻译与回显、操作类型与实时流描述分支、枚举守卫测试   | ✅    |
+| `__tests__/MemoryCard.ttl.test.tsx`                 | procedural 卡片 TTL 显示：未锁定显示过期天数、用户锁定（is_user_locked）隐藏 | ✅    |
+| `__tests__/PendingMemoryList.test.tsx`              | 待审批记忆列表批量操作测试                                                   | ✅    |
+| `__tests__/SharedContextPanel.test.tsx`             | 共享上下文面板测试                                                           | ✅    |
+| `__tests__/SharedContextTargetBinding.test.tsx`     | 共享上下文目标绑定测试                                                       | ✅    |
+| `__tests__/memoryLiveStream.test.ts`                | 记忆实时流测试                                                               | ✅    |
+| `__tests__/replayTimeline.test.ts`                  | 记忆回放时间线测试                                                           | ✅    |
+| `__tests__/viewportParser.test.ts`                  | 模型视口纯函数解析器单测（分角色拆解/截断提示/空值守卫）                     | ✅    |
+| `__tests__/ModelViewportView.test.tsx`              | 结构化模型视口检视卡片渲染与剪贴板单测                                       | ✅    |
+| `__tests__/SessionReplayPlayer.test.tsx`            | 回放播放器安全徽标渲染、store selector 稳定性与时间机器派生分支交互测试      | ✅    |
+| `__tests__/MemoryScopeComponents.test.tsx`          | 记忆作用域层级卡片、选择器与 Doctor Mislayer Guard 诊断交互测试              | ✅    |
+| `__tests__/MemoryDetailSheet.evolution.test.tsx`    | 详情 Sheet 演变历史时间线与纠正链渲染测试（parseMergeHistory 解析契约）      | ✅    |
+| `cards/__tests__/ConflictCard.test.tsx`             | 冲突记忆卡渲染测试                                                           | ✅    |
+| `__tests__/BehavioralMetricsPanel.test.tsx`         | 零大模型开销行为特征看板测试                                                 | ✅    |
+| `__tests__/ConflictResolutionCard.test.tsx`         | 命令中心冲突解决卡渲染测试                                                   | ✅    |
+| `__tests__/EvidenceDrawer.test.tsx`                 | 证据溯源抽屉测试                                                             | ✅    |
+| `__tests__/RepoEvidenceCard.test.tsx`               | 仓库历史证据卡片测试                                                         | ✅    |
+| `pending/__tests__/PendingMemoryBadge.test.tsx`     | 待审批记忆计数徽章测试                                                       | ✅    |
+| `pending/__tests__/PendingMemoryDialog.test.tsx`    | 待审批记忆审批弹窗交互测试                                                   | ✅    |
+| `__tests__/MemoryDomainMeshPanel.test.tsx`          | 三域认知网格渲染、下钻、标识符本地化、复制反馈与零条导入保留输入测试         | ✅    |
+| `__tests__/PromptCacheConsolidationView.test.tsx`   | 缓存归档 HUD：无遥测时不展示伪造命中率                                       | ✅    |
+| `__tests__/PromptCachePreservingDeltaCard.test.tsx` | 瞬态增量双轨卡片：预览注入与会话 reconcile 交互                              | ✅    |
+
+## 依赖
+
+- `@/store/*`、`@/services/*`、`@/components/primitives/*`
+- 父模块 [`features/_ARCH.md`](../_ARCH.md)
+
+## 引用规范
+
+- 域内跨子目录引用一律用相对路径（如 `../cards/...`），禁止经目录级 `index.ts` 桶文件聚合，避免循环依赖与 tree-shaking 损伤。
+- 外部模块消费 memory 组件一律直连子目录路径（如 `@/components/features/memory/cards/MemoryCard`）；禁止在子目录中新增 `index.ts` 桶文件。

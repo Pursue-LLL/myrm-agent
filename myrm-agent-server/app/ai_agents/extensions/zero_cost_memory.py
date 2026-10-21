@@ -1,0 +1,199 @@
+"""[INPUT]
+- myrm_agent_harness.agent.context_management.infra.schemas::EvictedToolCall (POS: 上下文裁剪淘汰工具调用模型)
+- myrm_agent_harness.agent.extensions.protocols::AgentExtension (POS: 智能体运行时扩展协议)
+- myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: 核心记忆管理器)
+
+[OUTPUT]
+- ZeroCostMemoryExtension: 基于上下文管道工具淘汰的零开销后台自动记忆提取扩展
+- EvictionCallback: 上下文裁剪淘汰回调函数类型
+
+[POS]
+零开销后台自动记忆提取扩展。在上下文管道清理历史工具调用时，异步调用轻量 LLM
+提取有效偏好与长期记忆，内置沙箱型智能体安全门控（阻断瞬态代码/终端日志污染 L3）。
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.tools import BaseTool
+from myrm_agent_harness.agent.context_management.infra.schemas import EvictedToolCall
+from myrm_agent_harness.agent.extensions.protocols import AgentExtension
+
+if TYPE_CHECKING:
+    from langchain.agents.middleware import AgentMiddleware
+    from myrm_agent_harness.agent.base_agent import BaseAgent
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+logger = logging.getLogger(__name__)
+
+EvictionCallback = Callable[
+    [list[EvictedToolCall], str],
+    Coroutine[object, object, None],
+]
+
+
+class ZeroCostMemoryExtension(AgentExtension):
+    """Extension that intercepts evicted tool calls/responses from the ContextPipeline
+    and automatically extracts long-term memories using an LLM in the background.
+
+    The eviction callback is built eagerly via ``build_eviction_callback()`` so that
+    ``factory.py`` can pass it to ``create_context_pipeline_middleware`` before the
+    agent graph is created.
+
+    Deep PII scan is resolved from the live ``PrivacyPolicy`` at extraction time
+    (``get_privacy_policy().deep_scan``) instead of being captured at callback build
+    time: the callback can outlive the run that created it (pooled agent reuse), so
+    a stale value would leak PII or silently waste LLM calls when the user toggles
+    privacy settings between turns.
+    """
+
+    def __init__(
+        self,
+        enable_memory_auto_extraction: bool,
+        is_subagent: bool,
+        channel_name: str,
+        memory_manager: MemoryManager | None,
+        effective_chat_id: str,
+        extractor_llm: BaseChatModel,
+        *,
+        memory_extraction_preset: str = "auto",
+        is_sandbox_capable: bool = False,
+    ) -> None:
+        self.enable_memory_auto_extraction = enable_memory_auto_extraction
+        self.is_subagent = is_subagent
+        self.channel_name = channel_name
+        self.memory_manager = memory_manager
+        self.effective_chat_id = effective_chat_id
+        self.extractor_llm = extractor_llm
+        self.memory_extraction_preset = memory_extraction_preset
+        self.is_sandbox_capable = is_sandbox_capable
+
+    @property
+    def name(self) -> str:
+        return "ZeroCostMemoryExtension"
+
+    def build_eviction_callback(self) -> EvictionCallback | None:
+        """Build the compress-eviction callback for the context pipeline middleware.
+
+        Returns ``None`` when memory extraction is disabled or unavailable.
+        Must be called before ``create_context_pipeline_middleware``.
+        """
+        if not self.enable_memory_auto_extraction or self.memory_manager is None:
+            return None
+
+        if self.is_subagent or self.channel_name == "subagent":
+            logger.info("🧠 [Zero-Cost Memory] Skipped for subagent to prevent global memory pollution.")
+            return None
+
+        if self.is_sandbox_capable:
+            logger.info(
+                "🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction for sandbox-capable agent to prevent transient code/terminal pollution."
+            )
+            return None
+
+        policy = self.memory_manager.memory_policy
+        if policy is not None and not policy.allow_l3_extraction:
+            logger.info("🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction: policy.allow_l3_extraction is False.")
+            return None
+
+        from myrm_agent_harness.api.hooks import (
+            create_extraction_llm_func,
+            get_privacy_policy,
+            persist_extracted_memories,
+        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractionConfig, MemoryExtractor
+
+        llm_func = create_extraction_llm_func(self.extractor_llm)
+        config = ExtractionConfig(
+            enable_task_digest=False,
+            domain_preset=self.memory_extraction_preset,
+        )
+        extractor = MemoryExtractor(config=config, llm_func=llm_func)
+        memory_manager = self.memory_manager
+        effective_chat_id = self.effective_chat_id
+
+        async def _compress_eviction_cb(
+            evicted_pairs: list[EvictedToolCall],
+            user_goal_hint: str,
+        ) -> None:
+            messages_for_extraction: list[dict[str, object]] = []
+            if user_goal_hint:
+                messages_for_extraction.append({"role": "system", "content": f"User Goal Context: {user_goal_hint}"})
+
+            for evicted in evicted_pairs:
+                messages_for_extraction.append(
+                    {
+                        "role": "assistant",
+                        "content": f"{evicted.ai_msg.content}\nToolCalls: {getattr(evicted.ai_msg, 'tool_calls', [])}",
+                    }
+                )
+                messages_for_extraction.append(
+                    {
+                        "role": "user",
+                        "content": f"ToolResult ({getattr(evicted.tool_msg, 'name', 'unknown')}):\n{evicted.original_content}",
+                    }
+                )
+
+            async def _extract_background() -> None:
+                try:
+                    # Resolve deep scan at extraction time: the eviction callback may be
+                    # built once per pooled agent unit and reused across turns, so reading
+                    # the current PrivacyPolicy keeps this path consistent with the
+                    # session-end and goal-learnings memory writes.
+                    deep_scan_llm = llm_func if get_privacy_policy().deep_scan else None
+                    result = await extractor.extract(
+                        messages_for_extraction,
+                        correction_detected=False,
+                    )
+                    if result.memories:
+                        await persist_extracted_memories(
+                            result.memories,
+                            memory_manager,
+                            effective_chat_id,
+                            deep_scan_llm_func=deep_scan_llm,
+                        )
+                        count = len(result.memories)
+                        logger.info(
+                            "🧠 [Zero-Cost Memory] Auto-extracted %d memories from %d evicted tools",
+                            count,
+                            len(evicted_pairs),
+                        )
+                        try:
+                            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+                            get_event_bus().publish(
+                                AppEvent(
+                                    event_type=AppEventType.MEMORY_OPERATION,
+                                    data={
+                                        "operation": "auto_memory_extracted",
+                                        "count": count,
+                                        "source": "eviction",
+                                        "chat_id": effective_chat_id,
+                                    },
+                                )
+                            )
+                        except Exception:
+                            pass
+                except Exception as e:
+                    logger.warning("Eviction memory extraction failed: %s", e)
+
+            asyncio.create_task(_extract_background())
+
+        return _compress_eviction_cb
+
+    async def on_agent_init(self, agent: BaseAgent) -> None:
+        pass
+
+    async def on_agent_shutdown(self, agent: BaseAgent) -> None:
+        pass
+
+    def get_tools(self) -> list[BaseTool] | None:
+        return None
+
+    def get_middlewares(self) -> list[AgentMiddleware[object, object]] | None:
+        return None

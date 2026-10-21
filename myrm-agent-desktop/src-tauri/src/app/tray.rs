@@ -1,0 +1,229 @@
+//! 系统托盘初始化与状态管理
+//!
+//! [INPUT]
+//! - super::lifecycle::graceful_shutdown (POS: 优雅停机)
+//! - 前端 useTrayEvents.ts 监听 tray:new_chat / tray:settings / tray:workspace 事件
+//!
+//! [OUTPUT]
+//! - setup_tray: 初始化 Tray 菜单（Show / New Chat / Settings / Workspace / Quit）
+//! - set_tray_status: IPC 命令，前端同步 Agent 运行状态与 i18n tooltip 到托盘
+//! - update_native_tray_status: Rust 侧托盘 error/idle 状态（watchdog、启动失败）
+//!
+//! [POS]
+//! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。
+
+use tauri::image::Image;
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager};
+
+static ENGINE_VER_ITEM: std::sync::Mutex<Option<MenuItem<tauri::Wry>>> =
+    std::sync::Mutex::new(None);
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        {
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+        if window.is_minimized().unwrap_or(false) {
+            let _ = window.unminimize();
+        }
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn show_and_navigate(app: &AppHandle, event_name: &str) {
+    if let Some(window) = app.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        {
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+        if window.is_minimized().unwrap_or(false) {
+            let _ = window.unminimize();
+        }
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.emit(event_name, ());
+    }
+}
+
+fn load_tray_icon() -> Result<Image<'static>, Box<dyn std::error::Error>> {
+    Ok(Image::from_bytes(include_bytes!(
+        "../../icons/tray_icon@2x.png"
+    ))?)
+}
+
+pub fn load_tray_icon_for_status(
+    status: &str,
+) -> Result<Image<'static>, Box<dyn std::error::Error>> {
+    match status {
+        "busy" => Ok(Image::from_bytes(include_bytes!(
+            "../../icons/tray_icon_busy@2x.png"
+        ))?),
+        "degraded" | "error" => Ok(Image::from_bytes(include_bytes!(
+            "../../icons/tray_icon_degraded@2x.png"
+        ))?),
+        _ => load_tray_icon(),
+    }
+}
+
+pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let version = app.package_info().version.to_string();
+    let shell_ver_text = format!("Myrm Desktop: v{version}");
+    let engine_ver_text = "Engine Sidecar: v0.1.0".to_string();
+
+    let shell_ver_i = MenuItem::with_id(app, "version_shell", shell_ver_text, false, None::<&str>)?;
+    let engine_ver_i =
+        MenuItem::with_id(app, "version_engine", engine_ver_text, false, None::<&str>)?;
+    if let Ok(mut guard) = ENGINE_VER_ITEM.lock() {
+        *guard = Some(engine_ver_i.clone());
+    }
+    let sep0 = PredefinedMenuItem::separator(app)?;
+
+    let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+    let new_chat_i = MenuItem::with_id(app, "new_chat", "New Chat", true, None::<&str>)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    let settings_i = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+    let workspace_i = MenuItem::with_id(app, "workspace", "Workspace", true, None::<&str>)?;
+    let curtain_i = MenuItem::with_id(
+        app,
+        "privacy_curtain",
+        "Privacy Curtain",
+        true,
+        None::<&str>,
+    )?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+
+    let menu = Menu::with_items(
+        app,
+        &[
+            &shell_ver_i,
+            &engine_ver_i,
+            &sep0,
+            &show_i,
+            &new_chat_i,
+            &sep1,
+            &settings_i,
+            &workspace_i,
+            &curtain_i,
+            &sep2,
+            &quit_i,
+        ],
+    )?;
+
+    let mut builder = TrayIconBuilder::with_id("main")
+        .icon(load_tray_icon()?)
+        .menu(&menu)
+        .show_menu_on_left_click(false);
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.icon_as_template(true);
+    }
+
+    builder
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "quit" => {
+                let app_handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    super::lifecycle::graceful_shutdown(app_handle.clone()).await;
+                    app_handle.exit(0);
+                });
+            }
+            "show" => show_main_window(app),
+            "new_chat" => show_and_navigate(app, "tray:new_chat"),
+            "settings" => show_and_navigate(app, "tray:settings"),
+            "workspace" => show_and_navigate(app, "tray:workspace"),
+            // 帷幕切换：拉起状态则收起，未拉起则手动拉起（手动帷幕不受锁屏 watcher 干涉）。
+            "privacy_curtain" => {
+                let active = crate::commands::privacy_curtain::privacy_curtain_active(app.clone())
+                    .unwrap_or(false);
+                let result = if active {
+                    crate::commands::privacy_curtain::hide_privacy_curtain(app.clone())
+                } else {
+                    crate::commands::privacy_curtain::show_privacy_curtain(app.clone(), None)
+                };
+                if let Err(reason) = result {
+                    eprintln!("⚠️ Privacy curtain toggle failed: {reason}");
+                }
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_main_window(tray.app_handle());
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
+/// 更新托盘菜单项与版本/升级状态信息
+#[tauri::command]
+pub fn update_tray_info(
+    _app: AppHandle,
+    engine_version: Option<String>,
+    upgrade_progress: Option<String>,
+) -> Result<(), String> {
+    if let Ok(guard) = ENGINE_VER_ITEM.lock() {
+        if let Some(ref item) = *guard {
+            if let Some(engine_ver) = engine_version {
+                let _ = item.set_text(format!("Engine Sidecar: v{engine_ver}"));
+            }
+            if let Some(progress) = upgrade_progress {
+                let _ = item.set_text(format!("🔄 {progress}"));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// 根据 Agent 运行状态更新系统托盘图标与 tooltip。
+/// 前端 `useTrayStatus` 在全局 liveness 状态变化时调用此命令。
+#[tauri::command]
+pub fn set_tray_status(
+    app: AppHandle,
+    status: String,
+    tooltip: Option<String>,
+) -> Result<(), String> {
+    if let Some(tray) = app.tray_by_id("main") {
+        let text = tooltip.unwrap_or_else(|| default_tray_tooltip(&status));
+        tray.set_tooltip(Some(text))
+            .map_err(|e| format!("Failed to set tray tooltip: {e}"))?;
+
+        if let Ok(icon) = load_tray_icon_for_status(&status) {
+            let _ = tray.set_icon(Some(icon));
+        }
+    }
+    Ok(())
+}
+
+fn default_tray_tooltip(status: &str) -> String {
+    match status {
+        "busy" => "MyrmAgent - Running...".into(),
+        "error" => "MyrmAgent - Error".into(),
+        "idle" => "MyrmAgent - Idle".into(),
+        _ => "MyrmAgent".into(),
+    }
+}
+
+/// Update tray icon and tooltip from Rust (watchdog, sidecar startup failures).
+pub fn update_native_tray_status(app: &AppHandle, status: &str, tooltip: &str) {
+    let Some(tray) = app.tray_by_id("main") else {
+        return;
+    };
+    let _ = tray.set_tooltip(Some(tooltip));
+
+    if let Ok(icon) = load_tray_icon_for_status(status) {
+        let _ = tray.set_icon(Some(icon));
+    }
+}

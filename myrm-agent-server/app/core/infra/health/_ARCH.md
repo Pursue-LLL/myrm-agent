@@ -1,0 +1,43 @@
+# health/
+
+## Overview
+Business-level health checking implementations. Provides concrete health checkers for Qdrant, SQLite, and Browser resources, with automatic recovery capabilities.
+
+Diagnostic aggregation for `/health/doctor` lives here:
+- `health_snapshot.py` — collect harness + server reports (no SSE side effects)
+- `health_alert_policy.py` — fail-only SSE policy for critical components; SystemResources never pushes
+- `health_presenter.py` — deployment-aware presentation (sandbox fix suggestions)
+- `server_diagnostics.py` — server-layer probes (DLQ, ExecutionCache & Process RSS, AgentColdStart Warm-Path, etc.)
+
+## File & Submodule Index
+
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| __init__.py | Package | Health checking business layer exports. | ✅ |
+| health_snapshot.py | Core | `collect_health_snapshot()` for on-demand `/health/doctor` API. | ✅ |
+| health_alert_policy.py | Core | `publish_health_alerts()` with 300s dedup; fail-only critical components. | ✅ |
+| health_presenter.py | Core | Sandbox-aware `present_health_report()` for WebUI payloads. | ✅ |
+| agent_diagnostics.py | Core | Agent ecosystem diagnostic probes (AgentColdStart Warm-Path, OllamaModelContextDiagnostic 64K context audit, AgentStepBudgetDiagnostic step budget audit, AgentPromptCacheAlignmentDiagnostic prefix cache jitter audit). | ✅ |
+| contracts.py | Core | Diagnostic protocol re-exports from harness observability. | ✅ |
+| skill_diagnostics.py | Core | Skill ecosystem diagnostic probe (SkillQualityHealthDiagnostic: wrong-but-frequent low-quality audit, escalating to fail when three or more faulty skills are exempt from the curator); scans through `curator.local_skills.scan_local_skills` and reads the sweep's **permanent** exemptions from the same sources — pinned, installed while `protect_installed_skills` is on, and still bound by an agent, cron job or Kanban task (`curator.bound_skills.bound_skill_names`). A skill inside the grace window is deliberately *not* exempt (the sweep waits, it does not refuse), so a newly created skill that already fails is still reported. The binding lookup runs only when at least one skill is faulty. `evolution_locked` guards content rewrites and the sweep evaluates a locked skill exactly like an unlocked one, so the lock is not protection from cleanup. Tests: `tests/core/infra/health/test_skill_quality_diagnostic.py`. | ✅ |
+| desktop_locked_use_diagnostic.py | Core | Locked Use / Privacy Curtain bridge + desktop shell liveness probe for `/health/doctor`. Tests: `tests/core/infra/health/test_desktop_locked_use_diagnostic.py`. | ✅ |
+| server_diagnostics.py | Core | Server business diagnostic probes (DLQ & Durable Outbound Redelivery, ExecutionCache & Process RSS) and probe runner manager. Tests: `tests/core/infra/health/test_server_diagnostics_execution_cache.py`. | ✅ |
+| trace_security_diagnostic.py | Core | Probes OpenTelemetry trace exporter posture ensuring zero unauthorized egress and local-only isolation. | ✅ |
+| session_diagnostics.py | Core | OrphanSessionDiagnostic 孤儿空壳会话（缺少 Assistant 回复的遗留空会话）健康诊断探针与清理审计。 | ✅ |
+| qdrant.py | Core | Qdrant path verifier only; the data directory lock is an OS file lock released when its holder exits, and an in-memory fallback is reported by `system_status.vector_degraded`. | ✅ |
+| sqlite.py | Core | SQLite health checker with PRAGMA quick_check integrity verification and backup-based recovery via SQLiteBackupManager. | ✅ |
+| browser.py | Core | Browser & driver automation pool health checker delegating to Harness authoritative orphans doctor. Tests: `tests/core/infra/health/test_browser_health_checker.py`. | ✅ |
+| multi_tier_health.py | Core | 组件层 (Component) 与入口网关层 (Ingress) 分层健康巡检、自愈调度与硬核裁决引擎。 | ✅ |
+| failure_triage.py | Core | Agent 四大经典失效表象六断点自动分诊决策树、负例语义分类与就地重发服务。 | ✅ |
+| coordinator.py | Core | Business-level health check coordinator that instantiates and runs all checkers; recovery (`auto_recover`) is requested only by the startup check, `GET /health/resources` runs it read-only. | ✅ |
+
+## Module Dependencies
+
+**Internal Dependencies:**
+- `myrm_agent_harness.infra.health` — Framework-level health check abstractions
+- `myrm_agent_harness.infra.sqlite_backup` — SQLite hot-backup manager
+- `app.config.settings` — Application configuration
+
+**Used By:**
+- `run.py` — Startup health check integration
+- `app.api.health.router` — Health API endpoints

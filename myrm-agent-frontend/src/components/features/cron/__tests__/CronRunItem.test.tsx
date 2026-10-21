@@ -1,0 +1,81 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import CronRunItem from '../CronRunItem';
+import type { CronRun } from '@/services/cron';
+
+const stableT = (key: string) => key;
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+  useLocale: () => 'zh',
+}));
+
+describe('CronRunItem', () => {
+  const baseRun: CronRun = {
+    id: 'run-1',
+    job_id: 'job-1',
+    started_at: '2026-09-07T12:00:00Z',
+    finished_at: '2026-09-07T12:00:05Z',
+    duration_ms: 5000,
+    status: 'ok',
+    output: 'Execution succeeded',
+    usage_total_tokens: 1500,
+  };
+
+  it('renders ok status correctly', () => {
+    render(<CronRunItem run={baseRun} isLast={false} />);
+    expect(screen.getByText('runOk')).toBeInTheDocument();
+  });
+
+  it('explains a circuit break in plain language and never shows the internal error text', () => {
+    const circuitBreakRun: CronRun = {
+      ...baseRun,
+      id: 'run-cb-1',
+      status: 'circuit_break',
+      error: 'RUNAWAY_CIRCUIT_BREAKER: Loop guard triggered in unattended mode',
+    };
+
+    render(<CronRunItem run={circuitBreakRun} isLast={false} />);
+    expect(screen.getByText('runCircuitBreak')).toBeInTheDocument();
+
+    // Click expand button to view details
+    const expandButton = screen.getByRole('button');
+    fireEvent.click(expandButton);
+
+    expect(screen.getByText('circuitBreakTitle')).toBeInTheDocument();
+    expect(screen.getByText('circuitBreakDesc')).toBeInTheDocument();
+    expect(screen.queryByText(/RUNAWAY_CIRCUIT_BREAKER/)).toBeNull();
+  });
+
+  it('explains a circuit break when run.error is null', () => {
+    const circuitBreakRunWithoutError: CronRun = {
+      ...baseRun,
+      id: 'run-cb-2',
+      status: 'circuit_break',
+    };
+
+    render(<CronRunItem run={circuitBreakRunWithoutError} isLast={false} />);
+    const expandButton = screen.getByRole('button');
+    fireEvent.click(expandButton);
+
+    expect(screen.getByText('circuitBreakTitle')).toBeInTheDocument();
+    expect(screen.getByText('circuitBreakDesc')).toBeInTheDocument();
+  });
+
+  it('shows a localized label instead of the raw code for a run waiting on the usage limit', () => {
+    const deferredRun: CronRun = { ...baseRun, id: 'run-ul-1', status: 'skipped', output: 'usage_limit' };
+
+    render(<CronRunItem run={deferredRun} isLast={false} />);
+
+    expect(screen.getByText('skippedUsageLimit')).toBeInTheDocument();
+    expect(screen.queryByText('usage_limit')).toBeNull();
+  });
+
+  it('keeps showing other skip outputs verbatim', () => {
+    const skippedRun: CronRun = { ...baseRun, id: 'run-sk-1', status: 'skipped', output: 'no-content' };
+
+    render(<CronRunItem run={skippedRun} isLast={false} />);
+
+    expect(screen.getByText('no-content')).toBeInTheDocument();
+  });
+});

@@ -1,0 +1,331 @@
+"""Fleet Overview API integration tests — full DB round-trip, no mocks on data path.
+
+Validates GET /api/v1/agents/fleet-overview returns correct per-agent
+aggregations from Chat, CronJobModel, and ApprovalRecord tables.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.database.models import Base, Chat
+from app.database.models.approval import ApprovalRecord
+from app.database.models.cron import CronJobModel
+from tests.support.minimal_app import build_minimal_app
+
+_app = build_minimal_app("fleet_overview", "user_agents")
+
+AGENT_A = "agent-alpha"
+AGENT_B = "agent-beta"
+
+
+@pytest.fixture
+async def db_session(tmp_path):
+    db_file = tmp_path / "fleet_test.db"
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{db_file}",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def override_get_db():
+        async with session_factory() as session:
+            yield session
+
+    from app.database.connection import get_db
+
+    _app.dependency_overrides[get_db] = override_get_db
+
+    async with session_factory() as session:
+        yield session
+
+    _app.dependency_overrides.clear()
+    await engine.dispose()
+
+
+@pytest.fixture
+def client(db_session) -> TestClient:
+    return TestClient(_app)
+
+
+async def _seed_chats(db: AsyncSession, agent_id: str, count: int, tokens: int = 100) -> None:
+    now = datetime.now(UTC)
+    for _ in range(count):
+        chat = Chat(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            total_tokens=tokens,
+            total_usd=tokens * 0.00001,
+            total_calls=1,
+            created_at=now - timedelta(hours=1),
+        )
+        db.add(chat)
+    await db.commit()
+
+
+async def _seed_cron_jobs(db: AsyncSession, agent_id: str, active: int, inactive: int = 0) -> None:
+    schedule = {"kind": "cron", "expr": "0 8 * * *"}
+    for _ in range(active):
+        job = CronJobModel(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            name="test-cron",
+            prompt="test",
+            job_type="agent",
+            schedule=schedule,
+            status="active",
+        )
+        db.add(job)
+    for _ in range(inactive):
+        job = CronJobModel(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            name="paused-cron",
+            prompt="test",
+            job_type="agent",
+            schedule=schedule,
+            status="paused",
+        )
+        db.add(job)
+    await db.commit()
+
+
+async def _seed_approvals(db: AsyncSession, agent_id: str, pending: int, resolved: int = 0) -> None:
+    for _ in range(pending):
+        record = ApprovalRecord(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            chat_id=str(uuid.uuid4()),
+            action_type="shell_command",
+            payload={"command": "echo test"},
+            status="PENDING",
+        )
+        db.add(record)
+    for _ in range(resolved):
+        record = ApprovalRecord(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            chat_id=str(uuid.uuid4()),
+            action_type="shell_command",
+            payload={"command": "echo test"},
+            status="APPROVED",
+        )
+        db.add(record)
+    await db.commit()
+
+
+class TestFleetOverviewAPI:
+    """Full DB round-trip tests for /agents/fleet-overview."""
+
+    @pytest.mark.asyncio
+    async def test_empty_db_returns_empty_kpi(self, client: TestClient, db_session: AsyncSession) -> None:
+        resp = client.get("/api/v1/agents/fleet-overview")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+
+        kpi = body["data"]["kpi"]
+        assert kpi["onlineAgents"] == 0
+        assert kpi["monthTokens"] == 0
+        assert kpi["monthCost"] == 0.0
+        assert kpi["pendingApprovals"] == 0
+        assert body["data"]["agents"] == {}
+
+    @pytest.mark.asyncio
+    async def test_single_agent_stats(self, client: TestClient, db_session: AsyncSession) -> None:
+        await _seed_chats(db_session, AGENT_A, count=3, tokens=500)
+        await _seed_cron_jobs(db_session, AGENT_A, active=2, inactive=1)
+        await _seed_approvals(db_session, AGENT_A, pending=1, resolved=2)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        assert resp.status_code == 200
+        body = resp.json()
+        data = body["data"]
+
+        assert AGENT_A in data["agents"]
+        stats = data["agents"][AGENT_A]
+        assert stats["sessionCount"] == 3
+        assert stats["monthTokens"] == 1500
+        assert stats["cronCount"] == 2
+        assert stats["pendingApprovals"] == 1
+        assert stats["status"] == "idle"
+
+        assert data["kpi"]["monthTokens"] == 1500
+        assert data["kpi"]["pendingApprovals"] == 1
+
+    @pytest.mark.asyncio
+    async def test_multi_agent_aggregation(self, client: TestClient, db_session: AsyncSession) -> None:
+        await _seed_chats(db_session, AGENT_A, count=2, tokens=1000)
+        await _seed_chats(db_session, AGENT_B, count=5, tokens=200)
+        await _seed_approvals(db_session, AGENT_A, pending=3)
+        await _seed_approvals(db_session, AGENT_B, pending=1)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        body = resp.json()["data"]
+
+        assert body["agents"][AGENT_A]["sessionCount"] == 2
+        assert body["agents"][AGENT_A]["monthTokens"] == 2000
+        assert body["agents"][AGENT_B]["sessionCount"] == 5
+        assert body["agents"][AGENT_B]["monthTokens"] == 1000
+
+        assert body["kpi"]["monthTokens"] == 3000
+        assert body["kpi"]["pendingApprovals"] == 4
+
+    @pytest.mark.asyncio
+    async def test_inactive_crons_not_counted(self, client: TestClient, db_session: AsyncSession) -> None:
+        await _seed_cron_jobs(db_session, AGENT_A, active=1, inactive=3)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        stats = resp.json()["data"]["agents"][AGENT_A]
+        assert stats["cronCount"] == 1
+
+    @pytest.mark.asyncio
+    async def test_resolved_approvals_not_counted(self, client: TestClient, db_session: AsyncSession) -> None:
+        await _seed_approvals(db_session, AGENT_A, pending=0, resolved=5)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        body = resp.json()["data"]
+        if AGENT_A in body["agents"]:
+            assert body["agents"][AGENT_A]["pendingApprovals"] == 0
+        assert body["kpi"]["pendingApprovals"] == 0
+
+    @pytest.mark.asyncio
+    async def test_default_agent_key_for_null_agent_id(self, client: TestClient, db_session: AsyncSession) -> None:
+        await _seed_chats(db_session, None, count=2, tokens=100)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        body = resp.json()["data"]
+        assert "default" in body["agents"]
+        assert body["agents"]["default"]["sessionCount"] == 2
+
+    @pytest.mark.asyncio
+    async def test_last_month_chats_excluded(self, client: TestClient, db_session: AsyncSession) -> None:
+        """Chats created before the current month must not appear in monthly aggregation."""
+        now = datetime.now(UTC)
+        last_month = now.replace(day=1) - timedelta(days=1)
+
+        db_session.add(
+            Chat(
+                id=str(uuid.uuid4()),
+                agent_id=AGENT_A,
+                total_tokens=9999,
+                total_usd=0.1,
+                total_calls=1,
+                created_at=last_month,
+            )
+        )
+        await _seed_chats(db_session, AGENT_A, count=1, tokens=100)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        stats = resp.json()["data"]["agents"][AGENT_A]
+        assert stats["sessionCount"] == 1
+        assert stats["monthTokens"] == 100
+
+    @pytest.mark.asyncio
+    async def test_soft_deleted_chats_excluded(self, client: TestClient, db_session: AsyncSession) -> None:
+        """Chats with deleted_at set must not appear in fleet stats."""
+        now = datetime.now(UTC)
+        db_session.add(
+            Chat(
+                id=str(uuid.uuid4()),
+                agent_id=AGENT_A,
+                total_tokens=5000,
+                total_usd=0.05,
+                total_calls=1,
+                created_at=now - timedelta(hours=2),
+                deleted_at=now - timedelta(hours=1),
+            )
+        )
+        await db_session.commit()
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        body = resp.json()["data"]
+        if AGENT_A in body["agents"]:
+            assert body["agents"][AGENT_A]["sessionCount"] == 0
+        assert body["kpi"]["monthTokens"] == 0
+
+    @pytest.mark.asyncio
+    async def test_cost_precision(self, client: TestClient, db_session: AsyncSession) -> None:
+        """monthCost should be rounded to 4 decimal places."""
+        await _seed_chats(db_session, AGENT_A, count=3, tokens=333)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        cost = resp.json()["data"]["agents"][AGENT_A]["monthCost"]
+        cost_str = str(cost)
+        if "." in cost_str:
+            decimals = len(cost_str.split(".")[1])
+            assert decimals <= 4
+
+    @pytest.mark.asyncio
+    async def test_response_structure_completeness(self, client: TestClient, db_session: AsyncSession) -> None:
+        """Every agent entry must have all 6 required fields."""
+        await _seed_chats(db_session, AGENT_A, count=1, tokens=50)
+        await _seed_cron_jobs(db_session, AGENT_B, active=1)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        agents = resp.json()["data"]["agents"]
+
+        required_keys = {"sessionCount", "monthTokens", "monthCost", "cronCount", "pendingApprovals", "status"}
+        for aid, stats in agents.items():
+            assert required_keys <= set(stats.keys()), f"Agent {aid} missing keys: {required_keys - set(stats.keys())}"
+            assert stats["status"] in ("idle", "busy")
+
+    @pytest.mark.asyncio
+    async def test_kanban_in_review_adds_to_pending_approvals(
+        self,
+        client: TestClient,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Kanban IN_REVIEW tasks count toward per-agent pendingApprovals."""
+        await _seed_approvals(db_session, AGENT_A, pending=1)
+
+        from app.services.kanban import KanbanService
+
+        async def _fake_review_by_agent(self) -> dict[str | None, int]:
+            return {AGENT_A: 2, AGENT_B: 1}
+
+        monkeypatch.setattr(KanbanService, "count_review_tasks_by_agent", _fake_review_by_agent)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+
+        assert data["agents"][AGENT_A]["pendingApprovals"] == 3
+        assert data["agents"][AGENT_B]["pendingApprovals"] == 1
+        assert data["kpi"]["pendingApprovals"] == 4
+
+    @pytest.mark.asyncio
+    async def test_fleet_overview_survives_kanban_store_failure(
+        self,
+        client: TestClient,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """fleet-overview degrades gracefully when the kanban store is unavailable."""
+        await _seed_approvals(db_session, AGENT_A, pending=1)
+
+        from sqlalchemy.exc import OperationalError
+
+        from app.services.kanban.service_mixins import query_dispatcher_mixin as qdm
+
+        async def _boom(*args: object, **kwargs: object) -> None:
+            raise OperationalError("stmt", {}, Exception("boom"))
+
+        monkeypatch.setattr(qdm, "run_list_boards", _boom)
+
+        resp = client.get("/api/v1/agents/fleet-overview")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["agents"][AGENT_A]["pendingApprovals"] == 1

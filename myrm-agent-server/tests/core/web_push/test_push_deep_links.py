@@ -1,0 +1,161 @@
+"""Tests for resolve_push_url — Web Push click-through routing."""
+
+from __future__ import annotations
+
+from app.core.web_push.push_deep_links import resolve_push_url
+from app.services.event.app_event_bus import AppEvent, AppEventType
+
+
+class TestResolvePushUrl:
+    def test_approval_required_uses_chat_id_with_query(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.APPROVAL_REQUIRED,
+            data={
+                "approval_id": "ap-deep-link-1",
+                "chat_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "action_type": "delete_file",
+                "severity": "high",
+            },
+        )
+        assert resolve_push_url(event) == "/a1b2c3d4-e5f6-7890-abcd-ef1234567890?approval=ap-deep-link-1"
+
+    def test_approval_required_without_approval_id_uses_chat_path_only(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.APPROVAL_REQUIRED,
+            data={
+                "chat_id": "chat-only-path",
+                "action_type": "delete_file",
+                "severity": "high",
+            },
+        )
+        assert resolve_push_url(event) == "/chat-only-path"
+
+    def test_goal_terminal_uses_session_id(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.GOAL_TERMINAL,
+            data={
+                "goal_id": "g1",
+                "session_id": "session-xyz",
+                "status": "completed",
+                "objective": "Ship feature",
+            },
+        )
+        assert resolve_push_url(event) == "/session-xyz"
+
+    def test_background_task_done_uses_chat_id(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": "t1",
+                "title": "Research",
+                "chat_id": "btw-chat-99",
+                "channel": "web",
+            },
+        )
+        assert resolve_push_url(event) == "/btw-chat-99"
+
+    def test_background_task_done_pending_review_routes_to_kanban_board(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": "t-review",
+                "board_id": "board-kpi-1",
+                "status": "pending_review",
+                "title": "Report draft",
+                "chat_id": "source-chat-1",
+            },
+        )
+        assert resolve_push_url(event) == "/settings/kanban?board_id=board-kpi-1&status=in_review"
+
+    def test_background_task_done_pending_review_without_board_falls_back_to_chat(
+        self,
+    ) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": "t-review",
+                "status": "pending_review",
+                "title": "Report draft",
+                "chat_id": "source-chat-1",
+            },
+        )
+        assert resolve_push_url(event) == "/source-chat-1"
+
+    def test_background_task_done_completed_keeps_chat_context(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": "t-done",
+                "board_id": "board-kpi-1",
+                "status": "completed",
+                "title": "Report draft",
+                "chat_id": "source-chat-1",
+            },
+        )
+        assert resolve_push_url(event) == "/source-chat-1"
+
+    def test_system_notification_reads_meta_data_chat_id(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.SYSTEM_NOTIFICATION,
+            data={
+                "title": "Job finished",
+                "message": "Done",
+                "meta_data": {"chat_id": "job-chat-7", "kind": "background_job_finish"},
+            },
+        )
+        assert resolve_push_url(event) == "/job-chat-7"
+
+    def test_health_alert_routes_to_system_settings(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.HEALTH_ALERT,
+            data={"component": "llm", "message": "down"},
+        )
+        assert resolve_push_url(event) == "/settings/system"
+
+    def test_scheduled_backup_alert_routes_to_the_backup_settings(self) -> None:
+        from app.services.instance_archive.auto_backup import ALERT_COMPONENT
+
+        event = AppEvent(
+            event_type=AppEventType.HEALTH_ALERT,
+            data={"component": ALERT_COMPONENT, "status": "fail", "message": "Automatic backup has failed"},
+        )
+        assert resolve_push_url(event) == "/settings/workbench"
+
+    def test_budget_alert_routes_to_system_settings(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.BUDGET_ALERT,
+            data={"status": "warning", "pct": 90, "today_cost": 1, "daily_limit": 2},
+        )
+        assert resolve_push_url(event) == "/settings/system"
+
+    def test_channel_disconnected_routes_to_channels_settings(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.CHANNEL_DISCONNECTED,
+            data={"channel": "telegram", "status": "offline"},
+        )
+        assert resolve_push_url(event) == "/settings/channels"
+
+    def test_oauth_account_reauth_routes_to_credentials(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.OAUTH_REAUTH_REQUIRED,
+            data={"issuer": "google_workspace", "reason": "expired"},
+        )
+        assert resolve_push_url(event) == "/settings/credentials"
+
+    def test_oauth_xai_reauth_routes_to_credentials(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.OAUTH_REAUTH_REQUIRED,
+            data={"issuer": "xai", "reason": "expired"},
+        )
+        assert resolve_push_url(event) == "/settings/credentials"
+
+    def test_oauth_reauth_without_issuer_routes_to_credentials(self) -> None:
+        event = AppEvent(event_type=AppEventType.OAUTH_REAUTH_REQUIRED, data={"reason": "expired"})
+        assert resolve_push_url(event) == "/settings/credentials"
+
+    def test_missing_chat_id_falls_back_to_home(self) -> None:
+        event = AppEvent(
+            event_type=AppEventType.APPROVAL_REQUIRED,
+            data={"approval_id": "ap-2", "action_type": "x", "severity": "low"},
+        )
+        assert resolve_push_url(event) == "/"

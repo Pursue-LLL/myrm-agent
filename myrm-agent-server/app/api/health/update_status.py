@@ -1,0 +1,263 @@
+"""Stack update truth for the Settings → System → About Stack Update Panel.
+
+[INPUT]
+- app.config.settings::settings (POS: 系统全局运行时配置)
+- myrm_agent_harness::__version__ (POS: 执行引擎版本号)
+
+[OUTPUT]
+- router: GET /api/v1/health/update-status
+
+[POS]
+Single endpoint behind the panel's Web leg — version compare is the primary
+behind signal (production images ship without .git, so rev-list cannot be
+primary); git rev-list/log is a best-effort enrichment for source checkouts.
+Every unreachable source degrades to an honest unknown instead of a guess.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import re
+import shutil
+import subprocess
+import time
+from pathlib import Path
+
+from fastapi import APIRouter
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["health"])
+
+_RELEASE_REPO_ENV = "MYRM_GITHUB_RELEASE_REPO"
+_DEFAULT_RELEASE_REPO = "Pursue-LLL/myrm-agent"
+_LATEST_TTL_SEC = 3600.0
+_FETCH_TIMEOUT_SEC = 8.0
+_GIT_TIMEOUT_SEC = 10.0
+_CHANGELOG_CAP = 50
+
+_latest_cache: dict[str, object] = {"fetched_at": 0.0, "payload": None}
+_last_prebuilt: dict[str, object] = {"synced_count": None, "at": None}
+_force_lock: asyncio.Lock | None = None
+_force_in_flight: asyncio.Task[dict[str, object]] | None = None
+
+
+def _get_force_lock() -> asyncio.Lock:
+    global _force_lock
+    if _force_lock is None:
+        _force_lock = asyncio.Lock()
+    return _force_lock
+
+
+def note_prebuilt_sync_result(synced_count: int) -> None:
+    """Stash the startup prebuilt-sync outcome for the panel summary."""
+    _last_prebuilt["synced_count"] = synced_count
+    _last_prebuilt["at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def split_changelog(body: str) -> dict[str, object]:
+    """Split a release body into FIXED / OTHER groups.
+
+    Section headers win; otherwise fix-like bullets go to fixed. Anything
+    unparseable degrades to grouped=False with the raw body truncated.
+    """
+    fixed: list[str] = []
+    other: list[str] = []
+    section: str | None = None
+    for raw_line in (body or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        lowered = line.lower().lstrip("#").strip()
+        if lowered in {"fixed", "fixes", "bug fixes", "bugfixes"}:
+            section = "fixed"
+            continue
+        if lowered in {
+            "other",
+            "other improvements",
+            "improvements",
+            "features",
+            "new features",
+            "changes",
+        }:
+            section = "other"
+            continue
+        if not line.startswith(("-", "*")):
+            section = None
+            continue
+        item = line[1:].strip()
+        if not item:
+            continue
+        if section == "fixed":
+            fixed.append(item)
+        elif section == "other":
+            other.append(item)
+        elif item.lower().startswith(("fix", "bug", "repair", " hotfix")):
+            fixed.append(item)
+        else:
+            other.append(item)
+    is_security = bool(
+        re.search(r"\b(cve-\d+|security|vulnerability|critical vulnerability)\b", body or "", re.IGNORECASE)
+    )
+    if not fixed and not other:
+        return {"fixed": [], "other": [], "grouped": False, "is_security": is_security, "raw": (body or "")[:2000]}
+    return {
+        "fixed": fixed[:_CHANGELOG_CAP],
+        "other": other[:_CHANGELOG_CAP],
+        "grouped": True,
+        "is_security": is_security,
+        "raw": "",
+    }
+
+
+def _parse_version_tuple(version: str) -> tuple[int, ...] | None:
+    cleaned = (version or "").strip().lstrip("vV")
+    if not cleaned:
+        return None
+    parts: list[int] = []
+    for chunk in cleaned.split("."):
+        digits = "".join(ch for ch in chunk if ch.isdigit())
+        if not digits and chunk != "0":
+            return None
+        parts.append(int(digits or 0))
+    return tuple(parts) if parts else None
+
+
+def is_stale(current: str, latest: str | None) -> bool | None:
+    """True when latest is strictly newer; None when incomparable."""
+    if not latest:
+        return None
+    current_tuple = _parse_version_tuple(current)
+    latest_tuple = _parse_version_tuple(latest)
+    if current_tuple is None or latest_tuple is None:
+        return None
+    length = max(len(current_tuple), len(latest_tuple))
+    current_padded = current_tuple + (0,) * (length - len(current_tuple))
+    latest_padded = latest_tuple + (0,) * (length - len(latest_tuple))
+    return latest_padded > current_padded
+
+
+async def _fetch_latest_release(repo: str) -> dict[str, object]:
+    """Fetch the latest GitHub release; network failure → honest unknown."""
+    import httpx
+
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    try:
+        async with httpx.AsyncClient(timeout=_FETCH_TIMEOUT_SEC) as client:
+            response = await client.get(url, headers={"Accept": "application/vnd.github+json"})
+            response.raise_for_status()
+            data = response.json()
+    except Exception as exc:
+        logger.warning("Latest-release fetch failed: %s", exc)
+        return {"release": None, "error": type(exc).__name__}
+    if not isinstance(data, dict):
+        return {"release": None, "error": "unexpected_shape"}
+    tag = data.get("tag_name")
+    release = {
+        "version": tag if isinstance(tag, str) else None,
+        "published_at": data.get("published_at"),
+        "url": data.get("html_url"),
+        "body": data.get("body") if isinstance(data.get("body"), str) else "",
+    }
+    return {"release": release, "error": None}
+
+
+async def _git_behind() -> dict[str, object] | None:
+    """Best-effort rev-list enrichment; None when git/repo is unavailable."""
+    if shutil.which("git") is None:
+        return None
+
+    def _collect() -> dict[str, object] | None:
+        directory = Path.cwd().resolve()
+        repo_root: Path | None = None
+        for parent in (directory, *directory.parents):
+            if (parent / ".git").exists():
+                repo_root = parent
+                break
+        if repo_root is None:
+            return None
+        try:
+            count_out = subprocess.run(
+                ["git", "rev-list", "--count", "HEAD..@{u}"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=_GIT_TIMEOUT_SEC,
+            )
+            log_out = subprocess.run(
+                ["git", "log", "--oneline", "-5", "HEAD..@{u}"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=_GIT_TIMEOUT_SEC,
+            )
+        except Exception:
+            return None
+        if count_out.returncode != 0:
+            return None
+        try:
+            behind_count = int(count_out.stdout.strip())
+        except ValueError:
+            return None
+        log_lines = [line for line in log_out.stdout.splitlines() if line.strip()][:5]
+        return {"behind_count": behind_count, "log": log_lines}
+
+    try:
+        return await asyncio.to_thread(_collect)
+    except Exception:
+        return None
+
+
+@router.get("/update-status")
+async def update_status(force: bool = False) -> dict[str, object]:
+    """Stack update truth: versions, latest release, changelog groups, prebuilt."""
+    from myrm_agent_harness import __version__ as harness_version
+
+    from app.config.settings import settings
+
+    server_version = settings.app_version
+    repo = os.getenv(_RELEASE_REPO_ENV, _DEFAULT_RELEASE_REPO)
+
+    now = time.monotonic()
+    cached_at = float(_latest_cache.get("fetched_at") or 0.0)
+    cached_payload = _latest_cache.get("payload")
+    cached_dict = cached_payload if isinstance(cached_payload, dict) else None
+    if not force and cached_dict is not None and now - cached_at < _LATEST_TTL_SEC:
+        latest_result = cached_dict
+    elif force:
+        global _force_in_flight
+        async with _get_force_lock():
+            if _force_in_flight is None or _force_in_flight.done():
+                _force_in_flight = asyncio.create_task(_fetch_latest_release(repo))
+            task = _force_in_flight
+        latest_result = await task
+        _latest_cache["fetched_at"] = time.monotonic()
+        _latest_cache["payload"] = latest_result
+    else:
+        latest_result = await _fetch_latest_release(repo)
+        _latest_cache["fetched_at"] = now
+        _latest_cache["payload"] = latest_result
+
+    release = latest_result.get("release")
+    release_dict = release if isinstance(release, dict) else None
+    latest_version = release_dict.get("version") if release_dict else None
+    body = release_dict.get("body") if release_dict else ""
+    changelog = split_changelog(body if isinstance(body, str) else "")
+
+    stale = is_stale(server_version, latest_version if isinstance(latest_version, str) else None)
+    git = await _git_behind()
+
+    return {
+        "server_version": server_version,
+        "harness_version": harness_version,
+        "repo": repo,
+        "latest": release_dict,
+        "fetch_error": latest_result.get("error"),
+        "stale": stale,
+        "changelog": changelog,
+        "git": git,
+        "prebuilt": dict(_last_prebuilt),
+        "cloud": {"state": "unknown", "reason": "no control-plane version contract yet"},
+    }

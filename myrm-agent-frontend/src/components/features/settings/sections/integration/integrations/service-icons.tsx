@@ -1,0 +1,153 @@
+/**
+ * Service icon mapping for the Integration Catalog.
+ *
+ * Maps service icon identifiers to simple SVG icon components.
+ * Using inline SVGs to avoid external icon library dependencies and ensure
+ * consistent rendering across platforms.
+ */
+
+import { type ComponentType, type SVGProps } from 'react';
+
+type IconProps = SVGProps<SVGSVGElement>;
+
+const NotionIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L18.29 2.31c-.42-.326-.98-.7-2.055-.607L3.01 2.89c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.84-.046.933-.56.933-1.167V6.354c0-.606-.233-.933-.746-.886l-15.177.886c-.56.047-.747.327-.747.934zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.747 0-.933-.234-1.495-.933l-4.577-7.186v6.952l1.449.327s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.514.28-.886.747-.933zM2.78 1.396l13.868-1.026c1.681-.14 2.1.093 2.8.606l3.876 2.706c.467.326.607.747.607 1.26v17.063c0 1.073-.373 1.726-1.681 1.82l-15.458.932c-.98.047-1.448-.093-1.962-.747L1.41 20.19c-.56-.747-.793-1.307-.793-1.96V2.983c0-.84.373-1.493 1.354-1.586l.81.001z" />
+  </svg>
+);
+
+const GithubIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+  </svg>
+);
+
+const MicrosoftTodoIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.36 14.99L6.5 12.85l1.48-1.44 2.66 2.6 5.38-5.26 1.48 1.44-6.86 6.8z" />
+  </svg>
+);
+
+const SlackIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.27 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.833 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.163 0a2.528 2.528 0 012.523 2.522v6.312zM15.164 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.164 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 01-2.52-2.523 2.527 2.527 0 012.52-2.52h6.313A2.528 2.528 0 0124 15.163a2.528 2.528 0 01-2.523 2.523h-6.313z" />
+  </svg>
+);
+
+const CodeGraphIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+    <circle cx="5" cy="6" r="2" />
+    <circle cx="19" cy="6" r="2" />
+    <circle cx="12" cy="18" r="2" />
+    <path d="M6.5 7.5L11 16M17.5 7.5L13 16M7 6h10" />
+  </svg>
+);
+
+const FeishuIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M6.3 3.8c.3-.5.9-.7 1.4-.4l9.6 5.5c.3.2.5.5.5.8v8.3c0 .6-.4 1-1 1-.2 0-.4-.1-.5-.2L6.2 8.5c-.7-.7-1-1.6-1-2.5 0-.8.4-1.6 1.1-2.2zm4.2 4.5l7.2 7.2V11c0-.2-.1-.4-.3-.5L10.5 8.3z" />
+    <path d="M3.6 10.5c0-.4.2-.7.5-.9l2.6-1.5 7.9 7.9-5.3 3.1c-.5.3-1.1.3-1.6 0l-3.5-2c-.4-.2-.6-.6-.6-1v-5.6z" />
+  </svg>
+);
+
+const DingtalkIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 10.81l-.08.04c-.56.28-1.32.65-2.37 1.13l-.2.09.37 1.09.12.35h-2.65l-.05 2.42v.12h-1.26v-.11l.04-2.43H8.68l-.07-.14c-.04-.09-.05-.21 0-.38l.1-.34.14-.47c.06-.2.1-.27.28-.27h1.68l.21-1.27H9.1c-.09 0-.13-.05-.12-.14.08-.82.44-1.78 1.3-2.98.55-.77 1.22-1.5 1.84-2.13l.21-.22-.04.41c-.07.73-.08 1.26.06 1.67.15.42.44.65.94.85l.17.07-.13.12c-.51.48-.94 1.07-1.19 1.56-.17.33-.24.61-.18.82.04.15.15.24.35.29.12.03.26.04.42.04h2.9c.16 0 .26.05.28.14.03.13-.05.27-.27.38z" />
+  </svg>
+);
+
+const PlaywrightIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M18.56 2H5.44A3.44 3.44 0 002 5.44v13.12A3.44 3.44 0 005.44 22h13.12A3.44 3.44 0 0022 18.56V5.44A3.44 3.44 0 0018.56 2zM8.5 17.5a1 1 0 01-1.41 0l-2.5-2.5a1 1 0 010-1.41l2.5-2.5a1 1 0 011.41 1.41L6.71 14.3l1.79 1.79a1 1 0 010 1.41zm8.41-2.5l-2.5 2.5a1 1 0 01-1.41-1.41l1.79-1.79-1.79-1.79a1 1 0 011.41-1.41l2.5 2.5a1 1 0 010 1.4zM13.38 7.2l-2.5 9a1 1 0 01-1.93-.54l2.5-9a1 1 0 011.93.54z" />
+  </svg>
+);
+
+const FigmaIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M15.5 2H12v7.5h3.5a3.75 3.75 0 000-7.5zM12 2H8.5a3.75 3.75 0 000 7.5H12V2zM12 9.5H8.5a3.75 3.75 0 000 7.5H12V9.5zM12 17H8.5a3.75 3.75 0 103.75 3.75V17H12zM15.5 9.5a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z" />
+  </svg>
+);
+
+const UnrealIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18.5c-4.69 0-8.5-3.81-8.5-8.5S7.31 3.5 12 3.5s8.5 3.81 8.5 8.5-3.81 8.5-8.5 8.5zm-1.5-4.2V7.7c0-.22.12-.42.31-.53a.6.6 0 01.62.01l5.4 3.3c.18.11.29.31.29.52s-.11.41-.29.52l-5.4 3.3a.6.6 0 01-.62.01.61.61 0 01-.31-.53z" />
+  </svg>
+);
+
+const BlenderIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12.51 13.214c.046-.8.438-1.506 1.03-2.006a3.424 3.424 0 012.212-.786c.85 0 1.643.3 2.211.786.592.5.983 1.206 1.028 2.005a3.03 3.03 0 01-1.028 2.005 3.424 3.424 0 01-2.211.786 3.424 3.424 0 01-2.212-.786 3.03 3.03 0 01-1.03-2.005zm-8.512-1.2l5.65-4.306-2.078-1.588L2.096 10.1c-.21.16-.24.46-.065.656l1.353 1.52c.142.16.393.193.57.06l.044-.032zm5.764-1.054l-3.63 2.763c-.42.32-.476.92-.123 1.308l2.07 2.271c.353.39.98.379 1.32-.022l4.477-5.263-4.114-1.057zm4.84-.08c-1.37-.137-2.628.49-3.404 1.4l3.404-3.996v2.596zm1.592.173c1.263.257 2.378 1.058 2.99 2.24.613 1.183.614 2.544.08 3.6-.534 1.057-1.55 1.79-2.78 2.073-1.23.283-2.55.003-3.614-.767-1.065-.77-1.7-1.97-1.757-3.203-.057-1.233.474-2.457 1.47-3.285.995-.828 2.35-1.2 3.61-.658z" />
+  </svg>
+);
+
+const BraveIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M20.41 7.04l.59-1.51-.85-1.51-2.13.53L16.71 3H7.29L5.98 4.55l-2.13-.53-.85 1.51.59 1.51L2 9.5l1.53 5.58c.53 1.93 1.22 3.7 3.43 5.09L12 23l5.04-2.83c2.21-1.39 2.9-3.16 3.43-5.09L22 9.5l-1.59-2.46zM14.72 15.46l-1.32.76-1.4.8-1.4-.8-1.32-.76c-.66-.38-1.12-1.04-1.12-1.77v-.61l1.25.72L12 15.15l2.59-1.35 1.25-.72v.61c0 .73-.46 1.39-1.12 1.77z" />
+  </svg>
+);
+
+const FirecrawlIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C8.69 2 6 4.69 6 8c0 2.62 1.67 4.85 4 5.66V22h4v-8.34c2.33-.81 4-3.04 4-5.66 0-3.31-2.69-6-6-6zm0 8.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" />
+  </svg>
+);
+
+const GiteeIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.93 7.42h-3.03c-.24 0-.44.2-.44.44v1.03c0 .24.2.44.44.44h1.92c.24 0 .44.2.44.44v.22a2.2 2.2 0 01-2.2 2.2H9.93a.44.44 0 01-.44-.44V9.62a2.2 2.2 0 012.2-2.2h5.24c.24 0 .44-.2.44-.44V5.95c0-.24-.2-.44-.44-.44h-5.24a4.4 4.4 0 00-4.4 4.4v5.24c0 .24.2.44.44.44h5.46a3.96 3.96 0 003.96-3.96V9.86c0-.24-.2-.44-.44-.44z" />
+  </svg>
+);
+
+const PostizIcon: ComponentType<IconProps> = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 10h18M8 3v4M16 3v4" />
+    <path d="M12 18v-5M9.5 15.5 12 13l2.5 2.5" />
+  </svg>
+);
+
+const DefaultIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="4" />
+    <path d="M8 12h8M12 8v8" />
+  </svg>
+);
+
+export const SERVICE_ICONS: Record<string, ComponentType<IconProps>> = {
+  notion: NotionIcon,
+  github: GithubIcon,
+  gitlab: GithubIcon,
+  gitee: GiteeIcon,
+  slack: SlackIcon,
+  feishu: FeishuIcon,
+  dingtalk: DingtalkIcon,
+  todoist: DefaultIcon,
+  linear: DefaultIcon,
+  'microsoft-todo': MicrosoftTodoIcon,
+  sentry: DefaultIcon,
+  'code-graph': CodeGraphIcon,
+  database: DefaultIcon,
+  folder: DefaultIcon,
+  playwright: PlaywrightIcon,
+  browserbase: DefaultIcon,
+  firecrawl: FirecrawlIcon,
+  exa: DefaultIcon,
+  'brave-search': BraveIcon,
+  context7: DefaultIcon,
+  'microsoft-learn': DefaultIcon,
+  'aws-docs': DefaultIcon,
+  figma: FigmaIcon,
+  unreal: UnrealIcon,
+  blender: BlenderIcon,
+  supabase: DefaultIcon,
+  postman: DefaultIcon,
+  postiz: PostizIcon,
+};

@@ -1,0 +1,44 @@
+"""Tests for GET /api/v1/health/info capability detection."""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="health")
+
+
+@pytest.fixture
+def client() -> TestClient:
+    return TestClient(app)
+
+
+def test_system_info_returns_capabilities_booleans(client: TestClient) -> None:
+    response = client.get("/api/v1/health/info")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert "deploy_mode" in body
+    assert "server_version" in body
+    assert isinstance(body["server_version"], str)
+    assert "harness_version" in body
+    assert isinstance(body["harness_version"], str)
+
+    # Assert newly added capability check indicators are returned and typed correctly
+    assert "local_stt_available" in body
+    assert isinstance(body["local_stt_available"], bool)
+    assert "edge_tts_available" in body
+    assert isinstance(body["edge_tts_available"], bool)
+    assert "local_tts_available" in body
+    assert isinstance(body["local_tts_available"], bool)
+    assert body.get("data_region") == "local"
+
+
+def test_system_info_returns_custom_data_region(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MYRM_DATA_REGION", "nrt")
+    response = client.get("/api/v1/health/info")
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("data_region") == "nrt"

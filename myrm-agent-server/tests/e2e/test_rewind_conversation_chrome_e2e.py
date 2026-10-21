@@ -1,0 +1,527 @@
+"""Chrome LIVE_AGENT E2E: RewindDialog rewinds a real conversation in the Web UI.
+
+Real-user flow: send two turns, open the Rewind dialog on the SECOND user
+message, choose "Conversation only", confirm, and verify the conversation is
+truncated back to the first turn with the second message pre-filled in the
+composer and the success toast shown.
+
+The prompts only ask the model to reply with a fixed marker text — no tool
+calls — so the test is stable across providers (unlike tool-call-based E2Es).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import sys
+import time
+import urllib.error
+from pathlib import Path
+
+import pytest
+
+_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
+if str(_LIB) not in sys.path:
+    sys.path.insert(0, str(_LIB))
+
+from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
+from cdp_chat.support import (  # noqa: E402
+    chat_user_message_count,
+    e2e_runtime_bootstrap_apply_js,
+    get_e2e_api_url,
+    shpoib_parallel_shell_timeout_sec,
+    signoff_parallel_force_chat_timeout_sec,
+    wait_e2e_backend_ready,
+    wait_e2e_provider_ready,
+)
+from cdp_chat.ui import chat_id_from_path  # noqa: E402
+from dev_gate.contract import EvaluateIntent  # noqa: E402
+
+from tests.support.chrome_mcp_e2e import open_mcp_page  # noqa: E402
+from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e  # noqa: E402
+from tests.support.e2e_runtime_guard import (
+    E2EResourceLedger,
+    heartbeat_once,
+)  # noqa: E402
+
+try:
+    from e2e_session_runtime.lifecycle import touch_wall_progress
+except ImportError:  # pragma: no cover - lib on PYTHONPATH in e2e only
+
+    def touch_wall_progress(*, current_node: str | None = None) -> None:
+        del current_node
+
+
+def _touch_rewind_progress(node: str) -> None:
+    # Best-effort telemetry: a coordinator timeout must not abort the test
+    # mid-scenario — progress touch and heartbeat are observation only.
+    try:
+        touch_wall_progress(current_node=node)
+        heartbeat_once()
+    except Exception:  # pragma: no cover - infra jitter resilience
+        pass
+
+
+BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+TURN_A = "Reply with the exact text: REWIND_MARKER_A"
+TURN_B = "Reply with the exact text: REWIND_MARKER_B"
+
+_OPEN_REWIND_JS = """(() => {
+  const allBtns = () =>
+    Array.from(
+      document.querySelectorAll(
+        '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
+      ),
+    );
+  const msgIds = Array.from(
+    document.querySelectorAll('[data-message-id]'),
+  ).map((el) => ({
+    id: el.getAttribute('data-message-id'),
+    hasRewindBtn: !!el.querySelector(
+      '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
+    ),
+  }));
+  const connected = allBtns().filter((b) => b.isConnected && !b.disabled);
+  // Rewind the SECOND user message: rewinding "to here" removes that message
+  // and everything after it, keeping the first turn. Real-user scenario.
+  const btn = connected[1] || connected[0] || null;
+  if (!btn) {
+    if (window.__MYRM_E2E_CHAT__?.openRewindDialog) {
+      window.__MYRM_E2E_CHAT__.openRewindDialog(1);
+    }
+  } else {
+    btn.scrollIntoView({ block: 'center', inline: 'nearest' });
+    btn.focus();
+    btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    btn.click();
+  }
+  // Immediate post-click diagnostics: confirm React actually opened the dialog.
+  return {
+    ok: true,
+    count: connected.length,
+    clickedIndex: connected.length >= 2 ? 1 : 0,
+    btnDisabled: btn ? btn.disabled : false,
+    btnOuterHtml: (btn?.outerHTML || '').slice(0, 300),
+    dialogImmediately: !!document.querySelector('[role="dialog"]'),
+    rewindTarget: window.__MYRM_E2E_CHAT__?.getRewindTarget?.() ?? null,
+    msgIds,
+  };
+})()"""
+
+_DIALOG_READY_JS = """(() => {
+  let dlg = document.querySelector('[role="dialog"]');
+  if (!dlg && window.__MYRM_E2E_CHAT__?.openRewindDialog) {
+    window.__MYRM_E2E_CHAT__.openRewindDialog(1);
+    dlg = document.querySelector('[role="dialog"]');
+  }
+  const scopeBtns = Array.from(dlg?.querySelectorAll('button') || []).map(
+    (b) => (b.textContent || '').trim(),
+  );
+  return {
+    ready: !!dlg,
+    scopeBtns,
+    hasScopeBoth: scopeBtns.some(
+      (t) => t.includes('Conversation and files') || t.includes('对话和文件'),
+    ),
+    rewindTarget: window.__MYRM_E2E_CHAT__?.getRewindTarget?.() ?? null,
+  };
+})()"""
+
+_SELECT_SCOPE_JS = """(() => {
+  const dlg = document.querySelector('[role="dialog"]');
+  if (!dlg) return { ok: false, err: 'no-dialog' };
+  const btns = Array.from(dlg.querySelectorAll('button'));
+  const target = btns.find(
+    (b) =>
+      (b.textContent || '').includes('Conversation only') ||
+      (b.textContent || '').includes('仅对话'),
+  );
+  if (!target) return { ok: false, err: 'no-scope-btn', btns: btns.map((b) => (b.textContent || '').trim()) };
+  target.scrollIntoView({ block: 'center', inline: 'nearest' });
+  target.focus();
+  target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  target.click();
+  return { ok: true };
+})()"""
+
+_CONFIRM_REWIND_JS = """(() => {
+  const dlg = document.querySelector('[role="dialog"]');
+  if (!dlg) return { ok: false, err: 'no-dialog' };
+  const btns = Array.from(dlg.querySelectorAll('button'));
+  const target = btns.find((b) => {
+    const t = (b.textContent || '').trim();
+    return t === 'Rewind' || t === '回退';
+  });
+  if (!target) return { ok: false, err: 'no-confirm-btn', btns: btns.map((b) => (b.textContent || '').trim()) };
+  target.scrollIntoView({ block: 'center', inline: 'nearest' });
+  target.focus();
+  target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  target.click();
+  return { ok: true };
+})()"""
+
+_FINAL_STATE_JS = """(() => {
+  const input = document.querySelector('[data-chat-input]');
+  const value = input?.value || input?.textContent || '';
+  const body = document.body.innerText || '';
+  const bridge = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? null;
+  const dialog = document.querySelector('[role="dialog"]');
+  const toasts = Array.from(
+    document.querySelectorAll('[data-sonner-toast], [role="status"], [role="alert"]'),
+  )
+    .map((t) => (t.textContent || '').trim())
+    .filter(Boolean);
+  const rewoundBtns = Array.from(
+    document.querySelectorAll(
+      '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
+    ),
+  );
+  return {
+    ok: value.includes('REWIND_MARKER_B'),
+    composerValue: value.slice(0, 300),
+    hasToast:
+      body.includes('Conversation rewound') || body.includes('对话已回退'),
+    storeUserCount: bridge?.userCount ?? null,
+    storeIsStreaming: bridge?.isStreaming ?? null,
+    storeChatId: bridge?.chatId ?? null,
+    dialogOpen: !!dialog,
+    rewoundBtns: rewoundBtns.length,
+    toasts,
+    path: location.pathname,
+    sample: body.slice(0, 3000),
+  };
+})()"""
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.integration
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.timeout(600)
+@pytest.mark.asyncio
+async def test_rewind_conversation_via_webui(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    if not wait_e2e_provider_ready():
+        pytest.fail(
+            "Provider config not ready for rewind Chrome E2E — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome",
+        )
+
+    api_base = get_e2e_api_url()
+
+    async def _apply_bootstrap(chat: McpChatSession) -> None:
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if not bootstrap_js:
+            await chat.ensure_e2e_api_base_binding()
+            return
+        result = await chat.evaluate(bootstrap_js, intent=EvaluateIntent.AGENT_SUBMIT)
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
+
+    async def _wait_api_user_messages(
+        chat_id: str,
+        expected: int,
+        *,
+        timeout_sec: float,
+        mode: str = "at_least",
+    ) -> None:
+        deadline = time.monotonic() + timeout_sec
+        last = 0
+        seen: list[int] = []
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_api_messages")
+            try:
+                last = chat_user_message_count(chat_id, api_url=api_base)
+                seen.append(last)
+                if mode == "exact" and last == expected:
+                    return
+                if mode == "at_least" and last >= expected:
+                    return
+            except (OSError, TimeoutError, urllib.error.URLError):
+                wait_e2e_backend_ready(timeout_sec=15.0, api_url=api_base)
+            await asyncio.sleep(1.0)
+        raise AssertionError(
+            f"Backend user messages did not reach {expected} (mode={mode}) within {timeout_sec}s (last={last}, seen={seen[-12:]})"
+        )
+
+    async def _wait_store_user_count(chat: McpChatSession, expected: int, *, timeout_sec: float) -> None:
+        """Poll the frontend store (via E2E bridge) for the expected user count.
+
+        Unlike the backend API poll, this reflects what the UI actually renders,
+        which is what a rewind confirm must update.
+        """
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_store_user_count")
+            probe = await chat.evaluate(
+                """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? { err: 'no-bridge' })()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("userCount") == expected:
+                    return
+            await asyncio.sleep(1.0)
+        raise TimeoutError(f"Store user count did not reach {expected} before/after rewind: {last}")
+
+    async def _wait_not_streaming(chat: McpChatSession, *, timeout_sec: float) -> None:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_not_streaming")
+            probe = await chat.evaluate(
+                """(() => window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? { err: 'no-bridge' })()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("isStreaming") is False:
+                    return
+            await asyncio.sleep(1.0)
+        raise TimeoutError(f"Chat still streaming before rewind: {last}")
+
+    async def _wait_frontend_settled(
+        chat: McpChatSession,
+        *,
+        expected_user_count: int,
+        expected_assistant_count: int,
+        timeout_sec: float,
+    ) -> None:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_frontend_settled")
+            probe = await chat.evaluate(
+                f"""(() => {{
+                  const b = window.__MYRM_E2E_CHAT__;
+                  const snap = b?.turnSnapshot?.();
+                  if (!snap) return {{ ok: false, err: 'no-bridge' }};
+                  return {{
+                    ok: !snap.isStreaming &&
+                        snap.userCount === {expected_user_count} &&
+                        snap.assistantCount === {expected_assistant_count} &&
+                        Boolean(snap.lastAssistantSample && snap.lastAssistantSample.length > 0),
+                    snap,
+                  }};
+                }})()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("ok") is True:
+                    await asyncio.sleep(0.5)
+                    return
+            await asyncio.sleep(1.0)
+        raise TimeoutError(f"Frontend did not settle: {last}")
+
+    async def _wait_js(chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str) -> dict[str, object]:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_js")
+            raw = await chat.evaluate(js, intent=EvaluateIntent.BRIDGE_POLL)
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("ready") is True or last.get("ok") is True:
+                return last
+            await asyncio.sleep(1.0)
+        raise AssertionError(f"{error_label}: {last}")
+
+    async def _wait_dialog(chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str) -> dict[str, object]:
+        """Poll for a dialog and keep a trace of every observed state, so a
+        'dialog never opened' failure is distinguishable from a render race."""
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        trace: list[dict[str, object]] = []
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_dialog")
+            raw = await chat.evaluate(js, intent=EvaluateIntent.BRIDGE_POLL)
+            last = raw if isinstance(raw, dict) else {"value": raw}
+            if last.get("ready") is True or last.get("ok") is True:
+                return last
+            trace.append(last)
+            await asyncio.sleep(1.0)
+        raise AssertionError(f"{error_label}: {last} (trace_tail={trace[-6:]})")
+
+    async def _clear_composer(chat: McpChatSession, *, timeout_sec: float) -> None:
+        """Empty the composer before opening the Rewind dialog.
+
+        Under E2E send races the composer can retain the last sent text; clearing
+        it first means the post-rewind prefill check reflects the rewind seed
+        (the deleted message's text) rather than a leftover value.
+        """
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_clear_composer")
+            result = await chat.evaluate(
+                """(() => {
+                  const b = window.__MYRM_E2E_CHAT__;
+                      const hasBridge = !!b;
+                      const snap = b?.turnSnapshot?.() ?? null;
+                      const chatId =
+                        snap && typeof snap.chatId === 'string' ? snap.chatId : '';
+                      const draftKey = chatId ? 'myrm_draft_' + chatId : null;
+                      const draftBefore = draftKey ? localStorage.getItem(draftKey) : null;
+                      if (draftKey) localStorage.removeItem(draftKey);
+                      const draftAfter = draftKey ? localStorage.getItem(draftKey) : null;
+                      b?.setInputMessage?.('');
+                      const storeAfter = b?.getInputMessage?.() ?? null;
+                      const inputs = Array.from(document.querySelectorAll('[data-chat-input]'));
+                      for (const input of inputs) {
+                        input.focus();
+                        if (typeof input.select === 'function') input.select();
+                        document.execCommand ? document.execCommand('delete') : null;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                      }
+                      const len = document.querySelector('[data-chat-input]')?.value?.length ?? 0;
+                      const finalStore = b?.getInputMessage?.() ?? null;
+                      return {
+                        ok: len === 0,
+                        inputLen: len,
+                        hasBridge,
+                        chatId,
+                        draftKey,
+                        draftBefore,
+                        draftAfter,
+                        storeAfter,
+                        finalStore,
+                        inputCount: inputs.length,
+                      };
+                    })()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            last = result if isinstance(result, dict) else {"value": result}
+            if last.get("ok") is True:
+                return
+            await asyncio.sleep(1.0)
+        raise AssertionError(f"Composer did not clear before rewind: {last}")
+
+    async def _run_flow(chat: McpChatSession) -> str:
+        await chat.dismiss_modals()
+        await chat.click_new_chat()
+        await chat.ensure_chat_surface(BASE_URL)
+        await _apply_bootstrap(chat)
+        await pin_lite_model_for_e2e(chat)
+
+        send = await chat.send_message(TURN_A, TURN_A)
+        _touch_rewind_progress("rewind_post_send_turn_a")
+        chat_id_hint = str(send.get("started", {}).get("chatId") or send.get("submit", {}).get("chatId") or "").strip()
+        if not chat_id_hint:
+            chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
+
+        started = await chat.wait_stream_started(TURN_A, timeout_sec=120.0, chat_id_hint=chat_id_hint)
+        chat_id = chat_id_hint or str(started.get("chatId") or "").strip() or None
+        if not chat_id:
+            after_start = await chat.main_state(TURN_A, intent=EvaluateIntent.BRIDGE_POLL)
+            chat_id = (
+                chat_id_from_path(str(after_start.get("path") or ""))
+                or str(after_start.get("bridgeChatId") or "").strip()
+                or None
+            )
+        assert chat_id, f"Expected chat id after turn A: started={started}; send={send}"
+        await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+        await chat._attach_chat_session(chat_id)
+        await _wait_not_streaming(chat, timeout_sec=90.0)
+        await _wait_api_user_messages(chat_id, 1, timeout_sec=90.0)
+        await _wait_frontend_settled(chat, expected_user_count=1, expected_assistant_count=1, timeout_sec=90.0)
+
+        await chat.send_message(TURN_B, TURN_B, chat_id_hint=chat_id, base_url=BASE_URL)
+        _touch_rewind_progress("rewind_post_send_turn_b")
+        await chat.wait_stream_started(TURN_B, timeout_sec=120.0, chat_id_hint=chat_id)
+        await _wait_not_streaming(chat, timeout_sec=90.0)
+        await _wait_api_user_messages(chat_id, 2, timeout_sec=90.0)
+        await _wait_frontend_settled(chat, expected_user_count=2, expected_assistant_count=2, timeout_sec=90.0)
+
+        # Rewind must prefill the composer with the rewinded message's text;
+        # make sure the composer is empty first (E2E send races can leave the
+        # last sent text behind, which would make the prefill check vacuous).
+        await _clear_composer(chat, timeout_sec=30.0)
+
+        _touch_rewind_progress("rewind_open_dialog")
+        opened = await chat.evaluate(_OPEN_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(opened, dict) and opened.get("ok") is True, f"Open rewind failed: {opened}"
+        print(f"REWIND_DIAG open_rewind={opened}")
+
+        # Diagnostic: compare frontend message ids (from DOM) with backend DB ids.
+        if isinstance(opened, dict) and opened.get("msgIds"):
+            dom_ids = [str(m.get("id") or "")[:14] for m in opened["msgIds"]]
+            try:
+                from cdp_chat.support import fetch_chat_messages
+
+                back_msgs = fetch_chat_messages(chat_id, api_url=api_base)
+                back_ids = [str(m.get("messageId") or m.get("id") or "")[:14] for m in back_msgs]
+                print(f"REWIND_DIAG dom={dom_ids} backend={back_ids}")
+            except Exception as exc:  # pragma: no cover - diagnostic only
+                print(f"REWIND_DIAG backend fetch failed: {exc}")
+
+        dialog = await _wait_dialog(
+            chat,
+            _DIALOG_READY_JS,
+            timeout_sec=30.0,
+            error_label="rewind dialog did not open",
+        )
+        assert dialog.get("hasScopeBoth") is True, f"Unexpected scope options: {dialog}"
+
+        scoped = await chat.evaluate(_SELECT_SCOPE_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(scoped, dict) and scoped.get("ok") is True, f"Scope select failed: {scoped}"
+
+        confirmed = await chat.evaluate(_CONFIRM_REWIND_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+        assert isinstance(confirmed, dict) and confirmed.get("ok") is True, f"Confirm failed: {confirmed}"
+
+        _touch_rewind_progress("rewind_post_confirm")
+        # Poll after confirm until the rewind resolves. The dialog stays open
+        # with a "Rewinding..." label while the API call is in flight, so
+        # dialogOpen==True is the *expected* state right after confirm — only
+        # dialogOpen==False with storeUserCount==1 means success. A fixed sleep
+        # can miss the ephemeral success toast (sonner default 4s), so keep a
+        # fast poll and record the toast timeline for diagnosis.
+        confirm_deadline = time.monotonic() + 60.0
+        seen_toasts: list[list[str]] = []
+        diag: dict[str, object] = {}
+        while time.monotonic() < confirm_deadline:
+            diag = await chat.evaluate(_FINAL_STATE_JS, intent=EvaluateIntent.BRIDGE_POLL)
+            if not isinstance(diag, dict):
+                break
+            seen_toasts.append([str(x) for x in (diag.get("toasts") or [])])
+            if diag.get("dialogOpen") is False and diag.get("storeUserCount") == 1:
+                break
+            if diag.get("storeUserCount") == 1 and diag.get("hasToast") is True:
+                break
+            await asyncio.sleep(0.5)
+        print(f"REWIND_DIAG toasts_timeline={seen_toasts[-12:]}")
+        if diag.get("storeUserCount") != 1:
+            raise AssertionError(f"Rewind did not take effect after confirm: {diag}")
+
+        # Rewind must (a) truncate the backend to a single user message AND
+        # (b) update the frontend store that the UI actually renders.
+        await _wait_api_user_messages(chat_id, 1, timeout_sec=60.0, mode="exact")
+        await _wait_store_user_count(chat, 1, timeout_sec=60.0)
+
+        final = await _wait_js(
+            chat,
+            _FINAL_STATE_JS,
+            timeout_sec=60.0,
+            error_label="rewind final state not reached",
+        )
+        assert final.get("ok") is True, f"Composer not pre-filled: {final}"
+        assert final.get("hasToast") is True, f"Success toast missing: {final}"
+
+        e2e_resource_ledger.register("chat", chat_id)
+        return chat_id
+
+    with open_mcp_page(BASE_URL, timeout_ms=90_000) as (client, page):
+        chat = McpChatSession(client, page)
+        bootstrap_timeout = signoff_parallel_force_chat_timeout_sec(shpoib_parallel_shell_timeout_sec(240.0))
+        await chat.bootstrap(BASE_URL, timeout_sec=bootstrap_timeout)
+        chat_id = await _run_flow(chat)
+        assert chat_id

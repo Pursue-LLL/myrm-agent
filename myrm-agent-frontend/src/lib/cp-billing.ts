@@ -1,0 +1,128 @@
+/**
+ * [INPUT]
+ * - process.env.NEXT_PUBLIC_CP_API_URL (POS: Control Plane 基础 URL)
+ *
+ * [OUTPUT]
+ * - BillingPlanKey / PaidBillingPlanKey / isPaidBillingPlan: 套餐键 SSOT
+ * - fetchEntitlements: 拉取 CP 权益 + WU 余额
+ * - fetchBillingCatalog: 拉取 CP 公开定价 catalog
+ * - fetchWorkUnitEstimate: 拉取 CP 消息 WU 预估值
+ *
+ * [POS]
+ * 前端 Control Plane Billing API 薄封装（仅 SaaS Sandbox）。
+ */
+
+export type BillingPlanKey = 'free' | 'companion' | 'plus' | 'pro' | 'max';
+export type PaidBillingPlanKey = Exclude<BillingPlanKey, 'free'>;
+
+export const PAID_BILLING_PLAN_KEYS: readonly PaidBillingPlanKey[] = ['companion', 'plus', 'pro', 'max'];
+
+export function isPaidBillingPlan(plan: string): plan is PaidBillingPlanKey {
+  return (PAID_BILLING_PLAN_KEYS as readonly string[]).includes(plan);
+}
+
+export interface EntitlementSnapshot {
+  user_id: string;
+  plan: BillingPlanKey | 'team';
+  status: string;
+  balance_wu: number;
+  subscription_wu: number;
+  topup_wu: number;
+  monthly_allowance_wu: number;
+  daily_refresh_remaining_wu: number;
+  period_end: number | null;
+  billing_customer_id?: string | null;
+  enable_cron: boolean;
+  enable_public_ingress: boolean;
+  max_cron_triggers: number;
+  enable_subagent: boolean;
+  enable_vnc: boolean;
+  idle_sleep_seconds: number;
+  cpu_limit: number;
+  memory_mb: number;
+  free_models: string[];
+}
+
+export interface WorkUnitEstimateResponse {
+  estimated_wu: number;
+  balance_wu: number;
+  remaining_after_wu: number;
+}
+
+export interface WorkUnitEstimateRequest {
+  message_length: number;
+  has_attachments?: boolean;
+  action_mode?: string;
+}
+
+export interface BillingCatalogPlan {
+  plan: BillingPlanKey | 'team';
+  monthly_usd: number;
+  yearly_usd: number;
+  monthly_wu: number;
+  trial_days: number;
+  checkout_available: boolean;
+  yearly_checkout_available: boolean;
+  features: string[];
+}
+
+export interface TierMultiplier {
+  tier: string;
+  multiplier: number;
+  examples: string;
+}
+
+export interface BillingCatalogResponse {
+  plans: BillingCatalogPlan[];
+  topup_wu_per_usd: number;
+  billing_provider?: 'stripe' | 'creem';
+  topup_available?: boolean;
+  tier_multipliers?: TierMultiplier[];
+}
+
+export function getCpApiBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_CP_API_URL || 'http://127.0.0.1:8003').replace(/\/+$/, '');
+}
+
+export async function fetchEntitlements(token: string): Promise<EntitlementSnapshot> {
+  const response = await fetch(`${getCpApiBaseUrl()}/api/billing/entitlements`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch entitlements: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchBillingCatalog(): Promise<BillingCatalogResponse> {
+  const response = await fetch(`${getCpApiBaseUrl()}/api/billing/catalog`, {
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch billing catalog: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchWorkUnitEstimate(
+  token: string,
+  body: WorkUnitEstimateRequest,
+): Promise<WorkUnitEstimateResponse> {
+  const response = await fetch(`${getCpApiBaseUrl()}/api/billing/estimate`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch WU estimate: ${response.status}`);
+  }
+  return response.json();
+}

@@ -1,0 +1,464 @@
+"""Local Eval Executor for the Server Layer.
+
+[INPUT]
+- myrm_agent_harness.eval.protocol::AgentExecutor, AgentResponse
+- app.ai_agents.agents::AgentFactory, GeneralAgentParams
+- app.core.channel_bridge.config_loader::load_user_configs
+- app.core.channel_bridge.config_parsers::extract_*
+- app.core.agent.run_activity::track_background_agent_run (POS: marks each case run in flight for the hosted idle recycler)
+- app.core.eval.stream_trace::StreamTrace (POS: folds the agent event stream into an eval AgentResponse)
+
+[OUTPUT]
+- LocalEvalExecutor: implements AgentExecutor for local evaluation.
+- cleanup_orphan_eval_workspaces: startup sweep of stale eval session workspaces.
+
+[POS]
+Adapts the Server's AgentFactory to the Harness's Eval framework.
+Provides a clean, isolated execution environment for each eval case.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import shutil
+import time
+import uuid
+from pathlib import Path
+
+from myrm_agent_harness.eval import CANARY_GUID
+from myrm_agent_harness.eval.protocols import AgentResponse
+from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
+from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
+from myrm_agent_harness.toolkits.code_execution.executors.local import LocalExecutor
+
+from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+from app.core.agent.run_activity import track_background_agent_run
+from app.core.channel_bridge.config_loader import load_user_configs
+from app.core.channel_bridge.config_parsers import (
+    extract_fallback_model_configs,
+    extract_lite_model_config,
+    extract_mcp_configs,
+    extract_retrieval_models,
+    extract_user_instructions,
+    merge_org_mcp_configs,
+    verify_search_service_available,
+)
+from app.core.eval.stream_trace import StreamTrace
+from app.core.types import MCPServerConfig
+
+logger = logging.getLogger(__name__)
+
+
+class LocalEvalExecutor:
+    """Executes Agent eval cases using the Server's Agent configuration."""
+
+    def __init__(
+        self,
+        profile_id: str | None = None,
+        *,
+        benchmark_mode: bool = False,
+        workspace_seed_map: dict[str, str] | None = None,
+        enable_memory: bool | None = None,
+        memory_base_path: str | None = None,
+        benchmark_tools: tuple[str, ...] = (),
+        skill_ids_override: list[str] | None = None,
+        resolve_shared_contexts: bool = True,
+        max_tool_calls: int | None = None,
+        max_iterations: int | None = None,
+        blocked_hostnames: tuple[str, ...] | None = None,
+        blocked_terms: tuple[str, ...] | None = None,
+        canary_token: str | None = None,
+    ) -> None:
+        self.profile_id = profile_id
+        self.benchmark_mode = benchmark_mode
+        # Run budgets a benchmark may declare on its spec. ``None`` keeps the
+        # engine defaults; a declared value pins the exact budget so the same
+        # benchmark runs reproducibly across harness versions (measurement
+        # decay guard) instead of silently inheriting engine defaults.
+        self._max_tool_calls = max_tool_calls
+        self._max_iterations = max_iterations
+        # Benchmark decontamination blocklists: hosts rejected by web_fetch and
+        # substrings rejected in web_search queries. Installed only when the
+        # caller resolves them from the benchmark spec — never for normal runs.
+        self._blocked_hostnames = blocked_hostnames
+        effective_blocked_terms = list(blocked_terms) if blocked_terms is not None else []
+        if benchmark_mode:
+            if CANARY_GUID not in effective_blocked_terms:
+                effective_blocked_terms.append(CANARY_GUID)
+            if canary_token and canary_token not in effective_blocked_terms:
+                effective_blocked_terms.append(canary_token)
+        self._blocked_terms = tuple(effective_blocked_terms) if effective_blocked_terms else None
+        # Builtin-tool whitelist a benchmark may declare to be runnable in
+        # benchmark_mode (e.g. BrowseComp requires web_search). Default empty:
+        # a plain benchmark run keeps the CORE file/shell baseline only.
+        self.benchmark_tools = benchmark_tools
+        # Maps a case message to a pre-provisioned workspace directory whose
+        # contents are copied into the session workspace before the agent runs.
+        # Generic capability for external datasets (e.g. WorkBuddy Bench) that
+        # ship a read-only task workspace archive.
+        self._workspace_seed_map = workspace_seed_map or {}
+        # Layered-eval skill ablation: ``None`` keeps the profile's declared
+        # skills, ``[]`` disables them entirely, a list pins an explicit set.
+        # Applied after profile resolution so intermediate layers (e.g. "core"
+        # rules without skills) can be exercised without cloning the profile.
+        self._skill_ids_override = skill_ids_override
+        # Shared-context isolation for capability-ablation evals: layered
+        # evaluation must measure each harness capability in isolation, so it
+        # disables user shared-context injection (``False``) to avoid blending
+        # the user's real shared memory into the scored result. Interactive
+        # matrix runs keep it on so they mirror real chat behavior.
+        self._resolve_shared_contexts = resolve_shared_contexts
+        self._sandbox_executors: dict[str, CodeExecutor] = {}
+        self._session_id: str | None = None
+        # Physical session workspaces created by this executor. Both
+        # create_session and execute register here so cleanup() can remove
+        # every directory it created (including any implicit execute-only one).
+        self._created_workspaces: set[Path] = set()
+        # Memory participation in this run. `None` means "inherit benchmark
+        # semantics": benchmark runs disable memory for a fair, uncontaminated
+        # baseline; interactive runs keep it on. Pass an explicit bool to
+        # override (e.g. the memory-on arm of a memory A/B comparison).
+        self._enable_memory = enable_memory if enable_memory is not None else not benchmark_mode
+        # Override memory storage root so eval never touches the user's real
+        # memory volume (isolated temp dir created by the caller).
+        self._memory_base_path = memory_base_path
+
+    async def create_session(self) -> str:
+        """Create a new session ID.
+
+        In a real sandbox environment, this might trigger a snapshot or container spin-up.
+        For eval, we generate a unique chat ID and create a dedicated physical
+        workspace directory to ensure true concurrency isolation per case.
+        """
+        self._session_id = f"eval_{uuid.uuid4().hex[:8]}"
+
+        # Create an isolated workspace directory for this evaluation session
+        workspace_dir = (Path(".myrm/eval_workspaces") / self._session_id).resolve()
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        self._created_workspaces.add(workspace_dir)
+
+        # Initialize a sandbox executor for this session if needed by assertions
+        # We use the local executor for testing purposes and bind it to the isolated workspace
+        self._sandbox_executors[self._session_id] = LocalExecutor(ExecutionConfig(), workspace_path=str(workspace_dir))
+
+        return self._session_id
+
+    def get_sandbox_executor(self, session_id: str | None = None) -> CodeExecutor | None:
+        """Return the SandboxExecutor for evaluating state assertions."""
+        if session_id and session_id in self._sandbox_executors:
+            return self._sandbox_executors[session_id]
+        if self._session_id and self._session_id in self._sandbox_executors:
+            return self._sandbox_executors[self._session_id]
+        return None
+
+    async def cleanup(self) -> None:
+        """Remove the physical session workspaces created by this executor.
+
+        Called after a run finishes (success, error, or abort) so eval never
+        leaves throwaway directories behind. Idempotent: each path is removed
+        with ignore_errors, and cleared state means a second call is a no-op.
+        Deletion runs in a worker thread to keep the event loop unblocked.
+        """
+        count = len(self._created_workspaces)
+        for workspace_dir in self._created_workspaces:
+            await asyncio.to_thread(shutil.rmtree, workspace_dir, ignore_errors=True)
+        self._created_workspaces.clear()
+        self._sandbox_executors.clear()
+        self._session_id = None
+        if count:
+            logger.info("Removed %d eval workspace(s)", count)
+
+    async def execute(self, message: str, *, session_id: str | None = None) -> AgentResponse:
+        """Execute a single eval case, counted as an in-flight agent run for the hosted idle recycler."""
+        with track_background_agent_run():
+            return await self._execute_case(message, session_id=session_id)
+
+    async def _execute_case(self, message: str, *, session_id: str | None = None) -> AgentResponse:
+        chat_id = session_id or self._session_id or f"eval_{uuid.uuid4().hex[:8]}"
+
+        # Resolve the isolated physical workspace directory for this execution
+        workspace_dir = (Path(".myrm/eval_workspaces") / chat_id).resolve()
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        self._created_workspaces.add(workspace_dir)
+
+        # Seed the workspace from a pre-provisioned task directory when the
+        # dataset ships an initial workspace (e.g. WorkBuddy Bench task assets).
+        seed_dir = self._workspace_seed_map.get(message)
+        if seed_dir:
+            seed_path = Path(seed_dir)
+            if seed_path.is_dir() and not any(workspace_dir.iterdir()):
+                shutil.copytree(seed_path, workspace_dir, dirs_exist_ok=True)
+            else:
+                logger.warning(
+                    "Workspace seed missing or workspace not empty for case %s: %s",
+                    chat_id,
+                    seed_dir,
+                )
+
+        # Load user configs to test their specific agent setup
+        configs = await load_user_configs()
+
+        embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
+        mcp_configs: list[MCPServerConfig] | None = merge_org_mcp_configs(
+            extract_mcp_configs(configs.mcp_dict),
+            configs.org_mcp_dict,
+        )
+        lite_model_cfg = extract_lite_model_config(configs.providers_dict)
+        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+        from app.core.channel_bridge.config_parsers import resolve_chat_fallback_chains_from_providers
+
+        fallback_model_cfgs_list, fallback_lite_model_cfgs_list = resolve_chat_fallback_chains_from_providers(
+            configs.providers_dict,
+            require_tool_calling=True,
+        )
+        fallback_model_cfgs = fallback_model_cfgs_list or None
+        fallback_lite_model_cfgs = fallback_lite_model_cfgs_list or None
+        if fallback_model_cfgs and fallback_model_cfg is None:
+            fallback_model_cfg = fallback_model_cfgs[0]
+        if fallback_lite_model_cfgs and fallback_lite_model_cfg is None:
+            fallback_lite_model_cfg = fallback_lite_model_cfgs[0]
+        user_instructions = extract_user_instructions(configs.personal_settings_dict)
+
+        agent_skill_ids = []
+        agent_subagent_ids = None
+        agent_security_raw: dict[str, object] = {"yolo_mode_enabled": True}
+        agent_max_iterations = None
+        agent_memory_policy = None
+        agent_engine_params = None
+
+        agent_model_override: str | None = None
+        from app.services.agent.builtin_specs.builtin_tool_ids import (
+            DEFAULT_ENABLED_BUILTIN_TOOLS,
+        )
+        from app.services.agent.profile.profile_resolver import (
+            resolve_builtin_tool_flags,
+        )
+        from app.services.agent.tool_mount import ExecutionSurface, resolve_agent_mount
+
+        enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+        auto_restore_domains: list[str] = []
+        memory_decay_profile: str | None = None
+        memory_extraction_preset: str | None = None
+
+        if self.profile_id:
+            from app.services.agent.profile.profile_resolver import (
+                get_agent_profile_resolver,
+            )
+
+            resolved = await get_agent_profile_resolver().resolve(self.profile_id)
+            if resolved:
+                if resolved.system_prompt:
+                    user_instructions = (
+                        f"{user_instructions}\n\n{resolved.system_prompt}" if user_instructions else resolved.system_prompt
+                    )
+                agent_skill_ids = list(resolved.skill_ids)
+                agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+                if resolved.security_overrides:
+                    for _k, _v in resolved.security_overrides.items():
+                        agent_security_raw[str(_k)] = _v
+                agent_max_iterations = resolved.max_iterations
+                agent_memory_policy = resolved.memory_policy
+                agent_engine_params = resolved.engine_params
+                agent_model_override = resolved.model
+                enabled_builtin_tools = list(resolved.enabled_builtin_tools)
+                auto_restore_domains = list(resolved.auto_restore_domains)
+                raw_decay = resolved.memory_decay_profile
+                memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
+                raw_preset = resolved.memory_extraction_preset
+                memory_extraction_preset = raw_preset if isinstance(raw_preset, str) else None
+
+                if mcp_configs:
+                    from app.services.agent.params.mcp_selection import (
+                        apply_agent_mcp_selection,
+                    )
+
+                    mcp_configs = apply_agent_mcp_selection(
+                        mcp_configs,
+                        mcp_ids=resolved.mcp_ids or None,
+                        mcp_tool_selections=resolved.mcp_tool_selections or None,
+                    )
+
+                from app.services.agent.params.profile_output_suffixes import (
+                    apply_profile_output_suffixes,
+                )
+
+                user_instructions = apply_profile_output_suffixes(
+                    user_instructions,
+                    personality_style=resolved.personality_style,
+                    engine_params=resolved.engine_params,
+                    agent_id=self.profile_id,
+                )
+
+        if self.benchmark_mode:
+            user_instructions = ""
+            enabled_builtin_tools = list(self.benchmark_tools)
+            agent_skill_ids = []
+            agent_subagent_ids = None
+            mcp_configs = None
+            agent_engine_params = {
+                "enable_replan": False,
+                "enable_context_compression": False,
+            }
+            # A benchmark-declared tool-call budget pins the engine cap so the
+            # scored run cannot silently drift with engine defaults; when the
+            # spec leaves it unset the engine default applies.
+            if self._max_tool_calls:
+                agent_engine_params["max_tool_calls"] = self._max_tool_calls
+            if self._max_iterations:
+                agent_max_iterations = self._max_iterations
+
+        # Layered-eval ablation applies after profile resolution so it is the
+        # final word on skill participation (benchmark_mode already emptied the
+        # list, so an override here is a no-op for the bare layer).
+        if self._skill_ids_override is not None:
+            agent_skill_ids = list(self._skill_ids_override)
+
+        memory_shared_context_ids: list[str] = []
+        if not self.benchmark_mode and self._resolve_shared_contexts:
+            try:
+                from app.services.memory.shared_context.shared_context import (
+                    resolve_shared_context_ids,
+                )
+
+                memory_shared_context_ids = await resolve_shared_context_ids(
+                    agent_id=self.profile_id,
+                    channel_id="eval",
+                    conversation_id=chat_id,
+                )
+            except Exception as e:
+                logger.warning("Failed to resolve shared memory contexts for eval run: %s", e)
+
+        from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+            EmbeddingConfig,
+        )
+        from myrm_agent_harness.toolkits.retriever.reranker.factory import (
+            RerankerConfig,
+        )
+
+        GeneralAgentParams.model_rebuild(
+            _types_namespace={
+                "EmbeddingConfig": EmbeddingConfig,
+                "RerankerConfig": RerankerConfig,
+            }
+        )
+
+        # Resolve model: agent-specific model > global default
+        if agent_model_override:
+            from app.core.channel_bridge.model_resolver import (
+                enrich_model_context_window,
+                resolve_model_config,
+            )
+
+            eval_model_cfg = resolve_model_config(
+                configs.providers_dict,
+                model_override=agent_model_override,
+            )
+            eval_model_cfg = enrich_model_context_window(eval_model_cfg, configs.providers_dict)
+        else:
+            eval_model_cfg = configs.model_cfg
+
+        from app.core.memory.proactive.settings import (
+            resolve_conversation_search_enabled,
+        )
+        from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
+
+        params = GeneralAgentParams(
+            query=message,
+            model_cfg=eval_model_cfg,
+            fallback_model_cfg=fallback_model_cfg,
+            fallback_model_cfgs=fallback_model_cfgs,
+            lite_model_cfg=lite_model_cfg,
+            fallback_lite_model_cfg=fallback_lite_model_cfg,
+            fallback_lite_model_cfgs=fallback_lite_model_cfgs,
+            search_service_cfg=configs.search_cfg,
+            mcp_cfg=mcp_configs or None,
+            user_instructions=user_instructions,
+            agent_id=self.profile_id,
+            chat_id=chat_id,
+            embedding_config=embedding_cfg,
+            reranker_config=reranker_cfg,
+            channel_name="eval",
+            enable_web_search=("web_search" in self.benchmark_tools if self.benchmark_mode else True)
+            and configs.search_is_user_configured
+            and await verify_search_service_available(configs.search_cfg),
+            enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
+            benchmark_blocked_hostnames=self._blocked_hostnames or (),
+            benchmark_blocked_terms=self._blocked_terms or (),
+            **resolve_agent_mount(
+                ExecutionSurface.EVAL,
+                resolve_builtin_tool_flags(enabled_builtin_tools),
+            ),
+            auto_restore_domains=auto_restore_domains,
+            unattended_mode=True,
+            agent_skill_ids=agent_skill_ids,
+            subagent_ids=agent_subagent_ids,
+            agent_security_raw=agent_security_raw,
+            max_iterations=agent_max_iterations,
+            memory_policy=agent_memory_policy,
+            memory_decay_profile=memory_decay_profile,
+            memory_extraction_preset=memory_extraction_preset,
+            engine_params=agent_engine_params,
+            memory_shared_context_ids=memory_shared_context_ids,
+            enable_memory=self._enable_memory,
+            memory_base_path=self._memory_base_path,
+            enable_conversation_search=resolve_conversation_search_enabled(configs.personal_settings_dict),
+            declared_allowed_roots=(str(workspace_dir),),
+        )
+
+        from app.services.agent.execution_cache import (
+            ExecutionMode,
+            finalize_agent_session,
+        )
+        from app.services.agent.runtime_context import build_agent_runtime_context
+
+        runtime_context = await build_agent_runtime_context(
+            execution_mode=ExecutionMode.EPHEMERAL,
+        )
+
+        agent = AgentFactory.create_general_agent(params)
+
+        start_time = time.perf_counter()
+        trace = StreamTrace()
+
+        try:
+            async for event in agent.process_stream(
+                query=message,
+                chat_id=chat_id,
+                context=runtime_context,
+            ):
+                trace.consume(event)
+        finally:
+            await finalize_agent_session(
+                agent,
+                chat_id=chat_id,
+                agent_id=params.agent_id,
+                extra_context=runtime_context,
+            )
+
+        return trace.to_response(elapsed_ms=(time.perf_counter() - start_time) * 1000)
+
+
+def cleanup_orphan_eval_workspaces() -> int:
+    """Remove leftover eval session workspaces from previous server runs.
+
+    Called once at server startup: eval runs are in-process background tasks,
+    so any workspace directory present at boot is guaranteed orphaned (the
+    process that created it no longer exists). Reports the number of removed
+    entries so the startup sequence can log a concise summary.
+    """
+    root = Path(".myrm/eval_workspaces").resolve()
+    if not root.is_dir():
+        return 0
+    removed = 0
+    for entry in root.iterdir():
+        if not entry.is_dir():
+            continue
+        shutil.rmtree(entry, ignore_errors=True)
+        removed += 1
+    # Drop the now-empty root as well so a boot leaves no trace of eval state.
+    try:
+        root.rmdir()
+    except OSError:
+        pass
+    return removed

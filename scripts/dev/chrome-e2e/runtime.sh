@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Myrm E2E Chrome runtime paths and CDP health (SSOT).
+set -euo pipefail
+
+# shellcheck source=../lib/dev_state_paths.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/dev_state_paths.sh"
+
+MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT:-9333}"
+MYRM_CHROME_E2E_BROWSER_URL="http://127.0.0.1:${MYRM_CHROME_E2E_PORT}"
+
+if [[ -z "${MYRM_CHROME_E2E_DATA_DIR:-}" ]]; then
+  case "$(uname -s)" in
+    Darwin)
+      MYRM_CHROME_E2E_DATA_DIR="$(real_user_home)/Library/Application Support/Myrm/ChromeE2E"
+      ;;
+    Linux)
+      MYRM_CHROME_E2E_DATA_DIR="$(real_user_home)/.local/share/myrm/chrome-e2e"
+      ;;
+    *)
+      MYRM_CHROME_E2E_DATA_DIR="$(real_user_home)/.myrm/chrome-e2e"
+      ;;
+  esac
+fi
+
+if [[ -z "${MYRM_CHROME_BIN:-}" || ! -x "${MYRM_CHROME_BIN}" ]]; then
+  case "$(uname -s)" in
+    Darwin)
+      MYRM_CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      ;;
+    Linux)
+      MYRM_CHROME_BIN=""
+      for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+        if command -v "${candidate}" >/dev/null 2>&1; then
+          MYRM_CHROME_BIN="$(command -v "${candidate}")"
+          break
+        fi
+      done
+      ;;
+  esac
+fi
+
+MYRM_CHROME_E2E_ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_DATA_DIR}/DevToolsActivePort"
+MYRM_CHROME_E2E_STATE_DIR="${MYRM_DEV_STATE_DIR:-$(python3 -c '
+import os, pwd
+try:
+    print(pwd.getpwuid(os.getuid()).pw_dir)
+except (KeyError, OSError):
+    print(os.path.expanduser("~"))
+')/.local/state/myrm-dev}"
+
+chrome_e2e_default_app() {
+  if [[ -n "${MYRM_CHROME_APP:-}" ]]; then
+    printf '%s' "${MYRM_CHROME_APP}"
+    return 0
+  fi
+  local bin="${MYRM_CHROME_BIN:-}"
+  if [[ "${bin}" == *"/Contents/MacOS/"* ]]; then
+    printf '%s' "${bin%/Contents/MacOS/*}"
+    return 0
+  fi
+  printf '%s' "/Applications/Google Chrome.app"
+}
+
+chrome_e2e_launch_background() {
+  [[ "$(uname -s)" == "Darwin" && "${MYRM_CHROME_E2E_FOREGROUND:-0}" != "1" ]]
+}
+
+chrome_e2e_owner_pid() {
+  lsof -tiTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN 2>/dev/null | head -1 || true
+}
+
+chrome_e2e_cdp_healthy() {
+  # A single curl is NOT evidence that Chrome is dead: while several lanes drive CDP the
+  # endpoint can exceed one timeout. Callers respond to a negative verdict by killing the
+  # browser (ensure-myrm-chrome-e2e.sh: "terminate unhealthy dedicated listener"), which
+  # under parallel load killed a healthy Chrome, removed CDP :9333, made the shared mux
+  # fatal out ("CDP /json/version unreachable") and sent the whole cluster into a reap /
+  # restart spiral. Retry before declaring the browser unhealthy.
+  local attempt
+  for attempt in 1 2 3 4; do
+    if curl -sf --max-time 3 "${MYRM_CHROME_E2E_BROWSER_URL}/json/version" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
+chrome_e2e_process_owns_port() {
+  local pid
+  pid="$(lsof -tiTCP:"${MYRM_CHROME_E2E_PORT}" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+  [[ -n "${pid}" ]] || return 1
+  local cmdline
+  cmdline="$(ps -p "${pid}" -o command= 2>/dev/null || true)"
+  [[ "${cmdline}" == *"${MYRM_CHROME_E2E_DATA_DIR}"* ]]
+}

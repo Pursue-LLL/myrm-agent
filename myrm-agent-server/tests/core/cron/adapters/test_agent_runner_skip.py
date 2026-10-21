@@ -1,0 +1,411 @@
+"""Unit tests for AgentJobRunner no-content skip logic and non-owner run isolation.
+
+Validates that heartbeat jobs skip the LLM call when the situation report
+has no actionable content, and proceed normally when content exists; and that a
+run started by a non-owner sender gets none of the owner's memory, chat history,
+goal queue or workflow agents.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from contextlib import AbstractContextManager, nullcontext
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from myrm_agent_harness.api.security import untrusted_ingress_scope
+from myrm_agent_harness.toolkits.cron.heartbeat import HEARTBEAT_JOB_NAME
+from myrm_agent_harness.toolkits.cron.situation import SituationReportBuilder
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    DeliveryConfig,
+    JobResult,
+    JobStatus,
+    JobType,
+    Schedule,
+    ScheduleKind,
+)
+
+from app.core.cron.adapters.agent_runner import (
+    AgentJobRunner,
+    _consume_stream,
+    _resolve_cron_enable_memory,
+)
+
+_BUDGET_MODULE = "app.services.budget.enforcer.should_block_execution"
+_SCAN_MODULE = "app.core.cron.adapters.agent_runner.scan_cron_prompt"
+_LOAD_HISTORY_MODULE = "app.core.cron.adapters.agent_runner._load_thread_history"
+_LOAD_USER_CONFIGS = "app.core.channel_bridge.config_loader.load_user_configs"
+
+
+def _fake_user_configs() -> object:
+    """Return a minimal stand-in for UserConfigs (only personal_settings_dict is read)."""
+    from types import SimpleNamespace
+
+    return SimpleNamespace(personal_settings_dict={})
+
+
+def _make_heartbeat_job(**overrides: object) -> CronJob:
+    defaults: dict[str, object] = {
+        "id": "hb-1",
+        "user_id": "user-1",
+        "name": HEARTBEAT_JOB_NAME,
+        "job_type": JobType.AGENT,
+        "schedule": Schedule(kind=ScheduleKind.CRON, expr="*/30 * * * *"),
+        "status": JobStatus.ACTIVE,
+        "prompt": "Check system status and report any anomalies.",
+        "delivery": DeliveryConfig(channel="chat"),
+    }
+    defaults.update(overrides)
+    return CronJob(**defaults)  # type: ignore[arg-type]
+
+
+def _make_regular_job(**overrides: object) -> CronJob:
+    defaults: dict[str, object] = {
+        "id": "cron-1",
+        "user_id": "user-1",
+        "name": "Daily Report",
+        "job_type": JobType.AGENT,
+        "schedule": Schedule(kind=ScheduleKind.CRON, expr="0 9 * * *"),
+        "status": JobStatus.ACTIVE,
+        "prompt": "Generate daily report.",
+        "delivery": DeliveryConfig(channel="chat"),
+    }
+    defaults.update(overrides)
+    return CronJob(**defaults)  # type: ignore[arg-type]
+
+
+class TestResolveCronEnableMemory:
+    """Tests for the cron memory enable predicate.
+
+    Memory mounts for cron only when the per-job tool allow-list contains
+    memory AND the user-level ``enableMemory`` personal setting is on —
+    mirroring the channel/voice entry points — AND the run was not started
+    by a non-owner sender.
+    """
+
+    def test_memory_enabled_when_allowed_and_global_on(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings, untrusted=False) is True
+
+    def test_memory_disabled_when_global_switch_off(self) -> None:
+        settings = {"enableMemory": False}
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings, untrusted=False) is False
+
+    def test_memory_disabled_when_global_setting_missing(self) -> None:
+        assert _resolve_cron_enable_memory(["web_search", "memory"], None, untrusted=False) is False
+
+    def test_memory_disabled_when_stripped_by_whitelist(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory(["web_search"], settings, untrusted=False) is False
+
+    def test_memory_disabled_for_empty_tools(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory([], settings, untrusted=False) is False
+
+    def test_memory_disabled_for_a_non_owner_run(self) -> None:
+        settings = {"enableMemory": True}
+        assert _resolve_cron_enable_memory(["web_search", "memory"], settings, untrusted=True) is False
+
+
+class TestInjectSituationReport:
+    """Tests for _inject_situation_report method."""
+
+    @pytest.mark.asyncio
+    async def test_empty_report_returns_no_content(self) -> None:
+        builder = AsyncMock(spec=SituationReportBuilder)
+        builder.build = AsyncMock(return_value=None)
+        runner = AgentJobRunner(situation_builder=builder)
+
+        with patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()):
+            prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+        assert not has_content
+        assert prompt == "original prompt"
+
+    @pytest.mark.asyncio
+    async def test_empty_string_report_returns_no_content(self) -> None:
+        builder = AsyncMock(spec=SituationReportBuilder)
+        builder.build = AsyncMock(return_value="")
+        runner = AgentJobRunner(situation_builder=builder)
+
+        with patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()):
+            prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+        assert not has_content
+
+    @pytest.mark.asyncio
+    async def test_report_with_content_returns_true(self) -> None:
+        builder = AsyncMock(spec=SituationReportBuilder)
+        builder.build = AsyncMock(return_value="## Pending Commitments\n- Review PR #42")
+        runner = AgentJobRunner(situation_builder=builder)
+
+        with patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()):
+            prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+        assert has_content
+        assert "<situation_report>" in prompt
+        assert "Pending Commitments" in prompt
+        assert "original prompt" in prompt
+
+    @pytest.mark.asyncio
+    async def test_build_exception_returns_true_for_safety(self) -> None:
+        builder = AsyncMock(spec=SituationReportBuilder)
+        builder.build = AsyncMock(side_effect=RuntimeError("DB error"))
+        runner = AgentJobRunner(situation_builder=builder)
+
+        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+        assert has_content
+        assert prompt == "original prompt"
+
+
+class TestHeartbeatSkipLogic:
+    """Tests for the no-content skip path in _run_once."""
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_no_content_returns_skipped(self) -> None:
+        builder = AsyncMock(spec=SituationReportBuilder)
+        builder.build = AsyncMock(return_value=None)
+        runner = AgentJobRunner(situation_builder=builder)
+
+        job = _make_heartbeat_job()
+        with (
+            patch(_BUDGET_MODULE, new_callable=AsyncMock, return_value=False),
+            patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()),
+        ):
+            result = await runner._run_once(job)
+
+        assert result.success is True
+        assert result.skipped is True
+        assert result.skip_reason == "no-content"
+
+    @pytest.mark.asyncio
+    async def test_regular_job_bypasses_inject(self) -> None:
+        """Non-heartbeat jobs never call _inject_situation_report."""
+        builder = AsyncMock(spec=SituationReportBuilder)
+        runner = AgentJobRunner(situation_builder=builder)
+        job = _make_regular_job()
+
+        with (
+            patch(
+                _BUDGET_MODULE,
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch.object(
+                runner,
+                "_inject_situation_report",
+                new_callable=AsyncMock,
+            ) as mock_inject,
+        ):
+            mock_inject.return_value = ("irrelevant", True)
+            # _run_once will proceed past inject to agent creation which we
+            # don't need — the assertion is that inject is never called
+            try:
+                await runner._run_once(job)
+            except Exception:
+                pass
+
+        mock_inject.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_no_builder_bypasses_inject(self) -> None:
+        """Without SituationReportBuilder, heartbeat still runs (no skip)."""
+        runner = AgentJobRunner(situation_builder=None)
+        job = _make_heartbeat_job()
+
+        with (
+            patch(
+                _BUDGET_MODULE,
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch.object(
+                runner,
+                "_inject_situation_report",
+                new_callable=AsyncMock,
+            ) as mock_inject,
+        ):
+            try:
+                await runner._run_once(job)
+            except Exception:
+                pass
+
+        mock_inject.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_with_content_proceeds(self) -> None:
+        """When inject returns has_content=True, skip is NOT triggered."""
+        builder = AsyncMock(spec=SituationReportBuilder)
+        runner = AgentJobRunner(situation_builder=builder)
+        job = _make_heartbeat_job()
+
+        with (
+            patch(
+                _BUDGET_MODULE,
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch.object(
+                runner,
+                "_inject_situation_report",
+                new_callable=AsyncMock,
+                return_value=("enriched prompt", True),
+            ),
+        ):
+            try:
+                result = await runner._run_once(job)
+            except Exception:
+                result = None
+
+        if result is not None:
+            assert result.skipped is not True
+
+    @pytest.mark.asyncio
+    async def test_no_prompt_returns_error(self) -> None:
+        runner = AgentJobRunner()
+        job = _make_heartbeat_job(prompt="")
+        result = await runner._run_once(job)
+        assert not result.success
+        assert "requires a prompt" in (result.error or "")
+
+    @pytest.mark.asyncio
+    async def test_budget_exceeded_blocks(self) -> None:
+        runner = AgentJobRunner()
+        job = _make_heartbeat_job()
+        with patch(
+            _BUDGET_MODULE,
+            new_callable=AsyncMock,
+            return_value=True,
+        ):
+            result = await runner._run_once(job)
+        assert not result.success
+        assert "budget" in (result.error or "").lower()
+
+
+class TestRunRetry:
+    """Tests for the retry logic in run()."""
+
+    @pytest.mark.asyncio
+    async def test_retry_on_failure(self) -> None:
+        runner = AgentJobRunner()
+        job = _make_heartbeat_job(max_retries=1, retry_backoff_ms=100)
+
+        with patch.object(
+            runner,
+            "_run_once",
+            new_callable=AsyncMock,
+            side_effect=[
+                JobResult(success=False, error="transient"),
+                JobResult(success=True, output="ok"),
+            ],
+        ):
+            result = await runner.run(job)
+
+        assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_all_retries_exhausted(self) -> None:
+        runner = AgentJobRunner()
+        job = _make_heartbeat_job(max_retries=2, retry_backoff_ms=100)
+
+        with patch.object(
+            runner,
+            "_run_once",
+            new_callable=AsyncMock,
+            return_value=JobResult(success=False, error="persistent"),
+        ):
+            result = await runner.run(job)
+
+        assert not result.success
+
+    @pytest.mark.asyncio
+    async def test_circuit_break_aborts_retries(self) -> None:
+        """When circuit_broken is True, run() immediately aborts further retries."""
+        runner = AgentJobRunner()
+        job = _make_heartbeat_job(max_retries=2, retry_backoff_ms=100)
+
+        run_once_mock = AsyncMock(
+            return_value=JobResult(
+                success=False,
+                error="RunawayCircuitBreakException",
+                circuit_broken=True,
+            )
+        )
+
+        with patch.object(runner, "_run_once", run_once_mock):
+            result = await runner.run(job)
+
+        assert not result.success
+        assert result.circuit_broken is True
+        assert run_once_mock.call_count == 1
+
+
+def _fence(untrusted: bool) -> AbstractContextManager[None]:
+    """The fence an event dispatch opens for a non-owner sender, or no fence for the owner."""
+    return untrusted_ingress_scope() if untrusted else nullcontext()
+
+
+def _stream_agent(captured: dict[str, object]) -> MagicMock:
+    """A GeneralAgent stand-in whose stream records the arguments it was started with."""
+    from app.ai_agents.general_agent import GeneralAgent
+
+    async def _process_stream(**kwargs: object) -> AsyncIterator[dict[str, object]]:
+        captured.update(kwargs)
+        yield {"type": "message", "data": "done"}
+
+    agent = MagicMock(spec=GeneralAgent)
+    agent.model_cfg = SimpleNamespace(model="test-model")
+    agent.process_stream = _process_stream
+    return agent
+
+
+@pytest.mark.parametrize("untrusted", [True, False], ids=["non-owner", "owner"])
+class TestNonOwnerRunIsolation:
+    """A run a non-owner's message started must not reach the owner's goal queue, workflow agents or chat history."""
+
+    @pytest.mark.asyncio
+    async def test_goal_queue_is_offered_only_runs_of_the_owner(self, untrusted: bool) -> None:
+        runner = AgentJobRunner()
+        enqueue = AsyncMock(return_value=False)
+
+        with (
+            patch(_BUDGET_MODULE, new_callable=AsyncMock, return_value=False),
+            patch(_SCAN_MODULE, return_value=["stop before the agent is built"]),
+            patch.object(runner, "_try_enqueue_if_goal_active", enqueue),
+            _fence(untrusted),
+        ):
+            await runner._run_once(_make_regular_job(chat_id="chat-1"), context="[TRIGGER: event]\nMessage: server down")
+
+        assert enqueue.await_count == (0 if untrusted else 1)
+
+    @pytest.mark.asyncio
+    async def test_workflow_template_job_runs_only_for_the_owner(self, untrusted: bool) -> None:
+        runner = AgentJobRunner()
+
+        with (
+            patch(_BUDGET_MODULE, new_callable=AsyncMock, return_value=False),
+            patch(_SCAN_MODULE, return_value=["stop before the agent is built"]),
+            _fence(untrusted),
+        ):
+            result = await runner._run_once(_make_regular_job(workflow_template_id="wf-1"))
+
+        if untrusted:
+            assert result.success is True
+            assert result.skipped is True
+            assert result.skip_reason == "untrusted-workflow"
+        else:
+            assert not result.skipped, "the owner's workflow job proceeds past the guards"
+            assert "prompt injection detected" in (result.error or "")
+
+    @pytest.mark.asyncio
+    async def test_chat_history_is_read_only_for_the_owner(self, untrusted: bool) -> None:
+        history = [{"role": "user", "content": "private owner conversation"}]
+        captured: dict[str, object] = {}
+
+        with patch(_LOAD_HISTORY_MODULE, new_callable=AsyncMock, return_value=history) as load_history:
+            result = await _consume_stream(
+                _stream_agent(captured), _make_regular_job(chat_id="chat-1"), "prompt", {}, untrusted=untrusted
+            )
+
+        assert result.success is True
+        assert captured["chat_history"] == (None if untrusted else history)
+        assert load_history.await_count == (0 if untrusted else 1)

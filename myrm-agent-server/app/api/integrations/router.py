@@ -1,0 +1,53 @@
+"""Integrations API router
+
+Main router that aggregates all external integration validation endpoints
+and the Integration Catalog service directory.
+"""
+
+import logging
+
+from fastapi import APIRouter
+
+from app.api.integrations import (
+    catalog,
+    credential_pool,
+    google_workspace_oauth,
+    hardware,
+    integration_memory,
+    llms,
+    mcp,
+    mcp_oauth,
+    oauth,
+    provider_oauth,
+    search,
+    web_fetch,
+    xai_oauth,
+)
+
+logger = logging.getLogger(__name__)
+
+# Create main router
+router = APIRouter()
+
+# Include sub-routers with appropriate prefixes
+router.include_router(hardware.router, prefix="/hardware", tags=["integrations-hardware"])
+router.include_router(llms.router, prefix="/llm", tags=["integrations-llm"])
+router.include_router(credential_pool.router, prefix="/llm/credential-pool", tags=["integrations-credential-pool"])
+router.include_router(search.router, prefix="/search", tags=["integrations-search"])
+router.include_router(web_fetch.router, prefix="/web-fetch", tags=["integrations-web-fetch"])
+router.include_router(mcp.router, prefix="/mcp", tags=["integrations-mcp"])
+router.include_router(mcp_oauth.router, prefix="/mcp/oauth", tags=["integrations-mcp-oauth"])
+router.include_router(catalog.router, prefix="/catalog", tags=["integrations-catalog"])
+router.include_router(oauth.router, prefix="/oauth", tags=["integrations-oauth"])
+router.include_router(
+    google_workspace_oauth.router,
+    prefix="/google-workspace/oauth",
+    tags=["integrations-google-workspace-oauth"],
+)
+router.include_router(integration_memory.router, prefix="/memory", tags=["integrations-memory"])
+router.include_router(xai_oauth.router, prefix="/xai/oauth", tags=["integrations-xai-oauth"])
+router.include_router(
+    provider_oauth.router,
+    prefix="/provider-oauth",
+    tags=["integrations-provider-oauth"],
+)

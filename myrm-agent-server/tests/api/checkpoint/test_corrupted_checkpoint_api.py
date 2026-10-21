@@ -1,0 +1,96 @@
+"""Tests for corrupted subagent checkpoint handling in the checkpoint API.
+
+Verifies that a corrupted (unparseable) checkpoint file:
+- can still be deleted (not blocked by a 500)
+"""
+
+from __future__ import annotations
+
+from importlib import import_module
+
+import httpx
+import pytest
+from httpx import ASGITransport
+from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpoint
+
+from tests.support.minimal_app import build_minimal_app
+
+checkpoint_router_module = import_module("app.api.checkpoint.router")
+
+app = build_minimal_app("checkpoint")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_storage(tmp_path, monkeypatch) -> None:
+    """Point the router's global storage at a temp dir for each test."""
+    storage = checkpoint_router_module.SubagentCheckpointStorage(storage_path=tmp_path / "ckpts")
+    monkeypatch.setattr(checkpoint_router_module, "_checkpoint_storage", storage)
+    yield storage
+
+
+@pytest.fixture
+async def async_client() -> httpx.AsyncClient:
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Content-Type": "application/json"},
+        timeout=60.0,
+    ) as client:
+        yield client
+
+
+def _write_corrupt_checkpoint(storage, task_id: str) -> None:
+    (storage._storage_path / f"{task_id}.json").write_text("not valid json", encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_delete_corrupted_checkpoint_succeeds(
+    async_client: httpx.AsyncClient,
+    _isolate_storage,
+) -> None:
+    _write_corrupt_checkpoint(_isolate_storage, "corrupt-task")
+
+    response = await async_client.delete("/api/v1/checkpoint/corrupt-task")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "deleted", "task_id": "corrupt-task"}
+    assert not (_isolate_storage._storage_path / "corrupt-task.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_delete_missing_checkpoint_returns_404(
+    async_client: httpx.AsyncClient,
+    _isolate_storage,
+) -> None:
+    response = await async_client.delete("/api/v1/checkpoint/not-exist")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_exposes_task_description(
+    async_client: httpx.AsyncClient,
+    _isolate_storage,
+) -> None:
+    """The list endpoint must surface task_description so the UI can offer
+    a "re-initiate" flow for non-resumable checkpoints."""
+    cp = SubagentCheckpoint(
+        task_id="task-desc",
+        agent_type="researcher",
+        session_id="session-1",
+        timestamp=1728000000.0,
+        progress=0.4,
+        last_tool="web_search",
+        resumable=False,
+        task_description="Research competitor pricing",
+    )
+    await _isolate_storage.save(cp)
+
+    response = await async_client.get("/api/v1/checkpoint/list")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    info = payload["checkpoints"][0]
+    assert info["task_id"] == "task-desc"
+    assert info["task_description"] == "Research competitor pricing"

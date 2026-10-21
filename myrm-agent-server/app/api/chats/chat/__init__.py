@@ -1,0 +1,67 @@
+"""聊天API接口"""
+
+from fastapi import APIRouter
+
+from ..test_fixtures import router as test_fixtures_router
+from .catchup import router as catchup_router
+from .compaction import router as compaction_router
+from .copilot import router as copilot_router
+from .core import router as core_router
+from .export_pack import router as export_pack_router
+from .fork import router as fork_router
+from .handoff import router as handoff_router
+from .import_session import router as import_session_router
+from .loop import router as loop_router
+from .memory_extract import router as memory_extract_router
+from .messages import router as messages_router
+from .replay import router as replay_router
+from .rewind import router as rewind_router
+from .sandbox import router as sandbox_router
+from .share import router as share_router
+from .thought_control import router as thought_control_router
+from .title import router as title_router
+from .trajectory import router as trajectory_router
+from .trash import router as trash_router
+from .turn import router as turn_router
+from .ui_interaction import router as ui_interaction_router
+from .zero_replay import router as zero_replay_router
+from .command_matrix import router as command_matrix_router
+from .ui_alignment import router as ui_alignment_router
+from .delight_showcase import router as delight_showcase_router
+from .embed_bridge import router as embed_bridge_router
+from .swarm_hud import router as swarm_hud_router
+
+router = APIRouter()
+
+router.include_router(test_fixtures_router)
+router.include_router(trash_router)
+router.include_router(catchup_router)
+router.include_router(messages_router)
+router.include_router(memory_extract_router)
+# Literal `/delight-templates` paths must be registered ahead of core's `/{chat_id}` pattern or that pattern answers them.
+router.include_router(delight_showcase_router)
+router.include_router(core_router)
+router.include_router(title_router)
+router.include_router(turn_router)
+router.include_router(loop_router)
+router.include_router(rewind_router)
+router.include_router(compaction_router)
+router.include_router(copilot_router)
+router.include_router(fork_router)
+router.include_router(handoff_router)
+router.include_router(import_session_router)
+router.include_router(sandbox_router)
+router.include_router(share_router)
+router.include_router(trajectory_router)
+router.include_router(replay_router)
+router.include_router(export_pack_router)
+router.include_router(ui_interaction_router)
+router.include_router(thought_control_router)
+router.include_router(zero_replay_router)
+router.include_router(command_matrix_router)
+router.include_router(ui_alignment_router)
+router.include_router(embed_bridge_router)
+router.include_router(swarm_hud_router)
+
+__all__ = ["router"]
+

@@ -1,0 +1,549 @@
+"""Chrome E2E: shared-project turn lock → real WebUI waiting_for_turn indicator.
+
+Real user scenario: two chats bound to the same project must serialize turns.
+When a second chat sends a message while the project lock is held, the backend
+emits `waiting_for_turn` status SSE; the WebUI must display the progress step
+("Waiting for other agents in the project to finish...") and remove it after
+`waiting_for_turn_clear`, then complete the reply normally.
+
+The seed endpoint holds the project lock deterministically (simulating another
+agent actively running), so this test never depends on flaky real concurrency
+timing while still exercising the full real chain:
+  seed(lock) → real UI send → agent-stream → pump waiting_for_turn
+  → frontend progressSteps → lock release → waiting_for_turn_clear → reply.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+
+import pytest
+
+from tests.support.chrome_mcp_e2e import (
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    http_json,
+    open_mcp_page,
+    prepare_e2e_ui_session,
+    wait_for_state,
+    warm_ui_route,
+)
+
+E2E_PROMPT = "只回复 OK"
+TURN_WAIT_SEC = 300.0
+
+_WAITING_STEP_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = store?.messages || [];
+  for (const msg of msgs) {
+    const steps = (msg.progressSteps?.length ? msg.progressSteps : msg.metadata?.progressSteps) || [];
+    for (const step of steps) {
+      if (String(step.step_key || '') === 'waiting_for_turn') {
+        return { ready: true, step_key: step.step_key, items: step.items || [], status: step.status ?? null };
+      }
+    }
+  }
+  return { ready: false, msg_count: msgs.length };
+})()"""
+
+_WAITING_STREAMING_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = store?.messages || [];
+  const loading = Boolean(store?.loading || store?.streaming || false);
+  for (const msg of msgs) {
+    if (msg.role !== 'assistant' && msg.type !== 'assistant') continue;
+    const steps = (msg.progressSteps?.length ? msg.progressSteps : msg.metadata?.progressSteps) || [];
+    if (steps.some((s) => String(s.step_key || '') === 'waiting_for_turn')) {
+      const content = String(msg.content || msg.text || '').trim();
+      return { ready: true, placeholder: content.length === 0, loading, contentLen: content.length };
+    }
+  }
+  return { ready: false, loading, msg_count: msgs.length };
+})()"""
+
+_ASSISTANT_OK_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = store?.messages || [];
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const msg = msgs[i];
+    if (msg.role !== 'assistant' && msg.type !== 'assistant') continue;
+    const text = String(msg.content || msg.text || '').trim();
+    if (text.includes('OK')) {
+      return { ready: true, snippet: text.slice(0, 120) };
+    }
+  }
+  const lastAssistant = msgs
+    .slice()
+    .reverse()
+    .find((m) => m.role === 'assistant' || m.type === 'assistant');
+  const lastText = lastAssistant ? String(lastAssistant.content || lastAssistant.text || '').trim() : '';
+  return { ready: false, msg_count: msgs.length, last_assistant: lastText.slice(0, 120) };
+})()"""
+
+_ATTACH_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {
+    return { ok: false, err: 'no-bridge' };
+  }
+  await bridge.attachToChat(__MYRM_CHAT_ID__);
+  return { ok: true };
+})()"""
+
+_EXPAND_PROGRESS_JS = """(() => {
+  const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
+  const panel = document.querySelector('[data-testid="progress-steps-panel"]');
+  if (panel?.getAttribute('data-expanded') !== 'true' && toggle) {
+    toggle.click();
+  }
+  return { ok: true };
+})()"""
+
+_DOM_WAITING_JS = """(() => {
+  const body = document.body.innerText || '';
+  const needles = [
+    'Waiting for other agents',
+    '正在等待项目中其他',
+    '正在等待專案中其他',
+  ];
+  for (const needle of needles) {
+    if (body.includes(needle)) {
+      return { ready: true, needle };
+    }
+  }
+  return { ready: false, sample: body.slice(0, 300) };
+})()"""
+
+
+_ABORT_STREAM_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.abortActiveStream) {
+    return { ok: false, err: 'no-abortActiveStream' };
+  }
+  bridge.abortActiveStream();
+  return { ok: true };
+})()"""
+
+
+_E2E_DIAG_JS = """(() => {
+  const store = window.__myrmChatStore?.getState?.();
+  const msgs = (store?.messages || []).map((m) => ({
+    role: m.role || m.type,
+    messageId: String(m.messageId || '').slice(0, 24),
+    contentLen: String(m.content || m.text || '').length,
+    steps: (m.progressSteps || m.metadata?.progressSteps || []).map((s) => String(s.step_key || '')),
+  }));
+  return {
+    apiBase: window.__MYRM_E2E_API_BASE__ ?? null,
+    runtimeId: window.__MYRM_E2E_RUNTIME__?.runtimeId ?? null,
+    directSse: !!window.__MYRM_E2E_DIRECT_SSE__,
+    workspace: window.__MYRM_WORKSPACE_STREAM_STATUS__?.() ?? null,
+    multiplex: window.__MYRM_MULTIPLEX_STATS__?.() ?? null,
+    loading: Boolean(store?.loading || store?.streaming || false),
+    chatId: store?.chatId ?? null,
+    msg_count: msgs.length,
+    msgs,
+  };
+})()"""
+
+
+def _dump_e2e_diag(client: object, page: object, *, label: str) -> dict[str, object]:
+    try:
+        raw = client.evaluate(page, _E2E_DIAG_JS, timeout_sec=10.0)
+        diag = raw if isinstance(raw, dict) else json.loads(str(raw))
+        print(f"E2E_DIAG[{label}]:", json.dumps(diag, ensure_ascii=False, default=str))
+        return diag
+    except BaseException as exc:  # pragma: no cover - diagnostics must not mask root cause
+        print(f"E2E_DIAG[{label}] failed: {exc}")
+        return {}
+
+
+def _seed_turn_lock_fixture(api_url: str, *, hold_ms: int | None = None) -> dict[str, object]:
+    qs = f"?hold_ms={hold_ms}" if hold_ms is not None else ""
+    seeded = http_json(
+        "POST",
+        f"{api_url}/api/v1/projects/test/seed-turn-lock{qs}",
+    )
+    assert isinstance(seeded, dict)
+    chat_id = str(seeded.get("chat_id") or "")
+    project_id = str(seeded.get("project_id") or "")
+    assert chat_id.startswith("e2eturnlock"), seeded
+    assert project_id, seeded
+    return seeded
+
+
+def _release_turn_lock(api_url: str, project_id: str) -> dict[str, object]:
+    released = http_json(
+        "POST",
+        f"{api_url}/api/v1/projects/test/release-turn-lock",
+        body={"project_id": project_id},
+    )
+    assert isinstance(released, dict), released
+    return released
+
+
+def _send_message(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float = 180.0,
+) -> dict[str, object]:
+    result = client.evaluate(  # type: ignore[attr-defined]
+        page,
+        f"""(async () => {{
+          const bridge = window.__MYRM_E2E_CHAT__;
+          if (!bridge?.sendChatMessage) {{
+            return {{ ok: false, err: 'no-sendChatMessage' }};
+          }}
+          // Fast/deep_research action modes require search to be configured and
+          // will be rejected by sendTurnSearchGuard under e2e_search_policy=empty.
+          // Turn-lock waiting is mode-independent, so pin agent mode explicitly.
+          if (bridge?.setActionMode) {{
+            bridge.setActionMode('agent');
+          }}
+          const res = await bridge.sendChatMessage({json.dumps(E2E_PROMPT)});
+          return res;
+        }})()""",
+        timeout_sec=timeout_sec + 15.0,
+    )
+    assert isinstance(result, dict), result
+    return result
+
+
+def _wait_waiting_step(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _WAITING_STEP_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is True:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting_for_turn step never appeared: {last}")
+
+
+def _wait_waiting_streaming(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _WAITING_STREAMING_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is True:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting assistant placeholder never appeared: {last}")
+
+
+def _wait_waiting_cleared(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _WAITING_STEP_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is False:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting_for_turn step never cleared: {last}")
+
+
+def _wait_dom_waiting(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _DOM_WAITING_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is True:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting_for_turn text never rendered in DOM: {last}")
+
+
+def _wait_dom_waiting_cleared(
+    client: object,
+    page: object,
+    *,
+    timeout_sec: float,
+) -> dict[str, object]:
+    deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(page, _DOM_WAITING_JS, timeout_sec=10.0)
+        state = raw if isinstance(raw, dict) else json.loads(str(raw))
+        last = state
+        if state.get("ready") is False:
+            return state
+        time.sleep(0.5)
+    raise AssertionError(f"waiting_for_turn text never cleared from DOM: {last}")
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_project_turn_lock_waiting_for_turn_chrome_e2e() -> None:
+    """Real UI send under held project lock must show then clear waiting_for_turn.
+
+    The lock is acquired by the seed *before* the send and held until the test
+    explicitly releases it (`hold_ms=0`). This is immune to attach/bootstrap
+    latency: under heavy parallel E2E load a wall-clock `hold_ms` seed would
+    expire before the UI attach finished and the send would see no waiting step.
+    """
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+
+    seeded = _seed_turn_lock_fixture(api_url, hold_ms=0)
+    chat_id = str(seeded["chat_id"])
+    project_id = str(seeded["project_id"])
+    chat_path = str(seeded["ui_path"])
+
+    # Determinism guard: the lock must be held before the UI sends, otherwise
+    # waiting_for_turn can never appear and this would only test a happy path.
+    lock_probe = http_json(
+        "GET",
+        f"{api_url}/api/v1/projects/test/turn-lock-status?project_id={project_id}",
+    )
+    assert isinstance(lock_probe, dict), lock_probe
+    assert lock_probe.get("locked") is True, f"seed must hold the project lock before send; probe={lock_probe}"
+
+    warm_ui_route(chat_path)
+    chat_url = f"{ui_url}{chat_path}"
+    with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
+        wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: !!window.__MYRM_E2E_CHAT__?.sendChatMessage && !!window.__MYRM_E2E_CHAT__?.attachToChat,
+            }))()""",
+            timeout_sec=30.0,
+        )
+        attach_js = _ATTACH_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id))
+        attach_raw = client.evaluate(page, attach_js, timeout_sec=30.0)
+        attach_state = attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
+        assert attach_state.get("ok") is True, attach_state
+
+        # Lock still held (hold_ms=0, released explicitly below) → the send is
+        # guaranteed to queue and surface waiting_for_turn.
+        _dump_e2e_diag(client, page, label="pre-send")
+        send_result = _send_message(client, page)
+        print(
+            "SEND_RESULT_ALWAYS:",
+            json.dumps(
+                {k: v for k, v in send_result.items() if k != "debug"},
+                ensure_ascii=False,
+                default=str,
+            ),
+        )
+        if isinstance(send_result.get("debug"), dict):
+            print(
+                "SEND_DEBUG_ALWAYS:",
+                json.dumps(send_result.get("debug"), ensure_ascii=False, default=str),
+            )
+        if send_result.get("ok") is not True:
+            print(
+                "SEND_RESULT_FULL_DEBUG:",
+                json.dumps(send_result, ensure_ascii=False, default=str),
+            )
+        assert send_result.get("ok") is True, send_result
+        chat_id_resolved = (
+            str(send_result.get("chatId") or (send_result.get("debug") or {}).get("chatId") or "").strip() or chat_id
+        )
+
+        _dump_e2e_diag(client, page, label="post-send")
+        waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
+        if waiting_state.get("ready") is not True:
+            _dump_e2e_diag(client, page, label="waiting-timeout")
+        assert waiting_state.get("step_key") == "waiting_for_turn", waiting_state
+
+        # While waiting, the assistant placeholder must exist with empty body
+        # (stream still blocked on the project lock, no reply text yet).
+        streaming_state = _wait_waiting_streaming(client, page, timeout_sec=15.0)
+        assert streaming_state.get("ready") is True, streaming_state
+        assert streaming_state.get("placeholder") is True, streaming_state
+
+        # waiting_for_turn is a title-only step (items stay empty by design), so
+        # also assert the i18n title is really rendered into the DOM after
+        # expanding the progress-steps panel (true end-user visibility check).
+        expand_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
+        expand_state = expand_raw if isinstance(expand_raw, dict) else json.loads(str(expand_raw))
+        assert expand_state.get("ok") is True, expand_state
+        dom_state = _wait_dom_waiting(client, page, timeout_sec=15.0)
+        assert dom_state.get("ready") is True, dom_state
+
+        # Deterministic release: the simulated holder finishes its turn.
+        release_state = _release_turn_lock(api_url, project_id)
+        assert release_state.get("still_locked") is False, release_state
+
+        cleared_state = _wait_waiting_cleared(client, page, timeout_sec=TURN_WAIT_SEC)
+        assert cleared_state.get("ready") is False, cleared_state
+
+        dom_cleared_state = _wait_dom_waiting_cleared(client, page, timeout_sec=15.0)
+        assert dom_cleared_state.get("ready") is False, dom_cleared_state
+
+        ok_deadline = time.monotonic() + TURN_WAIT_SEC
+        ok_state: dict[str, object] = {}
+        while time.monotonic() < ok_deadline:
+            raw = client.evaluate(page, _ASSISTANT_OK_JS, timeout_sec=10.0)
+            ok_state = raw if isinstance(raw, dict) else json.loads(str(raw))
+            if ok_state.get("ready") is True:
+                break
+            time.sleep(0.5)
+        assert ok_state.get("ready") is True, (
+            f"Expected assistant OK after lock released; state={ok_state!r} chat_id={chat_id_resolved}"
+        )
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_project_turn_lock_waiting_cancel_chrome_e2e() -> None:
+    """Real user cancels while waiting for the project lock.
+
+    Real flow (fully deterministic):
+      seed holds the project lock (hold_ms=0, released explicitly below)
+      → UI send #1 shows waiting_for_turn
+      → user hits stop (abortActiveStream → stopMessage → cancel + SSE abort)
+      → waiting step must be removed synchronously
+      → user re-sends (send #2): waiting_for_turn appears AGAIN on the same
+        still-held lock — proving the cancelled waiter neither stole nor broke
+        the holder's lock, and the gateway reservation was cleaned up (no busy)
+      → seed releases the lock → waiting_for_turn_clear → send #2 completes OK
+        (proving cancel left the workspace fully recoverable).
+    """
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    prepare_e2e_ui_session(api_url)
+
+    seeded = _seed_turn_lock_fixture(api_url, hold_ms=0)
+    chat_id = str(seeded["chat_id"])
+    project_id = str(seeded["project_id"])
+    chat_path = str(seeded["ui_path"])
+
+    # Determinism guard (mirrors the waiting test): lock must be held pre-send.
+    lock_probe = http_json(
+        "GET",
+        f"{api_url}/api/v1/projects/test/turn-lock-status?project_id={project_id}",
+    )
+    assert isinstance(lock_probe, dict), lock_probe
+    assert lock_probe.get("locked") is True, f"seed must hold the project lock before send; probe={lock_probe}"
+
+    warm_ui_route(chat_path)
+    chat_url = f"{ui_url}{chat_path}"
+    with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
+        wait_for_state(
+            client,
+            page,
+            """(() => ({
+              ready: !!window.__MYRM_E2E_CHAT__?.sendChatMessage
+                && !!window.__MYRM_E2E_CHAT__?.attachToChat
+                && !!window.__MYRM_E2E_CHAT__?.abortActiveStream,
+            }))()""",
+            timeout_sec=30.0,
+        )
+        attach_js = _ATTACH_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id))
+        attach_raw = client.evaluate(page, attach_js, timeout_sec=30.0)
+        attach_state = attach_raw if isinstance(attach_raw, dict) else json.loads(str(attach_raw))
+        assert attach_state.get("ok") is True, attach_state
+
+        # 第一次发送：锁被 seed 持有（hold_ms=0，显式释放前一直持有）→ 必然进入等待
+        send_result = _send_message(client, page)
+        assert send_result.get("ok") is True, send_result
+        waiting_state = _wait_waiting_step(client, page, timeout_sec=45.0)
+        assert waiting_state.get("step_key") == "waiting_for_turn", waiting_state
+
+        # 真实用户点击停止：stopMessage 路径取消 + 同步清除 waiting 步骤
+        abort_raw = client.evaluate(page, _ABORT_STREAM_JS, timeout_sec=10.0)
+        abort_state = abort_raw if isinstance(abort_raw, dict) else json.loads(str(abort_raw))
+        assert abort_state.get("ok") is True, abort_state
+
+        cleared_state = _wait_waiting_cleared(client, page, timeout_sec=20.0)
+        assert cleared_state.get("ready") is False, cleared_state
+
+        # DOM 层验证取消后的同步清除。先展开进度面板，确保 waiting 文案
+        # 若残留会真实渲染进 DOM；折叠态下断言会无意义地通过。
+        pre_expand_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
+        pre_expand_state = pre_expand_raw if isinstance(pre_expand_raw, dict) else json.loads(str(pre_expand_raw))
+        assert pre_expand_state.get("ok") is True, pre_expand_state
+        dom_cleared_state = _wait_dom_waiting_cleared(client, page, timeout_sec=15.0)
+        assert dom_cleared_state.get("ready") is False, dom_cleared_state
+
+        # 第二次发送：锁仍被 seed 持有 → waiting_for_turn 必须再次出现。
+        # 这是"取消未误释放持有者锁"且 gateway 预占已清理（不会 busy）的强证据。
+        # 取消 API 是 fire-and-forget，后端 teardown 有极小窗口 → 重试最多 3 次。
+        send2: dict[str, object] = {}
+        for attempt in range(3):
+            send2 = _send_message(client, page, timeout_sec=90.0)
+            if send2.get("ok") is True:
+                break
+            print(
+                f"SEND2_ATTEMPT_{attempt}_DEBUG:",
+                json.dumps(send2, ensure_ascii=False, default=str),
+            )
+            time.sleep(3)
+        assert send2.get("ok") is True, send2
+
+        waiting2 = _wait_waiting_step(client, page, timeout_sec=45.0)
+        assert waiting2.get("step_key") == "waiting_for_turn", waiting2
+
+        # 第二次等待期间：assistant 占位符必须重新出现且为空（锁仍持有）。
+        streaming2 = _wait_waiting_streaming(client, page, timeout_sec=15.0)
+        assert streaming2.get("ready") is True, streaming2
+        assert streaming2.get("placeholder") is True, streaming2
+
+        # DOM 层验证：展开面板后 i18n 等待文案真实渲染（与第一个测试一致）。
+        expand2_raw = client.evaluate(page, _EXPAND_PROGRESS_JS, timeout_sec=10.0)
+        expand2_state = expand2_raw if isinstance(expand2_raw, dict) else json.loads(str(expand2_raw))
+        assert expand2_state.get("ok") is True, expand2_state
+        dom2_state = _wait_dom_waiting(client, page, timeout_sec=15.0)
+        assert dom2_state.get("ready") is True, dom2_state
+
+        # 模拟持有者完成：显式释放锁 → waiting_for_turn_clear → 第二次 turn 完成
+        release_state = _release_turn_lock(api_url, project_id)
+        assert release_state.get("still_locked") is False, release_state
+
+        ok_deadline = time.monotonic() + TURN_WAIT_SEC
+        ok_state: dict[str, object] = {}
+        while time.monotonic() < ok_deadline:
+            raw = client.evaluate(page, _ASSISTANT_OK_JS, timeout_sec=10.0)
+            ok_state = raw if isinstance(raw, dict) else json.loads(str(raw))
+            if ok_state.get("ready") is True:
+                break
+            time.sleep(0.5)
+        assert ok_state.get("ready") is True, (
+            f"Expected second turn assistant OK after lock release; state={ok_state!r} chat_id={chat_id}"
+        )

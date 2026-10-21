@@ -1,0 +1,242 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { waitForBackendReady, waitForTauriRuntime } from '@/lib/backend-health';
+import { tauriBackend } from '@/lib/tauri';
+
+vi.mock('@/lib/deploy-mode', () => ({
+  getBackendBaseUrl: vi.fn(() => ''),
+  getDeployMode: vi.fn(() => 'tauri'),
+  isLocalMode: vi.fn(() => true),
+}));
+
+vi.mock('@/lib/platform-readiness', () => ({
+  markPlatformUnreachable: vi.fn(),
+  resetPlatformReadinessForTests: vi.fn(),
+  whenDatabaseReady: vi.fn(async () => true),
+}));
+
+vi.mock('@/lib/tauri', () => ({
+  isTauriEnvironment: vi.fn(() => true),
+  tauriBackend: {
+    checkHealth: vi.fn(),
+  },
+}));
+
+const { getDeployMode } = await import('@/lib/deploy-mode');
+const { isTauriEnvironment } = await import('@/lib/tauri');
+const { markPlatformUnreachable, resetPlatformReadinessForTests, whenDatabaseReady } =
+  await import('@/lib/platform-readiness');
+
+describe('waitForTauriRuntime', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns true immediately when deploy mode is not tauri', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('local');
+    vi.mocked(isTauriEnvironment).mockReturnValue(false);
+
+    await expect(waitForTauriRuntime()).resolves.toBe(true);
+    expect(isTauriEnvironment).not.toHaveBeenCalled();
+  });
+
+  it('polls until tauri runtime is injected', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    vi.mocked(isTauriEnvironment).mockReturnValueOnce(false).mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+    await expect(waitForTauriRuntime({ pollIntervalMs: 1, maxAttempts: 5 })).resolves.toBe(true);
+    expect(isTauriEnvironment).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops waiting between polls as soon as the signal aborts', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    vi.mocked(isTauriEnvironment).mockReturnValue(false);
+    const controller = new AbortController();
+
+    // A poll interval no test would sit through: only the abort can end the wait.
+    const pending = waitForTauriRuntime({ pollIntervalMs: 60_000, maxAttempts: 5, signal: controller.signal });
+    controller.abort();
+
+    await expect(pending).resolves.toBe(false);
+    expect(isTauriEnvironment).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('waitForBackendReady', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns true immediately when tauri health succeeds on first probe', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(true);
+
+    await expect(waitForBackendReady()).resolves.toBe(true);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
+  });
+
+  it('polls until tauri health succeeds', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    await expect(waitForBackendReady({ pollIntervalMs: 1, maxAttempts: 5 })).resolves.toBe(true);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns false after max attempts', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
+
+    await expect(waitForBackendReady({ pollIntervalMs: 1, maxAttempts: 3 })).resolves.toBe(false);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns false when aborted before success', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
+    const controller = new AbortController();
+
+    const pending = waitForBackendReady({
+      pollIntervalMs: 50,
+      maxAttempts: 10,
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await expect(pending).resolves.toBe(false);
+  });
+
+  it('stops waiting between probes as soon as the signal aborts', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
+    const controller = new AbortController();
+
+    // A poll interval no test would sit through: only the abort can end the wait.
+    const pending = waitForBackendReady({ pollIntervalMs: 60_000, maxAttempts: 5, signal: controller.signal });
+    await vi.waitFor(() => expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1), { timeout: 5_000 });
+    controller.abort();
+
+    await expect(pending).resolves.toBe(false);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetchBackendHealth', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('returns null when health endpoint responds non-ok', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+      }),
+    );
+
+    const { fetchBackendHealth } = await import('@/lib/backend-health');
+    await expect(fetchBackendHealth()).resolves.toBeNull();
+  });
+
+  it('parses system_status from healthy payload', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 'healthy',
+            system_status: { database_degraded: true, database_recovered: false },
+          }),
+      }),
+    );
+
+    const { fetchBackendHealth } = await import('@/lib/backend-health');
+    const result = await fetchBackendHealth();
+    expect(result?.system_status?.database_degraded).toBe(true);
+    expect(result?.system_status?.database_recovered).toBe(false);
+  });
+});
+
+describe('checkBackendReadyOnce', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('delegates to tauri health probe when in tauri runtime', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(true);
+
+    const { checkBackendReadyOnce } = await import('@/lib/backend-health');
+    await expect(checkBackendReadyOnce()).resolves.toBe(true);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ensureLocalBackendReady', () => {
+  beforeEach(() => {
+    vi.mocked(whenDatabaseReady).mockReset().mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+    void import('@/lib/backend-health').then(({ resetLocalBackendReadyGate }) => {
+      resetLocalBackendReadyGate();
+    });
+  });
+
+  it('shares one database readiness promise across concurrent callers', async () => {
+    const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    const first = ensureLocalBackendReady();
+    const second = ensureLocalBackendReady();
+    expect(first).toBe(second);
+    await expect(first).resolves.toBe(true);
+    expect(whenDatabaseReady).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-probes when previous gate result was false and backend recovers', async () => {
+    vi.mocked(whenDatabaseReady).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    await expect(ensureLocalBackendReady()).resolves.toBe(false);
+    await expect(ensureLocalBackendReady()).resolves.toBe(true);
+    expect(whenDatabaseReady).toHaveBeenCalledTimes(2);
+  });
+
+  it('invalidates both transport and platform readiness after a failure', async () => {
+    vi.mocked(whenDatabaseReady).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    const { ensureLocalBackendReady, markLocalBackendUnreachable, resetLocalBackendReadyGate } =
+      await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    await expect(ensureLocalBackendReady()).resolves.toBe(true);
+    markLocalBackendUnreachable();
+    await expect(ensureLocalBackendReady()).resolves.toBe(false);
+    expect(whenDatabaseReady).toHaveBeenCalledTimes(2);
+    expect(markPlatformUnreachable).toHaveBeenCalledTimes(1);
+    expect(resetPlatformReadinessForTests).toHaveBeenCalled();
+  });
+
+  it('returns synchronous cached readiness state via isLocalBackendReadyCached', async () => {
+    const { isLocalBackendReadyCached, markLocalBackendUnreachable, resetLocalBackendReadyGate } =
+      await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    expect(isLocalBackendReadyCached()).toBe(true);
+    markLocalBackendUnreachable();
+    expect(isLocalBackendReadyCached()).toBe(false);
+    resetLocalBackendReadyGate();
+    expect(isLocalBackendReadyCached()).toBe(true);
+  });
+});

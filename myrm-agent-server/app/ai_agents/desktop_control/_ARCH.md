@@ -1,0 +1,55 @@
+# desktop_control/
+
+## Overview
+
+Server-side desktop control gate: wires `ForegroundPermissionCallback` into harness `DesktopSession`,
+handles per-app first approval (persisted under chat workspace volume), and emits SSE approval cards.
+
+## File Index
+
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| `__init__.py` | Package | Docstring-only package marker | ✅ |
+| `gate.py` | Core | `DesktopControlGate` foreground-permission callback: deny-first evaluation (persistent deny → session-final refusal → allow caches → prompt), fingerprint-bound grants with drift flag, session-final explicit refusals, first-settlement race rule. Granularity asymmetry is deliberate: session *denials* are operation-scoped (trust key + fingerprint) while session *allows* stay app-scoped | ✅ |
+| `envelope_manager.py` | Core | `DesktopEnvelopeManager`: task-scoped intent envelope registration, lease step consumption, `extend_lease` in-place quota replenishment, and SSE progress dispatch | ✅ |
+| `registry.py` | Core | `DesktopApprovalRegistry` pending ledger: settlement semantics (resolved \| expired \| missing), bounded registries, decision audit, `approval_fingerprint`, drift helper, withdraw-card emit, resolve entry points | ✅ |
+| `trust_store.py` | Support | Workspace trust persistence: `approved_apps.json` / `denied_apps.json` I/O, live-gate plus harness-disk merged listing, revoke, workspace-root discovery | ✅ |
+
+## Trust API
+
+| Route | Role |
+|-------|------|
+| `GET /webui/desktop/trust/apps` | List always-trusted apps from live gates + harness workspace disks + fallback workspace root |
+| `DELETE /webui/desktop/trust/apps` | Revoke one trust key across live gates and persisted workspace stores |
+| `GET /webui/desktop/approval/pending` | `pending` id list + `count` frozen for E2E; additive `details` (per-request metadata) + `decisions` (recent grant/deny/timeout audit) |
+| `POST /webui/desktop/approval/resolve` | Resolve with settlement semantics: 200 resolved, 410 expired (timeout), 404 missing; optional `reason` recorded on explicit refusals |
+| `POST /webui/desktop/approval/reset-runtime` | Clears in-memory session approvals (incl. session-final denials) and reloads persisted always-trusted apps + persistent denials |
+| `POST /webui/desktop/envelope/pause` | Emergency pause: revoke active intent envelope and broadcast progress |
+| `GET /webui/desktop/envelope/status` | Query active envelope execution status and remaining budget |
+
+Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' session approvals stay intact.
+
+## Dependencies
+
+- `myrm_agent_harness.toolkits.computer_use` (ForegroundPermissionCallback, ExecutionMode)
+- `myrm_agent_harness.toolkits.computer_use.envelope` (IntentEnvelopeSpec, WindowHierarchyContext, EnvelopeCheckResult, check_envelope_action)
+- `myrm_agent_harness.toolkits.computer_use.app_identity` (resolve_trust_key, trust_key_matches)
+- `myrm_agent_harness.utils.runtime.progress_sink` (SSE emit during tool execution)
+- `app.ai_agents.general_agent.tool_setup` (session wiring)
+- `app.api.webui.router` (`POST /webui/desktop/approval/resolve`)
+
+## Verification (Chrome MCP E2E)
+
+| Item | Detail |
+|------|--------|
+| Test | `myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)`) |
+| Preflight | `./myrm ready --chrome`；共享 `:8080` + 私有 chat workspace gate 文件；LIVE_AGENT cap 背压并行 |
+| Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
+| UI | `DesktopControlApprovalBanner` — `desktop-control-allow-once` / `allow-session` / `allow-always` / `allow-envelope` / `deny` |
+| Settings | `DesktopPermissionsCard` — `data-testid="desktop-trust-revoke-{trust_key}"` |
+| E2E | `test_desktop_control_approval_chrome_e2e.py` + `tests/e2e/desktop_approval/` — allow_once + allow_session + allow_always→Settings revoke |
+| Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |
+| E2E run | `./myrm test -m chrome_e2e_desktop …`（按文件跑；日常 `./myrm test` 路径） |
+| E2E env | `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC=120`（`test.sh` 对 `chrome_e2e_desktop` 自动 export） |
+| Reset | `POST /webui/desktop/approval/reset-runtime` clears in-memory gate + reloads disk approvals |
+| Retry | Product-only retries: `once` ≤3 / `always` ≤2; infra markers (Chrome/mux/wave) fail-fast — see Roadmap §12.1 |

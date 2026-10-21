@@ -1,0 +1,418 @@
+"""Skill system data models.
+
+SkillType enum is defined in the storage key layout (app.core.storage.types)
+because it determines skill storage path conventions.
+SkillRequires is re-exported from the framework layer to avoid duplicate type definitions.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+
+from myrm_agent_harness.backends.skills.types import (
+    SecurityFindingDetail,
+    SecurityScanSummary,
+    SkillMetadata,
+    SkillRequires,
+)
+
+from app.config.settings import settings
+from app.core.storage.types import SkillType as SkillType
+
+
+@dataclass
+class Skill:
+    """Unified skill model for prebuilt and local skills."""
+
+    id: str
+    type: SkillType
+    name: str
+    description: str
+    storage_path: str
+
+    version: str = "1.0.0"
+    category: str | None = None
+    icon_url: str | None = None
+    tags: list[str] = field(default_factory=list)
+    token_cost: int | None = None
+
+    # Dependency and availability
+    requires: SkillRequires = field(default_factory=SkillRequires)
+    available: bool = True
+    unavailable_reason: str | None = None
+
+    # Trust and identity
+    trust: str = "installed"
+    author: str | None = None
+    homepage: str | None = None
+    always: bool = False
+
+    # Invocation control
+    model_invocable: bool = True
+    user_invocable: bool = True
+
+    # Env injection
+    primary_env: str | None = None
+    oauth_issuer: str | None = None
+    """Primary OAuth issuer key for runtime credential injection."""
+
+    required_oauth_issuers: list[str] = field(default_factory=list)
+    """Multiple OAuth issuer keys required by this skill (from SKILL.md frontmatter)."""
+
+    required_mcp_server_ids: list[str] = field(default_factory=list)
+    """Multiple MCP server identifiers required by this skill for preflight checks."""
+
+    # DLP Protection
+    allowed_domains: list[str] | None = None
+    allowed_tools: list[str] | None = None
+
+    # Security scan summary
+    security: SecurityScanSummary | None = None
+    user_trusted: bool = False
+    """Whether this skill was manually elevated to TRUSTED by the user."""
+
+    evolution_locked: bool = False
+    """If True, this skill is locked from automatic evolution (parsed from SKILL.md)."""
+
+    scope_agent_id: str | None = None
+    """Agent ID that owns this skill, for multi-agent scoping."""
+
+    required_permissions: list[str] = field(default_factory=list)
+    """Permissions this skill declares in SKILL.md (values like ``file_write``).
+
+    Mirror of ``SkillMetadata.required_permissions`` as plain strings —
+    the business layer does not depend on the framework's enum type.
+    """
+
+    config_schema: dict[str, object] | None = None
+    """JSON Schema for skill configuration UI (from SKILL.md frontmatter)."""
+
+    usage_stats: dict[str, object] | None = None
+    """Usage statistics for the skill (e.g. last_used_at, call_count)."""
+
+    # Prebuilt skill update tracking (three-way hash)
+    origin_hash: str | None = None
+    """SHA-256 of bundled source at last sync. Used by prebuilt_sync to detect user modifications."""
+
+    has_upstream_update: bool = False
+    """True when upstream changed but user-modified content was preserved during sync."""
+
+    installed_from: dict[str, object] | None = None
+    """Provenance tracking for installed skills (e.g. source, origin_url, version, installed_at)."""
+
+    last_replace_batch_id: str | None = None
+    """Rollback batch id for the most recent package/skill replace (Skill Change Contract)."""
+
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "type": self.type.value,
+            "name": self.name,
+            "description": self.description,
+            "storage_path": self.storage_path,
+            "version": self.version,
+            "category": self.category,
+            "icon_url": self.icon_url,
+            "tags": self.tags,
+            "token_cost": self.token_cost,
+            "requires": self.requires.to_dict(),
+            "available": self.available,
+            "unavailable_reason": self.unavailable_reason,
+            "trust": self.trust,
+            "author": self.author,
+            "homepage": self.homepage,
+            "always": self.always,
+            "model_invocable": self.model_invocable,
+            "user_invocable": self.user_invocable,
+            "primary_env": self.primary_env,
+            "oauth_issuer": self.oauth_issuer,
+            "required_oauth_issuers": self.required_oauth_issuers,
+            "required_mcp_server_ids": self.required_mcp_server_ids,
+            "allowed_domains": self.allowed_domains,
+            "allowed_tools": self.allowed_tools,
+            "security": self.security.to_dict() if self.security else None,
+            "evolution_locked": self.evolution_locked,
+            "scope_agent_id": self.scope_agent_id,
+            "required_permissions": self.required_permissions,
+            "config_schema": self.config_schema,
+            "usage_stats": self.usage_stats,
+            "origin_hash": self.origin_hash,
+            "has_upstream_update": self.has_upstream_update,
+            "installed_from": self.installed_from,
+            "last_replace_batch_id": self.last_replace_batch_id,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+    @classmethod
+    def from_metadata(
+        cls,
+        meta: SkillMetadata,
+        *,
+        skill_id: str,
+        skill_type: SkillType,
+        category: str | None = None,
+        installed_from: dict[str, object] | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+    ) -> Skill:
+        """Adapt a framework-layer SkillMetadata into a business-layer Skill."""
+        now = datetime.utcnow()
+        raw_tags = meta.metadata.get("tags")
+        tags: list[str] = []
+        if isinstance(raw_tags, list):
+            tags = [str(t).strip().strip("'\"") for t in raw_tags if str(t).strip()]
+        elif isinstance(raw_tags, str):
+            cleaned = raw_tags.strip().lstrip("[").rstrip("]")
+            tags = [t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")]
+
+        return cls(
+            id=skill_id,
+            type=skill_type,
+            name=meta.name,
+            description=meta.description,
+            storage_path=meta.storage_path or "",
+            version=meta.version or "1.0.0",
+            category=category,
+            tags=tags,
+            token_cost=meta.token_cost,
+            requires=meta.requires or SkillRequires(),
+            available=meta.available,
+            unavailable_reason=meta.unavailable_reason,
+            trust=meta.trust.name.lower(),
+            author=meta.metadata.get("author"),
+            homepage=meta.metadata.get("homepage"),
+            always=meta.always,
+            model_invocable=meta.model_invocable,
+            user_invocable=meta.user_invocable,
+            primary_env=meta.primary_env,
+            oauth_issuer=getattr(meta, "oauth_issuer", None),
+            required_oauth_issuers=_str_list(getattr(meta, "required_oauth_issuers", [])),
+            required_mcp_server_ids=_str_list(getattr(meta, "required_mcp_server_ids", [])),
+            allowed_domains=meta.allowed_domains,
+            allowed_tools=meta.allowed_tools,
+            security=meta.scan_summary,
+            evolution_locked=meta.evolution_locked,
+            scope_agent_id=meta.scope_agent_id,
+            config_schema=meta.config_schema,
+            required_permissions=[getattr(p, "value", str(p)) for p in getattr(meta, "required_permissions", [])],
+            usage_stats=(meta.usage_stats.to_dict() if hasattr(meta, "usage_stats") and meta.usage_stats else None),
+            installed_from=installed_from,
+            created_at=created_at or now,
+            updated_at=updated_at or now,
+        )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> Skill:
+        skill_type = data.get("type")
+        if isinstance(skill_type, str):
+            skill_type = SkillType(skill_type)
+        elif not isinstance(skill_type, SkillType):
+            skill_type = SkillType.PREBUILT
+
+        return cls(
+            id=str(data.get("id", "")),
+            type=skill_type,
+            name=str(data.get("name", "")),
+            description=str(data.get("description", "")),
+            storage_path=str(data.get("storage_path", "")),
+            version=str(data.get("version", "1.0.0")),
+            category=_opt_str(data.get("category")),
+            icon_url=_opt_str(data.get("icon_url")),
+            tags=_str_list(data.get("tags")),
+            token_cost=_opt_int(data.get("token_cost")),
+            requires=SkillRequires.from_dict(_opt_dict(data.get("requires"))),
+            available=bool(data.get("available", True)),
+            unavailable_reason=_opt_str(data.get("unavailable_reason")),
+            trust=str(data.get("trust", "installed")),
+            author=_opt_str(data.get("author")),
+            homepage=_opt_str(data.get("homepage")),
+            always=bool(data.get("always", False)),
+            model_invocable=bool(data.get("model_invocable", True)),
+            user_invocable=bool(data.get("user_invocable", True)),
+            primary_env=_opt_str(data.get("primary_env")),
+            oauth_issuer=_opt_str(data.get("oauth_issuer")),
+            allowed_domains=(_str_list(data.get("allowed_domains")) if data.get("allowed_domains") is not None else None),
+            allowed_tools=(_str_list(data.get("allowed_tools")) if data.get("allowed_tools") is not None else None),
+            security=_parse_security_summary(data.get("security")),
+            evolution_locked=bool(data.get("evolution_locked", False)),
+            scope_agent_id=_opt_str(data.get("scope_agent_id")),
+            required_permissions=_str_list(data.get("required_permissions")),
+            required_oauth_issuers=_str_list(data.get("required_oauth_issuers")),
+            required_mcp_server_ids=_str_list(data.get("required_mcp_server_ids")),
+            config_schema=_opt_dict(data.get("config_schema")),
+            usage_stats=_opt_dict(data.get("usage_stats")),
+            origin_hash=_opt_str(data.get("origin_hash")),
+            has_upstream_update=bool(data.get("has_upstream_update", False)),
+            installed_from=_opt_dict(data.get("installed_from")),
+            last_replace_batch_id=_opt_str(data.get("last_replace_batch_id")),
+            created_at=_parse_datetime(data.get("created_at")),
+            updated_at=_parse_datetime(data.get("updated_at")),
+        )
+
+
+def _opt_dict(raw: object) -> dict[str, object] | None:
+    if not isinstance(raw, dict):
+        return None
+    return {str(k): v for k, v in raw.items()}
+
+
+def _opt_int(val: object) -> int | None:
+    return int(val) if isinstance(val, (int, float, str)) else None
+
+
+def _opt_str(val: object) -> str | None:
+    return str(val) if val else None
+
+
+def _str_list(val: object) -> list[str]:
+    return [str(v) for v in val] if isinstance(val, list) else []
+
+
+def _parse_security_summary(val: object) -> SecurityScanSummary | None:
+    if val is None:
+        return None
+    if isinstance(val, SecurityScanSummary):
+        return val
+    if isinstance(val, dict):
+        raw_findings = val.get("findings")
+        findings: tuple[SecurityFindingDetail, ...] = ()
+        if isinstance(raw_findings, (list, tuple)):
+            findings = tuple(
+                SecurityFindingDetail(
+                    threat_type=str(f.get("threat_type", "")),
+                    severity=str(f.get("severity", "")),
+                    description=str(f.get("description", "")),
+                )
+                for f in raw_findings
+                if isinstance(f, dict)
+            )
+        fc_raw = val.get("finding_counts")
+        finding_counts = {str(k): int(v) for k, v in fc_raw.items()} if isinstance(fc_raw, dict) else {}
+        return SecurityScanSummary(
+            score=int(val.get("score", 0)),
+            trust_recommendation=str(val.get("trust_recommendation", "installed")),
+            finding_counts=finding_counts,
+            total_findings=int(val.get("total_findings", 0)),
+            findings=findings,
+        )
+    return None
+
+
+def _parse_datetime(val: object) -> datetime:
+    if isinstance(val, datetime):
+        return val
+    if isinstance(val, str):
+        return datetime.fromisoformat(val)
+    return datetime.utcnow()
+
+
+# Storage root of skills the agent writes. It follows MYRM_DATA_DIR, so the writer and the catalog agree.
+LOCAL_SKILLS_DIR: Path = Path(settings.database.state_dir) / "skills"
+
+
+def _as_home_relative(path: Path) -> str:
+    """Render ``path`` as ``~/...`` when it sits under the user's home, the form users see and configure."""
+    try:
+        return f"~/{path.relative_to(Path.home()).as_posix()}"
+    except ValueError:
+        return str(path)
+
+
+# The first entry is the primary root: the creation service writes there and the catalog scans it first.
+DEFAULT_LOCAL_SKILL_PATHS: list[str] = [
+    _as_home_relative(LOCAL_SKILLS_DIR),
+    "~/.cursor/skills",
+    "~/.cursor/skills-cursor",
+    "~/.claude/skills",
+    "~/.openclaw/skills",
+    "~/.codex/skills",
+    "~/.windsurf/skills",
+]
+
+
+@dataclass
+class UserSkillConfig:
+    """Per-user skill preferences.
+
+    - enabled_prebuilt_ids: enabled prebuilt skill IDs
+    - local_skill_paths: local filesystem paths to scan for skills (local mode)
+    - enabled_local_skill_ids: enabled local skill IDs
+    """
+
+    user_id: str
+    enabled_prebuilt_ids: list[str] = field(default_factory=list)
+    disabled_prebuilt_ids: list[str] = field(default_factory=list)
+    """Prebuilt skill IDs the user explicitly disabled (prevents re-enable on seed sync)."""
+    local_skill_paths: list[str] = field(default_factory=list)
+    enabled_local_skill_ids: list[str] = field(default_factory=list)
+    skill_env_vars: dict[str, dict[str, str]] = field(default_factory=dict)
+    trusted_skill_ids: list[str] = field(default_factory=list)
+    """Skill IDs the user has manually elevated to TRUSTED after security review."""
+    clawhub_registry_url: str = ""
+    """Optional ClawHub-compatible registry mirror (e.g. skill.xfyun.cn). Empty = clawhub.ai."""
+    evolution_strategy: str = "balanced"
+    """Agent's mindset for evolution: balanced, innovate, harden, repair-only."""
+    updated_at: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "user_id": self.user_id,
+            "enabled_prebuilt_ids": self.enabled_prebuilt_ids,
+            "disabled_prebuilt_ids": self.disabled_prebuilt_ids,
+            "local_skill_paths": self.local_skill_paths,
+            "enabled_local_skill_ids": self.enabled_local_skill_ids,
+            "skill_env_vars": self.skill_env_vars,
+            "trusted_skill_ids": self.trusted_skill_ids,
+            "clawhub_registry_url": self.clawhub_registry_url,
+            "evolution_strategy": self.evolution_strategy,
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> UserSkillConfig:
+        updated_at = _parse_datetime(data.get("updated_at"))
+
+        def _str_list(key: str) -> list[str]:
+            raw = data.get(key, [])
+            return [str(s) for s in raw] if isinstance(raw, list) else []
+
+        prebuilt_ids = _str_list("enabled_prebuilt_ids")
+        disabled_prebuilt_ids = _str_list("disabled_prebuilt_ids")
+        local_paths = _str_list("local_skill_paths")
+        enabled_local_ids = _str_list("enabled_local_skill_ids")
+        trusted_ids = _str_list("trusted_skill_ids")
+
+        env_vars_raw = data.get("skill_env_vars", {})
+        env_vars: dict[str, dict[str, str]] = {}
+        if isinstance(env_vars_raw, dict):
+            for skill_id, vars_dict in env_vars_raw.items():
+                if isinstance(vars_dict, dict):
+                    env_vars[str(skill_id)] = {str(k): str(v) for k, v in vars_dict.items()}
+
+        return cls(
+            user_id=str(data.get("user_id", "")),
+            enabled_prebuilt_ids=prebuilt_ids,
+            disabled_prebuilt_ids=disabled_prebuilt_ids,
+            local_skill_paths=local_paths,
+            enabled_local_skill_ids=enabled_local_ids,
+            skill_env_vars=env_vars,
+            trusted_skill_ids=trusted_ids,
+            clawhub_registry_url=str(data.get("clawhub_registry_url", "")),
+            evolution_strategy=str(data.get("evolution_strategy", "balanced")),
+            updated_at=updated_at,
+        )
+
+
+__all__ = [
+    "DEFAULT_LOCAL_SKILL_PATHS",
+    "LOCAL_SKILLS_DIR",
+    "Skill",
+    "SkillType",
+    "UserSkillConfig",
+]

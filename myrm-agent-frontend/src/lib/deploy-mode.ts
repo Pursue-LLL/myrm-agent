@@ -1,0 +1,445 @@
+/**
+ * [INPUT]
+ * - process.env.NEXT_PUBLIC_DEPLOY_MODE / NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_BACKEND_BASE_URL (POS: 前端运行时配置)
+ *
+ * [OUTPUT]
+ * - isTauriRuntime: Tauri 运行时判定。
+ * - getDeployMode: 解析当前前端部署模式。
+ * - isLocalMode: 判断是否处于本地模式。
+ * - getApiBaseUrl: 返回安全的 API 基础地址。
+ * - getBackendBaseUrl: 返回安全的后端基础地址。
+ * - getDocsUrl: 返回文档站外链。
+ * - normalizeConfiguredBaseUrl: 规范化并校验配置的 URL。
+ * - RemoteGatewayConfig: 远程网关配置接口。
+ * - getRemoteGatewayConfig / setRemoteGatewayConfig: localStorage 远程网关配置读写。
+ * - isRemoteGatewayActive: 是否正在使用远程网关模式。
+ * - setRuntimeTauriBackendPort / getRuntimeTauriBackendPort: 运行时内存级 Tauri 后端端口 SSOT 覆盖与读取。
+ *
+ * [POS]
+ * 前端部署模式与基础地址解析层。统一判定本地、桌面和沙箱环境，并阻断 `undefined` 之类的脏配置进入请求链路。
+ */
+/**
+ * 前端运行环境检测工具
+ *
+ * 前端运行环境（注意：与后端 DEPLOY_MODE 是两个独立概念）：
+ * - TAURI: Tauri 桌面客户端 WebView（后端 DEPLOY_MODE=local）
+ * - LOCAL: 浏览器独立访问 WebUI（后端 DEPLOY_MODE=local）
+ * - SANDBOX: 沙箱模式（后端 DEPLOY_MODE=sandbox）
+ *
+ * TAURI 和 LOCAL 统称"本地模式"，共享相同的前端行为（本地后端、本地存储）。
+ * 使用 isLocalMode() 判断是否为本地模式。
+ *
+ * Tauri WebView 在 loopback dev host（127.0.0.1/localhost，含 Tauri devUrl :3000 与 Chrome E2E）
+ * 使用 Next `/api/v1` 代理；非 loopback 主机直连 sidecar 后端端口。
+ *
+ * ## 配置方式
+ *
+ * 通过环境变量 `NEXT_PUBLIC_DEPLOY_MODE` 配置（推荐）：
+ * - `.env.local`: `NEXT_PUBLIC_DEPLOY_MODE=sandbox` 或 `tauri` 或 `local`
+ * - 构建时注入: `NEXT_PUBLIC_DEPLOY_MODE=tauri npm run build`
+ *
+ * ## 检测优先级（从高到低）
+ *
+ * 1. **环境变量**（`NEXT_PUBLIC_DEPLOY_MODE`）
+ *    - 构建时或运行时配置
+ *    - 标准的 12-Factor App 配置方式
+ *    - SaaS：`NEXT_PUBLIC_API_BASE_URL=https://<cp-host>/proxy/me/api/v1`
+ *
+ * 2. **默认值**：tauri（Tauri 桌面客户端的 WebView 环境）
+ */
+
+import {
+  addRemoteProfile,
+  getActiveRemoteProfile,
+  listRemoteProfiles,
+  resolveProfileApiBase,
+  setActiveRemoteProfileId,
+} from './remote-profiles';
+
+export type DeployMode = 'tauri' | 'local' | 'sandbox';
+
+const LOCAL_MODES: ReadonlySet<DeployMode> = new Set(['tauri', 'local']);
+const FALLBACK_API_BASE_URL = 'http://127.0.0.1:8080/api/v1';
+const FALLBACK_BACKEND_BASE_URL = 'http://127.0.0.1:8080';
+
+// ── Remote Gateway (Tauri Desktop → Remote Server) ──────────────────────────
+const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
+
+export interface RemoteGatewayConfig {
+  enabled: boolean;
+  url: string;
+}
+
+export function getRemoteGatewayConfig(): RemoteGatewayConfig | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const active = getActiveRemoteProfile();
+  if (!active) {
+    return null;
+  }
+  return { enabled: true, url: resolveProfileApiBase(active) };
+}
+
+export function setRemoteGatewayConfig(config: RemoteGatewayConfig | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (!config || !config.enabled) {
+    setActiveRemoteProfileId(null);
+    restoreLocalAuthToken();
+    return;
+  }
+  const url = config.url.trim().replace(/\/+$/, '');
+  const existing = listRemoteProfiles().find((p) => p.url === url);
+  if (existing) {
+    setActiveRemoteProfileId(existing.id);
+  } else {
+    addRemoteProfile('Remote server', url);
+  }
+  backupLocalAuthToken();
+}
+
+export function isRemoteGatewayActive(): boolean {
+  return isTauriRuntime() && getRemoteGatewayConfig() !== null;
+}
+
+/** Keeps the pre-remote local session token so disconnecting can restore it; the first backup is never overwritten. */
+export function backupLocalAuthToken(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const current = window.localStorage.getItem('auth_token');
+  if (!current) {
+    return;
+  }
+  // 防覆盖：首次进入 remote 前的本地 token 保持原样（含 WebUI 密码 token），
+  // 远程间切换（remote A → remote B）不污染本地备份。
+  if (window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY)) {
+    return;
+  }
+  window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
+}
+
+function restoreLocalAuthToken(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const backup = window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY);
+  if (backup) {
+    window.localStorage.setItem('auth_token', backup);
+    window.localStorage.removeItem(LOCAL_TOKEN_BACKUP_KEY);
+  }
+}
+/** Desktop sidecar default; mirrors BackendConfig when enable_webui_mode=false. */
+const TAURI_DESKTOP_API_PORT = 8080;
+/** WebUI sidecar default; mirrors SystemConfig.api_port when enable_webui_mode=true. */
+const TAURI_WEBUI_API_PORT = 25808;
+const INVALID_BASE_URL_VALUES = new Set(['undefined', 'null']);
+
+export function normalizeConfiguredBaseUrl(value: string | null | undefined, fallback: string): string {
+  const candidate = value?.trim();
+  if (!candidate) {
+    return fallback;
+  }
+  if (INVALID_BASE_URL_VALUES.has(candidate.toLowerCase())) {
+    return fallback;
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return fallback;
+    }
+  } catch {
+    return fallback;
+  }
+
+  return candidate.replace(/\/+$/, '');
+}
+
+/**
+ * 检测是否运行在 Tauri 桌面端（基于 window.__TAURI__ 运行时检测，不受配置覆盖影响）
+ */
+export function isTauriRuntime(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return '__TAURI__' in window;
+}
+
+const VALID_MODES: ReadonlySet<string> = new Set<DeployMode>(['tauri', 'local', 'sandbox']);
+
+function isValidDeployMode(value: string): value is DeployMode {
+  return VALID_MODES.has(value);
+}
+
+/**
+ * 从环境变量获取部署模式
+ */
+function getDeployModeFromEnv(): DeployMode | null {
+  const envMode = process.env.NEXT_PUBLIC_DEPLOY_MODE;
+  if (envMode && isValidDeployMode(envMode)) {
+    return envMode;
+  }
+  return null;
+}
+
+/**
+ * 是否为本地模式（TAURI 或 LOCAL）
+ *
+ * 本地模式共享相同的前端行为：使用本地后端、本地存储、单用户。
+ */
+export function isLocalMode(): boolean {
+  return LOCAL_MODES.has(getDeployMode());
+}
+
+/** Loopback browser dev (WebUI :3000, Chrome E2E) — integration tabs must stay reachable. */
+export function isLoopbackDevHost(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const host = window.location.hostname;
+  return host === '127.0.0.1' || host === 'localhost';
+}
+
+/** Local/Tauri deploy mode or loopback WebUI dev host. */
+export function showsLocalIntegrationTabs(): boolean {
+  return isLocalMode() || isLoopbackDevHost();
+}
+
+/** Dev Gate Chrome E2E host — SSOT for integration tabs and MCP surface probes. */
+export function isDevGateHost(): boolean {
+  return showsLocalIntegrationTabs();
+}
+
+/**
+ * 获取当前部署模式
+ *
+ * 检测优先级：显式 sandbox 构建 > 环境变量 > 默认 tauri
+ */
+export function getDeployMode(): DeployMode {
+  if (typeof window === 'undefined') {
+    return getDeployModeFromEnv() ?? 'tauri';
+  }
+
+  const envMode = getDeployModeFromEnv();
+  if (envMode === 'sandbox') {
+    return 'sandbox';
+  }
+
+  if (envMode) {
+    return envMode;
+  }
+
+  return 'tauri';
+}
+
+/**
+ * 检测是否为 Sandbox 模式
+ */
+export function isSandbox(): boolean {
+  return getDeployMode() === 'sandbox';
+}
+
+/**
+ * SaaS/sandbox CP auth UI for this build (compile-time env only).
+ */
+export function isSandboxAuthBuild(): boolean {
+  return process.env.NEXT_PUBLIC_DEPLOY_MODE === 'sandbox';
+}
+
+/** Redirect to /auth/login on 401 for sandbox builds or when Tauri Desktop uses remote gateway. */
+export function shouldRedirectToLoginOnAuthFailure(): boolean {
+  return isSandboxAuthBuild() || isRemoteGatewayActive();
+}
+
+/**
+ * 获取本地模式下的固定用户 ID
+ *
+ * 本地模式（TAURI/LOCAL）为单用户，使用固定 ID 与后端 API 保持一致。
+ */
+export function getLocalUserId(): string {
+  return 'local_user';
+}
+
+import { readTauriSystemConfigCache } from './tauri-system-config-cache';
+
+let memoryTauriBackendPort: number | null = null;
+
+export function setRuntimeTauriBackendPort(port: number | null): void {
+  memoryTauriBackendPort = port;
+}
+
+export function getRuntimeTauriBackendPort(): number | null {
+  return memoryTauriBackendPort;
+}
+
+/**
+ * Resolve Tauri backend port from persisted system config (if WebUI mode), else desktop default.
+ */
+function getTauriBackendPort(): number {
+  if (memoryTauriBackendPort && memoryTauriBackendPort > 0) {
+    return memoryTauriBackendPort;
+  }
+
+  if (typeof window === 'undefined') {
+    return TAURI_DESKTOP_API_PORT;
+  }
+
+  try {
+    const config = readTauriSystemConfigCache();
+    if (config && config.enableWebUIMode) {
+      return config.apiPort ?? TAURI_WEBUI_API_PORT;
+    }
+    const storage = window.localStorage;
+    const raw = storage ? storage.getItem('myrm-tauri-system-config') : null;
+    if (raw) {
+      const parsed = JSON.parse(raw) as { enableWebUIMode?: boolean; apiPort?: number };
+      if (parsed.enableWebUIMode) {
+        return parsed.apiPort ?? TAURI_WEBUI_API_PORT;
+      }
+    }
+  } catch {
+    // ignore malformed cache
+  }
+
+  return TAURI_DESKTOP_API_PORT;
+}
+
+/** Chrome E2E SHPOIB: CDP injects private backend base before chat automation. */
+export function resolveE2eApiBase(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  let raw = window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__;
+  if (typeof raw !== 'string' && typeof window.name === 'string' && window.name.startsWith('myrm-e2e-v1:')) {
+    try {
+      const parsed = JSON.parse(window.name.slice('myrm-e2e-v1:'.length));
+      if (parsed && typeof parsed.apiBase === 'string') {
+        raw = parsed.apiBase;
+        window.__MYRM_E2E_API_BASE__ = raw;
+        window.__MYRM_E2E_RUNTIME__ = parsed;
+      }
+    } catch {
+      // ignore malformed window.name
+    }
+  }
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  try {
+    const parsed = new URL(trimmed);
+    if (
+      (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+      (parsed.hostname !== '127.0.0.1' && parsed.hostname !== 'localhost')
+    ) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get API base URL
+ *
+ * 本地模式: 使用本地服务 (127.0.0.1:8080)
+ * Tauri Desktop: 8080（与 Rust BackendConfig 桌面模式一致）
+ * Tauri WebUI: apiPort（默认 25808）
+ * Sandbox 模式: 使用环境变量配置的远程服务
+ */
+export function getApiBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return `${e2eBase}/api/v1`;
+  }
+  const remote = isTauriRuntime() ? getRemoteGatewayConfig() : null;
+  if (remote) {
+    return `${remote.url}/api/v1`;
+  }
+  if (isTauriRuntime()) {
+    if (isLoopbackDevHost()) {
+      return '/api/v1';
+    }
+    return `http://127.0.0.1:${getTauriBackendPort()}/api/v1`;
+  }
+  if (isLocalMode()) {
+    return '/api/v1';
+  }
+  return normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL, FALLBACK_API_BASE_URL);
+}
+
+/**
+ * 获取后端基础 URL（不含 API 路径前缀）
+ */
+export function getBackendBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return e2eBase;
+  }
+  const remote = isTauriRuntime() ? getRemoteGatewayConfig() : null;
+  if (remote) {
+    return remote.url;
+  }
+  if (isTauriRuntime()) {
+    if (isLoopbackDevHost()) {
+      return '';
+    }
+    return `http://127.0.0.1:${getTauriBackendPort()}`;
+  }
+  if (isLocalMode()) {
+    return '';
+  }
+  return normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_BACKEND_BASE_URL, FALLBACK_BACKEND_BASE_URL);
+}
+
+/**
+ * OpenAI-compatible Agent API base URL for external clients (Cursor, OpenAI SDK).
+ * `/v1` is served by the backend directly — not proxied through Next `/api/v1`.
+ */
+export function getAgentApiBaseUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return `${e2eBase}/v1`;
+  }
+  const backendBase = getBackendBaseUrl();
+  if (backendBase) {
+    return `${backendBase}/v1`;
+  }
+  if (isTauriRuntime()) {
+    return `http://127.0.0.1:${getTauriBackendPort()}/v1`;
+  }
+  if (isLocalMode()) {
+    return `${FALLBACK_BACKEND_BASE_URL}/v1`;
+  }
+  return `${normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_BACKEND_BASE_URL, FALLBACK_BACKEND_BASE_URL)}/v1`;
+}
+
+/**
+ * SSE notification stream URL.
+ * Loopback dev must bypass Next `/api/v1` rewrites — they do not reliably forward EventSource chunks.
+ */
+export function getNotificationStreamUrl(): string {
+  const e2eBase = resolveE2eApiBase();
+  if (e2eBase) {
+    return `${e2eBase}/api/v1/notifications/stream`;
+  }
+  const backend = getBackendBaseUrl();
+  if (backend) {
+    return `${backend}/api/v1/notifications/stream`;
+  }
+  if (typeof window !== 'undefined' && isLoopbackDevHost()) {
+    return `${FALLBACK_BACKEND_BASE_URL}/api/v1/notifications/stream`;
+  }
+  return `${getApiBaseUrl()}/notifications/stream`;
+}
+
+/** Documentation site base URL (Mintlify). */
+export function getDocsUrl(path: string = '/'): string {
+  const base = normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_DOCS_URL, 'https://docs.myrm.ai');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${normalizedPath === '/' ? '' : normalizedPath}`;
+}

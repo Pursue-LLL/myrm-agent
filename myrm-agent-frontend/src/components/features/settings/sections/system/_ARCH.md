@@ -1,0 +1,206 @@
+# settings/sections/system/
+
+## 架构概述
+
+系统 Tab：WebUI 配置、访问地址、浏览器池、内存监控、系统诊断、安全策略、用量统计、Trace 可视化等。`SystemSection` 为本地/WebUI 模式入口，`SystemCenterSection` 为 Tab 容器。
+
+## 文件清单
+
+### 入口与容器
+
+| 文件                                  | 职责                                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `SystemSection.tsx`                   | WebUI 开关、端口、系统诊断等主面板（共享 Toggle；帷幕/锁屏卡片绑定暂存值）                                                                    |
+| `SystemConfigCard.tsx`                | 系统配置卡（托盘/开机启动/快捷键/空闲回收/WebUI 端口与密码 + 保存与重启）：纯呈现，状态与持久化由 SystemSection 持有 |
+| `ShortcutRecorder.tsx`                | 全局快捷键录制输入框（聚焦录制 / Esc 取消 / Backspace 清空） |
+| `AppshotExcludedAppsEditor.tsx`       | Appshot 隐私黑名单编辑器 |
+| `SystemCenterSection.tsx`             | 系统 Tab 容器                                                                                           |
+| `SandboxResetCard.tsx`                | 云托管沙箱的「重置环境」卡：确认后经 server 请求控制平面换容器，并带 `reset_python_env: true` 让智能体装过的 Python 包随重启清空（`silent` 请求，每次结果只出一条本地化提示，不叠加 server 返回的英文；实例导入后的「立即重启」走同一端点但不带该标志，不清包）；仍有任务在运行（409）提示「等任务结束或停止后再试」，其余失败提示通用失败；窄屏下底部按钮整行铺满；卡片标题只出现一次（与同目录其它卡片一致，由节标题承担）；文案沿用产品通用的「沙箱」一词，只如实说清清掉什么（智能体安装的 Python 包）与保留什么（工作区文件、聊天历史、记忆、设置），不承诺清除系统层面的全局软件 / 系统设置（容器根文件系统只读，本来就没有这类改动），也不出现容器 / 持久化卷 / venv / pip / apt 等实现细节；确认文案不承诺重启耗时（耗时取决于卷 chown 与启动等待，控制平面文档给的是上限而非典型值），只说明期间暂时无法使用 |
+| `__tests__/SandboxResetCard.test.tsx` | 重置卡单测：成功 / 失败 / 409 运行中 / 非 API 错误各只弹一条本地化提示，不展示 server 英文；请求带 `silent` 与 `reset_python_env: true`；卡片标题只渲染一次 |
+| `__tests__/SandboxResetCard.dialog.test.tsx` | 重置卡确认步骤单测（使用真实确认对话框，不替身）：点按钮只弹确认、确认前不发请求；取消不发请求并关闭对话框；请求进行中重复点确认只发起一次换容器，确认 / 取消 / 触发按钮均禁用，结束后按钮恢复可用 |
+| `__tests__/SystemSection.sandboxMode.test.tsx` | 云端构建的系统 Tab 整页测试：真实 `SystemSection` + 真实 `useSystemConfig` + 真实确认对话框 + 6 种语言的真实文案（`describe.each`）；离开加载骨架后只出现重置卡且无本地 Tab 内容、取消不发请求、确认只发一次请求并弹本语言成功提示、502 / 409 各弹本语言的失败 / 运行中提示 |
+| `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
+| `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
+| `upgrade-cockpit/`                    | WebUI与桌面端可视化一键无感升级控制台、多源网络诊断探针与长任务排队热重载面板（Item 80 P0，详见 `upgrade-cockpit/_ARCH.md`） |
+| `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段）                 |
+| `ImportExportSection.tsx`             | 配置导入导出页：配置导入导出 + 存储治理卡（`StorageGovernanceCard`）+ 支持包导出卡 + 数据集导出卡 |
+
+### 存储管理
+
+| 文件                                      | 职责                                                                                                                   |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `StorageCard.tsx`                         | 存储位置与会话数据库智能优化（当前路径、磁盘三元组用量、预检、FTS/VACUUM/WAL双模式瘦身、迁移＋实时进度条、低空间预警）；优化入口只在实例数据库有数据时出现（`db_breakdown.total_bytes > 0`）；各类数据的占用由存储治理卡负责，本卡不列明细；优化流程的失败、活跃任务拦截与结果只以本地化文案呈现，不展示 server 返回的英文原文 |
+| `__tests__/StorageCard.test.tsx`          | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示                    |
+| `__tests__/StorageCard.optimize.test.tsx` | 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁（只显示本地化提示）与优化成功 Toast 及结果卡；预检与优化失败只弹本地化提示且不含 server / 异常原文；数据库为空时不提供优化入口 |
+| `StorageGovernanceCard.tsx`               | 存储治理卡（挂在「导入导出」页）：按类别展示占用（类别名称取自 `StorageCategoryKey` 对应的本地化标签；数据库类只显示大小，目录类另显文件数；条宽按占比，非空类别至少 1%，无字节的类别为空轨道）、状态快照的创建 / 恢复 / 删除；统计要遍历整个状态目录：首次加载显示骨架占位，刷新时保留已有数字，统计失败显示可重试的本地化提示（已有数字时注明可能过期），较早发出的慢统计不会覆盖较新的结果；各操作失败只弹本地化提示，不展示 server 返回的英文与异常原文，删除快照的图标按钮带可读名称 |
+| `__tests__/StorageGovernanceCard.test.tsx` | 治理卡单测：类别占用与文件数（数据库类不显示文件数）、无字节的类别画空轨道而非 1% 残条、统计中不显示数字也不闪失败提示、首次统计失败只出本地化提示且重试可恢复、刷新失败保留旧数字并注明可能过期、较早发出的慢统计不覆盖较新结果、快照创建 / 恢复 / 删除的失败只弹本地化提示且不含 server / 异常原文（含删除被拒）、创建与恢复流程 |
+
+### 网络与访问
+
+| 文件                               | 职责                                                                                                                                                                                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AccessCard.tsx`                   | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情                                                                                                                                                                                    |
+| `ServerConnectionCard.tsx`         | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token；切换经 `connection-switch-guard` 健康门（测活拦截+二次点击强制，reload 后复验失败按 roster id 回滚，回滚到本地显式 `switchRemoteFollow(false)` 重启后端；云档案持 OAuth 校验免检；切换占座全局互斥：添加/选择/断开/发现沙箱同一时刻只允许一个切换在飞，占座期间档案行、添加、断开开关、发现按钮统一禁用，当前行显示“切换中”，取消/失败/断开完成时释放）；Rust 侧编排先于 apply（失败 toast 提示且 UI 状态零变化，可安全重试）；切断当前连接前的活跃会话 guard（`useActiveSessionsGuard`：有生成中会话弹 `ActiveSessionsSwitchConfirmDialog` 知情确认，查询失败或 3 s 无应答放行不锁死；添加/选择档案、断开回本地、发起云端登录、发现沙箱五条入口共用）；发现沙箱经 `commitSwitch`（可信）先编排后建 Cloud 档案；reload 由 `app:connections-changed` 事件全局驱动 |
+| `ActiveSessionsSwitchConfirmDialog.tsx` | 切断连接前（含发起云端登录前）活跃会话知情确认对话框，文案如实说明切换可能中断当前连接上进行中的轮次（本地 sidecar 优雅停机后强杀；远程连接断开超过宽限期后非长任务被服务端取消）（六语言 locales `activeSessionsDialog`，复用 primitives AlertDialog，indigo 主题）                                                                                                                               |
+| `useActiveSessionsGuard.ts` | 切断连接前活跃会话守卫 Hook（`getActiveSessions` 查询，有生成中会话时暂存继续动作并输出确认对话框状态，取消回调复位调用方进行中状态；查询失败或超过 3 s 无应答放行，不卡住切走不可达连接；查询进行中的重复触发被忽略，避免并发跑出多次切换） |
+| `useConnectionsRollbackGuard.ts` | 连接切换复验回滚 Hook（reload 后 pending 复验、不可达按 last-good 回滚、本地回滚显式重启后端；导出 `testRemoteHealth` 探测函数供连接守卫域共享）                                                                                  |
+| `RemoteFirstRunChooser.tsx`        | 首启三选一（本机/远端/云托管，一次性指引，可关闭）                                                                                                                                                                                                        |
+| `ServerConnectionCloudSection.tsx` | 云托管区：CP 登录方式查询、浏览器 OAuth（PKCE S256；无法拉起浏览器或准备失败时提示）、沙箱发现验证 token；登录与发现都先经父级注入的 `guardSwitch` 确认，真正的切换与建档由父级完成                                                                                                                                                                                         |
+| `ServerConnectionRoster.tsx`       | 远程档案 roster 纯展示子组件：测试/切换/移除三动作回调（任一切换占座期间所有切换按钮禁用），状态与副作用留在 ServerConnectionCard |
+| `TrustBadgeCard.tsx`               | 官方发行信任徽章（Tauri限定）：签名态三态诚实呈现 + 官网/下载/Releases 深链                                                                                                                                                                               |
+| `RecoveryGuideCard.tsx`            | 崩溃恢复向导（Tauri限定）：失败事件显现 + About常驻；仅非破坏三动作（重试/诊断/重装深链）                                                                                                                                                                 |
+| `WebuiAccessSecurityPanel.tsx`     | WebUI 访问安全配置                                                                                                                                                                                                                                        |
+
+### 通知
+
+| 文件                       | 职责                                                        |
+| -------------------------- | ----------------------------------------------------------- |
+| `PushNotificationCard.tsx` | Web Push VAPID 订阅（`usePushSubscription` SSOT；非 Tauri） |
+
+### 浏览器管理
+
+| 文件                                        | 职责                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BrowserPoolCard.tsx`                       | 本地浏览器池管理                                                                                                                                                                                                                                                                                                                                                |
+| `BrowserDoctorCard.tsx`                     | 浏览器栈诊断（`/health/browser/doctor`；可选 launch test）+ 孤儿进程清理（经 `apiRequest` 调 `DELETE /health/browser/orphans?confirm=true`，带认证头；含沙箱清理与磁盘释放空间格式化回显、失败明细、清理前后状态清理、弹窗失败即关）；错误响应 JSON 解析（FastAPI `{"detail": ...}` 字符串/校验数组首项、server 全局兜底 `{success, message}` → 可读文案，非 JSON 原样显示，空值兜底本地化）；报告以用户语言呈现：头条与徽标同源于「需关注项」计数（ICU 复数；可选功能未配置单列一行、不计入，后端判健康但仍有真实 warning 时徽标显示「需关注」），逐项给本地化提示句，后端英文 message / fix / recommendations 收进「技术详情」开关（有失败项时默认展开，用户可收起）；检查清单随卡片直接铺开（无嵌套滚动区）；清理结果挂在常驻 `<output>` 礼貌播报区、加载失败 `role=alert`；检查名与按钮文案用普通用户语言（不出现 Patchright / orphan / sandbox 等术语） |
+| `browserDoctorView.ts`                      | 诊断卡纯逻辑层（无 React）：只依赖 `status` 与结构化 `details`（`optional === true` 标记「可选能力未配置」的 warning；`available_gb` 经有限数值类型守卫）把检查归为 ok / optional / attention / error，产出提示键、取整后的容量与报告级计数；不解析英文文案；未知检查名 / 状态降级为可见 warning；`DOCTOR_HINT_KEYS` 为 locale 测试的单一来源 |
+| `__tests__/BrowserDoctorCard.test.tsx`      | 诊断卡组件测试：孤儿清理全链路（清理走 mock 的 `apiRequest`、诊断仍走 `fetch`）与错误详情解析 + 呈现层（可选 warning 的平静汇总、技术详情默认收起/有失败时展开且可收起、真实 warning 时徽标显示「需关注」而非健康；清单无嵌套滚动、失败 `alert` 与清理结果常驻 `status` 播报区）19 cases |
+| `__tests__/BrowserConnectionCards.test.tsx` | 云端浏览器 / 代理两张卡的「测试连接」：经带认证头的 `apiRequest` 发出请求、展示服务端返回的成功与失败文案、请求被拒绝时显示错误信息（6 cases） |
+| `__tests__/browserDoctorView.test.ts`       | 分类 / 计数 / 徽标一致性 / 资源提示取整与类型守卫 / `optional` 仅认字面量 `true` / 未知名称（含 `constructor`）与状态降级 8 cases |
+| `__tests__/browserDoctorLocaleKeys.test.ts` | 六语言 `settings.browserDoctor` 键集与占位符一致，全部提示键与卡片键经真实 next-intl ICU 格式化（数字本地化、复数）20 cases |
+| `CloudBrowserCard.tsx`                      | 云端浏览器配置（「测试连接」经 `apiRequest` POST `/health/browser/test-cloud-connection`）                                                                                                                                                                                                                                                                                                                                                  |
+| `BrowserProxyCard.tsx`                      | 浏览器代理配置（「测试连接」经 `apiRequest` POST `/health/browser/test-proxy-connection`）                                                                                                                                                                                                                                                                                                                                                  |
+| `DomainSkillsCard.tsx`                      | 域技能管理（列表/删除/内置标识）                                                                                                                                                                                                                                                                                                                                |
+| `SavedSessionsCard.tsx`                     | 已保存浏览器会话管理（加密登录态/删除/过期清理）                                                                                                                                                                                                                                                                                                                |
+| `DesktopShellFeaturesNotice.tsx`            | 浏览器 WebUI 说明：Locked Use / 帷幕 / OS 审批高亮需 Tauri 桌面壳（macOS）；Tauri 下不渲染                                                                                                                                                                                                                                                                      |
+| `UnattendedDesktopGuideCard.tsx`            | 离席用电脑向导（Tauri）：帷幕 → 可选 Locked Use → 可视化审批说明；跳转锚点 `MYRM_*_SETTINGS_ANCHOR`                                                                                                                                                                                                                                                             |
+| `__tests__/UnattendedDesktopGuideCard.test.tsx` | 向导卡 smoke（web 不渲染 / Tauri 三步标题）2 cases                                                                                                                                                                                                                                                |
+| `LockedUseCard.tsx`                         | 锁定使用模式（Computer Use 锁屏管理）                                                                                                                                                                                                                                                                                                                           |
+| `PrivacyCurtainCard.tsx`                    | 工位防窥帷幕（开关 + active 回显（订阅 `curtain:state-changed` 实时刷新）+ 手动拉起/收起；Tauri 限定，`privacy_curtain_active` / `show_privacy_curtain` / `hide_privacy_curtain`）                                                                                                                                                                                       
+| `__tests__/LockedUseCard.test.tsx`          | 锁屏可用卡片单测（web 不渲染 / switch 语义与 onToggle 下一值 / 平台不支持时禁用）3 cases |
+| `__tests__/SystemSection.test.tsx`          | 系统面板整页测试：帷幕/锁屏开关绑定暂存值（点击即翻转、置脏、经整页保存持久化）4 cases |
+| `__tests__/PrivacyCurtainCard.test.tsx`     | 帷幕卡片单测（web 不渲染 / 状态回显 / 拉起收起 IPC / toast 回馈 / 错误路径 / switch 语义与 toggle 透传 / 回显失败韧性）8 cases                                                                                                                                                                                                                                                |
+| `__tests__/ShortcutRecorder.test.tsx`       | 快捷键录制器单测（聚焦录制提示 / 占位文案 / 组合键归一 / 纯修饰键忽略 / Backspace 清空与 Esc 取消）5 cases |
+| `DesktopPermissionsCard.tsx`                | 桌面自动化就绪检测：首屏 grant-only 四态 + 刷新 `?probe_capture=true` + 功能捕获行 + `DesktopLockedUse` doctor 行（桥连接/离席开闭分态 + warn/fail 跳转离席设置锚点）+ 始终信任应用                                                                                                                                                  |
+| `DesktopPermissionsRows.tsx`                | 桌面权限卡片子组件视图行（`PermissionRow` / `CaptureProbeRow` / `ScreenLockRow` / `LockedUseDoctorRow` / `DeeplinkItem`）                                                                                                                                                                                                                                                              |
+| `__tests__/DesktopPermissionsCard.test.tsx` | vitest：首屏未验证 / capture_failed / Recheck 达 allReady / deeplink / API fail / trusted revoke / trust load error / DesktopLockedUse doctor fail                                                                                                                                                                                                                                             |
+
+### 安全策略
+
+| 文件                                             | 职责                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SecurityPolicySection.tsx`                      | 安全策略主面板（能力面矩阵、自定义规则列表、命令/域名网络策略、超时配置、Org MAP 只读锁定）                                                                                                                                                                                                        |
+| `CapabilitySurfaceMatrixGrid.tsx`                | 能力面三态权限矩阵网格（Always/Ask/Deny 卡片组与 Guarded/Balanced/Autonomous 预设切换）                                                                                                                                                                                                            |
+| `CustomRulesListEditor.tsx`                      | 自定义权限规则列表编辑器（添加/删除/修改规则，具体工具与通道粒度）                                                                                                                                                                                                                                 |
+| `SmartIntentGuardEditor.tsx`                     | 智能意图防护与提示注入拦截开关面板                                                                                                                                                                                                                                                                 |
+| `useSecurityPolicy.ts`                           | 安全策略聚合状态 hook（整合能力面规则、网络命令、超时与 ManagedApprovalPolicy 状态）                                                                                                                                                                                                               |
+| `useCapabilityRulesPolicy.ts`                    | 能力面矩阵与细粒度规则双向状态同步 hook（处理单通道切换、预设一键应用与持久化）                                                                                                                                                                                                                    |
+| `useNetworkCommandPolicy.ts`                     | 网络域名白名单、黑名单与命令禁止模式状态管理 hook                                                                                                                                                                                                                                                  |
+| `securityPolicyUtils.ts`                         | 能力面枚举、预设矩阵配置、双向转换与规则扁平化工具函数                                                                                                                                                                                                                                             |
+| `securityProfileUtils.ts`                        | 安全 Profile 模板常量与标签映射工具                                                                                                                                                                                                                                                                |
+| `__tests__/CapabilitySurfaceMatrixGrid.test.tsx` | 能力面矩阵组件单测（网格渲染、三态按钮切换、预设批量更新）                                                                                                                                                                                                                                         |
+| `SecurityPrivacyPanel.tsx` | PII 隐私保护面板：S2/S3 处理方式（`PrivacyActionRow`，附所选方式的实际后果）、「试一试」试验台与紧随其后的高级自定义规则（改规则的地方就在看结果的地方下方）、深度扫描、保护范围说明（已覆盖/未覆盖/识别方式的局限），以及 Privacy Routing（`id=security-privacy-routing` 锚点供 DataFlow 深链） |
+| `PrivacyActionRow.tsx` | 一个敏感级别的处理方式选择行：图标 + 名称 + 四选一下拉 + 所选方式的一句话后果（原样发送 / 占位符 / 打码 / 拦截），文案与后端实际行为一一对应 |
+| `PrivacyRuleTester.tsx` | 隐私规则「试一试」：把表单里的处理方式与自定义规则连同一句话发给 `POST /config/privacy-preview`（与对话回合同一套检测与处理），展示识别级别、处理方式与模型实际会收到的文本；规则改动后自动重试，不含深度扫描。已设自定义模式时，即使没有输入句子也会查询并列出写法有误、无法生效的模式（由后端判定，前端不做本地校验） |
+| `AdvancedPiiConfig.tsx` | 高级 PII 自定义规则：S2/S3 关键词、正则、敏感工具的增删（正则不在前端校验：能否生效由后端判定，并在「试一试」里提示） |
+| `__tests__/PrivacyRuleTester.test.tsx` | 试验台单测（空输入且无模式时不请求、请求体即表单规则、拦截/仅警告/无命中/失败四种呈现、规则变更重试、无句子时按模式查询并提示无法生效的模式、深度扫描提示） |
+| `__tests__/PrivacyActionRow.test.tsx` | 处理方式行单测（四种方式各自的后果说明、下拉显示当前选择） |
+| `DataFlowDisclosurePanel.tsx`                    | 数据流向披露 SSOT：本地域 / deploy-aware 控制平面 / LLM+MCP+OAuth 集成+Agent Connector+Tauri Channel 实时 egress（含 channel SSE 事件刷新）/ Provider training policy / 跨境路由摘要 / Your Rights 合规导出 / 清空全部会话                                                                                        |
+| `DataFlowYourRightsStrip.tsx`                    | DataFlow 内「您的数据权利」：client-side compliance JSON 导出（routing API key 脱敏）+ Memory 设置深链                                                                                                                                                                                             |
+| `DataFlowErasureStrip.tsx`                       | DataFlow 内「清空全部会话」：`ConfirmDialog` 二次确认 → `purgeAllConversations`；成功后清空侧栏会话缓存；触发按钮保持挂载，结果写入常驻实时区域并给出「新对话」入口（整页跳转）；仍有未保存改动的沙箱工作区由服务端保留，成功行下另起一行告知保留数量；有会话运行中（409）与其它失败各给可重试提示，不抛出 |
+| `providerDataUsageCatalog.ts`                    | 内置 Provider 数据使用/训练政策静态 catalog（honest doc 外链）                                                                                                                                                                                                                                     |
+| `__tests__/DataFlowDisclosurePanel.test.tsx`     | DataFlow 面板单测（deploy / oauth / connectors / Tauri channels / channel SSE 双事件 / cross-border 负向 / API 降级 / 渐进加载 / rights）14 cases                                                                                                                                                  |
+| `__tests__/DataFlowYourRightsStrip.test.tsx`     | 合规导出脱敏·snapshot helpers·导出点击成功/失败组件测 9 cases                                                                                                                                                                                                                                      |
+| `__tests__/DataFlowErasureStrip.test.tsx`        | 清空会话条组件测：展示说明 / 取消不清空 / 成功（计数·侧栏缓存·焦点留在触发按钮·新对话入口）/ 保留工作区提示 / 运行中拒绝 / 通用失败 6 cases |
+| `__tests__/providerDataUsageCatalog.test.ts`     | Provider catalog 单测 3 cases                                                                                                                                                                                                                                                                      |
+| `SecurityProfileSelector.tsx`                    | 安全配置模板选择器                                                                                                                                                                                                                                                                                 |
+| `NLPolicyGenerator.tsx`                          | AI 自然语言策略生成器                                                                                                                                                                                                                                                                              |
+| `AllowlistSection.tsx`                           | Allow Always 持久记录管理（/security/allowlist；permission/tool/exact/pattern 粒度）                                                                                                                                                                                                               |
+| `DomainAllowlistEditor.tsx`                      | 域名白名单编辑器                                                                                                                                                                                                                                                                                   |
+| `DomainBlocklistEditor.tsx`                      | URL 域名 blocklist 编辑器（Settings 全局策略）                                                                                                                                                                                                                                                     |
+| `CommandDenylistEditor.tsx`                      | 命令禁止列表编辑器（fnmatch glob 模式，YOLO 不可绕过）                                                                                                                                                                                                                                             |
+| `__tests__/useSecurityPolicy.test.ts`            | useSecurityPolicy hook 单测（command denylist toast 反馈一致性）                                                                                                                                                                                                                                   |
+| `PathPolicyEditor.tsx`                           | 路径策略编辑器                                                                                                                                                                                                                                                                                     |
+| `RiskRulesSection.tsx`                           | 风控规则配置的列表与工具栏（搜索、分类筛选、批量启停、测试与命中面板）；内置规则的名称与说明取语系文件，自定义规则用自己存的（自定义 id 可能与对象成员同名，不查语系）；规则只有拦截一种动作，不想让一条规则生效就停用它；内置规则默认只启用安全凭证分类                                                                                                                                                               |
+| `RiskRuleRow.tsx`                                | 风控规则列表的一行（启停开关、名称、严重度、分类、编辑 / 复制 / 删除；内置规则不可删除）                                                                                                                                                                                                                                              |
+| `RiskRuleEditor.tsx`                             | 风控规则新建 / 编辑表单（已有规则的 id 与内置规则的 pattern 只读）                                                                                                                                                                                                                                                    |
+| `useRiskRulesTransfer.ts`                        | 自定义规则的 JSON 导出与导入                                                                                                                                                                                                                                                                            |
+| `__tests__/RiskRuleParts.test.tsx`               | RiskRuleRow / RiskRuleEditor 单测（各操作回传所属规则、内置规则无删除、只读字段）                                                                                                                                                                                                                                      |
+| `RiskRulesHitsPanel.tsx`                         | 风控规则命中记录（只显示命中位置，如「第 12–47 个字符」，不含命中原文）                                                                                                                                                                                                                                                    |
+| `RiskRulesTestPanel.tsx`                         | 风控规则测试                                                                                                                                                                                                                                                                                       |
+| `risk-rules-types.ts`                            | 风控规则类型定义                                                                                                                                                                                                                                                                                   |
+| `ShareLinksSection.tsx`                          | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新；复制/打开优先服务端 `share_url`，无 ingress 时按后端基址/当前 origin 组装；密码分享（share_path 有值）同样渲染复制/打开，无 share_path 的历史密码分享降级为「密码保护中」提示） |
+
+### 用量与成本
+
+| 文件                             | 职责                                                                                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `UsageStatisticsSection.tsx`     | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate）     |
+| `UsageStatisticsCharts.tsx`      | 用量图表 barrel 导出                                                                                                                   |
+| `UsageStatCard.tsx`              | 统计卡片                                                                                                                               |
+| `UsageCacheBreakTimeline.tsx`    | 缓存击穿时间线                                                                                                                         |
+| `UsageDailyChart.tsx`            | 日趋势柱状图 + 缓存命中率折线                                                                                                          |
+| `UsageSessionTable.tsx`          | Top 会话表格                                                                                                                           |
+| `UsageDistributionCharts.tsx`    | 周/日/小时活动分布图                                                                                                                   |
+| `UsagePrivacyRoutePanel.tsx`     | 隐私路由 local/cloud 占比                                                                                                              |
+| `UsageModelBreakdown.tsx`        | 模型用量明细                                                                                                                           |
+| `AgentUsageCard.tsx`             | Agent 用量卡片                                                                                                                         |
+| `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
+| `ChannelBudgetSection.tsx`       | 渠道预算管理                                                                                                                           |
+| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计）                  |
+| `MemoryGuardianCard.tsx`         | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
+| `RoutingAnalyticsPanel.tsx`      | 路由分析面板（模型路由/成本格式化）                                                                                                    |
+
+### Trace 可视化与调试
+
+| 文件                                   | 职责                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ExecutionTraceTimeline.tsx`           | 执行 Trace 时间轴（LLM/Tool 调用链、Replay 入口）；`showEvalCase` prop 控制「保存为评测用例」按钮（kanban 任务无 Chat 记录，RunsHub/看板 Drawer 复用传 `false`）；`pollMs` prop 在任务运行中轮询刷新 trace（展开时实时看到执行过程）；ToolCallItem 渲染 `security_labels`（tainted/deny 徽标 + 展开明细） |
+| `SessionAnalyticsDialog.tsx`           | 会话分析对话框（嵌入 ExecutionTraceTimeline + 上下文健康）                                                                                                                                                                                                                                                |
+| `RuntimeOpsSnapshotCard.tsx`             | 运行快照只读卡片（`GET /api/v1/ops/snapshot`：负载、内存、渠道）                                                                                                                                                                                                                                          |
+| `SessionContextHealthPanel.tsx`        | 会话上下文健康面板（压缩/裁剪/缓存命中）                                                                                                                                                                                                                                                                  |
+| `SessionContextHealthPanelRestore.tsx` | 上下文健康恢复面板                                                                                                                                                                                                                                                                                        |
+| `SystemHealthPanel.tsx`                | 系统健康面板（Context Bundle 迁移/诊断）                                                                                                                                                                                                                                                                  |
+
+### 开发者工具
+
+| 文件                              | 职责           |
+| --------------------------------- | -------------- |
+| `DeveloperSection.tsx`            | 开发者选项入口 |
+| `DeveloperCenterSection.tsx`      | 开发者中心     |
+| `DatasetExportCard.tsx`           | 数据集导出     |
+| `ExperimentalFeaturesSection.tsx` | 实验性功能开关 |
+
+### 功能扩展
+
+| 文件                         | 职责                                                                                                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）；自定义提示词被服务端风控拦下（HTTP 400 `risk_held`）时，只有 `apiRequest` 的统一风控提示，输入保留，不另弹开关 / 保存失败提示                                                                                                                |
+| `CompanionSection.tsx`       | 伴侣模式配置                                                                                                                                                |
+| `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
+| `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务） |
+| `MediaGenerationSection.tsx` | 媒体生成配置                                                                                                                                                |
+| `TimezoneSelector.tsx`       | 时区选择器                                                                                                                                                  |
+
+## 连通性 UX
+
+- **LAN 优先**：内网 URL 默认展示。
+- **Public Ingress**：本地模式始终展示公网地址输入；用户自选穿透工具后粘贴（文档 `getDocsUrl('/guides/tunnel')`）。
+- **Mobile Hub**：tunnel 运行后签发 Hub deep link QR；手机打开 `/mobile` 列表，点会话 mint scoped control token 进入 StatusBoard。
+- **条件引导**：`ingress-requirement` 的 `required` 控制引导文案（必须 vs 可选），不影响 Ingress 输入区可见性。
+- 判定逻辑：Server `ingress_requirement.py` + 前端 `useIngressRequirement` 单 API。
+
+## 依赖
+
+- `@/hooks/billing/useIngressRequirement`
+- `@/hooks/settings/useSystemConfig`
+- `@/services/system`
+- `@/services/statistics`
+- `@/services/budget`
+- `@/lib/deploy-mode::getDocsUrl`
+- `@/lib/deploy-mode::getRemoteGatewayConfig` / `setRemoteGatewayConfig` / `isTauriRuntime`（ServerConnectionCard）
+- `@/lib/remote-follow-switch::switchRemoteFollow`（ServerConnectionCard / local-backend-unavailable-banner：连接切换后端生命周期编排入口）
+- `@/services/agent::getActiveSessions`（useActiveSessionsGuard 切断连接前活跃会话查询）
+- `@/lib/remote-profiles::ensureCloudProfile`（ServerConnectionCard 发现沙箱切换成功后建立并激活 Cloud 档案）
+- `@/lib/desktop-oauth::beginDesktopOAuth`（ServerConnectionCloudSection 发起 state + PKCE 登录）
+- `@/lib/connection-switch-guard::setLastGood` / `getLastGood` / `setPendingSwitch` / `getPendingSwitch` / `isPendingFresh`（ServerConnectionCard 切换守卫存储）

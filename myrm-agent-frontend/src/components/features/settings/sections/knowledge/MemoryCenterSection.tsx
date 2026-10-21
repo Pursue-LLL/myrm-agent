@@ -1,0 +1,187 @@
+'use client';
+
+import { memo, useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
+import dynamic from 'next/dynamic';
+import { Brain, Database, Cloud, ArrowRightLeft, MessageCircle, Users } from 'lucide-react';
+import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
+import { isLocalMode } from '@/lib/deploy-mode';
+import MemorySection from './MemorySection';
+import MemoryBackupSection from './MemoryBackupSection';
+import RemoteBackupSection from './RemoteBackupSection';
+import { SettingsSkeleton } from '../../common/SettingsSkeleton';
+import { Button } from '@/components/primitives/button';
+import { TeamAssetsHub } from '@/components/features/loadout/TeamAssetsHub';
+import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
+import MemoryMigrationNotice from '@/components/features/memory/settings/MemoryMigrationNotice';
+
+const MigrationWizardSection = dynamic(() => import('./MigrationWizardSection'), {
+  loading: () => <SettingsSkeleton />,
+});
+
+const FollowUpsPanel = dynamic(() => import('./FollowUpsPanel'), {
+  loading: () => <SettingsSkeleton />,
+});
+
+const MigrationPendingReviewSection = dynamic(() => import('./MigrationPendingReviewSection'), {
+  loading: () => <SettingsSkeleton />,
+});
+
+const MemoryCenterSection = memo(() => {
+  const t = useTranslations('settings');
+  const searchParams = useSearchParams();
+  const { handleTabChange: syncTabChange } = useSettingsSubTabUrl('memory');
+  const showMigration = isLocalMode();
+  const wantsMigrationTab = searchParams.get('sub') === 'migration';
+  const migrationUnavailable = wantsMigrationTab && !showMigration;
+  const marketingSiteUrl = process.env.NEXT_PUBLIC_MARKETING_SITE_URL ?? 'https://myrm.ai';
+  const desktopDownloadHref = `${marketingSiteUrl.replace(/\/+$/, '')}/download`;
+
+  const [activeTab, setActiveTab] = useState<string>('explorer');
+  const [pendingReviewRefresh, setPendingReviewRefresh] = useState(0);
+
+  useEffect(() => {
+    const sub = searchParams.get('sub');
+    if (sub === 'backup' || sub === 'memory-backup') {
+      setActiveTab('backup');
+    } else if (sub === 'cloud-backup' || sub === 'memory-cloud-backup') {
+      setActiveTab('cloud-backup');
+    } else if (sub === 'follow-ups' || sub === 'followups') {
+      setActiveTab('follow-ups');
+    } else if (sub === 'team-hub' || sub === 'teamHub') {
+      setActiveTab('team-hub');
+    } else if (sub === 'migration') {
+      setActiveTab(showMigration ? 'migration' : 'explorer');
+    } else {
+      setActiveTab('explorer');
+    }
+  }, [searchParams, showMigration]);
+
+  const handleTabChange = (value: string) => {
+    syncTabChange(value, setActiveTab, defaultSubTabResolver('explorer'));
+  };
+
+  const getDescription = () => {
+    switch (activeTab) {
+      case 'explorer':
+        return t('memoryCenter.tabDescriptions.explorer');
+      case 'backup':
+        return t('memoryCenter.tabDescriptions.backup');
+      case 'cloud-backup':
+        return t('memoryCenter.tabDescriptions.cloudBackup');
+      case 'follow-ups':
+        return t('memoryCenter.tabDescriptions.followUps');
+      case 'team-hub':
+        return t('memoryCenter.tabDescriptions.teamHub');
+      case 'migration':
+        return t('memoryCenter.tabDescriptions.migration');
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('menu.memory')}</h1>
+        <p className="text-sm text-muted-foreground">{getDescription()}</p>
+      </div>
+
+      <MemoryRecallDegradedBanner className="max-w-4xl" />
+      <MemoryMigrationNotice className="max-w-4xl" />
+
+      {migrationUnavailable && (
+        <div role="alert" className="rounded-xl border border-border/60 bg-secondary/40 px-4 py-4 sm:px-5 space-y-3">
+          <h2 className="text-base font-semibold text-foreground">{t('memoryCenter.migrationUnavailable.title')}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {t('memoryCenter.migrationUnavailable.description')}
+          </p>
+          <Button asChild className="rounded-lg bg-primary text-primary-foreground hover:opacity-90">
+            <a href={desktopDownloadHref} target="_blank" rel="noopener noreferrer">
+              {t('memoryCenter.migrationUnavailable.downloadCta')}
+            </a>
+          </Button>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList
+          className={`grid w-full max-w-4xl ${showMigration ? 'grid-cols-2 sm:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'} h-auto bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6 gap-1`}
+        >
+          <TabsTrigger
+            value="explorer"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
+          >
+            <Brain className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('menu.memory')}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="backup"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
+          >
+            <Database className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('menu.memory-backup')}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="cloud-backup"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
+          >
+            <Cloud className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('menu.memory-cloud-backup')}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="follow-ups"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
+          >
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('memoryCenter.tabs.followUps')}</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="team-hub"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all"
+          >
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t('memoryCenter.tabs.teamHub')}</span>
+          </TabsTrigger>
+          {showMigration && (
+            <TabsTrigger
+              value="migration"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 min-w-0 text-sm font-medium rounded-lg transition-all sm:col-span-1 col-span-2"
+            >
+              <ArrowRightLeft className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t('menu.memory-migration')}</span>
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="explorer">
+          <MemorySection />
+        </TabsContent>
+        <TabsContent value="backup">
+          <MemoryBackupSection />
+        </TabsContent>
+        <TabsContent value="cloud-backup">
+          <RemoteBackupSection />
+        </TabsContent>
+        <TabsContent value="follow-ups">
+          <FollowUpsPanel />
+        </TabsContent>
+        <TabsContent value="team-hub">
+          <TeamAssetsHub />
+        </TabsContent>
+        {showMigration && (
+          <TabsContent value="migration" className="space-y-6">
+            <MigrationPendingReviewSection refreshToken={pendingReviewRefresh} />
+            <MigrationWizardSection onMigrationComplete={() => setPendingReviewRefresh((v) => v + 1)} />
+          </TabsContent>
+        )}
+      </Tabs>
+    </div>
+  );
+});
+
+MemoryCenterSection.displayName = 'MemoryCenterSection';
+
+export default MemoryCenterSection;

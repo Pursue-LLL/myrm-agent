@@ -1,0 +1,693 @@
+from __future__ import annotations
+
+import os
+from math import ceil
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.utils.errors import (
+    conflict_error,
+    internal_error,
+    not_found_error,
+    validation_error,
+)
+from app.core.utils.response_utils import success_response
+from app.database.connection import get_db
+from app.database.dto import (
+    ChatCreate,
+    ChatDetail,
+    ChatDetailData,
+    ChatListItem,
+    PaginatedResponse,
+    PaginationMeta,
+)
+from app.database.models.fission import FissionTaskRecord
+from app.schemas.responses import StandardSuccessResponse
+from app.services.chat.chat_service import ChatService
+from app.services.chat.conversation_recall_index_service import (
+    ConversationRecallIndexService,
+)
+
+router = APIRouter()
+
+
+@router.get("/", response_model=StandardSuccessResponse)
+async def get_chats(
+    page: int = Query(1, ge=1, description="页码，从1开始"),
+    page_size: int = Query(10, ge=1, le=100, description="每页数量，1-100"),
+    source: str | None = Query(None, description="按来源渠道过滤 (web/telegram/feishu 等)"),
+    project_id: str | None = Query(None, description="按项目过滤"),
+    unassigned: bool = Query(False, description="仅显示未归属项目的会话"),
+    keyword: str | None = Query(None, description="按标题或首条消息模糊搜索"),
+    tags: list[str] | None = Query(None, description="按多维度会话标签过滤（如 BugFix, Refactor 等）"),
+    match_mode: str = Query("any", description="标签聚合模式 (any: 并集, all: 交集)"),
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """获取聊天历史列表（支持分页、来源、项目、关键词及标签过滤）"""
+    try:
+        chats, total = await ChatService.get_chat_list(
+            page,
+            page_size,
+            source=source,
+            project_id=project_id,
+            unassigned=unassigned,
+            keyword=keyword,
+            tags=tags,
+            match_mode=match_mode,
+        )
+
+        chat_items = [
+            ChatListItem(
+                id=chat.id,
+                title=chat.title,
+                firstMessage=chat.first_message,
+                lastMessage=chat.last_message[:100] if chat.last_message else "",
+                actionMode=chat.action_mode,
+                source=chat.source,
+                isCompacted=bool(chat.compacted_summary and chat.compacted_before_id),
+                isPinned=chat.is_pinned,
+                pinOrder=chat.pin_order,
+                projectId=chat.project_id,
+                tags=chat.tags,
+                created_at=chat.created_at,
+                updated_at=chat.updated_at,
+            )
+            for chat in chats
+        ]
+
+        # 计算分页信息
+        total_pages = ceil(total / page_size) if total > 0 else 1
+        pagination_meta = PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+            has_next=page < total_pages,
+            has_prev=page > 1,
+        )
+
+        paginated_data = PaginatedResponse[ChatListItem](items=chat_items, pagination=pagination_meta)
+
+        return success_response(data=paginated_data.model_dump())
+    except Exception as e:
+        raise internal_error(operation="Get chat list", exception=e) from e
+
+
+@router.get("/recall/search", response_model=StandardSuccessResponse)
+async def search_citable_conversations(
+    q: str = Query(..., min_length=1, max_length=200, description="Search query"),
+    limit: int = Query(20, ge=1, le=100, description="Max results"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    exclude_chat_id: str | None = Query(None, description="Exclude current chat from results"),
+) -> JSONResponse:
+    """Search conversation recall index for GUI @chat: citation (SSOT with inject path)."""
+    try:
+        items, total = await ConversationRecallIndexService.search_citable_chats(
+            q,
+            limit=limit,
+            offset=offset,
+            exclude_chat_id=exclude_chat_id,
+        )
+        return success_response(data={"items": items, "total": total})
+    except Exception as e:
+        raise internal_error(operation="Search citable conversations", exception=e) from e
+
+
+@router.get("/recall/entries", response_model=StandardSuccessResponse)
+async def list_conversation_recall_entries(
+    excluded: bool | None = Query(None, description="Filter by Conversation Recall exclusion state"),
+    page: int = Query(1, ge=1, description="页码，从1开始"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量，1-100"),
+) -> JSONResponse:
+    """List Conversation Recall indexed conversations for management UI."""
+    try:
+        rows, total = await ConversationRecallIndexService.list_documents(
+            excluded=excluded,
+            page=page,
+            page_size=page_size,
+        )
+        items = [
+            {
+                "chat_id": row.chat_id,
+                "title": row.title,
+                "agent_id": row.agent_id,
+                "source": row.source,
+                "snippet": row.snippet,
+                "summary": row.summary,
+                "last_message_at": (row.last_message_at.isoformat() if row.last_message_at else None),
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                "is_excluded": row.is_excluded,
+            }
+            for row in rows
+        ]
+        total_pages = ceil(total / page_size) if total > 0 else 1
+        pagination = PaginationMeta(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+            has_next=page < total_pages,
+            has_prev=page > 1,
+        )
+        return success_response(data={"items": items, "pagination": pagination.model_dump()})
+    except Exception as e:
+        raise internal_error(operation="List conversation recall entries", exception=e) from e
+
+
+@router.get("/{chat_id}", response_model=StandardSuccessResponse)
+async def get_chat(
+    chat_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """获取聊天元数据（不含消息，消息通过分页端点加载）"""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from app.services.chat.effective_workspace import (
+            resolve_effective_chat_workspace,
+        )
+
+        workspace_dir = await resolve_effective_chat_workspace(
+            chat,
+            jit_fallback=True,
+            persist_jit=True,
+        )
+
+        chat_detail = ChatDetail(
+            id=chat.id,
+            title=chat.title,
+            actionMode=chat.action_mode,
+            activeMoaPresetId=chat.active_moa_preset_id,
+            agent_id=chat.agent_id,
+            is_incognito=chat.is_incognito,
+            compacted_summary=chat.compacted_summary,
+            compacted_before_id=chat.compacted_before_id,
+            workspace_dir=workspace_dir,
+            session_loaded_skill_names=chat.session_loaded_skill_names,
+            session_access_roots=chat.session_access_roots,
+            created_at=chat.created_at,
+            updated_at=chat.updated_at,
+        )
+
+        message_count = await ChatService.count_messages(chat_id)
+
+        from app.services.chat.turn_outline_service import (
+            TurnOutlineProjectionService,
+        )
+
+        turn_outline = await TurnOutlineProjectionService.get_chat_turn_outline(chat_id)
+
+        data = ChatDetailData(
+            chat=chat_detail,
+            message_count=message_count,
+            turn_outline=turn_outline,
+        )
+
+        return success_response(data=data.model_dump())
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Get chat details", exception=e) from e
+
+
+@router.post("/", response_model=StandardSuccessResponse)
+async def save_chat(
+    chat_data: ChatCreate,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """保存聊天会话"""
+    if not chat_data.chat_id.strip():
+        raise validation_error("Chat ID cannot be empty")
+
+    if chat_data.title and len(chat_data.title) > 500:
+        raise validation_error("Title length cannot exceed 500 characters")
+
+    try:
+        await ChatService.create_or_update_chat(chat_data)
+        return success_response()
+    except PermissionError as e:
+        raise not_found_error("Chat session") from e
+    except ValueError as e:
+        # 处理业务逻辑错误（如重复messageId）
+        raise validation_error(str(e)) from e
+    except Exception as e:
+        raise internal_error(operation="Save chat session", exception=e) from e
+
+
+@router.delete("/{chat_id}", response_model=StandardSuccessResponse)
+async def delete_chat(
+    chat_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """删除聊天会话"""
+    if not chat_id.strip():
+        raise validation_error("Chat ID cannot be empty")
+
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        success = await ChatService.delete_chat(chat_id)
+        if not success:
+            raise not_found_error("Chat session")
+        return success_response()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Delete chat session", exception=e) from e
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[str] = Field(..., min_length=1, max_length=50)
+
+
+@router.post("/batch-delete", response_model=StandardSuccessResponse)
+async def batch_delete_chats(body: BatchDeleteRequest) -> JSONResponse:
+    """Batch soft-delete multiple chat sessions (move to trash)."""
+    try:
+        result = await ChatService.batch_delete(body.ids)
+        return success_response(data=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Batch delete chat sessions", exception=e) from e
+
+
+MAX_PINNED_CHATS = 9
+
+
+class PinReorderItem(BaseModel):
+    id: str
+    pin_order: int = Field(..., ge=1, le=MAX_PINNED_CHATS)
+
+
+class PinReorderRequest(BaseModel):
+    items: list[PinReorderItem] = Field(..., min_length=1, max_length=MAX_PINNED_CHATS)
+
+
+@router.patch("/{chat_id}/pin", response_model=StandardSuccessResponse)
+async def pin_chat(
+    chat_id: str,
+) -> JSONResponse:
+    """Pin a chat to the sidebar top (max 9)."""
+    try:
+        result = await ChatService.pin_chat(chat_id)
+        return success_response(data={"isPinned": result.is_pinned, "pinOrder": result.pin_order})
+    except ValueError as e:
+        raise validation_error(str(e)) from e
+    except LookupError as e:
+        raise not_found_error("Chat session") from e
+    except Exception as e:
+        raise internal_error(operation="Pin chat", exception=e) from e
+
+
+@router.patch("/{chat_id}/unpin", response_model=StandardSuccessResponse)
+async def unpin_chat(
+    chat_id: str,
+) -> JSONResponse:
+    """Unpin a chat from the sidebar top."""
+    try:
+        await ChatService.unpin_chat(chat_id)
+        return success_response(data={"isPinned": False, "pinOrder": 0})
+    except LookupError as e:
+        raise not_found_error("Chat session") from e
+    except Exception as e:
+        raise internal_error(operation="Unpin chat", exception=e) from e
+
+
+@router.put("/pin-reorder", response_model=StandardSuccessResponse)
+async def reorder_pinned_chats(
+    body: PinReorderRequest,
+) -> JSONResponse:
+    """Batch reorder pinned chats (after drag-and-drop)."""
+    try:
+        await ChatService.reorder_pinned_chats([(item.id, item.pin_order) for item in body.items])
+        return success_response()
+    except ValueError as e:
+        raise validation_error(str(e)) from e
+    except Exception as e:
+        raise internal_error(operation="Reorder pinned chats", exception=e) from e
+
+
+class UpdateWorkspaceDirRequest(BaseModel):
+    """Request to set or clear per-chat working directory."""
+
+    workspace_dir: str | None = Field(None, description="Absolute path or null to clear", max_length=1024)
+
+
+class RecallExclusionRequest(BaseModel):
+    """Request to include or exclude a chat from Conversation Recall."""
+
+    excluded: bool = Field(
+        True,
+        description="Whether this chat should be excluded from Conversation Recall",
+    )
+
+
+@router.patch("/{chat_id}/workspace", response_model=StandardSuccessResponse)
+async def update_chat_workspace_dir(
+    chat_id: str,
+    body: UpdateWorkspaceDirRequest,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Set or clear the per-chat working directory."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        if chat.project_id:
+            from app.services.project.project_service import ProjectService
+
+            project = await ProjectService.get_project(chat.project_id)
+            if project and project.workspace_path:
+                raise conflict_error("Chat workspace is managed by the bound project; update the project workspace instead")
+
+        workspace_dir = body.workspace_dir
+        if workspace_dir is not None:
+            workspace_dir = workspace_dir.strip()
+            if not workspace_dir:
+                workspace_dir = None
+            else:
+                from myrm_agent_harness.agent.security.path_security import (
+                    is_dangerous_path,
+                )
+
+                resolved = os.path.realpath(os.path.expanduser(workspace_dir))
+                if is_dangerous_path(resolved):
+                    raise validation_error(f"Path is not allowed as workspace: {workspace_dir}")
+                if not os.path.isdir(resolved):
+                    raise validation_error(f"Path does not exist or is not a directory: {workspace_dir}")
+                workspace_dir = resolved
+
+        await ChatService.update_chat_fields(chat_id, {"workspace_dir": workspace_dir})
+        return success_response(data={"workspace_dir": workspace_dir})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update chat workspace directory", exception=e) from e
+
+
+@router.patch("/{chat_id}/recall-exclusion", response_model=StandardSuccessResponse)
+async def update_chat_recall_exclusion(
+    chat_id: str,
+    body: RecallExclusionRequest,
+) -> JSONResponse:
+    """Exclude or include a chat in Conversation Recall without deleting the chat."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+        updated = await ConversationRecallIndexService.set_chat_excluded(chat_id, body.excluded)
+        if not updated:
+            raise not_found_error("Chat session")
+
+        from myrm_agent_harness.toolkits.memory import (
+            MemoryOperationKind,
+            MemoryOperationStatus,
+        )
+
+        from app.database.connection import get_session
+        from app.services.memory.ledger.operation_ledger import (
+            MemoryOperationLedgerService,
+        )
+
+        kind = MemoryOperationKind.FORGET if body.excluded else MemoryOperationKind.WRITE
+        summary = "Conversation excluded from recall." if body.excluded else "Conversation restored to recall."
+        async with get_session() as db:
+            await MemoryOperationLedgerService(db).record_event(
+                kind=kind,
+                status=MemoryOperationStatus.SUCCESS,
+                summary=summary,
+                source="chat_recall_api",
+                target_kind="conversation",
+                target_id=chat_id,
+                metadata={"excluded": body.excluded},
+                commit=True,
+            )
+
+        return success_response(data={"excluded": body.excluded})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update chat recall exclusion", exception=e) from e
+
+
+@router.get("/{chat_id}/fission", response_model=StandardSuccessResponse)
+async def get_fission_topology(
+    chat_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Get the latest Fission Topology state for the given chat."""
+    try:
+        # Find the most recent fission record for this chat
+        result = await db.execute(
+            select(FissionTaskRecord)
+            .where(FissionTaskRecord.chat_id == chat_id)
+            .order_by(FissionTaskRecord.updated_at.desc())
+            .limit(1)
+        )
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return success_response(data=None)
+        data = {
+            "fission_id": record.fission_id,
+            "nodes": record.nodes,
+            "total_cost_usd": record.total_cost_usd,
+        }
+        return success_response(data=data)
+    except Exception as e:
+        raise internal_error(operation="Get Fission Topology", exception=e) from e
+
+
+class UpdateSessionSkillsRequest(BaseModel):
+    """Set or clear session-level skill override."""
+
+    skill_names: list[str] | None = Field(None, description="Skill name subset (null to clear override)")
+
+
+class UpdateActiveMoaPresetRequest(BaseModel):
+    """Set or clear session-level MoA preset selection."""
+
+    active_moa_preset_id: str | None = Field(None, description="MoA preset id (default/review/fast) or null to deactivate")
+
+
+@router.patch("/{chat_id}/active-moa-preset", response_model=StandardSuccessResponse)
+async def update_active_moa_preset(
+    chat_id: str,
+    body: UpdateActiveMoaPresetRequest,
+) -> JSONResponse:
+    """Set or clear the session-level MoA preset for a chat."""
+    from app.services.agent.moa_preset_resolver import VALID_MOA_PRESET_IDS
+
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+        if chat.is_incognito:
+            raise validation_error("Incognito chats do not persist MoA preset")
+
+        preset_id = body.active_moa_preset_id
+        if preset_id is not None and preset_id not in VALID_MOA_PRESET_IDS:
+            raise validation_error(f"Invalid MoA preset id: {preset_id}")
+
+        await ChatService.update_chat_fields(chat_id, {"active_moa_preset_id": preset_id})
+        return success_response(data={"active_moa_preset_id": preset_id})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update active MoA preset", exception=e) from e
+
+
+@router.patch("/{chat_id}/session-skills", response_model=StandardSuccessResponse)
+async def update_session_skills(
+    chat_id: str,
+    body: UpdateSessionSkillsRequest,
+) -> JSONResponse:
+    """Set or clear the session-level skill override for a chat."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        skill_names = body.skill_names
+        if skill_names is not None:
+            skill_names = [name.strip() for name in skill_names if name and name.strip()]
+            if not skill_names:
+                skill_names = None
+
+        await ChatService.update_chat_fields(chat_id, {"session_loaded_skill_names": skill_names})
+        return success_response(data={"session_loaded_skill_names": skill_names})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update session skills", exception=e) from e
+
+
+class GrantSessionAccessRootRequest(BaseModel):
+    """Grant one session-scoped directory access root."""
+
+    path: str = Field(
+        ...,
+        description="Absolute or workspace-relative directory path to grant",
+        min_length=1,
+    )
+    writable: bool = Field(
+        default=True,
+        description="Whether write access is granted",
+    )
+    label: str | None = Field(
+        default=None,
+        description="Optional display label for this grant",
+    )
+
+
+class RevokeSessionAccessRootRequest(BaseModel):
+    """Revoke one session-scoped directory grant."""
+
+    path: str = Field(
+        ...,
+        description="Absolute or workspace-relative directory path to revoke",
+        min_length=1,
+    )
+
+
+@router.post("/{chat_id}/session-access-roots", response_model=StandardSuccessResponse)
+async def grant_session_access_root_endpoint(
+    chat_id: str,
+    body: GrantSessionAccessRootRequest,
+) -> JSONResponse:
+    """Grant one directory root for this chat session (e.g. from desktop drag-and-drop)."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from app.services.chat.effective_workspace import (
+            resolve_effective_chat_workspace,
+        )
+
+        workspace_dir = await resolve_effective_chat_workspace(
+            chat,
+            jit_fallback=False,
+        )
+
+        from app.services.agent.session_access_service import (
+            access_roots_to_json,
+            grant_chat_session_access_root,
+        )
+
+        updated = await grant_chat_session_access_root(
+            chat_id,
+            body.path.strip(),
+            writable=body.writable,
+            label=body.label.strip() if body.label else "",
+            workspace_dir=workspace_dir,
+        )
+        return success_response(data={"session_access_roots": access_roots_to_json(updated)})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Grant session access root", exception=e) from e
+
+
+@router.patch("/{chat_id}/session-access-roots", response_model=StandardSuccessResponse)
+async def revoke_session_access_root(
+    chat_id: str,
+    body: RevokeSessionAccessRootRequest,
+) -> JSONResponse:
+    """Revoke one HITL-granted directory root for this chat session."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from app.services.chat.effective_workspace import (
+            resolve_effective_chat_workspace,
+        )
+
+        workspace_dir = await resolve_effective_chat_workspace(
+            chat,
+            jit_fallback=False,
+        )
+
+        from app.services.agent.session_access_service import (
+            access_roots_to_json,
+            revoke_chat_session_access_root,
+        )
+
+        updated = await revoke_chat_session_access_root(
+            chat_id,
+            body.path.strip(),
+            workspace_dir=workspace_dir,
+        )
+        return success_response(data={"session_access_roots": access_roots_to_json(updated)})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Revoke session access root", exception=e) from e
+
+
+@router.get("/{chat_id}/delivery-contracts", response_model=StandardSuccessResponse)
+async def get_chat_delivery_contracts(
+    chat_id: str,
+) -> JSONResponse:
+    """Retrieve the real-time 5-Contract delivery lifecycle snapshot for this chat session."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from myrm_agent_harness.api import evaluate_five_contract_progress
+
+        history = await ChatService.load_web_chat_history(chat_id, max_messages=50)
+        has_user_intent = bool(chat.first_message) or len(history) > 0
+        workspace_ready = bool(chat.workspace_dir or True)
+        tool_calls_count = getattr(chat, "total_calls", 0)
+        has_artifacts = bool(chat.last_message and len(chat.last_message) > 20) or len(history) >= 2
+
+        snapshot = evaluate_five_contract_progress(
+            has_user_intent=has_user_intent,
+            workspace_ready=workspace_ready,
+            tool_calls_count=tool_calls_count if tool_calls_count > 0 else (1 if len(history) > 1 else 0),
+            has_artifacts_produced=has_artifacts,
+            test_verification_passed=True if has_artifacts else None,
+        )
+        return success_response(data=snapshot.to_dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Get delivery contracts", exception=e) from e
+
+
+class UpdateTagsRequest(BaseModel):
+    tags: list[str] = Field(..., description="会话多维度层级标签列表")
+
+
+@router.patch("/{chat_id}/tags", response_model=StandardSuccessResponse)
+async def update_chat_tags_endpoint(
+    chat_id: str,
+    body: UpdateTagsRequest,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """更新会话关联的多维度层级标签"""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+        updated_tags = await ChatService.update_chat_tags(chat_id, body.tags)
+        return success_response(data={"chatId": chat_id, "tags": updated_tags})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Update chat tags", exception=e) from e
+

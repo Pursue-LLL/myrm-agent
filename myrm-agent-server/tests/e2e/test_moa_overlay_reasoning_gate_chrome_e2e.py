@@ -1,0 +1,207 @@
+"""Chrome MCP E2E: Auto MoA Overlay on Reasoning Tier setting toggle in Agent Capabilities.
+
+Verifies:
+1. Agent editor Capabilities tab exposes MoA advisor configuration.
+2. Enabling MoA reveals the Auto-Activate on Reasoning Tier (auto_on_reasoning) switch.
+3. Toggling auto_on_reasoning updates agent engine_params.moa_overlay.auto_on_reasoning on save.
+"""
+
+from __future__ import annotations
+
+import json
+import uuid
+
+import pytest
+
+from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
+    dismiss_blocking_modals,
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    http_json,
+    open_settings_subroute,
+    prepare_e2e_ui_session,
+    wait_for_state,
+    warm_ui_route,
+)
+
+_EDIT_URL = "/settings/agents?agentId="
+
+_DISMISS_MIGRATION_JS = """(() => {
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+  return { ok: true };
+})()"""
+
+_CAPABILITIES_MOA_PROBE_JS = """(() => {
+  const tab = document.querySelector('[data-testid="agent-tab-capabilities"]');
+  const bodyLength = (document.body?.innerText || '').length;
+  if (!tab) {
+    return { ready: false, reason: 'no-capabilities-tab', bodyLength };
+  }
+  tab.click();
+  return new Promise(resolve => setTimeout(() => {
+    const text = document.body?.innerText || '';
+    const hasMoa = /MoA Advisor|MoA 顾问|MoA 顧問|MoA アドバイザー|MoA-Berater/i.test(text);
+    resolve({
+      ready: hasMoa,
+      hasMoa,
+      bodyLength: text.length,
+      snippet: text.slice(0, 400),
+    });
+  }, 300));
+})()"""
+
+
+def _create_agent_with_moa(api_url: str, name: str) -> str:
+    res = http_json(
+        "POST",
+        f"{api_url}/api/v1/user-agents",
+        body={
+            "name": name,
+            "system_prompt": "You are a helpful assistant.",
+            "engine_params": {
+                "moa_overlay": {
+                    "enabled": True,
+                    "auto_on_reasoning": True,
+                    "reference_model_selections": [{"provider_id": "minimax", "model": "MiniMax-Text-01"}],
+                }
+            },
+        },
+    )
+    assert isinstance(res, dict)
+    data = res.get("data") or {}
+    agent_id = data.get("id") or data.get("agent_id")
+    assert isinstance(agent_id, str) and agent_id, f"agent creation failed: {res}"
+    return agent_id
+
+
+def _delete_agent(api_url: str, agent_id: str) -> None:
+    try:
+        http_json("DELETE", f"{api_url}/api/v1/user-agents/{agent_id}")
+    except Exception:
+        pass
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_moa_overlay_auto_reasoning_gate_ui_toggle() -> None:
+    """MoA auto_on_reasoning switch renders in agent capabilities tab and is editable."""
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
+
+    name = f"moa-gate-e2e-{uuid.uuid4().hex[:8]}"
+    agent_id = _create_agent_with_moa(api_url, name=name)
+    try:
+        warm_ui_route("/settings")
+        edit_url = f"{get_e2e_ui_url().rstrip('/')}{_EDIT_URL}{agent_id}"
+        with open_settings_subroute(
+            edit_url.replace(get_e2e_ui_url().rstrip("/"), ""),
+            timeout_ms=120_000,
+        ) as (client, page):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            dismiss_blocking_modals(client, page)
+
+            probe = wait_for_state(
+                client,
+                page,
+                _CAPABILITIES_MOA_PROBE_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(60.0),
+            )
+            assert probe.get("ready") is True, json.dumps(probe, indent=2, ensure_ascii=False)
+    finally:
+        _delete_agent(api_url, agent_id)
+
+
+_SELECT_RISK_TRIGGERED_AND_SAVE_JS = """(() => {
+  const tab = document.querySelector('[data-testid="agent-tab-capabilities"]');
+  if (tab) tab.click();
+
+  const trigger = document.querySelector('[data-testid="moa-fanout-select-trigger"]');
+  if (!trigger) {
+    return { ok: false, reason: 'no-trigger' };
+  }
+  trigger.click();
+
+  return new Promise(resolve => setTimeout(() => {
+    const item = document.querySelector('[data-testid="moa-fanout-item-risk_triggered"]');
+    if (!item) {
+      return resolve({ ok: false, reason: 'no-risk_triggered-item' });
+    }
+    item.click();
+
+    setTimeout(() => {
+      const saveBtn = document.querySelector('[data-testid="agent-save-button"]');
+      if (!saveBtn) {
+        return resolve({ ok: false, reason: 'no-save-btn' });
+      }
+      saveBtn.click();
+      resolve({ ok: true });
+    }, 200);
+  }, 200));
+})()"""
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_moa_overlay_risk_triggered_fanout_ui_select() -> None:
+    """Lane-B: MoA fanout select exposes risk_triggered option in WebUI, updates DB on save."""
+    import time
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
+
+    name = f"moa-risk-e2e-{uuid.uuid4().hex[:8]}"
+    agent_id = _create_agent_with_moa(api_url, name=name)
+    try:
+        warm_ui_route("/settings")
+        edit_url = f"{get_e2e_ui_url().rstrip('/')}{_EDIT_URL}{agent_id}"
+        with open_settings_subroute(
+            edit_url.replace(get_e2e_ui_url().rstrip("/"), ""),
+            timeout_ms=120_000,
+        ) as (client, page):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            dismiss_blocking_modals(client, page)
+
+            probe = wait_for_state(
+                client,
+                page,
+                _CAPABILITIES_MOA_PROBE_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(60.0),
+            )
+            assert probe.get("ready") is True, json.dumps(probe, indent=2, ensure_ascii=False)
+
+            res = client.evaluate(page, _SELECT_RISK_TRIGGERED_AND_SAVE_JS, timeout_sec=15.0)
+            assert isinstance(res, dict) and res.get("ok") is True, f"select/save failed: {res}"
+
+            deadline = time.monotonic() + 15.0
+            saved = False
+            last_moa: dict[str, object] = {}
+            while time.monotonic() < deadline:
+                agent_res = http_json("GET", f"{api_url}/api/v1/user-agents/{agent_id}")
+                data = (agent_res.get("data") or {}) if isinstance(agent_res, dict) else {}
+                ep = data.get("engine_params") or {}
+                last_moa = ep.get("moa_overlay") or {}
+                if last_moa.get("fanout") == "risk_triggered":
+                    saved = True
+                    break
+                time.sleep(0.5)
+            assert saved is True, f"fanout was not persisted as risk_triggered: {last_moa}"
+    finally:
+        _delete_agent(api_url, agent_id)
+

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-privacy-curtain-active"
+description = "Enables the privacy_curtain_active command without any pre-configured scope."
+commands.allow = ["privacy_curtain_active"]
+
+[[permission]]
+identifier = "deny-privacy-curtain-active"
+description = "Denies the privacy_curtain_active command without any pre-configured scope."
+commands.deny = ["privacy_curtain_active"]

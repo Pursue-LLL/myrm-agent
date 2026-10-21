@@ -1,0 +1,1156 @@
+# Channel System 设计文档
+
+> 多平台消息通道系统的技术方案与架构设计
+
+---
+
+## 1. 设计目标
+
+1. **平台无关**：统一抽象 24+ 个 IM/通信平台，业务层零感知渠道差异
+2. **双向实时**：支持出站推送和入站 Agent 对话两种模式
+3. **声明式扩展**：新增渠道仅需 3 步（实现 Provider → 声明 Spec → 添加 Binding）
+4. **生产级可靠**：错误隔离、自动重连、速率限制、健康检查、结构化诊断
+5. **Protocol-first**：渠道框架定义协议接口，业务层通过依赖注入提供存储和 Agent 实现
+
+---
+
+## 2. 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        业务层 (myrm-agent-server)                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
+│  │ channel_     │  │ credential_  │  │ agent_executor /         │  │
+│  │ factory.py   │  │ spec.py      │  │ pairing_store /          │  │
+│  │ (22 bindings)│  │ (20 SPECs)   │  │ channel_policy           │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────────────────────────┘  │
+│         │                 │                                         │
+├─────────┼─────────────────┼─────────────────────────────────────────┤
+│         ▼                 ▼           渠道框架 (app/channels/)      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    ChannelGateway                            │    │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  │    │
+│  │  │ 生命周期  │  │ 健康检查  │  │ 启用/禁用 │  │ 事件发布  │  │    │
+│  │  └──────────┘  └──────────┘  └──────────┘  └───────────┘  │    │
+│  └─────────────────────┬───────────────────────────────────────┘    │
+│                        │                                            │
+│  ┌─────────────────────▼───────────────────────────────────────┐    │
+│  │                    MessageBus                                │    │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  │    │
+│  │  │ 入站队列  │  │ 出站分发  │  │ 组件降级  │  │ DISABLED  │  │    │
+│  │  │          │  │          │  │          │  │ 拦截      │  │    │
+│  │  └──────────┘  └──────────┘  └──────────┘  └───────────┘  │    │
+│  └─────────────────────┬───────────────────────────────────────┘    │
+│                        │                                            │
+│  ┌─────────────────────▼───────────────────────────────────────┐    │
+│  │                   AgentRouter                                │    │
+│  │  去重 → 命令检测 → 策略解析 → Debounce → Agent 执行 → 回复  │    │
+│  └─────────────────────┬───────────────────────────────────────┘    │
+│                        │                                            │
+│  ┌─────────────────────▼───────────────────────────────────────┐    │
+│  │                   Providers (24 个渠道实现)                   │    │
+│  │  Telegram │ Discord │ WhatsApp │ Slack │ Feishu │ WeChat │  │    │
+│  │  WeChatOfficial │ WeCom │ Teams │ Matrix │ DingTalk │ QQ │  │    │
+│  │  GoogleChat │ Signal │ LINE │ IRC │ Email │ Voice │ SMS │  │    │
+│  │  Zalo │ Mattermost │ iMessage │ Webhook │ Chat (业务层)      │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────┐   │
+│  │ types/           │  │ rendering/       │  │ reliability/    │   │
+│  │ 消息/组件/会话/   │  │ 渲染管道/分割    │  │ 速率限制/重试   │   │
+│  │ 状态类型         │  │                  │  │                 │   │
+│  └──────────────────┘  └──────────────────┘  └─────────────────┘   │
+│                                                                     │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────┐   │
+│  │ protocols/       │  │ voice/           │  │ routing/        │   │
+│  │ AgentExecutor    │  │ STT/TTS          │  │ 流式/命令/策略  │   │
+│  │ PairingStore     │  │                  │  │ 会话/降级       │   │
+│  │ PolicyProvider   │  │                  │  │                 │   │
+│  └──────────────────┘  └──────────────────┘  └─────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. 核心组件
+
+### 3.1 BaseChannel
+
+所有渠道 Provider 的抽象基类，继承 `EventEmitter`。
+
+**职责**：
+- 定义渠道生命周期（`start()` / `stop()`）
+- 声明渠道能力（`capabilities: ChannelCapabilities`）
+- 提供消息收发接口（`send()` / `_emit_inbound()`）
+- **便捷方法**（`respond()` / `broadcast()`）：语法糖提升开发体验，自动推断参数
+- 健康追踪（`health: ChannelHealth`）
+- 活动追踪（`activity: ChannelActivity`）
+- 结构化诊断（`collect_issues()`）
+- 交互组件（`send_placeholder()` / `edit_message()` / `react_to_message()`）
+
+**便捷方法（Convenience Methods）**：
+
+```python
+# respond() - 回复消息（所有参数自动推断：channel/recipient_id/user_id/reply_to_id）
+await channel.respond(incoming_msg, "Hello!")  # 代码简洁度提升80%
+
+# broadcast() - 主动发送（Cron/通知场景，需要user_id）
+await channel.broadcast("channel_id", "Alert!", user_id=user_id)
+
+# send() - 底层统一接口（仍然完全可用，保持向后兼容）
+await channel.send(OutboundMessage(...))
+```
+
+**入站管道**（`_emit_inbound` 内置，所有 Provider 共享）：
+
+```
+平台消息 → _emit_inbound()
+    ├── 1. Bot 自消息过滤 (_bot_id)
+    ├── 2. 消息去重 (_dedup_ttl, OrderedDict LRU)
+    ├── 3. 访问控制 (AllowPolicy, 可注入白名单/黑名单)
+    ├── 4. Debounce (_debounce_seconds, per-chat_id)
+    └── 5. Dispatch → MessageBus 入站队列
+```
+
+> 此管道与 Router 层的去重/策略是不同层级的防护：BaseChannel 层防平台重发和未授权访问，Router 层防跨渠道 ID 碰撞和业务策略。
+
+**启动模式（StartMode）**：
+
+| Mode | 行为 | 典型渠道 |
+|------|------|---------|
+| `AUTO` | Gateway.start() 时立即启动 | Telegram, Slack, Discord 等轻量渠道 |
+| `ON_DEMAND` | 跳过自动启动，用户登录时才启动 | WhatsApp（需要 Node.js Bridge） |
+
+`should_auto_start()` 方法决定 Gateway 是否在启动时调用 `start()`：
+- AUTO 模式：始终返回 True
+- ON_DEMAND 模式：仅当存在已持久化的会话凭证时返回 True（如 WhatsApp 检查 `creds.json`）
+
+**状态机**：
+
+```
+IDLE ──start()──→ RUNNING ──error──→ DEGRADED ──recover──→ RUNNING
+  │                  │                                        │
+  │                  ├──stop()──→ STOPPED                     │
+  │                  │                                        │
+  └──disable──→ DISABLED ──enable──→ RUNNING                  │
+                                                              │
+                     ERROR ←──fatal──────────────────────────┘
+```
+
+### 3.2 ChannelGateway
+
+渠道生命周期管理器。
+
+**职责**：
+- 注册和管理所有渠道实例
+- 并行启动/停止渠道（每个渠道独立 asyncio.Task，错误隔离）
+- **StartMode 感知**：`_run_channel()` 在调用 `start()` 前检查 `channel.should_auto_start()`，ON_DEMAND 渠道在无已存会话时跳过启动
+- 60s 周期健康检查（跳过 DISABLED / STOPPED 渠道）
+- 运行时启用/禁用（`enable_channel()` / `disable_channel()`）
+- 运行时热添加/移除（`add_channel()` / `remove_channel()`）
+- 状态聚合（`get_status()` / `collect_all_issues()`）
+- 事件订阅（`status_change` / `groups_change`）
+
+**公网 Ingress 需求（与 `protocols/inbound_profile.py` 联动）**：
+
+- 每个内置渠道在 `inbound_profile.CHANNEL_INBOUND_SPECS` 声明 `outbound` / `inbound` / `conditional` 传输模式（spec 清单与内置渠道全集的一致性由 `tests/channels/test_inbound_profile.py` 清单覆盖测试保障；spec 的 `configured_field` 与渠道 `credential_spec` 真实凭证字段的一致性由同文件的字段对齐断言保障）
+- `core/infra/ingress_requirement.resolve_ingress_requirement()` 读取 UserConfig 凭证 + Cron Webhook + SaaS 已注册 CP 渠道，输出 `GET /api/v1/system/ingress-requirement`
+- `list_channel_status` 对 inbound 且未配置 Ingress 的渠道补充 CONFIG issue（fix 指向 Settings → System）
+
+**多实例支持**：
+
+同一渠道类型可注册多个实例（如多个微信账号），命名约定为 `{type}_{instance_id}`：
+
+```
+wechat          ← 默认实例
+wechat_a1b2c3   ← 额外实例 1
+wechat_d4e5f6   ← 额外实例 2
+```
+
+- `add_channel(channel)` — 运行时注册新实例，自动启动和健康监控
+- `remove_channel(name)` — 运行时停止并注销实例
+- `list_instances(type)` — 列出某类型所有实例
+- 每种类型最多 `_MAX_INSTANCES_PER_TYPE`（默认 5）个实例
+- 类型识别使用 `BaseChannel.channel_type` 正式属性（由工厂设置），回退到 `__class__.name`
+- `BaseChannel.display_name` 提供用户友好的实例名称，`BaseChannel.instance_id` property 从 name 和 channel_type 自动派生
+- **配置持久化**：实例元数据（channelType / instanceId / displayName）存储在 `UserConfig` 表中（key=`channel-instances`），服务重启后自动恢复
+- **实例级登录**：每个实例通过 `/{channel_name}/wechat-status` 和 `/{channel_name}/wechat-login` 独立完成 QR 扫码登录，实例登录凭据存储在 `UserConfig.config_key` 列（key 形如 `{channel_name}Credentials`，如 `wechat_a1b2c3Credentials`），读取/删除统一经 `channel_credentials_key()` 解析（默认实例走 `_CHANNEL_CONFIG_KEYS` 映射，额外实例回退 `{channel_name}Credentials`）。凭据经 `ConfigService` 加密落库：凡以 `Credentials` 结尾的 key 均按敏感配置加密存储（`is_sensitive_config` 后缀匹配），读取时透明解密
+- **飞书多应用 QR 注册（`app/api/channels/feishu_register.py`）**：`display_name` 空白归一化为 `None`（无标签 = 刷新默认实例，防止多应用区空标签静默覆盖默认凭据）；`poll` 成功分支以 `_RegistrationSession.consumed` 原子标志（检查与置位间无 `await`）保证并发轮询只创建一次实例——已消费的并发请求保持 pending（等待首个请求的真实结果，避免假成功）；provision 失败即丢弃会话，后续 poll 404。poll 成功时以 `probe_bot` 校验凭据（无法确认 bot 身份返回 502 并丢弃会话），不持久化 `botName`/`botOpenId`
+- **实例凭据更新（`app/api/channels/instances_credentials.py` `save_channel_credentials`）**：密钥轮换/重置场景下，前端在实例卡片「编辑凭据」提交新 App Secret（留空保留旧值，按 merge 语义落库）；已注册实例按其 `instance_id` 重建 channel 对象（**先 `factory_create` 同 id 成功后再经 `ChannelGateway.swap_channel` 原子替换**，构造失败不影响在跑实例；替换失败自动恢复旧实例，保证重建路径不会静默丢频道；channel_name（`{type}_{id}`）与智能体绑定保持不变）；默认实例复用 `_try_hot_register_channel` 热重载（未注册时也发起热注册尝试，使首次配置凭据即生效，失败则下次启动生效；热重载同为 `swap_channel` 原子交换：先解析新凭据并确认启用状态，再移除旧实例，替换失败时恢复旧实例，重建保留 `display_name`）；未注册实例凭据落库后于下次启动生效。实例容量上限经 `GET /channels/manage/instances/meta` 透出（`maxInstancesPerType`），前端不再镜像硬编码常量
+
+### 3.3 MessageBus
+
+异步消息队列，连接渠道和 Router。集成底层 `DeadLetterQueue` 提供持久化死信队列与自动重试引擎。
+
+**职责**：
+- 入站：`_emit_inbound()` → 入站队列 → `AgentRouter.consume()`
+- 出站：`OutboundMessage` → 目标渠道 `send()`
+- **Rich Message 组件降级**：不支持原生组件的渠道自动降级为文本（支持国际化）
+- DISABLED 拦截：三道防线（`_emit_inbound` / `_dispatch_loop` / `send_now`）
+
+**Rich Message System 自动降级机制**：
+
+`downgrade_components()` 在发送前自动转换不支持的交互组件为纯文本 fallback：
+
+1. **能力检测**：读取 `ChannelCapabilities`（`buttons` / `quick_replies` / `select_menus`）
+2. **按行降级**：
+   - `ActionButton` → `"• {label} → /{action_id}"` 或 `"• {label} → {url}"`
+   - `SelectMenu` → `"• {placeholder}: option1, option2, ..."`
+   - `QuickReply` (required=True) → `"1️⃣ {label}\n2️⃣ {label2}\n\n↩️ 回复数字选择"`
+   - `QuickReply` (required=False) → 静默丢弃（避免杂乱）
+3. **国际化**：通过 `get_locale_from_metadata()` 归一化 locale（支持 `zh-CN`），catalog 渲染中英文 fallback（默认 en，业务层经 `metadata["locale"]` 注入）
+4. **日志记录**：INFO级别记录降级事件，格式：`Downgrading components for channel 'whatsapp': buttons, quick_replies(2) → text fallback`
+5. **文本追加**：将 fallback 文本追加到 `msg.content` 末尾，用 `\n\n` 分隔
+
+**示例**：
+
+```
+原始消息：
+content: "请批准这个请求："
+components: [[ActionButton(label="批准", action_id="approve")]]
+
+降级后（WhatsApp）：
+content: "请批准这个请求：\n\n• 批准 → /approve"
+components: []
+```
+
+**Channel Command i18n（slash 命令静态回复）**：
+
+渠道 slash 命令的系统静态回复（非 Agent LLM 输出）通过 `app/channels/i18n/` 包提供 en / zh-CN / zh-TW / ja 四语 catalog（`.ftl` 文件）。
+
+| 组件 | 职责 |
+|------|------|
+| `myrm_agent_harness.utils.locale::resolve_locale` | BCP-47 归一化、locale 解析优先级链 |
+| `i18n/engine.py::I18nEngine` | Fluent + JSON 双引擎：`format_value`、BCP 47 fallback 链、`add_locale_root` |
+| `i18n/locales/*.ftl` | 渠道静态消息 catalog（slash 命令、风险门禁、预算拦截等） |
+| `i18n/__init__.py` | `channel_t` / `get_text` / `resolve_message_locale` / `add_locale_root` 导出 |
+| `protocols/locale.py` | `LocaleProvider` 协议（业务层注入） |
+| `routing/router.py` | ingress 时 `_enrich_message_locale()` 写入 `metadata.locale` |
+
+**Locale 解析优先级**：`metadata.locale` → `platform_locale` / `language_code`（Telegram ingress）→ `LocaleProvider`（server：`UserConfigLocaleProvider` 读 `personalSettings.locale`）→ 平台默认（feishu/dingtalk 等 → zh-CN）→ `en`。
+
+**测试**：`tests/channels/i18n/test_locale_key_parity.py` 断言四语 key 集合一致、placeholder 一致、Fluent 引用合法、消息可渲染、无死 key；`test_engine.py` 覆盖引擎 fallback 与格式化。
+
+**前端联动**：设置 → 偏好 → 语言区块说明「同步应用于 Web 界面与 IM 渠道命令」；与 `personalSettings.locale` 写入链路一致。
+
+### 3.4 AgentRouter
+
+入站消息处理管道。
+
+**处理流程**：
+1. **去重**：message_id + TTL 防重复
+2. **命令检测**：`/stop` / `/new` / `/compact` / `/topic` / `/agent` / `/draft` / 审批命令；系统命令默认仅 owner 可用，只有限定在发送者自己会话内的命令（`CommandDef.any_sender`，如 `/stop`、`/new`、`/help`）对所有发送者开放（见 `routing/_ARCH.md`）
+3. **策略解析**：DM/群聊策略 + 身份解析 + 群组启用检查
+4. **Debounce**：连发消息合并（SessionGate，默认 300ms 窗口）
+5. **入站附件增强**（`_handle_merged`，在 Agent 执行前）：语音转写 → 贴纸描述 → 视频元数据 → 图片 base64（`image_data_list`）→ **PDF/Office 文本**（`document_text_blocks`，受 `personalSettings.extractDocumentText` 控制，默认开启；解析复用 `services/files/content_extraction`）
+6. **并发控制**：`asyncio.Semaphore` 限制同时执行的 Agent 任务数
+7. **Agent 执行**：`AgentExecutor.execute_stream()` + CancellationToken；`build_channel_inbound_query` 将文档块拼入 user 正文
+8. **流式回复**：Placeholder 编辑 + 自适应节流 + 智能分块
+
+**Cron 事件触发**：命令检测之后、进入会话队列之前，入站文本会匹配 Cron 事件触发器（`core/cron/adapters/inbound_event_dispatch.py`）。事件触发会以所有者身份无人值守地启动任务，因此只对访问策略会放行的发送者生效：所有者与控制面转发始终放行；陌生人（ALLOWLIST/PAIRING 策略下）、已拉黑或待审批的配对、未启用的群聊（访客模式下直接 @ 机器人的消息除外，它按一次性请求放行）不会触发。判定由只读的 `routing/sender_admission.py` 完成（不绑定、不记账、不回复），查询失败即拒绝并记 WARNING。所有者以外的发送者（已配对成员、访客、没有有效管理员配对的发送者）触发的任务，按与其聊天回合相同的不受信栅栏运行：只读研究租约、不带记忆与所有者聊天历史、不进入目标队列、不运行工作流模板任务；该判定同样由只读的 `is_untrusted_event_sender` 完成，查询失败按不受信处理并记 WARNING（详见 `routing/_ARCH.md` 的 Event-Trigger Admission）。
+
+**前端联动**：设置 → 偏好 → **提取附件文本**（`extractDocumentText`）同步影响 Web 聊天、IM 渠道与看板任务附件。
+
+**审批命令（emoji reaction）**：
+
+具备 `capabilities.reactions=True` 的渠道（Slack / Telegram / WhatsApp /
+Discord / Signal / Feishu / iMessage / **Mattermost** / **Matrix**）会把
+`reaction_added` / `m.reaction` / Tapback 等事件转换为
+`InboundMessage(metadata={"reaction": True, "target_message_id": ...})`，由
+`routing.commands.commands.parse_approval_command` 统一识别。
+
+| 决策档位        | 输入示例                                       | 透传给 harness 的 payload                                |
+|-----------------|------------------------------------------------|----------------------------------------------------------|
+| `allow_once`    | 👍 / ✅ / `/approve` / `1` / `y` / 同意         | `{"type": "approve"}`                                    |
+| `allow_always`  | ♾️ / ⭐ / `/approve-always` / `aa` / 永远允许    | `{"type": "approve", "extensions": {"allowAlways": True}}` |
+| `deny`          | 👎 / ❌ / `/deny` / `2` / `n` / 拒绝            | `{"type": "reject", "feedback": "Denied via ..."}`       |
+| `deny` + reason | `/deny <reason>`（≤280 字符）                   | `{"type": "reject", "feedback": "...", "guidance": "<reason>"}` |
+
+`_is_reaction_approval_valid` 在群聊场景下校验 `sender_id` 必须是原始
+请求者（`_ActiveTask.requester_id`）或显式配置的 `approval_co_approvers`
+名单成员，DM 直接通过。`_handle_approval_command` 在 `set_approval_user_id`
+绑定下游用户身份后，把 `allowAlways` 透传给 harness，触发
+`add_to_allowlist_if_needed` 完成永久允许。
+
+**审批按钮（ActionButton）**：审批请求以 `approval:{approve|deny}:{record_id}` 按钮发往 IM。
+目前只有 Telegram 入站解析器会把点击转成 `callback_prefix="act"` 的消息并交给
+`_handle_action_button_approval`，其他渠道的按钮点击不会进入该处理器，因此 owner 通知卡片
+只在 Telegram 附带按钮，其余渠道提示打开应用审核；被拦截的回复还会附上 `/draft approve <code>` /
+`/draft reject <code>`（`<code>` 为审批 ID 前 8 位，命令接受 6 位及以上），owner 可直接在聊天里决定。
+被拦截的回复（`outbound_draft`）只有 owner
+（控制面转发或 ADMIN 配对）可批准/拒绝，详见 `routing/_ARCH.md` 的 *ActionButton Callback Approval*
+与 *Owner Check*。无论由 WebUI、IM 按钮、批量审批还是 TTL 到期定案，发送或释放、关闭对话方会话里的
+“待审核”占位消息、发不出去时告知 owner，都由 `services/approvals/outbound_draft.py` 统一收尾。
+
+---
+
+## 4. 渠道绑定机制
+
+### 4.1 声明式凭证规格
+
+每个渠道在 `credential_spec.py` 中声明一个 `ChannelCredentialSpec`，定义凭证字段与数据源的映射：
+
+```
+ChannelCredentialSpec
+├── config_key: str              # DB 中的配置键（如 "telegramCredentials"）
+└── fields: tuple[               # 凭证字段列表
+        (param_name, CredentialField(db_key, env_var, default)),
+        ...
+    ]
+```
+
+**解析链**：`resolve_credentials(spec)` 按 DB → 环境变量 → 默认值 优先级解析。
+
+### 4.2 声明式绑定
+
+`channel_factory.py` 通过 `ChannelBinding` 将框架层渠道类与业务层凭证规格绑定：
+
+```
+ChannelBinding
+├── channel_class: type[BaseChannel]           # 框架层渠道类
+├── credential_spec: ChannelCredentialSpec      # 凭证规格
+└── creds_transform: CredsTransform | None      # 可选的类型转换函数
+```
+
+### 4.3 实例化流程
+
+`create_all_channels()` 遍历所有绑定：
+
+```
+for binding in _channel_bindings():
+    ├── resolve_credentials(spec) → raw_creds
+    ├── creds_transform(raw_creds) → typed_kwargs  (可选)
+    ├── channel_class(**typed_kwargs) → channel
+    ├── is_channel_enabled(config_key) → enabled?
+    │   └── not enabled → channel._status = DISABLED
+    └── yield channel
+```
+
+所有渠道（含 ON_DEMAND）均被实例化并注册到 Gateway。ON_DEMAND 渠道的启动由 Gateway 的 `should_auto_start()` 检查和业务层的登录触发共同控制。
+
+**错误隔离**：单个渠道实例化失败时记录日志并跳过，不影响其他渠道。
+
+### 4.4 新增渠道步骤
+
+1. 在 `providers/` 下实现 `XxxChannel(BaseChannel)`，声明 `name` 和 `capabilities`
+2. 在 `credential_spec.py` 中声明 `XXX_SPEC = _spec("xxxCredentials", ...)`
+3. 在 `channel_factory.py` 的 `_channel_bindings()` 中添加 `_binding(XxxChannel, XXX_SPEC)`
+
+---
+
+## 5. 渠道启用/禁用控制
+
+### 5.1 四层架构
+
+| 层 | 组件 | 职责 |
+|---|------|------|
+| 存储层 | UserConfig DB | `enabled` 字段持久化 |
+| 框架层 | Gateway + MessageBus + BaseChannel | 运行时状态管理 + 三道消息拦截防线 |
+| 业务层 | channel_factory + routes.py | 启动时 DISABLED 标记 + API Toggle 端点 |
+| 前端层 | ChannelsSection Switch | 可视化开关 |
+
+### 5.2 三道防线
+
+1. **BaseChannel._emit_inbound**：DISABLED 渠道的入站消息直接丢弃
+2. **MessageBus._dispatch_loop**：DISABLED 渠道的出站消息不分发
+3. **MessageBus.send_now**（含其封装 `send_tracked`）：DISABLED 渠道的直发消息被拦截并抛错
+
+### 5.3 启动时行为
+
+所有已绑定的渠道（含 DISABLED 和 ON_DEMAND）都会被实例化并注册到 Gateway，确保前端 Switch 始终可见。`_run_channel()` 中的跳过逻辑：
+
+1. **DISABLED** 渠道：直接跳过 `start()`，不建立任何网络连接
+2. **ON_DEMAND** 渠道（`should_auto_start()` 返回 False）：跳过 `start()`，保持 IDLE 状态直到用户通过登录 API 显式触发
+3. **ON_DEMAND** 渠道（`should_auto_start()` 返回 True，即存在已持久化会话）：正常执行 `start()`，实现服务重启后自动恢复连接
+
+---
+
+## 6. 消息处理管道
+
+### 6.1 入站流程
+
+**Webhook Payload Validation**: MSTeams、Telegram、Feishu 和 DingTalk 的 webhook 入站 payload 通过 Pydantic 模型
+进行结构化验证（`msteams/models.py`、`telegram/models.py`、`feishu/models.py`、`dingtalk/models.py`），
+将 `dict[str, object]` 转换为强类型模型，消除手动 `isinstance` 检查，实现早期失败和自文档化。
+验证失败时 log warning 并跳过，不影响服务可用性。
+
+```
+平台 Webhook/WebSocket/Polling
+    ↓ [Pydantic 验证 (MSTeams/Telegram/Feishu/DingTalk)]
+    ↓ [Email: 转发邮件检测与结构化解析 → metadata.is_forwarded/forwarded_from/...]
+BaseChannel._emit_inbound(InboundMessage)
+    ↓ [DISABLED 检查]
+MessageBus 入站队列
+    ↓
+AgentRouter.consume()
+    ├── 去重 (message_id + TTL)
+    ├── 命令检测 (/stop, /new, /compact, /topic, /agent, 审批)
+    ├── Debounce 合并 (SessionGate, 300ms)
+    ├── 语音转写 (transcribe_inbound, 含音频时 STT → 文本)
+    ├── 策略解析 (DM/群聊策略, 身份解析, 群组启用)
+    ├── Topic 路由 (thread_id → agent_id)
+    ├── 副作用 (reaction 👀, placeholder 🤔, typing + keepalive)
+    ├── Agent 执行 (execute_stream + CancellationToken)
+    │   ├── ProgressUpdate → edit_placeholder (进度)
+    │   └── OutboundMessage → maybe_tts (语音回复) → edit_placeholder (回复)
+    └── 清理 (reaction 移除, _active_tasks 清理)
+```
+
+**Email 转发邮件解析**：
+
+`_parse_email` 在 body 提取后自动检测转发邮件并结构化解析：
+
+1. **Subject 前缀检测**：`Fwd:`、`FW:`、`转发:`、`轉發:` 触发转发标记
+2. **Body 分隔符检测**：识别 Gmail/Outlook/QQ 等邮件客户端的标准转发分隔符，提取用户批注和原始邮件内容
+3. **MIME message/rfc822 解析**：处理以 MIME 附件方式转发的邮件，递归解析内嵌邮件头部
+4. **结构化 metadata 输出**：`is_forwarded`、`forwarded_from`、`forwarded_subject`、`forwarded_date`、`forwarded_body`
+
+非转发邮件完全走原有路径，零影响。
+
+### 6.2 出站流程
+
+```
+Agent/Cron/通知 → OutboundMessage
+    ↓
+MessageBus 出站管线（队列 publish_outbound 与直发 send_now 共用同一套路由、准备与结算）
+    ├── DurableOutboundGate.save (IM 渠道，web/chat 跳过)
+    ├── 路由解析 (云托管 CP egress 优先，仅纯文本；否则本地渠道；DISABLED/STOPPED/未注册 → 队列保留 obligation，send_now 直接抛错)
+    ├── prepare_outbound(msg, 路由能力) = withhold_sensitive_attachments (密钥/凭据附件拦截) → downgrade_components (组件/媒体降级) → 出站风险门
+    ├── [仅队列分发] 内容门：死链仅注释，不拦截
+    └── Channel.send()  (send_with_retry 指数退避，partial delivery 不重试)
+        ├── render(msg, render_style) → chunks
+        ├── [平台限制] 超出单次 API 上限时分 batch 多次 send（如 LINE 每请求 ≤5 条 message）
+        ├── [媒体附件] safe_download_media() → SSRF 验证 → 下载 → 上传到平台
+        └── 返回平台 message_id
+            ├── 成功 → ack_delivery (删除磁盘队列条目) + activity.record_outbound()
+            └── 失败 → DLQ + 永久失败回调 + 释放磁盘 obligation
+```
+
+进程重启时 `DurableOutboundGate.recover_into_bus` 自动重注入未送达消息；`attempting` 阶段中断恢复时前缀 i18n 提示。
+
+**送达判定契约**：
+- 渠道 `send()` 只有正常返回才算送达，任何失败必须抛 `ChannelSendError`，不得吞错返回 `None`。
+- 渠道能力 `message_ids`（默认 True）声明是否回传平台消息 id：True 的渠道对含文本的消息返回 `None` 视为未确认（`DeliveryUnconfirmedError`，进入 DLQ，不重试）；纯媒体消息豁免（Slack/Telegram/MSTeams 此时合法返回 `None`）；不回传 id 的渠道声明 `message_ids=False`，`None` 即成功。声明为 False 的有 DingTalk、IRC、VoiceCall、WeChat iLink、WeChat 公众号、企业微信智能机器人、企业微信应用、Webhook。
+- 部分送达：平台已接收文本但附件失败时抛 `ChannelSendError(accepted=True, failed_attachments=(…))`；总线不重试、不整条重放，仅把失败附件落 DLQ（`undelivered_part`），并向收件人发一条本地化说明（`partial_failure_note`）。`send_now` 仍向调用方抛出该异常。
+- Provider 发送规则（完整表见 `providers/_ARCH.md`）：先发文本再逐个发附件，一个附件失败不阻塞其余（`attempt_attachments` / `deliver_attachments`，LINE 单次请求且媒体在前）；失败汇总为一次 `ChannelSendError.for_attachments`，已有内容送达则 `accepted=True` 并具名 `failed_attachments`，否则按失败性质决定重试。仅"重试不可能改变结果"的失败判永久（类型不支持、本地文件缺失或为空、无可用来源、平台校验拒绝；`ChannelSendError.from_http_status` 对 4xx 同理），URL 下载失败与网络错误按临时失败重试。附件不得静默丢弃；永久失败由总线剥离媒体并发本地化说明。`tests/channels/providers/test_send_contract.py` 以 AST 守卫 `message_ids` 声明与 `send()` 内不吞错。
+- 已知局限：多段文本发送中途失败不标记 `accepted`，重试会重发已送达的段（宁可重复不缺失，续发需按分片断点恢复）；WhatsApp 桥接对媒体无送达回执，仅能确认已交给桥接进程。
+- `send_now` 是严格直发：成功返回平台 id（无 id 渠道返回 `None`），失败先按队列同一套规则结算（DLQ、永久失败回调、释放 obligation）再抛错；`send_tracked` 是其宽松封装（失败返回 `None`），用于只需要消息 id 的场景（如审批消息后续编辑）。cron、btw、目标终态通知、出站通知均走 `send_now`；cron 投递还会把产出里提到的工作区文件作为附件一并发出并附网页接力按钮（`core/cron/adapters/channel_deliverables.py`，纯文本路由降级为说明与链接）。
+- 临时附件所有权：`MediaAttachment.ephemeral=True` 标记为送达而生成的临时文件（截图、压缩图、TTS 音频）；交给总线后由总线在终态统一删除，生产方不得先删。删除时机：送达 ack 之后；部分送达时删除已送达者、保留失败者；被能力降级或被路由丢弃的附件；无磁盘记录可重放的丢弃（队列满、渠道不可用且无 durable 记录，`DurableOutboundGate.retains`）。其余失败路径保留文件，供 DLQ 手动重试引用。仅删除系统临时目录内的文件（`discard_ephemeral_media`）。
+- 占位符编辑（`MessageEffects.edit_placeholder`）与普通出站同样先 `prepare_outbound`；编辑只改文本，附件随后以纯媒体消息经总线发送（带重试、持久化与部分送达处理），额外文本分片不携带附件/按钮；编辑失败时整条回复（含附件）改走正常发布。
+
+
+**出站媒体 SSRF 防护**：`MediaAttachment.url` 可能来自 Agent 生成内容（受 prompt injection 影响），
+所有出站媒体下载通过 `channels.media.MediaDownloader` 执行（内置 `SSRFValidator`），
+集成 `core.security.guards.ssrf.async_validate_url_for_ssrf`（scheme 白名单 + hostname 黑名单 + DNS 解析 + IP 网络黑名单）。
+
+**出站敏感附件闸**：附件来源（交付物扫描、工具产物、Agent 回复）都不检查文件是什么，IM 聊天又没有确认环节，所以 `prepare_outbound` 的第一步 `withhold_sensitive_attachments`（`core/outbound_attachment_guard.py`）拒发密钥/凭据类本地文件：复用 harness `is_sensitive_file`（大小写不敏感、fail-closed），同时检查符号链接目标；`.key` 仅在文件是 ZIP（Keynote）时放行；系统生成的 `ephemeral` 临时文件与 URL 附件不检查。被拦附件从消息中移除，正文追加本地化说明（`attachment_withheld_note`，四语），WARNING 日志只记录文件名。它是安全带而非分类器：按文件名匹配，改名后的密钥会漏过；`config.json`、`*.db` 等误伤按 fail-closed 接受。闸在能力降级之前，收件人看到的是真实原因而非"不支持附件"。
+
+### 6.3 流式输出
+
+```
+AgentExecutor.execute_stream()
+    ↓ StreamingText events
+StreamCoordinator
+    ├── BlockChunker (代码块感知分块)
+    ├── IncrementalEditor (变化追踪，最小化编辑)
+    ├── AdaptiveThrottler (自适应节流，平衡延迟与 API 调用)
+    ├── ProgressEstimator (进度估算，±30% 误差)
+    └── GracefulDegradation (失败渐进减速，非完全停止)
+        ↓
+    edit_placeholder(chunk)
+        ↓
+    最终 edit_placeholder(full_reply，仅文本；附件随后以纯媒体消息送出)
+```
+
+---
+
+## 7. 可靠性设计
+
+### 7.1 错误隔离
+
+- 每个渠道运行在独立 asyncio.Task 中，单个渠道崩溃不影响其他
+- `create_all_channels()` 中单个渠道实例化失败时跳过
+- EventEmitter 监听器异常自动捕获和隔离
+
+### 7.2 自动重连
+
+`reconnect_loop` 提供统一的指数退避重连：
+- 默认初始退避 1s，最大 60s（各渠道可自定义）
+- 适用于长连接/轮询渠道（Slack, DingTalk, QQ, Mattermost, IRC, Signal, Matrix, Email）
+
+### 7.3 速率限制
+
+- **出站**：`TokenBucket` per-channel 速率限制，防平台封禁
+- **入站**：`InboundRateLimiter` per-IP/per-endpoint Token Bucket，防 DoS 攻击（框架提供内存实现，业务层可注入 Redis 实现）
+- **重试**：`RetryConfig` + `send_with_retry` 指数退避
+- **会话级**：`SessionRateLimiter` 单 session 60 次/分钟上限，防异常循环
+
+### 7.4 健康检查
+
+- Gateway 60s 周期调用 `channel.health_check()`
+- `ChannelHealth` 追踪连续成功/失败次数
+- `collect_issues()` 结构化诊断（kind/severity/message/fix）；缺 SDK 依赖为 ERROR + `uv sync --extra …`；WeChat 语音 SILK 解码缺 pilk 为 WARNING + `uv sync --extra wechat-silk`（不阻塞启用，Settings 可一键安装）
+- `POST /channels/manage/{name}/install-dependencies` 在 server venv 内 lazy-install（harness `runtime.deps.lazy_deps`：`platform.discord` / `platform.feishu` / `platform.matrix` / `platform.wechat-silk`），成功后 **hot-register** 到 Gateway（无需重启进程）；响应 `registered: false` 表示 pip 成功但频道未上 bus（需配凭证或重启）
+- Edge TTS（`voice-tts` extra，GPL-3.0）通过 `uv sync --extra voice-tts` 安装；Desktop PyInstaller 打包 **排除** GPL extras（`voice-tts` / `wechat-silk`）；Settings → Voice 会提示可用性，`GET /health/info` 返回 `edge_tts_available`；Web 朗读 API 失败时前端 toast 提示
+- 本地 STT（`local-stt` extra）通过 `uv sync --extra local-stt` 安装 faster-whisper；`GET /health/info` 返回 `local_stt_available`；`POST /stt/transcribe` 与 WebSocket STT 在 local provider 未安装时返回 install hint（HTTP 503 / WS error JSON）；Web 聊天 `useSpeechInput` 503/WS 错误 toast（Settings 横幅 + 录音失败提示）
+- `GET /channels/manage/status` 对未进 bus 的 SDK 频道返回 `status: unavailable` + `DEPENDENCY` issue（`registry.probe_sdk_channel_issues`），Settings 可一键安装
+- `PATCH …/toggle` 启用前 **先** `ensure_channel_dependencies_ready`（仅 ERROR 级 SDK 依赖会阻塞/自动安装；WARNING 级可选能力依赖需用户在 Settings 手动安装）
+- 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`、`wechat-silk`（pilk，GPLv3 SILK→WAV）、`wechat-formatter`（markdown+pygments，MIT，prebuilt `wechat-article-formatter` skill）、`voice-tts`（edge-tts）、`local-stt`（faster-whisper）；官方 Docker 镜像 `--all-extras` 含上述 optional；Desktop 商业包不含 GPL extras
+- **WeChat Official 草稿（HITL）**：`GET /channels/manage/wechat-official/egress-ip`（沙箱同源出口 IP 探测，Settings 复制/刷新）；`POST /channels/manage/wechat-official/draft`（`htmlPath` + `title` + **author（必填 ≤8）** + 可选 `digest`/`coverPath` → WebUI `WeChatDraftPanel` 默认 author=Agent 名、文内首图封面预填 + workspace 图片 suggest → `relative_to` 路径校验 + workspace 未知 fail-closed → **推送前合规 scan（title + resolved digest + HTML 可见正文，script/style/pre/code 排除；高危 422 hits、非高危 200 complianceWarnings）** → formatter 块级 inline style + inline 图先于 thumb + **draft content 为 body 片段并内嵌 style** → uploadimg + draft/add；微信 API transient retry + locale-aware 502 提示）；Composer 检测 `mp.weixin.qq.com/s/` → skill 挂载引导 banner；凭证键 `wechatOfficialCredentials`；与 personal `wechat` iLink 独立；Agent 不持 draft tool
+
+### 7.5 出站持久化（Durable Outbound Gate）
+
+- IM 渠道（非 web/chat/silent）在 `MessageBus.publish_outbound` 前写入 harness `delivery-queue` 磁盘
+- 发送成功 `ack_delivery`；永久失败移交 DLQ 后 ack 磁盘条目
+- 进程重启 `recover_into_bus` 重注入内存队列；dispatch 空闲时亦自动 recover（QueueFull 后无需重启）；`attempting` 中断恢复带 i18n 前缀
+- 渠道 DISABLED / STOPPED 或未注册（非 CP egress）时 **保留** 磁盘 obligation（不 ack）；`enable_channel` 触发 recover
+- 空闲 recover 只重注入**当前可投递**的记录（`OutboundPublisher.can_deliver`，与路由解析同源）：渠道未注册/禁用/停止时记录留在磁盘，恢复在 `enable_channel`/重启时进行。否则重注入的记录只会被分发循环再次释放，空闲轮询每轮重注入同一记录形成约 1Hz 空转并反复刷 WARNING
+- 队列分发对每条消息单独隔离（`_dispatch_one`）：准备阶段（路由解析、内容门、限速）抛出时把该条 **结算为失败**（ack 磁盘条目 + DLQ + 永久失败回调，正文保留供手动重试），而不是仅释放 obligation——释放会让磁盘条目留在 pending，空闲 recover 每轮重注入同一毒消息形成空转
+- 出站内容门 `probe_url` **永不抛出**（除取消）：被 HTTP 客户端拒绝的 URL（如 `httpx.InvalidURL`、`StreamError`，均非 `RequestError` 子类）一律落为不可达，绝不中断消息投递
+- 分发循环与网关健康循环经 `spawn_observed_task` 创建（崩溃留带堆栈的 ERROR），网关按指数退避重启已死的分发循环（同 router 自愈）；健康巡检迭代渠道字典的**快照**，凭据热替换不会中断整轮
+- `channel.send` / CP egress 未证明送达（渠道声明回传 id 却返回 `None`、CP 无 `message_id`）时 **不得 ack**：队列分发与 `send_now` 一律结算为失败（DLQ + 永久失败回调 + 释放磁盘条目），`send_now` 另向调用方抛错
+- `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测
+- 与 `delivery_notify_ledger` 职责分离：后者仅 permanent-failure toast 去重
+- 云托管 CP egress：`cp_egress_client` 仅在 CP 返回 `message_id` 时视为成功
+
+---
+
+## 8. 渠道覆盖
+
+| 渠道 | 协议 | 入站 | 出站 | 流式 | 组件 | 诊断 |
+|------|------|:----:|:----:|:----:|:----:|:----:|
+| Telegram | Bot API (polling/webhook) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Discord | Gateway WebSocket + REST | ✅ | ✅ | ✅ | ✅ | ✅ |
+| WhatsApp | Baileys Node.js bridge | ✅ | ✅ | ✅ | ⬇️ | ✅ |
+| Slack | Events API + Socket Mode | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Feishu/Lark | Webhook + Open API | ✅ | ✅ | ✅ | ✅ | ✅ |
+| WeChat | iLink HTTP long-poll | ✅ | ✅ | ✅ | ⬇️ | ✅ |
+| WeChat Official | Official Account XML callback | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| WeCom | Webhook + AES-CBC | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| MSTeams | Bot Framework REST | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Matrix | /sync long-polling | ✅ | ✅ | ✅ | ⬇️ | ✅ |
+| DingTalk | Stream API WebSocket | ✅ | ✅ | ✅ | ⬇️ | ✅ |
+| QQ | WebSocket + REST | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| GoogleChat | Webhook + Chat API v1 | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| Signal | REST API polling | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| LINE | Webhook + Messaging API | ✅ | ✅ | ⬇️ | ✅ | ✅ |
+| IRC | Raw TCP + SSL/TLS | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| Email | IMAP polling + SMTP | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| Voice | Twilio ConversationRelay | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| SMS | Twilio REST + Webhook | ✅ | ✅ | — | ⬇️ | ✅ |
+| Zalo | Webhook + OA API | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| Mattermost | WebSocket + REST v4 | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| iMessage | BlueBubbles Webhook | ✅ | ✅ | ⬇️ | ⬇️ | ✅ |
+| Webhook | HTTP POST | — | ✅ | — | — | — |
+| Chat | 内存队列 | ✅ | ✅ | ✅ | ✅ | — |
+
+> ✅ = 原生支持, ⬇️ = 自动降级为文本
+
+---
+
+## 9. Custom Channel HTTP Routes Registration
+
+### 9.1 架构设计
+
+Framework 提供 Protocol-based 路由注册机制，实现框架独立性（不绑定特定 Web 框架；开箱即用实现为 FastAPI）。
+
+**核心组件**：
+
+1. **protocols/route_registrar.py**
+   - `RouteRegistrar` Protocol：框架无关的路由注册接口
+   - `RouteDefinition` / `RouteMetadata` / `RouteSecurityPolicy`：路由定义和元数据
+   - `GenericRequest` / `GenericResponse` Protocols：框架无关的请求/响应接口
+   - `HttpMethod` Enum：HTTP方法枚举
+
+2. **protocols/adapters.py**
+   - `RequestAdapter[TRequest]` Protocol：将框架特定请求转换为GenericRequest
+   - `ResponseAdapter[TResponse]` Protocol：将GenericResponse转换为框架特定响应
+
+3. **core/base.py**
+   - `BaseChannel.register_routes(registrar)` 可选方法：Channel声明自己的HTTP端点
+   - `BaseChannel._get_route_prefix()` 默认实现：返回 `channels/{channel_name}/`
+
+4. **testing/route_testing.py**
+   - `MockRouteRegistrar`：测试用Mock实现
+   - `RouteDefinitionValidator`：路由定义验证工具
+
+### 9.2 设计原则
+
+1. **框架独立性**：Protocol 抽象，不绑定特定 Web 框架
+2. **Channel自治**：Channel定义自己的HTTP端点（webhooks、login、status）
+3. **安全优先**：路径前缀强制、白名单、自动应用middleware
+4. **类型安全**：完整的类型标注和适配器
+5. **可测试性**：提供MockRouteRegistrar用于单元测试
+
+### 9.3 使用示例
+
+```python
+from app.channels.protocols import (
+    HttpMethod,
+    RouteMetadata,
+    RouteRegistrar,
+)
+from app.channels.core import BaseChannel
+from app.channels.core.rate_limit import RateLimitConfig
+
+
+class TelegramChannel(BaseChannel):
+    def register_routes(self, registrar: object) -> None:
+        if not isinstance(registrar, RouteRegistrar):
+            return
+
+        registrar.add_route(
+            HttpMethod.POST,
+            "webhook",
+            self._handle_webhook,
+            RouteMetadata(
+                description="Receive Telegram webhook updates",
+                requires_auth=False,
+                rate_limit_policy=RateLimitConfig(max_requests=60, window_seconds=60),
+            ),
+        )
+```
+
+### 9.4 Framework 提供的开箱即用实现
+
+**Framework 层已提供 FastAPI 实现**（位于 `implementations/fastapi/`）：
+
+1. **FastAPIRouteRegistrar**: FastAPI 的 `RouteRegistrar` 实现
+2. **FastAPIRequestAdapter / FastAPIResponseAdapter**: Request/Response 适配器
+3. **ChannelRouteRegistry**: 路由收集和注册逻辑
+4. **安全策略执行**: 路径前缀、白名单、middleware 自动应用
+
+**依赖**:
+channels 框架已内置于 `myrm-agent-server/app/channels/`，FastAPI 集成由 `app.channels.implementations.fastapi` 提供。
+
+**业务层使用示例**:
+
+FastAPI:
+```python
+from app.channels.implementations.fastapi import (
+    ChannelRouteRegistry,
+)
+from fastapi import Depends, FastAPI
+
+
+# 业务层实现：提供当前用户 ID 的依赖函数
+def get_current_user_id() -> str: ...
+
+
+app = FastAPI()
+registry = ChannelRouteRegistry(
+    channel_gateway,
+    auth_dependency=Depends(get_current_user_id),
+)
+registry.register_all(app)
+```
+
+**已实现的框架**：FastAPI（可选依赖 `[fastapi]`）。其他 Web 框架可自行实现 `RouteRegistrar` / 适配器并注入。
+
+### 9.5 控制平面层建议
+
+**重要**：控制平面的webhook endpoints建议**不使用** Custom Routes Registration。
+
+**理由**：
+1. **职责不同**：控制平面webhook是Pipeline消息路由入口（转发器），不是channel自治endpoint
+2. **低频变化**：Pipeline routes变化频率极低（一年可能1次），硬编码更简洁
+3. **避免过度设计**：不为低频场景引入复杂性
+
+**推荐实现**：
+- 控制平面：硬编码Pipeline routes（如 `channel_webhook.py`）
+- 业务层（sandbox内）：使用Custom Routes Registration（高价值）
+
+### 9.6 Rate Limiting架构说明
+
+**Agent-in-Sandbox架构下的Rate Limiting策略**：
+
+#### 三层策略
+
+| 层级 | Rate Limiting实现 | 架构原理 |
+|------|------------------|---------|
+| **渠道框架层** | `RateLimiterProtocol` + `NoOpRateLimiter` / `InMemoryRateLimiter` | 提供Protocol抽象和多种开箱即用实现 |
+| **业务层（server）** | `NoOpRateLimiter`（默认注入） | Agent-in-Sandbox单用户环境，无需限流 |
+| **控制平面（plane）** | IP-based rate limiting（实际保护） | Webhook入口处保护，足够 |
+
+#### 为什么Server层默认使用NoOpRateLimiter？
+
+**Agent-in-Sandbox架构特点**：
+- 每个用户独立sandbox
+- 每个sandbox运行独立Server实例（单用户环境）
+- Server层rate limiting无意义（只有一个用户）
+- 真正的资源限制由控制平面的ResourceQuota + cgroup处理
+
+#### RouteMetadata.rate_limit_policy的用途
+
+1. **声明rate limiting策略**：类似OpenAPI spec中的rate limit声明，用于API文档
+2. **业务层依赖注入**：业务层根据部署模式选择合适的RateLimiterProtocol实现：
+   - Agent-in-Sandbox（默认）：`NoOpRateLimiter`
+   - 多用户Server：`InMemoryRateLimiter`或自定义Redis实现
+3. **控制平面参考**：控制平面可读取此配置调整webhook限流策略
+
+#### 控制平面Rate Limiting实现
+
+- **IP-based限流**：Webhook入口处按IP地址限流（默认120 requests/60s）
+- **全局RateLimiter类**：支持user/sandbox/api三种scope，使用Redis存储计数器
+- **足够保护**：在系统入口处保护，避免abuse
+
+#### RateLimiterProtocol实现
+
+**框架层提供**：
+- `RateLimiterProtocol`：抽象接口（`check_limit`方法）
+- `NoOpRateLimiter`：不执行限流（Agent-in-Sandbox默认）
+- `InMemoryRateLimiter`：内存sliding window算法（单实例开发环境）
+
+**业务层可选**：
+- 自定义Redis实现（分布式多实例场景）
+
+**重要**：这是合理的架构设计，Protocol-based依赖注入，而不是功能缺失。
+
+### 9.7 收益
+
+- ✅ 框架可移植性：Protocol 抽象 + FastAPI 开箱即用实现
+- ✅ Channel自包含：逻辑+HTTP端点在一起
+- ✅ 新增渠道零侵入：不需要修改业务层routes.py
+- ✅ 类型安全：编译时检查路径冲突
+- ✅ 安全性：自动应用安全策略和middleware
+
+---
+
+## 10. External Channel Async Login
+
+### 10.1 概述
+
+**AsyncLoginProtocol** 提供统一的异步登录协议，支持多种外部渠道认证方式（QR扫码、OAuth2、API Token等），实现类型安全、事件驱动、Protocol抽象的登录系统。
+
+### 10.2 架构层级
+
+| 层级 | 组件 | 职责 |
+|------|------|------|
+| **框架层** | `AsyncLoginProtocol` | Protocol定义（`start_login()`, `cancel_login()`） |
+| | `LoginMethod` / `LoginStatus` / `LoginState` / `LoginEvent` | 类型安全的枚举和dataclass |
+| | `QRCodeLoginHelper` | 封装QR登录逻辑（fetch、poll、auto-refresh） |
+| | `OAuth2LoginHelper` | 封装OAuth2 authorization code flow |
+| | `BaseChannel` | 集成AsyncLoginProtocol接口（`supported_login_methods`、`handle_oauth2_callback()`） |
+| | **`storage/`模块** | `LoginSessionStoreProtocol`+`InMemorySessionStore`+`CredentialsStore`（开箱即用） |
+| **业务层（Server）** | RESTful API | `/api/channels/login/*` endpoints（已注册） |
+| | SSE Stream | Server-Sent Events实时状态推送 |
+| | Session清理 | 自动清理过期session（每5分钟） |
+| **业务层（Frontend）** | Settings 渠道 Section | `settings/sections/integration/channels/*ConfigCard.tsx` — 各 Provider QR/OAuth/配对 UI |
+| | API服务层 | `channels.ts` API调用封装 |
+| | TypeScript类型 | 完整类型定义（100%匹配后端） |
+| **控制平面（SaaS）** | Redis Store | 实现`LoginSessionStoreProtocol`（多租户） |
+
+### 10.3 Login Methods
+
+支持的登录方式：
+
+| Method | 描述 | 使用场景 | Helper |
+|--------|------|---------|--------|
+| `QR_CODE` | 二维码扫描 | WeChat、企微个人号、WhatsApp | `QRCodeLoginHelper`（WhatsApp 的 QR 由 Baileys 桥接事件推送，自行驱动，见 `providers/whatsapp/login.py`） |
+| `OAUTH2` | OAuth2授权码流程 | Google Chat、Slack | `OAuth2LoginHelper` |
+| `API_TOKEN` | API Token输入 | Telegram Bot、Discord Bot、GitHub（个人访问令牌） | 手动实现 |
+| `PASSWORD` | 用户名密码 | SMTP、IMAP、内部系统 | 手动实现 |
+| `SSO` | Single Sign-On | 企业集成 | 手动实现 |
+
+### 10.4 State Machine
+
+Login状态机流转：
+
+```
+IDLE → GENERATING → WAITING_USER_ACTION → VALIDATING → SUCCESS
+                                         ↓
+                                      TIMEOUT / FAILED / CANCELLED
+```
+
+| Status | 描述 | 前端UI |
+|--------|------|--------|
+| `IDLE` | 初始状态 | - |
+| `GENERATING` | 生成QR码/OAuth URL | 加载动画 |
+| `WAITING_USER_ACTION` | 等待用户扫码/授权 | 显示QR码/打开OAuth窗口 |
+| `VALIDATING` | 验证凭证 | 加载动画 |
+| `SUCCESS` | 登录成功 | 成功提示 + 关闭弹窗 |
+| `FAILED` | 登录失败 | 错误提示 + 重试按钮 |
+| `TIMEOUT` | 登录超时 | 超时提示 + 重试按钮 |
+| `CANCELLED` | 用户取消 | 关闭弹窗 |
+
+### 10.5 框架层实现
+
+#### AsyncLoginProtocol定义
+
+```python
+@runtime_checkable
+class AsyncLoginProtocol(Protocol):
+    @property
+    def supported_login_methods(self) -> list[LoginMethod]: ...
+
+    async def start_login(
+        self,
+        method: LoginMethod,
+        *,
+        timeout: float = 300.0,
+        callback_url: str | None = None,
+    ) -> AsyncIterator[LoginEvent]: ...
+
+    async def cancel_login(self) -> None: ...
+
+    async def handle_oauth2_callback(
+        self,
+        code: str | None,
+        state: str,
+        error: str | None = None,
+    ) -> None: ...
+```
+
+#### BaseChannel集成
+
+```python
+class WeChatILinkChannel(BaseChannel):
+    supported_login_methods = [LoginMethod.QR_CODE]
+
+    async def start_login(
+        self,
+        method: object,
+        *,
+        timeout: float = 300.0,
+        callback_url: str | None = None,
+    ) -> AsyncIterator[LoginEvent]:
+        if method != LoginMethod.QR_CODE:
+            raise ValueError("Only QR_CODE supported")
+
+        helper = QRCodeLoginHelper(
+            fetch_qr_fn=self._fetch_qr_code,
+            poll_status_fn=self._poll_qr_status,
+        )
+        async for event in helper.run(timeout, self.name):
+            yield event
+```
+
+#### Helper Classes
+
+**QRCodeLoginHelper**：
+- 封装QR码fetch、poll、auto-refresh逻辑
+- 自动处理过期刷新（max_refresh=3）
+- 支持取消（`cancel()`）
+
+**OAuth2LoginHelper**：
+- 生成authorization URL（含CSRF state）
+- 等待callback（`handle_callback()`），使用 `secrets.compare_digest` 验证 CSRF state
+- Token exchange
+- CSRF state 不匹配时拒绝回调并报错
+
+### 10.6 业务层实现
+
+#### API Endpoints
+
+| Method | Path | 功能 |
+|--------|------|------|
+| `GET` | `/api/channels` | 列出支持登录的channels |
+| `POST` | `/api/channels/{id}/login/start` | 开始登录流程 |
+| `GET` | `/api/channels/login/{session_id}/stream` | SSE状态流 |
+| `DELETE` | `/api/channels/login/{session_id}` | 取消登录 |
+| `GET` | `/api/channels/{id}/login/oauth2/callback` | OAuth2回调 |
+
+#### 数据流
+
+```
+Frontend → POST /start → Server → channel.start_login()
+                         ↓
+Frontend ← SSE stream ← AsyncIterator[LoginEvent]
+                         ↓
+                   LoginEvent.credentials
+                         ↓
+                  CredentialsStore.save()
+```
+
+#### Storage架构
+
+**框架层（开箱即用）**：
+- `LoginSessionStoreProtocol` + `InMemorySessionStore`（临时会话）
+- `CredentialsStore`（AES-256加密文件存储，单用户sandbox）
+
+**控制平面（SaaS扩展）**：
+- Redis实现`LoginSessionStoreProtocol`（多租户会话）
+- Redis加密凭证管理（租户隔离）
+
+#### 部署模式
+
+| 模式 | SessionStore | CredentialsStore | 位置 |
+|------|--------------|------------------|------|
+| **Agent-in-Sandbox（Local/Tauri）** | `InMemorySessionStore` | AES-256加密本地文件（`.myrm/credentials.json`） | 框架层 |
+| **SaaS多租户** | Redis | Redis（加密存储，租户隔离） | 控制平面 |
+
+### 10.7 安全性
+
+1. **CSRF防护**：OAuth2使用 `secrets.token_urlsafe(32)` 生成 state token，callback 时通过 `secrets.compare_digest` 定时比较验证（防时序攻击）
+2. **加密存储**：Credentials使用AES-256加密（PBKDF2派生密钥）
+3. **Session TTL**：Login session默认5分钟过期
+4. **HTTPS Only**：生产环境强制HTTPS（OAuth2 callback必须）
+
+### 10.8 竞品对比
+
+| 特性 | 我们 | FastClaw | HappyCappy | Onyx | AutoResearchClaw |
+|------|------|----------|------------|------|------------------|
+| **Protocol抽象** | ✅ 完整Protocol定义 | ❌ 无抽象 | ❌ 无抽象 | ❌ 无抽象 | ❌ 无抽象 |
+| **Type Safety** | ✅ Enum + Dataclass | ⚠️ 字符串状态 | ⚠️ 字符串状态 | ⚠️ 字符串状态 | ⚠️ 字符串状态 |
+| **Helper Classes** | ✅ QR + OAuth2 | ❌ 无 | ❌ 无 | ❌ 无 | ❌ 无 |
+| **SSE Stream** | ✅ 实时状态推送 | ⚠️ 轮询 | ⚠️ 轮询 | ⚠️ 轮询 | ❌ 无UI |
+| **多Method支持** | ✅ 5种（QR/OAuth2/Token/Password/SSO） | ⚠️ 仅QR | ⚠️ 仅QR | ⚠️ QR+Token | ❌ 无 |
+| **加密存储** | ✅ AES-256 + PBKDF2 | ❌ 明文 | ❌ 明文 | ⚠️ Base64 | ❌ 无持久化 |
+| **统一UI** | ✅ Settings Provider 配置卡 | ❌ Channel特定 | ❌ Channel特定 | ❌ Channel特定 | ❌ 无UI |
+| **SaaS支持** | ✅ Redis多租户 | ❌ 单用户 | ❌ 单用户 | ⚠️ 部分 | ❌ 单用户 |
+
+**评分**：我们 10/10，竞品平均 5.5/10（+4.5分）🚀
+
+### 10.9 前端实现
+
+#### 技术栈
+
+- **框架**：Next.js 14 + TypeScript
+- **UI库**：shadcn/ui（Dialog, Button, Alert）
+- **国际化**：next-intl
+- **实时通信**：EventSource (SSE)
+- **状态管理**：React useState hooks
+
+#### 组件架构
+
+渠道登录与配置 UI 在 **Settings → 通信** 域，按 Provider 拆分配置卡（非统一 Dialog）：
+
+| 路径 | 职责 |
+|------|------|
+| `myrm-agent-frontend/src/components/features/settings/sections/integration/channels/ChannelsSection.tsx` | 渠道总览、依赖安装、聚合各 Provider 卡 |
+| `.../FeishuConfigCard.tsx` | 飞书 QR 注册（`/channels/manage/feishu/qr-register`） |
+| `.../WeChatConfigCard.tsx` | 微信登录触发 |
+| `.../TelegramConfigCard.tsx` 等 | 各平台 Token/OAuth/配对 |
+
+详见 monorepo 内 `myrm-agent-frontend/src/components/features/settings/sections/integration/channels/_ARCH.md`。
+
+**核心能力**（分布在各 ConfigCard 内）：
+1. Provider 专属 QR / OAuth / Token 表单
+2. SSE 或轮询订阅登录状态（如 Feishu QR poll）
+3. 连接状态 Badge、配对管理（`PairingManager.tsx`）
+4. 国际化：`locales/*.json` 中 `settings.channels.*` 键
+
+#### API服务层
+
+**channels.ts** (`myrm-agent-frontend/src/services/channels.ts`)：
+
+- `listChannelsWithLogin()`: 获取支持登录的channels
+- `startLogin()`: 启动登录流程
+- `subscribeLoginStream()`: 订阅SSE状态流
+- `cancelLogin()`: 取消登录
+
+#### 类型定义
+
+**channels.ts** (`myrm-agent-frontend/src/types/channels.ts`)：
+
+完整TypeScript类型，与后端AsyncLoginProtocol 100%匹配：
+- `LoginMethod` / `LoginStatus` Enums
+- `LoginState` / `LoginEvent` / `ChannelInfo` Interfaces
+- `StartLoginResponse` Response模型
+
+#### 国际化支持
+
+**locales/en.json** - channels模块（25个键）：
+- 登录方法选择文案
+- 状态提示文案（等待扫码、验证中、成功、失败等）
+- 错误消息文案
+- OAuth2授权引导文案
+
+#### 集成方式
+
+用户在 WebUI **Settings → 通信** 打开对应 Provider 配置卡完成登录；后端 REST/SSE 由 `app/api/channels/login.py` 等与各 ConfigCard 对接。无需额外页面级 Dialog 包装。
+
+### 10.10 最佳实践
+
+1. **Channel实现**：继承BaseChannel，设置`supported_login_methods`，实现`start_login()`
+2. **使用Helper**：优先使用`QRCodeLoginHelper`和`OAuth2LoginHelper`
+3. **错误处理**：区分`ChannelAuthError`（平台错误）和`TimeoutError`（超时）
+4. **前端集成**：使用SSE订阅状态，自动更新UI
+5. **生产部署**：SaaS模式使用Redis，启用HTTPS
+
+---
+
+## 12. 协议接口
+
+## 11. Thread Auto-Reply (Slack)
+
+Slack Thread自动响应机制：Bot在thread中参与后，后续回复无需@mention即可触发响应。
+
+### 11.1 设计目标
+
+**UX问题**：
+- 用户在Slack thread中与Bot对话，每次回复都需要@bot很繁琐
+- 打断对话流畅度，影响用户体验
+
+**解决方案**：
+- Bot参与thread后，自动跟踪thread ID
+- 后续用户在该thread回复时，无需@mention即可触发Bot响应
+- 可配置是否启用此功能（`require_thread_mention`）
+
+### 11.2 ThreadTracker 设计
+
+**核心类**：`ThreadTracker`（`providers/slack/thread_tracker.py`）
+
+**特性**：
+1. **LRU内存控制**：最多跟踪N个thread（默认1000），超过则淘汰最旧的
+2. **TTL自动过期**：Thread超过T小时（默认24h）自动过期
+3. **asyncio.Lock**：线程安全，支持并发访问
+4. **Metrics可观测性**：`ThreadTrackerMetrics` 导出 hit/miss/eviction 数据
+
+**数据结构**：
+```python
+OrderedDict[str, float]  # {thread_id: last_activity_timestamp}
+```
+
+### 11.3 配置参数
+
+`SlackChannel` 初始化参数：
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `require_thread_mention` | `bool` | `False` | 是否在thread中强制要求@mention |
+| `thread_tracker_max_size` | `int` | `1000` | 最多跟踪thread数量（LRU） |
+| `thread_tracker_ttl_hours` | `int` | `24` | Thread过期时间（小时） |
+
+**示例**：
+```python
+# 默认启用自动响应
+slack = SlackChannel("xoxb-token")
+
+# 禁用自动响应（传统行为）
+slack = SlackChannel("xoxb-token", require_thread_mention=True)
+
+# 自定义LRU大小和TTL
+slack = SlackChannel(
+    "xoxb-token",
+    thread_tracker_max_size=500,
+    thread_tracker_ttl_hours=12,
+)
+```
+
+### 11.4 工作流程
+
+**Bot发送消息时**：
+```python
+async def send(self, msg: OutboundMessage) -> str | None:
+    # ... send logic ...
+    
+    # 记录thread参与
+    effective_thread = thread_ts or msg.reply_to_id or msg.thread_id
+    if effective_thread:
+        await self._thread_tracker.add(str(effective_thread))
+```
+
+**用户回复消息时**：
+```python
+async def _parse_message_event(self, event) -> InboundMessage | None:
+    mentioned = f"<@{self._bot_user_id}>" in text
+    
+    # Thread自动响应检查
+    if thread_ts and not mentioned and not self._require_thread_mention:
+        if await self._thread_tracker.contains(str(thread_ts)):
+            mentioned = True  # 自动设置为已@mention
+    
+    return self._build_inbound(..., mentioned=mentioned)
+```
+
+### 11.5 Metrics导出
+
+框架层提供`ThreadTrackerMetrics`，业务层决定如何导出：
+
+**可用Metrics**：
+- `hit_count`：缓存命中次数
+- `miss_count`：缓存未命中次数
+- `hit_rate`：命中率（0.0-1.0）
+- `current_size`：当前跟踪thread数
+- `lru_eviction_count`：LRU淘汰次数
+- `ttl_eviction_count`：TTL过期次数
+
+**导出示例**（业务层）：
+```python
+from app.channels.providers.slack import SlackChannel
+
+# 获取metrics
+metrics = slack_channel.thread_tracker_metrics
+
+# Prometheus
+prometheus_gauge.set(metrics.current_size)
+
+# DataDog
+statsd.gauge("slack.thread.hit_rate", metrics.get_hit_rate())
+
+# Logging
+logger.info("Thread tracker: %s", metrics.to_dict())
+```
+
+### 11.6 性能特性
+
+**内存**：
+- O(1) 添加/查询操作
+- OrderedDict 保证 LRU 顺序
+- 默认1000个thread，每个~24字节，总计~24KB
+
+**并发安全**：
+- asyncio.Lock 保护所有操作
+- 无数据竞争风险
+
+**清理策略**：
+- LRU：add()时触发，超过max_size淘汰最旧
+- TTL：contains()时检查，过期自动删除
+
+### 11.7 架构分层
+
+**渠道框架层（app/channels/）**：
+- `ThreadTracker` 类（核心逻辑）
+- `ThreadTrackerMetrics` 数据结构
+- `SlackChannel` 集成
+
+**业务适配层（app/core/channel_bridge/）**：
+- Metrics导出示例
+- 配置参数调优
+- 监控告警集成
+
+**控制平面（plane）**：
+- 聚合多用户metrics
+- 异常检测（hit_rate异常低）
+
+### 11.8 最佳实践
+
+**1. 独立部署（Self-hosted）**：
+- 使用默认配置即可
+- 监控`hit_rate`和`current_size`
+
+**2. SaaS平台（Multi-tenant）**：
+- 框架层不感知user_id
+- 业务层导出时添加`user_id`标签
+- 控制平面聚合所有用户metrics
+
+**3. 性能优化**：
+- hit_rate < 50%：增大`max_size`或延长`ttl_hours`
+- lru_eviction频繁：增大`max_size`
+- ttl_eviction频繁：可缩短`ttl_hours`节省内存
+
+---
+
+
+框架层通过 Protocol 定义业务层需要实现的接口：
+
+| Protocol | 职责 | 业务层实现 |
+|----------|------|-----------|
+| `AgentExecutor` | Agent 流式执行 | `ChannelAgentExecutor` |
+| `PairingStore` | sender → user 身份绑定 | `SqlPairingStore` |
+| `ChannelPolicyProvider` | DM/群聊策略 + 群组启用列表 | `SqlChannelPolicyProvider` |
+| `TopicManager` | per-topic Agent 路由配置 | `SqlTopicManager` |
+| `CompactHandler` | 会话压缩 | `compact_chat()` |
+| `RouteRegistrar` | HTTP路由注册 | `FastAPIRouteRegistrar` |
+| `RequestAdapter` / `ResponseAdapter` | 请求/响应适配 | `FastAPIRequestAdapter` / `FastAPIResponseAdapter` |
+| `AsyncLoginProtocol` | 异步登录流程 | `QRCodeLoginHelper` / `OAuth2LoginHelper` |
+| `LoginSessionStoreProtocol` | 登录会话管理 | `InMemorySessionStore` / Redis实现 |
+
+---
+
+## 13. 参考资料
+
+- 竞品渠道能力全景分析：[§ 10.8 竞品对比](#108-竞品对比)
+- Rich Message 自动降级机制：[§ 3.3 MessageBus](#33-messagebus)
+- 业务层架构：[channel_bridge](core/channel_bridge/_ARCH.md)

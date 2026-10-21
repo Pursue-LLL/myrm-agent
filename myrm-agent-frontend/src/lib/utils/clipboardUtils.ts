@@ -1,0 +1,240 @@
+import {
+  writeText as tauriWriteText,
+  readText as tauriReadText,
+  writeHtml as tauriWriteHtml,
+} from '@tauri-apps/plugin-clipboard-manager';
+import { ask } from '@tauri-apps/plugin-dialog';
+import { toast } from 'sonner';
+import { translateI18nKey } from '@/services/i18nToastService';
+
+/**
+ * 检测当前是否运行在 Tauri 环境中
+ */
+export const isTauri = (): boolean => {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+};
+
+const CLIPBOARD_PERMISSION_KEY = 'myrm_clipboard_read_permission';
+
+function isClipboardNotAllowedError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === 'NotAllowedError' || error.message.includes('Document is not focused'))
+  );
+}
+
+/** execCommand fallback when async Clipboard API is blocked (e.g. after confirm dialog). */
+function copyTextViaExecCommand(text: string): boolean {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '0';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } finally {
+    document.body.removeChild(textarea);
+  }
+
+  return copied;
+}
+
+async function writeWebClipboardText(text: string): Promise<boolean> {
+  if (typeof document !== 'undefined' && !document.hasFocus()) {
+    window.focus();
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      if (!isClipboardNotAllowedError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  return copyTextViaExecCommand(text);
+}
+
+/**
+ * 安全地将文本写入剪贴板
+ * 在 Tauri 环境下使用原生插件，Web 环境下使用 navigator.clipboard
+ * 写入成功后会自动触发 Toast 提示
+ *
+ * @param text 要写入剪贴板的文本
+ * @param silent 是否静默写入（不显示 Toast 提示），默认 false
+ */
+export const writeToClipboard = async (text: string, silent = false): Promise<boolean> => {
+  try {
+    if (isTauri()) {
+      await tauriWriteText(text);
+    } else {
+      const copied = await writeWebClipboardText(text);
+      if (!copied) {
+        throw new DOMException('Clipboard write blocked', 'NotAllowedError');
+      }
+    }
+
+    if (!silent) {
+      toast.success(translateI18nKey('common.clipboard.copied'));
+    }
+    return true;
+  } catch (error) {
+    if (!isClipboardNotAllowedError(error)) {
+      console.error('Failed to write to clipboard:', error);
+    }
+    if (!silent) {
+      toast.error(translateI18nKey('common.clipboard.copyFailed'));
+    }
+    return false;
+  }
+};
+
+/**
+ * 将富文本（text/plain + text/html）同时写入剪贴板。
+ * 粘贴到 Notion/飞书/Word 时保留表格、代码高亮等格式；
+ * 粘贴到纯文本编辑器时得到 Markdown 源码。
+ *
+ * Tauri 环境使用 writeHtml（将 HTML 写入系统剪贴板的富文本区域）。
+ * Web 环境使用 ClipboardItem API 同时注入 text/plain + text/html。
+ */
+export const writeRichToClipboard = async (plainText: string, html: string, silent = false): Promise<boolean> => {
+  try {
+    if (isTauri()) {
+      await tauriWriteHtml(html);
+    } else if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+      const item = new ClipboardItem({
+        'text/plain': new Blob([plainText], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      });
+      await navigator.clipboard.write([item]);
+    } else {
+      const copied = await writeWebClipboardText(plainText);
+      if (!copied) {
+        throw new DOMException('Clipboard write blocked', 'NotAllowedError');
+      }
+    }
+
+    if (!silent) {
+      toast.success(translateI18nKey('common.clipboard.copied'));
+    }
+    return true;
+  } catch (error) {
+    if (!isClipboardNotAllowedError(error)) {
+      console.error('Failed to write rich content to clipboard:', error);
+    }
+    try {
+      const copied = await writeWebClipboardText(plainText);
+      if (!copied) {
+        throw new DOMException('Clipboard write blocked', 'NotAllowedError');
+      }
+      if (!silent) {
+        toast.success(translateI18nKey('common.clipboard.copied'));
+      }
+      return true;
+    } catch {
+      if (!silent) {
+        toast.error(translateI18nKey('common.clipboard.copyFailed'));
+      }
+      return false;
+    }
+  }
+};
+
+/**
+ * 请求读取剪贴板的权限
+ */
+const requestReadPermission = async (): Promise<boolean> => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  // 检查是否已经授权
+  const savedPermission = localStorage.getItem(CLIPBOARD_PERMISSION_KEY);
+  if (savedPermission === 'granted') {
+    return true;
+  }
+  if (savedPermission === 'denied') {
+    toast.error(translateI18nKey('common.clipboard.readBlocked'));
+    return false;
+  }
+
+  // 如果在 Tauri 环境，使用原生对话框
+  if (isTauri()) {
+    try {
+      const allowed = await ask(
+        `${translateI18nKey('common.clipboard.readPermissionPrompt')}\n\n${translateI18nKey('common.clipboard.readPermissionRemember')}`,
+        {
+          title: translateI18nKey('common.clipboard.readPermissionTitle'),
+          kind: 'info',
+          okLabel: translateI18nKey('common.clipboard.readPermissionAllow'),
+          cancelLabel: translateI18nKey('common.clipboard.readPermissionDeny'),
+        },
+      );
+
+      if (allowed) {
+        localStorage.setItem(CLIPBOARD_PERMISSION_KEY, 'granted');
+        return true;
+      } else {
+        // 不持久化拒绝，以便下次还能问，或者持久化？
+        // 为了体验，暂时不持久化拒绝，或者只在本次会话拒绝
+        toast.error(translateI18nKey('common.clipboard.readRefused'));
+        return false;
+      }
+    } catch (e) {
+      console.error('Dialog error:', e);
+      return false;
+    }
+  } else {
+    // Web 环境下，通常浏览器会自己弹窗，但我们可以先用 confirm 确认
+    const allowed = window.confirm(translateI18nKey('common.clipboard.readPermissionPrompt'));
+    if (allowed) {
+      localStorage.setItem(CLIPBOARD_PERMISSION_KEY, 'granted');
+      return true;
+    } else {
+      toast.error(translateI18nKey('common.clipboard.readRefused'));
+      return false;
+    }
+  }
+};
+
+/**
+ * 安全地从剪贴板读取文本
+ * 在 Tauri 环境下使用原生插件，Web 环境下使用 navigator.clipboard
+ * 包含显式的权限管控
+ *
+ * @returns 剪贴板中的文本内容
+ */
+export const readFromClipboard = async (): Promise<string> => {
+  try {
+    const hasPermission = await requestReadPermission();
+    if (!hasPermission) {
+      throw new Error('Permission denied');
+    }
+
+    if (isTauri()) {
+      return await tauriReadText();
+    } else {
+      return await navigator.clipboard.readText();
+    }
+  } catch (error) {
+    console.error('Failed to read from clipboard:', error);
+    toast.error(translateI18nKey('common.clipboard.readFailed'));
+    throw error;
+  }
+};

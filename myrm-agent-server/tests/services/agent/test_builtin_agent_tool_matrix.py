@@ -1,0 +1,64 @@
+"""Built-in agent tool matrix regression tests."""
+
+from __future__ import annotations
+
+from app.ai_agents.prompts.deliverable_discipline import KNOWLEDGE_WORK_SYSTEM_PROMPT
+from app.services.agent.builtin_specs.builtin_initializer import (
+    _BUILTIN_AGENTS,
+    _TOOL_CODING,
+    _TOOL_COWORK,
+    _TOOL_DATA_VIZ,
+    _TOOL_DEFAULT,
+    _TOOL_DESIGN,
+    _TOOL_RESEARCH,
+)
+
+
+def test_all_builtin_agents_declare_enabled_tools() -> None:
+    missing = [spec.id for spec in _BUILTIN_AGENTS if spec.enabled_builtin_tools is None]
+    assert missing == [], f"Builtin agents missing enabled_builtin_tools: {missing}"
+
+
+def test_developer_has_coding_tools() -> None:
+    developer = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-developer")
+    assert developer.enabled_builtin_tools == _TOOL_CODING
+
+
+def test_designer_uses_canonical_image_generation_id() -> None:
+    designer = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-designer")
+    assert designer.enabled_builtin_tools == _TOOL_DESIGN
+    assert "image_generation" in designer.enabled_builtin_tools
+    assert "image_gen" not in (designer.enabled_builtin_tools or ())
+
+
+def test_cli_visual_matches_coding_tools() -> None:
+    cli = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-cli_visual")
+    assert cli.enabled_builtin_tools == _TOOL_CODING
+
+
+def test_research_analyst_has_answer_tool() -> None:
+    researcher = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-researcher")
+    assert researcher.enabled_builtin_tools == _TOOL_RESEARCH
+
+
+def test_general_assistant_has_default_tools() -> None:
+    general = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-general")
+    assert general.enabled_builtin_tools == _TOOL_DEFAULT
+
+
+def test_data_analyst_has_data_viz_tools() -> None:
+    analyst = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-data-analyst")
+    assert analyst.enabled_builtin_tools == _TOOL_DATA_VIZ
+    assert "external_cli" in analyst.enabled_builtin_tools
+    assert "image_generation" in analyst.enabled_builtin_tools
+
+
+def test_economy_has_cowork_tools() -> None:
+    economy = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-economy")
+    assert economy.enabled_builtin_tools == _TOOL_COWORK
+    assert "kanban" in (economy.enabled_builtin_tools or ())
+    assert "external_cli" not in (economy.enabled_builtin_tools or ())
+    assert economy.memory_extraction_preset == "work_assistant"
+    assert economy.name == "Knowledge Work"
+    assert economy.system_prompt is KNOWLEDGE_WORK_SYSTEM_PROMPT
+    assert "<deliverable_discipline>" in economy.system_prompt

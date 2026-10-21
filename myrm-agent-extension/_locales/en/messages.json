@@ -1,0 +1,305 @@
+{
+  "extName": {
+    "message": "Myrm Agent Bridge"
+  },
+  "extDescription": {
+    "message": "Connect your browser to Myrm Agent for intelligent automation with your real login sessions."
+  },
+  "cmdToggleSidepanel": {
+    "message": "Toggle Myrm Agent Side Panel"
+  },
+  "statusDisconnected": {
+    "message": "Disconnected"
+  },
+  "statusConnected": {
+    "message": "Connected"
+  },
+  "statusConnecting": {
+    "message": "Connecting…"
+  },
+  "openDuplicateReview": {
+    "message": "Open Duplicate Review"
+  },
+  "openWikiIgnoreRules": {
+    "message": "Open Wiki Ignore Rules"
+  },
+  "openClippedRaw": {
+    "message": "Open clipped raw in Wiki"
+  },
+  "clipSavedWithoutOrigin": {
+    "message": "Saved to Wiki. Open WebUI → Settings → Wiki to view."
+  },
+  "clipTargetPrefix": {
+    "message": "Clip target:"
+  },
+  "defaultAgent": {
+    "message": "Default"
+  },
+  "sectionServerWsUrl": {
+    "message": "Server WebSocket URL"
+  },
+  "sectionPairingCode": {
+    "message": "Pairing Code"
+  },
+  "placeholderPairingCode": {
+    "message": "Paste one-time code from WebUI"
+  },
+  "btnApplyPairing": {
+    "message": "Apply Pairing"
+  },
+  "hintPairingCode": {
+    "message": "Generate the code in Settings → Browser Extension, then paste it here."
+  },
+  "errPairingNeedsServerUrl": {
+    "message": "Enter a WebSocket URL first so pairing can reach the server."
+  },
+  "errPairingNeedsBundle": {
+    "message": "Paste the pairing code from Settings, or copy the full pairing bundle from WebUI."
+  },
+  "errPairingInvalid": {
+    "message": "Pairing code is invalid or expired."
+  },
+  "sectionAuthToken": {
+    "message": "Auth Token (optional)"
+  },
+  "sectionAuthorizedDomains": {
+    "message": "Authorized Domains (one per line)"
+  },
+  "placeholderServerUrl": {
+    "message": "ws://localhost:25808/api/v1/ws/extension"
+  },
+  "placeholderAuthToken": {
+    "message": "Extension authentication token"
+  },
+  "placeholderDomains": {
+    "message": "github.com\n*.google.com\nmail.example.com"
+  },
+  "hintAuthorizedDomains": {
+    "message": "Only tabs matching these domains can be controlled by the Agent."
+  },
+  "btnConnect": {
+    "message": "Connect"
+  },
+  "btnDisconnect": {
+    "message": "Disconnect"
+  },
+  "sectionAvailableTabs": {
+    "message": "Available Tabs"
+  },
+  "tabItemLabel": {
+    "message": "Tab #$TAB_ID$",
+    "placeholders": {
+      "tab_id": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "errConfigureServerUrl": {
+    "message": "Configure server URL in extension popup"
+  },
+  "errCaptureFailed": {
+    "message": "Capture failed"
+  },
+  "errClipStatusFailed": {
+    "message": "Clip status failed ($STATUS$)",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "500"
+      }
+    }
+  },
+  "errClipFailed": {
+    "message": "Clip failed"
+  },
+  "errClipTimedOut": {
+    "message": "Clip timed out"
+  },
+  "errAlreadyClipped": {
+    "message": "Already clipped — open Duplicate Review in Settings Wiki"
+  },
+  "errSecurityBlocked": {
+    "message": "Clip blocked by security scan"
+  },
+  "errClipUploadFailed": {
+    "message": "Clip upload failed ($STATUS$)",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "500"
+      }
+    }
+  },
+  "errInvalidWebSocketUrl": {
+    "message": "Invalid WebSocket URL"
+  },
+  "errConnectionClosed": {
+    "message": "Connection closed"
+  },
+  "errConnectionRefused": {
+    "message": "Connection refused — server not running?"
+  },
+  "ctxAskMyrmAgent": {
+    "message": "Ask Myrm Agent"
+  },
+  "ctxAskMyrmAgentPage": {
+    "message": "Ask Myrm Agent about this page"
+  },
+  "ctxClipWikiSelection": {
+    "message": "Clip selection to Wiki"
+  },
+  "ctxClipWikiPage": {
+    "message": "Clip page to Wiki"
+  },
+  "notifyClipSuccessTitle": {
+    "message": "Saved to Wiki"
+  },
+  "notifyClipSuccessBody": {
+    "message": "Clip saved to raw/. Click to open in Wiki settings."
+  },
+  "notifyClipDuplicateTitle": {
+    "message": "Already clipped"
+  },
+  "notifyClipDuplicateBody": {
+    "message": "This page was clipped before. Click to open Duplicate Review."
+  },
+  "notifyClipDuplicateBodyNoLink": {
+    "message": "This page was clipped before. Open WebUI → Settings → Wiki → Duplicate Review."
+  },
+  "notifyClipSecurityTitle": {
+    "message": "Clip blocked"
+  },
+  "notifyClipSecurityBody": {
+    "message": "Security scan blocked this clip. Click to review Wiki ignore rules."
+  },
+  "notifyClipSecurityBodyNoLink": {
+    "message": "Security scan blocked this clip. Open WebUI → Settings → Wiki to review ignore rules."
+  },
+  "notifyClipErrorTitle": {
+    "message": "Clip failed"
+  },
+  "approvalTitleSingle": {
+    "message": "Approve this action?"
+  },
+  "approvalTitleBatch": {
+    "message": "Approve these $COUNT$ actions?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "approvalTitleExternal": {
+    "message": "Approval needed"
+  },
+  "approvalHintElevated": {
+    "message": "This action needs extra confirmation. Approve it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalHintExternal": {
+    "message": "Respond to this request in the Myrm Agent web app."
+  },
+  "approvalApprove": {
+    "message": "Approve"
+  },
+  "approvalReject": {
+    "message": "Reject"
+  },
+  "approvalDismiss": {
+    "message": "Dismiss"
+  },
+  "approvalHandledElsewhere": {
+    "message": "This approval was already handled, either by timeout or in another window."
+  },
+  "approvalSendFailed": {
+    "message": "Your answer could not be sent. Check the connection and try again."
+  },
+  "approvalHintTooLong": {
+    "message": "This is too long to review here. Open it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalHintNoDetails": {
+    "message": "There is nothing to review here for this action. Approve it in the Myrm Agent web app, or reject it here."
+  },
+  "approvalDeadlineDeny": {
+    "message": "Rejected automatically at $TIME$ if you don't answer.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "approvalDeadlineAllow": {
+    "message": "Approved automatically at $TIME$ if you don't answer.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "10:02:30"
+      }
+    }
+  },
+  "approvalExpiredDeny": {
+    "message": "The approval timed out and is rejected automatically."
+  },
+  "approvalExpiredAllow": {
+    "message": "The approval timed out and is approved automatically."
+  },
+  "notifyApprovalTitle": {
+    "message": "Your agent is waiting for you"
+  },
+  "notifyApprovalBody": {
+    "message": "Review the pending action in the Myrm Agent side panel."
+  },
+  "approvalNotifyLabel": {
+    "message": "Notify me when the agent needs my approval"
+  },
+  "panelNewChat": {
+    "message": "New chat"
+  },
+  "panelOpenSettings": {
+    "message": "Open settings"
+  },
+  "panelCancel": {
+    "message": "Cancel"
+  },
+  "panelEmptyTitle": {
+    "message": "Ask anything"
+  },
+  "panelEmptyHint": {
+    "message": "Select text on any page, right-click \"Ask Myrm Agent\", or type below."
+  },
+  "panelThinking": {
+    "message": "Thinking…"
+  },
+  "panelUsingTool": {
+    "message": "Using $TOOL$…",
+    "placeholders": {
+      "tool": {
+        "content": "$1",
+        "example": "file_read_tool"
+      }
+    }
+  },
+  "panelToolFallback": {
+    "message": "tool"
+  },
+  "panelNotConnected": {
+    "message": "Myrm Agent is not connected."
+  },
+  "panelInputPlaceholder": {
+    "message": "Ask anything…"
+  },
+  "panelInputPaused": {
+    "message": "Answer the approval above to continue"
+  },
+  "panelStreamError": {
+    "message": "Something went wrong. Check the connection and try again."
+  },
+  "panelAgentBusy": {
+    "message": "The agent is still working on the previous step. Try again in a moment."
+  },
+  "allowAllEligibleTabs": {
+    "message": "Allow all eligible websites"
+  }
+}

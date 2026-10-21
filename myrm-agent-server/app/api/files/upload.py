@@ -1,0 +1,194 @@
+"""文件上传 API
+
+通过 FilesService + StorageProvider 统一存储，
+支持 Local（本地）和 Sandbox（S3）两种模式。
+"""
+
+import io
+import logging
+import mimetypes
+
+from fastapi import APIRouter, Form, Request, UploadFile
+from fastapi.responses import JSONResponse
+from myrm_agent_harness.utils.media.image_compressor import (
+    SEND_COMPRESS_MAX_DIMENSION,
+    SEND_COMPRESS_QUALITY,
+    image_compressor,
+)
+from pydantic import BaseModel, Field
+from pydantic.alias_generators import to_camel
+
+from app.config.settings import settings
+from app.core.infra.limiter import limiter
+from app.core.storage import files_service
+from app.core.utils.errors import internal_error, validation_error
+from app.core.utils.response_utils import success_response
+from app.schemas.responses import StandardSuccessResponse
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+_MAX_FILE_BYTES = 50 * 1024 * 1024  # 50 MB per file
+_MAX_FILES = 20
+_MAX_CHAT_ID_LENGTH = 255  # width of the chats.id column: no real chat id is refused
+_STREAM_CHUNK_SIZE = 64 * 1024  # 64 KB chunks for streaming reads
+
+ALLOWED_EXTENSIONS = {
+    ".png",
+    ".jpeg",
+    ".jpg",
+    ".gif",
+    ".webp",
+    ".bmp",
+    ".pdf",
+    ".docx",
+    ".xlsx",
+    ".xls",
+    ".pptx",
+    ".ppt",
+    ".csv",
+    ".txt",
+    ".md",
+    ".json",
+}
+IMAGE_EXTENSIONS = {".png", ".jpeg", ".jpg", ".gif", ".webp", ".bmp"}
+
+
+class FileUploadResult(BaseModel):
+    file_id: str = Field(..., description="文件 ID")
+    file_name: str = Field(..., description="文件名")
+    file_url: str = Field(..., description="文件访问 URL")
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class FileUploadData(BaseModel):
+    uploaded_count: int = Field(..., description="成功上传数量")
+    files: list[FileUploadResult] = Field(default=[], description="上传的文件列表")
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+def _get_file_extension(filename: str) -> str:
+    """提取文件扩展名（小写，含点号）"""
+    return f".{filename.rsplit('.', 1)[-1].lower()}" if "." in filename else ""
+
+
+def _infer_content_type(filename: str, client_type: str | None) -> str | None:
+    """When the client sends a generic or missing MIME type, infer from extension."""
+    if client_type and client_type != "application/octet-stream":
+        return client_type
+    guessed, _ = mimetypes.guess_type(filename)
+    return guessed or client_type
+
+
+def _build_file_content_url(request: Request, file_id: str) -> str:
+    """构建文件内容访问 URL"""
+    base_url = f"{request.url.scheme}://{request.url.netloc}"
+    return f"{base_url}{settings.api_prefix}/files/storage/files/{file_id}/content"
+
+
+async def _compress_image(content: bytes, filename: str) -> bytes:
+    """Compress image, returning original content on failure or for animated GIFs."""
+    try:
+        # Responsive compression: downsample oversized images to max 2048px to save LLM
+        # tokens and prevent payload explosion. Animated GIFs and small images pass
+        # through untouched (compress_if_needed preserves animation + zero-cost fast path).
+        compressed = image_compressor.compress_if_needed(
+            content,
+            max_dimension=SEND_COMPRESS_MAX_DIMENSION,
+            quality=SEND_COMPRESS_QUALITY,
+        )
+        if compressed is not content:
+            logger.warning(
+                "Image compressed: %s, original: %d bytes, compressed: %d bytes",
+                filename,
+                len(content),
+                len(compressed),
+            )
+            return compressed
+    except Exception as e:
+        logger.error("Failed to compress image %s: %s", filename, e)
+    return content
+
+
+async def _stream_to_bytes(upload: UploadFile, max_bytes: int) -> bytes:
+    """Stream-read an UploadFile with a size cap to avoid loading oversized files into memory."""
+    buf = io.BytesIO()
+    total = 0
+    while chunk := await upload.read(_STREAM_CHUNK_SIZE):
+        total += len(chunk)
+        if total > max_bytes:
+            raise validation_error(f"File {upload.filename} exceeds {max_bytes // (1024 * 1024)}MB limit")
+        buf.write(chunk)
+    return buf.getvalue()
+
+
+@router.post("/upload", response_model=StandardSuccessResponse)
+@limiter.limit(settings.rate_limit.file_upload)
+async def upload_files(
+    request: Request,
+    files: list[UploadFile] = Form(..., description="要上传的文件列表"),
+    chat_id: str | None = Form(
+        default=None,
+        max_length=_MAX_CHAT_ID_LENGTH,
+        description="无痕会话的 ID：上传绑定到该会话，随会话清理；普通会话不传",
+    ),
+) -> JSONResponse:
+    """上传文件到统一存储服务"""
+    if not files:
+        raise validation_error("At least one file is required")
+    if len(files) > _MAX_FILES:
+        raise validation_error(f"Maximum {_MAX_FILES} files allowed")
+
+    valid_files: list[tuple[UploadFile, bytes]] = []
+    for file in files:
+        if not file.filename:
+            continue
+        ext = _get_file_extension(file.filename)
+        if ext not in ALLOWED_EXTENSIONS:
+            continue
+
+        content = await _stream_to_bytes(file, _MAX_FILE_BYTES)
+        valid_files.append((file, content))
+
+    if not valid_files:
+        raise validation_error("No valid files to upload, please check file types and sizes")
+
+    try:
+        results: list[FileUploadResult] = []
+
+        for file, content in valid_files:
+            assert file.filename is not None
+            ext = _get_file_extension(file.filename)
+
+            if ext in IMAGE_EXTENSIONS:
+                content = await _compress_image(content, file.filename)
+
+            stored_file = await files_service.upload_file(
+                filename=file.filename,
+                content=content,
+                content_type=_infer_content_type(file.filename, file.content_type),
+                # A blank field means the caller did not mean to bind: a whitespace id would name a chat that cannot exist.
+                source_chat_id=(chat_id or "").strip() or None,
+            )
+
+            results.append(
+                FileUploadResult(
+                    file_id=stored_file.id,
+                    file_name=stored_file.filename,
+                    file_url=_build_file_content_url(request, stored_file.id),
+                )
+            )
+
+        data = FileUploadData(uploaded_count=len(results), files=results)
+        return success_response(data=data.model_dump())
+
+    except Exception as e:
+        logger.error(f"File upload error: {e}")
+        raise internal_error(operation="File upload", exception=e) from e

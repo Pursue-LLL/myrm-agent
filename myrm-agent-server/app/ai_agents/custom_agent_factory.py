@@ -1,0 +1,583 @@
+"""CustomAgentFactory — builds SkillAgent instances for custom subagents.
+
+[INPUT]
+myrm_agent_harness.agent.sub_agents.types::SubagentConfig (POS: subagent runtime contract)
+app.core.memory.adapters.setup::create_memory_manager (POS: Server memory manager adapter factory)
+
+[OUTPUT]
+CustomAgentFactory: DB-backed custom subagent factory.
+EphemeralAgentFactory: in-memory JIT subagent factory (rebinds memory_search_tool like CustomAgentFactory).
+
+[POS]
+Custom subagent assembly layer. Builds isolated SkillAgent instances and rebinds the inherited memory_search_tool to the
+subagent's own memory only, so a delegated subagent never inherits the parent's wiki or past-conversation corpora.
+
+When a custom agent (configured by the user in the frontend) is delegated
+as a subagent via delegate_task, the framework's build_child_agent() calls
+this factory to construct a fully-featured SkillAgent instead of a bare
+BaseAgent.
+
+This enables custom subagents to retain their full capabilities: skills,
+memory, MCP integrations, and personality style.
+
+Resources (skill_backend, MCP configs) are initialized
+once on first build() and cached for reuse within the same session.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING, cast
+
+from myrm_agent_harness.api import AgentRuntimeSpec, get_subagent_checkpointer
+
+if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
+    from langchain_core.tools import BaseTool
+    from myrm_agent_harness.agent.base_agent import BaseAgent
+    from myrm_agent_harness.agent.security.types import SecurityConfig
+    from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+    from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
+    from myrm_agent_harness.backends.skills.protocols import SkillBackend
+    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+
+logger = logging.getLogger(__name__)
+_EPHEMERAL_MEMORY_ISOLATION = "ephemeral_session"
+
+
+def _coerce_str_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value:
+        if isinstance(item, str):
+            out.append(item)
+    return out
+
+
+def _coerce_str_frozenset(value: object) -> frozenset[str]:
+    if not isinstance(value, (list, tuple, set, frozenset)):
+        return frozenset()
+    return frozenset(item for item in value if isinstance(item, str))
+
+
+def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[str, ...]) -> list[object]:
+    """Filter inherited tools based on the active agent's tool boundaries."""
+    from myrm_agent_harness.core.security.tool_registry import TOOL_TO_GROUP
+
+    active_groups = set()
+    if "web_search" in enabled_builtin_tools:
+        active_groups.add("web")
+    if "browser" in enabled_builtin_tools:
+        active_groups.add("browser")
+    if "file_ops" in enabled_builtin_tools:
+        active_groups.add("file_ops")
+    if "code_execute" in enabled_builtin_tools:
+        active_groups.add("shell")
+    if "computer_use" in enabled_builtin_tools:
+        active_groups.add("computer_use")
+    if "memory" in enabled_builtin_tools:
+        active_groups.add("memory")
+    if "kanban" in enabled_builtin_tools:
+        active_groups.add("kanban")
+    if "wiki" in enabled_builtin_tools:
+        active_groups.add("wiki")
+
+    filtered = []
+    for t in tools:
+        t_name = getattr(t, "name", "")
+        t_group = TOOL_TO_GROUP.get(t_name)
+        # If the tool is part of a canonical group but the group is not enabled, filter it out
+        if t_group is not None and t_group not in active_groups:
+            continue
+        filtered.append(t)
+    return filtered
+
+
+def _inherit_parent_security_config(parent_agent: object) -> SecurityConfig | None:
+    """Inherit the parent agent's SecurityConfig for the child SkillAgent.
+
+    Mirrors the framework's bare-BaseAgent child path (builder.build_child_agent)
+    so delegated SkillAgents share the same security posture (approval policies,
+    capabilities, path policy) as the parent. Returns None when the parent has no
+    runtime config (e.g. SimpleNamespace in unit tests) so callers fall back to
+    framework fail-closed defaults.
+    """
+    config = getattr(parent_agent, "config", None)
+    if config is None:
+        return None
+    security_config = getattr(config, "security_config", None)
+    if security_config is None:
+        logger.warning("[subagent] parent_agent.config.security_config is None — child will fall back to fail-closed defaults")
+    return security_config
+
+
+def _rebind_subagent_memory_search_tool(
+    tools: list[object],
+    *,
+    memory_manager: object,
+    description_locale: str | None = None,
+) -> None:
+    """Replace the inherited memory_search_tool with one that searches only the subagent's own memory.
+
+    The parent's tool may carry its wiki and past-conversation corpora; a delegated subagent never inherits them.
+    """
+    from myrm_agent_harness.toolkits import create_memory_tools
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+    if not isinstance(memory_manager, MemoryManager):
+        return
+
+    rebuilt = create_memory_tools(memory_manager, description_locale=description_locale)
+    rebuilt_search = next(
+        (tool for tool in rebuilt if getattr(tool, "name", "") == "memory_search_tool"),
+        None,
+    )
+    if rebuilt_search is None:
+        return
+
+    for index, tool in enumerate(tools):
+        if getattr(tool, "name", "") == "memory_search_tool":
+            tools[index] = rebuilt_search
+            return
+
+
+def _apply_subagent_memory_search_rebind(
+    tools: list[object],
+    *,
+    parent_agent: object,
+    memory_manager: object | None,
+    enabled_builtin: tuple[str, ...],
+) -> None:
+    """Rebind inherited memory_search_tool when the subagent profile enables memory."""
+    if memory_manager is None or "memory" not in enabled_builtin:
+        return
+    from app.core.agent.tool_description_locale import resolve_tool_description_locale
+
+    tool_description_locale = resolve_tool_description_locale(
+        agent_locale=getattr(parent_agent, "locale", None),
+        channel=getattr(parent_agent, "channel_name", None),
+    )
+    _rebind_subagent_memory_search_tool(
+        tools,
+        memory_manager=memory_manager,
+        description_locale=tool_description_locale,
+    )
+
+
+def _subagent_write_backend(config: SubagentConfig) -> SkillWriteBackend | None:
+    """Mount skill_manage_tool when the subagent allowlist includes it."""
+    if "skill_manage_tool" not in config.tools:
+        return None
+    from app.core.skills.creation.service import skill_creation_service
+    from app.core.skills.creation.version_persisting_backend import (
+        VersionPersistingSkillWriteBackend,
+    )
+
+    return VersionPersistingSkillWriteBackend(skill_creation_service)
+
+
+class CustomAgentFactory:
+    """AgentFactory implementation that creates SkillAgent from DB profile.
+
+    Loads the full agent configuration (skills, model, MCP)
+    from the database and constructs a SkillAgent via create_skill_agent().
+
+    Resources are lazily initialized on first build() and cached for reuse
+    when the same custom agent is delegated multiple times in a session.
+    """
+
+    __slots__ = (
+        "_agent_id",
+        "_agent_profile",
+        "_init_lock",
+        "_cached_skill_backend",
+        "_cached_mcp_configs",
+        "_initialized",
+    )
+
+    def __init__(
+        self,
+        agent_id: str,
+        agent_profile: object,
+    ) -> None:
+        self._agent_id = agent_id
+        self._agent_profile = agent_profile
+        self._init_lock = asyncio.Lock()
+        self._cached_skill_backend: SkillBackend | None = None
+        self._cached_mcp_configs: list[object] = []
+        self._initialized = False
+
+    @staticmethod
+    async def _resolve_embedding_config() -> EmbeddingConfig | None:
+        """Resolve embedding config from WebUI retrieval settings."""
+        from app.services.agent.platform_config import load_platform_retrieval_configs
+
+        embedding_cfg, _ = await load_platform_retrieval_configs()
+        return embedding_cfg
+
+    async def _ensure_initialized(self) -> None:
+        """Initialize cached resources (skill backend, KB tools, MCP configs).
+
+        Thread-safe via asyncio.Lock. Idempotent — skips if already done.
+        """
+        if self._initialized:
+            return
+
+        async with self._init_lock:
+            if self._initialized:
+                return
+
+            profile = self._agent_profile
+            metadata: dict[str, object] = getattr(profile, "metadata", None) or {}
+
+            from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
+            from app.core.skills.loader import create_skill_backend
+            from app.core.skills.store.user_config import UserSkillConfigManager
+            from app.platform_utils import get_storage_provider
+
+            storage_backend = get_storage_provider()
+            skill_ids = await resolve_runtime_skill_ids(getattr(profile, "skills", None) or [])
+            # Keep custom subagents in the same prebuilt-visibility contract as GeneralAgent:
+            # only user-enabled prebuilt skills are loaded into runtime action space.
+            user_skill_cfg = await UserSkillConfigManager(storage_backend).get_config()
+            allowed_prebuilt = _coerce_str_frozenset(getattr(user_skill_cfg, "enabled_prebuilt_ids", []))
+
+            self._cached_skill_backend = await create_skill_backend(
+                storage=storage_backend,
+                skill_ids=skill_ids or None,
+                user_id="default",
+                allowed_prebuilt_ids=allowed_prebuilt,
+            )
+
+            mcp_ids = _coerce_str_list(metadata.get("mcp_ids", []))
+            if mcp_ids:
+                try:
+                    from app.core.channel_bridge.config_loader import load_user_configs
+                    from app.core.channel_bridge.config_parsers import (
+                        extract_mcp_configs,
+                        merge_org_mcp_configs,
+                    )
+                    from app.services.agent.params.mcp_selection import (
+                        apply_agent_mcp_selection,
+                        coerce_tool_selections,
+                    )
+
+                    configs = await load_user_configs()
+                    if configs:
+                        all_mcp = merge_org_mcp_configs(
+                            extract_mcp_configs(configs.mcp_dict),
+                            configs.org_mcp_dict,
+                        )
+                        tool_selections = coerce_tool_selections(metadata.get("mcp_tool_selections"))
+                        self._cached_mcp_configs = apply_agent_mcp_selection(
+                            all_mcp,
+                            mcp_ids=tuple(mcp_ids),
+                            mcp_tool_selections=tool_selections,
+                        )
+                except Exception as e:
+                    logger.warning("[CustomAgentFactory] MCP config resolution failed: %s", e)
+
+            self._initialized = True
+
+    async def build(
+        self,
+        config: SubagentConfig,
+        tools: list[object],
+        task_description: str,
+        parent_agent: object,
+        current_depth: int,
+        complexity_tier: str | None = None,
+    ) -> BaseAgent:
+        """Build a SkillAgent with full custom agent capabilities."""
+        from myrm_agent_harness.api import create_skill_agent
+        from myrm_agent_harness.toolkits.llms import llm_manager
+
+        from app.platform_utils import get_storage_provider
+
+        await self._ensure_initialized()
+        profile = self._agent_profile
+
+        # 10/10 Scheme: If context is forked, we MUST drop the system_prompt entirely.
+        # Otherwise, LangGraph prepends a new SystemMessage, shifting the array and breaking Prefix Cache!
+        if getattr(config, "context_mode", "isolated") == "fork":
+            system_prompt = ""
+        else:
+            system_prompt = config.system_prompt or ""
+
+        # NOT appending task_description to system_prompt to preserve prefix cache (cache_control).
+
+        # --- 1. Resolve LLM ---
+        llm: BaseChatModel | None = None
+        if config.llm is not None:
+            llm = cast("BaseChatModel", config.llm)
+        elif config.model:
+            try:
+                from app.core.channel_bridge.config_loader import load_user_configs
+                from app.core.channel_bridge.model_resolver import resolve_model_config
+
+                configs = await load_user_configs()
+                providers_dict = configs.providers_dict if configs else None
+                model_cfg = resolve_model_config(
+                    providers_dict,
+                    model_override=config.model,
+                )
+                llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
+            except Exception as e:
+                logger.warning(
+                    "[CustomAgentFactory] Failed to resolve model '%s', falling back to parent LLM: %s",
+                    config.model,
+                    e,
+                )
+        if llm is None:
+            llm = cast("BaseChatModel", cast("BaseAgent", parent_agent).llm)
+
+        # --- 2. Memory Manager (respects memory_isolation policy) ---
+        memory_manager = None
+        if str(getattr(config, "memory_isolation", _EPHEMERAL_MEMORY_ISOLATION)) != _EPHEMERAL_MEMORY_ISOLATION:
+            try:
+                from app.core.memory.adapters.setup import (
+                    create_memory_manager,
+                    resolve_context_binding,
+                )
+
+                embedding_cfg = await self._resolve_embedding_config()
+                if embedding_cfg is not None:
+                    from app.services.memory.extract_retry.resolve_chat_extraction_llm import (
+                        get_platform_dedup_llm,
+                    )
+
+                    dedup_llm = await get_platform_dedup_llm() or llm
+                    memory_manager = await create_memory_manager(
+                        resolve_context_binding(
+                            namespaces=None,
+                            agent_id=self._agent_id,
+                            channel_id=None,
+                            conversation_id=None,
+                            task_id=None,
+                            project_id=getattr(config, "project_id", None) or getattr(self, "_project_id", None),
+                            memory_policy=getattr(profile, "memory_policy", None),
+                        ),
+                        embedding_config=embedding_cfg,
+                        dedup_llm=dedup_llm,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "[CustomAgentFactory] Memory manager creation failed (degraded to no-memory): %s",
+                    e,
+                )
+
+        # --- 3. Max iterations ---
+        max_iterations = getattr(profile, "max_iterations", None) or 100
+
+        # --- 4. Personality style suffix ---
+        from app.ai_agents.personality_templates import render_personality_block
+
+        raw_style = (getattr(profile, "metadata", None) or {}).get("personality_style")
+        try:
+            style_block = render_personality_block(raw_style if isinstance(raw_style, str) else None)
+        except Exception as exc:  # 防御：风格渲染异常绝不能阻断子 Agent 创建
+            style_block = None
+            logger.warning("Failed to render personality style '%s': %s", raw_style, exc)
+        if style_block:
+            system_prompt += f"\n\n{style_block}"
+
+        # --- 5. Build AgentRuntimeSpec & create SkillAgent ---
+        from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
+
+        skill_ids = await resolve_runtime_skill_ids(getattr(profile, "skills", None) or [])
+
+        profile_metadata: dict[str, object] = getattr(profile, "metadata", None) or {}
+        raw_engine_params = profile_metadata.get("engine_params")
+        engine_params: dict[str, object] | None = dict(raw_engine_params) if isinstance(raw_engine_params, dict) else None
+        raw_openapi = profile_metadata.get("openapi_services")
+        openapi_services: list[dict[str, object]] = (
+            [item for item in raw_openapi if isinstance(item, dict)] if isinstance(raw_openapi, list) else []
+        )
+        from app.services.agent.mcp_surface_mode import (
+            normalize_mcp_surface_engine_params,
+        )
+
+        mcp_surface_mode, engine_params = normalize_mcp_surface_engine_params(engine_params)
+
+        from app.services.agent.params.profile_output_suffixes import (
+            apply_profile_output_suffixes,
+        )
+
+        system_prompt = (
+            apply_profile_output_suffixes(
+                system_prompt,
+                personality_style=None,
+                engine_params=engine_params,
+                agent_id=self._agent_id,
+            )
+            or system_prompt
+        )
+
+        mcp_servers = list(self._cached_mcp_configs)
+        if mcp_servers:
+            from app.services.agent.mcp_runtime_prepare import (
+                prepare_mcp_configs_for_runtime,
+            )
+
+            mcp_servers = await prepare_mcp_configs_for_runtime(
+                self._agent_id,
+                mcp_servers,
+            )
+
+        spec = AgentRuntimeSpec(
+            agent_id=self._agent_id,
+            name=getattr(profile, "display_name", None) or self._agent_id,
+            system_prompt=system_prompt,
+            skill_ids=skill_ids,
+            mcp_servers=mcp_servers,
+            openapi_services=openapi_services,
+            engine_params=engine_params,
+            mcp_surface_mode=mcp_surface_mode,
+            max_iterations=max_iterations,
+            security_config=_inherit_parent_security_config(parent_agent),
+        )
+
+        enabled_builtin = getattr(profile, "enabled_builtin_tools", ())
+        all_tools = _filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
+        _apply_subagent_memory_search_rebind(
+            all_tools,
+            parent_agent=parent_agent,
+            memory_manager=memory_manager,
+            enabled_builtin=tuple(enabled_builtin),
+        )
+
+        storage_backend = get_storage_provider()
+        agent = await create_skill_agent(
+            spec=spec,
+            llm=llm,
+            executor=cast("BaseAgent", parent_agent).executor,
+            storage_backend=storage_backend,
+            skill_backend=self._cached_skill_backend,
+            write_backend=_subagent_write_backend(config),
+            memory_manager=memory_manager,
+            tools=all_tools,
+            collect_artifacts=False,
+            checkpointer=get_subagent_checkpointer(),
+        )
+
+        logger.info(
+            "[CustomAgentFactory] Built SkillAgent for '%s': skills=%d, tools=%d, memory=%s, mcp=%d",
+            self._agent_id,
+            len(skill_ids),
+            len(all_tools),
+            config.memory_isolation.value,
+            len(mcp_servers),
+            extra={"complexity_tier": complexity_tier, "current_depth": current_depth},
+        )
+        return agent
+
+
+class EphemeralAgentFactory:
+    """AgentFactory implementation for in-memory JIT subagents.
+
+    Constructs a SkillAgent purely from memory configurations without hitting
+    the database. Used for 'Scenario Blueprint' ephemeral teams.
+    """
+
+    __slots__ = ("_agent_id", "_metadata")
+
+    def __init__(self, agent_id: str, metadata: dict[str, object] | None = None) -> None:
+        self._agent_id = agent_id
+        self._metadata = metadata or {}
+
+    async def build(
+        self,
+        config: SubagentConfig,
+        tools: list[object],
+        task_description: str,
+        parent_agent: object,
+        current_depth: int,
+        complexity_tier: str | None = None,
+    ) -> BaseAgent:
+
+        from myrm_agent_harness.api import AgentRuntimeSpec, create_skill_agent
+        from myrm_agent_harness.toolkits.llms import llm_manager
+
+        from app.platform_utils import get_storage_provider
+
+        # 10/10 Scheme: If context is forked, we MUST drop the system_prompt entirely.
+        # Otherwise, LangGraph prepends a new SystemMessage, shifting the array and breaking Prefix Cache!
+        if getattr(config, "context_mode", "isolated") == "fork":
+            system_prompt = ""
+        else:
+            system_prompt = config.system_prompt or ""
+
+        # NOT appending task_description to system_prompt to preserve prefix cache (cache_control).
+
+        llm = None
+        if config.llm is not None:
+            llm = config.llm
+        elif config.model:
+            try:
+                from app.core.channel_bridge.config_loader import load_user_configs
+                from app.core.channel_bridge.model_resolver import resolve_model_config
+
+                configs = await load_user_configs()
+                providers_dict = configs.providers_dict if configs else None
+                model_cfg = resolve_model_config(
+                    providers_dict,
+                    model_override=config.model,
+                )
+                llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
+            except Exception as e:
+                logger.warning(
+                    "[EphemeralAgentFactory] Failed to resolve model '%s': %s",
+                    config.model,
+                    e,
+                )
+
+        if llm is None:
+            llm = getattr(parent_agent, "llm", None)
+
+        spec = AgentRuntimeSpec(
+            agent_id=self._agent_id,
+            name=config.display_name or self._agent_id,
+            system_prompt=system_prompt,
+            skill_ids=[],
+            mcp_servers=[],
+            max_iterations=config.max_turns,
+            security_config=_inherit_parent_security_config(parent_agent),
+        )
+
+        raw_builtin = self._metadata.get("enabled_builtin_tools")
+        if not isinstance(raw_builtin, (list, tuple)):
+            from app.services.agent.profile.profile_resolver import (
+                DEFAULT_ENABLED_BUILTIN_TOOLS,
+            )
+
+            raw_builtin = DEFAULT_ENABLED_BUILTIN_TOOLS
+        enabled_builtin = tuple(str(x) for x in raw_builtin)
+        all_tools = _filter_tools_by_profile(list(tools), enabled_builtin)
+        _apply_subagent_memory_search_rebind(
+            all_tools,
+            parent_agent=parent_agent,
+            memory_manager=getattr(parent_agent, "memory_manager", None),
+            enabled_builtin=enabled_builtin,
+        )
+
+        agent = await create_skill_agent(
+            spec=spec,
+            llm=llm,
+            executor=getattr(parent_agent, "executor", None),
+            storage_backend=get_storage_provider(),
+            skill_backend=None,
+            write_backend=_subagent_write_backend(config),
+            memory_manager=None,
+            tools=all_tools,
+            collect_artifacts=False,
+            checkpointer=get_subagent_checkpointer(),
+        )
+
+        logger.info(
+            "[EphemeralAgentFactory] Built in-memory SkillAgent for '%s'",
+            self._agent_id,
+            extra={"complexity_tier": complexity_tier, "current_depth": current_depth},
+        )
+        return agent

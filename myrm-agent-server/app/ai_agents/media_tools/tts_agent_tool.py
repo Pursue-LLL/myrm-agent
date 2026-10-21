@@ -1,0 +1,170 @@
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.tts.tts_engine::AsyncTTSEngine (POS: TTS synthesis engine)
+
+[OUTPUT]
+- create_tts_tool(): LangChain BaseTool adapter for text-to-speech
+
+[POS]
+LangChain adapter for harness AsyncTTSEngine (product layer).
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from collections.abc import Callable
+from typing import Any
+
+from langchain_core.callbacks import CallbackManagerForToolRun
+from langchain_core.tools import BaseTool
+from myrm_agent_harness.core.artifacts.constants import ArtifactType
+from myrm_agent_harness.toolkits.llms.tts.generator import AsyncTTSEngine
+from myrm_agent_harness.toolkits.llms.tts.models import TTSConfig
+from pydantic import BaseModel, Field, PrivateAttr
+
+logger = logging.getLogger(__name__)
+
+ArtifactPushFn = Callable[[str, str, ArtifactType, str], None]
+
+
+MAX_TTS_TEXT_LENGTH = 1500
+
+
+class TTSInput(BaseModel):
+    """Input schema for TTS tool."""
+
+    text: str = Field(
+        ...,
+        description="The plain text content to synthesize into spoken audio. For optimal latency and natural prosody, keep text concise (under 1500 characters).",
+    )
+    style: str | None = Field(
+        default=None,
+        description=(
+            "Optional speaking style directive for expressive narration, e.g. "
+            "'cheerful and energetic' or 'calm and soothing'. Write it as a short natural-language "
+            "phrase. Applied only when the Volcengine Seed-Audio voice is configured; other providers "
+            "ignore it and use their default tone."
+        ),
+    )
+
+
+class TTSTool(BaseTool):
+    """Tool for generating speech from text."""
+
+    name: str = "tts_generate"
+    description: str = (
+        "Generate natural spoken speech (audio) from text. "
+        "Use this when the user asks to read something out loud, synthesize voice narration, or generate a voice message. "
+        "Returns a persistent audio URL and an audio artifact."
+    )
+    args_schema: type[BaseModel] = TTSInput
+
+    config: TTSConfig = Field(exclude=True)
+    _engine: AsyncTTSEngine = PrivateAttr()
+    _on_artifact_created: ArtifactPushFn | None = PrivateAttr(default=None)
+
+    def __init__(
+        self,
+        config: TTSConfig,
+        *,
+        on_artifact_created: ArtifactPushFn | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(config=config, **kwargs)
+        self._engine = AsyncTTSEngine(config)
+        self._on_artifact_created = on_artifact_created
+
+    def _run(
+        self,
+        text: str,
+        run_manager: CallbackManagerForToolRun | None = None,
+    ) -> str:
+        """Synchronous run is not supported."""
+        raise NotImplementedError("TTSTool only supports async execution.")
+
+    async def _arun(
+        self,
+        text: str,
+        style: str | None = None,
+        run_manager: CallbackManagerForToolRun | None = None,
+    ) -> str:
+        """Asynchronously generate speech."""
+        cleaned_text = text.strip()
+        if not cleaned_text:
+            return json.dumps(
+                {"status": "error", "error": "Text content cannot be empty."},
+                ensure_ascii=False,
+            )
+
+        if len(cleaned_text) > MAX_TTS_TEXT_LENGTH:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "error": (
+                        f"Text length ({len(cleaned_text)} characters) exceeds the safe single-turn limit "
+                        f"of {MAX_TTS_TEXT_LENGTH} characters. Please summarize or chunk the text into smaller segments."
+                    ),
+                },
+                ensure_ascii=False,
+            )
+
+        try:
+            # Clamp style directives: Seed-Audio wraps them into a bounded text prompt.
+            effective_style = (style or "").strip()[:200] or None
+            result = await self._engine.generate(cleaned_text, style=effective_style)
+
+            out: dict[str, object] = {
+                "status": "success",
+                "provider": result.provider,
+                "model": result.model,
+                "latency_ms": round(result.latency_ms),
+            }
+            if result.duration_seconds is not None:
+                out["duration_seconds"] = round(result.duration_seconds, 1)
+            if result.persisted_url:
+                out["audio_url"] = result.persisted_url
+                out["message"] = (
+                    f"Successfully generated audio. URL: {result.persisted_url}"
+                )
+                self._push_artifact(result)
+            else:
+                out["message"] = (
+                    "Successfully generated audio, but failed to persist to URL."
+                )
+
+            return json.dumps(out, ensure_ascii=False)
+        except Exception as e:
+            logger.error("TTS generation failed: %s", e)
+            return json.dumps(
+                {"status": "error", "error": f"TTS generation failed: {e}"},
+                ensure_ascii=False,
+            )
+
+    def _push_artifact(self, result: Any) -> None:
+        """Notify caller about the generated artifact via callback."""
+        if not self._on_artifact_created:
+            return
+        url = result.persisted_url
+        if not url:
+            return
+        from myrm_agent_harness.utils.mime_types import extension_for_mime
+
+        ext = extension_for_mime(result.mime_type)
+        try:
+            self._on_artifact_created(
+                f"generated_{result.model}.{ext}",
+                url,
+                ArtifactType.AUDIO,
+                result.mime_type,
+            )
+        except Exception as exc:
+            logger.debug("Artifact push callback failed: %s", exc)
+
+
+def create_tts_tool(
+    config: TTSConfig,
+    *,
+    on_artifact_created: ArtifactPushFn | None = None,
+) -> TTSTool:
+    """Wrap an AsyncTTSEngine config as a LangChain tool named ``tts_generate``."""
+    return TTSTool(config, on_artifact_created=on_artifact_created)

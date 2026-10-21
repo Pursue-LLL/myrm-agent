@@ -1,0 +1,18 @@
+# app/server 模块架构
+
+FastAPI 服务器配置层。管理应用 lifespan（启动三阶段 + 优雅关闭）、全局异常处理和中间件注册。
+
+**进程级启动**（`run.py` → `app/startup/*`）与 **运行时 lifespan** 分工见开源根 [ARCHITECTURE.md](../../ARCHITECTURE.md) 启动序图；`app/startup/_ARCH.md` 负责 env/锁/uvicorn，`app/lifecycle/_ARCH.md` 负责 Gateway/Cron/调度器。
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `lifespan.py` | 核心 | 应用 lifespan 上下文管理器（启动最前置调用 `hydrate_desktop_path` 补全桌面 sidecar PATH，并在任何启动阶段之前消费待处理的 Python 环境重置请求（`services/infra/python_env_reset`，保证环境在被任何组件创建或缓存之前清除）；Phase 1/2/3 启动编排，Phase 2 含 Channel Gateway + Cron + Kanban Dispatchers 并行启动 + 关闭协调，并启动额度上限唤醒守护进程（`usage_limit_resume`，按重置时间恢复被停靠的目标）与云托管到点唤醒上报（`sandbox_wake`，无控制平面配置时空转），含记忆管理器缓存释放与数据库容灾降级；Phase 1.5 含 eval workspace 孤儿清扫；在 `init_database` 之前调用 `instance_archive.run_pending_promotion` 完成整实例导入/恢复点的启动前原子换入；Phase 1a 向 harness 注册订阅令牌的 api-key refresher（`set_api_key_refresher(freshen_api_key)`，失败仅记错误日志、不阻断启动））。Shutdown 阶段先 `AgentGateway.begin_drain()` 等待 in-flight Agent turns 完成，再并行停止其他组件 | ✅ |
+| `status.py` | 核心 | 系统状态透传模块。记录如数据库降级、恢复等全局状态。 | ✅ |
+| `warmup.py` | 核心 | 后台预热引擎（Phase 3：调度器、浏览器池、向量缓存、导入回滚 journal 恢复、旧版插件技能记录清扫等非阻塞任务） | ✅ |
+| `shutdown.py` | 核心 | 安全关闭辅助函数集（各组件的 safe_stop 封装） | ✅ |
+| `exceptions.py` | 辅助 | 全局异常处理器（未捕获异常→HTTP 响应映射）；404 处理器对结构化 `HTTPException.detail` 透传，避免丢失业务错误细节 | ✅ |
+| `middlewares.py` | 核心 | FastAPI 中间件注册：TextSanitizer → Auth → Cache → MaxBodySize → CORS → PublicIngress | ✅ |
+| `runtime_dev_info.py` | 辅助 | 运行时监听端口与 dev 模式标记；health 暴露 `backend_port` + `webui_dev_port`（split_dev 固定 3000） | ✅ |
+| `stack_epoch.py` | 辅助 | 读取 `stack-epoch.json`（含 `source_fingerprint`）；`GET /api/v1/health` 暴露 `stack_epoch`（Verification Plane epoch 探测） | ✅ |

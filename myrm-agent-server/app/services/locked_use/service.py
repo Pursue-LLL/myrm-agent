@@ -1,0 +1,286 @@
+"""LockedUseService — screen unlock lease primitives for unattended Computer Use.
+
+Business-layer primitives for the unattended unlock lease: lock probe, presence probe, serialized
+unlock and verified re-lock. The unattended watcher (``unattended.py``) is the only caller that
+decides to unlock; nothing here initiates an unlock on its own.
+
+[INPUT]
+- myrm_agent_harness.api.security::get_default_screen_detector / hid_idle_seconds (POS: native screen-lock probe and hardware input idle reading)
+- app.services.locked_use.curtain_bridge (lease bit shared with the desktop shell)
+- macOS Keychain (for password retrieval)
+
+[OUTPUT]
+- MacScreenUnlocker: lock probe / presence probe / serialized unlock / verified re-lock primitives
+- release_unlock_lease: re-lock if needed, then hand the lease bit back
+
+[POS]
+Business-layer coordinator for the unattended screen unlock lease.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import re
+import subprocess
+from enum import StrEnum
+
+from myrm_agent_harness.api.security import ScreenLockState, get_default_screen_detector, hid_idle_seconds
+
+from app.services.locked_use.curtain_bridge import clear_pending_auto_unlock
+
+logger = logging.getLogger(__name__)
+
+# Serializes password typing: an overlapping second run would land the password in
+# whatever window has focus on the already-unlocked desktop.
+_unlock_guard = asyncio.Lock()
+
+# Ctrl+Cmd+Q — the system lock chord. AppleScript source is a module constant so
+# the password-bearing unlock script stays the only dynamically built script.
+_RELOCK_SCRIPT = 'tell application "System Events" to keystroke "q" using {control down, command down}'
+
+# How long to wait for the lock chord to take effect before verifying.
+_RELOCK_VERIFY_DELAY_SECONDS = 0.8
+_RELOCK_ATTEMPTS = 3
+
+# Display wake lead time before typing, and settle time before the unlock is verified.
+_UNLOCK_WAKE_DELAY_SECONDS = 0.5
+_UNLOCK_SETTLE_DELAY_SECONDS = 1.0
+
+# Someone who touched the keyboard or mouse within this window is at the machine: typing the
+# password now would collide with their input and open the screen for whoever stands there.
+# It spans several watcher ticks and ordinary pauses at the login window, while an owner who
+# walked away delays the unattended run by no more than this.
+PRESENCE_IDLE_THRESHOLD_SECONDS = 15.0
+
+# `security find-generic-password -g` reports the secret on stderr as `password: "text"`
+# for plain printable data and as `password: 0x<HEX>  "<escaped>"` once it holds anything
+# else (non-ASCII, tabs, backslashes). `-w` hex-encodes such data without saying so, which
+# cannot be told apart from a password that merely looks like hex.
+_KEYCHAIN_PASSWORD_LINE = re.compile(r'^password: (?:0x(?P<hex>[0-9A-Fa-f]+)|"(?P<text>.*)")', re.MULTILINE)
+
+
+class UnlockAttemptOutcome(StrEnum):
+    """Result of one :meth:`MacScreenUnlocker.unlock` attempt (observable, fail-closed)."""
+
+    SUCCESS = "success"
+    ALREADY_UNLOCKED = "already_unlocked"
+    DEFERRED_USER_PRESENT = "deferred_user_present"
+    SKIPPED_AMBIGUOUS_LOCK_STATE = "skipped_ambiguous_lock_state"
+    NO_PASSWORD = "no_password"
+    OSASCRIPT_LAUNCH_FAILED = "osascript_launch_failed"
+    OSASCRIPT_FAILED = "osascript_failed"
+    STILL_LOCKED = "still_locked"
+    UNVERIFIED_SESSION = "unverified_session"
+
+    def lease_ready(self) -> bool:
+        """True when the session is verifiably unlocked and an unlock lease may be held."""
+        return self in (UnlockAttemptOutcome.SUCCESS, UnlockAttemptOutcome.ALREADY_UNLOCKED)
+
+
+def _parse_keychain_password(security_stderr: str) -> str | None:
+    """Decode the password line of ``security find-generic-password -g`` output."""
+    match = _KEYCHAIN_PASSWORD_LINE.search(security_stderr)
+    if match is None:
+        return None
+    hex_digits = match.group("hex")
+    if hex_digits is None:
+        return match.group("text")
+    try:
+        return bytes.fromhex(hex_digits).decode("utf-8")
+    except ValueError:  # odd-length hex, or bytes that are not UTF-8
+        return None
+
+
+class MacScreenUnlocker:
+    """macOS-specific screen lock detection and unlock logic."""
+
+    KEYCHAIN_SERVICE = "com.myrm.agent.screen-unlock"
+    KEYCHAIN_ACCOUNT = "login-password"
+
+    @classmethod
+    def lock_state(cls) -> ScreenLockState:
+        """Current session lock probe result (native in-process on macOS)."""
+        return get_default_screen_detector().get_state(force_refresh=True)
+
+    @classmethod
+    def is_locked(cls) -> bool:
+        """True only for a definitely locked session (native in-process probe).
+
+        UNKNOWN (probe failure) and SLEEPING (display off, session not locked)
+        both count as "not locked", so callers leave the screen alone instead of
+        typing a password blindly.
+        """
+        return cls.lock_state() is ScreenLockState.LOCKED
+
+    @classmethod
+    def is_verifiably_unlocked(cls) -> bool:
+        """True only when the probe reports an unlocked interactive session."""
+        return cls.lock_state() is ScreenLockState.UNLOCKED
+
+    @classmethod
+    def user_present(cls) -> bool:
+        """True unless hardware input has been idle long enough to prove nobody is at the machine.
+
+        An unreadable probe counts as present: like :meth:`is_locked`, uncertainty leaves
+        the screen alone instead of typing the password blindly.
+        """
+        idle = hid_idle_seconds()
+        return idle is None or idle < PRESENCE_IDLE_THRESHOLD_SECONDS
+
+    @classmethod
+    def get_password(cls) -> str | None:
+        """Read the unlock password from the Keychain; None when absent, empty or unreadable.
+
+        The output is never logged: it carries the password.
+        """
+        try:
+            result = subprocess.run(
+                ["security", "find-generic-password", "-s", cls.KEYCHAIN_SERVICE, "-a", cls.KEYCHAIN_ACCOUNT, "-g"],
+                capture_output=True,
+                check=True,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return _parse_keychain_password(result.stderr.decode("utf-8", errors="replace")) or None
+
+    @classmethod
+    async def unlock(cls) -> UnlockAttemptOutcome:
+        """Attempt unlock; outcome is observable for audit logs and lease decisions.
+
+        Callers are serialized and the lock state is re-probed under the guard:
+        whoever waited finds the screen already unlocked and types nothing. Presence
+        is re-probed there too: the caller's own check is stale by the time the
+        guard is held, and a person who reached for the machine is never typed over.
+
+        UNKNOWN and SLEEPING are not treated as success: callers must not take an
+        unlock lease when the session is not verifiably unlocked.
+        """
+        async with _unlock_guard:
+            if cls.is_verifiably_unlocked():
+                return UnlockAttemptOutcome.ALREADY_UNLOCKED
+            if not cls.is_locked():
+                state = cls.lock_state()
+                logger.warning(
+                    "Unlock skipped: lock probe is not definitively locked or unlocked (state=%s)",
+                    state.value,
+                )
+                return UnlockAttemptOutcome.SKIPPED_AMBIGUOUS_LOCK_STATE
+            if cls.user_present():
+                logger.info("Unlock deferred: a user is at the machine")
+                return UnlockAttemptOutcome.DEFERRED_USER_PRESENT
+            return await cls._type_password()
+
+    @classmethod
+    async def _type_password(cls) -> UnlockAttemptOutcome:
+        """Type the Keychain password into the login window.
+
+        The password never leaves this process through argv or logs: the
+        AppleScript is fed over stdin (``osascript -``) and failures report
+        only the exit code, because ``CalledProcessError.cmd`` / osascript
+        stderr can both echo the script body. Blocking subprocess calls run
+        off the event loop so the API stays responsive during the ~2 s typing.
+
+        The wake keypress must not insert a character: the password field may already
+        hold focus, where a printable key such as Space would become the first character
+        of the typed password. Left Arrow does nothing in an empty field, and its key
+        code is the same on every keyboard layout (a letter's key code is not).
+        """
+        password = await asyncio.to_thread(cls.get_password)
+        if not password:
+            logger.warning("Screen is locked but no password found in Keychain")
+            return UnlockAttemptOutcome.NO_PASSWORD
+
+        # Wake display
+        subprocess.Popen(["caffeinate", "-u", "-t", "2"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        await asyncio.sleep(_UNLOCK_WAKE_DELAY_SECONDS)
+
+        escaped_password = password.replace("\\", "\\\\").replace('"', '\\"')
+        script = f"""
+            tell application "System Events"
+                key code 123 -- left arrow to wake
+                delay 0.5
+                keystroke "{escaped_password}"
+                delay 0.2
+                key code 36 -- return
+            end tell
+        """
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["osascript", "-"],
+                input=script,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            logger.error("Failed to unlock screen: osascript could not be launched")
+            return UnlockAttemptOutcome.OSASCRIPT_LAUNCH_FAILED
+
+        if result.returncode != 0:
+            logger.error("Failed to unlock screen: osascript exited with code %d", result.returncode)
+            return UnlockAttemptOutcome.OSASCRIPT_FAILED
+
+        await asyncio.sleep(_UNLOCK_SETTLE_DELAY_SECONDS)
+        if cls.is_verifiably_unlocked():
+            return UnlockAttemptOutcome.SUCCESS
+        state = cls.lock_state()
+        if state is ScreenLockState.LOCKED:
+            logger.error("Screen still locked after unlock attempt (wrong password?)")
+            return UnlockAttemptOutcome.STILL_LOCKED
+        logger.error(
+            "Unlock attempt finished without a verifiable unlocked session (state=%s)",
+            state.value,
+        )
+        return UnlockAttemptOutcome.UNVERIFIED_SESSION
+
+    @classmethod
+    def relock(cls) -> bool:
+        """Re-lock the screen; True only when the lock primitive reported success.
+
+        The lock primitive is fire-and-forget on some platforms, so callers
+        that need certainty must verify with :meth:`is_locked` afterwards.
+        """
+        result = subprocess.run(
+            ["osascript", "-e", _RELOCK_SCRIPT],
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            logger.warning("Re-lock command exited with code %d", result.returncode)
+            return False
+        return True
+
+    @classmethod
+    async def relock_verified(cls) -> bool:
+        """Re-lock, then confirm with the native probe; bounded retry.
+
+        The lock chord is only a request — a denied keystroke injection exits
+        zero without locking anything. Callers must not treat "command ran" as
+        "screen is locked", so success is gated on ``is_locked()``.
+        """
+        for attempt in range(1, _RELOCK_ATTEMPTS + 1):
+            await asyncio.to_thread(cls.relock)
+            await asyncio.sleep(_RELOCK_VERIFY_DELAY_SECONDS)
+            if cls.is_locked():
+                return True
+            logger.warning("Screen not locked after re-lock attempt %d/%d", attempt, _RELOCK_ATTEMPTS)
+        return False
+
+    @classmethod
+    async def ensure_locked(cls) -> bool:
+        """True when the screen is verifiably locked; the lock chord is sent only when needed."""
+        return cls.is_locked() or await cls.relock_verified()
+
+
+async def release_unlock_lease() -> bool:
+    """Re-lock the screen if needed, then hand the lease bit back to the desktop shell.
+
+    The bit is only cleared once the screen is verifiably locked; a screen that
+    cannot be locked keeps it set so the curtain stays up (fail-safe).
+    """
+    if not await MacScreenUnlocker.ensure_locked():
+        return False
+    clear_pending_auto_unlock()
+    return True

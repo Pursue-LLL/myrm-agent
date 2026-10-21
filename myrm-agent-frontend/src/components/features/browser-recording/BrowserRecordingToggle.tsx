@@ -1,0 +1,44 @@
+'use client';
+
+import React from 'react';
+import { cn } from '@/lib/utils/classnameUtils';
+import { Circle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import useBrowserRecordingStore from '@/store/useBrowserRecordingStore';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+
+const BrowserRecordingToggle: React.FC = () => {
+  const t = useTranslations('chat.browserRecording');
+  const { isOpen, status, togglePanel, steps } = useBrowserRecordingStore();
+  const isBrowserActive = useBrowserInspectorStore((s) => s.isBrowserActive);
+
+  const isActive = status === 'recording' || status === 'paused';
+
+  if (!isBrowserActive && !isActive) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={togglePanel}
+      className={cn(
+        'fixed bottom-24 right-6 p-3 rounded-full shadow-lg transition-colors z-50',
+        'flex items-center justify-center gap-1.5',
+        'max-sm:bottom-20 max-sm:right-4',
+        isOpen
+          ? 'bg-destructive text-destructive-foreground ring-2 ring-destructive/30'
+          : isActive
+            ? 'bg-destructive text-destructive-foreground animate-pulse'
+            : 'bg-secondary text-secondary-foreground hover:bg-secondary/90',
+      )}
+      title={t('toggleLabel')}
+      aria-label={t('toggleTitle')}
+    >
+      <Circle size={18} fill={isActive ? 'currentColor' : 'none'} />
+      {isActive && steps.length > 0 && <span className="text-xs font-mono font-bold">{steps.length}</span>}
+    </button>
+  );
+};
+
+export default React.memo(BrowserRecordingToggle);

@@ -1,0 +1,397 @@
+"""Memory→Wiki Automatic Archiving Service.
+
+[INPUT]
+langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
+myrm_agent_harness.toolkits.wiki::WikiCompiler (POS: Wiki 编译核心引擎)
+myrm_agent_harness.toolkits.wiki::WikiQueryEngine (POS: Wiki 查询与增强引擎)
+myrm_agent_harness.toolkits.wiki::WikiLinter (POS: Wiki 健康维护核心引擎)
+myrm_agent_harness.toolkits.wiki::WikiStructure (POS: Wiki 文件系统抽象层)
+myrm_agent_harness.toolkits.wiki::WikiConfig (POS: Wiki 配置中心)
+
+[OUTPUT]
+MemoryToWikiArchiver: Memory→Wiki 自动归档服务
+
+[POS]
+业务层 Memory→Wiki 集成服务。负责将 SessionNotes（压缩后的会话记忆）自动归档到 Wiki：
+触发条件（≥10 轮对话 + ≥500 字符），多租户隔离（per-user wiki），自动编译。
+为用户提供持久化的、结构化的长期知识库。
+
+## Integration with Memory System
+
+1. **Trigger Point**: After context compression (when memory is summarized)
+2. **Data Source**: SessionNotes (structured conversation memory)
+3. **Archival Logic**: Extract high-value concepts and archive to wiki
+4. **Benefits**:
+   - Prevents context waste (valuable insights preserved)
+   - Builds long-term knowledge (beyond single conversation)
+   - Automatic organization (LLM structures the knowledge)
+
+## Vault Location
+
+- Agent vault SSOT: `{harness_dir}/wiki/agents/{agent_id}/` via `vault.resolve_wiki_vault_path(agent_id)`
+- Shared read-only mounts: `{harness_dir}/wiki/shared/{context_id}/` and optional `MYRM_PUBLIC_WIKI_VOLUMES`
+"""
+
+from __future__ import annotations
+
+import asyncio
+from dataclasses import replace
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from langchain_core.language_models import BaseChatModel
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory import MemoryManager
+    from myrm_agent_harness.toolkits.wiki.portability.vault_git import VaultGitCommitResult
+    from myrm_agent_harness.toolkits.wiki.retrieval.asset_index import WikiAssetIndexer
+
+from myrm_agent_harness.toolkits.wiki import (
+    QueryResult,
+    SemanticSearchFn,
+    WikiCompiler,
+    WikiConfig,
+    WikiLinter,
+    WikiQueryEngine,
+    WikiQueryMode,
+    WikiStructure,
+)
+from myrm_agent_harness.utils.logger_utils import get_agent_logger
+
+logger = get_agent_logger(__name__)
+
+
+class MemoryToWikiArchiver:
+    """Automatic Memory→Wiki archiving service: converts SessionNotes (compressed memory) into wiki articles."""
+
+    def __init__(
+        self,
+        llm: BaseChatModel,
+        wiki_dir: Path | str | None = None,
+        config: WikiConfig | None = None,
+        search_fn: SemanticSearchFn | None = None,
+        manager: "MemoryManager" | None = None,
+        public_dirs: list[Path] | None = None,
+        public_dir_labels: dict[str, str] | None = None,
+    ):
+        """
+        Initialize archiver for the single-tenant sandbox.
+
+        Args:
+            llm: LLM for wiki compilation
+            wiki_dir: Directory for the wiki (defaults to default agent vault)
+            config: Optional WikiConfig (uses defaults if not provided)
+            search_fn: Optional semantic search function injected from retriever
+            manager: Optional memory manager
+            public_dirs: Optional list of additional mounted public read-only wiki paths
+            public_dir_labels: Optional mapping of public dir path or name to display label
+        """
+        self._llm = llm
+        from myrm_agent_harness.toolkits.wiki.core.config import WikiCompileConfig
+
+        from app.config.deploy_mode import is_local_mode
+        from app.services.wiki.daily_review.prompts import FOUR_DIMENSION_EXTRACT_PROMPT
+
+        resolved_config = config or WikiConfig()
+        if is_local_mode() and not resolved_config.enable_version_control:
+            resolved_config = replace(resolved_config, enable_version_control=True)
+        self._config = resolved_config
+
+        from app.services.wiki.vault import resolve_wiki_vault_path
+
+        if wiki_dir:
+            resolved_wiki_dir = Path(wiki_dir).expanduser().resolve()
+        else:
+            resolved_wiki_dir = resolve_wiki_vault_path()
+
+        merged_public_dirs: list[Path | str] = []
+        from app.platform_utils.deployment_capabilities import (
+            get_deployment_capabilities,
+        )
+
+        if get_deployment_capabilities().is_sandbox_instance:
+            import os
+
+            public_vols_env = os.getenv("MYRM_PUBLIC_WIKI_VOLUMES", "")
+            merged_public_dirs = [Path(v.strip()) for v in public_vols_env.split(";") if v.strip()]
+
+        if public_dirs:
+            for p in public_dirs:
+                resolved_p = Path(p).expanduser().resolve()
+                if resolved_p not in merged_public_dirs:
+                    merged_public_dirs.append(resolved_p)
+
+        merged_labels: dict[str, str] = {}
+        if public_dir_labels:
+            for k, v in public_dir_labels.items():
+                merged_labels[k] = v
+                try:
+                    resolved_k = str(Path(k).expanduser().resolve())
+                    merged_labels[resolved_k] = v
+                except Exception:
+                    pass
+
+        self._structure = WikiStructure(
+            resolved_wiki_dir,
+            public_dirs=merged_public_dirs,
+            public_dir_labels=merged_labels,
+        )
+        self._structure.ensure_structure()
+
+        from myrm_agent_harness.toolkits.wiki import WikiPendingEditsManager
+        from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
+
+        vector_store = getattr(manager, "_vector", None) if manager else None
+        embedding = getattr(manager, "_embedding", None) if manager else None
+
+        indexer = WikiIndexer(
+            self._structure,
+            self._config,
+            vector_store=vector_store,
+            embedding=embedding,
+        )
+
+        self._compiler = WikiCompiler(
+            llm,
+            self._structure,
+            self._config,
+            # Four-dimension routing: every compiled concept name lands under
+            # Projects / Knowledge / Methods / Comparisons via the existing
+            # WikiCompileConfig extension point (harness zero-change).
+            compile_config=WikiCompileConfig(
+                extract_concepts_prompt_template=FOUR_DIMENSION_EXTRACT_PROMPT,
+            ),
+            indexer=indexer,
+        )
+        self._query_engine = WikiQueryEngine(
+            llm,
+            self._structure,
+            self._config,
+            search_fn=search_fn,
+        )
+        self._query_engine._indexer = indexer
+        self._linter = WikiLinter(llm, self._structure, self._config)
+
+        self._queue = self._compiler._queue
+        self._pending_mgr = WikiPendingEditsManager(self._structure, indexer=indexer)
+
+        self._asset_indexer: WikiAssetIndexer | None = None
+
+        # Start the background drainer for this user's queue if primary vault write is enabled
+        if hasattr(self._compiler, "start_background_worker") and callable(self._compiler.start_background_worker):
+            try:
+                self._compiler.start_background_worker()
+            except Exception as e:
+                logger.warning(f"Could not start background compiler worker: {e}")
+
+        logger.info(f"Initialized wiki archiver at {resolved_wiki_dir}")
+
+    async def archive_memory(
+        self,
+        session_notes_json: str,
+        conversation_turns: int,
+        *,
+        chat_id: str | None = None,
+    ) -> bool:
+        """
+        Archive memory to wiki if valuable.
+
+        Args:
+            session_notes_json: SessionNotes JSON from memory system
+            conversation_turns: Number of conversation turns
+            chat_id: Optional chat id used for filenames when notes omit session_id
+
+        Returns:
+            True if archived, False if skipped
+        """
+        if not self._config.auto_archive_enabled:
+            logger.debug("Auto-archive disabled")
+            return False
+
+        if conversation_turns < self._config.auto_archive_min_turns:
+            logger.debug(f"Skipping archive: {conversation_turns} < {self._config.auto_archive_min_turns} turns")
+            return False
+
+        try:
+            import json
+
+            parsed = json.loads(session_notes_json)
+            if not isinstance(parsed, dict):
+                logger.error("Session notes JSON must be an object")
+                return False
+            notes: dict[str, object] = parsed
+
+            content = self._format_memory_as_document(notes)
+
+            if len(content) < 300:
+                logger.debug("Skipping archive: content too short")
+                return False
+
+            import uuid
+
+            from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
+                RawConflictPolicy,
+                RawPublishRequest,
+                publish_raw,
+            )
+
+            session_id = notes.get("session_id") or chat_id or "unknown"
+            file_name = f"conversation_{session_id}_{uuid.uuid4().hex[:8]}.md"
+            result = await publish_raw(
+                self._structure,
+                RawPublishRequest(
+                    relative_path=file_name,
+                    content=content,
+                    conflict_policy=RawConflictPolicy.FAIL,
+                ),
+                caller="chat",
+            )
+            if result.security_blocked:
+                logger.warning("Skipped memory archive: sensitive content detected")
+                return False
+            if not result.written:
+                logger.warning("Skipped memory archive: raw publish did not write")
+                return False
+            logger.info(f"Archived memory to: {result.absolute_path}")
+            self._compiler.enqueue_file(result.absolute_path)
+            await asyncio.to_thread(self.commit_vault_git, "session archive")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to archive memory: {e}")
+            return False
+
+    def _format_memory_as_document(self, notes: dict[str, object]) -> str:
+        """Format session notes JSON as a markdown document for wiki ingestion."""
+        meta = notes.get("_meta")
+        if isinstance(meta, dict):
+            return self._format_harness_session_notes(notes)
+
+        lines = [
+            f"# Conversation: {notes.get('session_id', 'unknown')}",
+            "",
+            f"**Created**: {notes.get('created_at', 'N/A')}",
+            f"**Updated**: {notes.get('updated_at', 'N/A')}",
+            "",
+        ]
+
+        primary_goal = notes.get("primary_goal")
+        if primary_goal:
+            lines.extend(
+                [
+                    "## Primary Goal",
+                    "",
+                    str(primary_goal),
+                    "",
+                ]
+            )
+
+        key_decisions = notes.get("key_decisions")
+        if key_decisions and isinstance(key_decisions, list):
+            lines.extend(["## Key Decisions", ""])
+            for decision in key_decisions:
+                lines.append(f"- {decision}")
+            lines.append("")
+
+        technical_context = notes.get("technical_context")
+        if technical_context:
+            lines.extend(
+                [
+                    "## Technical Context",
+                    "",
+                    str(technical_context),
+                    "",
+                ]
+            )
+
+        important_facts = notes.get("important_facts")
+        if important_facts and isinstance(important_facts, list):
+            lines.extend(["## Important Facts", ""])
+            for fact in important_facts:
+                lines.append(f"- {fact}")
+            lines.append("")
+
+        open_questions = notes.get("open_questions")
+        if open_questions and isinstance(open_questions, list):
+            lines.extend(["## Open Questions", ""])
+            for question in open_questions:
+                lines.append(f"- {question}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_harness_session_notes(notes: dict[str, object]) -> str:
+        """Format harness SessionNotes section JSON into markdown."""
+        section_titles: dict[str, str] = {
+            "session_title": "Session Title",
+            "current_state": "Current State",
+            "task_spec": "Task Specification",
+            "files_and_functions": "Files and Functions",
+            "workflow": "Workflow",
+            "errors_and_corrections": "Errors and Corrections",
+            "key_findings": "Key Findings",
+            "worklog": "Worklog",
+        }
+        lines = ["# Session Notes", ""]
+        for key, title in section_titles.items():
+            raw = notes.get(key)
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            lines.extend([f"## {title}", "", raw.strip(), ""])
+        return "\n".join(lines)
+
+    @staticmethod
+    def estimate_turn_count_from_notes(session_notes_json: str) -> int:
+        """Use last_updated_message_idx from SessionNotes metadata as a turn proxy (a full turn spans user + agent messages, so this counts messages, roughly half of true turns)."""
+        import json
+
+        try:
+            parsed = json.loads(session_notes_json)
+        except json.JSONDecodeError:
+            return 0
+        if not isinstance(parsed, dict):
+            return 0
+        meta = parsed.get("_meta")
+        if isinstance(meta, dict):
+            idx = meta.get("last_updated_message_idx")
+            if isinstance(idx, int) and idx > 0:
+                return idx
+        return 0
+
+    async def query_wiki(
+        self,
+        question: str,
+        *,
+        query_mode: WikiQueryMode | None = None,
+    ) -> QueryResult:
+        """
+        Query user's wiki knowledge base.
+
+        Args:
+            question: Question to ask
+            query_mode: Optional retrieval mode override (auto | raw_claim)
+
+        Returns:
+            Structured query result with related sources
+        """
+        if query_mode and query_mode != "auto":
+            from dataclasses import replace
+
+            effective_config = replace(self._query_engine._query_config, query_mode=query_mode)
+            return await self._query_engine.query(question, query_config=effective_config)
+        return await self._query_engine.query(question)
+
+    def commit_vault_git(self, reason: str) -> VaultGitCommitResult:
+        """Commit vault snapshot when local version control is enabled."""
+        from myrm_agent_harness.toolkits.wiki.portability.vault_git import maybe_commit_vault_git_snapshot
+
+        return maybe_commit_vault_git_snapshot(
+            self._structure,
+            self._config,
+            reason=reason,
+        )
+
+    def get_wiki_path(self) -> Path:
+        """Get the path to user's wiki directory."""
+        return Path(self._structure.base_dir)

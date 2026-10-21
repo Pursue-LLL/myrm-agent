@@ -1,0 +1,669 @@
+/** @vitest-environment jsdom */
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useFlowPadStore, type FlowPadCapture } from '@/store/useFlowPadStore';
+
+// sendMessage resolves whether the chat took the message (false = refused before the turn, the user was told why).
+const mockSendMessage = vi.fn().mockResolvedValue(true);
+const mockSetFiles = vi.fn();
+
+const mockUseLocale = vi.hoisted(() => vi.fn(() => 'en'));
+const mockAgentStore = vi.hoisted(() => ({
+  agents: [] as Array<{ id: string; name: string; avatar_url?: string | null }>,
+  fetchAgents: vi.fn(),
+  fetchAgent: vi.fn(),
+  loading: false,
+}));
+const stableT = vi.hoisted(() => (key: string) => key);
+
+vi.mock('@/store/useAgentStore', () => ({
+  default: (selector: (s: typeof mockAgentStore) => unknown) => selector(mockAgentStore),
+  __esModule: true,
+}));
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+  useLocale: () => mockUseLocale(),
+}));
+
+vi.mock('@/store/useChatStore', () => {
+  const state = {
+    agentConfig: { name: 'TestAgent' },
+    sendMessage: (...args: unknown[]) => mockSendMessage(...args),
+    setFiles: (...args: unknown[]) => mockSetFiles(...args),
+    files: [] as unknown[],
+  };
+  const hook = vi.fn(() => state);
+  Object.assign(hook, {
+    getState: () => state,
+    subscribe: vi.fn(() => () => {}),
+    setState: vi.fn(),
+    destroy: vi.fn(),
+  });
+  return { default: hook };
+});
+
+vi.mock('@/lib/utils/toast', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/utils/classnameUtils', () => ({
+  cn: (...args: string[]) => args.filter(Boolean).join(' '),
+}));
+
+vi.mock('@radix-ui/react-visually-hidden', () => ({
+  VisuallyHidden: ({ children }: { children: React.ReactNode }) => <span style={{ display: 'none' }}>{children}</span>,
+}));
+
+import { FlowPadModal } from '../flow-pad-modal';
+
+function makeCapture(overrides: Partial<FlowPadCapture> = {}): FlowPadCapture {
+  return {
+    screenshot: 'dGVzdA==',
+    windowTitle: 'Test Window',
+    extractedText: 'Extracted text content',
+    timestamp: Date.now(),
+    ...overrides,
+  };
+}
+
+describe('FlowPadModal', () => {
+  beforeEach(() => {
+    useFlowPadStore.getState().close();
+    mockSendMessage.mockClear();
+    mockSetFiles.mockClear();
+    mockUseLocale.mockReturnValue('en');
+    mockAgentStore.agents = [];
+    mockAgentStore.fetchAgent.mockReset();
+  });
+
+  it('renders nothing when closed', () => {
+    const { container } = render(<FlowPadModal />);
+    expect(container.querySelector('textarea')).toBeNull();
+  });
+
+  it('renders textarea when opened', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
+
+  it('shows initial text from store', () => {
+    useFlowPadStore.getState().open('Hello from deep link');
+    render(<FlowPadModal />);
+    expect(screen.getByRole('textbox')).toHaveValue('Hello from deep link');
+  });
+
+  it('shows capture preview when captures exist', () => {
+    useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'VS Code' }));
+    render(<FlowPadModal />);
+    expect(screen.getByText('VS Code')).toBeInTheDocument();
+  });
+
+  it('shows multiple capture previews', () => {
+    useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Window A' }));
+    useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Window B' }));
+    render(<FlowPadModal />);
+    expect(screen.getByText('Window A')).toBeInTheDocument();
+    expect(screen.getByText('Window B')).toBeInTheDocument();
+  });
+
+  it('disables send button when empty text and no captures', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons.find((b) => b.classList.contains('h-8'));
+    expect(sendButton).toBeDisabled();
+  });
+
+  it('enables send button when text is entered', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Some question' } });
+
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons.find((b) => b.classList.contains('h-8'));
+    expect(sendButton).not.toBeDisabled();
+  });
+
+  it('enables send button when captures exist without text', () => {
+    useFlowPadStore.getState().addCapture(makeCapture());
+    render(<FlowPadModal />);
+
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons.find((b) => b.classList.contains('h-8'));
+    expect(sendButton).not.toBeDisabled();
+  });
+
+  it('calls sendMessage on Enter key (non-composing)', async () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Test question' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('Test question'));
+  });
+
+  it('does NOT send on Enter during IME composition', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '你好' } });
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, 'isComposing', { value: true });
+    textarea.dispatchEvent(event);
+
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does NOT send on Shift+Enter', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Test' } });
+
+    fireEvent.keyDown(textarea, {
+      key: 'Enter',
+      code: 'Enter',
+      shiftKey: true,
+      nativeEvent: { isComposing: false },
+    });
+
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('closes modal after successful submit', async () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Test' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(useFlowPadStore.getState().isOpen).toBe(false);
+  });
+
+  it('includes appshot context in message when captures exist', async () => {
+    useFlowPadStore.getState().addCapture(
+      makeCapture({
+        windowTitle: 'Terminal',
+        extractedText: 'npm install completed',
+      }),
+    );
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'What happened?' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('[Appshot Context]'));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('**Terminal**'));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('npm install completed'));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('What happened?'));
+  });
+
+  it('attaches screenshot files via setFiles when captures have screenshots', async () => {
+    useFlowPadStore.getState().addCapture(makeCapture({ screenshot: 'abc123' }));
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Look at this' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSetFiles).toHaveBeenCalledTimes(1);
+    const filesArg = mockSetFiles.mock.calls[0][0];
+    expect(filesArg).toHaveLength(1);
+    expect(filesArg[0].fileName).toBe('appshot_1.jpg');
+    expect(filesArg[0].fileUrl).toContain('abc123');
+  });
+
+  it('shows agent indicator when agentConfig has name', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+    expect(screen.getByText('TestAgent')).toBeInTheDocument();
+  });
+
+  it('localizes builtin agent names in inline route menu for zh locale', async () => {
+    mockUseLocale.mockReturnValue('zh');
+    mockAgentStore.agents = [{ id: 'builtin-general', name: 'General Assistant', avatar_url: null }];
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() }, 1234);
+    render(<FlowPadModal />);
+
+    const trigger = await screen.findByTestId('flowpad-inline-route-trigger');
+    fireEvent.click(trigger);
+
+    const zhOption = await screen.findByTestId('flowpad-inline-route-agent-builtin-general');
+    expect(zhOption.textContent).toContain('通用助手');
+    expect(zhOption.textContent).not.toContain('General Assistant');
+  });
+
+  it('keeps raw agent name in inline route menu for non-builtin agents', async () => {
+    mockUseLocale.mockReturnValue('zh');
+    mockAgentStore.agents = [{ id: 'custom-research', name: 'Custom Research', avatar_url: null }];
+    useFlowPadStore
+      .getState()
+      .openInline({ screenshot: 'x', windowTitle: 'Window', extractedText: 'text', timestamp: Date.now() }, 1234);
+    render(<FlowPadModal />);
+
+    const trigger = await screen.findByTestId('flowpad-inline-route-trigger');
+    fireEvent.click(trigger);
+
+    const customOption = await screen.findByTestId('flowpad-inline-route-agent-custom-research');
+    expect(customOption.textContent).toContain('Custom Research');
+  });
+
+  it('does not call sendMessage when both text and captures are empty', async () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not call setFiles when captures have no screenshots', async () => {
+    useFlowPadStore.getState().addCapture(makeCapture({ screenshot: '', extractedText: 'text only' }));
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Send this' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSetFiles).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends captures-only message without user text', async () => {
+    useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Browser', extractedText: 'Page content' }));
+    render(<FlowPadModal />);
+
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons.find((b) => b.classList.contains('h-8'));
+
+    await act(async () => {
+      sendButton?.click();
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    const msg = mockSendMessage.mock.calls[0][0] as string;
+    expect(msg).toContain('[Appshot Context]');
+    expect(msg).toContain('**Browser**');
+    expect(msg).not.toContain('Page content\n\n');
+  });
+
+  it('shows correct placeholder text based on capture state', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+    expect(screen.getByPlaceholderText('placeholder')).toBeInTheDocument();
+  });
+
+  it('shows capture-specific placeholder when captures exist', () => {
+    useFlowPadStore.getState().addCapture(makeCapture());
+    render(<FlowPadModal />);
+    expect(screen.getByPlaceholderText('placeholderWithCapture')).toBeInTheDocument();
+  });
+
+  it('keeps modal open and preserves data when sendMessage fails', async () => {
+    mockSendMessage.mockRejectedValueOnce(new Error('Network error'));
+    useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Important Data' }));
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Critical question' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(useFlowPadStore.getState().isOpen).toBe(true);
+    expect(useFlowPadStore.getState().captures).toHaveLength(1);
+    expect(useFlowPadStore.getState().captures[0].windowTitle).toBe('Important Data');
+  });
+
+  it('prevents double submission when clicking send rapidly', async () => {
+    let resolveFirst: (dispatched: boolean) => void;
+    const firstCallPromise = new Promise<boolean>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockSendMessage.mockImplementationOnce(() => firstCallPromise);
+
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Double click test' } });
+
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons.find((b) => b.classList.contains('h-8'));
+
+    await act(async () => {
+      sendButton?.click();
+    });
+
+    await act(async () => {
+      sendButton?.click();
+    });
+
+    await act(async () => {
+      resolveFirst(true);
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-enables submit after failed attempt', async () => {
+    mockSendMessage.mockRejectedValueOnce(new Error('Timeout'));
+    mockSendMessage.mockResolvedValueOnce(true);
+
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Retry test' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(useFlowPadStore.getState().isOpen).toBe(true);
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(2);
+    expect(useFlowPadStore.getState().isOpen).toBe(false);
+  });
+
+  it('keeps the pad open with the typed text and announces nothing when the chat refuses the message', async () => {
+    const { toast } = await import('@/lib/utils/toast');
+    vi.mocked(toast.success).mockClear();
+    mockSendMessage.mockResolvedValueOnce(false);
+
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Critical question' } });
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(useFlowPadStore.getState().isOpen).toBe(true);
+    expect(textarea).toHaveValue('Critical question');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('does not stack screenshots on the composer across refused attempts', async () => {
+    const { default: useChatStore } = await import('@/store/useChatStore');
+    const composer = useChatStore.getState() as unknown as { files: unknown[] };
+    composer.files = [];
+    // Write through so the pad sees the composer the way the real store behaves.
+    mockSetFiles.mockImplementation((files: unknown[]) => {
+      composer.files = files;
+    });
+
+    try {
+      mockSendMessage.mockResolvedValue(false);
+      useFlowPadStore.getState().addCapture(makeCapture({ screenshot: 'stacked_shot' }));
+      render(<FlowPadModal />);
+
+      const textarea = screen.getByRole('textbox');
+      fireEvent.change(textarea, { target: { value: 'Look at this' } });
+      const submit = () =>
+        act(async () => {
+          fireEvent.keyDown(textarea, {
+            key: 'Enter',
+            code: 'Enter',
+            nativeEvent: { isComposing: false },
+          });
+        });
+
+      await submit();
+      expect(composer.files).toHaveLength(0);
+      await submit();
+      expect(composer.files).toHaveLength(0);
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
+      expect(useFlowPadStore.getState().isOpen).toBe(true);
+    } finally {
+      mockSetFiles.mockReset();
+      mockSendMessage.mockReset();
+      mockSendMessage.mockResolvedValue(true);
+      composer.files = [];
+    }
+  });
+
+  describe('Quick Actions', () => {
+    it('shows quick action buttons when captures exist', () => {
+      useFlowPadStore.getState().addCapture(makeCapture());
+      render(<FlowPadModal />);
+      expect(screen.getByText('quickReply')).toBeInTheDocument();
+      expect(screen.getByText('quickSummarize')).toBeInTheDocument();
+      expect(screen.getByText('quickTranslate')).toBeInTheDocument();
+      expect(screen.getByText('quickExplain')).toBeInTheDocument();
+    });
+
+    it('does not show quick action buttons when no captures', () => {
+      useFlowPadStore.getState().open();
+      render(<FlowPadModal />);
+      expect(screen.queryByText('quickReply')).not.toBeInTheDocument();
+    });
+
+    it('sends message with preset prompt on quick action click', async () => {
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Gmail', extractedText: 'Hello from sender' }));
+      render(<FlowPadModal />);
+
+      const replyBtn = screen.getByText('quickReply');
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+      expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('[Appshot Context]'));
+      expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('replyPrompt'));
+      expect(useFlowPadStore.getState().isOpen).toBe(false);
+    });
+
+    it('prevents double click on quick action', async () => {
+      let resolveFirst: (dispatched: boolean) => void;
+      const firstCallPromise = new Promise<boolean>((resolve) => {
+        resolveFirst = resolve;
+      });
+      mockSendMessage.mockImplementationOnce(() => firstCallPromise);
+
+      useFlowPadStore.getState().addCapture(makeCapture());
+      render(<FlowPadModal />);
+
+      const replyBtn = screen.getByText('quickReply');
+
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      await act(async () => {
+        resolveFirst(true);
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps modal open and re-enables on quick action failure', async () => {
+      mockSendMessage.mockRejectedValueOnce(new Error('Service down'));
+
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Slack' }));
+      render(<FlowPadModal />);
+
+      const replyBtn = screen.getByText('quickReply');
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      expect(useFlowPadStore.getState().isOpen).toBe(true);
+      expect(useFlowPadStore.getState().captures).toHaveLength(1);
+
+      mockSendMessage.mockResolvedValueOnce(true);
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
+      expect(useFlowPadStore.getState().isOpen).toBe(false);
+    });
+
+    it('keeps the pad open, announces nothing and takes the screenshot back off when the chat refuses the action', async () => {
+      const { toast } = await import('@/lib/utils/toast');
+      vi.mocked(toast.success).mockClear();
+      mockSendMessage.mockResolvedValueOnce(false);
+
+      useFlowPadStore.getState().addCapture(makeCapture({ screenshot: 'quick_shot_data' }));
+      render(<FlowPadModal />);
+
+      await act(async () => {
+        screen.getByText('quickSummarize').click();
+      });
+
+      expect(useFlowPadStore.getState().isOpen).toBe(true);
+      expect(useFlowPadStore.getState().captures).toHaveLength(1);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(mockSetFiles).toHaveBeenCalledTimes(2);
+      expect(mockSetFiles).toHaveBeenLastCalledWith([]);
+    });
+
+    it('each quick action sends correct prompt key', async () => {
+      const actions = ['quickSummarize', 'quickTranslate', 'quickExplain'] as const;
+      const prompts = ['summarizePrompt', 'translatePrompt', 'explainPrompt'] as const;
+
+      for (let i = 0; i < actions.length; i++) {
+        mockSendMessage.mockClear();
+        useFlowPadStore.getState().close();
+        useFlowPadStore.getState().addCapture(makeCapture());
+        const { unmount } = render(<FlowPadModal />);
+
+        const btn = screen.getByText(actions[i]);
+        await act(async () => {
+          btn.click();
+        });
+
+        expect(mockSendMessage).toHaveBeenCalledTimes(1);
+        expect(mockSendMessage).toHaveBeenCalledWith(expect.stringContaining(prompts[i]));
+        unmount();
+      }
+    });
+
+    it('attaches screenshot files on quick action', async () => {
+      useFlowPadStore.getState().addCapture(makeCapture({ screenshot: 'quick_shot_data' }));
+      render(<FlowPadModal />);
+
+      const btn = screen.getByText('quickSummarize');
+      await act(async () => {
+        btn.click();
+      });
+
+      expect(mockSetFiles).toHaveBeenCalledTimes(1);
+      const filesArg = mockSetFiles.mock.calls[0][0];
+      expect(filesArg).toHaveLength(1);
+      expect(filesArg[0].fileUrl).toContain('quick_shot_data');
+    });
+
+    it('handles multiple captures in quick action message', async () => {
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Window1', extractedText: 'Text1' }));
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Window2', extractedText: 'Text2' }));
+      render(<FlowPadModal />);
+
+      const btn = screen.getByText('quickTranslate');
+      await act(async () => {
+        btn.click();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+      const msg = mockSendMessage.mock.calls[0][0] as string;
+      expect(msg).toContain('**Window1**');
+      expect(msg).toContain('**Window2**');
+      expect(msg).toContain('Text1');
+      expect(msg).toContain('Text2');
+      expect(msg).toContain('translatePrompt');
+    });
+  });
+});
