@@ -18,7 +18,7 @@ def setup_http_metrics(app: FastAPI) -> Instrumentator:
     - In-progress requests (gauge)
 
     Excludes noisy endpoints:
-    - /health (container health checks)
+    - /health (K8s health checks)
     - /metrics (Prometheus scrapes)
     - /openapi.json (API spec fetches)
 

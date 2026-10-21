@@ -189,13 +189,9 @@ class ConfigSyncManager {
 
       if (offlineChanges.length > 0) {
         console.warn(`[ConfigSync] Found ${offlineChanges.length} offline changes, syncing...`);
-        const { replayable } = await this.partitionOfflineChanges(offlineChanges);
-        this.clearOfflineQueue();
-        if (replayable.length > 0) {
-          this.applyPendingChangesToCache(replayable);
-          this.changeQueue = replayable;
-          await this.flushSync({ preserveExpectedVersion: true });
-        }
+        this.applyPendingChangesToCache(offlineChanges);
+        this.changeQueue = offlineChanges;
+        await this.flushSync();
       }
 
       this.registerOnlineHandler();
@@ -443,12 +439,8 @@ class ConfigSyncManager {
 
   /**
    * 立即同步所有待处理变更
-   *
-   * @param options.preserveExpectedVersion 保留每个变更自带的基准版本（离线重放用）。
-   *   离线队列里的变更必须带上它当初与服务端分叉时的版本，否则服务端的乐观锁会把它当成
-   *   「基于最新版本」的写入直接接受，陈旧快照就会覆盖服务端的新配置。
    */
-  private async flushSync(options?: { preserveExpectedVersion?: boolean }): Promise<SyncResult> {
+  private async flushSync(): Promise<SyncResult> {
     if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) {
       this.changeQueue = this.changeQueue.filter((change) => change.key !== 'searchServices');
     }
@@ -461,7 +453,7 @@ class ConfigSyncManager {
     }
 
     // 合并同一 key 的连续变更，取最后一个
-    const mergedChanges = this.mergeChanges(this.changeQueue, options?.preserveExpectedVersion === true);
+    const mergedChanges = this.mergeChanges(this.changeQueue);
     this.changeQueue = [];
 
     this._status = 'syncing';
@@ -550,120 +542,16 @@ class ConfigSyncManager {
   /**
    * 合并变更：同一 key 取最新 value。
    * expectedVersion 始终取自 baseCache（即最新确认的服务端版本），以避免本地连续更新造成的版本号自我冲突。
-   *
-   * @param preserveExpectedVersion 保留变更自带的基准版本（离线重放必须保留，见 flushSync）。
    */
-  private mergeChanges(changes: ConfigChange[], preserveExpectedVersion = false): ConfigChange[] {
+  private mergeChanges(changes: ConfigChange[]): ConfigChange[] {
     const latestByKey = new Map<ConfigKey, ConfigChange>();
     for (const change of changes) {
       latestByKey.set(change.key, change);
     }
     return Array.from(latestByKey.entries()).map(([key, latest]) => {
-      if (preserveExpectedVersion) {
-        return { ...latest };
-      }
       const expectedVersion = this.baseCache.get(key)?.meta.version ?? latest.expectedVersion;
       return { ...latest, expectedVersion };
     });
-  }
-
-  /**
-   * 合并离线队列变更：同一 key 取最新 value，但保留**最早的基准版本**。
-   *
-   * 基准版本 = 本地状态与服务端分叉时服务端的版本。重放时用它与服务端当前版本比对，
-   * 才能判断队列里的变更是否已经过期（见 partitionOfflineChanges）。
-   */
-  private mergeOfflineChanges(changes: ConfigChange[]): ConfigChange[] {
-    const byKey = new Map<ConfigKey, ConfigChange>();
-    for (const change of changes) {
-      const existing = byKey.get(change.key);
-      if (!existing) {
-        byKey.set(change.key, change);
-        continue;
-      }
-      byKey.set(change.key, {
-        ...change,
-        expectedVersion: existing.expectedVersion ?? change.expectedVersion,
-      });
-    }
-    return Array.from(byKey.values());
-  }
-
-  /**
-   * 把离线队列分成「可重放」与「已过期」两类。
-   *
-   * 过期判定：队列里的变更基于某个服务端版本（expectedVersion）。若服务端当前版本已经前进，
-   * 说明这份本地快照是在旧版本上做的修改；直接重放会用陈旧值覆盖服务端的新配置（配置被静默抹掉）。
-   * 这类变更默认保留服务端值；若注册了冲突解决器，则交由用户决定是否仍要覆盖。
-   */
-  private async partitionOfflineChanges(
-    changes: ConfigChange[],
-  ): Promise<{ replayable: ConfigChange[]; stale: ConfigChange[] }> {
-    const replayable: ConfigChange[] = [];
-    const stale: ConfigChange[] = [];
-
-    for (const change of changes) {
-      const serverRecord = this.cache.get(change.key);
-      const serverVersion = serverRecord?.meta.version;
-      const baseVersion = change.expectedVersion;
-
-      if (baseVersion !== undefined && serverVersion !== undefined && baseVersion === serverVersion) {
-        // 服务端自本地分叉后没有前进过：本地变更仍然有效，可以安全重放。
-        replayable.push(change);
-        continue;
-      }
-
-      if (baseVersion === undefined && serverRecord && valuesEqual(serverRecord.value, change.value)) {
-        // 服务端已经是同一个值，重放没有意义。
-        continue;
-      }
-
-      stale.push(change);
-    }
-
-    if (stale.length > 0) {
-      const keepLocal = await this.shouldKeepLocalForStaleChanges(stale);
-      if (keepLocal) {
-        replayable.push(...stale);
-      } else {
-        console.warn(
-          '[ConfigSync] Dropped stale offline changes (server moved on):',
-          stale.map((change) => change.key).join(', '),
-        );
-      }
-    }
-
-    return { replayable, stale };
-  }
-
-  /**
-   * 过期离线变更是否仍要保留本地值：交给已注册的冲突解决器（UI 会弹窗让用户选）。
-   * 没有解决器时默认保留服务端值——服务端配置是权威状态，不能被无法验证来源的旧快照覆盖。
-   */
-  private async shouldKeepLocalForStaleChanges(changes: ConfigChange[]): Promise<boolean> {
-    if (!this.conflictResolver) {
-      return false;
-    }
-    for (const change of changes) {
-      const serverRecord = this.cache.get(change.key);
-      const keepLocal = await Promise.resolve(
-        this.conflictResolver({
-          configKey: change.key,
-          localVersion: change.expectedVersion ?? createInitialVersion(),
-          serverVersion: serverRecord?.meta.version ?? createInitialVersion(),
-          deviceId: serverRecord?.meta.deviceId ?? 'unknown',
-          localValue: change.value,
-          serverValue: serverRecord?.value,
-        }),
-      ).catch((error: unknown) => {
-        console.warn('[ConfigSync] Conflict resolver failed for stale offline change:', error);
-        return false;
-      });
-      if (keepLocal) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /**
@@ -838,13 +726,8 @@ class ConfigSyncManager {
   private async retryOfflineQueue(): Promise<void> {
     const pending = this.loadOfflineQueue();
     if (pending.length > 0) {
-      const { replayable } = await this.partitionOfflineChanges(pending);
+      this.changeQueue.push(...pending);
       this.clearOfflineQueue();
-      if (replayable.length > 0) {
-        this.applyPendingChangesToCache(replayable);
-        this.changeQueue = replayable;
-        await this.flushSync({ preserveExpectedVersion: true });
-      }
     }
     if (this.changeQueue.length > 0) {
       await this.flushSync();
@@ -883,9 +766,9 @@ class ConfigSyncManager {
     }
 
     try {
-      // 合并现有队列和新变更：保留最早的基准版本，才能在重放时判断是否已过期。
+      // 合并现有队列和新变更
       const existing = this.loadOfflineQueue();
-      const merged = this.mergeOfflineChanges([...existing, ...changes]);
+      const merged = this.mergeChanges([...existing, ...changes]);
       localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(merged));
     } catch (error) {
       console.warn('[ConfigSync] Failed to save offline queue:', error);

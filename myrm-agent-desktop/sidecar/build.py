@@ -214,6 +214,9 @@ def build_backend(*, skip_harness_install: bool = False):
         "--hidden-import", "qdrant_client",
         "--hidden-import", "myrm_agent_harness",
         "--hidden-import", "myrm_agent_harness.api",
+        "--collect-data", "litellm",
+        "--collect-data", "myrm_agent_harness",
+        "--collect-submodules", "myrm_agent_harness",
         "--exclude-module", "matplotlib",
         "--exclude-module", "tkinter",
         "--exclude-module", "PyQt5",
@@ -251,6 +254,9 @@ def build_backend(*, skip_harness_install: bool = False):
         print(f"Size: {size_mb:.2f} MB")
         if SYSTEM != "windows":
             os.chmod(output_file, 0o755)
+        # Tauri externalBin/resources expects the stable name without the target triple.
+        stable_name = "myrmagent-backend.exe" if SYSTEM == "windows" else "myrmagent-backend"
+        shutil.copy2(output_file, OUTPUT_DIR / stable_name)
     else:
         print(f"\n[ERROR] Output file not found: {output_file}")
         sys.exit(1)

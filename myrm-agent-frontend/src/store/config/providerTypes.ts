@@ -335,32 +335,11 @@ export const BUILT_IN_PROVIDER_INFO: Record<BuiltInProviderId, ProviderInfo> = {
   },
 };
 
-/**
- * Resolve the LiteLLM route segment for a provider row.
- *
- * Built-in ids carry an explicit generated mapping. A custom provider id has no mapping, so the row's
- * `providerType` decides the route: legacy rows store a bare provider id there (e.g. `openai` for an
- * OpenAI-compatible gateway). Without this the caller would build `custom-id/model`, a route LiteLLM does
- * not know, and every request would fail with "LLM Provider NOT provided".
- */
-function resolveLiteLLMRoutePrefix(providerId: string, providerType?: string): string {
-  const mapped = PROVIDER_TO_LITELLM_PREFIX[providerId];
-  if (mapped) {
-    return mapped;
-  }
-  if (providerType && KNOWN_LITELLM_ROUTE_PREFIXES.includes(providerType)) {
-    return providerType;
-  }
-  return providerId;
-}
-
 // 获取 LiteLLM 模型全名
 export const getLiteLLMModelName = (
   providerId: string,
   modelName: string,
-  // Legacy rows store a bare provider id here (e.g. "openai"), so the accepted shape is wider than
-  // CustomProviderType on purpose: the persisted value decides the LiteLLM route.
-  providerType?: string,
+  providerType?: CustomProviderType,
 ): string => {
   const normalizedModelName = modelName.toLowerCase();
   if (providerId === 'vercel_ai_gateway') {
@@ -376,15 +355,18 @@ export const getLiteLLMModelName = (
     }
   }
 
-  const customTypeInfo = resolveCustomProviderTypeInfo(providerType);
-  if (customTypeInfo) {
-    if (normalizedModelName.startsWith(`${customTypeInfo.litellmPrefix}/`)) {
+  if (providerType && !CUSTOM_PROVIDER_TYPES.includes(providerType as CustomProviderType)) {
+    // 如果 providerType 不是自定义类型，则忽略它，使用 providerId
+    providerType = undefined;
+  }
+  if (providerType) {
+    const typeInfo = CUSTOM_PROVIDER_TYPE_INFO[providerType];
+    if (normalizedModelName.startsWith(`${typeInfo.litellmPrefix}/`)) {
       return modelName;
     }
-    return `${customTypeInfo.litellmPrefix}/${modelName}`;
+    return `${typeInfo.litellmPrefix}/${modelName}`;
   }
-
-  const prefix = resolveLiteLLMRoutePrefix(providerId, providerType);
+  const prefix = PROVIDER_TO_LITELLM_PREFIX[providerId] || providerId;
   if (normalizedModelName.startsWith(`${prefix}/`)) {
     return modelName;
   }
@@ -577,10 +559,6 @@ export interface CustomModelInfo {
   input_cost_per_million?: number;
   /** Cost per million output tokens (USD). Matches models.dev convention. */
   output_cost_per_million?: number;
-  /** Cost per million cache-read input tokens (USD). Matches models.dev convention. */
-  cache_read_cost_per_million?: number;
-  /** Cost per million cache-write creation tokens (USD). Matches models.dev convention. */
-  cache_write_cost_per_million?: number;
   supports_vision?: boolean;
   supports_function_calling?: boolean;
   supports_reasoning?: boolean;
