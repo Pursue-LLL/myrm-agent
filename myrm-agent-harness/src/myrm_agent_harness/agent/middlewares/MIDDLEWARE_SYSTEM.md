@@ -35,7 +35,7 @@
 │ filesystem_search_middleware            │  ← glob/grep 注入
 │ tool_interceptor_middleware (tooling/)  │  ← ★ 工具执行主拦截点
 │   └─ tool_executor (timeout/retry)      │
-│   └─ approval/ + approval_interception/ │  ← HITL 审批
+│   └─ approval/                          │  ← HITL 审批
 │ completion_guard                        │  ← 完成门控 + 外部证据门控 + 混合消息 guard
 │ rate_limit                              │  ← Provider 429 主动节流
 │ concurrency/ (safety_dispatcher + router)│  ← 工具并发安全路由
@@ -57,9 +57,8 @@
 | `tooling/` | 工具执行子系统：`tool_interceptor_middleware.py`（唯一编排入口；GraphInterrupt on stuck）、`tool_executor.py`（超时、重试、指数退避）、`tool_history_hygiene.py`（within-AIMessage re-id → ToolMessage keep-last dedup → cross-turn re-id；导出 `sanitize_tool_history()`）、`dangling_tool_call_middleware.py`（修复 strict provider 400；invalid_tool_calls 出站隔离——升级为合法声明并回填结构化诊断，畸形原文不回喂 provider）、`skill_attenuation_middleware.py`（skill attenuation + runtime intent-aware narrowing via `tool_choice.allowed_tools`）、`_tool_guards.py`/`_tool_helpers.py`（拦截辅助）、`_mutation_verifier.py`（文件变更 per-turn 验证 → SSE）、`_skill_failure_tracking.py`（技能失败事件 + 单技能执行计数）、`_tool_execution_lifecycle.py`（执行生命周期 hook）、`_runtime_tool_governance.py`（回合级工具面收敛 UI intent gate + readonly intent gate）、`_skill_tool_choice.py`（attenuation tool_choice 构建） |
 | `_session_context.py` | Middleware 链共享 ContextVar |
 | `approval/` | HITL 审批队列、batch、scheduler |
-| `approval_interception/` | 审批拦截识别与注入 |
 | `guardrails/` | Provider 链 + `GuardrailMiddleware` |
-| `completion/` | 完成验证门子系统：`completion_guard.py`（代码任务完成验证门 + 外部证据缺失门控（web/browser/MCP：PTC bash `skills.mcp_*` 或 Direct FC `mcp__{server}__{tool}`；本地代码任务豁免）+ 未落盘交付物门控与自动暂存保全；Mixed Message Guard（保留变异调用 `is_mutating_tool` registry fail-closed + 交互/UI 承载工具，仅剥离确定无副作用无交互的只读工具；证据缺失时保留只读 tool_calls 防未核实内容直达用户））、`completion_guard_safety.py`（effectful 工具判定 SSOT，供 Mixed Message Guard 与 server Cron 后验消费）、`deliverable_auto_staging.py`（未落盘交付物沙箱草案自动安全暂存与 LRU 保护）、`deliverable_write_verifier.py`（写盘声称检测与实质未落盘交付物代码块启发式嗅探） |
+| `completion/` | 完成验证门子系统：`completion_guard.py`（代码任务完成验证门 + 外部证据缺失门控（web/browser/MCP：PTC bash `skills.mcp_*` 或 Direct FC `mcp__{server}__{tool}`；本地代码任务豁免）+ 未落盘交付物门控与自动暂存保全 + **执行断言接地门**（三类承重断言——验证结论/外发动作/代码修改——与本轮执行轨迹对齐，命中即要求取证或诚实改写）；Mixed Message Guard（保留变异调用 `is_mutating_tool` registry fail-closed + 交互/UI 承载工具，仅剥离确定无副作用无交互的只读工具；证据缺失或断言无法接地时保留只读 tool_calls 防未核实内容直达用户））、`completion_check_tool.py`（`_completion_check` 运行时钩子的模型侧文案与验证清单回退）、`completion_guard_state.py`（按轮次消息 id 分桶的拦截预算与强制收尾闩锁 + 每轮证据档/暂存披露登记，`attach_disclosure_to_event` 供 `message_end` 事件消费）、`execution_claim_verifier.py`（断言接地判定：真实测试运行器约束、零用例否决、外发动作证据集、引用/条件/否定/讲解排除与需求侧意图收口）、`completion_guard_safety.py`（effectful 工具判定 SSOT，供 Mixed Message Guard 与 server Cron 后验消费）、`deliverable_auto_staging.py`（未落盘交付物沙箱草案自动安全暂存与 LRU 保护）、`deliverable_confidence_tier.py`（交付置信档解析 + 披露策略：证据档总是展示，PLAN 档仅在回答含完成式断言时展示）、`deliverable_write_verifier.py`（写盘声称检测与实质未落盘交付物代码块启发式嗅探） |
 | `context_pipeline/` | `context_pipeline_middleware.py`（桥接 `context_management/pipeline/`）、`context_pipeline_helpers.py`（压缩意图/cache feedback/schema fingerprint） |
 | `memory_context/` | `memory_context_middleware.py`（记忆上下文注入编排，首轮 LLM 前 idempotent 注入）、`memory_context_format.py`（注入格式化纯函数：stable SystemMessage / learned UNTRUSTED HumanMessage） |
 | `concurrency/` | `concurrency_limiter.py`（按 agent_type Semaphore）、`concurrency_router.py`（智能并发路由：host-serial MCP lane + canonical path + `build_tool_execution_stages`）、`safety_dispatcher.py`（safe→concurrent / unsafe→serial） |

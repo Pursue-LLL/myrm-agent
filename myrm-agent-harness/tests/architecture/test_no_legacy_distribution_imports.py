@@ -15,8 +15,9 @@ _LEGACY_IMPORT_MARKERS = (
 )
 _SCAN_ROOTS = (
     _HARNESS_SRC,
-    _MONOREPO_ROOT / "myrm-agent-server",
-    _MONOREPO_ROOT / "scripts",
+    _MONOREPO_ROOT / "myrm-agent" / "myrm-agent-server",
+    _MONOREPO_ROOT / "myrm-agent" / "scripts",
+    _MONOREPO_ROOT / "scripts" / "dev",
 )
 
 

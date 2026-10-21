@@ -35,6 +35,17 @@ _read_file(path='/workspace')
     assert result is None
 
 
+def test_extract_ptc_with_network_import_rejected():
+    """Third-party network imports like requests are rejected from Fast-Path Auto-Approve."""
+    command = '''python -c "
+from skills.mcp_github_skill import read_file
+import requests
+read_file(path='/workspace')
+"'''
+    result = extract_ptc_intent(command)
+    assert result is None
+
+
 def test_extract_ptc_with_malicious_calls_rejected():
     """Test that calling anything other than allowed builtins and imported tools is rejected."""
     command = '''python -c "
@@ -46,15 +57,18 @@ eval('os.system(\\"rm -rf /\\")')
     assert result is None
 
 
-def test_extract_ptc_with_attribute_calls_rejected():
-    """Test that methods on objects (Attribute calls) are rejected."""
+def test_extract_ptc_with_attribute_calls_accepted():
+    """Test that safe methods on objects (like dict.update) are accepted."""
     command = '''python -c "
 from skills.mcp_github_skill import _read_file
 res = _read_file(path='/workspace')
-res.update({'malicious': True})
+res.update({'data': True})
 "'''
     result = extract_ptc_intent(command)
-    assert result is None
+    assert result is not None
+    skill_name, tool_name, _args = result
+    assert skill_name == "mcp_github_skill"
+    assert tool_name == "read_file"
 
 
 def test_extract_ptc_with_safe_builtins_accepted():
@@ -71,15 +85,18 @@ print(dict(res))
     assert tool_name == "read_file"
 
 
-def test_extract_ptc_with_loops_rejected():
-    """Test that complex control flow like loops are rejected."""
+def test_extract_ptc_with_loops_accepted():
+    """Test that Turing-complete loops for batch processing are accepted."""
     command = '''python -c "
 from skills.mcp_github_skill import _read_file
 for i in range(10):
     _read_file(path=f'/workspace/{i}')
 "'''
     result = extract_ptc_intent(command)
-    assert result is None
+    assert result is not None
+    skill_name, tool_name, _ = result
+    assert skill_name == "mcp_github_skill"
+    assert tool_name == "read_file"
 
 
 def test_extract_ptc_with_syntax_error():
@@ -206,6 +223,20 @@ _process(data='test')
     assert result is not None
     skill_name, _tool_name, _ = result
     assert skill_name == "custom_skill"
+
+
+def test_extract_ptc_with_alias_import():
+    """Test that alias import ('import read_file as rf') correctly extracts tool and args."""
+    command = '''python -c "
+from skills.mcp_github_skill import read_file as rf
+rf(path='/workspace/alias_path')
+"'''
+    result = extract_ptc_intent(command)
+    assert result is not None
+    skill_name, tool_name, args = result
+    assert skill_name == "mcp_github_skill"
+    assert tool_name == "read_file"
+    assert args == {"path": "/workspace/alias_path"}
 
 
 class TestPTCSafetyMetadataRegistry:

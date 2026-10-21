@@ -235,6 +235,8 @@ vectors_config = {
 }
 ```
 
+集合的 `size` 取真实模型输出，不取配置默认值：启动时 `setup` 只在能确定嵌入维度（`_probe_embedding_dimension` 返回 >0）时预建集合，探针失败（自托管/未知模型）则跳过，由首次写入惰性创建 —— `store_conversations_batch` 发现会话集合不存在时用刚嵌入的向量长度建一个 `raw` / `summary` 命名向量集合。集合一旦建成 size 即固定，猜错会让之后每次写入都撞上 size 校验；`ensure_collection` 对已存在且维度不符的集合直接抛错（它属于另一个嵌入模型），命名向量集合没有单一 size，`get_collection_info` 对其返回 `None` 并跳过校验。向量读取（`search` / `search_multi_vector` / `get` / `count` / `scroll`）把「集合不存在」当作空结果而非错误，因此惰性创建前的读取不会炸。
+
 **Dual-track extraction（双轨提取）：**
 
 1. **Compressed Track**（始终运行）：
@@ -402,11 +404,8 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 
 写入路径：所有记忆在写入前经过 `memory_scanner.py` 扫描。
 
-**心理安全与无痕模式 (Psychological Safety & Incognito Mode)：**
+**心理安全 (Psychological Safety)：**
 1. **Harmful State Detector**: `memory_scanner.py` 内置了有害心理状态检测器，用于拦截可能导致 "AI Psychosis"（AI 精神病）的严重负面心理状态（如自残、重度抑郁、被害妄想等）。当检测到此类状态时，扫描器会返回 `BLOCKED`，防止 AI 永久存储和强化这些瞬态情绪。
-2. **Incognito Mode (无痕模式)**: 提供会话级别的完全无痕模式。开启后：
-   - **AI 记忆隔离**：Server 业务层会强制将 `enable_memory` 设为 `False`，从物理层面彻底卸载所有记忆工具（不创建 MemoryManager，不注入 memory_save 等工具）。这确保了 AI 无法读取全局记忆，也不会自动或主动提取新记忆。
-   - **持久化隔离**：会话在数据库中被标记为 `is_incognito=True` 以维持当前会话上下文，但在侧边栏历史列表 (`get_chat_list`) 中被彻底过滤隐藏。用户一旦离开页面，会话即在 UI 层面“焚毁”，实现真正的“阅后即焚”和零数据泄漏。
 
 读取路径：`MemoryContextMiddleware` 注入时采用指令层级。**Stable（Profile/Rules/Self-Instructions/Corrections）**封装在 `<user_memory_context>` 的 **SystemMessage** 中。**Learned Preferences / Learned Rules**放入 **HumanMessage**，先 `sanitize()` 与逐项 `_escape_xml_item()`（降低伪造围栏标签风险），再由 `wrap_untrusted(..., source="memory_context")` 生成 `<<<UNTRUSTED_DATA id="…">>>` 信封，与同进程已注入的 `SECURITY_BOUNDARY_SYSTEM_RULES` 契约一致。
 
@@ -564,6 +563,12 @@ final = semantic^w0 × recency^w1 × frequency^w2 × importance^w3 × preference
 - **Confidence**: 直接提取 `memory.confidence`（作为最终乘数）
 
 **BM25 持久稀疏索引**：Qdrant 后端为 Semantic/Episodic 各维护一个 `{collection}_bm25` sparse collection（token 经 crc32 u31 哈希、词频饱和 `1+ln(tf)`、IDF 由服务端计算）。写入路径 fail-open 双镜像（upsert/delete 同步镜像，失败仅日志不阻塞 dense 写入）；首个 BM25 查询触发一次性 backfill 预热，此后增量维护。无 sparse 能力的后端（及预热完成前）走 corpus-scroll + BM25Okapi fallback；此时若用户记忆总量超过 `bm25_max_corpus_size`（默认 5000），fallback 路径自动禁用并记入降级指标（`record_degradation("corpus_overflow")`，与超时/错误同级可观测）。实测（embedded Qdrant，1000 条记忆）：持久稀疏通道 8.9 ms/query vs fallback 41.6 ms/query（4.6x）；同一超上限语料下 sparse 通道正常返回，fallback 返回空结果。
+
+**无 Embedding 的关键词模式**：`create_local_memory_manager(embedding_config=None)` 装配 sparse-authoritative 管理器：跳过 embedding 服务、嵌入缓存与 dense 集合预建，Semantic/Episodic 记忆写入 `{collection}_bm25` 稀疏镜像（`upsert_sparse_only`），读取、计数、按 id 删除与翻页一并路由到镜像，集合枚举把镜像视为「当前集合存在」，检索由 BM25 通道承担；批量写入以「内容稀疏编码召回候选 + 归一化内容哈希精确比对」去重。配置 Embedding 后新写入恢复 dense 双镜像；此前的关键词记忆由既有 reindex 流程识别为「无 dense 伴随的镜像孤儿」（`orphan_mirror_collections`），用户经迁移提示重嵌入进当前集合后即可语义召回，迁移完成的镜像随迁移一并删除。该标志是显式部署决策而非「无 embedding」推断——只做元数据操作、持有 dense 集合的管理器（如 cascade 管理器）在无 embedding 时仍走 dense 路由。Agent 工具与 WebUI 手动 CRUD 的知识/事件门禁跟随 `get_enabled_types()`；内容改写仅在稀疏权威模式下免去 dense embedding（`is_sparse_authoritative`）。模式以 `retrieval_mode`（`semantic` / `keyword`）进入命令中心运行时快照。
+
+**嵌入模型切换迁移**（`_manager/model_collections.py`、`_manager/reindex.py`）：集合名带嵌入模型后缀（`{prefix}_semantic_{model}`），召回只查当前模型的集合，切换模型后旧集合里的记忆在迁移前不可召回。`model_collections.py` 是集合命名的唯一解读方：`previous_model_collections` 只认 `{prefix}_{semantic|episodic|conversation}_{后缀}`，排除当前模型的集合与 `_bm25` 稀疏镜像（镜像不是孤儿，随稠密集合一并处理），也不会把前缀相近的外来集合（`{prefix}X_…`）认作自己的。`detect_orphan_collections` 经 BM25 镜像之下的后端列出这些集合，并用 `count` 计数（`get_collection_info` 无法描述命名向量的 Conversation 集合）。`reindex_from_orphans` 是"搬家"而不是复制：逐页读取旧集合，Semantic / Episodic 按原 payload 整条写入当前集合（id、scope、pinned、importance、tags、时间戳全部保留，不经类型模型往返，也不触碰图谱），只用当前模型重新计算向量；Conversation 经双向量写入器重算 raw / summary 两个向量；旧向量绝不沿用。目标集合已有的 id 视为已搬（切换后新写入的记忆不会被旧副本覆盖，重复运行不会重复 embedding）；写入后回读确认目标集合里确有该 id，才从旧集合删除。一页的嵌入在 `family_lock` 之外进行（模型调用慢、可能卡住），写入前在锁内重读旧集合与当前集合：嵌入期间被删除的记忆不再写回、也不计失败；嵌入期间已出现在当前集合的副本不被覆盖；已离开当前集合的那条没有新向量，留在旧集合、计入 `failed`，下次重跑再搬。读、嵌入、写或回读任一步失败都保留旧副本并计入 `failed`（再次运行只补这些），不会混入 `skipped`；正文为空的记忆无法向量化，直接从旧集合移除并计入 `skipped`。旧集合清空后连同其 BM25 镜像一并删除。
+
+删除类操作（`delete_all`、`delete_by_type`、按元数据级联删除与其预览）作用于整个集合族，即当前模型的集合加所有旧模型的集合，所以切换模型前后写入的记忆在删除时一视同仁；这些删除与迁移都会回收清空的旧集合（`bulk_deletion.py` 承载 `delete_all` 与按元数据的级联，`listing_maintenance.py` 承载 `delete_by_type`）。`delete_all` 在关系库或向量库删除失败时，先尝试完所有后端，再抛出 `MemoryError`（图谱与缓存为尽力而为）；`delete_by_type` 的旧模型集合清不掉时，同样先清完图谱与缓存再抛出。按 id 删除（`delete_memory`、`delete_memory_by_id`，含回收站永久删除、过期归档的自动清理与 Agent 工具）先把同一 id 从旧模型的集合里删掉、再删当前集合：中断的迁移留下的双份副本一起消失，不会在下次迁移时复活；旧副本删不掉时整次删除抛出 `MemoryError`，当前副本原样保留（仍然可见、可重试）；自动清理遇到这样的批次就留到下一轮，不影响其他集合。`delete_memories_by_ids` 是导入 / 恢复回滚用的精确撤销，只动当前模型的集合。迁移的读取页与结算（重读、写入、回读、从旧集合删除）与所有删除共用 `family_lock`（`model_collections.py`，按向量后端与集合前缀各一把锁），锁只包住向量库读写、从不跨嵌入模型调用，所以删除既不会被在途的一页写回，也不必等模型；删除抢在嵌入期间或两页之间完成时，结算发现旧集合已不存在或该条已被删就不再写入，不计失败。`asyncio.Lock` 不可重入，已持锁的批量删除调用无锁的 `_delete_owned`。向量库的空过滤器等同"匹配全部"（与 `search` 的过滤语法一致）。
 
 **检索超时 fail-open**（`RetrievalConfig.timeout_seconds`，默认 10s）：
 
@@ -858,7 +863,7 @@ tools = create_memory_tools(manager=manager)
 
 **Memory MCP HTTP**（`agent_surface/mcp_server/`）：对外暴露 `memory_recall` / `memory_list` / `memory_store` / `memory_manage` 四工具；**`memory_manage` 与 `memory_store` 描述** import `agent_surface/_memory_agent_tool_descriptions` SSOT（`surface=mcp` 工具名映射；store 默认不含 wiki boundary 文案——MCP 面无 wiki 工具、运行时 wiki 拦截由 server 按 agent 经 ContextVar 控制，静态描述不声称 wiki enabled，显式启用场景下 MCP 面也不泄漏 GUI 内部工具名 `wiki_ingest_tool`）；wiki 启用时 `memory_store` 运行时硬拒 document-like 内容（与 GUI `memory_save_tool` 一致，server middleware 传 ContextVar，拒绝消息同样不引用 GUI 内部工具）。recall/list 仍为 MCP 专用 inline 描述。
 
-`conversation_search/` 模块提供 Protocol、formatter 与 `create_conversation_search_tool` 单元测试工厂；产品路径（GeneralAgent 与 Custom 子 Agent）均通过 `memory_search_tool(corpus=sessions)` + Server `MemorySearchPolicy` ACL。Turn1 不 bind standalone LLM 工具名 `conversation_search_tool`。
+`conversation_search/` 模块提供 Protocol、formatter 与 `MemoryConversationSearchProvider`；会话检索只经 `memory_search_tool(corpus=sessions)` + Server `MemorySearchPolicy` ACL 暴露（GeneralAgent 与 Custom 子 Agent 一致），框架不提供独立的 `conversation_search_tool`。
 
 ### 8.3 审批机制
 
@@ -1006,7 +1011,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 | PendingStore       | SQLite (本地文件)                                                                                  |
 | **总依赖**         | ✅ 零 Docker，零云端数据库，完全基于本地文件系统，通过 `MEMORY_BASE_PATH` 环境变量映射到持久化卷。 |
 
-> **持久化降级可观测性**：Semantic/Episodic 的 Qdrant Embedded 在持久卷不可写时会**静默回退到 `:memory:`**（数据重启即失，仅用于逃生），此前仅 `logger.error` 记录、对调用方/GUI 静默。`VectorStore.is_persistent` 提供统一的持久性契约（Qdrant 实现为 `local_path != ":memory:"`），`MemoryManager.vector_is_persistent` 透出（无 vector store 视为持久）。业务层/UI 据此展示 `persistent | memory_fallback | unavailable` 状态，避免「界面显示可用、实际记忆重启丢失」的误导。
+> **持久化降级可观测性**：Semantic/Episodic 的 Qdrant Embedded 在持久卷不可写时会**静默回退到 `:memory:`**（数据重启即失，仅用于逃生），工厂只写一条 `logger.error`。`VectorStore.is_persistent` 提供统一的持久性契约（Qdrant 实现为 `local_path != ":memory:"`），`MemoryManager.vector_is_persistent` 透出（无 vector store 视为持久）。记忆指挥中心（仅 Memory Labs 打开时可见）据此展示 `persistent | memory_fallback | unavailable` 状态，避免「界面显示可用、实际记忆重启丢失」的误导。默认可见的入口有两个：Doctor `VectorDB` 探针（`embedded_fallback_paths()`〔`toolkits/vector/qdrant/factory.py`〕列出退化到内存的嵌入式 store，探针据此报 FAIL，设置 → 系统页、运维快照与支持包可见；Doctor 只在被拉取时才会触发 `health_alert` 推送），以及宿主应用自行向用户提示的通道（MyRM 的 server 在默认库退化时置 `system_status.vector_degraded`，Web UI 弹出常驻、可关闭的 toast）。
 
 ---
 
@@ -1058,26 +1063,6 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 - **多语言支持**：强制启用 `trigram` 分词器，确保中英文混合搜索的 100% 召回率。
 - **混合检索**：底层并行触发 FTS5（精准关键词匹配）和 Vector（语义匹配），并使用 RRF（倒数排序融合）算法进行数学重排。
 - **语法清洗**：提供严格的 FTS5 查询语法清洗（Sanitization），支持带点号和连字符的代码文件名防切词，拦截崩溃注入。
-
----
-
-## 十四、ReTree 树状工作记忆系统 (working_tree)
-
-作为与长期记忆（`MemoryManager`）互补的**运行时执行期工作记忆**模块，基于上海交通大学 ReTree 架构规范构建：
-
-- **核心定位**：解决多跳搜索与长程复杂调研中的上下文无界膨胀与错误事实级联污染。
-- **证据树容器（`EvidenceTree`）**：以有向无环图（DAG）形式组织多步搜索证据，节点携带有界精炼摘要（`BoundedSummary`）、精确 URL 证据与指纹（`EvidenceSource`）及版本修订记录（`RevisionRecord`）。
-- **两阶段冲突检测（`FastContradictionDetector`）**：
-  - Stage 1 确定性预检：通过 SHA-256 指纹去重、实体与关键词重叠检索、否定模式词表进行毫秒级矛盾初筛。
-  - Stage 2 语义仲裁：轻量 Fast-LLM 判定事实冲突（`CONTRADICTION`）或时态版本演化（`TEMPORAL_UPDATE`）。
-- **原子四步回溯修复与级联剪枝（`TreeRepairEngine`）**：
-  1. 根因追溯：沿因果依赖反向定位最初引入错误事实的根因节点；
-  2. 证据热替换：原地替换为最新确凿证据与指纹；
-  3. 摘要重编译：重新生成并收敛当前节点的有界摘要；
-  4. 级联软剪枝：将直接或间接依赖该错误事实的所有下游派生节点置为 `PRUNED_INVALIDATED`，彻底阻断错误传播；
-  5. 震荡阻尼保护：当节点反复修订达到阈值（`MAX_REVISIONS_PER_NODE = 2`）时，自动冻结为 `DISPUTED` 争议状态，保留多方观点并阻断无限震荡。
-- **KV Cache 友好切片**：工作记忆切片输出严格依据节点生成时间戳正序稳定排列，固化 Prompt 前缀，最大化模型推理时的 KV 缓存命中率。
-- **详细设计**：详见 [working_tree/_ARCH.md](working_tree/_ARCH.md)。
 
 ---
 

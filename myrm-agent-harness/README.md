@@ -1,5 +1,9 @@
 # Myrm Agent Harness
 
+> **本仓库已归档，开发已迁入 [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) 的 `myrm-agent-harness/` 目录。**  
+> **This repository is archived. Development continues in [Pursue-LLL/myrm-agent](https://github.com/Pursue-LLL/myrm-agent) under `myrm-agent-harness/`.**  
+> 完整提交历史已原样导入新仓库（`git log` / `git blame` 按文件连续）；PyPI 包名 `myrm-agent-harness` 不变，发版从新仓库的 `harness-v*` tag 触发。
+
 **生产级 Agent 框架** - 基于 LangChain 构建，提供高级技能系统、MCP 集成和生产就绪的沙箱执行。
 
 > **许可**: MIT 开源（见 [LICENSE](LICENSE) 与 `pyproject.toml`）。框架层不与业务逻辑耦合，类似 LangChain 定位，供 `myrm-agent-server` 等业务项目引用。  
@@ -38,7 +42,7 @@
 ### 架构亮点
 - ✅ **框架-业务分离**：纯框架层，零业务逻辑（[自动化检测与修复](scripts/_ARCH.md)）
 - ✅ **智能缓存系统**：文件缓存与 LRU 等策略（行为依赖负载与配置）
-- ✅ **多沙箱支持**：Local（开发）、Docker（生产）、E2B（云端）统一 API；Docker / E2B 由控制平面承载，harness 内的执行器只有 `LocalExecutor`
+- ✅ **多沙箱承载**：harness 只提供 `LocalExecutor`；Docker / Docker+gVisor、Fly.io 由 `myrm-control-plane` 承载
 - ✅ **类型安全**：包内代码以严格类型约束为目标（见 `pyproject` / `mypy` 配置）
 - ✅ **测试**：`tests/` 下单元、集成与性能等用例；以本地 `pytest` 结果为准
 - ✅ **分形自文档**：自组织、自愈的四层文档系统
@@ -145,10 +149,10 @@ agent = await create_skill_agent(
 ### 使用技能后端
 
 ```python
-from myrm_agent_harness.backends.skills import SkillBackend
+from myrm_agent_harness.backends.skills import LocalSkillBackend
 
 # 创建技能后端（业务层）
-skill_backend = SkillBackend.local("./skills")
+skill_backend = LocalSkillBackend("./skills")
 
 agent = await create_skill_agent(
     spec,
@@ -306,7 +310,7 @@ myrm-agent-harness/          # 本仓库根（示意）
 │       ├── core/                    # 框架无关基础层（security, events, hooks, config）
 │       ├── agent/                   # Agent 核心（BaseAgent, SkillAgent, 技能, 中间件, 元工具）
 │       ├── runtime/                 # 单实例守护（checkpoint、context 生命周期、quota、doctor）
-│       ├── infra/                   # 基础设施（文件锁、消息投递、链路追踪）
+│       ├── infra/                   # 基础设施（消息投递持久化、链路追踪）
 │       ├── observability/           # 全局监控与诊断（Prometheus, Diagnostic Protocol）
 │       ├── backends/                # 后端抽象（skills, storage, profiles, secrets）
 │       ├── toolkits/                # 通用工具包（不与 agent/ 耦合，可独立使用）
@@ -327,7 +331,8 @@ myrm-agent-harness/          # 本仓库根（示意）
 │       └── utils/                   # 通用工具函数
 │
 ├── tests/                           # 测试套件（单元 / 集成 / 架构门禁 / 性能）
-└── scripts/                         # 边界检测、发布与文档门禁脚本
+├── harness_packaging/               # 分发构建（Nuitka compiled-core + release wheel）
+└── scripts/                         # 边界检测、构建与发布脚本
 ```
 
 详细架构说明请参考 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -397,15 +402,19 @@ class MyCodeExecutor(CodeExecutor):
 加载技能和技能内容：
 
 ```python
-from myrm_agent_harness.backends.skills import SkillBackend
+from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 class MySkillBackend(SkillBackend):
+    async def list_skills(self) -> list[SkillMetadata]:
+        ...
     async def load_skills(self, skill_ids: list[str]) -> list[SkillMetadata]:
         ...
     async def get_skill_content(self, skill_name: str) -> str:
         ...
     async def get_skill_resources(self, skill_name: str, path: str) -> bytes:
+        ...
+    async def list_skill_resources(self, skill_name: str) -> list[str]:
         ...
 ```
 
@@ -521,13 +530,7 @@ executor.bind_workspace("/path/to/workspace")
 result = await executor.execute(ExecutionContext(code="print('hello')"))
 ```
 
-**模式对比**：Docker / E2B 是 `myrm-control-plane` 承载沙箱的方式；harness 的 `ExecutionMode` 目前只有 `LOCAL`，Agent 在所选沙箱内以 `LocalExecutor` 执行代码。
-
-| 模式 | 隔离性 | 性能 | 可扩展性 | 成本 |
-|------|--------|------|----------|------|
-| **Local** | ❌ 无 | ⚡ 最快 | ❌ 受限 | ✅ 免费 |
-| **Docker** | ✅ 强 | 🔥 快 | 🔥 好 | ✅ 免费 |
-| **E2B** | ✅ 强 | ⚡ 即时 | ✅ 无限 | 💵 付费 |
+**沙箱承载**：`myrm-control-plane` 支持 Docker / Docker+gVisor / Fly.io 后端；harness 的 `ExecutionMode` 只有 `LOCAL`，Agent 在所选云电脑内以 `LocalExecutor` 执行代码。
 
 ---
 
@@ -579,8 +582,8 @@ result = await executor.execute(ExecutionContext(code="print('hello')"))
 
 ```bash
 # 克隆和设置
-git clone https://github.com/Pursue-LLL/myrm-agent.git
-cd myrm-agent/myrm-agent-harness
+git clone <repo-url>
+cd myrm-agent-harness
 uv sync --python 3.13 --locked --extra all --group dev
 source .venv/bin/activate
 
@@ -588,10 +591,11 @@ source .venv/bin/activate
 # `UV_DEFAULT_INDEX=https://pypi.org/simple uv lock` 并提交 uv.lock，否则 `--locked` 会失败。
 # 不要在镜像源下直接 `uv lock`：它会把所有包的 registry 与下载 URL 改写成镜像地址，
 # `tests/architecture/test_core_dependencies.py` 会拦截这种 lock。
+# compiled-core* 平台包发版前不在 PyPI 上，开发锁通过 [tool.uv] exclude-dependencies（需 uv ≥ 0.9.8）排除它们。
 
-# ⚠️ 重要：在仓库根安装 pre-commit（自动化边界检测，hook 配置位于 myrm-agent/.pre-commit-config.yaml）
+# ⚠️ 重要：安装 pre-commit（自动化边界检测）
 pip install pre-commit
-(cd .. && pre-commit install)
+pre-commit install
 
 # 运行测试（默认串行 + 安全 marker 过滤，避免本机内存打满）
 pytest -v

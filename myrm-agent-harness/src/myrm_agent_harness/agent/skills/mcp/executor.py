@@ -30,6 +30,9 @@ from myrm_agent_harness.toolkits.code_execution.python_extractor import (
 from myrm_agent_harness.toolkits.code_execution.python_extractor import (
     TOOLS_IMPORT_RE as TOOLS_IMPORT_PATTERN,
 )
+from myrm_agent_harness.toolkits.code_execution.python_extractor import (
+    detect_ptc_imports,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +86,9 @@ class SkillExecutor:
         command: str,
         ipc_socket_path: str,
         session_id: str | None = None,
+        agent_id: str | None = None,
         workspace_root: str | None = None,
+        readonly_workspace: bool = False,
     ) -> SkillExecutionContext:
         """准备代码执行
 
@@ -97,7 +102,9 @@ class SkillExecutor:
             command: Bash 命令（如 python -c "..."）
             ipc_socket_path: IPC Unix Socket 路径
             session_id: 当前会话 ID（用于 builtin 会话上下文）
+            agent_id: 当前 Agent ID（用于 MCP scope-gate 策略匹配）
             workspace_root: 沙箱挂载的工作目录（host 视角的绝对路径）
+            readonly_workspace: 调用方是否处于只读沙箱；IPC 服务端据此拒绝写类 MCP 工具
 
         Returns:
             SkillExecutionContext 包含预处理后的代码
@@ -128,7 +135,10 @@ class SkillExecutor:
         ipc_client_code = self._generate_mcp_client_code(
             ipc_socket_path,
             session_id=session_id,
+            agent_id=agent_id,
             workspace_root=workspace_root,
+            read_only_tools=self._collect_read_only_tools(identifier),
+            readonly_workspace=readonly_workspace,
         )
         prepared_code = f"{ipc_client_code}\n\n# === User Code ===\n{python_code}"
 
@@ -160,7 +170,7 @@ class SkillExecutor:
     def _detect_ptc_in_code(self, code: str) -> tuple[bool, str | None]:
         """检测代码中是否包含 PTC 调用
 
-        优先检测 MCP 技能，再检测内置工具。
+        优先用 AST 精确判定所有 import 形式，语法错误时回退到正则。
 
         Args:
             code: Python 代码
@@ -168,6 +178,13 @@ class SkillExecutor:
         Returns:
             (is_ptc, identifier) - 是否是 PTC 调用，MCP 技能名或 "__builtin__"
         """
+        detected = detect_ptc_imports(code)
+        if detected is not None:
+            return detected
+        return self._detect_ptc_by_regex(code)
+
+    def _detect_ptc_by_regex(self, code: str) -> tuple[bool, str | None]:
+        """正则回退：仅在代码无法解析成 AST（语法错误、片段代码）时使用。"""
         skill_match = SKILL_NAME_PATTERN.search(code)
         if skill_match:
             return True, skill_match.group(1)
@@ -214,7 +231,7 @@ class SkillExecutor:
         """
         from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
 
-        skill_meta = skill_registry.get_skill(skill_name)
+        skill_meta = skill_registry.get_mcp_skill_for_ipc(skill_name)
         if not skill_meta or not skill_meta.is_mcp_skill or not skill_meta.mcp:
             return None
 
@@ -258,7 +275,10 @@ class SkillExecutor:
         self,
         ipc_socket_path: str,
         session_id: str | None = None,
+        agent_id: str | None = None,
         workspace_root: str | None = None,
+        read_only_tools: frozenset[str] | None = None,
+        readonly_workspace: bool = False,
     ) -> str:
         """生成 MCP IPC 客户端代码
 
@@ -267,7 +287,10 @@ class SkillExecutor:
         Args:
             ipc_socket_path: IPC Unix Socket 路径
             session_id: 当前会话 ID
+            agent_id: 当前 Agent ID（用于 MCP scope-gate 策略匹配）
             workspace_root: 沙箱挂载的工作目录
+            read_only_tools: 允许断连重试的 `skill.tool` 集合（仅 readOnlyHint）
+            readonly_workspace: 调用方是否处于只读沙箱
 
         Returns:
             MCP 客户端代码字符串
@@ -277,8 +300,73 @@ class SkillExecutor:
         return generate_ipc_client_code(
             ipc_socket_path,
             session_id=session_id,
+            agent_id=agent_id,
             workspace_root=workspace_root,
+            read_only_tools=read_only_tools,
+            auth_token=self._resolve_ipc_auth_token(),
+            readonly_workspace=readonly_workspace,
+            trace_nonce=self._resolve_trace_nonce(),
+            tcp_port=self._resolve_tcp_port(),
         )
+
+    @staticmethod
+    def _resolve_tcp_port() -> int:
+        """Loopback TCP port when the host IPC server uses the non-POSIX transport."""
+        from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_ipc_server
+
+        server = get_mcp_ipc_server()
+        return server.tcp_port if server is not None else 0
+
+    @staticmethod
+    def _resolve_trace_nonce() -> str | None:
+        """Read the marker nonce from the running IPC server.
+
+        Returns ``None`` when no server is up. The client then omits call markers, so a
+        run without a live token source produces no citation metadata instead of
+        metadata the host cannot authenticate.
+        """
+        from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_trace_nonce
+
+        return get_mcp_trace_nonce()
+
+    @staticmethod
+    def _resolve_ipc_auth_token() -> str | None:
+        """Read the bearer token from the running IPC server.
+
+        Returns ``None`` when no server is up: the generated client then sends no
+        token and the server rejects the call, which is the safe failure mode.
+        """
+        from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_ipc_server
+
+        server = get_mcp_ipc_server()
+        return server.auth_token if server is not None else None
+
+    @staticmethod
+    def _collect_read_only_tools(skill_name: str) -> frozenset[str]:
+        """Collect `skill.tool` names the MCP server declared read-only.
+
+        Consumed by the generated client so connection-failure retries never
+        replay a mutating call. Unknown tools are excluded (fail-closed).
+        """
+        from myrm_agent_harness.agent.skills.mcp.builtin_registry import BUILTIN_SKILL_NAME
+        from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
+        from myrm_agent_harness.core.security.tool_registry.registry import (
+            get_ptc_safety_metadata,
+        )
+
+        if skill_name == BUILTIN_SKILL_NAME:
+            return frozenset()
+
+        skill_meta = skill_registry.get_mcp_skill_for_ipc(skill_name)
+        if not skill_meta or not skill_meta.mcp:
+            return frozenset()
+
+        read_only: set[str] = set()
+        for tool_name in skill_meta.mcp.tools:
+            entry = get_ptc_safety_metadata(skill_name, tool_name)
+            if entry is not None and entry[0].is_read_only:
+                read_only.add(f"{skill_name}.{tool_name}")
+        return frozenset(read_only)
 
 
 # 全局实例（使用默认 API 前缀）

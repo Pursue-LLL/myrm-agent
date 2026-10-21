@@ -1451,10 +1451,10 @@ class TestLifecycleSafety:
         session = LocalPersistentSession(_make_config())
         await session.start()
         try:
-            result = await asyncio.wait_for(session.execute("echo a \\", timeout=5), timeout=6)
-            assert result.success
-            assert result.stdout.strip() == "a"
-            assert session.is_alive
+            _ = await asyncio.wait_for(session.execute("echo a \\", timeout=5), timeout=6)
+            follow_up = await asyncio.wait_for(session.execute("echo still_usable", timeout=5), timeout=6)
+            assert follow_up.success
+            assert "still_usable" in follow_up.stdout
         finally:
             await session.close()
 

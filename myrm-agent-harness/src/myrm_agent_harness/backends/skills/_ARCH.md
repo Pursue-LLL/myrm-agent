@@ -16,9 +16,9 @@ Skill backend implementations — read/write/discovery protocols, local/memory/s
 | credentials/ | Core | Optional DX helpers for validating credentials and detecting missing skill secrets. | ✅ |
 | prerequisites/ | Core | Skill runtime prerequisites contract, host system dependency sniffing (OS/binaries/Python), and cross-platform one-click remediation command generators. | ✅ |
 | market_protocols.py | Core | SkillMarketBackend protocol and search/install result types. | ✅ |
-| factory.py | Core | SkillBackend factory for local, storage, memory, and composite backends. | ✅ |
-| forgetting_strategy.py | Core | Curator forgetting strategies (pinned, evolution lock, grace, source-aware). | ✅ |
-| instance_templates.py | Core | Predefined skill instance configuration templates. | ✅ |
+| curator_config.py | Core | `CuratorConfig`: curator knobs, defaults and construction-time range validation (`ValueError` outside the safe ranges). | ✅ |
+| forgetting_strategy.py | Core | Curator forgetting strategies (pinned exemption, grace, stale/archive, low quality); `evolution_locked` guards content rewrites only and does not stop the lifecycle sweep; installed-skill exemption is applied by the engine from the caller's `installed_names`. | ✅ |
+| skill_doctor.py | Core | Skill library health report for the curator doctor: `evaluate_skill_health_findings` flags frequently failing skills (needs enough observed run outcomes) and idle pinned skills. Each finding carries a type code plus `details` parameters that the UI phrases itself; read-only, never changes lifecycle state. | ✅ |
 | local.py | Core | Local filesystem skill backend; filters archived skills via lifecycle stats. | ✅ |
 | memory.py | Core | In-memory skill backend for dynamic and MCP-generated skills. | ✅ |
 | permission_templates.py | Core | Out-of-the-box permission templates for skill declarations. | ✅ |
@@ -28,7 +28,7 @@ Skill backend implementations — read/write/discovery protocols, local/memory/s
 | snapshot.py | Core | SQLite snapshot cache for O(N) skill metadata reads and incremental sync. | ✅ |
 | watcher.py | Core | Watchdog-based SKILL.md hot reload with debounced snapshot updates. | ✅ |
 | state_manager.py | Core | Skill instance CRUD, state persistence, config_overrides JSON Schema validation. | ✅ |
-| stats_collector.py | Core | Skill usage stats (one use per run, outcome observed or unobserved) and lifecycle_status / pinned persistence; `reset_usage` opens a fresh success-rate window while keeping lifecycle/pin; stateless: every change (`record_use`, lifecycle/pin, `archive_merged`, `inherit_usage` for a merge or umbrella skill absorbing its sources) reads the ledger, modifies it and writes it back at once, and `get_stats` always reads from disk, so a ledger changed elsewhere is never overwritten from stale memory; a skill's first observation creates its ledger (anchors `created_at` for the forgetting grace period); atomic `.stats.json` writes, an unparseable ledger is kept as `.stats.json.corrupt`, an unreadable one is never replaced by a blank one. | ✅ |
+| stats_collector.py | Core | Skill usage stats (one use per run, outcome observed or unobserved) and lifecycle_status / pinned persistence; `reset_usage` opens a fresh success-rate window while keeping lifecycle/pin; stateless: every change (`record_use`, lifecycle/pin, `archive_merged`, `inherit_usage` for a merge or umbrella skill absorbing its sources) reads the ledger, modifies it and writes it back at once, and `get_stats` always reads from disk, so a ledger changed elsewhere is never overwritten from stale memory; reads never write — `anchor_created_at` writes the ledger at creation so the forgetting clock starts then, and a skill with no ledger is dated from its `SKILL.md` mtime in memory instead; atomic `.stats.json` writes, an unparseable ledger is kept as `.stats.json.corrupt` (the read that found it writes no replacement), an unreadable one is never replaced by a blank one. | ✅ |
 | usage_recorder.py | Core | Run-scoped skill usage: selections and attributed tool outcomes fold into one `.stats.json` use per skill at run end and are on disk when `commit_skill_run_usage` returns; `set_stats_collector` SSOT with server. | ✅ |
 | storage.py | Core | Storage-backed skill backend that loads skills from any StorageProvider. | ✅ |
 | types/（子包） | Core | Skill 系统数据类型域。稳定公共入口 `backends.skills.types`（import path 不变，解析到子包门面）。9 个 `types_*` 实现模块聚合于此，`types/__init__.py` 为聚合门面统一 re-export（SkillContract* / enums / SkillMetadata / SkillInstance* / SkillRequires / MCPSkillData / Security* / SkillUsageStats / skill_visible_for_tools / coercion） | ✅ |
@@ -36,15 +36,12 @@ Skill backend implementations — read/write/discovery protocols, local/memory/s
 | local_skill_id.py | Core | Canonical path-hash local skill ID + install dir resolution. | ✅ |
 | credential_checker.py | Core | Credential expiry checker for JWT/OAuth tokens (`ExpiryStatus`, `ExpiryResult`, `CredentialExpiryChecker`). | ✅ |
 | credential_validator.py | Core | Credential file validator — workspace boundary checks for skill credentials (`CredentialValidationResult`, `CredentialValidator`). | ✅ |
-| model_resolver.py | Core | Skill Specialized Model Resolver — Model-As-A-Skill hybrid engine (`SkillModelResolutionSource`, `SkillModelResolutionResult`, `SkillModelResolver`). | ✅ |
-| runtime_modifiers.py | Core | Skill semantic modifiers parser and audience adapter runtime (`AudienceDepth`, `AudienceProfile`, `SkillModifierResult`). | ✅ |
 | workflow_compiler.py | Core | Desktop/multi-app workflow plan data structures and SKILL.md compiler. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|
 | decorators/ | Version-aware and quarantine-aware SkillBackend decorators. See [decorators/_ARCH.md](decorators/_ARCH.md). |
 | scanning/ | Static/AST/LLM skill content security scanning. See [scanning/_ARCH.md](scanning/_ARCH.md). |
-| code_analysis/ | Static AST dependency and dead-code topology analysis. See [code_analysis/_ARCH.md](code_analysis/_ARCH.md). |
 
 ## Key Dependencies
 

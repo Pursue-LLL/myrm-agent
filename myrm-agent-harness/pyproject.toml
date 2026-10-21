@@ -26,7 +26,7 @@ dependencies = [
   "aiosqlite>=0.22.1",                  # async SQLite (memory stores + checkpointer)
   "dill>=0.4.1",                        # checkpoint serde (ChatLiteLLM / complex objects)
   # --- LLM 多供应商适配 ---
-  "litellm>=1.90.2", # 统一 LLM API 代理 (100+ 供应商；server 的 aioboto3 钉住 boto3<1.40.62，litellm>=1.98 需要 boto3>=1.43，故下限不可更高)
+  "litellm>=1.90.2", # 统一 LLM API 代理 (100+ 供应商)
   # --- 数据验证与序列化 ---
   "pydantic>=2.13.5", # 数据模型验证
   "PyYAML>=6.0.2",    # YAML 配置解析（下限 6.0.2：pdf-ocr 的 paddlex 固定 PyYAML==6.0.2）
@@ -56,9 +56,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Pursue-LLL/myrm-agent"
-Source = "https://github.com/Pursue-LLL/myrm-agent/tree/main/myrm-agent-harness"
-Issues = "https://github.com/Pursue-LLL/myrm-agent/issues"
+Repository = "https://github.com/Pursue-LLL/myrm-agent-harness"
 
 [project.scripts]
 verify-harness-distribution = "myrm_agent_harness.runtime.install_guard.verify:main"
@@ -107,12 +105,13 @@ file-parsers = [
   "openpyxl>=3.1.5",    # Excel 文件读写
   "python-pptx>=1.0.2", # PowerPoint 文档解析
 ]
-# toolkits/file_parsers/ocr.py - 扫描 PDF / 图片 OCR 兜底（PaddleOCR，CJK 原生支持）
+# toolkits/file_parsers/ocr.py - 扫描 PDF / 图片 OCR 兜底（RapidOCR + ONNX Runtime，CJK 原生支持）
 pdf-ocr = [
-  "paddleocr>=3.2.0",   # PaddleOCR 引擎（含检测+识别模型）；3.7+ 的 paddlex 限制 numpy<2.4，与 retrieval 的 numpy>=2.5 冲突
-  "paddlepaddle>=3.3.1", # PaddlePaddle 深度学习框架
+  "rapidocr>=3.10.0",  # OCR 引擎（PP-OCR 检测+识别+方向分类，模型随包分发）
+  # ONNX Runtime 是 RapidOCR 的默认推理后端。Pyodide 无 wheel，须排除以保证跨平台锁可解。
+  "onnxruntime>=1.20.0; sys_platform != 'emscripten'",
 ]
-# infra/security/signature.py - FastAPI webhook signature verification
+# FastAPI pin for hosts that embed the harness behind FastAPI (no harness module imports it)
 fastapi = [
   "fastapi>=0.142.2",
 ]
@@ -124,16 +123,45 @@ observability = [
   "opentelemetry-exporter-otlp-proto-grpc>=1.45.0",
   "openinference-instrumentation-langchain>=0.1.78",
 ]
+compiled-core = [
+# BEGIN compiled-core (generated — do not edit)
+"myrm-agent-harness-core-darwin-arm64==0.1.0rc6; platform_system == 'Darwin' and platform_machine == 'arm64'",
+  "myrm-agent-harness-core-darwin-x64==0.1.0rc6; platform_system == 'Darwin' and platform_machine == 'x86_64'",
+  "myrm-agent-harness-core-linux-x64==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'x86_64'",
+  "myrm-agent-harness-core-linux-arm64==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'aarch64'",
+  "myrm-agent-harness-core-win32-x64==0.1.0rc6; platform_system == 'Windows' and platform_machine == 'AMD64'",
+  "myrm-agent-harness-core-win32-arm64==0.1.0rc6; platform_system == 'Windows' and platform_machine == 'ARM64'",
+# END compiled-core
+]
+compiled-core-musl = [
+# BEGIN compiled-core-musl (generated — do not edit)
+"myrm-agent-harness-core-linux-x64-musl==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'x86_64'",
+  "myrm-agent-harness-core-linux-arm64-musl==0.1.0rc6; platform_system == 'Linux' and platform_machine == 'aarch64'",
+# END compiled-core-musl
+]
 all = [
-  "myrm-agent-harness[acp,browser,computer-use,image-processing,qdrant,retrieval,file-parsers,fastapi,observability,web]",
+  "myrm-agent-harness[acp,browser,computer-use,image-processing,qdrant,retrieval,file-parsers,pdf-ocr,fastapi,observability,web]",
 ]
 
 [tool.uv]
 # Universal lock for the Python 3.13 interpreter used by development and CI.
-environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
+environments = ["python_full_version >= '3.13' and python_full_version < '3.14' and sys_platform != 'emscripten'"]
 # jieba (retrieval extra) ships invalid escape sequences: compiling it at first import emits a SyntaxWarning that
 # pytest's `filterwarnings = ["error"]` escalates to a SyntaxError. Compiling at install time keeps that import clean.
 compile-bytecode = true
+# Platform core wheels (the compiled-core* extras above) exist on PyPI only after a release is
+# published, so the dev lock never resolves them; the published wheel metadata keeps the pins.
+# One entry per platform in harness_packaging/platforms.py (PUBLISH_PLATFORMS): a platform missing here makes `uv lock` fail.
+exclude-dependencies = [
+  "myrm-agent-harness-core-darwin-arm64",
+  "myrm-agent-harness-core-darwin-x64",
+  "myrm-agent-harness-core-linux-x64",
+  "myrm-agent-harness-core-linux-arm64",
+  "myrm-agent-harness-core-linux-x64-musl",
+  "myrm-agent-harness-core-linux-arm64-musl",
+  "myrm-agent-harness-core-win32-x64",
+  "myrm-agent-harness-core-win32-arm64",
+]
 override-dependencies = [
   "click>=8.5.0",
   "patchright>=1.59.1",
@@ -283,12 +311,6 @@ filterwarnings = [
     "ignore::DeprecationWarning:google",
     "ignore::DeprecationWarning:pkg_resources",
     "ignore::DeprecationWarning:websockets",
-    # jieba 0.42.1 (sdist-only) ships non-raw regex literals; the compile-time warning fires on its first
-    # import in a fresh environment (no cached bytecode yet) and would otherwise turn into a SyntaxError.
-    "ignore:invalid escape sequence:SyntaxWarning:.*jieba",
-    # scrapling passes strip_cdata to lxml's HTMLParser, which lxml >= 6.1 reports as a DeprecationWarning
-    # although the option has no effect; as an error it would fail every scrapling parse under pytest.
-    "ignore:The 'strip_cdata' option of HTMLParser:DeprecationWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
 ]
@@ -306,7 +328,7 @@ markers = [
 # 覆盖率门禁：核心模块行覆盖率 ≥80%。
 # 依赖真实文件系统/数据库的基础设施模块由独立集成任务覆盖。
 # Default addopts already apply the memory-safe marker filter and -n0.
-# CI unit job: <repo root>/.github/workflows/harness-test.yml (pytest -n 2). Browser: separate job.
+# CI unit job: .github/workflows/test.yml (pytest -n 2). Browser: separate job.
 #     coverage report
 [tool.coverage.run]
 source = ["myrm_agent_harness"]
@@ -391,6 +413,10 @@ include = [
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "\\.\\.\\."]
 
 [dependency-groups]
+build = [
+  "nuitka>=4.1.2",
+  "build>=1.5.0",
+]
 dev = [
   "pytest>=9.1.1",                   # 测试框架
   "pytest-asyncio>=1.4.0",           # 异步测试支持

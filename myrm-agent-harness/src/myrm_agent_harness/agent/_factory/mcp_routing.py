@@ -8,7 +8,6 @@
 - route_mcp_servers(): split MCP servers into direct tools vs PTC skills
 - demote_direct_servers_over_budget(): whole-server Skill demotion when aggregate direct budget exceeded
 - PTC_OVERHEAD_MULTIPLIER, FALLBACK_PTC_OVERHEAD_TOKENS, compute_direct_threshold, estimate_schema_tokens
-- _compact_description/_compress_direct_tools: direct MCP tool description compaction for token-noise control
 
 [POS]
 MCP schema-token routing for SkillAgent factory. **Two outcomes only** (see
@@ -20,8 +19,7 @@ MCP schema-token routing for SkillAgent factory. **Two outcomes only** (see
 
 from __future__ import annotations
 
-import copy
-import json
+import asyncio
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -31,7 +29,15 @@ from myrm_agent_harness.agent._factory.mcp_surface import (
     MCPSurfaceMode,
     parse_mcp_surface_mode,
 )
-from myrm_agent_harness.toolkits.mcp.config import MCPConfig
+from myrm_agent_harness.toolkits.mcp.config import (
+    MCPConfig,
+    mcp_config_to_runtime_dict,
+)
+from myrm_agent_harness.utils.token_estimation import (
+    estimate_tool_schema_tokens,
+    estimate_tools_schema_tokens,
+    tool_input_schema,
+)
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -70,13 +76,6 @@ Demoting multiple servers to PTC multiplies the SOP/L3 accumulation penalty
 be generous.
 
 When exceeded, whole servers (largest first) are demoted to PTC/Skill."""
-
-DIRECT_MCP_DESCRIPTION_SOFT_LIMIT = 180
-"""Soft character limit for direct MCP tool descriptions.
-
-Direct tools remain callable with full parameter schema. This limit trims verbose
-natural-language prose in descriptions to reduce EXTENDED Turn1 token noise.
-"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,91 +124,18 @@ def compute_direct_threshold(
 
 
 def _input_schema(tool: BaseTool) -> dict[str, object]:
-    """Return the tool's JSON Schema, falling back for malformed tools.
-
-    MCP tools carry a native JSON Schema ``dict`` as ``args_schema`` (see
-    ``tool_converter``); for those the dict is returned verbatim so schema
-    token estimates reflect the exact schema the LLM receives. Built-in
-    tools keep Pydantic models and are serialized via ``model_json_schema``.
-    """
-    try:
-        args_schema = getattr(tool, "args_schema", None)
-        if isinstance(args_schema, dict):
-            return cast("dict[str, object]", args_schema)
-        schema_model = tool.get_input_schema()
-        return cast("dict[str, object]", schema_model.model_json_schema())
-    except Exception:
-        return {}
+    """Return the tool's JSON Schema (SSOT lives in ``utils.token_estimation``)."""
+    return tool_input_schema(tool)
 
 
 def estimate_schema_tokens(tools: Sequence[BaseTool]) -> int:
-    """Estimate schema tokens for a list of tools via planning SSOT tiktoken."""
-    from myrm_agent_harness.utils.text_utils import get_token_count
-
-    total = 0
-    for tool in tools:
-        schema = _input_schema(tool)
-        entry = {
-            "name": tool.name,
-            "description": tool.description or "",
-            "parameters": schema,
-        }
-        total += get_token_count(json.dumps(entry, ensure_ascii=False, separators=(",", ":")))
-    return total
+    """Estimate the full schema tokens for a list of tools (SSOT in ``utils.token_estimation``)."""
+    return estimate_tools_schema_tokens(tools)
 
 
 def estimate_single_tool_tokens(tool: BaseTool) -> int:
-    """Estimate schema tokens for a single tool."""
-    from myrm_agent_harness.utils.text_utils import get_token_count
-
-    schema = _input_schema(tool)
-    entry = {
-        "name": tool.name,
-        "description": tool.description or "",
-        "parameters": schema,
-    }
-    return get_token_count(json.dumps(entry, ensure_ascii=False, separators=(",", ":")))
-
-
-def _compact_description(description: str, limit: int = DIRECT_MCP_DESCRIPTION_SOFT_LIMIT) -> str:
-    """Compact verbose MCP tool descriptions while preserving a clear summary."""
-    normalized = " ".join(description.split())
-    if len(normalized) <= limit:
-        return normalized
-    summary = normalized[:limit].rstrip(" ,.;:")
-    return f"{summary}."
-
-
-def _compress_direct_tools(tools: Sequence[BaseTool]) -> list[BaseTool]:
-    """Return direct MCP tools with compacted descriptions for token budget control."""
-    compressed: list[BaseTool] = []
-    for tool in tools:
-        compacted = _compact_description(tool.description or "")
-        if compacted == (tool.description or ""):
-            compressed.append(tool)
-            continue
-
-        cloned: BaseTool | None = None
-        model_copy = getattr(tool, "model_copy", None)
-        if callable(model_copy):
-            try:
-                cloned = cast("BaseTool", model_copy(update={"description": compacted}))
-                if getattr(cloned, "name", None) != tool.name:
-                    cloned = None
-            except Exception:
-                cloned = None
-        if cloned is not None:
-            compressed.append(cloned)
-            continue
-
-        try:
-            fallback_copy = copy.copy(tool)
-            fallback_copy.description = compacted
-            compressed.append(cast("BaseTool", fallback_copy))
-        except Exception:
-            logger.debug("Failed to compact MCP tool description for %s", tool.name)
-            compressed.append(tool)
-    return compressed
+    """Estimate the full schema tokens for a single tool (SSOT in ``utils.token_estimation``)."""
+    return estimate_tool_schema_tokens(tool)
 
 
 async def _generate_mcp_skills(
@@ -241,18 +167,8 @@ async def _generate_mcp_skills(
 
 
 def _config_to_dict(cfg: MCPServerConfigProtocol) -> dict[str, object]:
-    """Convert MCPServerConfigProtocol to dict without model_dump."""
-    return {
-        "name": cfg.name,
-        "type": cfg.type,
-        "url": cfg.url,
-        "command": cfg.command,
-        "args": cfg.args,
-        "description": cfg.description,
-        "extra_params": cfg.extra_params,
-        "host_serial": getattr(cfg, "host_serial", False),
-        "keepalive_interval": getattr(cfg, "keepalive_interval", None),
-    }
+    """Convert MCPServerConfigProtocol to runtime dict preserving all fields."""
+    return mcp_config_to_runtime_dict(cfg)
 
 
 @dataclass(frozen=True, slots=True)
@@ -274,12 +190,9 @@ async def route_mcp_servers(
         if isinstance(surface_mode, MCPSurfaceMode)
         else parse_mcp_surface_mode(str(surface_mode) if surface_mode is not None else None)
     )
-    from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
     from myrm_agent_harness.toolkits.mcp.connection_manager import (
         get_mcp_connection_manager,
     )
-
-    skill_registry.clear_mcp_skills()
 
     ptc_servers: list[MCPConfig] = []
     direct_bundles: list[_DirectServerBundle] = []
@@ -289,11 +202,14 @@ async def route_mcp_servers(
     manager = await get_mcp_connection_manager()
     force_direct = resolved_surface == MCPSurfaceMode.DIRECT_FC
 
-    for cfg in all_mcp_configs:
-        try:
-            conn = await manager.get_connection([cfg])
-        except Exception as e:
-            logger.warning("MCP server '%s' failed to connect, skipping: %s", cfg.name, e)
+    conn_results = await asyncio.gather(
+        *(manager.get_connection([cfg]) for cfg in all_mcp_configs),
+        return_exceptions=True,
+    )
+
+    for cfg, conn in zip(all_mcp_configs, conn_results, strict=True):
+        if isinstance(conn, BaseException):
+            logger.warning("MCP server '%s' failed to connect, skipping: %s", cfg.name, conn)
             continue
 
         server_tools = conn.tools_by_server.get(cfg.name) or next(
@@ -303,31 +219,28 @@ async def route_mcp_servers(
             logger.warning("MCP server '%s' exposed no tools, skipping", cfg.name)
             continue
 
-        raw_schema_tokens = estimate_schema_tokens(server_tools)
-        if raw_schema_tokens <= direct_threshold or force_direct:
-            compressed_tools = tuple(_compress_direct_tools(server_tools))
-            schema_tokens = estimate_schema_tokens(compressed_tools)
+        schema_tokens = estimate_schema_tokens(server_tools)
+        if schema_tokens <= direct_threshold or force_direct:
             direct_bundles.append(
                 _DirectServerBundle(
                     config=cfg,
-                    tools=compressed_tools,
+                    tools=tuple(server_tools),
                     schema_tokens=schema_tokens,
                 )
             )
-            if force_direct and raw_schema_tokens > direct_threshold:
+            if force_direct and schema_tokens > direct_threshold:
                 logger.info(
                     "MCP direct_fc override: server '%s' (%d tools, ~%d tokens, threshold=%d) → forced direct",
                     cfg.name,
                     len(server_tools),
-                    raw_schema_tokens,
+                    schema_tokens,
                     direct_threshold,
                 )
             else:
                 logger.info(
-                    "MCP hybrid: server '%s' (%d tools, raw~%d tokens, compact~%d tokens, threshold=%d) → direct candidate",
+                    "MCP hybrid: server '%s' (%d tools, ~%d tokens, threshold=%d) → direct candidate",
                     cfg.name,
                     len(server_tools),
-                    raw_schema_tokens,
                     schema_tokens,
                     direct_threshold,
                 )
@@ -337,7 +250,7 @@ async def route_mcp_servers(
                 "MCP hybrid: server '%s' (%d tools, ~%d tokens, threshold=%d) → PTC/Skill",
                 cfg.name,
                 len(server_tools),
-                raw_schema_tokens,
+                schema_tokens,
                 direct_threshold,
             )
 

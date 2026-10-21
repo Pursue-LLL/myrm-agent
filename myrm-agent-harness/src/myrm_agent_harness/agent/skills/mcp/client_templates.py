@@ -20,7 +20,7 @@ Agent-in-Sandbox 模式下，代码通过 subprocess 执行，需要 IPC 回调�
 
 [OUTPUT]
 - MCPError: PTC 调用错误（在子进程中抛出）。
-- generate_ipc_client_code(socket_path, session_id, workspace_root): 生成完整客户端源码。
+- generate_ipc_client_code(socket_path, session_id, agent_id, workspace_root): 生成完整客户端源码。
 
 [POS]
 PTC 子进程注入的 IPC 客户端代码生成器。负责构造 ``tools.*`` /
@@ -32,6 +32,7 @@ import json
 MAX_RETRIES = 1
 RETRY_DELAY = 0.5
 TOTAL_TIMEOUT = 90
+TRACE_PREVIEW_CHARS = 2000
 
 
 def _generate_base_code() -> str:
@@ -48,6 +49,7 @@ class MCPError(Exception):
 MAX_RETRIES = {MAX_RETRIES}
 RETRY_DELAY = {RETRY_DELAY}
 TOTAL_TIMEOUT = {TOTAL_TIMEOUT}
+_TRACE_PREVIEW_CHARS = {TRACE_PREVIEW_CHARS}
 
 async def _retry_call(call_fn, skill: str, tool: str):
     """通用重试逻辑"""
@@ -248,30 +250,58 @@ sys.meta_path.insert(0, _SkillsImportFinder())
 def generate_ipc_client_code(
     socket_path: str,
     session_id: str | None = None,
+    agent_id: str | None = None,
     workspace_root: str | None = None,
+    read_only_tools: frozenset[str] | None = None,
+    auth_token: str | None = None,
+    readonly_workspace: bool = False,
+    trace_nonce: str | None = None,
+    tcp_port: int = 0,
 ) -> str:
     """生成 Unix Socket IPC 客户端代码。
 
     Args:
         socket_path: Unix Socket 路径。
         session_id: 当前会话 ID(用于 notify 等需要会话隔离的 builtin)。
+        agent_id: 当前 Agent ID(用于 MCP scope-gate 策略匹配，独立于会话 ID)。
         workspace_root: 沙箱内的工作目录(host 视角的绝对路径)。
+        read_only_tools: 声明 ``readOnlyHint`` 的 ``skill.tool`` 全名集合。只有这些
+            调用允许在网络中断后重试；写操作重放会造成重复副作用。
+        auth_token: 服务端下发的进程内 bearer token，缺失时服务端会拒绝请求。
+        readonly_workspace: 调用方是否在只读沙箱中运行；服务端据此拒绝写类 MCP 工具。
+        trace_nonce: 服务端下发的标记 nonce。宿主只接受带该 nonce 的调用标记，
+            因此工具返回的文本无法伪造引用或截断真实标记。缺失时客户端不输出标记
+            （宁可不产生元数据，也不产生不可信的元数据）。
+        tcp_port: 服务端以 loopback TCP 监听时的端口（Windows 走这条路径）。为 0
+            时客户端连接 Unix socket。
     """
     base = _generate_base_code()
     module_system = _generate_module_system()
     tools_module_system = _generate_tools_module_system()
 
     session_literal = json.dumps(session_id) if session_id is not None else "None"
+    agent_literal = json.dumps(agent_id) if agent_id is not None else "None"
     workspace_literal = json.dumps(workspace_root) if workspace_root is not None else "None"
+    read_only_literal = json.dumps(sorted(read_only_tools or ()))
+    token_literal = json.dumps(auth_token) if auth_token is not None else "None"
+    readonly_literal = "True" if readonly_workspace else "False"
+    nonce_literal = json.dumps(trace_nonce) if trace_nonce is not None else "None"
+    tcp_port_literal = str(tcp_port) if tcp_port else "0"
 
     return f'''
-import sys, types, json, asyncio, uuid
+import sys, types, json, asyncio, uuid, base64
 
 # IPC 配置
 _SOCKET_PATH = "{socket_path}"
 _TRACE_ID = uuid.uuid4().hex
 _SESSION_ID = {session_literal}
+_AGENT_ID = {agent_literal}
 _WORKSPACE_ROOT = {workspace_literal}
+_READ_ONLY_TOOLS = frozenset({read_only_literal})
+_AUTH_TOKEN = {token_literal}
+_READONLY_WORKSPACE = {readonly_literal}
+_TRACE_NONCE = {nonce_literal}
+_TCP_PORT = {tcp_port_literal}
 
 {base}
 {module_system}
@@ -285,11 +315,18 @@ async def _ipc_request(skill: str, tool: str, params: dict):
         "params": params,
         "trace_id": _TRACE_ID,
         "session_id": _SESSION_ID,
+        "agent_id": _AGENT_ID,
         "workspace_root": _WORKSPACE_ROOT,
+        "auth_token": _AUTH_TOKEN,
+        "readonly_workspace": _READONLY_WORKSPACE,
     }}
 
     data = json.dumps(request).encode()
-    reader, writer = await asyncio.open_unix_connection(_SOCKET_PATH)
+    if _TCP_PORT:
+        # Windows asyncio uses ProactorEventLoop, which cannot open AF_UNIX streams.
+        reader, writer = await asyncio.open_connection("127.0.0.1", _TCP_PORT)
+    else:
+        reader, writer = await asyncio.open_unix_connection(_SOCKET_PATH)
 
     try:
         # 发送：4字节长度 + 数据
@@ -302,7 +339,10 @@ async def _ipc_request(skill: str, tool: str, params: dict):
         response = json.loads(resp_data.decode())
 
         if not response.get("success"):
-            raise MCPError(response.get("error", "Unknown error"), skill, tool)
+            _err = MCPError(response.get("error", "Unknown error"), skill, tool)
+            # 宿主已明确判定失败：重试无法改变结果，且写操作可能已产生副作用。
+            _err.retryable = False
+            raise _err
         return response.get("result")
     finally:
         writer.close()
@@ -310,15 +350,28 @@ async def _ipc_request(skill: str, tool: str, params: dict):
 
 async def _call(skill: str, tool: str, params: dict):
     """IPC 调用入口（带重试）"""
+    # 断连类错误可能发生在请求发出之后。只有只读工具能安全重放；
+    # 写操作重试会造成重复副作用（重复建单、重复发消息）。
+    retry_safe = f"{{skill}}.{{tool}}" in _READ_ONLY_TOOLS
+
     async def do_call():
         try:
             return await _ipc_request(skill, tool, params)
-        except (ConnectionError, FileNotFoundError, asyncio.IncompleteReadError) as e:
-            raise MCPError(f"Connection: {{e}}", skill, tool, retryable=True)
+        except (ConnectionError, BrokenPipeError, FileNotFoundError, asyncio.IncompleteReadError) as e:
+            raise MCPError(f"Connection: {{e}}", skill, tool, retryable=retry_safe)
 
     result = await _retry_call(do_call, skill, tool)
-    # 输出 JSON 格式的调用标记（含结果摘要），供 BashExecutor 解析
-    _data = {{"s": skill, "t": tool, "r": str(result)[:500]}}
-    print(f"__MCP_DATA__{{json.dumps(_data, ensure_ascii=False)}}__END__", flush=True)
+    # Citation trace for the host. Two properties matter:
+    # 1. The payload is base64 so no tool result can contain the marker delimiters and
+    #    silently truncate or swallow the real marker.
+    # 2. The marker carries the host-issued nonce, so text returned by a tool cannot forge
+    #    a citation by embedding the delimiters itself.
+    if _TRACE_NONCE:
+        _preview = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str)
+        if len(_preview) > _TRACE_PREVIEW_CHARS:
+            _preview = _preview[:_TRACE_PREVIEW_CHARS] + f"...[truncated from {{len(_preview)}} chars]"
+        _data = {{"s": skill, "t": tool, "r": _preview}}
+        _payload = base64.b64encode(json.dumps(_data, ensure_ascii=False).encode()).decode()
+        print(f"__MCP_DATA__{{_TRACE_NONCE}}{{_payload}}__END__{{_TRACE_NONCE}}", flush=True)
     return result
 '''

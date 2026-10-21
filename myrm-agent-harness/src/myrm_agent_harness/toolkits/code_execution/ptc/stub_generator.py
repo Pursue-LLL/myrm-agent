@@ -40,11 +40,17 @@ import time
 
 _SOCKET_PATH = os.environ["_MYRM_PTC_SOCKET"]
 _TIMEOUT = float(os.environ.get("_MYRM_PTC_TIMEOUT", "60"))
+_AUTH_TOKEN = os.environ.get("_MYRM_PTC_TOKEN") or None
 
 
-def _rpc_call(tool_name: str, args: dict) -> str:
-    """Send a single tool call via UDS/TCP and return the result string."""
-    payload = json.dumps({"tool": tool_name, "args": args}).encode("utf-8")
+def _rpc_call(tool_name: str, args: dict) -> object:
+    """Send a single tool call via UDS/TCP and return the parsed result.
+
+    Structured tool results (dict/list) arrive as JSON-native payloads and are
+    returned as-is; string results stay strings. Blank results become ``None``
+    instead of ``""`` so callers can distinguish "no payload" from "empty string".
+    """
+    payload = json.dumps({"tool": tool_name, "args": args, "auth_token": _AUTH_TOKEN}).encode("utf-8")
     header = struct.pack("!I", len(payload))
 
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -62,7 +68,7 @@ def _rpc_call(tool_name: str, args: dict) -> str:
     resp = json.loads(resp_data)
     if resp.get("error"):
         raise RuntimeError(f"Tool call failed [{tool_name}]: {resp['error']}")
-    return resp.get("result", "")
+    return resp.get("result")
 
 
 def _recv_exact(sock, n: int) -> bytes:
@@ -81,11 +87,17 @@ _TCP_VARIANT = '''\
 # TCP fallback for Windows
 _SOCKET_PATH = os.environ.get("_MYRM_PTC_SOCKET")
 _TCP_PORT = int(os.environ.get("_MYRM_PTC_PORT", "0"))
+_AUTH_TOKEN = os.environ.get("_MYRM_PTC_TOKEN") or None
 
 
-def _rpc_call(tool_name: str, args: dict) -> str:
-    """Send a single tool call via UDS or TCP and return the result string."""
-    payload = json.dumps({"tool": tool_name, "args": args}).encode("utf-8")
+def _rpc_call(tool_name: str, args: dict) -> object:
+    """Send a single tool call via UDS or TCP and return the parsed result.
+
+    Structured tool results (dict/list) arrive as JSON-native payloads and are
+    returned as-is; string results stay strings. Blank results become ``None``
+    instead of ``""`` so callers can distinguish "no payload" from "empty string".
+    """
+    payload = json.dumps({"tool": tool_name, "args": args, "auth_token": _AUTH_TOKEN}).encode("utf-8")
     header = struct.pack("!I", len(payload))
 
     if _SOCKET_PATH:
@@ -110,7 +122,7 @@ def _rpc_call(tool_name: str, args: dict) -> str:
     resp = json.loads(resp_data)
     if resp.get("error"):
         raise RuntimeError(f"Tool call failed [{tool_name}]: {resp['error']}")
-    return resp.get("result", "")
+    return resp.get("result")
 
 '''
 
@@ -222,10 +234,10 @@ def _generate_function(tool: BaseTool) -> str:
             if required:
                 args_build += f"    args['{name}'] = {name}\n"
             else:
-                args_build += f"    if {name}:\n        args['{name}'] = {name}\n"
+                args_build += f"    if {name} is not None:\n        args['{name}'] = {name}\n"
 
     func = f'''
-def {tool.name}({signature}) -> str:
+def {tool.name}({signature}) -> object:
     """{tool_desc}
 
     Args:

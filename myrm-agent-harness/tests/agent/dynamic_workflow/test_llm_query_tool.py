@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.messages import AIMessage
 from langchain_core.tools import tool as lc_tool
 
 from myrm_agent_harness.agent.dynamic_workflow.llm_query_tool import (
@@ -484,7 +485,8 @@ async def test_ptc_batched_stub_passes_list_to_tool() -> None:
     executor = InProcessExecutor()
     result = await inject_ptc_for_python_execution(context, executor, [tool])
     assert result.success, result.stderr
-    assert '"success": true' in (result.stdout or "")
+    # The stub hands back the tool's native dict, so the script prints its repr.
+    assert "'success': True" in (result.stdout or "")
     assert "reply:q1" in (result.stdout or "")
     assert "reply:q2" in (result.stdout or "")
 
@@ -551,3 +553,69 @@ async def test_llm_query_batched_honors_cancellation_cascade() -> None:
         assert "cancelled" in item["error"].lower()
     parent.llm.ainvoke.assert_not_called()
 
+
+
+@pytest.mark.asyncio
+async def test_llm_query_replays_from_durable_store(tmp_path) -> None:
+    """A retried workflow must not re-bill prompts that already completed.
+
+    Durable replay previously covered spawn_subagent only, so a timeout mid-script
+    re-issued every llm_query / llm_query_batched call on the next run.
+    """
+    from myrm_agent_harness.agent.dynamic_workflow.store import WorkflowEventStore
+
+    store = WorkflowEventStore(tmp_path / "events.db")
+
+    parent = MagicMock()
+    parent.model_resolver = None
+    parent.llm = AsyncMock()
+
+    calls: list[str] = []
+
+    async def fake_ainvoke(messages, **kwargs) -> AIMessage:
+        calls.append(messages[-1].content)
+        return AIMessage(content=f"answer:{messages[-1].content}")
+
+    parent.llm.ainvoke.side_effect = fake_ainvoke
+
+    first_tool = LlmQueryTool(parent_agent=parent, store=store)
+    first = await first_tool._query_one(
+        prompt="classify A", system="sys", model="m", max_tokens=10, temperature=0.0
+    )
+    assert first["success"] is True
+    assert len(calls) == 1
+
+    # A fresh tool instance models a new run of the same script.
+    second_tool = LlmQueryTool(parent_agent=parent, store=store)
+    second = await second_tool._query_one(
+        prompt="classify A", system="sys", model="m", max_tokens=10, temperature=0.0
+    )
+
+    assert second["success"] is True
+    assert second["result"] == first["result"]
+    assert second.get("cached") is True
+    assert len(calls) == 1, "the second run must not call the LLM again"
+
+
+@pytest.mark.asyncio
+async def test_llm_query_cache_key_separates_sampling_params(tmp_path) -> None:
+    """Different temperature is a different request and must not share an answer."""
+    from myrm_agent_harness.agent.dynamic_workflow.store import WorkflowEventStore
+
+    store = WorkflowEventStore(tmp_path / "events.db")
+    parent = MagicMock()
+    parent.model_resolver = None
+    parent.llm = AsyncMock()
+    calls: list[str] = []
+
+    async def fake_ainvoke(messages, **kwargs) -> AIMessage:
+        calls.append(messages[-1].content)
+        return AIMessage(content=f"answer-{len(calls)}")
+
+    parent.llm.ainvoke.side_effect = fake_ainvoke
+
+    tool = LlmQueryTool(parent_agent=parent, store=store)
+    await tool._query_one(prompt="p", system=None, model="m", max_tokens=None, temperature=0.0)
+    await tool._query_one(prompt="p", system=None, model="m", max_tokens=None, temperature=1.0)
+
+    assert len(calls) == 2

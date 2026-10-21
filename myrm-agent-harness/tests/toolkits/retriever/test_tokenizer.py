@@ -160,8 +160,6 @@ def test_jieba_syntax_error_uses_fallback() -> None:
         with patch("builtins.__import__", side_effect=SyntaxError("invalid escape sequence")):
             service._jieba = None
             service._initialized = False
-            # ``_initialize`` also marks the service initialized; otherwise reading ``backend``
-            # after the patch would retry the real import and find jieba cached in sys.modules.
             service._initialize()
     finally:
         if saved is not None:

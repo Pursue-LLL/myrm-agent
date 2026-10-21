@@ -110,7 +110,14 @@ class TestTokenTracker:
         assert tr.call_count == 1
         assert len(tr.pending_events) == 1
         assert tr.pending_events[0]["call_index"] == 1
-        assert tr.pending_events[0]["usage"] == tr.usage.to_dict()
+        # The pending event carries the whole usage snapshot plus the cache economics
+        # the SSE consumer renders (hit rate / net savings / effective-cache gate), so
+        # the token counters must match exactly and the extra keys must be present.
+        event_usage = tr.pending_events[0]["usage"]
+        assert isinstance(event_usage, dict)
+        for field, value in tr.usage.to_dict().items():
+            assert event_usage[field] == value
+        assert {"cache_hit_rate", "net_savings_usd", "has_effective_cache"} <= set(event_usage)
 
         tr.record({"prompt_tokens": 2, "completion_tokens": 0, "total_tokens": 2})
         assert tr.call_count == 2
@@ -398,3 +405,31 @@ class TestAppendToLedger:
         tt.append_to_ledger({"prompt_tokens": 10}, "gpt-4o", 100.0, 0.001)
         mock_ledger.append.assert_called_once()
         assert tt.get_usage_ledger() is mock_ledger
+
+
+class TestTurnContext:
+    def test_an_untouched_tracker_exports_no_turn_context(self) -> None:
+        assert "turn_context" not in tt.init_token_tracker().to_dict()
+
+    def test_recorded_facts_are_exported_and_the_last_write_per_key_wins(self) -> None:
+        tracker = tt.init_token_tracker()
+
+        tt.record_turn_context({"history_mode": "replace", "history_discarded_messages": 4})
+        tt.record_turn_context({"history_mode": "continue"})
+
+        assert tracker.to_dict()["turn_context"] == {"history_mode": "continue", "history_discarded_messages": 4}
+
+    def test_recording_without_a_tracker_is_a_no_op(self) -> None:
+        tt.record_turn_context({"history_mode": "continue"})
+
+        assert tt.get_token_tracker() is None
+
+    def test_a_child_tracker_merge_leaves_the_parent_turn_context_alone(self) -> None:
+        parent = tt.TokenTracker()
+        child = tt.TokenTracker()
+        parent.turn_context["history_mode"] = "continue"
+        child.turn_context["history_mode"] = "replace"
+
+        parent.merge(child)
+
+        assert parent.turn_context == {"history_mode": "continue"}

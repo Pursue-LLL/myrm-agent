@@ -3,6 +3,8 @@
 # Fractal IOP header baseline (paths relative to src/, one per line).
 # New .py files MUST include [INPUT]/[OUTPUT]/[POS] and must NOT be listed here.
 myrm_agent_harness/__init__.py
+myrm_agent_harness/runtime/install_guard/_generated/core_ip_manifest.py
+myrm_agent_harness/runtime/install_guard/platform.py
 myrm_agent_harness/agent/__init__.py
 myrm_agent_harness/agent/artifacts/__init__.py
 myrm_agent_harness/agent/artifacts/constants.py
@@ -88,7 +90,6 @@ myrm_agent_harness/core/hooks/types.py
 myrm_agent_harness/core/security/detection/harmful_state_detector.py
 myrm_agent_harness/eval/__init__.py
 myrm_agent_harness/infra/incremental/__init__.py
-myrm_agent_harness/infra/security/__init__.py
 myrm_agent_harness/observability/tracing/json_formatter.py
 myrm_agent_harness/observability/tracing/log_filter.py
 myrm_agent_harness/runtime/__init__.py
@@ -144,9 +145,5 @@ myrm_agent_harness/toolkits/vector/qdrant/__init__.py
 myrm_agent_harness/toolkits/web_fetch/router/__init__.py
 myrm_agent_harness/utils/crypto/__init__.py
 myrm_agent_harness/utils/mime_types.py
-myrm_agent_harness/agent/streaming/rules/__init__.py
-myrm_agent_harness/agent/streaming/rules/coordinator.py
-myrm_agent_harness/agent/streaming/rules/matcher.py
-myrm_agent_harness/agent/streaming/rules/types.py
 myrm_agent_harness/runtime/loop/__init__.py
 myrm_agent_harness/utils/tree_truncator.py

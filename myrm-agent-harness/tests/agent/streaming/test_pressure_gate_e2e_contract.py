@@ -20,8 +20,8 @@ from myrm_agent_harness.agent.streaming.recovery.context_pressure_gate import (
 
 HARNESS_ROOT = Path(__file__).resolve().parents[3]
 OPEN_PERPLEXITY_ROOT = HARNESS_ROOT.parent
-FRONTEND = OPEN_PERPLEXITY_ROOT / "myrm-agent-frontend"
-SERVER = OPEN_PERPLEXITY_ROOT / "myrm-agent-server"
+FRONTEND = OPEN_PERPLEXITY_ROOT / "myrm-agent" / "myrm-agent-frontend"
+SERVER = OPEN_PERPLEXITY_ROOT / "myrm-agent" / "myrm-agent-server"
 
 requires_server_tree = pytest.mark.skipif(
     not SERVER.is_dir(), reason="myrm-agent-server not checked out next to harness"

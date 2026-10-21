@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from myrm_agent_harness.agent.security.guards.taint_tracker import (
@@ -16,6 +18,7 @@ from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
     is_untrusted_ingress_active,
     reset_untrusted_ingress,
     set_untrusted_ingress,
+    untrusted_ingress_scope,
 )
 
 
@@ -33,6 +36,43 @@ def test_untrusted_ingress_context_switch():
     set_untrusted_ingress(True)
     assert is_untrusted_ingress_active()
     reset_untrusted_ingress()
+    assert not is_untrusted_ingress_active()
+
+
+def test_untrusted_ingress_scope_restores_the_prior_state_on_exit():
+    with untrusted_ingress_scope():
+        assert is_untrusted_ingress_active()
+    assert not is_untrusted_ingress_active()
+
+
+def test_untrusted_ingress_scope_restores_the_prior_state_when_the_block_raises():
+    with pytest.raises(RuntimeError), untrusted_ingress_scope():
+        raise RuntimeError("boom")
+    assert not is_untrusted_ingress_active()
+
+
+def test_untrusted_ingress_scope_inside_a_flagged_turn_leaves_the_flag_set():
+    set_untrusted_ingress(True)
+    with untrusted_ingress_scope():
+        assert is_untrusted_ingress_active()
+    assert is_untrusted_ingress_active()
+
+
+@pytest.mark.asyncio
+async def test_untrusted_ingress_scope_fences_tasks_spawned_inside_but_not_the_spawner():
+    """A router loop dispatches from a long-lived context: only work spawned inside the scope is fenced."""
+    seen: dict[str, bool] = {}
+
+    async def probe(name: str) -> None:
+        await asyncio.sleep(0)  # run after the spawner left the scope
+        seen[name] = is_untrusted_ingress_active()
+
+    with untrusted_ingress_scope():
+        inside = asyncio.create_task(probe("inside"))
+    outside = asyncio.create_task(probe("outside"))
+    await asyncio.gather(inside, outside)
+
+    assert seen == {"inside": True, "outside": False}
     assert not is_untrusted_ingress_active()
 
 
@@ -80,6 +120,19 @@ def test_taint_tracker_ingress_taint_and_sink_check():
     assert tracker.check_sink("web_search_tool") is None
 
 
+def test_run_start_clears_ingress_taint_but_keeps_the_fence():
+    """A host marks an untrusted run with the fence flag: a taint label recorded before the run does not survive it."""
+    from myrm_agent_harness.agent._internals._agent_helpers import reset_all_guards
+
+    set_untrusted_ingress(True)
+    get_taint_tracker().record_ingress_taint(TaintLabel.UNTRUSTED_INGRESS, source="before-run")
+
+    reset_all_guards()
+
+    assert not get_taint_tracker().is_tainted
+    assert is_untrusted_ingress_active()
+
+
 @pytest.mark.asyncio
 async def test_batch_processor_denies_destructive_tools_under_untrusted_ingress():
     from myrm_agent_harness.agent.middlewares.approval.batch_processor import evaluate_tool_batch
@@ -124,14 +177,11 @@ async def test_batch_processor_denies_destructive_tools_under_yolo_untrusted_ing
 
 
 def test_cross_modal_and_subagent_tools_blocked_under_untrusted_ingress():
-    """Verify that desktop control, mobile ADB, subagent delegation, cron, and skill tools are blocked."""
+    """Verify that desktop control, subagent delegation, cron, and skill tools are blocked."""
     high_risk_tools = [
         "desktop_interact_tool",
         "desktop_vision_tool",
         "desktop_snapshot_tool",
-        "mobile_interact_tool",
-        "mobile_global_tool",
-        "mobile_snapshot_tool",
         "delegate_task_tool",
         "subagent_control_tool",
         "invoke_acp_agent_tool",
@@ -147,7 +197,6 @@ def test_skill_manage_and_screen_capture_blocked_under_untrusted_ingress():
     tools = [
         "skill_manage_tool",
         "desktop_snapshot_tool",
-        "mobile_snapshot_tool",
     ]
     for tool in tools:
         assert not is_tool_allowed_under_untrusted_ingress(tool), f"Tool {tool} should be blocked"

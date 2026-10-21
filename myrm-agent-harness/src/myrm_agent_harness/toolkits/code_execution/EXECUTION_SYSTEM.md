@@ -120,6 +120,8 @@ PTC（程序化工具调用）
 - **Python 执行**：每次调用创建独立子进程，通过 wrapper script 注入模块黑名单。内置 **Actionable Diagnostic Hints** 机制，拦截 `ModuleNotFoundError` 并追加 `python -m pip install` 修复建议，引导大模型自主纠错。
 - **Bash 执行**：通过 `PersistentSession` 维护长驻 Bash 进程，环境变量和工作目录跨命令保持
 - **文件操作**：直接使用 `pathlib` 本地 IO，零网络开销
+- **只读工作区**：当前运行绑定的 OCap 句柄不含 WRITE（如 Verifier 的 READ+EXECUTE 句柄）时，`LocalExecutor` 把该次执行视为 `readonly_workspace`：原生写/删/`mkdir` 被拒绝，Python 子进程的写入守卫与 Bash 会话的 OS 沙箱（`SandboxPolicy.writable_paths` 为空，`/tmp` 草稿目录仍可写）同时生效。只读运行使用独立的 Bash 会话（会话键带 `_readonly` 标记），不复用也不污染可写会话。Bash 工具的后台作业（`run_in_background`）同样如此：`_background_spawn.py` 默认按句柄收窄为只读并以空 `writable_paths` 生成沙箱策略。MCP 服务器等 harness 自有进程显式声明 `ExecutionContext.harness_owned=True`，不继承任何 agent 的句柄。容器内部署没有嵌套 OS 沙箱，Shell 写入不被 OS 阻止。
+- **执行证据**：每次真正启动进程前（Python、Bash、Bash 流式，以及非 harness 自有的后台作业），执行器向当前 `track_execution()` 作用域写入证据（`execution_evidence.py`，ContextVar）；Verifier 的 PASS 闸门读取该证据（无证据的 PASS 不构成结论），被命令校验器拒绝的命令不计入，MCP 服务器启动不计入。证据只证明“启动过进程”，不证明验证充分：Verifier 跑一条无关命令即可满足闸门，验证质量仍取决于 Verifier 的提示词与模型。
 
 #### Language routing (`code_detector` + `python_extractor`)
 
@@ -183,10 +185,10 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 
 ### 7. ExecutionInterceptor（执行拦截器）
 
-提供在破坏性操作（如文件写入、高危 Shell 命令）执行前的 Hook 机制。
+提供在「文件回滚无法完全撤销」的操作执行前的 Hook 机制：文件改写（写入、删除、`rm`、`sed -i`），以及触达工作区之外的 Shell 命令（数据库、容器/云、网络写入、`git push`/包发布）。
 
-- **协议**：`ExecutionInterceptor.before_destructive_action(workspace_path, action_type, payload)`
-- **触发点**：`LocalExecutor.execute_bash`（仅高危命令）和 `LocalFileOpsMixin.write_file` / `delete_file`。
+- **协议**：`ExecutionInterceptor.before_destructive_action(workspace_path, action_type, payload)`；`bash` 的 payload 携带 `destructive`（命令改写文件）与 `external_effects`（`security/external_effect_detector.py` 判定的外部影响类别，无则为空），由拦截器各自决定处置。
+- **触发点**：`LocalExecutor.execute_bash`（命令改写文件或有外部影响时）和 `LocalFileOpsMixin.write_file` / `delete_file`。
 - **安全保证**：拦截器调用被包裹在严格的 `asyncio.wait_for` 超时和 `try...except` 块中，**绝不阻塞**核心代码执行。
 - **业务集成**：`myrm-agent-server` 通过此 Hook 实现基于 Git 的底层文件系统自动快照（Auto-snapshot）。
 
@@ -212,18 +214,20 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
 | `mode` | `LOCAL` | 执行模式（当前仅支持 LOCAL） |
-| `timeout_seconds` | 60 | 单次执行超时 |
-| `max_output_size` | 50000 | 输出最大字符数 |
+| `local.max_execution_time` | 60 | 单次执行超时（秒） |
+| `local.max_output_bytes` | 5 MiB | 输出缓冲上限，防止内存溢出 |
+| `local.max_memory_mb` | 2048 | 单次执行内存上限（0 = 禁用） |
+| `mcp_proxy.enabled` | `true` | MCP IPC 开关 |
 | `network` | `NetworkConfig()` | 网络访问配置 |
 
 ### NetworkConfig
 
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
-| `allow_network` | `true` | 是否允许网络访问 |
-| `allowed_hosts` | `None`（使用默认白名单） | 域名白名单 |
+| `allow_network` | `false` | 是否允许网络访问（默认关闭） |
+| `allowed_hosts` | `None` | `allow_network=true` 时生效：`None` = 内置默认白名单；空集合 = 不限制；非空 = 仅这些域名 |
 
-配置参数：`ExecutionConfig.network.allow_network`、`ExecutionConfig.network.allowed_hosts`
+配置参数：`ExecutionConfig.local.*`、`ExecutionConfig.mcp_proxy.*`、`ExecutionConfig.network.allow_network`、`ExecutionConfig.network.allowed_hosts`
 
 ---
 
@@ -288,42 +292,34 @@ from myrm_agent_harness.toolkits.code_execution import (
 | **myrm-control-plane** | 沙箱生命周期管理（创建/Sleep/唤醒/回收） |
 | **myrm-agent-harness** | Agent 框架层（工具集、运行时、ACP 协议） |
 
-### 沙箱策略
+### 沙箱策略：Agent 专用云电脑
 
-采用 **per-user** 模式（每个用户一个持久化沙箱），参考 Happycapy 架构。
+每个用户一台 **Agent 专用云电脑**：**agent-in-sandbox** —— harness（Agent 运行时 / 执行循环）、浏览器、终端、文件系统、代码执行全部在同一台云电脑内运行；文件、已装软件、浏览器状态跨会话保留，可 7×24 常驻与接续工作。
 
-| 策略 | 代表产品 | 特点 |
-|------|---------|------|
-| per-task | Manus | 每个任务一个临时沙箱，执行完销毁 |
-| **per-user** | Happycapy / **Myrm** | 每个用户一个持久沙箱，跨任务保留状态 |
+| 维度 | 我们的形态 |
+|------|-----------|
+| 粒度 | per-user（每用户一台，专属，不与他人共享） |
+| Harness 位置 | 云电脑内（与执行同机，无桥接层） |
+| 状态 | 持久：文件系统 + 已装软件 + 浏览器 profile |
+| 常驻 | 7×24 可常驻；空闲按套餐休眠，唤醒即续 |
+| 外部凭据 | 无外部数据库凭据；数据在云电脑内的 SQLite + 嵌入式 Qdrant，LLM 走 CP 中继/虚拟密钥 |
 
-**选型依据**（2026 行业基准，[Computer Agents Benchmarks](https://computer-agents.com/blog/persistent-vs-ephemeral-agents-2026)）：
-
-| 指标 | per-task | per-user | 差距 |
-|------|---------|---------|------|
-| 多日任务自动化率 | 22% | **87%** | +295% |
-| 错误自恢复率 | 41% | **78%** | +90% |
-| 幻觉/偏移率 | 29% | **11%** | -62% |
-| 每 100 复杂任务成本 | $18-42 | **$9-21** | -50% |
-
-完整对比见 [§ 与竞品对比](#与竞品对比)。
-
-**注**：Credits 浪费率 72.4% 是 Manus 当前实现的实测数据，非 per-task 固有缺陷。per-task 可通过完善的外部记忆系统降低浪费，但需要额外工程（共享数据库 + API 调用）。per-user 天然避免上下文丢失——数据在沙箱内自然存在。
+竞品同构参考见 [竞品 Harness 运行位置](#竞品-harness-运行位置2026-10-核验)。
 
 ### 部署模式
 
-所有部署模式统一使用 SQLite + 嵌入式 Qdrant + 本地文件存储（`deploy_mode.py`）。
+所有沙箱模式（LOCAL / SANDBOX）统一使用 SQLite + 嵌入式 Qdrant + 本地文件存储（`deploy_mode.py`）；控制平面自身的平台数据使用 PostgreSQL。
 
 | 模式 | 数据库 | 向量库 | 场景 |
 |------|--------|--------|------|
-| LOCAL | SQLite | 嵌入式 Qdrant | 桌面客户端 / CLI WebUI |
+| LOCAL | SQLite | 嵌入式 Qdrant | 桌面客户端 / 本地 WebUI |
 | SANDBOX | SQLite（持久化卷） | 嵌入式 Qdrant（持久化卷） | 云端 Sandbox |
 
 ### 架构决策：沙箱内 SQLite + 持久化卷
 
 **核心问题**：在 per-user 沙箱模式下，业务服务层（认证、对话管理、知识库、记忆、订阅、配额）应该放在控制平面还是沙箱内？
 
-**决策**：claw-server 完整应用在沙箱内，所有模式统一使用 SQLite + 嵌入式 Qdrant，Sandbox 模式下数据存储在沙箱持久化卷上，无外部数据库凭据。
+**决策**：myrm-agent-server 完整应用在云电脑内，所有沙箱模式统一使用 SQLite + 嵌入式 Qdrant；Sandbox 模式下数据存储在云电脑持久化卷上，无外部数据库凭据。
 
 ```
 控制平面（独立部署）
@@ -334,11 +330,12 @@ from myrm_agent_harness.toolkits.code_execution import (
   ├── 计费 webhook 接收
   └── 监控 + 告警
   │
-  PostgreSQL（平台数据，4 个表）：
-  User, UserSubscription, UserQuotaUsage, WakeTrigger
+  PostgreSQL（平台数据 + 企业治理）：
+  cp_users / cp_subscriptions / cp_quota_usage / sandboxes / cp_wake_triggers
+  cp_orgs / cp_org_members / cp_org_oidc_configs / cp_org_mcp_servers / ...
 
 沙箱（per-user）
-  └── claw-server 完整应用
+  └── myrm-agent-server 完整应用
       ├── 认证、对话管理、知识库、记忆
       ├── 订阅、配额（本地副本）
       ├── Agent 执行（Plan → Execute → Reflect）
@@ -346,13 +343,14 @@ from myrm_agent_harness.toolkits.code_execution import (
       ├── 嵌入式 Qdrant（持久化卷上）← 向量检索
       └── 无外部数据库凭据
 
-持久化卷目录：
+持久化卷目录（`MYRM_DATA_DIR=/persistent/data`）：
   /persistent/
-    ├── data/myrm.db        ← SQLite
-    ├── data/qdrant/          ← Qdrant 数据
-    ├── files/knowledge/      ← 知识库文件
-    ├── files/artifacts/      ← Agent 生成文件
-    └── workspace/            ← 用户工作空间
+    ├── home/                 ← HOME（CLI 配置/缓存）
+    └── data/                 ← MYRM_DATA_DIR（Server 状态根）
+        ├── data.db           ← SQLite 业务库
+        ├── checkpoints.db    ← LangGraph checkpoint 库
+        ├── qdrant/           ← 嵌入式 Qdrant
+        └── harness/          ← harness 状态
 ```
 
 **为什么不拆分到控制平面**：
@@ -364,42 +362,41 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 | 检查配额 / 读取记忆 / 检索知识库 | 50-300ms/次 | <5ms/次 |
 | 单次循环总额外延迟 | **500ms-3s** | **无** |
 
-此外，本地模式没有控制平面，拆分方案需要启动本地控制平面或维护两套代码路径。行业实践中 Manus/Happycapy 均选择将状态放在沙箱内（file-based），而非拆分到控制平面。
+此外，本地模式没有控制平面，拆分方案需要启动本地控制平面或维护两套代码路径。行业实践中，2026 年的 Personal Agent（Grok Bot / Muse / dots 等）都把用户状态放在各自的云电脑内，而非拆分到平台侧数据库。
 
 **选择当前方案的理由**：
 
 1. **Agent 自循环零延迟**：所有业务数据通过本地 SQLite 访问（<5ms），不受网络延迟影响
-2. **无外部凭据**：沙箱不连接外部数据库，即使沙箱被突破也无外部凭据可泄露
-3. **代码路径统一**：所有部署模式使用相同的 SQLite + 嵌入式 Qdrant，无条件分支
-4. **行业最佳实践**：与 Happycapy（持久化卷 + 沙箱内完整应用）一致
+2. **无外部数据库凭据**：沙箱不连接外部数据库，即使沙箱被突破也无外部数据库凭据可泄露
+3. **代码路径统一**：所有沙箱模式使用相同的 SQLite + 嵌入式 Qdrant，无条件分支
+4. **行业最佳实践**：与 2026 主流 Personal Agent 一致（云电脑内运行完整应用，状态留在本机）
 5. **结构化数据管理**：SQLite 提供 SQL 查询、事务、索引，配合嵌入式 Qdrant 实现向量检索，per-user 数据量下功能充足
 
 ### 数据分层
 
 判断标准：控制平面在沙箱不存在/Sleep 时是否需要访问？
 
-**控制平面 PostgreSQL（4 个表，平台数据）**：
+**控制平面 PostgreSQL（平台数据 + 企业治理，非穷举）**：
 
-| 表 | 用途 | 为什么在控制平面 |
-|---|------|----------------|
-| User | 用户账户 | 创建沙箱前验证身份 |
-| UserSubscription | 订阅状态 | 沙箱 Sleep 时处理支付 webhook |
-| UserQuotaUsage | 配额使用量 | 跨设备/会话统计 |
-| WakeTrigger | 唤醒触发器 | 沙箱 Sleep 时触发唤醒（定时任务/外部消息） |
+| 分类 | 主要表 | 为什么在控制平面 |
+|---|---|---|
+| 用户/订阅 | `cp_users`、`cp_subscriptions` | 创建沙箱前验证身份；处理支付 webhook |
+| 配额/计费 | `cp_quota_usage`、`cp_work_unit_*`、`cp_billing_webhook_events` | 跨设备/会话统计 |
+| 沙箱/唤醒 | `sandboxes`、`cp_wake_triggers`、`cp_channel_bindings` | 生命周期与定时唤醒 |
+| 企业治理 | `cp_orgs`、`cp_org_members`、`cp_org_oidc_configs`、`cp_org_mcp_servers`、`cp_org_model_policies`、`cp_org_approval_policies` | 组织、SSO、MCP/模型/审批策略 |
+| 其他 | `secrets`、`cp_volume_handoff_logs`、`cp_tunnel_registrations`、`security_alerts` | 密钥、卷交接、隧道与安全告警 |
 
-**沙箱 SQLite（用户个人数据）**：
+**沙箱 SQLite（用户个人数据，主要表，非穷举）**：
 
-| 分类 | 表 |
-|------|---|
-| 对话 | Chat, Message |
-| Agent | Agent, AgentTurn, AgentEvent |
-| 记忆 | ProfileAttribute, ProceduralRule, PendingMemory |
-| 知识库 | KnowledgeBaseModel, KnowledgeFileModel |
-| 配置 | UserConfig, UserToolAllowlist |
-| 任务 | CronJobModel, CronRunModel, MonitorStateModel |
-| 渠道 | ChannelPairingModel |
-| 认证 | User（本地副本）, DeviceSession |
-| 订阅 | UserSubscription（本地副本）, UserQuotaUsage（本地副本） |
+| 分类 | 主要表 |
+|---|---|
+| 对话 | `chats`、`messages`、`conversation_forks`、`interrupted_turn_markers` |
+| Agent/任务 | `agents`、`agent_profile_history`、`agent_profile_snapshots`、`cron_jobs`、`cron_runs`、`monitor_states` |
+| 记忆 | `profile_attributes`、`procedural_rules`、`pending_memories`、`memory_operation_events` |
+| 工件/FAQ | `artifacts`、`artifact_versions`、`artifact_audit_logs`、`faq_corpus`、`faq_entries` |
+| 配置/权限 | `user_configs`、`user_tool_allowlist`、`agent_secrets`、`vault_credentials`、`api_keys` |
+| 渠道 | `channel_pairings`、`channel_messages` |
+| 安全/审计 | `approvals`、`risk_hits`、`security_profiles`、`config_audit_logs` |
 
 ### 同步机制
 
@@ -407,8 +404,7 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 |------|---------|------|
 | 控制平面 → 沙箱 | 创建沙箱时 | User + Subscription + Quota 初始数据 |
 | 控制平面 → 沙箱 | 运行期间（WebSocket） | 订阅升级/降级通知 |
-| 沙箱 → 控制平面 | 创建/更新 CronJob 时 | WakeTrigger（next_run_time） |
-| 沙箱 → 控制平面 | 创建/更新 ChannelPairing 时 | WakeTrigger（channel 路由信息） |
+| 沙箱 → 控制平面 | 「下一次必须运行时间」变化时（目标额度窗口到点续跑 / cron 下次运行 / 看板改期任务到点） | HTTP `PUT /api/internal/sandboxes/{id}/wake-schedule`；控制平面到点唤醒已被回收器暂停的沙箱，之后由沙箱自身定时器接管 |
 | 沙箱 → 控制平面 | Agent 执行消耗 token 时 | QuotaUsage 增量更新 |
 | 沙箱 → 控制平面 | Sleep 前强制同步 | 配额最终一致性保证 |
 
@@ -420,30 +416,54 @@ Agent 执行循环需要实时访问业务数据（检查配额、读取记忆�
 | 数据库 | SQLite（本地文件） | SQLite（持久化卷） |
 | 向量库 | 嵌入式 Qdrant | 嵌入式 Qdrant（持久化卷） |
 | 控制平面 | 不需要 | 独立部署 |
-| SQLite 路径 | `~/.myrm-agent/data.db` | `/persistent/data/myrm.db`（`SQLITE_PATH` 配置） |
+| SQLite 路径 | `~/.myrm/data.db` | `/persistent/data/data.db`（`MYRM_DATA_DIR=/persistent/data`） |
 
-所有部署模式代码路径完全一致，仅通过环境变量切换存储路径。
+所有沙箱模式代码路径完全一致，仅通过环境变量切换存储路径。
 
-### 与竞品对比
+### 竞品 Harness 运行位置（2026-10 核验）
 
-| 维度 | Manus | Happycapy | **Myrm** |
-|------|-------|-----------|------------|
-| 沙箱策略 | per-task | per-user | **per-user** |
-| Agent 运行位置 | 沙箱内 | 沙箱内 | **沙箱内** |
-| 状态存储 | 沙箱文件系统（临时） | 沙箱文件系统（持久卷） | **SQLite + 嵌入式 Qdrant（持久卷）** |
-| Memory 机制 | file-based（glob/grep） | file-based（持久化卷） | **数据库 + 向量库** |
-| 外部凭据 | 无 | 无 | **无** |
-| 本地模式 | 不支持 | 不支持 | **支持（SQLite）** |
-| 自托管（开源产品层） | 不支持 | 不支持 | **支持** |
+| 产品 | Harness / Agent 运行时位置 |
+|------|---------------------------|
+| Grok Bot | 用户专属 persistent cloud VM（官方 "per user, not per Bot"，含浏览器 / 文件系统 / 终端） |
+| Meta Muse | Muse Secure VM（per person 的专属云电脑） |
+| OpenAI Dots | 每个 Dot 自己的云电脑（官方 "Each dot works on its own cloud computer"） |
+| Google Gemini Spark | 远程执行环境（官方确认远程浏览器 + 远程代码执行，未公开 VM 细节） |
+| Instinct | 持久 cloud computer（第三方复刻项目文档，非官方） |
+| Manus Cue | 每个 Agent 自有身份 + 云电脑（官方 "Each agent gets its own ... computer"） |
+| Today AI | 24 小时在线 Cloud Computer（媒体报道，无官方文档） |
+| 腾讯 LightVela | 腾讯轻量云专属实例（官方 "We host Hermes Agent in the cloud"） |
+| 蚂蚁灵光 | 架构未公开（无云电脑披露） |
+| **Myrm** | **每用户 Agent 专用云电脑（agent-in-sandbox）** |
 
-**差异化优势**：结构化数据管理（SQL + 向量库）、无外部凭据、本地模式支持、开源产品层自托管。
+**结论**：2026 年 Personal Agent 的标准架构是 **harness 跑在云电脑内**，本地设备只是客户端（聊天入口、审批、看屏幕）；平台侧只有控制面（创建 / 回收 / 计费 / 网关 / 恢复），不跑 agent loop。逐项证据（官方文档 / 媒体）由维护者的竞品核验记录承载，不随本仓库分发。
+
+**差异化优势**：本地模式（SQLite）与开源产品层自托管（主流云端 Personal Agent 均不支持）、结构化数据管理（SQL + 向量库）、无外部凭据。
 
 **2026 行业趋势验证**：
 - [RisingWave](https://risingwave.com/blog/stateful-sandboxes-for-ai-agents)：Stateful sandbox 需要嵌入式数据库
 - [PingCAP](https://www.pingcap.com/blog/local-first-rag-using-sqlite-ai-agent-memory-openclaw/)：local-first + zero-ops 嵌入式数据库是 2026 趋势
-- [Fly.io/Sprites](https://fly.io/blog/sprites)（CEO Kurt Mackey, 2026.01）："Ephemeral sandboxes are obsolete. Claude doesn't want a stateless container. Claude wants a computer." — 推出 Sprites（持久化 Firecracker microVM + 100GB NVMe + Checkpoint/Restore），专为 per-user 持久化 Agent 场景设计
-- E2B 持久化上限 14 天（Session-scoped），Fly.io Sprites 永久持久化（Indefinite），两者底层均为 Firecracker 但持久化哲学完全不同
+- [Fly.io: Code And Let Live](https://fly.io/blog/code-and-let-live)（Annie Ruygt）："we're calling it: ephemeral sandboxes are obsolete"、"They don't want containers. They don't want 'sandboxes'. They want computers." — 推出 Sprites（持久化 Firecracker microVM + 100GB ext4 + Checkpoint/Restore），专为 per-user 持久化 Agent 场景设计
 - 沙箱内 SQLite + 嵌入式 Qdrant 的方案与 Sprites 的 stateful sandbox 理念高度一致
+
+### 云电脑供给（2026-10）
+
+> 完整调研与来源（含逐项核验与修正记录）由维护者的竞品核验记录承载，不随本仓库分发。
+
+**SaaS 最终选型：Fly Sprites 作为唯一云供给**（E2B 支持已移除；Machines 仅作为 Sprites 适配完成前的过渡实现，随后删除）。
+
+**企业私有化**：单 VM Docker Compose（CP + PostgreSQL + Redis + 每用户 Docker 沙箱）。**本地**：OS 进程沙箱（sandbox-exec / bwrap / AppContainer）。两者都不使用 Sprites。
+
+| 项 | 方案 |
+|----|------|
+| 云供给 | **Fly Sprites**：8 vCPU、100GB ext4、内存按负载自动伸缩 |
+| 休眠 | 空闲约 30s 自动进入 warm（内存冻结，100–500ms）→ cold（进程重启，1–2s）；空闲不计 compute 费 |
+| 常驻 | Service 随开机 / 崩溃 / cold wake 自动拉起；请求命中 Sprite URL 自动唤醒 |
+| 计费 | CPU $0.0385/CPU-h；RAM $0.021875/GB-h；热存储 ≈$0.50/GB-月；冷存储 $0.02/GB-月（空闲仅计存储） |
+| 迁移状态 | 当前 `flyio` 适配器仍是 Machines（`auto_stop = "stop"`）；Sprites 适配尚未实现，完成后删除 Machines 代码 |
+
+- **不采用 Modal**：默认寿命 5 分钟、最长 24 小时，不适合常驻个人云电脑。
+- **不接外部任务沙箱**：一台用户云电脑已覆盖隔离、执行、持久化；不可信第三方代码、GPU、大规模并行等场景在 Sprites 内以进程级隔离处理，必要时再评估独立供给。
+- **终态**：自建 Firecracker / microVM 平台，掌握成本与体验上限。
 
 ## Bash Execution Resilience & Command Rewriting
 

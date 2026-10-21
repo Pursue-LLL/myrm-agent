@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first 通用 AI 工作助手 harness**（WebUI / Tauri / 云沙箱），框架层与业务解耦，供同仓的 `myrm-agent-server` 以 in-repo editable path source 消费。整体架构、模块导航与依赖关系见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；框架设计原则见 **[FRAMEWORK_DESIGN_PRINCIPLES.md](FRAMEWORK_DESIGN_PRINCIPLES.md)**。
+MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first 通用 AI 工作助手 harness**（WebUI / Tauri / 云沙箱），框架层与业务解耦，供 `myrm-agent-server` 通过 `uv.lock` 消费。整体架构、模块导航与依赖关系见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；框架设计原则见 **[FRAMEWORK_DESIGN_PRINCIPLES.md](FRAMEWORK_DESIGN_PRINCIPLES.md)**。
 
 ## 根目录文件
 
@@ -11,8 +11,9 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 | `ARCHITECTURE.md` | L1：整体架构、模块导航、文档索引 |
 | `FRAMEWORK_DESIGN_PRINCIPLES.md` | 框架设计原则与边界约束 |
 | `pyproject.toml` / `uv.lock` | 包元数据与依赖锁 |
-| `LICENSE` | MIT 许可 |
+| `LICENSE` | MIT 开源许可 |
 | `README.md` | PyPI / GitHub 入口（安装与快速开始） |
+| `docs/PROMPT_CACHE_PLACEMENT.md` | L2：动态上下文相对前缀缓存的放置 SSOT（实现见 `context_management/PROMPT_CACHE_PRACTICE.md`） |
 | `_ARCH.md` | 本文件：子目录职责表 |
 
 ## 目录清单
@@ -20,18 +21,20 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 | 目录 | 地位 | 职责 |
 |------|------|------|
 | `src/myrm_agent_harness/` | 核心 | 框架源码（agent、toolkits、runtime、api 等）· [\_ARCH.md](src/myrm_agent_harness/_ARCH.md) |
+| `harness_packaging/` | 核心 | 分发构建：Nuitka 编译、wheel 组装 · [\_ARCH.md](harness_packaging/_ARCH.md) |
 | `tests/` | 辅助 | 单元 / 集成 / API 冒烟 · [\_ARCH.md](tests/_ARCH.md) |
-| `benchmarks/` | 辅助 | CI 性能回归基线与诊断基准 · [\_ARCH.md](benchmarks/_ARCH.md) |
-| `scripts/` | 辅助 | 边界检测、发布 tag 校验、tool registry、分形 `_ARCH` 门禁 · [\_ARCH.md](scripts/_ARCH.md) |
+| `benchmarks/` | 辅助 | CI 性能回归；`archive/` 存历史脚本 · [\_ARCH.md](benchmarks/_ARCH.md) |
+| `scripts/` | 辅助 | 边界检测、PyPI 发布、tool registry、分形 `_ARCH` 门禁 · [\_ARCH.md](scripts/_ARCH.md) |
+| `packages/` | 辅助 | 平台 core wheel 子工程 · [\_ARCH.md](packages/_ARCH.md) |
 
 ## 模块依赖
 
-- **被依赖方**：`myrm-agent-server`（业务编排，优先 `myrm_agent_harness.api` / `api.hooks` / `api.skills` 公开路径）
-- **构建**：tag `harness-v*` → `.github/workflows/harness-publish.yml` 构建 sdist + 纯 Python wheel 并经 OIDC 发 PyPI；server 的 `uv.lock` 始终解析到同仓 harness，无需发布后回刷
+- **被依赖方**：`myrm-agent/myrm-agent-server`（业务编排，优先 `myrm_agent_harness.api` / `api.hooks` / `api.skills` 公开路径）
+- **构建**：tag `v*` → CI 发 PyPI → vortexai `./myrm harness sync-lock` 刷新 OSS `uv.lock`
 
 ## 约束
 
 - 框架层禁止 import `app.*` 或任何 server 业务模块
-- 公开 API 变更须同步 `tests/api/`
-- 性能基准仅放在 `benchmarks/`，禁止在仓库根目录另建 `benchmarks/`
+- 公开 API 变更须同步 `tests/api/` 与 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md)
+- 性能基准仅放在 `benchmarks/`，禁止在 vortexai 开发壳根目录创建 `benchmarks/`
 - 运行时目录 `.myrm/`、`.agent/` 仅本地/workspace，已 gitignore，禁止提交

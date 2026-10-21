@@ -51,6 +51,7 @@ async def test_acp_uds_live_llm_e2e() -> None:
 
     server_test_env = (
         Path(__file__).resolve().parents[4]
+        / "myrm-agent"
         / "myrm-agent-server"
         / ".env.test"
     )

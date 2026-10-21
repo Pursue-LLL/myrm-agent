@@ -4,11 +4,11 @@
 - sqlite3 (POS: standard library database)
 - myrm_agent_harness.toolkits.retriever.cjk_tokenizer::build_cjk_index_segment (POS: FTS CJK write-side token segment builder)
 - myrm_agent_harness.toolkits.retriever.embedding.window_policy::EmbedInputTooLargeError (POS: embedding input window violation)
-- myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: frontmatter parser)
 - ..core.config::WikiConfig (POS: wiki configuration center)
-- ..core.frontmatter_contract::WikiPublishStatus (POS: publish_status SSOT)
+- ..core.frontmatter_contract::WikiPublishStatus, resolve_publish_status (POS: publish_status SSOT)
 - ..core.link_resolver::WikiLinkResolver (POS: link target resolution; notified when a page is deleted)
 - .edge_links::linkers_to_reread, relink_dangling_edges (POS: edges of links that named a deleted page converge)
+- .edge_weights::refresh_edge_weights (POS: edges that pointed at a deleted page are re-weighted)
 - .vector_chunks::delete_text_vectors, upsert_text_vectors (POS: L2 chunk vector operations)
 
 [OUTPUT]
@@ -32,15 +32,11 @@ from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import build_cjk_index_
 from myrm_agent_harness.toolkits.retriever.embedding.window_policy import (
     EmbedInputTooLargeError,
 )
-from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
 
 from ..core.config import WikiConfig
-from ..core.frontmatter_contract import (
-    PUBLISH_STATUS_KEY,
-    WIKI_PUBLISH_STATUSES,
-    WikiPublishStatus,
-)
+from ..core.frontmatter_contract import WikiPublishStatus, resolve_publish_status
 from .edge_links import linkers_to_reread, relink_dangling_edges
+from .edge_weights import refresh_edge_weights
 from .vector_chunks import delete_text_vectors, upsert_text_vectors
 
 if TYPE_CHECKING:
@@ -108,11 +104,7 @@ class FtsWriteMixin:
 
     @staticmethod
     def _resolve_publish_status(full_markdown: str) -> str:
-        metadata, _body = parse_frontmatter(full_markdown)
-        status = str(metadata.get(PUBLISH_STATUS_KEY, "")).strip().lower()
-        if status in WIKI_PUBLISH_STATUSES:
-            return status
-        return WikiPublishStatus.PUBLISHED.value
+        return resolve_publish_status(full_markdown).value
 
     async def upsert(self, concept_name: str, full_markdown: str) -> None:
         """
@@ -205,6 +197,8 @@ class FtsWriteMixin:
                         "DELETE FROM wiki_index_meta WHERE concept_name = ?",
                         (name,),
                     )
+                # The deleted pages no longer link anywhere, which changes the weight of the edges that point at them.
+                refresh_edge_weights(conn, names)
                 for name, change in changes:
                     linkers.update(linkers_to_reread(conn, name, change, removed=True))
                     relink_dangling_edges(conn, self._link_resolver, change)

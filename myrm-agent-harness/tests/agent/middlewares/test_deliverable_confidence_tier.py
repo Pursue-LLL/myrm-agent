@@ -105,3 +105,55 @@ def test_resolve_deliverable_tier_precedence_verified_over_artifact():
     assert "src/main.py" in meta.evidence.files_written
     assert meta.evidence.verification_count == 1
     assert meta.to_dict()["tier"] == "VERIFIED"
+
+
+def test_write_record_with_file_path_key_still_counts_as_an_artifact():
+    from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+        DeliverableConfidenceTier,
+        resolve_deliverable_tier,
+    )
+
+    metadata = resolve_deliverable_tier(
+        [
+            CallRecord(
+                tool_name="file_write_tool",
+                args_hash="hash_file_path",
+                args={"file_path": "/workspace/tier_probe.md", "content": "# probe"},
+                success_level=SuccessLevel.FULL_SUCCESS,
+            )
+        ]
+    )
+
+    assert metadata.tier is DeliverableConfidenceTier.ARTIFACT
+    assert metadata.evidence.files_written == ["/workspace/tier_probe.md"]
+
+
+def test_should_disclose_evidence_tiers_always():
+    from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+        should_disclose_tier,
+    )
+
+    verified = resolve_deliverable_tier(
+        [
+            CallRecord(
+                tool_name="bash_code_execute_tool",
+                args_hash="hash6",
+                args={"command": "pytest"},
+                verification_type=VerificationCategory.TEST,
+                success_level=SuccessLevel.FULL_SUCCESS,
+            )
+        ]
+    )
+    assert verified.tier is DeliverableConfidenceTier.VERIFIED
+    assert should_disclose_tier(verified, has_claim=False) is True
+
+
+def test_plan_tier_is_disclosed_only_for_completion_claims():
+    from myrm_agent_harness.agent.middlewares.completion.deliverable_confidence_tier import (
+        should_disclose_tier,
+    )
+
+    plan = resolve_deliverable_tier([])
+    assert plan.tier is DeliverableConfidenceTier.PLAN
+    assert should_disclose_tier(plan, has_claim=False) is False
+    assert should_disclose_tier(plan, has_claim=True) is True

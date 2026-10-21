@@ -20,6 +20,7 @@ _ENV_TEST = os.path.join(
     "..",
     "..",
     "..",
+    "myrm-agent",
     "myrm-agent-server",
     ".env.test",
 )

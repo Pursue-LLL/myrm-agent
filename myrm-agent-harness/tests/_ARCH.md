@@ -9,27 +9,29 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | Path | Role | Description |
 |------|------|-------------|
 | `__init__.py` | 核心 | tests 包标记（pytest 收集根） |
-| `conftest.py` | 核心 | 全局 pytest 配置：隔离 `MYRM_DATA_DIR`、`outside_tmp_path` 夹具（`/var/tmp` 下的临时目录，供"未加白名单即被拦截"类断言使用，因为校验器恒放行 `/tmp` 而 Linux 的 `tmp_path` 位于其下）、进程级状态隔离自动夹具（审批拒绝计数、会话 executor stash、`chat_id_var`、动态 MCP 安全元数据注册表、context 污点追踪器、已发布的 active tool registry/resolved tools、子代理 checkpointer 单例、CLI 工具探测缓存、auto-mode security reviewer）、blocking_io gate、benchmark→performance 标记、浏览器 xdist 串行组、`pytest_collection_finish` warmup/acquire_page 漏标门禁、浏览器测试目录，或池内仍有存活浏览器/launcher 的测试，在夹具收尾调用 `reset_global_browser_pool_for_tests()`（带 30s 超时，超时则丢弃单例）；sessionfinish 浏览器进程树 cleanup（`tests/support/browser_process_cleanup`） |
+| `conftest.py` | 核心 | 全局 pytest 配置：隔离 `MYRM_DATA_DIR`、`outside_tmp_path` 夹具（`/var/tmp` 下的临时目录，供"未加白名单即被拦截"类断言使用，因为校验器恒放行 `/tmp` 而 Linux 的 `tmp_path` 位于其下）、进程级状态隔离自动夹具（审批拒绝计数、会话 executor stash、`chat_id_var`、动态 MCP 安全元数据注册表、context 污点追踪器、已发布的 active tool registry/resolved tools、子代理 checkpointer 单例、CLI 工具探测缓存）、blocking_io gate、benchmark→performance 标记、浏览器 xdist 串行组、`pytest_collection_finish` warmup/acquire_page 漏标门禁、浏览器测试目录，或池内仍有存活浏览器/launcher 的测试，在夹具收尾调用 `reset_global_browser_pool_for_tests()`（带 30s 超时，超时则丢弃单例）；sessionfinish 浏览器进程树 cleanup（`tests/support/browser_process_cleanup`） |
 | `fixtures/` | 辅助 | 预留 harness-only 夹具目录 · [fixtures/_ARCH.md](fixtures/_ARCH.md) |
 | `examples/` | 辅助 | 非 shipping 参考实现 · [examples/_ARCH.md](examples/_ARCH.md) |
 | `mocks/` | 辅助 | 共享 in-memory backend mock · [mocks/_ARCH.md](mocks/_ARCH.md) |
-| `support/` | 辅助 | pytest teardown helpers（browser 进程树 cleanup）· [support/_ARCH.md](support/_ARCH.md) |
+| `support/` | 辅助 | pytest teardown helpers（browser 进程树 cleanup）与真实 MCP 传输测试辅助（live server / TLS PKI / launch-gate stub）· [support/_ARCH.md](support/_ARCH.md) |
 | `backends/` | 单元 | 存储后端（profiles/secrets/skills）· [backends/_ARCH.md](backends/_ARCH.md) |
 | `scripts/` | 单元 | `scripts/` 维护脚本单测（tool registry）· [scripts/_ARCH.md](scripts/_ARCH.md) |
 | `features/` | 单元 | Feature Flag 引擎 · [features/_ARCH.md](features/_ARCH.md) |
-| `performance/` | 性能 | 子进程 import 热点与 lazy-loading 回归（`performance` marker） |
+| `performance/` | 性能 | 子进程 import 热点与 lazy-loading 回归、MCP 并行连接守卫（`test_mcp_connect_perf.py`，真实 stdio 子进程；`mcp_connect_bench.py` 可对 HEAD 导出做同口径基线对比）（`performance` marker） |
 | `toolkits/` | 单元/集成 | 镜像 `src/.../toolkits/<name>/`；禁止空壳目录 · [toolkits/_ARCH.md](toolkits/_ARCH.md) |
 | `architecture/` | 门禁 | 边界与打包一致性检测 — 见 [architecture/_ARCH.md](architecture/_ARCH.md) |
 | `eval/` | 单元 | Eval 框架断言/runner/reporter · [eval/_ARCH.md](eval/_ARCH.md) |
 | `observability/` | 单元 | 顶层 metrics/diagnostics/tracing · [observability/_ARCH.md](observability/_ARCH.md) |
 | `agent/streaming/broadcast/` | 单元 | ToolBroadcastBus / ToolCallBroadcaster · [agent/streaming/broadcast/_ARCH.md](agent/streaming/broadcast/_ARCH.md) |
 | `integration/` | 集成 | 跨模块集成（含浏览器 wait-strategies 等） |
-| `agent/skills/curator/test_curator_engine.py` | 单元 | SkillCurator 生命周期与 LRU 驱逐（勿用通用名 `test_engine.py`，会与 `agent/dynamic_workflow/test_engine.py` 触发 collect import mismatch） |
+| `dev/` | 单元 | vortexai 维护者脚本回归（`test_run_pytest_safe.py`） |
+| `agent/skills/curator/test_curator_engine.py` | 单元 | SkillCurator 生命周期与豁免规则（勿用通用名 `test_engine.py`，会与 `agent/dynamic_workflow/test_engine.py` 触发 collect import mismatch） |
 | `agent/skills/` | 单元 | 技能子系统测试树 · [agent/skills/_ARCH.md](agent/skills/_ARCH.md) |
 | `agent/_factory/test_mcp_routing_route.py` | 单元 | `route_mcp_servers` direct/PTC/aggregate demotion + compress 边界（mock connection） |
 | `agent/_factory/test_builder_compactor.py` | 单元 | `create_skill_agent` 上下文管道辅助压缩模型 `summarizer_llm` 注入装配 |
 | `agent/_factory/test_mcp_routing_real_stdio_integration.py` | 集成 | 真实 MCPServer stdio **160 tools**（超过 11250 token 阈值）→ PTC/Skill 路径（无 mock） |
 | `agent/meta_tools/skill_search/test_engine_mcp_index.py` | 单元 | MCP skill BM25 index enrichment（>3 tools） |
+| `agent/meta_tools/skill_manage/` | 单元 | `skill_manage_tool` 并发锁语义（同用户同技能串行、不同技能/用户并行、出错后释放；经批次入参）· 批次运行器的快照来源（快照读取器优先于轮次后端，缺省回退）、patch 的读取来源（先读写入侧存储：轮次后端看不到的技能也能 patch，且改的正是写入侧将要覆盖的正文；该存储没有的技能回退轮次后端）与删除终局（删除批次不调提交 hook、结果无批次 id/脚注/撤销提示，中英各一条）· lock/unlock 的批次语义（不进快照、文件操作全部成功后才执行；操作失败或持久化 hook 失败时各锁恢复到批次前状态，包括「已加锁再 lock」不被误解锁；只含 lock 的批次无撤销记录；混合批次的提示说明撤销不含锁，中英各一条；结果按列出顺序；工具描述向模型说明锁何时落地与撤销范围，中英各一条）· 共享假件 `batch_fakes.py`（假提交 hook、假写入后端、假读取器） |
 | `agent/skills/evolution/` | 单元 | Skill evolution pipeline tests (incl. trace analyzer takeover, variant generator) |
 
 ## Test file placement
@@ -46,13 +48,14 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
 
 | Profile | Command | Notes |
 |---------|---------|-------|
-| Repo checkout | `cd myrm-agent-harness && uv run --no-sync pytest -n0 <path>` | 先 `uv sync --python 3.13 --locked --extra all --group dev`；CI 同样用 `uv run --no-sync`；默认 addopts 排除 integration（加 `-m integration` 纳入） |
+| Monorepo default | `./myrm test -n0 <path>`（open-perplexity 根） | monorepo 内统一走 `./myrm test`，不裸跑 `uv run pytest`；CI 用 `uv run --no-sync`；harness gate 自愈 editable |
+| Monorepo integration | `./myrm test -m integration <path>` | 默认 addopts 排除 integration |
 | Local default (harness-only) | `pytest` (addopts apply filter automatically) | Serial; ~300–500MB typical peak (darwin arm64, 2026-06) |
 | Full suite | `pytest -m ""` | All markers including integration/e2e/performance |
 | Browser integration | `pytest -m "integration or e2e" --timeout=600` | Real Chromium; run separately |
-| CI unit | `.github/workflows/harness-test.yml` (repo root) job `unit` | `uv sync --python 3.13 --locked --extra all --group dev`, then `uv run --no-sync pytest -n 2` with default marker filter; no `--ignore` workarounds; a stale `uv.lock` fails the install step (run `uv lock` after editing `pyproject.toml`) |
-| CI performance | `.github/workflows/harness-performance.yml` (repo root) | `uv sync --python 3.13 --locked --extra all`, then `tests/performance/ -m performance -n0` |
-| CI browser | `.github/workflows/harness-test.yml` (repo root) job `browser-integration` | Same install; `-n0`, `-m "integration or e2e"`, Patchright Chromium (`--with-deps`) |
+| CI unit | `.github/workflows/test.yml` job `unit` | `uv sync --python 3.13 --locked --extra all --group dev`, then `uv run --no-sync pytest -n 2` over the whole `tests/` tree with the default marker filter; a stale `uv.lock` fails the install step (run `uv lock` after editing `pyproject.toml`; `compiled-core*` exclusion: `harness_packaging/DISTRIBUTION_SYSTEM.md` § CI) |
+| CI performance | `.github/workflows/performance.yml` | `uv sync --python 3.13 --locked --extra all`, then `tests/performance/ -m performance -n0` |
+| CI browser | `.github/workflows/test.yml` job `browser-integration` | Same install; `-n0`, `-m "integration or e2e"`, Patchright Chromium (`--with-deps`) |
 
 ## Browser integration pitfalls（实测经验，2026-08）
 

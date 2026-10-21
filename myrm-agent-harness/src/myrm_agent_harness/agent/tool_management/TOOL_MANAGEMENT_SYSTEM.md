@@ -149,9 +149,6 @@ Only **LLM tools** (`_TOOL_LAYERS` + ToolRegistry) appear here. Orchestration si
 | `kanban_revise_plan` | EXTENDED | user_capability | kanban | enabled_builtin_tools: kanban |
 | `kanban_show` | EXTENDED | user_capability | kanban | enabled_builtin_tools: kanban |
 | `kanban_unblock` | EXTENDED | user_capability | kanban | enabled_builtin_tools: kanban |
-| `mobile_global_tool` | EXTENDED | user_capability | — | Opt-in Turn1; see product switch |
-| `mobile_interact_tool` | EXTENDED | user_capability | — | Opt-in Turn1; see product switch |
-| `mobile_snapshot_tool` | EXTENDED | user_capability | — | Opt-in Turn1; see product switch |
 | `refetch_historical_turn` | EXTENDED | user_capability | — | Opt-in Turn1; see product switch |
 | `request_answer_user_tool` | EXTENDED | user_capability | answer_tool | enabled_builtin_tools: answer_tool |
 | `send_teammate_message_tool` | EXTENDED | user_capability | — | SubagentManagementExtension + entitlements |
@@ -183,7 +180,7 @@ python scripts/validate_tool_registry.py          # 注册一致性 + layer-prod
 python scripts/validate_tool_registry.py --generate-docs  # 刷新 TOOL_COUNT + LLM Tool Catalog 块
 ```
 
-全量扫描额外执行 `validate_layer_product_consistency()`（HIGH_PRIORITY 层仅允许 default-on product_id）并与 server `DEFAULT_ENABLED_BUILTIN_TOOLS` 做 parity 校验。**incremental/pre-commit 模式同样执行 layer-product 静态门禁**（见仓库根 `.pre-commit-config.yaml`）。
+全量扫描额外执行 `validate_layer_product_consistency()`（HIGH_PRIORITY 层仅允许 default-on product_id）并与 server `DEFAULT_ENABLED_BUILTIN_TOOLS` 做 parity 校验。**incremental/pre-commit 模式同样执行 layer-product 静态门禁**（见 `.pre-commit-config.yaml`）。
 
 ---
 

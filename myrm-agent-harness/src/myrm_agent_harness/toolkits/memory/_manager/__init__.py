@@ -14,34 +14,13 @@ Internal composition root; consumers import via ``memory.manager``.
 from __future__ import annotations
 
 from myrm_agent_harness.toolkits.memory._manager.archival import MemoryManagerArchivalMixin
-from myrm_agent_harness.toolkits.memory._manager.auto_recall import (
-    MemoryManagerAutoRecallMixin,
-)
-from myrm_agent_harness.toolkits.memory._manager.code_compaction import (
-    MemoryManagerCodeCompactionMixin,
-)
+from myrm_agent_harness.toolkits.memory._manager.bulk_deletion import MemoryManagerBulkDeletionMixin
 from myrm_agent_harness.toolkits.memory._manager.convenience import MemoryManagerConvenienceMixin
 from myrm_agent_harness.toolkits.memory._manager.core import MemoryManagerCore
-from myrm_agent_harness.toolkits.memory._manager.cross_agent import (
-    MemoryManagerCrossAgentMixin,
-)
-from myrm_agent_harness.toolkits.memory._manager.deletion import MemoryManagerDeletionMixin
-from myrm_agent_harness.toolkits.memory._manager.drift_defense import (
-    MemoryManagerDriftDefenseMixin,
-)
-from myrm_agent_harness.toolkits.memory._manager.experience_evolution import (
-    MemoryManagerExperienceEvolutionMixin,
-)
 from myrm_agent_harness.toolkits.memory._manager.governance_session import (
     MemoryManagerGovernanceSessionMixin,
 )
 from myrm_agent_harness.toolkits.memory._manager.import_export import MemoryManagerImportExportMixin
-from myrm_agent_harness.toolkits.memory._manager.integration_purge import (
-    MemoryManagerIntegrationPurgeMixin,
-)
-from myrm_agent_harness.toolkits.memory._manager.kg_screening import (
-    MemoryManagerKGScreeningMixin,
-)
 from myrm_agent_harness.toolkits.memory._manager.listing_maintenance import (
     MemoryManagerListingMaintenanceMixin,
 )
@@ -66,27 +45,17 @@ class MemoryManager(
     MemoryManagerGovernanceSessionMixin,
     MemoryManagerRetrievalWriteMixin,
     MemoryManagerConvenienceMixin,
-    MemoryManagerDeletionMixin,
+    MemoryManagerBulkDeletionMixin,
     MemoryManagerArchivalMixin,
     MemoryManagerQueriesMixin,
     MemoryManagerListingMaintenanceMixin,
-    MemoryManagerCodeCompactionMixin,
-    MemoryManagerExperienceEvolutionMixin,
-    MemoryManagerAutoRecallMixin,
-    MemoryManagerDriftDefenseMixin,
     MemoryManagerSovereignMigrationMixin,
-    MemoryManagerCrossAgentMixin,
-    MemoryManagerKGScreeningMixin,
-    MemoryManagerIntegrationPurgeMixin,
     MemoryManagerMutationsMixin,
     MemoryManagerStorageMixin,
     MemoryManagerImportExportMixin,
     MemoryManagerReindexMixin,
 ):
     """Orchestrates all memory operations. Bound to a single user via ``user_id``."""
-
-
-
 
 
 __all__ = [

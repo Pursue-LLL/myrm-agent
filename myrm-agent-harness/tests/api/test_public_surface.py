@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
 import inspect
 import sys
+from pathlib import Path
 from typing import Protocol
 
 import pytest
@@ -15,6 +17,18 @@ def test_api_package_exports_match_all() -> None:
     api = importlib.import_module("myrm_agent_harness.api")
     export_keys = sorted(api._EXPORTS.keys())
     assert sorted(api.__all__) == export_keys
+
+
+@pytest.mark.api
+def test_api_stub_mirrors_lazy_registry() -> None:
+    """The ``.pyi`` stub is what gives type checkers the real type of each lazy export."""
+    api = importlib.import_module("myrm_agent_harness.api")
+    stub = ast.parse(Path(api.__file__).with_suffix(".pyi").read_text(encoding="utf-8"))
+    imports = [(node.module, alias) for node in stub.body if isinstance(node, ast.ImportFrom) for alias in node.names]
+
+    # ``X as X`` is the only spelling a stub uses to re-export a name.
+    assert [alias.name for _, alias in imports if alias.asname != alias.name] == []
+    assert {alias.name: (module, alias.name) for module, alias in imports} == api._EXPORTS
 
 
 @pytest.mark.api
@@ -84,8 +98,27 @@ def test_api_protocols_are_extension_contracts() -> None:
 
 
 @pytest.mark.api
+async def test_api_publishes_in_memory_kanban_store_as_reference_implementation() -> None:
+    from myrm_agent_harness.api import InMemoryKanbanStore, KanbanStore
+
+    store = InMemoryKanbanStore()
+
+    assert issubclass(InMemoryKanbanStore, KanbanStore)
+    assert await store.get_board("missing-board") is None
+
+
+@pytest.mark.api
 def test_create_skill_agent_is_async_factory() -> None:
     from myrm_agent_harness.api import create_skill_agent
 
     assert callable(create_skill_agent)
     assert inspect.iscoroutinefunction(create_skill_agent)
+
+
+@pytest.mark.api
+def test_distribution_helpers_report_source_mode_in_dev() -> None:
+    from myrm_agent_harness.api import get_distribution_mode, is_compiled_distribution
+    from myrm_agent_harness.runtime.install_guard import DistributionMode
+
+    assert get_distribution_mode() is DistributionMode.SOURCE
+    assert is_compiled_distribution() is False

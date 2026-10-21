@@ -28,11 +28,13 @@ logger = logging.getLogger(__name__)
 # Run at import time to isolate harness tests as well
 _temp_workspace = tempfile.mkdtemp(prefix="myrm_harness_test_")
 os.environ["MYRM_DATA_DIR"] = _temp_workspace
+# Tests see the default /persistent root unless one sets MYRM_PERSISTENT_ROOT itself (through monkeypatch).
+os.environ.pop("MYRM_PERSISTENT_ROOT", None)
 os.environ["OTEL_METRICS_EXPORTER"] = "none"
 os.environ["OTEL_TRACES_EXPORTER"] = "none"
 
 _env_test_candidates = (
-    Path(__file__).resolve().parent.parent.parent / "myrm-agent-server" / ".env.test",
+    Path(__file__).resolve().parent.parent.parent / "myrm-agent" / "myrm-agent-server" / ".env.test",
     Path(__file__).resolve().parent.parent / ".env.test",
 )
 for _candidate in _env_test_candidates:
@@ -301,25 +303,6 @@ def _isolate_cli_tool_detection_cache() -> Iterator[None]:
 
     with patch.object(detector, "_cache", None):
         yield
-
-
-def _unregister_security_reviewer_if_loaded() -> None:
-    module = sys.modules.get("myrm_agent_harness.agent.middlewares.approval._batch_review")
-    if module is not None:
-        module.register_security_reviewer(None)
-
-
-@pytest.fixture(autouse=True)
-def _reset_security_reviewer() -> Iterator[None]:
-    """Unregister the auto-mode security reviewer between all tests.
-
-    ``register_security_reviewer`` stores the reviewer in a process-wide slot, and auto mode is on by
-    default. A reviewer left behind by one test approves ASK decisions of every later test of the
-    worker, including writes to protected instruction files that must stay pending.
-    """
-    _unregister_security_reviewer_if_loaded()
-    yield
-    _unregister_security_reviewer_if_loaded()
 
 
 @pytest.fixture(autouse=True)

@@ -5,7 +5,7 @@
 - utils.errors::ToolError (POS: Storage quota related errors.)
 
 [OUTPUT]
-- create_navigate_tool: Create browser_navigate tool bound to session; successful navigate returns `{content, metadata:{sources:[{url,title,source_key}]}}` for SourceTracker (url/title credential-redacted like content).
+- create_navigate_tool: Create browser_navigate tool bound to session; successful navigate returns `{content, metadata:{sources:[{url,title,source_key}]}}` for SourceTracker.
 
 [POS]
 browser_navigate tool for URL navigation.
@@ -17,8 +17,6 @@ from typing import TYPE_CHECKING
 
 from langchain.tools import tool
 from pydantic import BaseModel, Field
-
-from myrm_agent_harness.core.security.redact import redact_sensitive_text
 
 from .common import mark_untrusted
 
@@ -65,9 +63,8 @@ def create_navigate_tool(session: BrowserSession):
         raw_result = await session.navigate(url, verify_goal=verify_goal)
         content = mark_untrusted(raw_result)
         page = session.get_active_page()
-        # Final URLs can carry OAuth codes or tokens; sources reach the model context and persisted citations.
-        page_url = redact_sensitive_text(page.url)
-        page_title = redact_sensitive_text(await page.title())
+        page_url = page.url
+        page_title = await page.title()
         sources: list[dict[str, object]] = [
             {
                 "type": "web_fetch",

@@ -40,12 +40,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-from myrm_agent_harness.agent.dynamic_workflow.linter import (
-    LintIssue,
-    LintSeverity,
-    WorkflowLintReport,
-    lint_workflow_script,
-)
+from myrm_agent_harness.agent.dynamic_workflow.linter import lint_workflow_script
 from myrm_agent_harness.agent.dynamic_workflow.llm_query_tool import (
     LlmQueryBatchedTool,
     LlmQueryTool,
@@ -94,6 +89,29 @@ if TYPE_CHECKING:
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 logger = logging.getLogger(__name__)
+
+_WORKFLOW_TIMEOUT_SECONDS = 1800
+"""Wall-clock budget for one orchestration script.
+
+Parsed from ``MYRM_WORKFLOW_TIMEOUT_SECONDS``; falls back to 30 minutes because a
+parallel spawn fan-out legitimately outlives the 60s single-command default.
+"""
+
+
+def _resolve_workflow_timeout() -> int:
+    """Resolve the orchestration wall-clock budget in seconds."""
+    import os
+
+    raw = os.environ.get("MYRM_WORKFLOW_TIMEOUT_SECONDS", "")
+    if raw:
+        try:
+            value = int(raw)
+        except ValueError:
+            logger.warning("Invalid MYRM_WORKFLOW_TIMEOUT_SECONDS=%r; using default", raw)
+        else:
+            if value > 0:
+                return value
+    return _WORKFLOW_TIMEOUT_SECONDS
 
 
 async def _build_available_types_hint(catalog: SubagentCatalog | None) -> str:
@@ -221,12 +239,14 @@ async def run_dynamic_workflow_stream(
         cancel_token=cancel_token,
         event_queue=notify_queue,
         message_id=message_id,
+        store=store,
     )
     llm_query_batched_tool = LlmQueryBatchedTool(
         parent_agent=parent_agent,
         cancel_token=cancel_token,
         event_queue=notify_queue,
         message_id=message_id,
+        store=store,
     )
 
     yield {
@@ -396,6 +416,24 @@ async def run_dynamic_workflow_stream(
         trust_latch=pinned_template.trust_latch,
         estimated_cost_usd=estimated_cost_usd,
     )
+
+    # Static verification must gate before the human gate: asking the user to
+    # approve a script that cannot pass the linter wastes their decision and hides
+    # the real error behind a resolved approval card.
+    if not lint_report.is_valid:
+        yield {
+            "type": "message",
+            "messageId": message_id,
+            "data": f"Dynamic Workflow static verification failed: {lint_report.summary}",
+        }
+        yield {
+            "type": "message_end",
+            "messageId": message_id,
+            "usage": {},
+            "completion_status": "error",
+        }
+        return
+
     needs_approval = (
         spawn_count >= 1
         and approval_gate is not None
@@ -448,20 +486,6 @@ async def run_dynamic_workflow_stream(
 
     store.save_orchestration_script(workflow_id, script_code)
 
-    if not lint_report.is_valid:
-        yield {
-            "type": "message",
-            "messageId": message_id,
-            "data": f"Dynamic Workflow static verification failed: {lint_report.summary}",
-        }
-        yield {
-            "type": "message_end",
-            "messageId": message_id,
-            "usage": {},
-            "completion_status": "error",
-        }
-        return
-
     # --- Phase 3: Execute via PTC ---
     if cancel_token and cancel_token.is_cancelled:
         yield {
@@ -513,8 +537,10 @@ async def run_dynamic_workflow_stream(
         code=script_code,
         original_code=script_code,
         session_id=workflow_id,
-        work_dir="/workspace",
+        work_dir=workspace_root,
+        workspace_root=workspace_root,
         allow_network=True,
+        timeout=_resolve_workflow_timeout(),
     )
     executor = create_executor()
 
@@ -590,6 +616,14 @@ async def run_dynamic_workflow_stream(
                 errors = merge_summary.get("workspace_merge_errors", [])
                 if isinstance(errors, list) and errors:
                     merge_error_note = "Workspace merge errors:\n" + "\n".join(str(item) for item in errors)
+        # Release the per-workflow executor (sandbox handles, Bash session). Without
+        # this, every workflow run leaves resources bound for the process lifetime.
+        close = getattr(executor, "close", None)
+        if close is not None:
+            try:
+                await close()
+            except Exception as exc:
+                logger.warning("Workflow executor close failed: %s", exc)
 
     exec_status = "success"
     exec_message = "Workflow execution completed."

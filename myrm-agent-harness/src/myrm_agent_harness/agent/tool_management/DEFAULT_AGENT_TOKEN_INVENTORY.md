@@ -87,9 +87,9 @@
 | 13 | **memory_search_tool** | **156** | `harness/toolkits/memory/_memory_agent_tool_descriptions.py` | 统一检索（corpus ACL 与 policy 一致；默认仅 memory corpus） | enable_memory |
 | 14 | **memory_save_tool** | **720** | `harness/toolkits/memory/_memory_agent_tool_descriptions.py` | 写入长期记忆（EN core；wiki/approval 动态段；保留原有关键 guardrail 短语） | enable_memory |
 | 15 | **memory_manage_tool** | **359** (EN) / **422** (ZH) | 同上 | 更新/删除/纠正/评分；correct→knowledge only（preserves history）；update→措辞微调；instruction→category=rule；**user-locked rule 不可 update/delete** | enable_memory |
-| 16 | **skill_select_tool** | **240** (EN) / **278** (ZH) | `harness/agent/meta_tools/skills/select/skill_select_tool.py` | 字节稳定静态 rules，按 locale 选 EN/ZH 常量；bound catalog 在首条 HumanMessage `<bound_skills>` | skill_backend present |
+| 16 | **skill_select_tool** | **283** (EN) / **326** (ZH) | `harness/agent/meta_tools/skills/select/skill_select_tool.py` | 字节稳定静态 rules，按 locale 选 EN/ZH 常量；bound catalog 在首条 HumanMessage `<bound_skills>`，漂移以 `<bound_skills_update>` 尾段下发 | skill_backend present |
 
-**HIGH_PRIORITY 描述小计（Turn1，EN 描述）**：**2,649 tokens**（5 工具；web_search + memory×3 + skill_select；默认 memory_search 仅 memory corpus）
+**HIGH_PRIORITY 描述小计（Turn1，EN 描述）**：**2,692 tokens**（5 工具；web_search + memory×3 + skill_select；默认 memory_search 仅 memory corpus）
 
 ---
 
@@ -109,7 +109,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 ### 4.3 历史会话搜索（opt-in，由 memory_search_tool 承载）
 
-历史聊天检索通过 `memory_search_tool` 的 `corpus=sessions` ACL 启用（用户开启 `memoryEnableConversationSearch` 且非无痕）。`conversation_search/` 模块为 sessions corpus 执行后端；`create_conversation_search_tool` 工厂仅 harness 单元测试使用，非 Turn1 LLM 工具。
+历史聊天检索通过 `memory_search_tool` 的 `corpus=sessions` ACL 启用（用户开启 `memoryEnableConversationSearch` 且非无痕）。`conversation_search/` 模块为 sessions corpus 执行后端；框架不提供独立的 `conversation_search_tool`。
 
 ### 4.3 技能工具（有技能后端时加载）
 
@@ -201,8 +201,6 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 | 77 | desktop_snapshot_tool | 91 | `harness/toolkits/computer_use/desktop_agent_tools.py` | AX 树 + @dref，可选截图 |
 | 78 | desktop_interact_tool | 40 | `harness/toolkits/computer_use/desktop_agent_tools.py` | @dref 语义交互（含 set_value） |
 | 79 | desktop_vision_tool | 69 | `harness/toolkits/computer_use/desktop_agent_tools.py` | 显式截图/坐标回退 |
-
-移动端镜像工具（`harness/toolkits/mobile_adb/mobile_agent_tools.py`，仅 macOS + 启用 iPhone Mirroring 场景加载）：`mobile_snapshot_tool` / `mobile_interact_tool` / `mobile_global_tool`。
 
 ### 4.18 内部分类（非 LLM 工具，默认 GeneralAgent Turn1 = 0 token）
 

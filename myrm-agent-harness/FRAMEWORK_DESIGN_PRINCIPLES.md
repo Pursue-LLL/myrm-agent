@@ -1,6 +1,6 @@
 # Myrm Agent Harness 框架设计原则
 
-> **许可**: `myrm-agent-harness` 为 MIT 开源框架，与 `myrm-agent-server`、`myrm-agent-frontend`、`myrm-agent-desktop` 同属 `myrm-agent` 仓库；`myrm-control-plane` 为闭源仓库。
+> **许可**: `myrm-agent-harness` 是独立 **MIT 开源**仓库，与 `myrm-agent`（MIT 开源）同级；`myrm-control-plane`、`myrm-agent-brand` 为闭源仓库。
 
 Myrm Agent Harness 是一个独立于业务逻辑的底层执行引擎与编排框架。为了保持代码库的高质量、可维护性与扩展性，任何向本仓库贡献代码的开发者，必须严格遵守以下设计原则：
 
@@ -23,14 +23,22 @@ Myrm Agent Harness 是一个独立于业务逻辑的底层执行引擎与编排�
 本项目采用 `Agent-in-Sandbox` 架构。在单用户或 SaaS 多租户调度下，主智能体和所有子智能体都会运行在专属的隔离持久化 Volume 内。
 基于此优势，框架层原生支持通过 `ArtifactVault` 和 `vault://` 协议传递大文件结果，彻底避免多智能体交互时的内存和 Token 爆炸。
 
-## 5. 开源分发策略 (Open-Source Distribution)
+## 5. 分发策略 (Distribution)
 
-`myrm-agent-harness` 以 MIT 许可证发布到 PyPI，源码即发行物：
+`myrm-agent-harness` 完整源码以 **MIT** 许可在 GitHub 公开；PyPI 发行物为双 wheel 形态，模式参考 Claude Code（npm 壳 + 原生 binary）：
 
-- **单一 wheel**：纯 Python wheel（`uv build`，hatchling），不含编译产物、不剪裁源码；所见即所装
-- **发布**：tag `harness-v<project.version>` → `harness-publish.yml` 校验 tag 与 `pyproject.toml` 版本一致 → 构建 sdist + wheel → 干净环境装 wheel 并跑 `verify-harness-distribution` → PyPI Trusted Publishing（OIDC，无长期 token）
-- **安装验证**：`verify-harness-distribution` console script（`runtime/install_guard/verify.py`）校验核心运行时依赖与公开 API 可解析，供 Docker builder/runtime、Tauri 与 CI 使用
-- **外部消费者**：优先 `from myrm_agent_harness.api import create_skill_agent`，禁止依赖内部实现模块
+| 层 | 格式 | 内容 |
+|----|------|------|
+| **公开 API** (`myrm_agent_harness.api`) | `.py` 源码 | factory、Protocol、DTO、hooks — 第三方框架接入面 |
+| **编译核心** (`harness_packaging/core_manifest.yaml`) | Nuitka 编译 `.so` | skill 进化、context pipeline、memory 策略等 |
+| **平台包** (`myrm-agent-harness-core-{platform}`) | 按平台 optional dep | 与 Claude Code 的 `@anthropic-ai/claude-code-darwin-arm64` 同模式（8 平台含 musl） |
+
+- **开发模式**：editable install，全部 `.py` 源码，`runtime.install_guard.probe.get_distribution_mode()` 返回 `source`
+- **发行模式**：`pip install 'myrm-agent-harness[compiled-core]'` 或手动安装平台包 `myrm-agent-harness-core-darwin-arm64`
+- **构建**：`uv sync --group build && .venv/bin/python scripts/assemble_production.py`（推荐）或 `build_core.py` + `build_release_wheel.py`（CI: `publish-pypi.yml`、`build-core-wheels.yml`）
+- **安装验证**：`verify-harness-distribution` console script（Docker builder/runtime、Tauri、`assemble_production.py --install`）
+- **一致性保障**：`core_manifest.yaml` 用 `directories` 声明编译子树；`scripts/sync_distribution_metadata.py` 生成 `runtime/install_guard/_generated/core_ip_manifest.py` 与 compiled-core pin；主 wheel 剥离 manifest `.py`；平台 wheel 注入 `.so`；`runtime.install_guard.probe` 校验 release/core 版本与 `__platform_key__`
+- **外部消费者**：优先 `from myrm_agent_harness.api import create_skill_agent`，禁止依赖 `_core` 内部模块
 
 ## 6. 基础设施环境变量 vs Agent 配置 (Infra Env vs Agent Config)
 
@@ -39,12 +47,13 @@ Harness 区分两类配置，避免「零 env」与「生产需要路径注入�
 | 类别 | 配置方式 | 示例 | 说明 |
 |------|----------|------|------|
 | **Agent 行为** | WebUI / YAML / Pydantic 模型 | `AgentConfig`、`LLMConfig`、技能开关 | 用户通过产品 WebUI 配置，**不**要求终端 export |
-| **基础设施路径** | 可选环境变量（opt-in） | `MYRM_DATA_DIR`、`MYRM_LOCALES_DIR`、`MYRM_GATEWAY_*` | 由部署层（server、Tauri、SaaS sandbox）注入，指向持久化 Volume 或覆盖目录 |
+| **基础设施路径** | 可选环境变量（opt-in） | `MYRM_DATA_DIR`、`MYRM_PERSISTENT_ROOT`、`MYRM_LOCALES_DIR`、`MYRM_GATEWAY_*` | 由部署层（server、Tauri、SaaS sandbox）注入，指向持久化 Volume 或覆盖目录 |
 
 **路径派生规则**（统一语义，实现可分散在各模块）：
 
 - `MYRM_DATA_DIR` 未设置 → 回退 `~/.myrm` 或 cwd 相对 `.myrm/`（模块文档须写明回退行为）
 - `MYRM_DATA_DIR` 已设置 → 子路径派生：`{MYRM_DATA_DIR}/checkpoints`、`{MYRM_DATA_DIR}/storage`、`{MYRM_DATA_DIR}/.estop_state.json` 等
+- `MYRM_PERSISTENT_ROOT` 未设置 → `/persistent`；已设置 → `.context`、`.memories`、`workspace` 由它派生。每次调用时读取（`runtime/paths/execution_paths.py::get_persistent_root`），部署层在启动后才设置也对所有调用方生效；禁止导入时复制根路径或运行时改写模块常量
 - `MYRM_LOCALES_DIR` 未设置 → 使用 harness 内置 `agent/errors/diagnostics/i18n/locales/`；业务层可用 `register_translations()` 扩展
 
 **框架边界**：Harness **不得**硬编码 monorepo 路径或反向读取 `myrm-agent-server` 文件；i18n、checkpoint、storage 等必须自带默认数据或 Protocol 注入点。
@@ -67,7 +76,7 @@ Harness 区分两类配置，避免「零 env」与「生产需要路径注入�
 ### 7.2 禁止从竞品抄入的模式
 
 - `catalog_invoke` / `capability_invoke_tool` / RUNTIME MCP 池 + Turn1 proxy gateway
-- 双 aggregate 阈值（如 1200 catalog + 2700 PTC 灰色地带）
+- 双 aggregate 阈值（如 11,250 单服 + 15,000 聚合之外的第三档灰色地带）
 - 「一个 invoke 工具代理所有 deferred MCP」——参数文档劣于 PTC 的 `/mcp/*.md` 渐进披露
 
 **CI 门禁**：`tests/architecture/test_mcp_routing_two_outcomes.py`（禁止上述文件与字段回归）。

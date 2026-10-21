@@ -47,8 +47,6 @@ _MODIFIER_TO_PYAUTOGUI: dict[ModifierKey, str] = {
 
 
 class WindowsBackend:
-    """Windows screen I/O via mss + pyautogui + ctypes."""
-
     def __init__(self) -> None:
         self._screen_info: ScreenInfo | None = None
         self._excluded_capture_titles: frozenset[str] = frozenset()
@@ -103,10 +101,11 @@ class WindowsBackend:
     ) -> ActionResult:
         if (occluded := self._pointer_occluded()) is not None:
             return occluded
-        import pyautogui
 
-        pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
+        pyautogui_keys: list[str] = []
         try:
+            import pyautogui
+            pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
             for key in pyautogui_keys:
                 await asyncio.to_thread(pyautogui.keyDown, key)
             await asyncio.to_thread(
@@ -180,9 +179,8 @@ class WindowsBackend:
             await asyncio.to_thread(_set_clipboard, saved)
 
     async def key(self, keys: str) -> ActionResult:
-        import pyautogui
-
         try:
+            import pyautogui
             parts = [k.strip() for k in keys.split("+")]
             if len(parts) > 1:
                 await asyncio.to_thread(pyautogui.hotkey, *parts)
@@ -195,9 +193,9 @@ class WindowsBackend:
     async def mouse_move(self, x: int, y: int) -> ActionResult:
         if (occluded := self._pointer_occluded()) is not None:
             return occluded
-        import pyautogui
 
         try:
+            import pyautogui
             await asyncio.to_thread(pyautogui.moveTo, x, y)
             return ActionResult(success=True)
         except Exception as e:
@@ -213,10 +211,11 @@ class WindowsBackend:
     ) -> ActionResult:
         if (occluded := self._pointer_occluded()) is not None:
             return occluded
-        import pyautogui
 
-        pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
+        pyautogui_keys: list[str] = []
         try:
+            import pyautogui
+            pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
             await asyncio.to_thread(pyautogui.moveTo, x, y)
             for key in pyautogui_keys:
                 await asyncio.to_thread(pyautogui.keyDown, key)
@@ -244,10 +243,11 @@ class WindowsBackend:
     ) -> ActionResult:
         if (occluded := self._pointer_occluded()) is not None:
             return occluded
-        import pyautogui
 
-        pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
+        pyautogui_keys: list[str] = []
         try:
+            import pyautogui
+            pyautogui_keys = [_MODIFIER_TO_PYAUTOGUI[m] for m in modifiers] if modifiers else []
             for key in pyautogui_keys:
                 await asyncio.to_thread(pyautogui.keyDown, key)
 

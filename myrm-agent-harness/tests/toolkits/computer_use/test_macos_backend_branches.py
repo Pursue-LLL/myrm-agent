@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -54,7 +53,6 @@ class TestWindowTargetResolution:
 
 
 class TestInputPrimitiveErrorPaths:
-    @pytest.mark.skipif(sys.platform != "darwin", reason="modifier handling imports Quartz (macOS-only)")
     @pytest.mark.asyncio()
     async def test_click_error_is_reported(self, backend: MacOSBackend) -> None:
         with (

@@ -4,13 +4,15 @@
 - .executor_helpers::_filter_fork_messages, _auto_vault_or_truncate, _parse_handover_state (POS: Pure helper functions for SubagentExecutor mixins and external callers.)
 - .builder::build_child_agent, filter_tools, merge_child_stats (POS: Subagent construction helpers — tool filtering via DelegationCapabilityManifest, model resolution, token merge.)
 - .event_forwarder::SubagentEventForwarder (POS: Subagent event forwarder. Translates subagent events into progress and log events.)
+- .executor_delegation_mixin::SubagentExecutorDelegationMixin (POS: Orchestrator-role child agents receive scoped delegation meta-tools.)
+- agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract.)
 - .types::SubagentBudgetExceededError, SubagentConfig, SubAgentResult, SubAgentStatus (POS: Subagent subsystem core type definitions.)
 - toolkits.llms.errors.exceptions::MyrmLLMError (POS: Standardized LLM Error thrown by the Harness framework.)
 - toolkits.llms.errors.error_types::FailoverReason (POS: LLM failover reason enum.)
 
 [OUTPUT]
 - SubagentExecutorAttemptMixin._inherit_parent_context
-- SubagentExecutorAttemptMixin._run_single_attempt
+- SubagentExecutorAttemptMixin._run_single_attempt: returns the attempt's result (any status) or raises; closing the run with SUBAGENT_STOP is the retry loop's job
 
 [POS]
 One child-agent run attempt including fork context and result post-processing.
@@ -21,12 +23,13 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from collections.abc import Callable
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, cast
 
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.security.guards.taint_tracker import get_taint_tracker
+from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
 from myrm_agent_harness.toolkits.llms.errors.exceptions import MyrmLLMError
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -40,10 +43,12 @@ from .builder import (
     merge_child_stats,
 )
 from .event_forwarder import SubagentEventForwarder
+from .executor_delegation_mixin import SubagentExecutorDelegationMixin
 from .executor_helpers import (
     _auto_vault_or_truncate,
     _filter_fork_messages,
     _parse_handover_state,
+    attach_partial_output,
 )
 from .types import (
     SubagentConfig,
@@ -52,13 +57,19 @@ from .types import (
 )
 
 if TYPE_CHECKING:
+    from langchain_core.messages import BaseMessage
+    from langgraph.types import Command
+
     from myrm_agent_harness.agent.base_agent import BaseAgent
-    from myrm_agent_harness.utils import CancellationToken
+    from myrm_agent_harness.agent.hooks.types import HookEvent
+    from myrm_agent_harness.agent.security.guards.taint_tracker import TaintTracker
+    from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+    from myrm_agent_harness.utils.token_economics.tracker import TokenTracker
 
 logger = get_agent_logger(__name__)
 
 
-class SubagentExecutorAttemptMixin:
+class SubagentExecutorAttemptMixin(SubagentExecutorDelegationMixin):
     """Execute a single subagent attempt."""
 
     async def _inherit_parent_context(
@@ -82,13 +93,13 @@ class SubagentExecutorAttemptMixin:
         context: dict[str, object],
         tool_registry_getter: Callable[[], list[BaseTool]],
         start_time: float,
-        parent_tracker: object,
-        parent_taint: object,
+        parent_tracker: TokenTracker | None,
+        parent_taint: TaintTracker,
         parent_agent: BaseAgent,
         cancel_flags: dict[str, bool],
         children_agents: dict[str, BaseAgent],
-        fire_hook: Callable[..., object],
-        hook_event_cls: type,
+        fire_hook: Callable[[str, dict[str, object]], Awaitable[object]],
+        hook_event_cls: type[HookEvent],
         trace_id: str = "",
         steering_token: SteeringToken | None = None,
         cancel_token: CancellationToken | None = None,
@@ -136,7 +147,7 @@ class SubagentExecutorAttemptMixin:
             config=config,
         )
         children_agents[task_id] = child_agent
-        messages: list[str] = []
+        answer = AnswerDraft()
 
         # Ensure subagent uses its own thread_id for checkpointing
         context["approval_session_key"] = task_id
@@ -165,7 +176,7 @@ class SubagentExecutorAttemptMixin:
         set_subagent_task_id(task_id)
         logger.debug("[subagent:%s] Context marked as subagent for approval safety", task_id)
 
-        chat_history = []
+        chat_history: list[BaseMessage] = []
         if config.context_mode == "fork" and getattr(parent_agent, "checkpointer", None):
             try:
                 parent_session_id = context.get("session_id") or getattr(parent_agent, "session_id", None)
@@ -174,10 +185,12 @@ class SubagentExecutorAttemptMixin:
                         read_checkpoint_messages,
                     )
 
-                    raw_msgs = await read_checkpoint_messages(parent_agent.checkpointer, parent_session_id)
+                    raw_msgs = await read_checkpoint_messages(parent_agent.checkpointer, str(parent_session_id))
                     if raw_msgs:
                         raw_count = len(raw_msgs)
-                        chat_history = _filter_fork_messages(raw_msgs, config.max_fork_tokens)
+                        chat_history = cast(
+                            "list[BaseMessage]", _filter_fork_messages(raw_msgs, config.max_fork_tokens)
+                        )
                         logger.info(
                             "[subagent:%s] Fork context filtered: %d → %d messages",
                             task_id,
@@ -188,7 +201,9 @@ class SubagentExecutorAttemptMixin:
                 logger.warning("[subagent:%s] Failed to fork parent context: %s", task_id, e)
 
         try:
-            query = resume_command if resume_command is not None else task_description
+            query: str | Command[object] = (
+                cast("Command[object]", resume_command) if resume_command is not None else task_description
+            )
             if config.context_mode == "fork" and resume_command is None:
                 # 10/10 Scheme: Recency Bias System Override.
                 # Since we keep the parent's SystemMessage to hit the cache, we must override the persona here.
@@ -224,26 +239,25 @@ class SubagentExecutorAttemptMixin:
                     raise asyncio.CancelledError()
 
                 event_type = event.get("type")
+                if event_type == AgentEventType.MESSAGE.value and not isinstance(event.get("data"), str):
+                    # The parent reads this answer as a tool result, so a payload that is not text is rendered as text.
+                    event = {**event, "data": str(event.get("data", ""))}
+                answer.feed(event)
 
-                if event_type == AgentEventType.MESSAGE.value:
-                    content = event.get("data", "")
-                    messages.append(content if isinstance(content, str) else str(content))
-                elif event_type == AgentEventType.ERROR.value:
+                if event_type == AgentEventType.ERROR.value:
                     exc = MyrmLLMError(
                         error_code=FailoverReason.UNKNOWN,
                         default_msg=f"Subagent error: {event.get('error', 'Unknown error')}",
                     )
-                    exc.partial_output = "".join(messages)
                     raise exc
-                else:
+                if event_type != AgentEventType.MESSAGE.value:
                     await event_forwarder.handle_event(event)
 
                 event_forwarder.check_budget()
 
-            raw_result = "".join(messages)
+            raw_result = answer.text
         except Exception as exc:
-            if not hasattr(exc, "partial_output"):
-                exc.partial_output = "".join(messages)  # type: ignore[attr-defined]
+            attach_partial_output(exc, answer.text)
             raise
         finally:
             set_is_subagent(False)
@@ -365,17 +379,6 @@ class SubagentExecutorAttemptMixin:
             status=SubAgentStatus.COMPLETED,
             trace_id=trace_id,
             handover_state=handover_state,
-        )
-        await fire_hook(
-            hook_event_cls.SUBAGENT_STOP,
-            {
-                "task_id": task_id,
-                "agent_type": agent_type,
-                "success": True,
-                "result": final_result,
-                "duration_seconds": duration,
-                "trace_id": trace_id,
-            },
         )
         total_tokens = child_usage.total_tokens if child_usage else 0
         logger.info(

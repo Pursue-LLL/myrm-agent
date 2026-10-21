@@ -72,6 +72,20 @@ class BashExecutorPrepareMixin:
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
+    @staticmethod
+    def _is_read_only_scope() -> bool:
+        """True when the active capability handle carries no WRITE.
+
+        Mirrors ``LocalExecutor._scoped_context`` so the IPC server enforces the
+        same scope for MCP tools that the direct Function-Calling path applies.
+        """
+        from myrm_agent_harness.core.security.ocap.guard import (
+            CapabilityAction,
+            check_capability_access,
+        )
+
+        return not check_capability_access(CapabilityAction.WRITE)
+
     def _get_ipc_socket_path(self) -> str:
         """Get IPC socket path from executor config or code execution config."""
         executor_mcp_config = self._executor.get_mcp_communication_config()
@@ -96,6 +110,7 @@ class BashExecutorPrepareMixin:
         command: str,
         session_id: str | None = None,
         workspace_root: str | None = None,
+        readonly_workspace: bool = False,
     ) -> tuple[bool, str, list[MCPConfigItem] | None]:
         """Detect execution mode (Python/Bash/Skill) and prepare code."""
         use_python_execution = False
@@ -110,11 +125,15 @@ class BashExecutorPrepareMixin:
                 ipc_socket_path = self._get_ipc_socket_path()
                 logger.info(f" [MCP] Using IPC mode (socket: {ipc_socket_path})")
 
+                from myrm_agent_harness.agent.middlewares._session_context import get_agent_id
+
                 skill_context = self._skill_executor.prepare_for_execution(
                     command=command,
                     ipc_socket_path=ipc_socket_path,
                     session_id=session_id,
+                    agent_id=get_agent_id() or None,
                     workspace_root=workspace_root,
+                    readonly_workspace=readonly_workspace,
                 )
                 prepared_code = skill_context.prepared_code
                 mcp_config_items = skill_context.mcp_config
@@ -180,7 +199,7 @@ class BashExecutorPrepareMixin:
 
     def _inject_resilience_script(self, prepared_code: str) -> str:
         """Prepend the bash resilience init script if available."""
-        script_path = Path(__file__).parent / "scripts" / "resilience_init.sh"
+        script_path = Path(__file__).parent.parent / "scripts" / "resilience_init.sh"
         if not script_path.exists():
             return prepared_code
         try:

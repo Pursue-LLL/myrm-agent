@@ -15,6 +15,7 @@
 - toolkits.llms.ephemeral_output_tokens (POS: ephemeral max-output-tokens ContextVar for truncation recovery)
 - toolkits.llms.utils.proxy::normalize_proxy_url (POS: Egress proxy URL normalization)
 - toolkits.llms.utils.model_kwargs::clean_model_kwargs, should_skip_response_format (POS: Model-parameter compatibility helpers)
+- toolkits.llms.utils.json_document::is_json_document (POS: whether reasoning text is a JSON document the output parser accepts)
 - adapters.chat_model.session_affinity::ChatLiteLLMSessionAffinityMixin (POS: OpenAI / OpenCode / xAI session-affinity routing keys)
 - core.context_vars::prompt_routing_key_var (POS: Session-scoped routing key for OpenCode gateway session affinity)
 
@@ -34,6 +35,8 @@ with TTFT/duration stats collected on the streaming path.
 Stream only supports fully empty stream retry (mid-stream interruptions cannot be retried).
 **Metrics observability**: instance-level EmptyRetryMetrics tracks retry count, success rate, total delay;
 business layer exports via retry_metrics.to_dict() for monitoring integration.
+**Structured output**: an empty answer retries once without ``response_format``; the model's reasoning
+replaces it only when the reasoning is itself a JSON document the output parser accepts.
 **Parameter protection**: injects per-call ``allowed_openai_params`` to prevent LiteLLM from
 silently dropping framework params (tools, tool_choice) or user-supplied model_kwargs when
 a provider's capability declaration is incomplete (e.g. ``xiaomi_mimo``). Calls to the first-party
@@ -100,6 +103,7 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import (
 )
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
 from myrm_agent_harness.toolkits.llms.adapters.schema import normalize_tool_schema
+from myrm_agent_harness.toolkits.llms.utils.json_document import is_json_document
 from myrm_agent_harness.toolkits.llms.utils.model_kwargs import (
     clean_model_kwargs as utils_clean_model_kwargs,
 )
@@ -144,7 +148,9 @@ class ChatLiteLLM(
     api_base: str | None = None
     organization: str | None = None
     custom_llm_provider: str | None = None
-    request_timeout: float | tuple[float, float] | None = 300.0
+    # Seconds to wait for the provider's next bytes, handed to litellm as ``timeout``: a stream that keeps producing
+    # is not cut, a silent provider is. ``first_event_timeout`` and ``inter_chunk_timeout`` guard a started stream.
+    request_timeout: float | None = 300.0
     temperature: float | None = None
     model_kwargs: dict[str, Any] = Field(default_factory=dict)
     extra_body: dict[str, Any] | None = Field(default=None)
@@ -165,7 +171,6 @@ class ChatLiteLLM(
         default=None,
         description="Egress HTTP/SOCKS5 proxy URL for outbound API requests",
     )
-    max_retries: int = 1
     empty_retry_enabled: bool = Field(
         default=True,
         description="Enable retry on empty response (EmptyChoicesError/EmptyStreamError)",
@@ -237,7 +242,7 @@ class ChatLiteLLM(
         set_model_value = self.model_name or self.model
         params = {
             "model": set_model_value,
-            "force_timeout": self.request_timeout,
+            "timeout": self.request_timeout,
             "max_tokens": self.max_tokens,
             "stream": self.streaming,
             "n": self.n,
@@ -267,7 +272,6 @@ class ChatLiteLLM(
         litellm_client.organization = self.organization
         creds: dict[str, Any] = {
             "model": set_model_value,
-            "force_timeout": self.request_timeout,
             "api_base": self.api_base,
             "api_key": self.api_key or self.openai_api_key,
         }
@@ -349,12 +353,7 @@ class ChatLiteLLM(
             return result
 
         reasoning_content = getattr(result, "additional_kwargs", {}).get("reasoning_content")
-        if (
-            reasoning_content
-            and isinstance(reasoning_content, str)
-            and reasoning_content.strip()
-            and ("{" in reasoning_content or "[" in reasoning_content)
-        ):
+        if isinstance(reasoning_content, str) and is_json_document(reasoning_content):
             return AIMessage(
                 content=reasoning_content.strip(),
                 additional_kwargs=getattr(result, "additional_kwargs", {}),

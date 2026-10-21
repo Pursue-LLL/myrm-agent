@@ -29,7 +29,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - Agent-in-Sandbox 沙箱执行（LocalExecutor，业务层可扩展云端沙箱）
 - 智能上下文管理（Filtering/Compression/Summarization），支持**Prompt 记忆快照与绝对预算锁定 (Strict Prompt Budgeting)**
 - **三域记忆拓扑与渐进式披露 (Memory Domain Mesh)**：记忆按 User / Assistant / Task 三域九类归属，并带 L0 摘要 / L1 概览 / L2 原文三层详略，`memory_search_tool` 默认返回 L1 概览、按 ID 展开 L2 原文；持久化走 SQLite + Qdrant，检索时按 `graph_max_depth`（默认 2）做多跳图扩展
-- Protocol-backed `conversation_search` 历史会话召回工具：框架只处理 DTO、格式化、引用事件，不依赖数据库、Server 或产品身份语义
+- Protocol-backed `conversation_search` 历史会话召回（经 `memory_search_tool(corpus=sessions)` 暴露）：框架只处理 DTO、格式化、引用事件，不依赖数据库、Server 或产品身份语义
 - **Smart Concurrency Router**：基于资源指纹和 O(1) 路径互斥判断的智能并发引擎，无论并发读写还是读读，均实现绝对安全的文件级操作调度
 - **Myrm-Guard (AI Diagnostic & Self-Healing)**：主动式熔断、错误脱敏、前端一键修复与 Tool Integrity Guard
 - **动态重规划纠错引擎 (Dynamic Replan Loop)**：拦截工具执行错误并交由 LLM 自我纠错
@@ -44,7 +44,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 
 - **框架-业务分离**：框架层不依赖业务层，通过 [自动化检测与修复](scripts/_ARCH.md) 保护架构完整性；`toolkits/` 禁止 import `agent/`（`tests/architecture/test_toolkits_agent_boundary.py`）；`toolkits/` 禁止 vendor 工具包/浅层 vendor 模块名（`tests/architecture/test_toolkits_vendor_boundary.py`；见 [toolkits/_ARCH.md](src/myrm_agent_harness/toolkits/_ARCH.md)、[TOOL_DESIGN_STRATEGY.md](src/myrm_agent_harness/agent/tool_management/TOOL_DESIGN_STRATEGY.md) §1.2）
 - **子智能体预算硬终止 (Subagent Budget Hard-Stop)**：基于 `TokenTracker` 和底层事件转发器实施严格预算审查拦截，杜绝无限自愈或死循环导致用户余额击穿。
-- **子智能体跨层异步审批 (Asynchronous Escalation)**：基于 LangGraph 原生 `NodeInterrupt` 的穿透式中断架构，实现自主体级高危操作前端 GUI 拦截。父子双图协同挂起，完全释放服务器并发资源，避免网关强制超时，并 100% 保护大模型前缀缓存。
+- **子智能体跨层异步审批 (Asynchronous Escalation)**：基于 LangGraph 原生 `NodeInterrupt` 的穿透式中断架构，实现自主体级高危操作前端 GUI 拦截。父子双图协同挂起，完全释放服务器并发资源，避免网关强制超时，并保持主对话前缀布局稳定以利于 Prompt Cache 命中。
 - **防宕机全双工终端流 (Safe Full-Duplex Terminal)**：从底层 PTY 拦截并流式下发数据，内置 10FPS 节流与 500KB 流量熔断阀门，物理阻绝 SSE 瀑布流 DDOS 攻击导致的浏览器白屏
 - **协议驱动**：3 个核心协议（`SandboxExecutor`, `StorageProvider`, `SkillBackend`）
 - **性能优先**：智能缓存（7x 加速）、异步 I/O、高效算法
@@ -57,13 +57,12 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | 模块       | 路径                                | 职责                                                                                                                                                                                                                               |
 | ---------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Core 层** | `myrm_agent_harness/core/`         | **框架无关基础能力层**。提供 security（安全检测/审计/防护）、config（LLM 配置）、events（事件类型/流式枚举）、hooks（Hook 类型定义/生命周期事件）、artifacts（工件类型/映射常量）。同时被 `agent/` 和 `toolkits/` 引用，消除二者间的耦合 |
-| **Public API** | `myrm_agent_harness/api/`       | **公开接口**。第三方框架与 server 的唯一推荐 import 路径（factory、Protocol、DTO）。 |
+| **Public API** | `myrm_agent_harness/api/`       | **公开 API**。第三方框架与 server 的唯一推荐 import 路径（factory、Protocol、DTO）。详见 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) |
 | Agent 核心 | `myrm_agent_harness/agent/`         | BaseAgent / SkillAgent 运行时；模块导航见 [agent/_ARCH.md](src/myrm_agent_harness/agent/_ARCH.md) |
-| SDK 入口   | `myrm_agent_harness/client.py`      | SDK Facade — `AgentClient` 便利层；**PyPI 稳定契约**见 `api/`                                                                                                                                                          |
 | ACP 薄入口 | `myrm_agent_harness/agent/acp/`    | 独立 ACP Server 的 default factory 与 CLI 入口；完整 ACP runtime 在 `toolkits/acp/`                                                                                                                                                |
-| 后端抽象层 | `myrm_agent_harness/backends/`      | Profile / Secret / Skill 三类存储后端的 Protocol 与 Local/Memory/Storage 实现；Skill 热重载失效信号持久化于 `MYRM_DATA_DIR/.skill_config_version`（server re-export）；公开扩展点见 `api/protocols`                                                                                                                      |
-| 基础设施层 | `myrm_agent_harness/infra/`         | 提供通用机制：统一文件锁、消息投递队列（StorageProvider + 弹性机制 + Metrics）、链路追踪、增量状态监控                                                                                                                             |
-| 运行时层   | `myrm_agent_harness/runtime/`       | 单 Agent **实例守护**（checkpoint、内存压力、doctor、quota）及 `install_guard/` 安装后验证 CLI — 非 Agent 推理循环，非 `toolkits/tasks/` 作业队列                                                                                                                             |
+| 后端抽象层 | `myrm_agent_harness/backends/`      | Profile / Secret / Skill 三类存储后端的 Protocol（Skill 另含 Storage 实现，Profile / Secret 的存储实现由宿主提供）；Skill 热重载失效信号持久化于 `MYRM_DATA_DIR/.skill_config_version`（server re-export）；公开扩展点见 `api/protocols`                                                                                                                      |
+| 基础设施层 | `myrm_agent_harness/infra/`         | 提供通用机制：消息投递持久化与死信重试（StorageProvider + 弹性机制 + Metrics）、链路追踪、增量状态监控                                                                                                                             |
+| 运行时层   | `myrm_agent_harness/runtime/`       | 单 Agent **实例守护**（checkpoint、内存压力、doctor、quota）及 `install_guard/` 双 wheel 安装门禁 — 非 Agent 推理循环，非 `toolkits/tasks/` 作业队列                                                                                                                             |
 | 功能标志   | `myrm_agent_harness/core/features/` | Feature Flag 引擎，支持功能生命周期管理与运行时动态配置查询                                                                                                                                                                        |
 | 诊断自检   | `myrm_agent_harness/observability/diagnostics/` | Diagnostic Protocol — 健康探针、benchmark hook 注册表，暴露各组件“为什么不能工作”的原因                                                                                                                                    |
 | 观测监控层 | `myrm_agent_harness/observability/` | 提供全局 Prometheus 监控基建，记录 Agent 运行时关键指标（执行耗时、工具调用、Token 消耗等）                                                                                                                                        |
@@ -72,6 +71,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | 工具函数库 | `myrm_agent_harness/utils/`         | 提供通用工具函数（错误处理、日志、文本处理、Token 追踪、URL 工具）                                                                                                                                                                 |
 | 测试套件   | `tests/`                            | 单元测试、集成测试、沙箱测试、性能测试；公开 API 冒烟见 `tests/api/`                                                                                                                                               |
 | 性能基准   | `benchmarks/`                       | CI 回归基准（startup、boundary）与诊断基准（batch、context archive）；详见 [benchmarks/_ARCH.md](benchmarks/_ARCH.md)                                                                                                                                                                    |
+| **分发构建** | `harness_packaging/`              | 分发构建：`codegen.py`、`assemble.py`、core manifest（`directories` SSOT）、Nuitka 编译、release wheel 源码剥离。详见 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) |
 
 ### 跨层概念映射（一名一义）
 
@@ -85,7 +85,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | 插件 | `toolkits/` | 完整能力包，`import` 即可，零 `agent/` 依赖 |
 | 大脑 | `agent/` | LLM 回合、会话、流式、HITL、meta_tools |
 | 实例守护 | `runtime/` | 单 Agent 实例存活：checkpoint、内存压力、doctor、quota |
-| 水管 | `infra/` | 锁、pubsub、delivery 等原子设施 |
+| 水管 | `infra/` | pubsub、delivery 等原子设施 |
 
 **一道判断题：** 定义时是否 import `agent/` 或绑定当前会话？是 → `agent/` 或宿主 server；否 → 完整能力包 → `toolkits/`；纯类型 → `core/`/`infra/`；管实例健康 → `runtime/`。异步媒体队列 → `toolkits/tasks/`。
 
@@ -116,7 +116,6 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 |------|------|------|
 | **Security** | `core/security/` | 框架无关安全原语（path policy、path pattern matching、redact、tool registry、detection/guards、credential vault） |
 | | `agent/security/` | Agent 安全引擎（HITL、rate limiter、transcript classifier）；多数模块 re-export `core/security/` |
-| | `infra/security/` | 基础设施层安全辅助（与 delivery/locks 协同） |
 | **Pub/Sub** | `infra/pubsub/` | Server 业务 SSE pub-sub（`PubSubBus`） |
 | **Tool broadcast** | `agent/streaming/broadcast/` | Hook 工具事件：`ToolCallBroadcaster` → EventLogger→SSE（UI）；`ToolBroadcastBus` 供 server 侧订阅 |
 | **Events (types)** | `core/events/` | 框架级事件类型与流式枚举（agent/ 与 toolkits/ 共享） |
@@ -162,6 +161,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 - **`[acp]`**: agent-client-protocol（外部 Agent 委托 + ACP Server）
 - **`[browser]`**: patchright, camoufox（仅 Python 包；约 1.2 GB 的 Camoufox 浏览器构建需另行 `camoufox fetch` 安装，见 `toolkits/browser/pool/camoufox_availability.py`）, orjson（浏览器自动化与会话持久化 JSON）
 - **`[observability]`**: prometheus-client, opentelemetry-sdk, opentelemetry-exporter-otlp-proto-grpc, openinference-instrumentation-langchain（Prometheus 指标 + Phoenix / OTLP 追踪）
+- **`[compiled-core]`** / **`[compiled-core-musl]`**: 平台 native 扩展 wheel（8 平台，见 `harness_packaging/DISTRIBUTION_SYSTEM.md`）
 - **`[all]`**: 包含上述全部 extras（含 `[web]`）
 - **E2B / S3 / ripgrep**: 由业务层或运行时可选接入
 
@@ -195,8 +195,7 @@ BaseAgent (基础 Agent)
 │   └─ tracking/ (压缩、归档、恢复 outcome 与读取成本指标)
 │
 ├─ hooks/ (Hook 系统)
-│   ├─ HookMiddleware (生命周期钩子)
-│   └─ HookOutputSpiller (超大输出磁盘溢写)
+│   └─ HookMiddleware (生命周期钩子)
 │
 ├─ file_snapshot/ (文件快照)
 │   ├─ FileSnapshotProtocol (快照协议)
@@ -304,8 +303,11 @@ agent/ (运行时核心层)
 | [HITL_SYSTEM.md](src/myrm_agent_harness/agent/security/HITL_SYSTEM.md) | HITL 审批 |
 | [SECURITY_SYSTEM.md](src/myrm_agent_harness/agent/security/SECURITY_SYSTEM.md) | Agent 安全引擎 |
 | [CONTEXT_ENGINEERING.md](src/myrm_agent_harness/agent/context_management/CONTEXT_ENGINEERING.md) | 上下文工程（行业理论） |
+| [PROMPT_CACHE_PLACEMENT.md](docs/PROMPT_CACHE_PLACEMENT.md) | Prompt Cache 动态内容放置 SSOT |
+| [PROMPT_CACHE_PRACTICE.md](src/myrm_agent_harness/agent/context_management/PROMPT_CACHE_PRACTICE.md) | Prompt Cache 框架实现实践 |
 | [ACP_SYSTEM.md](src/myrm_agent_harness/toolkits/acp/ACP_SYSTEM.md) | ACP 协议 |
 | [TRACE_STORAGE_SYSTEM.md](src/myrm_agent_harness/infra/tracing/TRACE_STORAGE_SYSTEM.md) | Trace 存储 |
+| [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) | 分发构建 |
 | [EVENT_LOG_SYSTEM.md](src/myrm_agent_harness/agent/event_log/EVENT_LOG_SYSTEM.md) | 事件日志 |
 | [DYNAMIC_WORKFLOW_SYSTEM.md](src/myrm_agent_harness/agent/dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) | 动态工作流 |
 | [DEEP_RESEARCH_SYSTEM.md](src/myrm_agent_harness/agent/deep_research/DEEP_RESEARCH_SYSTEM.md) | 深度研究 |
@@ -416,7 +418,7 @@ class UserService:
 ### 范围与验证
 
 - **代码**：以 `myrm_agent_harness/` 与 `tests/` 为真源；模块职责见各目录的 `*_SYSTEM.md` / `*_DESIGN.md` 技术方案文档。
-- **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `.github/workflows/harness-test.yml`（仓库根）。
+- **测试**：默认 `pytest`（串行 + 安全 marker 过滤，见 `tests/_ARCH.md`）；覆盖率策略见 `pyproject.toml` 的 `[tool.coverage.*]`；CI 见 `.github/workflows/test.yml`。
 - **性能**：对外宣称延迟、吞吐或加速比时，须附带可复现命令、环境与数据。
 
 ### 性能数据（实测）
@@ -433,24 +435,6 @@ class UserService:
 
 - 错误率控制：在单次委派 5-10 个并发子任务时，大模型 API 429 限流崩溃率降至 0%
 - 实现机制：底层基于 `asyncio.Semaphore(3)` 进行并发收束与平滑排队
-
-#### 消息投递队列（infra/delivery）
-
-**批处理并发化**：
-
-- 吞吐量：19.0 msg/s → 187.9 msg/s (**9.88x提升**)
-- 批处理延迟：500ms → 50ms (batch_size=10)
-- 测试命令：`uv run python benchmarks/bench_batch_performance.py`
-
-**紧急消息优先处理**：
-
-- 延迟降低：305ms → 51ms (**83.4%**)
-- 用户体验：紧急消息不受批处理影响
-
-**文件锁开销**：
-
-- 单次开销：~0.14ms
-- 影响：1000 msg/s时占用14% CPU
 
 #### LLM降级管理（toolkits/llms/fallback）
 
@@ -524,7 +508,7 @@ class UserService:
 
 - **Semantic network**: INPUT references POS, forming a self-healing dependency graph.
 - **Module docs**: `_ARCH.md` replaces README.md at module level. No module-level README files.
-- **CI gate**: `scripts/check_fractal_docs.py` + `scripts/validate_arch_inventory.py` — fractal `_ARCH.md` coverage and file-table vs disk `.py` consistency (pre-commit + `harness-boundary.yml` at the repository root). Pure data/config directories (JSON/YAML/SQL only) are excluded.
+- **CI gate**: `scripts/check_fractal_docs.py` + `scripts/validate_arch_inventory.py` — fractal `_ARCH.md` coverage and file-table vs disk `.py` consistency (pre-commit + `boundary-check.yml`). Pure data/config directories (JSON/YAML/SQL only) are excluded. Slow wheel packaging tests run in the `distribution-packaging-slow` CI job.
 
 ---
 
@@ -553,7 +537,7 @@ class UserService:
 3. **接口契约**：OUTPUT 声明对外能力，形成清晰的接口契约
 4. **影响分析**：通过 INPUT/POS 链接快速定位变更影响范围
 5. **变更影响分析**：借助 INPUT/POS 链接定位依赖面，配合评审与测试降低回归风险
-6. **自动化门禁**：`check_fractal_docs.py` + `boundary_check.py` + `validate_arch_inventory.py`（`_ARCH.md` 文件表 vs 磁盘 `.py`）+ `check_file_line_limit.py`（单文件行数 + `file_line_baseline.txt` grandfather）+ `check_import_resolvability.py`（每条一方 import 须指向真实存在的模块与名字，无白名单）+ `test_core_dependencies.py`（core 24 项与 uv.lock 严格对齐）在 pre-commit 与 CI 阻断文档/层边界/依赖分层回归；inventory scope 为 `src/myrm_agent_harness/` 全包
+6. **自动化门禁**：`check_fractal_docs.py` + `boundary_check.py` + `validate_arch_inventory.py`（`_ARCH.md` 文件表 vs 磁盘 `.py`）+ `check_file_line_limit.py`（单文件行数 + `file_line_baseline.txt` grandfather）+ `check_import_resolvability.py`（每条一方 import 须指向真实存在的模块与名字，无白名单）+ `test_core_dependencies.py`（core 24 项与 uv.lock 严格对齐）在 pre-commit 与 CI 阻断文档/层边界/依赖分层回归；inventory scope 为 `src/myrm_agent_harness/` 全包；wheel 打包慢测在 `distribution-packaging-slow` job（`-m "architecture and slow"`）
 
 **File line grandfather（`scripts/file_line_baseline.txt`）**：
 

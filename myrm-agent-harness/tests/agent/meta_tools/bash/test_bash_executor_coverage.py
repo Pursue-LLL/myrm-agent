@@ -404,6 +404,8 @@ async def test_spawn_background_registers_process() -> None:
 
     assert info.pid == 4242
     mock_registry.return_value.register.assert_awaited_once()
+    spawned_context = executor.spawn_background_process.await_args.args[0]
+    assert spawned_context.harness_owned is False
 
 
 def test_build_execution_context_merges_env() -> None:
@@ -826,6 +828,8 @@ async def test_ensure_mcp_proxy_start_failure_raises_runtime_error() -> None:
 
 
 def test_prepare_execution_skill_path_when_enabled() -> None:
+    from myrm_agent_harness.agent.middlewares._session_context import set_agent_id
+
     executor = _mock_code_executor()
     skill_executor = MagicMock()
     skill_executor.detect_skill_in_command.return_value = (True, "demo")
@@ -836,11 +840,16 @@ def test_prepare_execution_skill_path_when_enabled() -> None:
     bash_exec = BashExecutor(executor, enable_skill_execution=True)
     bash_exec._skill_executor = skill_executor
 
-    use_py, code, mcp_items = bash_exec._prepare_execution("run skill", session_id="s1", workspace_root="/ws")
+    set_agent_id("agent-42")
+    try:
+        use_py, code, mcp_items = bash_exec._prepare_execution("run skill", session_id="s1", workspace_root="/ws")
+    finally:
+        set_agent_id("")
 
     assert use_py is True
     assert code == "print('skill')"
     assert mcp_items is not None
+    assert skill_executor.prepare_for_execution.call_args.kwargs["agent_id"] == "agent-42"
 
 
 def test_prepare_execution_python_c_sets_transform_hint() -> None:
@@ -859,7 +868,26 @@ def test_validate_python_syntax_raises_bash_execution_error() -> None:
 def test_inject_resilience_script_prepends_when_present() -> None:
     bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=False)
     result = bash_exec._inject_resilience_script("echo hi")
-    assert "echo hi" in result
+    assert "Resilience Init Script" in result
+    assert result.rstrip().endswith("echo hi")
+
+
+def test_prepare_mixin_uses_executor_socket_path_and_skips_started_proxy() -> None:
+    executor = _mock_code_executor()
+    executor.get_mcp_communication_config.return_value = MagicMock(socket_path="/tmp/executor.sock")
+    bash_exec = BashExecutor(executor, enable_skill_execution=False)
+    bash_exec._mcp_proxy_started = True
+
+    assert bash_exec._get_ipc_socket_path() == "/tmp/executor.sock"
+    # Already started: returns without touching the executor or starting a server.
+    import asyncio
+
+    asyncio.run(bash_exec._ensure_mcp_proxy_started())
+
+
+def test_detect_skill_from_import_statement() -> None:
+    bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=False)
+    assert bash_exec._detect_skill_from_code("import skills.demo_skill") == "demo_skill"
 
 
 def test_rewrite_skill_paths_returns_detected_skill() -> None:

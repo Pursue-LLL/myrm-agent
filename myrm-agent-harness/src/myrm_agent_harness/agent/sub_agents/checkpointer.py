@@ -13,6 +13,7 @@
 - close_subagent_checkpointer: release underlying SQLite connection on shutdown
 - reset_subagent_checkpointer: clear singleton instance (for clean test isolation)
 - delete_subagent_checkpoint: drop a finished subagent thread (memory & disk hygiene)
+- discard_stale_subagent_thread: clear a thread an earlier process left under an id before a new subagent starts on it
 - drop_subagent_checkpoint_if_terminal: SSOT gate dropping thread on non-approval completion
 
 [POS]
@@ -20,7 +21,10 @@ HITL approval for subagents requires a configured checkpointer (approval/middlew
 requires it so GraphInterrupt state survives the child run). Each subagent uses
 thread_id == task_id (set via context["approval_session_key"]), so one shared
 checkpointer instance keeps threads isolated per subagent and lets a resume pass
-(Command(resume=...)) restore the interrupted graph from the same thread.
+(Command(resume=...)) restore the interrupted graph from the same thread. A resume only
+continues a paused subagent while the owning manager's in-memory approval journal lives;
+after a process restart the stale thread is discarded (discard_stale_subagent_thread) and
+the user is asked again.
 
 The shared saver is intentionally NOT the parent agent's checkpointer: subagent
 message history stays in its own thread and never pollutes the parent thread
@@ -159,9 +163,7 @@ class SubagentSqliteCheckpointer(BaseCheckpointSaver[str]):
         configurable = dict(config.get("configurable") or {})
         if "checkpoint_ns" not in configurable:
             configurable["checkpoint_ns"] = ""
-        norm_config = dict(config)
-        norm_config["configurable"] = configurable
-        return norm_config
+        return {**config, "configurable": configurable}
 
     async def aget_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         saver = await self._ensure_saver()
@@ -295,6 +297,27 @@ async def delete_subagent_checkpoint(thread_id: str) -> None:
     except Exception:
         # Deletion is best-effort hygiene; never break the executor for it.
         pass
+
+
+async def discard_stale_subagent_thread(thread_id: str) -> None:
+    """Drop a thread an earlier process left under ``thread_id`` before a new subagent starts on that id.
+
+    A subagent waiting for approval keeps its thread across restarts; a new subagent started on the same id would
+    inherit that conversation. An id without a thread costs one lookup and changes nothing. This runs before every
+    first spawn, so it never raises: a store that cannot be opened is left alone, and a thread whose blob cannot be
+    loaded (written by another version, damaged) is dropped like any other stale one.
+    """
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    try:
+        if await get_subagent_checkpointer().aget_tuple(config) is None:
+            return
+    except (OSError, sqlite3.Error) as exc:
+        logger.warning("[SubagentCheckpointer] Could not look up thread %s: %s", thread_id, exc)
+        return
+    except Exception as exc:  # the serde may raise anything for a blob it cannot load
+        logger.warning("[SubagentCheckpointer] Thread %s is unreadable (%s)", thread_id, exc)
+    logger.info("[SubagentCheckpointer] Dropping stale thread %s left by an earlier process", thread_id)
+    await delete_subagent_checkpoint(thread_id)
 
 
 async def drop_subagent_checkpoint_if_terminal(task_id: str, status: SubAgentStatus | str) -> None:

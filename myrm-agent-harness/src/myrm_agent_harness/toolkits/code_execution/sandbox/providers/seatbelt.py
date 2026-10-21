@@ -45,7 +45,8 @@ def _generate_sbpl_profile(policy: SandboxPolicy, work_dir: str) -> str:
     - Full process/signal/mach/sysctl for normal shell operation
     - Denies reading user directories by default
     - Explicitly allows reading Python runtime paths, /opt, and workspace
-    - Write access only to specified paths + work_dir + /tmp + /dev
+    - Write access only to ``policy.writable_paths`` + /tmp + /dev (the working directory is writable
+      only when the policy lists it, even when it lives under /tmp)
     - Optionally blocks network access
     """
     import sys
@@ -95,10 +96,12 @@ def _generate_sbpl_profile(policy: SandboxPolicy, work_dir: str) -> str:
         "",
         "; allow writing to /tmp",
         f'(allow file-write* (subpath "{real_tmp}"))',
-        "",
-        "; allow writing to workspace",
-        f'(allow file-write* (subpath "{real_work_dir}"))',
     ]
+
+    # A workspace that lives under /tmp must not inherit the scratch allowance. The rule precedes the
+    # writable paths, so a path the policy lists below the workspace stays writable.
+    if real_work_dir != real_tmp and not policy.is_writable(work_dir):
+        lines.append(f'(deny file-write* (subpath "{real_work_dir}"))')
 
     for path in policy.writable_paths:
         resolved = _resolve(path)
@@ -116,8 +119,21 @@ def _generate_sbpl_profile(policy: SandboxPolicy, work_dir: str) -> str:
         lines.extend(
             [
                 "",
-                "; block outbound network (loopback allowed)",
-                "(allow network* (local udp) (local tcp))",
+                "; Block egress. Two facts about SBPL drive this ordering, both verified against",
+                "; /usr/bin/sandbox-exec on this platform:",
+                ";   1. (deny default) alone does NOT block outbound connections — an allow-list of",
+                ";      local/loopback rules leaves every external destination reachable.",
+                ";   2. A later deny wins over an earlier allow, so a blanket",
+                ";      (deny network* (remote ip \"*:*\")) also severs loopback. Re-allowing",
+                ";      loopback AFTER the blanket deny is what keeps localhost working while",
+                ";      closing egress.",
+                "; AF_UNIX is not covered by (local tcp)/(local udp): PTC reaches the host over a",
+                "; unix socket in $TMPDIR, so (local unix-socket) must be present or every",
+                "; in-script MCP call fails with EPERM.",
+                "(allow network* (local udp) (local tcp) (local unix-socket))",
+                "; loopback must be granted twice: once before the blanket deny and once after it.",
+                '(allow network* (remote ip "localhost:*"))',
+                '(deny network* (remote ip "*:*"))',
                 '(allow network* (remote ip "localhost:*"))',
             ]
         )

@@ -42,7 +42,6 @@ from .canary import (
     scan_dataset_canary_integrity,
     verify_canary_presence,
 )
-from .compaction_ab import CompactionABEvaluator, CompactionABResult
 from .compaction_assertions import (
     canonicalize_tool_name,
     evaluate_compaction_assertions,
@@ -111,7 +110,6 @@ from .protocols import (
     AgentExecutor,
     AgentResponse,
     CompactionAssertion,
-    CompactionFidelityScore,
     DeterminismReplayResult,
     EvalCase,
     EvalCaseSplit,
@@ -164,10 +162,7 @@ __all__ = [
     "BootstrapCIResult",
     "CanaryScanResult",
     "CollapsedHit",
-    "CompactionABEvaluator",
-    "CompactionABResult",
     "CompactionAssertion",
-    "CompactionFidelityScore",
     "ComponentTier",
     "ContaminationAuditResult",
     "ContaminationViolation",

@@ -12,7 +12,7 @@
 - agent.types::AgentEventType, AgentRunStatistics (POS: 类型定义)
 
 [OUTPUT]
-- StreamContext: execution context dataclass (optional callbacks: drain_subagent_notifications, on_loop_restart, file_content_reader for media/vision recovery)
+- StreamContext: execution context dataclass (optional callbacks: drain_subagent_notifications, on_loop_restart, on_goal_hold, file_content_reader for media/vision recovery)
 - StreamExecutor: streaming execution engine
 
 [POS]
@@ -42,6 +42,7 @@ from myrm_agent_harness.toolkits.llms.errors import (
     classify_failover_reason,
 )
 from myrm_agent_harness.toolkits.llms.errors.classifier import classify_error
+from myrm_agent_harness.toolkits.llms.errors.provider_window import ProviderWindowHint, extract_provider_window
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .reasoning_scrubber import ReasoningScrubber
@@ -50,7 +51,9 @@ from .recovery.context_pressure_gate import (
     PreflightGateMixin,
     PreflightStreak,
 )
-from .recovery.stream_recovery import StreamRecoveryMixin, _extract_retry_after_ms
+from .recovery.stream_recovery import StreamRecoveryMixin
+from .recovery.stream_recovery_window import WindowAction
+from .recovery.turn_retry_state import TurnRetryState
 from .source_tracker import SourceTracker
 from .stream_compactor import StreamCompactor
 from .stream_dispatcher import StreamDispatcherMixin
@@ -66,7 +69,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.event_log.logger import EventLogger
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
     from myrm_agent_harness.agent.goals.types import Goal, GoalExecutionSummary
-    from myrm_agent_harness.agent.streaming.rules.coordinator import TtsrCoordinator
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
@@ -106,12 +108,13 @@ class StreamContext:
     goal_provider: GoalProvider | None = None
     on_goal_terminal: Callable[[Goal, list[BaseMessage], GoalExecutionSummary], Awaitable[None]] | None = None
     on_loop_restart: Callable[[str, Goal], Awaitable[None]] | None = None
+    on_goal_hold: Callable[[Goal, ProviderWindowHint], Awaitable[None]] | None = None
     file_content_reader: FileContentReader | None = None
     escalation_target_llm: BaseChatModel | None = None
     llm: BaseChatModel | None = None
     token_tracker: TokenTracker | None = None
     memory_manager: MemoryManager | None = None
-    ttsr_coordinator: TtsrCoordinator | None = None
+    retry_state: TurnRetryState = dataclasses.field(default_factory=TurnRetryState)
 
 
 class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMixin):
@@ -140,6 +143,7 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
         )
         self._fallback_llm = self._fallback_llms[0] if self._fallback_llms else None
         self._fallback_index = 0
+        self._window_waits = 0
         self._safety_fallback_llm = safety_fallback_llm
         self._rebuild_agent_fn = rebuild_agent_fn
         self.failover_used = failover_used
@@ -297,24 +301,10 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                             self._redirect_partial_preserved = partial_preserved
                             break
 
-                        if ctx.ttsr_coordinator and ctx.ttsr_coordinator.interrupt_requested:
-                            logger.warning(
-                                " TTSR rule violation detected: aborting astream mid-token and discarding offending output"
-                            )
-                            self._partial_text_buffer = ""
-                            break
-
                         # astream with a list of stream modes yields (mode, data)
                         # tuples per LangGraph docs; cast narrows the overly-wide
                         # dict[str, Any] | Any signature down to the runtime shape.
                         await self._dispatch_chunk(cast("tuple[str, object]", chunk), ctx, collected_messages)
-
-                        if ctx.ttsr_coordinator and ctx.ttsr_coordinator.interrupt_requested:
-                            logger.warning(
-                                " TTSR rule violation triggered during dispatch: aborting astream immediately"
-                            )
-                            self._partial_text_buffer = ""
-                            break
 
                 except Exception as astream_exc:
                     iteration_limit_hit = await self._handle_iteration_limit(astream_exc, collected_messages)
@@ -325,6 +315,9 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                     else:
                         if await self._handle_thinking_signature(astream_exc, thinking_sig_attempted):
                             thinking_sig_attempted = True
+                            continue
+
+                        if await self._handle_reasoning_mandatory(astream_exc):
                             continue
 
                         if await self._handle_duplicate_tool_use_id(astream_exc, duplicate_tool_use_attempted):
@@ -361,6 +354,14 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                         if await self._handle_failover(astream_exc):
                             continue
 
+                        window_action = await self._handle_provider_window(astream_exc)
+                        if window_action is WindowAction.RETRY:
+                            continue
+                        if window_action is WindowAction.HELD:
+                            break
+                        if window_action is WindowAction.FAIL:
+                            raise
+
                         if await self._handle_transient_retry(astream_exc, transient_retries):
                             transient_retries += 1
                             continue
@@ -373,9 +374,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                     continue
 
                 if await self._handle_teammate_messages(collected_messages):
-                    continue
-
-                if await self._handle_ttsr(collected_messages):
                     continue
 
                 if await self._handle_steering(collected_messages):
@@ -545,9 +543,9 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
             error_event["compression_exhausted"] = True
             error_event["terminal_code"] = CONTEXT_OVERFLOW_TERMINAL_CODE
 
-        cooldown_ms = _extract_retry_after_ms(exc)
-        if cooldown_ms:
-            error_event["cooldown_remaining_ms"] = cooldown_ms
+        window_hint = extract_provider_window(exc)
+        if window_hint is not None:
+            error_event["cooldown_remaining_ms"] = int(window_hint.wait_s * 1000)
 
         try:
             from myrm_agent_harness.agent.errors.diagnostics import (

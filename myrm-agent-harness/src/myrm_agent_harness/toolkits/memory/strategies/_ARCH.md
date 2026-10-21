@@ -38,12 +38,7 @@ Optional memory strategies: forgetting, extraction, deduplication, consolidation
 | sparse_parser.py | Core | Deterministic single-pass parser for structured semantic slots. Extracts key-values, bullet lists, clauses, and prose lines from structured memory texts with slot normalization. | ✅ |
 | sparse_types.py | Core | Domain data models and action enums for sparse semantic mutation: SlotAction, SlotKind, SemanticSlot, SparseMaskItem, SparseMutationResult. | ✅ |
 | staleness_review.py | Core | LLM-driven staleness review. Identifies memories past their per-fact TTL (expected_valid_days) and submits for LLM semantic judgment (KEEP/EXTEND/REMOVE). Conservative: protects pinned, recently-accessed, and correction-chain memories. Parses the decision array via `parse_llm_json_list` (robust against fences, prose, trailing commas). | ✅ |
-| subsumption.py | Core | Cognitive consolidation engine. Identifies and safely soft-deletes old Semantic/Procedural memories (other memory types are skipped, so every subsumption is undoable). Skips user-protected memories before LLM judgment and soft-deletes with `allow_protected=False`; user-initiated rollback keeps `allow_protected=True`. | ✅ |
-
-| Submodule | Description |
-|-----------|-------------|
-| four_layer_promotion/ | Harness memory strategy implementing Hermes-grade four-layer progressive memory, two-step Map-Reduce consolidation, and tri-channel anti-poisoning governance. See [four_layer_promotion/_ARCH.md](four_layer_promotion/_ARCH.md). |
-| hindsight/ | Hindsight Experience Replay and Retrospective Reflection Buffer package. See [hindsight/_ARCH.md](hindsight/_ARCH.md). |
+| subsumption.py | Core | Cognitive consolidation engine. Identifies and safely soft-deletes old Semantic/Procedural memories (other memory types are skipped, so every subsumption is undoable). Skips user-protected memories before LLM judgment and soft-deletes with `allow_protected=False`; user-initiated rollback keeps `allow_protected=True`. The soft-delete marker lives under metadata `subsumed` (a metadata `status` key is dropped by the payload's own status field and never survives the round-trip); the rollback deletes that key and restores `ACTIVE`. | ✅ |
 
 ## Key Dependencies
 

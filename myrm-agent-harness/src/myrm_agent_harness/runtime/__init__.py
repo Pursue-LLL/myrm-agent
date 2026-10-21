@@ -11,7 +11,7 @@ Subpackages:
 - cognitive_clock/: Cooperative pause signals for background work
 - maintenance/: Global adaptive maintenance scheduling
 - quota/: Storage quota management
-- install_guard/: Post-install verification CLI
+- install_guard/: Dual-wheel install readiness
 - diagnostics/: Doctor and compliance self-audit
 - survival/: Memory pressure, resource monitor, startup timing
 - paths/: Execution path constants and compression
@@ -56,9 +56,9 @@ from myrm_agent_harness.runtime.maintenance import (
     get_maintenance_scheduler,
     init_maintenance_scheduler,
 )
+from myrm_agent_harness.runtime.paths.archive_paths import get_compacted_output_path
 from myrm_agent_harness.runtime.paths.execution_paths import (
     ensure_context_dir_exists,
-    get_compacted_output_path,
     get_context_session_dir,
     get_workspace_relative_path,
 )

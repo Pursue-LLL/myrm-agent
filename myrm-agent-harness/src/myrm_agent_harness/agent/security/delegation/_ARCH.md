@@ -1,17 +1,12 @@
 # delegation/
 
 ## Overview
+Triad delegation identity package.
 
-Triad delegation identity and privilege-intersection enforcement: immutable tokens binding the initial requester, the executor agent and the business approver, whose effective scopes are the intersection of the parties' scopes, plus a guard that blocks privilege amplification (a low-privilege requester borrowing a high-privilege agent's service account).
-
-## File & Submodule Index
+## File Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `__init__.py` | Package | Package marker; callers import from `models` and `guard` explicitly. | ✅ |
-| `models.py` | Types | `SubjectType`, `SubjectIdentity` and `TriadDelegationToken` (scope intersection, sub-agent token derivation). | ✅ |
-| `guard.py` | Core | `PrivilegeIntersectionGuard` scope assertions and `PrivilegeAmplificationBlockedError`. | ✅ |
-
-## Key Dependencies
-
-- `agent/middlewares/_session_context.py` carries the active token in a `ContextVar` (`set_delegation_token` / `get_delegation_token`).
+| `__init__.py` | Package | Triad delegation identity package. | — |
+| `guard.py` | Core | Privilege Intersection Guard for blocking privilege amplification attacks. — PrivilegeAmplificationBlockedError: Raised when an operation is blocked due to lack of effective; PrivilegeIntersectionGuard: Security guard verifying that the triad delegation token satisfies required | ✅ |
+| `models.py` | Types | Data models for Triad Delegation Identity and Privilege Context. — SubjectType: Classification of an identity subject in the delegation chain.; SubjectIdentity: Immutable identity representation of an actor in the system.; TriadDelegationToken: Cryptographic-grade immutable token representing the triad delegation contract. | ✅ |

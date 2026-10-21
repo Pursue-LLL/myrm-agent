@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import Iterator
 
 import pytest
 from langchain_core.messages import AIMessage, ToolCall
@@ -66,28 +65,13 @@ async def safe_async_b(delay_ms: int) -> str:
     return "safe_async_b_done"
 
 
-_TEST_TOOL_SAFETY: dict[str, SafetyMetadata] = {
-    "safe_tool_1": SafetyMetadata(is_concurrent_safe=True),
-    "safe_tool_2": SafetyMetadata(is_concurrent_safe=True),
-    "unsafe_tool_success": SafetyMetadata(is_concurrent_safe=False),
-    "unsafe_tool_fail": SafetyMetadata(is_concurrent_safe=False),
-    "safe_async_a": SafetyMetadata(is_concurrent_safe=True),
-    "safe_async_b": SafetyMetadata(is_concurrent_safe=True),
-}
-
-
-@pytest.fixture(autouse=True, scope="module")
-def _register_test_tool_safety() -> Iterator[None]:
-    """Expose these tools' safety metadata only while this module runs.
-
-    Writing them into the process-wide map at import time would leave them visible to every other
-    test of the worker, and the registry audit would report them as ghost tools.
-    """
-    with pytest.MonkeyPatch.context() as patcher:
-        for name, metadata in _TEST_TOOL_SAFETY.items():
-            patcher.setitem(TOOL_SAFETY_METADATA, name, metadata)
-        yield
-
+# Register safety metadata
+TOOL_SAFETY_METADATA["safe_tool_1"] = SafetyMetadata(is_concurrent_safe=True)
+TOOL_SAFETY_METADATA["safe_tool_2"] = SafetyMetadata(is_concurrent_safe=True)
+TOOL_SAFETY_METADATA["unsafe_tool_success"] = SafetyMetadata(is_concurrent_safe=False)
+TOOL_SAFETY_METADATA["unsafe_tool_fail"] = SafetyMetadata(is_concurrent_safe=False)
+TOOL_SAFETY_METADATA["safe_async_a"] = SafetyMetadata(is_concurrent_safe=True)
+TOOL_SAFETY_METADATA["safe_async_b"] = SafetyMetadata(is_concurrent_safe=True)
 
 from langgraph.graph import MessagesState, StateGraph
 

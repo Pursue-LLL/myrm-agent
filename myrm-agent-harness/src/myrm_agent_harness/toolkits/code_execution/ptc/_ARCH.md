@@ -33,15 +33,24 @@ Child Process ← myrm_tools.py (generated stubs for allowed tools only)
 | models.py | Data | Pydantic models: PtcConfig, RPC protocol, execution trace |
 | security.py | Security | Env scrubbing, blocked params, safe prefixes |
 | helpers.py | Codegen | Built-in helper source (json_parse, shell_quote, retry, path_join) |
-| stub_generator.py | Codegen | Generates myrm_tools.py from enabled tool list |
+| stub_generator.py | Codegen | Generates myrm_tools.py from the enabled tool list. Stubs return the tool's native payload (`-> object`): dict/list stay structured, strings stay strings, empty becomes `None`. Optional params are forwarded with `is not None` so `""`/`0`/`False` are not dropped. |
 | rpc_server.py | Server | Asyncio UDS/TCP server (one per execution) |
-| dispatcher.py | Dispatch | Routes RPC requests to tool.ainvoke(), records trace |
+| dispatcher.py | Dispatch | Routes RPC requests to `tool.ainvoke()`, records trace. Normalizes the result to a JSON-native payload (unwraps `ToolMessage.artifact`, dumps Pydantic models) so orchestration primitives declared `-> dict` reach scripts as dicts. |
 | context.py | Context | PTC nesting guard ContextVar (`ptc_nesting_guard`); read at inject entry to reject nested sessions. | ✅ |
 | ptc_injection.py | Orchestrator | Ephemeral RPC server lifecycle + env injection; fail-closed when RPC start fails (no plain exec fallback). |
 
 ## Key Design Decisions
 
-1. **UDS default, TCP fallback** — UDS provides zero-TCP-handshake latency and filesystem-based auth (chmod 600). TCP for Windows only.
+1. **UDS default, TCP fallback** — UDS provides zero-TCP-handshake latency and filesystem-based auth (chmod 600). TCP for Windows only. The server mints a per-process bearer token compared in constant time; a request without it is rejected.
+
+   **Track comparison** (they are separate transports; do not assume one's protections cover the other):
+
+   | | Track 2 — this dir (`rpc_server.py`) | Track 1 — `agent/skills/mcp/ipc_proxy.py` |
+   |---|---|---|
+   | Socket mode | `0600` | `0600` |
+   | Socket directory | shared `tempdir/myrm_ptc` (mode inherited) | private `myrm-agent-mcp-<pid>` with `0700` |
+   | Request auth | per-process bearer token, constant-time compare | per-process bearer token, constant-time compare |
+   | Call budget | `PtcConfig.max_tool_calls` (50) on the server | `DEFAULT_MAX_CALLS_PER_SESSION` (50) per session |
 2. **Length-prefixed binary protocol** — 4-byte big-endian length prefix + JSON body. Simple, fast, no framing ambiguity.
 3. **One connection per call** — Eliminates connection pooling complexity. UDS connect() is ~10μs locally.
 4. **Security-first** — Env scrubbing removes all secrets, recursive PTC blocked, terminal params filtered.

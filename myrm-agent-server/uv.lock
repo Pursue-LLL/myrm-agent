@@ -2167,16 +2167,23 @@ requires-dist = [
     { name = "litellm", specifier = ">=1.90.2" },
     { name = "lxml", specifier = ">=6.1.3" },
     { name = "mcp", specifier = ">=2.3.0" },
-    { name = "myrm-agent-harness", extras = ["acp", "browser", "computer-use", "image-processing", "qdrant", "retrieval", "file-parsers", "fastapi", "observability", "web"], marker = "extra == 'all'" },
+    { name = "myrm-agent-harness", extras = ["acp", "browser", "computer-use", "image-processing", "qdrant", "retrieval", "file-parsers", "pdf-ocr", "fastapi", "observability", "web"], marker = "extra == 'all'" },
+    { name = "myrm-agent-harness-core-darwin-arm64", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
+    { name = "myrm-agent-harness-core-darwin-x64", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
+    { name = "myrm-agent-harness-core-linux-arm64", marker = "platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
+    { name = "myrm-agent-harness-core-linux-arm64-musl", marker = "platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'compiled-core-musl'", specifier = "==0.1.0rc6" },
+    { name = "myrm-agent-harness-core-linux-x64", marker = "platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
+    { name = "myrm-agent-harness-core-linux-x64-musl", marker = "platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'compiled-core-musl'", specifier = "==0.1.0rc6" },
+    { name = "myrm-agent-harness-core-win32-arm64", marker = "platform_machine == 'ARM64' and sys_platform == 'win32' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
+    { name = "myrm-agent-harness-core-win32-x64", marker = "platform_machine == 'AMD64' and sys_platform == 'win32' and extra == 'compiled-core'", specifier = "==0.1.0rc6" },
     { name = "numpy", marker = "extra == 'retrieval'", specifier = ">=2.5.3" },
+    { name = "onnxruntime", marker = "sys_platform != 'emscripten' and extra == 'pdf-ocr'", specifier = ">=1.20.0" },
     { name = "openinference-instrumentation-langchain", marker = "extra == 'observability'", specifier = ">=0.1.78" },
     { name = "openpyxl", marker = "extra == 'file-parsers'", specifier = ">=3.1.5" },
     { name = "opentelemetry-api", specifier = ">=1.45.0" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'observability'", specifier = ">=1.45.0" },
     { name = "opentelemetry-sdk", marker = "extra == 'observability'", specifier = ">=1.45.0" },
     { name = "orjson", marker = "extra == 'browser'", specifier = ">=3.12.0" },
-    { name = "paddleocr", marker = "extra == 'pdf-ocr'", specifier = ">=3.2.0" },
-    { name = "paddlepaddle", marker = "extra == 'pdf-ocr'", specifier = ">=3.3.1" },
     { name = "patchright", marker = "extra == 'browser'", specifier = ">=1.63.0" },
     { name = "pdfplumber", specifier = ">=0.11.10" },
     { name = "pillow", specifier = ">=12.3.0" },
@@ -2190,6 +2197,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "qdrant-client", marker = "extra == 'qdrant'", specifier = ">=1.19.1" },
     { name = "rank-bm25", marker = "extra == 'retrieval'", specifier = ">=0.2.2" },
+    { name = "rapidocr", marker = "extra == 'pdf-ocr'", specifier = ">=3.10.0" },
     { name = "regex", specifier = ">=2026.9.29" },
     { name = "scrapling", extras = ["fetchers"], marker = "extra == 'web'", specifier = ">=0.4.15" },
     { name = "tenacity", marker = "extra == 'retrieval'", specifier = ">=9.1.4" },
@@ -2197,9 +2205,13 @@ requires-dist = [
     { name = "watchdog", specifier = ">=6.0.0" },
     { name = "youtube-transcript-api", marker = "extra == 'web'", specifier = ">=1.2.4" },
 ]
-provides-extras = ["browser", "qdrant", "retrieval", "acp", "image-processing", "computer-use", "web", "file-parsers", "pdf-ocr", "fastapi", "observability", "all"]
+provides-extras = ["browser", "qdrant", "retrieval", "acp", "image-processing", "computer-use", "web", "file-parsers", "pdf-ocr", "fastapi", "observability", "compiled-core", "compiled-core-musl", "all"]
 
 [package.metadata.requires-dev]
+build = [
+    { name = "build", specifier = ">=1.5.0" },
+    { name = "nuitka", specifier = ">=4.1.2" },
+]
 dev = [
     { name = "blockbuster", specifier = ">=1.5.26" },
     { name = "greenlet", specifier = ">=3.5.1" },

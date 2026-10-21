@@ -6,6 +6,7 @@ web_search.core.common::SearchResult (POS: Unified search result dataclass)
 
 [OUTPUT]
 bucket_search_limit, normalize_search_query: cache-key normalization helpers
+credential_fingerprint: non-reversible digest of the identity a search is billed and answered under
 has_cacheable_search_results: TTL eligibility guard for non-empty usable URLs
 await_coalesced_search: single-flight wrapper with timeout retry and leader cancellation
 reset_search_coalescing_state_for_tests: test-only module state reset
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import logging
 import re
 from collections.abc import Awaitable, Callable
@@ -60,13 +62,27 @@ def slice_search_results(results: list[SearchResult], limit: int) -> list[Search
     return results[:limit]
 
 
+def credential_fingerprint(identity: str) -> str:
+    """Digest of the identity a search is billed and answered under.
+
+    Only the digest enters a key, never the secret itself: state produced for one identity —
+    a cached payload or a quota cooldown — must be reused solely where that same identity
+    produced it, and a key rotation, a different account or a self-hosted endpoint change must
+    miss instead of reusing the previous account's answer or its benched state. The identity
+    string is composed by the search service factory, which owns the routing decision that
+    determines which credentials are actually used.
+    """
+    return hashlib.blake2b(identity.encode("utf-8"), digest_size=8).hexdigest()
+
+
 def build_search_cache_key(
     search_service: str,
     query: str,
     bucketed_limit: int,
     extra_suffix: str,
+    credential: str,
 ) -> str:
-    return f"{search_service}:{normalize_search_query(query)}:{bucketed_limit}:{extra_suffix}"
+    return f"{search_service}:{credential}:{normalize_search_query(query)}:{bucketed_limit}:{extra_suffix}"
 
 
 def has_cacheable_search_results(results: list[SearchResult]) -> bool:
@@ -84,6 +100,13 @@ def _coalesce_lock_for(cache_key: str) -> asyncio.Lock:
         lock = asyncio.Lock()
         _coalesce_locks[cache_key] = lock
     return lock
+
+
+def _mark_outcome_retrieved(future: asyncio.Future[list[SearchResult]]) -> None:
+    """Consume the outcome so a leader that fails after every waiter gave up (a provider hop cut off by the chain's
+    allowance) does not log "Future exception was never retrieved"; live waiters still receive the exception."""
+    if not future.cancelled():
+        future.exception()
 
 
 async def _cancel_coalesce_leader(cache_key: str) -> None:
@@ -122,6 +145,7 @@ async def await_coalesced_search(
                 future = pending
             else:
                 future = asyncio.get_running_loop().create_future()
+                future.add_done_callback(_mark_outcome_retrieved)
                 _pending_searches[cache_key] = future
                 leader_task = asyncio.create_task(_run_coalesce_leader(future, fetch, cache_key))
                 _pending_leader_tasks[cache_key] = leader_task

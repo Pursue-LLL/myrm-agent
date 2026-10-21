@@ -11,6 +11,7 @@ assign a verifiable confidence tier to the agent's delivery.
 - DeliverableConfidenceTier: SSOT enum (VERIFIED, ARTIFACT, RESEARCH, PLAN)
 - DeliverableTierMetadata: Structured delivery confidence report
 - resolve_deliverable_tier(): Deterministic physical evidence aggregator (<0.05ms)
+- should_disclose_tier(): disclosure policy for the tier badge
 
 [POS]
 Core SSOT contract for delivery confidence evaluation; consumed by CompletionGuard,
@@ -79,6 +80,19 @@ class DeliverableTierMetadata:
         }
 
 
+#: Write tools name their target path differently across the toolchain.
+_PATH_ARG_KEYS: tuple[str, ...] = ("path", "file_path", "filepath", "target_path")
+
+
+def _written_path(record: CallRecord) -> str:
+    """Return the file path a write record targeted, whatever key the tool used."""
+    for key in _PATH_ARG_KEYS:
+        value = record.args.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
 def resolve_deliverable_tier(
     records: list[CallRecord],
     *,
@@ -114,7 +128,7 @@ def resolve_deliverable_tier(
     for record in records:
         grp = get_tool_group(record.tool_name)
         if grp == ToolGroup.WRITE and record.success_level != SuccessLevel.FAILURE:
-            path = str(record.args.get("path", "")).strip()
+            path = _written_path(record)
             if path and path not in files_written:
                 files_written.append(path)
 
@@ -157,9 +171,23 @@ def resolve_deliverable_tier(
     return DeliverableTierMetadata(tier=DeliverableConfidenceTier.PLAN, evidence=evidence)
 
 
+def should_disclose_tier(metadata: DeliverableTierMetadata, *, has_claim: bool) -> bool:
+    """True when the tier badge carries information the user can act on.
+
+    Evidence-bearing tiers are always disclosed. The PLAN tier means "nothing
+    verifiable was produced", which is only informative when the answer itself
+    makes a completion claim: an unbacked claim is exactly the gap a badge
+    should surface. Casual conversation and inline deliverables stay clean.
+    """
+    if metadata.tier is DeliverableConfidenceTier.PLAN:
+        return has_claim
+    return True
+
+
 __all__ = [
     "DeliverableConfidenceTier",
     "DeliverableTierEvidence",
     "DeliverableTierMetadata",
     "resolve_deliverable_tier",
+    "should_disclose_tier",
 ]

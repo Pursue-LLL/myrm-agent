@@ -368,7 +368,7 @@ agent/_internals/agent_runtime.py run_agent_loop 外层 except（executor 外层
     │   - fault_side: str（确定性责任方归因：model | harness_tool | harness_pipeline | env | grader | owner | unknown，由 errors/fault_side.py 纯规则分类，无 LLM 调用）
     │     error_kind 优先；error_kind 为 UNKNOWN 时以 diagnostic.error_type 兜底（如 api_key → env）
     │   - diagnostic_result: { error_type, user_message, resolution_steps, locale }（本地化诊断结果）
-    │   - recovery_actions: list[str]（本地化恢复动作，可选）
+    │   - recovery_actions: list[{id, label, url}]（本地化恢复按钮，由 `diagnostics/recovery_actions.py` 生成，可选）
     │   - cooldown_remaining_ms: int（瞬态错误的重试倒计时，可选）
     ↓
 SSE推送到前端（compactor.put）
@@ -397,21 +397,26 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `i18n/constants.py` | `REQUIRED_ERROR_TYPES` 翻译完整性校验 |
 | `i18n/locales/` | 5 语言 JSON（en/zh-CN/ja/ko/de） |
 
-#### 2. ErrorKind分类（`toolkits/llms/errors/classifier.py`，11种）
+#### 2. ErrorKind分类（`toolkits/llms/errors/classifier.py`，12种）
 
-| ErrorKind | 中文名称 | 严重级别 | 恢复操作示例 |
-|-----------|---------|---------|-------------|
-| `rate_limit` | API请求频率受限 | warning | upgrade_api_plan, switch_model, wait_retry |
-| `overloaded` | AI服务过载 | warning | wait_retry, switch_model |
-| `timeout` | 服务超时 | warning | check_network, verify_base_url, retry |
-| `billing` | 余额不足 | error | top_up_account, switch_api_key |
-| `auth` | 认证失败 | error | check_api_key, verify_expiry |
-| `model_not_found` | 模型不存在 | error | verify_model_name, check_configuration |
-| `format_error` | 请求格式错误 | error | contact_support |
-| `response_format_error` | 响应格式错误 | error | contact_support, retry |
-| `context_overflow` | 上下文过长 | warning | start_new_chat, wait_compression |
-| `safety_block` | 安全拦截 | error | review_content, adjust_input |
-| `unknown` | 未知错误 | error | retry, contact_support |
+| ErrorKind | 含义 |
+|-----------|------|
+| `rate_limit` | API请求频率受限 |
+| `overloaded` | AI服务过载 |
+| `timeout` | 服务超时 |
+| `billing` | 余额/额度不足（含订阅额度用尽、无订阅的 403/429） |
+| `auth` | 认证失败 |
+| `model_not_found` | 模型不存在 |
+| `format_error` | 请求格式错误 |
+| `response_format_error` | 响应格式错误 |
+| `context_overflow` | 上下文过长 |
+| `safety_block` | 安全拦截 |
+| `challenge_blocked` | 出口被 WAF/反爬质询拦截（请求未到达模型） |
+| `unknown` | 未知错误 |
+
+恢复按钮（`recovery_actions`）只给有单击修复的诊断类型，目录见 `diagnostics/recovery_actions.py`：`api_key` → `update_key`，`billing` → `top_up`，`model` / `custom_model_not_found` → `change_model`，三者的 url 均为 `/settings`；其余类型不下发按钮。
+
+`unknown` 兜底诊断的文案约定：`user_message` 带提供方原文前 200 字符，五种语言目录一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串）；`resolution_steps` 不得指向库内部概念（LiteLLM、LLMConfig、调试日志开关），该约定由 `tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py` 守护。
 
 #### 3. DiagnosticResult结构
 
@@ -466,7 +471,7 @@ export async function getUserFriendlyError(
   - `error_type: string`
   - `failover_reason: string`
   - `diagnostic_result: { error_type, user_message, resolution_steps, locale }`（本地化诊断结果）
-  - `recovery_actions?: string[]`（本地化恢复动作）
+  - `recovery_actions?: RecoveryAction[]`（`{ id, label, url }`，本地化恢复按钮）
   - `cooldown_remaining_ms?: number`
 
 ### 扩展业务层自定义翻译
@@ -504,6 +509,7 @@ get_locale_manager().register_translations(
 | `toolkits/llms/errors/classifier.py` | LLM错误分类器（`classify_error()`，`ErrorKind` enum） |
 | `toolkits/llms/errors/error_types.py` | 三层分类体系（RecoverabilityLevel / FailoverReason / ProbePolicy） |
 | `agent/errors/diagnostics/engine.py` | `LLMErrorDiagnostic`：LLM 异常 → 本地化 `DiagnosticResult` |
+| `agent/errors/diagnostics/recovery_actions.py` | 恢复按钮目录：`api_key` / `billing` / `model` 等有单击修复的错误类型 → 本地化 `{id, label, url}` |
 | `agent/errors/diagnostics/types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
 | `agent/errors/diagnostics/i18n/manager.py` | `LocaleManager`（locale 检测 + 捆绑 JSON + `register_translations()` 扩展） |
 | `agent/errors/diagnostics/i18n/__init__.py` | `get_locale_manager()` 全局单例 |

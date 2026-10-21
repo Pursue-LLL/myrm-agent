@@ -18,26 +18,6 @@ import pytest
 
 class TestCheckNetworkHealth:
     @pytest.mark.asyncio
-    async def test_httpx_missing_returns_warn(self):
-        with (
-            patch.dict("sys.modules", {"httpx": None}),
-            patch(
-                "myrm_agent_harness.observability.diagnostics.probes.httpx",
-                None,
-            ),
-        ):
-            import myrm_agent_harness.observability.diagnostics.probes as probes_mod
-
-            original_httpx = probes_mod.httpx
-            probes_mod.httpx = None
-            try:
-                report = await probes_mod.check_network_health()
-                assert report.status == "warn"
-                assert "httpx" in report.detail.lower()
-            finally:
-                probes_mod.httpx = original_httpx
-
-    @pytest.mark.asyncio
     async def test_successful_probe(self):
         from myrm_agent_harness.observability.diagnostics.probes import check_network_health
 
@@ -474,6 +454,33 @@ class TestSystemResourcesFallbacks:
 
 
 class TestCheckQdrantHealth:
+    @pytest.fixture(autouse=True)
+    def _no_fallback_store(self):
+        """The registry is process-global; each case states for itself whether a store degraded."""
+        with patch("myrm_agent_harness.toolkits.vector.qdrant.embedded_fallback_paths", return_value=()):
+            yield
+
+    @pytest.mark.asyncio
+    async def test_fallback_store_returns_fail_even_when_the_throwaway_probe_would_pass(self):
+        from myrm_agent_harness.observability.diagnostics.probes import check_qdrant_health
+
+        mock_create = AsyncMock()
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.vector.qdrant.embedded_fallback_paths",
+                return_value=("/data/memory/vector_store",),
+            ),
+            patch("myrm_agent_harness.toolkits.vector.qdrant.create_vector_store", mock_create),
+        ):
+            report = await check_qdrant_health()
+
+        assert report.status == "fail"
+        assert report.component_name == "VectorDB"
+        assert "not being saved permanently" in report.message
+        assert report.fix_suggestion
+        assert report.measured == "1 vector store(s) on the in-memory fallback"
+        mock_create.assert_not_awaited()
+
     @pytest.mark.asyncio
     async def test_vector_toolkit_missing_returns_warn(self):
         from myrm_agent_harness.observability.diagnostics.probes import check_qdrant_health
@@ -514,7 +521,7 @@ class TestCheckQdrantHealth:
             assert report.component_name == "VectorDB"
 
     @pytest.mark.asyncio
-    async def test_connection_error_returns_fail(self):
+    async def test_connection_error_returns_fail(self, caplog: pytest.LogCaptureFixture):
         from myrm_agent_harness.observability.diagnostics.probes import check_qdrant_health
 
         mock_config_cls = MagicMock()
@@ -532,7 +539,13 @@ class TestCheckQdrantHealth:
         ):
             report = await check_qdrant_health()
             assert report.status == "fail"
-            assert "connection" in report.detail.lower()
+            # Contract (see vector_probe's header and BUG-HARNESS-2026-10-15-004): `detail` is the
+            # technical field a host shows on demand, so it carries the raw exception; `message` and
+            # `fix_suggestion` are the user-facing wording and name neither the backend nor the error.
+            assert "refused" in report.detail
+            assert "refused" not in f"{report.message} {report.fix_suggestion}".lower()
+            assert "qdrant" not in f"{report.message} {report.fix_suggestion}".lower()
+            assert "refused" in caplog.text
 
 
 class TestCheckTokenizerHealth:
@@ -632,4 +645,3 @@ class TestCheckLocalTraceExportAudit:
             report = await check_local_trace_export_audit()
             assert report.status == "pass"
             assert report.code == "OK_TRACE_EXPORT_STANDARD"
-

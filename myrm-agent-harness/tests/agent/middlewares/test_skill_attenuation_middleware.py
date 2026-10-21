@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from dataclasses import dataclass
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -14,24 +13,6 @@ from myrm_agent_harness.agent.middlewares.tooling.skill_attenuation_middleware i
     SkillAttenuationMiddleware,
 )
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
-
-
-@pytest.fixture(autouse=True)
-def _isolate_active_tool_registry(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Hide registries published by earlier tests on the same worker.
-
-    ``get_active_tool_registry()`` prefers process-global session state over the middleware's own
-    registry, so a leaked registry would shadow the one these tests configure.
-    """
-    from myrm_agent_harness.agent.middlewares import _session_context as session_context
-
-    monkeypatch.setattr(session_context, "_session_tool_registries", {})
-    monkeypatch.setattr(session_context, "_session_resolved_tools", {})
-    registry_token = session_context._active_tool_registry_var.set(None)
-    tools_token = session_context._active_resolved_tools_var.set(None)
-    yield
-    session_context._active_resolved_tools_var.reset(tools_token)
-    session_context._active_tool_registry_var.reset(registry_token)
 
 
 @dataclass(slots=True)
@@ -258,7 +239,9 @@ def test_wrap_tool_call_delegates_when_tool_prebound() -> None:
         state={},
         runtime=MagicMock(),
     )
-    expected = ToolMessage(content="ok", name="ask_question_tool", tool_call_id="call_1")
+    expected = ToolMessage(
+        content="ok", name="ask_question_tool", tool_call_id="call_1"
+    )
 
     def handler(req: ToolCallRequest) -> ToolMessage:
         assert req.tool is bound_tool

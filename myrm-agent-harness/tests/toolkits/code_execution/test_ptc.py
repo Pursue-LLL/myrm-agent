@@ -56,6 +56,12 @@ def mock_bash(command: str) -> str:
     return f"output_of_{command}"
 
 
+@lc_tool
+def mock_orchestration(task_id: str, optional_note: str = "") -> dict:
+    """Orchestration-style tool returning a structured dict, like DW primitives."""
+    return {"success": True, "task_id": task_id, "note": optional_note, "result": f"done_{task_id}"}
+
+
 # ---------------------------------------------------------------------------
 # models.py tests
 # ---------------------------------------------------------------------------
@@ -66,22 +72,12 @@ class TestPtcConfig:
         config = PtcConfig()
         assert config.max_tool_calls == 50
         assert config.timeout_seconds == 300
-        assert config.max_stdout_bytes == 50_000
-        assert config.max_stderr_bytes == 10_000
-        assert config.use_project_mode is True
-        assert config.workspace_path is None
-        assert config.venv_path is None
+        assert config.max_output_chars == 200_000
 
     def test_custom_values(self):
-        config = PtcConfig(
-            max_tool_calls=100,
-            timeout_seconds=60,
-            workspace_path="/tmp/ws",
-            venv_path="/tmp/.venv",
-        )
+        config = PtcConfig(max_tool_calls=100, timeout_seconds=60, max_output_chars=4096)
         assert config.max_tool_calls == 100
-        assert config.workspace_path == "/tmp/ws"
-        assert config.venv_path == "/tmp/.venv"
+        assert config.max_output_chars == 4096
 
     def test_validation_boundaries(self):
         with pytest.raises(ValidationError):
@@ -279,6 +275,29 @@ class TestPtcDispatcher:
         assert dispatcher.records[0].success is True
 
     @pytest.mark.asyncio
+    async def test_dispatch_preserves_dict_payload(self):
+        """Structured tool results must survive the wire as dicts, not repr strings.
+
+        Regression guard for the DW contract tear: prompts.py declares every
+        myrm_tools primitive as ``-> dict`` and few-shot examples unpack them
+        (``**result`` / ``answers["results"]``). Serializing to a string makes
+        those scripts fail with TypeError at runtime.
+        """
+        dispatcher = PtcDispatcher([mock_orchestration])
+        req = PtcRpcRequest(tool="mock_orchestration", args={"task_id": "t1"})
+        resp = await dispatcher.dispatch(req)
+        assert resp.error is None
+        assert resp.result == {"success": True, "task_id": "t1", "note": "", "result": "done_t1"}
+
+    @pytest.mark.asyncio
+    async def test_dispatch_keeps_plain_string_result(self):
+        """String results stay strings so existing string-only tools are unaffected."""
+        dispatcher = PtcDispatcher([mock_file_read])
+        resp = await dispatcher.dispatch(PtcRpcRequest(tool="mock_file_read", args={"path": "/y"}))
+        assert resp.error is None
+        assert resp.result == "content_of_/y"
+
+    @pytest.mark.asyncio
     async def test_dispatch_unknown_tool(self):
         dispatcher = PtcDispatcher([mock_file_read])
         req = PtcRpcRequest(tool="nonexistent", args={})
@@ -356,7 +375,7 @@ class TestPtcRpcServer:
         await server.start()
 
         try:
-            req = PtcRpcRequest(tool="mock_file_read", args={"path": "/a/b"})
+            req = PtcRpcRequest(tool="mock_file_read", args={"path": "/a/b"}, auth_token=server.auth_token)
             payload = req.model_dump_json().encode("utf-8")
             header = struct.pack("!I", len(payload))
 
@@ -387,7 +406,9 @@ class TestPtcRpcServer:
 
         try:
             for i in range(3):
-                req = PtcRpcRequest(tool="mock_file_read", args={"path": f"/{i}"})
+                req = PtcRpcRequest(
+                    tool="mock_file_read", args={"path": f"/{i}"}, auth_token=server.auth_token
+                )
                 payload = req.model_dump_json().encode("utf-8")
                 header = struct.pack("!I", len(payload))
 
@@ -432,7 +453,9 @@ class TestPtcRpcServer:
         server._use_tcp = True
         await server.start()
         try:
-            req = PtcRpcRequest(tool="mock_file_read", args={"path": "/tcp"})
+            req = PtcRpcRequest(
+                tool="mock_file_read", args={"path": "/tcp"}, auth_token=server.auth_token
+            )
             payload = req.model_dump_json().encode("utf-8")
             header = struct.pack("!I", len(payload))
 
@@ -555,6 +578,43 @@ class TestPtcInjection:
         result = await inject_ptc_for_python_execution(context, executor, [mock_file_read])
         assert result.success
         assert "content_of_/test/file.txt" in (result.stdout or "")
+
+    @pytest.mark.asyncio
+    async def test_dict_contract_end_to_end(self):
+        """Real subprocess + real stub generator + real RPC server: dict survives.
+
+        This is the unpatched E2E guard. Mocked dispatcher tests cannot catch a
+        ``str`` vs ``dict`` regression because both satisfy ``assert x in stdout``;
+        only a script that actually unpacks the dict proves the wire contract.
+        """
+        from myrm_agent_harness.toolkits.code_execution.executors.models import (
+            ExecutionContext,
+        )
+        from myrm_agent_harness.toolkits.code_execution.ptc.ptc_injection import (
+            inject_ptc_for_python_execution,
+        )
+        from tests.toolkits.code_execution._executor_stub import InProcessExecutor
+
+        script = (
+            "import myrm_tools\n"
+            'result = myrm_tools.mock_orchestration(task_id="t7", optional_note="")\n'
+            'print("TYPE", type(result).__name__)\n'
+            'print("MERGED", {**result}["task_id"])\n'
+            'print("SUBSCRIPT", result["result"])\n'
+            'print("GET", result.get("success"))\n'
+            'print("EMPTY_KEPT", "note" in result and result["note"] == "")\n'
+        )
+        context = ExecutionContext(code=script, timeout=30)
+        executor = InProcessExecutor()
+        result = await inject_ptc_for_python_execution(context, executor, [mock_orchestration])
+
+        assert result.success, f"script failed: {result.stderr}"
+        out = result.stdout or ""
+        assert "TYPE dict" in out
+        assert "MERGED t7" in out
+        assert "SUBSCRIPT done_t7" in out
+        assert "GET True" in out
+        assert "EMPTY_KEPT True" in out
 
     @pytest.mark.asyncio
     async def test_multiple_tool_calls(self):
@@ -715,3 +775,127 @@ class TestPtcInjection:
         result = await inject_ptc_for_python_execution(context, executor, [mock_file_read])
         assert result.success
         assert "HAS_CUSTOM" in (result.stdout or "")
+
+
+class TestPtcOutputBudget:
+    """PtcConfig.max_output_chars must actually clamp PTC script output."""
+
+    def test_apply_output_budget_truncates_both_streams(self):
+        from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
+        from myrm_agent_harness.toolkits.code_execution.ptc.ptc_injection import (
+            _apply_output_budget,
+        )
+
+        result = ExecutionResult(stdout="A" * 5000, stderr="B" * 5000)
+        clamped = _apply_output_budget(result, 1000)
+
+        assert len(clamped.stdout) < len(result.stdout)
+        assert len(clamped.stderr) < len(result.stderr)
+        assert "[Truncated" in clamped.stdout
+        assert "[Truncated" in clamped.stderr
+
+    def test_apply_output_budget_is_noop_below_limit(self):
+        from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
+        from myrm_agent_harness.toolkits.code_execution.ptc.ptc_injection import (
+            _apply_output_budget,
+        )
+
+        result = ExecutionResult(stdout="short", stderr="")
+        assert _apply_output_budget(result, 1000) is result
+
+    @pytest.mark.asyncio
+    async def test_injected_script_output_respects_budget(self):
+        """End-to-end: the config value reaches the returned ExecutionResult."""
+        from myrm_agent_harness.toolkits.code_execution.executors.models import (
+            ExecutionContext,
+        )
+        from myrm_agent_harness.toolkits.code_execution.ptc import ptc_injection
+        from tests.toolkits.code_execution._executor_stub import InProcessExecutor
+
+        script = "print('X' * 2000)"
+        context = ExecutionContext(code=script, timeout=30)
+        executor = InProcessExecutor()
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "myrm_agent_harness.toolkits.code_execution.ptc.models.PtcConfig",
+                lambda **kwargs: PtcConfig(max_output_chars=1024, **kwargs),
+            )
+            result = await ptc_injection.inject_ptc_for_python_execution(context, executor, [mock_file_read])
+
+        assert result.success
+        assert "[Truncated" in (result.stdout or "")
+
+
+class TestPtcRpcTransportSecurity:
+    """Track 2 transport must be authenticated like Track 1, and owner-only."""
+
+    @pytest.mark.asyncio
+    async def test_request_without_token_is_rejected(self):
+        dispatcher = PtcDispatcher([mock_file_read])
+        server = PtcRpcServer(PtcConfig(timeout_seconds=10), dispatcher)
+        await server.start()
+        try:
+            req = PtcRpcRequest(tool="mock_file_read", args={"path": "/x"})
+            payload = req.model_dump_json().encode("utf-8")
+            reader, writer = await asyncio.open_unix_connection(server.socket_path)
+            writer.write(struct.pack("!I", len(payload)) + payload)
+            await writer.drain()
+            resp_len = struct.unpack("!I", await reader.readexactly(4))[0]
+            resp = json.loads(await reader.readexactly(resp_len))
+            writer.close()
+            await writer.wait_closed()
+        finally:
+            await server.stop()
+
+        assert resp["error"] is not None
+        assert "unauthorized" in resp["error"].lower()
+        assert dispatcher.records == [], "an unauthenticated request must never reach a tool"
+
+    @pytest.mark.asyncio
+    async def test_request_with_wrong_token_is_rejected(self):
+        dispatcher = PtcDispatcher([mock_file_read])
+        server = PtcRpcServer(PtcConfig(timeout_seconds=10), dispatcher)
+        await server.start()
+        try:
+            req = PtcRpcRequest(tool="mock_file_read", args={"path": "/x"}, auth_token="wrong")
+            payload = req.model_dump_json().encode("utf-8")
+            reader, writer = await asyncio.open_unix_connection(server.socket_path)
+            writer.write(struct.pack("!I", len(payload)) + payload)
+            await writer.drain()
+            resp_len = struct.unpack("!I", await reader.readexactly(4))[0]
+            resp = json.loads(await reader.readexactly(resp_len))
+            writer.close()
+            await writer.wait_closed()
+        finally:
+            await server.stop()
+
+        assert "unauthorized" in resp["error"].lower()
+        assert dispatcher.records == []
+
+    @pytest.mark.asyncio
+    async def test_socket_dir_and_file_are_owner_only(self):
+        import stat as stat_mod
+
+        dispatcher = PtcDispatcher([mock_file_read])
+        server = PtcRpcServer(PtcConfig(timeout_seconds=10), dispatcher)
+        await server.start()
+        try:
+            from pathlib import Path as _Path
+
+            sock_mode = stat_mod.S_IMODE(_Path(server.socket_path).stat().st_mode)
+            dir_mode = stat_mod.S_IMODE(_Path(server.socket_path).parent.stat().st_mode)
+            assert sock_mode == 0o600
+            assert dir_mode == 0o700
+        finally:
+            await server.stop()
+
+    @pytest.mark.asyncio
+    async def test_child_env_carries_the_token(self):
+        dispatcher = PtcDispatcher([mock_file_read])
+        server = PtcRpcServer(PtcConfig(timeout_seconds=10), dispatcher)
+        await server.start()
+        try:
+            assert server.get_child_env()["_MYRM_PTC_TOKEN"] == server.auth_token
+        finally:
+            await server.stop()
