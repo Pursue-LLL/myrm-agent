@@ -8045,3 +8045,118 @@ if isinstance(default_model_cfg, dict) and isinstance(providers_dict, dict):
 
 1. **任何「独占共享资源」的测试 seed 都必须配还原**：E2E 要独占默认模型是对的，缺的是归还动作
 2. **还原要按最后一个执行者判定**，不能按最后一个启动者——否则并行 lane 会在同伴还在跑时把配置抢回去
+
+---
+
+## BUG-AGENT-2026-10-22-001: harness 并入单仓后丢了 63 个从未提交过的模块——服务端 import 链断裂，后端无法启动
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22（harness 从独立仓并入 `myrm-agent/myrm-agent-harness/` 之后，后端启动即失败） |
+| 修复日期 | 未修复（缺失模块从未提交，需由该特性作者恢复） |
+| 严重程度 | P0（后端无法启动 → 整个本地实例不可用） |
+| 影响范围 | `myrm-agent-harness/src/myrm_agent_harness/**`（缺失 63 个模块）→ 69 个未被 git 跟踪的服务端文件引用它们（`app/services/agent/*_service.py`、`app/services/chat/command_matrix/*`、`app/api/system/*_api.py` 等） |
+| 出现次数 | 1（随合并一次性引入） |
+| 关联 | 归档仓 `myrm-agent-harness` 的 `backup/*` 分支与 `main` 均**不含**这些模块 → 它们只存在于旧工作树的未提交状态，旧工作树随目录删除一并消失 |
+
+### 现象
+
+```
+ModuleNotFoundError: No module named 'myrm_agent_harness.agent.coordination.autonomous_loop'
+ModuleNotFoundError: No module named 'myrm_agent_harness.agent.coordination.bot_mode'
+ModuleNotFoundError: No module named 'myrm_agent_harness.agent.context_management.capability_matrix'
+→ app/api/router.py 导入失败 → app 工厂无法构建 → 后端起不来
+```
+
+### 根因
+
+这些模块属于**尚未提交**的新特性（autonomous loop / bot mode / tri role / squad / swarm / observability 看板族）。
+合并时只带入了已提交的文件，未提交的那一半随旧工作树一起消失；服务端的对应文件也一直是未跟踪状态，
+所以两边现在都缺一半。
+
+### 修复
+
+需要由特性作者恢复：把旧工作树中 `myrm_agent_harness.agent.coordination.*`、
+`myrm_agent_harness.agent.context_management.capability_matrix*`、
+`myrm_agent_harness.observability.*`、`myrm_agent_harness.toolkits.swarm` 等 63 个模块放回
+`myrm-agent/myrm-agent-harness/src/myrm_agent_harness/`（完整清单见本条附带的模块列表）。
+
+**不要用「跳过缺失导入」的方式绕过**：那只会把「特性没落地」变成「运行时才炸」，属于掩盖式修复。
+
+### 缺失模块完整清单（63）
+
+```
+myrm_agent_harness.agent.context_management.capability_matrix
+myrm_agent_harness.agent.context_management.capability_matrix.models
+myrm_agent_harness.agent.context_management.scratchpad_promotion
+myrm_agent_harness.agent.coordination.autonomous_loop
+myrm_agent_harness.agent.coordination.bot_mode
+myrm_agent_harness.agent.coordination.multi_bot_focus
+myrm_agent_harness.agent.coordination.scope_guardrails
+myrm_agent_harness.agent.coordination.squad_composition
+myrm_agent_harness.agent.coordination.tri_role
+myrm_agent_harness.agent.coordination.wave_orchestrator
+myrm_agent_harness.agent.coordination.workspace_blueprint
+myrm_agent_harness.agent.creator_mode
+myrm_agent_harness.agent.skills.bundle_warmup
+myrm_agent_harness.observability.aborted_usage_ledger
+myrm_agent_harness.observability.active_skill_telemetry
+myrm_agent_harness.observability.agent_insights
+myrm_agent_harness.observability.agentic_traffic
+myrm_agent_harness.observability.ambient_auxiliary_accounting
+myrm_agent_harness.observability.audit_theater
+myrm_agent_harness.observability.cardinality_cap
+myrm_agent_harness.observability.code_freshness
+myrm_agent_harness.observability.composite_usage_ledger
+myrm_agent_harness.observability.context_breakdown
+myrm_agent_harness.observability.context_optimization
+myrm_agent_harness.observability.context_retrieval
+myrm_agent_harness.observability.coordination_friction
+myrm_agent_harness.observability.cron_doctor
+myrm_agent_harness.observability.cross_period_milestone
+myrm_agent_harness.observability.cumulative_delivery_budget
+myrm_agent_harness.observability.delegation_billing
+myrm_agent_harness.observability.delivery_dossier
+myrm_agent_harness.observability.deployment_funnel
+myrm_agent_harness.observability.diagnostic_stream
+myrm_agent_harness.observability.dual_domain_metering
+myrm_agent_harness.observability.durable_budget_ledger
+myrm_agent_harness.observability.enterprise_credit_cockpit
+myrm_agent_harness.observability.event_causality_lineage
+myrm_agent_harness.observability.evidence_cross_verification
+myrm_agent_harness.observability.knowledge_compounding
+myrm_agent_harness.observability.labor_acceleration
+myrm_agent_harness.observability.local_sink
+myrm_agent_harness.observability.memory_backend_metrics
+myrm_agent_harness.observability.multimodal_trace
+myrm_agent_harness.observability.org_spend_limit
+myrm_agent_harness.observability.otel_degrade
+myrm_agent_harness.observability.rate_limit_governor
+myrm_agent_harness.observability.rate_limit_split
+myrm_agent_harness.observability.reasoning_semantics
+myrm_agent_harness.observability.resource_metering
+myrm_agent_harness.observability.runtime_zombie_reaper
+myrm_agent_harness.observability.sandbox_hardware_telemetry
+myrm_agent_harness.observability.stream_metrics
+myrm_agent_harness.observability.timeline_visualizer
+myrm_agent_harness.observability.token_economics
+myrm_agent_harness.observability.turn_context_provenance
+myrm_agent_harness.observability.turn_usage
+myrm_agent_harness.observability.unattended_reliability
+myrm_agent_harness.observability.visual_flight_recorder
+myrm_agent_harness.observability.workflow_throttle
+myrm_agent_harness.toolkits.artifacts.delight_showcase
+myrm_agent_harness.toolkits.artifacts.embed_bridge
+myrm_agent_harness.toolkits.artifacts.ui_alignment
+myrm_agent_harness.toolkits.swarm
+```
+
+### 验证
+
+恢复后：
+
+```bash
+cd myrm-agent/myrm-agent-server
+.venv/bin/python -c "import app.api.router as r; print(len(r.api_router.routes))"   # 不应抛 ModuleNotFoundError
+./myrm test -n0 myrm-agent-server/tests/support/                                    # 全绿
+```
