@@ -160,12 +160,19 @@ pub struct BackendConfig {
 impl BackendConfig {
     /// 从系统配置创建后端配置。
     ///
-    /// 桌面端自带的前端是构建期固定代理到 `127.0.0.1:8080` 的 Next standalone，
-    /// 因此桌面托管的后端**始终**监听 8080；`enable_webui_mode` 只决定是否对外可达
-    /// （远程访问时绑定 0.0.0.0），不再切换端口——否则前端会指向一个没有后端的端口。
+    /// 桌面端自带的前端是构建期固定代理到后端端口的 Next standalone，所以后端端口必须与
+    /// 构建该前端时使用的 `API_PORT` 一致。发布构建固定 8080；开发者机器上同时还有本地 WebUI
+    /// 与 dev 栈（同样用 8080 + `~/.myrm`），两者会在端口和数据库上互相踩，因此允许用
+    /// `MYRM_DESKTOP_API_PORT` 在**构建和运行两侧**同时覆盖（`build-frontend.sh` 会把同一个值
+    /// 传给 `next build` 的 `API_PORT`），默认值保持 8080 不变。
     pub fn from_system_config(config: &SystemConfig) -> Self {
+        let port = std::env::var("MYRM_DESKTOP_API_PORT")
+            .ok()
+            .and_then(|raw| raw.trim().parse::<u16>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(8080);
         Self {
-            port: 8080,
+            port,
             host: if config.enable_webui_mode && config.enable_remote_access {
                 "0.0.0.0".to_string()
             } else {

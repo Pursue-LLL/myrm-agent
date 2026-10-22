@@ -45,15 +45,18 @@ def solo_launch_denial_reason(*, workload: str) -> str | None:
 
     from e2e_core.runtime_identity import frontend_tcp_html_probe_ok
 
+    # The lane may target an isolated runtime instead of the shared :3000, so the probe must use the
+    # UI base the lane actually runs against — a hardcoded :3000 silently denies every isolated run.
+    ui_base = os.environ.get("MYRM_E2E_UI_BASE", "").strip() or "http://127.0.0.1:3000"
     probe_ok = False
     for _attempt in range(3):
-        if frontend_tcp_html_probe_ok("http://127.0.0.1:3000", timeout_sec=5.0):
+        if frontend_tcp_html_probe_ok(ui_base, timeout_sec=5.0):
             probe_ok = True
             break
         time.sleep(2.0)
     if not probe_ok:
         return (
-            "SOLO_LAUNCH_DENIED: :3000 TCP+HTML probe failed after retries; "
+            f"SOLO_LAUNCH_DENIED: {ui_base} TCP+HTML probe failed after retries; "
             "run ./myrm ready --chrome / ui-heal before LIVE signoff"
         )
 

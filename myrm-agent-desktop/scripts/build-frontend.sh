@@ -18,6 +18,13 @@ if [[ "$MODE" == "dev" ]]; then
   exec bun run dev
 fi
 
+# The bundled frontend bakes its API proxy target at build time, and the desktop backend must listen
+# on the same port. Release builds keep 8080; a developer machine that also runs the local WebUI or
+# the dev stack can build an isolated app by exporting MYRM_DESKTOP_API_PORT (the backend reads the
+# same variable at runtime, see config.rs).
+DESKTOP_API_PORT="${MYRM_DESKTOP_API_PORT:-8080}"
+export API_PORT="$DESKTOP_API_PORT"
+
 if [[ ! -f .next/standalone/myrm-agent-frontend/server.js ]]; then
   bun run build:tauri
 fi
@@ -30,4 +37,4 @@ mkdir -p "$STANDALONE_DIR/.next"
 cp -R .next/static "$STANDALONE_DIR/.next/static"
 cp -R public "$STANDALONE_DIR/public"
 
-echo "Prepared standalone assets: .next/static and public"
+echo "Prepared standalone assets: .next/static and public (api_port=${DESKTOP_API_PORT})"
