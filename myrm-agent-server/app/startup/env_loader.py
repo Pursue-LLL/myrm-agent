@@ -70,7 +70,6 @@ def setup_browser_path() -> None:
 
     When a local myrm-agent-harness checkout exists, sets PLAYWRIGHT_BROWSERS_PATH
     to harness/.browsers. Otherwise leaves the env unset (Playwright/Patchright defaults).
-    PATCHRIGHT_BROWSERS_PATH is NOT overwritten here.
     """
     # __file__ = .../myrm-agent-server/app/startup/env_loader.py
     # parent.parent.parent.parent = myrm-agent/ (产品仓根，与 myrm-agent-server 同级)
