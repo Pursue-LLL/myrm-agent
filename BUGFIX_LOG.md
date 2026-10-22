@@ -8167,3 +8167,34 @@ cd myrm-agent/myrm-agent-server
 真机复核（2026-10-22）：`/api/v1/health` healthy；`/api/v1/config/readiness` provider=True、search=True、
 degraded=False；连接测试对可用 provider 返回 `reachable=true`，对失效 provider 返回
 `error_kind=provider_error` + 上游原文 `Invalid credential`；真实 Agent 回合正常返回。
+
+## BUG-AGENT-2026-10-22-002: 模型把工具名猜成「实现风格」的名字（`a2a_call_tool`）——模糊修复阈值拦不住，整轮对话三次 strike 后没有任何回复
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P1（用户看到的是「模型什么都没回」） |
+| 影响范围 | harness 的工具名校验/修复（`agent/tool_validation`）：任何模型把注册名 `X` 猜成 `X_tool` / `X_call_tool` 的场景 |
+| 关联 | 修复器相似度阈值 0.82 与实际相似度 0.76 的差 |
+
+### 现象
+
+模型发出 `a2a_call_tool`（注册名是 `a2a_call`）→ 工具名校验判定为未知工具 → 回灌错误让模型重试 → 模型重复同样的错名 → 三次 strike 后整轮以「没有回复」结束（E2E 侧表现为 180s 等不到 assistant 消息）。
+
+### 根因
+
+`ToolNameFuzzyRepairer.repair_name` 的相似度阈值是 **0.82**，而 `difflib` 对 `a2a_call_tool` → `a2a_call` 的比值只有 **0.7619**（多出的 `_tool` 是一整个词，把相似度稀释到阈值以下）→ 精确、别名、归一化三条规则都不命中 → 模糊规则也不命中 → 名字没被修复。
+
+这类幻觉的形态很稳定：**在真实工具名后面追加一个实现风格的词**（`_tool` / `_call_tool` / `_function`）。用相似度去接它，本质是在赌运气。
+
+### 修复
+
+在模糊比较**之前**加一条**确定性**规则：若原始名字以已知的实现风格后缀结尾，且去掉后缀后**恰好命中某个已注册工具名**，就采用它（`myrm_agent_harness/agent/tool_validation/fuzzy_repair.py`）。
+
+这条规则只可能命中真实注册名，**不会把调用修到错误的工具上**；阈值 0.82 保持不变（不给全局相似度放水）。
+
+### 验证
+
+- 新增回归用例 `myrm-agent-harness/tests/agent/test_mixed_batch_tool_validation_and_guard.py::test_suffix_hallucination_is_repaired_to_the_registered_tool`（覆盖 `a2a_call_tool`、`a2a_call_tool_call`、`read_file_tool`，以及「去掉后缀不是注册名时不得修复」）
+- `myrm-agent-harness/tests/agent/test_mixed_batch_tool_validation_and_guard.py` 9 例通过
