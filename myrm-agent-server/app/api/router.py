@@ -15,86 +15,7 @@ from app.api.agents import (
     suggestions,
     templates,
 )
-from app.api.agents.adaptive_wakeup_router import router as adaptive_wakeup_router
-from app.api.agents.advisor_channel_router import router as advisor_channel_router
-from app.api.agents.agent_assembler_router import router as agent_assembler_router
-from app.api.agents.agent_avatar_router import router as agent_avatar_router
-from app.api.agents.agent_handoff_router import router as agent_handoff_router
-from app.api.agents.agent_hierarchy_router import router as agent_hierarchy_router
-from app.api.agents.agent_multiplexer_router import router as agent_multiplexer_router
-from app.api.agents.agent_operations_router import router as agent_operations_router
-from app.api.agents.agent_teams_router import router as agent_teams_router
-from app.api.agents.autonomous_loop_router import router as autonomous_loop_router
-from app.api.agents.bot_forge_router import router as bot_forge_router
-from app.api.agents.bot_mode_router import router as bot_mode_router
-from app.api.agents.clean_code_pipeline_router import router as clean_code_pipeline_router
-from app.api.agents.cli_passthrough_router import router as cli_passthrough_router
-from app.api.agents.cloud_edge_relay_router import router as cloud_edge_relay_router
-from app.api.agents.coauthoring_ledger_router import router as coauthoring_ledger_router
-from app.api.agents.coding_wave_router import router as coding_wave_router
-from app.api.agents.conflict_gate_router import router as conflict_gate_router
-from app.api.agents.council_router import router as council_router
-from app.api.agents.creator_mode_router import router as creator_mode_router
-from app.api.agents.cross_surface_bridge_router import router as cross_surface_bridge_router
-from app.api.agents.dag_orchestrator_router import router as dag_orchestrator_router
-from app.api.agents.debate_synthesis_router import router as debate_synthesis_router
-from app.api.agents.debate_workroom_router import router as debate_workroom_router
-from app.api.agents.delegation_transcript_router import router as delegation_transcript_router
-from app.api.agents.device_mesh_router import router as device_mesh_router
-from app.api.agents.diamond_graph_router import router as diamond_graph_router
-from app.api.agents.durable_dispatch_router import router as durable_dispatch_router
-from app.api.agents.external_agent_bridge_router import router as external_agent_bridge_router
-from app.api.agents.external_bundle_router import router as external_bundle_router
-from app.api.agents.failure_facts_router import router as failure_facts_router
-from app.api.agents.failure_policy_router import router as failure_policy_router
-from app.api.agents.fleet_overview import router as fleet_overview_router
-from app.api.agents.fleet_router_router import router as fleet_router_router
-from app.api.agents.fleet_telemetry import router as fleet_telemetry_router
-from app.api.agents.fusen_router import router as fusen_router
-from app.api.agents.governance import router as governance_router
-from app.api.agents.graph_triage_router import router as graph_triage_router
-from app.api.agents.infra_quota_router import router as infra_quota_router
-from app.api.agents.kanban_dispatcher_router import router as kanban_dispatcher_router
-from app.api.agents.kanban_orchestrator_router import router as kanban_orchestrator_router
-from app.api.agents.kanban_queue_router import router as kanban_queue_router
-from app.api.agents.mcp_payload_summarizer_router import router as mcp_payload_summarizer_router
-from app.api.agents.mcp_scope_gate_router import router as mcp_scope_gate_router
-from app.api.agents.memory_hub_router import router as memory_hub_router
-from app.api.agents.mixed_fleet_router import router as mixed_fleet_router
-from app.api.agents.multi_bot_focus_router import router as multi_bot_focus_router
-from app.api.agents.multi_lane_router import router as multi_lane_router
-from app.api.agents.openapi_services import router as openapi_services_router
-from app.api.agents.orthogonal_reviewer_router import router as orthogonal_reviewer_router
-from app.api.agents.pipeline_integrity_router import router as pipeline_integrity_router
-from app.api.agents.profile_audit import router as profile_audit_router
-from app.api.agents.ralph_workflow_router import router as ralph_workflow_router
-from app.api.agents.readiness import router as readiness_router
-from app.api.agents.recovery import router as agent_recovery_router
-from app.api.agents.replay_dedup_router import router as replay_dedup_router
-from app.api.agents.report_fifo_router import router as report_fifo_router
-from app.api.agents.review_loop_router import router as review_loop_router
-from app.api.agents.scope_guardrails_router import router as scope_guardrails_router
-from app.api.agents.session_fork_router import router as session_fork_router
-from app.api.agents.skill_bundle_router import router as skill_bundle_router
-from app.api.agents.socket_mesh_router import router as socket_mesh_router
-from app.api.agents.specialist_summoning_router import router as specialist_summoning_router
-from app.api.agents.split_session_goal_router import router as split_session_goal_router
-from app.api.agents.squad_composition_router import router as squad_composition_router
-from app.api.agents.subagent_hub_router import router as subagent_hub_router
-from app.api.agents.subagent_lifecycle_router import router as subagent_lifecycle_router
-from app.api.agents.subagent_scaling_router import router as subagent_scaling_router
-from app.api.agents.swarm_mesh_router import router as swarm_mesh_router
-from app.api.agents.swarm_offload_router import router as swarm_offload_router
-from app.api.agents.todo_store_router import router as todo_store_router
-from app.api.agents.token_budget_governance_router import router as token_budget_governance_router
-from app.api.agents.topology_pruning_router import router as topology_pruning_router
-from app.api.agents.tri_role_router import router as tri_role_router
-from app.api.agents.vertical_presets_router import router as vertical_presets_router
-from app.api.agents.virtual_room_router import router as virtual_room_router
-from app.api.agents.visual_timeline_router import router as visual_timeline_router
-from app.api.agents.workspace_blueprint_router import router as workspace_blueprint_router
-from app.api.agents.workspace_inheritance_router import router as workspace_inheritance_router
-from app.api.agents.zero_token_contract_router import router as zero_token_contract_router
+from app.api.agents._optional_routers import register_agent_routers
 from app.api.api_keys import router as api_keys_router
 from app.api.approvals import router as approvals_router
 from app.api.audit.bash_router import router as audit_router
@@ -274,89 +195,10 @@ api_router.include_router(agent_portability.router, prefix="/user-agents", tags=
 api_router.include_router(agent_history.router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(providers.router, prefix="/user-agents/providers", tags=["user-agents"])
 
-api_router.include_router(fleet_overview_router, prefix="/agents", tags=["agents"])
-api_router.include_router(fleet_telemetry_router, prefix="/agents", tags=["agents"])
-api_router.include_router(governance_router, prefix="/agents", tags=["agents"])
-api_router.include_router(openapi_services_router, prefix="/agents", tags=["agents"])
-api_router.include_router(profile_audit_router, prefix="/user-agents", tags=["user-agents"])
-api_router.include_router(readiness_router, prefix="/user-agents", tags=["user-agents"])
-api_router.include_router(agent_recovery_router, prefix="", tags=["user-agents"])
+register_agent_routers(api_router)
 api_router.include_router(goals_router)
 api_router.include_router(external_agents_router, prefix="/external-agents", tags=["external-agents"])
-api_router.include_router(agent_handoff_router, prefix="/agents", tags=["agents-handoff"])
-api_router.include_router(device_mesh_router, prefix="/agents", tags=["device-mesh"])
-api_router.include_router(todo_store_router, prefix="/agents", tags=["todo-store"])
-api_router.include_router(agent_hierarchy_router, prefix="/agents", tags=["agent-hierarchy"])
-api_router.include_router(split_session_goal_router, prefix="/agents", tags=["split-session-goals"])
-api_router.include_router(ralph_workflow_router, prefix="/agents", tags=["ralph-workflow"])
-api_router.include_router(infra_quota_router, prefix="/agents", tags=["infra-quota-governance"])
-api_router.include_router(advisor_channel_router, prefix="/agents", tags=["advisor-channel"])
-api_router.include_router(subagent_hub_router)
-api_router.include_router(conflict_gate_router)
-api_router.include_router(mcp_scope_gate_router)
-api_router.include_router(agent_operations_router)
-api_router.include_router(durable_dispatch_router)
-api_router.include_router(report_fifo_router)
-api_router.include_router(failure_facts_router)
-api_router.include_router(failure_policy_router)
-api_router.include_router(debate_synthesis_router)
-api_router.include_router(agent_teams_router)
-api_router.include_router(adaptive_wakeup_router, prefix="/agents", tags=["adaptive-wakeup"])
-api_router.include_router(subagent_scaling_router, prefix="/agents", tags=["subagents-scaling"])
-api_router.include_router(review_loop_router)
-api_router.include_router(bot_mode_router)
-api_router.include_router(squad_composition_router)
-api_router.include_router(workspace_blueprint_router)
-api_router.include_router(scope_guardrails_router)
-api_router.include_router(autonomous_loop_router)
-api_router.include_router(creator_mode_router)
-api_router.include_router(tri_role_router)
-api_router.include_router(skill_bundle_router)
-api_router.include_router(multi_bot_focus_router)
-api_router.include_router(mcp_payload_summarizer_router)
-api_router.include_router(coding_wave_router)
-api_router.include_router(subagent_lifecycle_router)
-api_router.include_router(mixed_fleet_router)
-api_router.include_router(zero_token_contract_router)
-api_router.include_router(cross_surface_bridge_router)
-api_router.include_router(multi_lane_router)
-api_router.include_router(session_fork_router)
-api_router.include_router(token_budget_governance_router)
-api_router.include_router(pipeline_integrity_router)
-api_router.include_router(specialist_summoning_router)
-api_router.include_router(swarm_mesh_router)
-api_router.include_router(workspace_inheritance_router)
-api_router.include_router(replay_dedup_router)
-api_router.include_router(cloud_edge_relay_router)
-api_router.include_router(virtual_room_router)
-api_router.include_router(swarm_offload_router)
-api_router.include_router(visual_timeline_router)
-api_router.include_router(clean_code_pipeline_router)
-api_router.include_router(fusen_router)
-api_router.include_router(vertical_presets_router)
-api_router.include_router(council_router)
-api_router.include_router(kanban_dispatcher_router)
-api_router.include_router(cli_passthrough_router)
-api_router.include_router(dag_orchestrator_router)
-api_router.include_router(kanban_queue_router)
-api_router.include_router(diamond_graph_router)
-api_router.include_router(coauthoring_ledger_router)
-api_router.include_router(socket_mesh_router)
-api_router.include_router(bot_forge_router)
-api_router.include_router(debate_workroom_router)
 
-api_router.include_router(external_agent_bridge_router)
-api_router.include_router(external_bundle_router)
-api_router.include_router(kanban_orchestrator_router)
-api_router.include_router(fleet_router_router)
-api_router.include_router(graph_triage_router)
-api_router.include_router(orthogonal_reviewer_router)
-api_router.include_router(delegation_transcript_router)
-api_router.include_router(agent_assembler_router)
-api_router.include_router(agent_avatar_router)
-api_router.include_router(agent_multiplexer_router)
-api_router.include_router(topology_pruning_router)
-api_router.include_router(memory_hub_router)
 
 # 核心业务
 api_router.include_router(approvals_router)

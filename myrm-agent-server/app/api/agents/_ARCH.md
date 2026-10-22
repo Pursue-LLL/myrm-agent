@@ -9,6 +9,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | AI Agent API 模块 | ✅ |
+| `_optional_routers.py` | 路由 | Agent 可选路由挂载表：自治循环、多 Bot、团队编组等依赖 harness 同名模块，缺失时按功能粒度跳过并告警。 | ✅ |
 | `agent.py` | 核心 | Agent 核心 CRUD、快照/回滚、Avatar 上传、文件服务。创建与更新前，档案里模型会读的文字（`system_prompt`、`description`、建议提示词、命令绑定的指令）经 `reject_if_risky` 过闸，命中返回 400 `risk_held`、不落库；责任单元的 `responsibility_scope` / `acceptance_criteria` 只用于治理展示，不过闸。 | ✅ |
 | `_agent_response.py` | 内部 | AgentProfile → AgentResponse 序列化工具函数（被 agent/portability/templates 共享）。 | ✅ |
 | `agent_extras.py` | 核心 | Agent 辅助端点：Secrets CRUD、使用统计、动作空间 ASCS 评估与 Turn1 技能目录预览（元数据经 `runtime_metadata.skill_to_runtime_metadata` 适配，技能可用性与 Agent runtime 共用 `requirements_availability` 判定）。 | ✅ |

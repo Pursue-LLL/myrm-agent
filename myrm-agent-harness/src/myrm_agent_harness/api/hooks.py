@@ -14,6 +14,10 @@
   and injection contract, memory-extraction, bash-registry, background-job-finish,
   privacy-context（policy/pseudonym-store/pseudonymizer）hook callables, and the LLM API key
   renewal registration（``set_api_key_refresher``）for server integration.
+- Provider-window vocabulary for goal waits and host-side deferral：
+  ``GOAL_WAIT_KIND_KEY`` / ``GOAL_WAIT_KIND_USAGE_LIMIT`` / ``GOAL_WAIT_RESUME_AT_KEY`` /
+  ``PROVIDER_WINDOW_HOLD_MAX_S`` / ``pause_goal_after_missed_wake`` / ``ProviderWindowHint`` /
+  ``deferral_wait_s``。
 
 [POS]
 Public re-export facade. Product code imports hooks here instead of private ``agent._*`` modules.
@@ -21,6 +25,17 @@ Public re-export facade. Product code imports hooks here instead of private ``ag
 
 from __future__ import annotations
 
+from myrm_agent_harness.agent.goals.wait_provider_window import (
+    WAIT_KIND_KEY as GOAL_WAIT_KIND_KEY,
+    WAIT_KIND_USAGE_LIMIT as GOAL_WAIT_KIND_USAGE_LIMIT,
+    WAIT_RESUME_AT_KEY as GOAL_WAIT_RESUME_AT_KEY,
+    pause_goal_after_missed_wake,
+)
+from myrm_agent_harness.toolkits.llms.errors.provider_window import (
+    HOLD_MAX_S as PROVIDER_WINDOW_HOLD_MAX_S,
+    ProviderWindowHint,
+    deferral_wait_s,
+)
 from myrm_agent_harness.agent._internals.memory_extraction import (
     auto_extract_memories,
     create_extraction_llm_func,
@@ -150,6 +165,13 @@ def restore_memory_pseudonymizer(previous: PseudonymizeFn | None) -> None:
 
 
 __all__ = [
+    "GOAL_WAIT_KIND_KEY",
+    "GOAL_WAIT_KIND_USAGE_LIMIT",
+    "GOAL_WAIT_RESUME_AT_KEY",
+    "PROVIDER_WINDOW_HOLD_MAX_S",
+    "ProviderWindowHint",
+    "deferral_wait_s",
+    "pause_goal_after_missed_wake",
     "EVICTED_BASENAME_PATTERN",
     "INPUT_WAIT_IDLE_SECONDS",
     "BackgroundJobFinishHandler",
