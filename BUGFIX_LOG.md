@@ -8198,3 +8198,32 @@ degraded=False；连接测试对可用 provider 返回 `reachable=true`，对失
 
 - 新增回归用例 `myrm-agent-harness/tests/agent/test_mixed_batch_tool_validation_and_guard.py::test_suffix_hallucination_is_repaired_to_the_registered_tool`（覆盖 `a2a_call_tool`、`a2a_call_tool_call`、`read_file_tool`，以及「去掉后缀不是注册名时不得修复」）
 - `myrm-agent-harness/tests/agent/test_mixed_batch_tool_validation_and_guard.py` 9 例通过
+
+## BUG-AGENT-2026-10-22-003: 聊天历史加载失败后永久空白——错误字段从不写入，用户看不到错误也没有重试入口
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-10-22 |
+| 修复日期 | 2026-10-22 |
+| 严重程度 | P1（后端一次短暂抖动 → 侧边栏历史永久空白，直到整页刷新） |
+| 影响范围 | `src/store/useChatStore.ts::loadChatHistory` 与侧边栏历史列表 |
+| 关联 | 同日前端日志出现 4712 条 `ECONNREFUSED`（共享栈被反复启停） |
+
+### 现象
+
+后端短暂不可达（重启 / 端口被别的进程占用 / 代理 ECONNREFUSED）时，侧边栏的聊天历史变成空白，**没有任何错误提示**，也没有重试入口；只有整页刷新才会重新拉取。
+
+### 根因
+
+`loadChatHistory` 的 `catch` 只做两件事：`console.error` + `set({ chatHistoryLoading: false })`。
+`chatHistoryError` 字段**从未被写入**，而侧边栏早已具备「显示错误 + 重试按钮」的 UI（`ChatHistoryList` 里 `chatHistoryError && items.length === 0` 分支），所以那段 UI 永远不可能出现。失败被伪装成「没有历史」。
+
+### 修复
+
+- 成功时清空 `chatHistoryError`；
+- 失败时写入错误信息，让侧边栏显示错误与「重试」按钮（复用既有 UI，不新增组件）。
+
+### 验证
+
+- `bun run vitest run src/store/chat/__tests__/loadMessages.requestMessageId.test.ts` 2 passed
+- `bun run typecheck`：改动文件无新增错误（仓内既有 2 处错误与本改动无关）

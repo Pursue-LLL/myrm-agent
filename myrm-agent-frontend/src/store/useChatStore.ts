@@ -1121,6 +1121,7 @@ const useChatStore = create<ChatState>()(
             chatHistoryItems: mergeChatHistoryItems([], response.items),
             chatHistoryPagination: response.pagination,
             chatHistoryLoading: false,
+            chatHistoryError: null,
           };
           if (!chatHistorySourceFilter) {
             const sources = [...new Set(response.items.map((item) => item.source))].filter(Boolean).sort();
@@ -1131,7 +1132,12 @@ const useChatStore = create<ChatState>()(
           set(updates);
         } catch (error) {
           console.error('加载聊天历史失败:', error);
-          set({ chatHistoryLoading: false });
+          // Record the failure so the sidebar can show the error and offer a retry: otherwise a
+          // transient backend hiccup leaves the history silently empty until a full page reload.
+          set({
+            chatHistoryLoading: false,
+            chatHistoryError: error instanceof Error ? error.message : String(error),
+          });
         }
       },
 
