@@ -60,6 +60,47 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import (
 logger = logging.getLogger(__name__)
 
 
+def _memo_payload(result: Any) -> dict[str, object]:
+    """The replayable payload of a finished stream.
+
+    `finalize_stream` hands back the OpenAI-shaped response, so the answer lives in
+    `choices[0].message`. The final chunk's message is stored exactly as it is, so replaying
+    it needs no conversion: the tool calls are already in the shape the consumer expects,
+    and a conversion at replay time is where a tool call would silently go wrong.
+    """
+    aggregated = getattr(result, "aggregated_response", None) or {}
+    answer: dict[str, Any] = {}
+    choices = aggregated.get("choices") if isinstance(aggregated, dict) else None
+    if choices and isinstance(choices[0], dict):
+        raw_message = choices[0].get("message")
+        if isinstance(raw_message, dict):
+            answer = raw_message
+
+    payload: dict[str, object] = {"content": str(answer.get("content") or "")}
+    final_tool_chunk = getattr(result, "final_tool_chunk", None)
+    if final_tool_chunk is not None:
+        try:
+            payload["message"] = dict(final_tool_chunk.message)
+        except Exception:
+            logger.debug("LLM memo: the final chunk could not be captured.", exc_info=True)
+    return payload
+
+
+def _replay_memo_chunk(payload: dict[str, object]) -> ChatGenerationChunk | None:
+    """Rebuild the chunk of a replayed answer; None when the payload cannot be replayed."""
+    try:
+        message = payload.get("message")
+        content = str(payload.get("content") or "")
+        if isinstance(message, dict):
+            kwargs = {key: value for key, value in message.items() if key != "content"}
+            kwargs["content"] = content or str(message.get("content") or "")
+            return ChatGenerationChunk(message=AIMessageChunk(**kwargs))
+        return ChatGenerationChunk(message=AIMessageChunk(content=content))
+    except Exception:
+        logger.warning("LLM memo: the recorded answer could not be replayed.", exc_info=True)
+        return None
+
+
 class ChatLiteLLMAsyncMixin:
     if TYPE_CHECKING:
         # Attributes and sibling-mixin methods defined on the ChatLiteLLM aggregate
@@ -176,20 +217,43 @@ class ChatLiteLLMAsyncMixin:
                 started = time.perf_counter()
                 log_llm_request(model_name, message_dicts, params)
 
+                # Model-call memo: a repeated call with the same identity reads the recorded
+                # answer back instead of paying for the model again. Inert without a scope.
+                from myrm_agent_harness.runtime.memo.call_scope import (
+                    begin_memo_call,
+                    complete_memo_call,
+                    current_llm_call_scope,
+                    fail_memo_call,
+                    start_memo_call,
+                )
+
+                memo_scope = current_llm_call_scope()
+                memo_attempt = begin_memo_call(memo_scope, model_name, message_dicts, params)
+                memo_replayed = memo_attempt.response is not None
+
                 with tracer.start_as_current_span("llm.call") as span:
                     # OpenInference standard attributes
                     span.set_attribute("llm.model_name", model_name)
                     span.set_attribute("llm.request.attempt", attempt + 1)
 
-                    wire_protocol = getattr(self, "wire_protocol", "chat_completions")
-                    if wire_protocol == "responses":
-                        response = await invoke_responses_async(self.client, message_dicts, params)
-                    else:
-                        call_params = (
-                            apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
+                    if memo_replayed:
+                        response = memo_attempt.response
+                        logger.info(
+                            " LLM memo hit: reusing the recorded answer for %s (no second charge).",
+                            model_name,
                         )
-                        response = await self.client.acreate(messages=message_dicts, **call_params)
-                        response = self._convert_response_to_dict(response)
+                    else:
+                        start_memo_call(memo_scope, memo_attempt, model_name)
+                        wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                        if wire_protocol == "responses":
+                            response = await invoke_responses_async(self.client, message_dicts, params)
+                        else:
+                            call_params = (
+                                apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
+                            )
+                            response = await self.client.acreate(messages=message_dicts, **call_params)
+                            response = self._convert_response_to_dict(response)
+                        complete_memo_call(memo_scope, memo_attempt, model_name, response)
 
                     if usage := response.get("usage"):
                         prompt_tokens = usage.get("prompt_tokens", 0)
@@ -224,16 +288,20 @@ class ChatLiteLLMAsyncMixin:
                         ):
                             span.set_attribute("gen_ai.usage.reasoning_tokens", reasoning_tok)
 
-                log_llm_response(response)
+                if not memo_replayed:
+                    # A replayed answer was already logged and billed when it was first
+                    # produced; counting it again would double-count the usage.
+                    log_llm_response(response)
 
                 result = self._create_chat_result(response, available_tools, tool_schemas)
 
                 duration_ms = (time.perf_counter() - started) * 1000
-                self._record_non_stream_usage(
-                    response,
-                    model_name=model_name,
-                    duration_ms=duration_ms,
-                )
+                if not memo_replayed:
+                    self._record_non_stream_usage(
+                        response,
+                        model_name=model_name,
+                        duration_ms=duration_ms,
+                    )
 
                 # Update metrics: success after retry
                 if attempt > 0:
@@ -253,6 +321,7 @@ class ChatLiteLLMAsyncMixin:
                 else:
                     logger.error(f" Empty choices after {max_attempts} attempts.")
             except Exception as e:
+                fail_memo_call(memo_scope, memo_attempt, model_name, str(e))
                 from myrm_agent_harness.toolkits.llms.adapters.gateway_normalizer import (
                     is_gateway_param_rejection,
                     sanitize_gateway_params_on_400,
@@ -364,6 +433,31 @@ class ChatLiteLLMAsyncMixin:
         for attempt in range(max_attempts):
             agg: StreamAggregator | None = None
             try:
+                # Model-call memo: a repeated call with the same identity replays the
+                # recorded answer instead of paying for the model again. Inert without a scope.
+                from myrm_agent_harness.runtime.memo.call_scope import (
+                    begin_memo_call,
+                    complete_memo_call,
+                    current_llm_call_scope,
+                    fail_memo_call,
+                    start_memo_call,
+                )
+
+                memo_scope = current_llm_call_scope()
+                memo_attempt = begin_memo_call(memo_scope, model_name, message_dicts, params)
+                if memo_attempt.response is not None:
+                    replayed = _replay_memo_chunk(memo_attempt.response)
+                    if replayed is not None:
+                        logger.info(
+                            " LLM memo hit: replaying the recorded answer for %s (no second charge).",
+                            model_name,
+                        )
+                        yield replayed
+                        # The sentinel keeps LangGraph's messages stream dispatching, exactly
+                        # as the normal path does when the stream carries no final tool chunk.
+                        yield ChatGenerationChunk(message=AIMessageChunk(content=""))
+                        return
+                start_memo_call(memo_scope, memo_attempt, model_name)
                 with tracer.start_as_current_span("llm.stream_connect") as llm_span:
                     llm_span.set_attribute("llm.model_name", model_name)
                     wire_protocol = getattr(self, "wire_protocol", "chat_completions")
@@ -469,6 +563,7 @@ class ChatLiteLLMAsyncMixin:
                     record_usage_fn=self._record_usage,
                     available_tools=available_tools,
                 )
+                complete_memo_call(memo_scope, memo_attempt, model_name, _memo_payload(result))
                 if result.final_tool_chunk:
                     if run_manager:
                         await run_manager.on_llm_new_token("", chunk=result.final_tool_chunk)

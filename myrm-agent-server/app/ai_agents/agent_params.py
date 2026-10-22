@@ -46,10 +46,16 @@ class BaseAgentParams(BaseModel):
     ID 说明：
     - chat_id: 聊天会话标识，用于工作空间隔离（同一聊天共享工作空间）
     - message_id: 消息标识，用于流式事件关联
+    - turn_identity: 回合身份（本轮用户首条提问的消息 ID）。崩溃续跑时必须与原回合一致，
+      模型调用 memo 据此判定「这是同一次调用」，从而不再为同一问题付两次模型费
+    - memo_ledger_path: 模型调用 memo 账本文件位置。由 agent 工厂在事件日志四道门通过后
+      写入（与事件日志同目录、同隐私判定）；未设置即不启用 memo
     """
 
     message_id: str | None = None
     chat_id: str | None = None
+    turn_identity: str | None = None
+    memo_ledger_path: str | None = None
     query: str | list[dict[str, object]] | object
     chat_history: ChatHistoryReq = []
     model_cfg: ModelConfig

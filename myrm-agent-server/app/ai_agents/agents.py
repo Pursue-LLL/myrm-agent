@@ -86,6 +86,9 @@ class AgentFactory:
                 session_id=effective_session_id,
                 max_jsonl_line_bytes=line_max,
             )
+            # The model-call memo stores the model's own answers, so it lives behind the very
+            # same four gates as the event log and disappears with it.
+            params.memo_ledger_path = str(log_dir / "memo.sqlite3")
 
         if params.tool_gateway_config:
             from myrm_agent_harness.core.config.gateway import ToolGatewayConfig

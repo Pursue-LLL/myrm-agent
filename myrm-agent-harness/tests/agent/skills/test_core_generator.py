@@ -528,6 +528,11 @@ class TestResolveDescriptionPriority:
         desc = resolve_description("user desc", "instr", [], "srv")
         assert desc == "user desc"
 
+    def test_whitespace_user_description_falls_back(self, generator: MCPSkillGenerator) -> None:
+        # An empty L1 description hides the skill; whitespace must mean "absent".
+        assert resolve_description("   ", "Use when tickets", [], "srv") == "Use when tickets"
+        assert resolve_description("\n\t ", "Use when tickets", [], "srv") == "Use when tickets"
+
     def test_no_trigger_sentence_is_appended(self, generator: MCPSkillGenerator) -> None:
         # The catalog routing rules own skill selection; per-server imperatives contradicted them.
         assert resolve_description("Use when handling tickets", "instr", [], "srv") == ("Use when handling tickets")
@@ -604,6 +609,16 @@ class TestTextProcessing:
 
     def test_truncate_at_sentence_boundary(self) -> None:
         assert truncate_to_sentence("Hello world. Next", max_len=20) == "Hello world."
+
+    def test_truncate_keeps_abbreviation_inside_sentence(self) -> None:
+        text = "For example, e.g. this explains the tool."
+        assert truncate_to_sentence(text, max_len=200) == text
+
+    @pytest.mark.parametrize("abbreviation", ["e.g.", "i.e.", "etc.", "vs.", "Mr.", "Dr."])
+    def test_truncate_skips_known_abbreviation(self, abbreviation: str) -> None:
+        assert truncate_to_sentence(f"Use {abbreviation} Carefully. Then stop.", max_len=200) == (
+            f"Use {abbreviation} Carefully."
+        )
 
     def test_truncate_long_text(self) -> None:
         result = truncate_to_sentence("x" * 100, max_len=50)

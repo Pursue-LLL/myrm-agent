@@ -29,6 +29,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_builtin_agent_i18n_parity.py` | 前端 `builtin-agent-i18n-data.ts` 的 key 集合须与 server `_BUILTIN_AGENTS` id 严格同构 |
 | `test_channel_catalog_i18n_boundary.py` | server 渠道 JSON catalog 边界：键集 ⊆ 白名单、全语种同构、禁止 fork harness 诊断目录（SSOT） |
 | `test_app_has_no_test_env_reads.py` | `app/**` 禁止读测试开关（`MYRM_E2E_*` / `MYRM_TEST_*` / `E2E_*`，豁免 pytest 自设的 `PYTEST_CURRENT_TEST`），也禁止读业务凭据类 env（`EMBEDDING_*` / `RERANKER_*` / `BASIC_*` / `LITE_*` / `TAVILY_*`）：前者让测试脚手架能改变生产语义，后者让「WebUI 配置」与「进程 env」两套来源并存（曾导致 FAQ 拦截在生产永远返回 None）。业务能力差异用 `DeploymentCapabilities` 语义位表达，凭据一律经 WebUI 配置注入 |
+| `test_env_templates_have_no_dead_keys.py` | 三个已入库 env 模板（`.env.example` / `.env.test.example` / `.env.sandbox.example`）里的每个键必须在代码里有读者；无读者的键等于让维护者改一个永远不会生效的值（`BASELINE_SYNC_INTERVAL` 与 `RERANKER_*` 就是这样存活的）。扫描范围覆盖 server app/tests/scripts、harness src、仓库 scripts 与 Dockerfile/compose；`SettingsConfigDict(env_prefix=...)` 拼出的键与 compose 变量按前缀放行，不需要逐键白名单。自带路径存在性守卫（路径算错时直接失败而不是空扫通过）与反向用例（注入死键必须报红）|
 | `test_catalog_category_locales.py` | 集成目录 API 返回的每个分类，六种语言的 `settings.integrationCatalog.categories` 都有显示名（目录页按 `categories.${id}` 动态取词，缺失会静默露出内部分类 id） |
 | `test_storage_category_locales.py` | 存储占用台账能上报的每个类别（harness `StorageCategory`），六种语言的 `settings.storageGovernance.categories` 都有名称，且前端 `StorageCategoryKey` 与该枚举同构（治理卡按 `categories.${category}` 动态取词，缺失会静默露出原始消息键） |
 | `../fixtures/frontend_sse_event_types.json` | 由 frontend `scripts/export-known-sse-event-types.ts` 生成 |

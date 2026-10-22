@@ -27,7 +27,7 @@ Also supports voice STT/TTS via voice_handler module.
 - channels.routing.router_models::_RouterExecutionContext etc. (POS: internal data classes)
 - channels.routing.router_stream::RouterStreamMixin (POS: execute_stream consumption and placeholder throttled editing)
 - channels.routing.router_stream_throttle::should_skip_throttled_placeholder_edit (POS: placeholder edit interval pure function)
-- channels.routing.router_keys::routing_session_key (POS: channel+peer mapping key format)
+- channels.routing.router_keys::routing_state_key (POS: channel+peer+topic state-map key format)
 - channels.protocols.agent::AgentExecutor (POS: agent execution protocol)
 - channels.protocols.compact::CompactHandler (POS: /compact business-layer handling protocol)
 - channels.protocols.goal_command::GoalCommandHandler (POS: business-layer handler protocol for /goal slash commands)
@@ -191,7 +191,7 @@ from app.channels.routing.router_execution import (
     RouterExecutionMixin,
 )
 from app.channels.routing.router_keys import (
-    routing_session_key,
+    routing_state_key,
 )
 from app.channels.routing.router_models import (
     ReactionPolicy,
@@ -684,7 +684,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         # Auto busy_input_mode dispatch (steer / redirect) when an active task is running
         chat_id = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id)
+        session_key = routing_state_key(msg.channel, chat_id, msg.thread_id)
         active = self._active_tasks.get(session_key)
         clean_content = msg.content.strip() if msg.content and isinstance(msg.content, str) else ""
         if active and active.steering_token and clean_content and not clean_content.startswith("/"):
@@ -1180,11 +1180,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             msg = dataclasses.replace(msg, channel_capabilities=channel_instance.capabilities)
 
         from app.channels.routing.router_keys import (
-            routing_session_key,
+            routing_state_key,
         )
 
         chat_id_for_key = msg.chat_id or msg.sender_id
-        session_key = routing_session_key(msg.channel, chat_id_for_key)
+        session_key = routing_state_key(msg.channel, chat_id_for_key, msg.thread_id)
         yolo_state = self._session_yolo.get(session_key)
         if yolo_state:
             enabled_at, timeout = yolo_state

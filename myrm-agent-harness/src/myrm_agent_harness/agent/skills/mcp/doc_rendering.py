@@ -97,11 +97,29 @@ def text_field(schema: JsonDict, key: str, default: str) -> str:
     return value if isinstance(value, str) else default
 
 
+_SENTENCE_END = re.compile(r"[。\n]|[.!?](?=\s+[A-Z\"'(\[])")
+_ABBREVIATIONS = ("e.g.", "i.e.", "etc.", "vs.", "mr.", "mrs.", "ms.", "dr.", "st.", "no.")
+
+
 def truncate_to_sentence(text: str, max_len: int = 150) -> str:
-    """Truncate text at the first sentence boundary, or at max_len."""
-    match = re.search(r"[。.\n]", text)
-    if match and match.end() <= max_len:
-        return text[: match.end()].strip()
+    """Truncate at the first real sentence boundary, ignoring common abbreviations.
+
+    A Latin ``.`` only ends a sentence when whitespace and a capital follow, which
+    keeps ``e.g.`` / ``i.e.`` / ``Dr.`` from cutting a description mid-thought.
+    Single-letter initials (``J. Smith``) are skipped too: they satisfy the
+    whitespace+capital test but are not sentence ends.
+    """
+    for match in _SENTENCE_END.finditer(text):
+        if match.end() > max_len:
+            break
+        prefix = text[: match.end()]
+        if prefix.lower().endswith(_ABBREVIATIONS):
+            continue
+        if match.group() in ".!?":
+            before = text[: match.start()]
+            if before and before[-1].isalpha() and (len(before) < 2 or not before[-2].isalnum()):
+                continue
+        return prefix.strip()
     if len(text) > max_len:
         return text[:max_len].strip() + "..."
     return text
@@ -111,6 +129,7 @@ def clean_markdown(text: str) -> str:
     """Strip markdown formatting from text."""
     text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
     text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
     text = re.sub(r"#+\s*", "", text)
     return re.sub(r"\n+", " ", text).strip()
 

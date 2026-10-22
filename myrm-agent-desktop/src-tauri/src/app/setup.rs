@@ -16,6 +16,8 @@ use crate::runtime::{
 use crate::{commands, ipc_security, runtime, utils};
 
 pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // 先回收上一次运行遗留的孤儿子进程（Next / Sidecar），否则端口被占导致启动失败。
+    crate::runtime::child_reaper::reap_orphaned_children(&app.handle());
     println!("🚀 Initializing MyrmAgent...");
 
     match utils::updater_safety::check_updater_pubkey_safety() {
@@ -137,6 +139,10 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let backend_app = app_handle.clone();
     let backend_config_clone = backend_config.clone();
     let backend_system_config = system_config_clone.clone();
+    // 只有「我们自己的后端」起来才允许导航到 WebUI；否则会连上占用同端口的其它服务，
+    // 渲染出与当前前端不匹配的残缺界面。
+    let backend_owned = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let backend_owned_for_frontend = backend_owned.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_millis(500)).await;
         if runtime::is_remote_follow_deferred(&backend_app) {
@@ -150,6 +156,7 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         {
             Ok(msg) => {
                 println!("✅ {}", msg);
+                backend_owned.store(true, std::sync::atomic::Ordering::SeqCst);
                 runtime::spawn_backend_monitors(&backend_app, backend_port);
             }
             Err(e) => {
@@ -178,6 +185,27 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                 match target.parse::<tauri::Url>() {
                     Ok(url) => {
                         if let Some(window) = app_handle.get_webview_window("main") {
+                            let mut backend_ready = false;
+                            for _ in 0..300 {
+                                if backend_owned_for_frontend
+                                    .load(std::sync::atomic::Ordering::SeqCst)
+                                {
+                                    backend_ready = true;
+                                    break;
+                                }
+                                if runtime::is_remote_follow_deferred(&app_handle) {
+                                    backend_ready = true;
+                                    break;
+                                }
+                                tokio::time::sleep(Duration::from_millis(200)).await;
+                            }
+                            if !backend_ready {
+                                eprintln!(
+                                    "❌ Skip WebUI navigation: our backend is not ready; \
+                                     another service may own the port."
+                                );
+                                return;
+                            }
                             if let Err(e) = window.navigate(url) {
                                 eprintln!("❌ Failed to navigate main window: {}", e);
                             }

@@ -54,6 +54,45 @@ class TestPythonIdentifiers:
         mapping = build_tool_name_map(["mcp__srv__foo__bar", "mcp__srv__bar"])
         assert sorted(mapping.values()) == ["bar", "foo__bar"]
 
+    def test_preserves_unicode_letters(self) -> None:
+        assert to_python_identifier("中文工具") == "中文工具"
+        assert to_python_identifier("中文-工具") == "中文_工具"
+        assert to_python_identifier("中文 工具") == "中文_工具"
+        assert "中文工具".isidentifier()
+
+    def test_unicode_names_compile_and_resolve(self) -> None:
+        tools = ["mcp__srv__中文工具", "mcp__srv__中文-工具", "mcp__srv__中文工具2"]
+        mapping = build_tool_name_map(tools)
+        assert sorted(mapping.values()) == ["中文_工具", "中文工具", "中文工具2"]
+        for canonical, python_name in mapping.items():
+            compile(f"from skills.x import {python_name}", "<t>", "exec")
+            assert resolve_mcp_tool_name(python_name, tools) == canonical
+
+    def test_python_keywords_are_prefixed(self) -> None:
+        keywords = ("class", "def", "import", "from", "lambda", "None", "True", "False", "async", "await")
+        tools = [f"mcp__srv__{name}" for name in keywords]
+        mapping = build_tool_name_map(tools)
+        for canonical, python_name in mapping.items():
+            assert python_name.startswith("_"), (canonical, python_name)
+            compile(f"from skills.x import {python_name}", "<t>", "exec")
+            assert resolve_mcp_tool_name(python_name, tools) == canonical
+
+    def test_generated_names_do_not_shadow_canonical_names(self) -> None:
+        # The model imports `foo_bar_2` for `foo bar`; exact `foo_bar` must stay
+        # the unrelated canonical tool, not the generated alias.
+        tools = ["foo.bar", "foo_bar", "foo bar"]
+        mapping = build_tool_name_map(tools)
+        assert mapping["foo_bar"] == "foo_bar"
+        for canonical, python_name in mapping.items():
+            compile(f"from skills.x import {python_name}", "<t>", "exec")
+            assert resolve_mcp_tool_name(python_name, tools) == canonical
+
+        for tools in (["None", "_None"], ["1foo", "_1foo"]):
+            mapping = build_tool_name_map(tools)
+            for canonical, python_name in mapping.items():
+                compile(f"from skills.x import {python_name}", "<t>", "exec")
+                assert resolve_mcp_tool_name(python_name, tools) == canonical
+
 
 class TestResolveMcpToolName:
     def test_exact_match(self) -> None:
@@ -122,7 +161,14 @@ class TestRenderedL2Names:
         from myrm_agent_harness.backends.skills.types import SkillMetadata
         from myrm_agent_harness.backends.skills.types.types_requires import MCPSkillData
 
-        tools = ["mcp__srv__foo.bar", "mcp__srv__foo-bar", "mcp__srv__1foo", "mcp__srv__foo__bar"]
+        tools = [
+            "mcp__srv__foo.bar",
+            "mcp__srv__foo-bar",
+            "mcp__srv__1foo",
+            "mcp__srv__foo__bar",
+            "mcp__srv__class",
+            "mcp__srv__中文工具",
+        ]
         schemas = {
             tool: {"description": "Query.", "inputSchema": {"properties": {"a": {"type": "string"}}}} for tool in tools
         }
@@ -135,4 +181,5 @@ class TestRenderedL2Names:
         rendered = [line[2 : line.index("(")] for line in content.splitlines() if line.startswith("- ") and "(" in line]
         assert len(rendered) == len(tools)
         for func_name in rendered:
+            compile(f"from skills.x import {func_name}", "<t>", "exec")
             assert resolve_mcp_tool_name(func_name, tools) is not None, func_name

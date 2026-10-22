@@ -36,6 +36,20 @@ def build_channel_budget_key(msg: InboundMessage) -> str:
     return f"{msg.channel}:{peer_kind}:{peer_id}".lower()
 
 
+def build_channel_session_key(
+    msg: InboundMessage,
+    *,
+    agent_id: str | None = None,
+) -> str:
+    """Return the base ``channel_session_key`` for a message's conversation.
+
+    Public counterpart of ``_build_session_key`` for callers that need to look up the Chat row
+    rather than resolve a reset epoch: ``Chat.channel_session_key`` stores this exact string, so
+    a lookup built from only channel + peer never matches a topic- or agent-scoped conversation.
+    """
+    return _build_session_key(msg, agent_id=agent_id)
+
+
 def _build_session_key(
     msg: InboundMessage,
     *,

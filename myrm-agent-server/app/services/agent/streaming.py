@@ -312,6 +312,35 @@ async def ai_agent_service_stream(
 
     Gateway exceptions (AgentQueueTimeout, AgentExecutionTimeout)
     propagate to the caller for HTTP-level handling.
+
+    The stream runs inside the turn's model-call memo scope, so an interrupted turn that is
+    replayed does not pay for the model twice. The scope is absent unless the caller set a
+    turn identity and a ledger path, and then the behaviour is unchanged.
+    """
+    from app.services.agent.memo_scope import memo_scoped_stream
+
+    async for chunk in memo_scoped_stream(
+        _ai_agent_service_stream_inner(
+            params,
+            cancel_token=cancel_token,
+            steering_token=steering_token,
+            extra_context=extra_context,
+        ),
+        params,
+    ):
+        yield chunk
+
+
+async def _ai_agent_service_stream_inner(
+    params: GeneralAgentParams,
+    cancel_token: "CancellationToken | None" = None,
+    steering_token: "SteeringToken | None" = None,
+    extra_context: dict[str, object] | None = None,
+) -> AsyncIterable[dict[str, object]]:
+    """Execute General Agent with gateway lifecycle management.
+
+    Gateway exceptions (AgentQueueTimeout, AgentExecutionTimeout)
+    propagate to the caller for HTTP-level handling.
     """
     from app.services.budget.enforcer import (
         reset_session_budget,

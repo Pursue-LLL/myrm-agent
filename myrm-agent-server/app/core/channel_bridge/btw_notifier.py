@@ -107,15 +107,18 @@ class BtwTaskNotifier:
         components: tuple[tuple[object, ...], ...] = ()
         if task_id:
             try:
-                from app.channels.routing.router_keys import routing_session_key
                 from app.remote_access.mobile_deep_link import (
                     resolve_web_handoff_components,
                 )
                 from app.services.chat.chat_service import ChatService
 
-                session_key = routing_session_key(channel_name, chat_id)
-                chat = await ChatService.get_channel_chat_by_key(session_key)
-                if chat:
+                # ``source_chat_id`` is the originating Chat's UUID; the BTW branch instead
+                # carries the IM peer in ``chat_id``, so only the former is a row id.
+                chat = None
+                source_chat_id = str(data.get("source_chat_id", "") or "").strip()
+                if source_chat_id:
+                    chat = await ChatService.get_chat_by_id(source_chat_id)
+                if chat is not None:
                     components = await resolve_web_handoff_components(
                         chat.id,
                         locale=locale,

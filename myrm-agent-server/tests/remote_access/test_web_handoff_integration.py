@@ -14,6 +14,7 @@ from app.channels.routing.router_execution import RouterExecutionMixin
 from app.channels.types import InboundMessage, OutboundMessage
 from app.remote_access.tunnel_manager import TunnelManager, TunnelState
 from app.services.chat.chat_service import ChatService
+from app.services.event.app_event_bus import ServerEventBus
 
 
 @pytest.fixture(autouse=True)
@@ -65,6 +66,71 @@ async def test_attach_web_handoff_resolves_db_uuid() -> None:
     assert btn.action_id == "web:continue_chat"
     assert db_uuid in btn.url, f"URL must contain DB UUID {db_uuid}, got {btn.url}"
     assert "integration-test-peer-42" not in btn.url, "URL must NOT contain IM peer_id"
+
+
+async def test_attach_web_handoff_resolves_a_topic_scoped_chat() -> None:
+    """A forum-topic conversation stores channel + peer + topic + agent; the lookup must match it.
+
+    The other cases here use a bare ``channel:peer`` key, which the stored key also starts with —
+    that is why they passed while the lookup dropped every topic-scoped chat.
+    """
+    from app.channels.types.session import SessionKey
+
+    session_key = SessionKey(
+        channel="telegram",
+        peer_kind="group",
+        peer_id="-1007770001",
+        thread_id="100",
+        agent_id="agent-uuid-1",
+    ).to_str()
+    chat = await ChatService.get_or_create_channel_chat(session_key, "telegram")
+
+    result = OutboundMessage(
+        channel="telegram",
+        recipient_id="-1007770001",
+        content="Hello from the topic agent",
+        user_id="local-user",
+    )
+    inbound = InboundMessage(
+        channel="telegram",
+        sender_id="user-1",
+        content="hi",
+        chat_id="-1007770001",
+        is_group=True,
+        thread_id="100",
+    )
+
+    patched = await RouterExecutionMixin._attach_web_handoff(result, "-1007770001", inbound)
+
+    assert patched.components, "a topic-scoped chat must still get the handoff button"
+    assert chat.id in patched.components[-1][0].url
+
+
+async def test_attach_web_handoff_ignores_a_longer_peer_with_the_same_prefix() -> None:
+    """``-1008881`` must not resolve the conversation of ``-1008880001``."""
+    from app.channels.types.session import SessionKey
+
+    other_key = SessionKey(channel="telegram", peer_kind="group", peer_id="-1008880001", thread_id="100").to_str()
+    await ChatService.get_or_create_channel_chat(other_key, "telegram")
+
+    result = OutboundMessage(
+        channel="telegram",
+        recipient_id="-1008881",
+        content="unrelated turn",
+        user_id="local-user",
+    )
+    inbound = InboundMessage(
+        channel="telegram",
+        sender_id="user-1",
+        content="hi",
+        chat_id="-1008881",
+        is_group=True,
+        thread_id="100",
+    )
+
+    patched = await RouterExecutionMixin._attach_web_handoff(result, "-1008881", inbound)
+
+    assert not patched.components, "a different group must not borrow another chat's handoff"
 
 
 async def test_attach_web_handoff_preserves_existing_components() -> None:
@@ -192,23 +258,72 @@ async def test_web_channel_skips_handoff() -> None:
     assert not patched.components
 
 
-async def test_btw_notifier_handoff_resolves_db_uuid() -> None:
-    """Verify btw_notifier's handoff logic resolves DB UUID the same way."""
-    from app.channels.routing.router_keys import routing_session_key
-    from app.remote_access.mobile_deep_link import resolve_web_handoff_components
+async def test_btw_notifier_delivers_handoff_for_a_source_chat(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``_deliver`` attaches the handoff button for the task's originating Chat UUID."""
+    from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
     session_key = "telegram:btw-notify-peer-7"
     chat = await ChatService.get_or_create_channel_chat(session_key, "telegram")
 
-    looked_up = await ChatService.get_channel_chat_by_key(routing_session_key("telegram", "btw-notify-peer-7"))
-    assert looked_up is not None
-    assert looked_up.id == chat.id
+    sent: list[OutboundMessage] = []
 
-    components = await resolve_web_handoff_components(chat.id, locale="en")
-    assert len(components) == 1
-    btn = components[0][0]
+    async def _capture(msg: OutboundMessage) -> None:
+        sent.append(msg)
+
+    monkeypatch.setattr(
+        "app.core.channel_bridge.channel_gateway.bus.send_now",
+        _capture,
+    )
+
+    notifier = BtwTaskNotifier(ServerEventBus())
+    await notifier._deliver(
+        {
+            "channel": "telegram",
+            "chat_id": "btw-notify-peer-7",
+            "source_chat_id": chat.id,
+            "task_id": "task-1",
+            "status": "completed",
+            "title": "Background task",
+            "result": "done",
+            "locale": "en",
+        }
+    )
+
+    assert sent, "the notification must still be delivered"
+    components = sent[-1].components or ()
+    assert components, "the originating chat must get the handoff button"
+    btn = components[-1][0]
     assert chat.id in btn.url
     assert "btw-notify-peer-7" not in btn.url
+
+
+async def test_btw_notifier_btw_branch_skips_handoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The BTW branch carries an IM peer in ``chat_id``, so there is no Chat row to link to."""
+    from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
+
+    sent: list[OutboundMessage] = []
+
+    async def _capture(msg: OutboundMessage) -> None:
+        sent.append(msg)
+
+    monkeypatch.setattr("app.core.channel_bridge.channel_gateway.bus.send_now", _capture)
+
+    notifier = BtwTaskNotifier(ServerEventBus())
+    await notifier._deliver(
+        {
+            "channel": "telegram",
+            "chat_id": "im-peer-not-a-uuid",
+            "background_source": "btw",
+            "task_id": "task-2",
+            "status": "completed",
+            "title": "Background task",
+            "result": "done",
+            "locale": "en",
+        }
+    )
+
+    assert sent, "the notification must still be delivered"
+    assert not (sent[-1].components or ()), "an IM peer must not be resolved as a Chat UUID"
 
 
 async def test_btw_notifier_no_task_id_skips_handoff() -> None:

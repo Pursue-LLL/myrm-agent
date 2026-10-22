@@ -30,10 +30,12 @@ def resolve_description(
 
     Priority: user_description > instructions > auto-generated from tools.
     """
-    if user_description:
+    # Whitespace-only descriptions are "absent", not empty output: returning "" would
+    # erase the L1 capability line and make the skill undiscoverable.
+    if user_description and user_description.strip():
         return user_description.strip()
 
-    if instructions:
+    if instructions and instructions.strip():
         return truncate_to_sentence(clean_markdown(instructions), max_len=200)
 
     # The catalog's routing_rules already say when to select a skill; repeating an
@@ -46,9 +48,9 @@ def build_description_from_tools(tools: list[BaseTool], server_name: str) -> str
     functions: list[str] = []
     for tool in tools:
         desc = getattr(tool, "description", "")
-        if not desc:
+        if not desc or not desc.strip():
             continue
-        short = truncate_to_sentence(desc, max_len=80)
+        short = truncate_to_sentence(clean_markdown(desc), max_len=80)
         if short:
             functions.append(short.rstrip("。."))
 

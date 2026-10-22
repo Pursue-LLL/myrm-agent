@@ -5,7 +5,7 @@ often emitted by open-weights models or proxy gateways without corrupting downst
 dispatch pipelines.
 
 [OUTPUT]
-- ToolNameFuzzyRepairer: Performs exact, canonical, alias, and fuzzy distance name repair.
+- ToolNameFuzzyRepairer: Performs exact, canonical, alias, suffix-strip and fuzzy distance name repair.
 - ToolCallIdUniquifier: Ensures all tool-call IDs in a batch are session-globally unique.
 
 [INPUT]
@@ -25,6 +25,15 @@ from __future__ import annotations
 import difflib
 
 from myrm_agent_harness.agent.tool_validation.validation_types import ToolCallEnvelope
+
+# Suffixes a model tends to append to a real tool name when it guesses the implementation naming
+# instead of the registered one. Ordered longest-first so "_tool_call" wins over "_call"/"_tool".
+_HALLUCINATED_NAME_SUFFIXES: tuple[str, ...] = (
+    "_tool_call",
+    "_call_tool",
+    "_function",
+    "_tool",
+)
 
 
 class ToolNameFuzzyRepairer:
@@ -65,7 +74,17 @@ class ToolNameFuzzyRepairer:
         if raw_norm in norm_to_valid:
             return norm_to_valid[raw_norm]
 
-        # 4. Fuzzy SequenceMatcher comparison
+        # 4. Suffix strip: the model invents an implementation-ish suffix for a real tool
+        # ("a2a_call_tool" for "a2a_call"). The extra word dilutes the fuzzy ratio below the
+        # threshold (0.76 vs 0.82 for that pair), so the exact suffix rule runs first: it can only
+        # match a registered tool name, so it never repairs a call to the wrong tool.
+        for suffix in _HALLUCINATED_NAME_SUFFIXES:
+            if raw_name.endswith(suffix):
+                candidate = raw_name[: -len(suffix)]
+                if candidate in valid_names:
+                    return candidate
+
+        # 5. Fuzzy SequenceMatcher comparison
         best_candidate: str | None = None
         best_ratio: float = 0.0
 

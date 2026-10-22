@@ -150,15 +150,17 @@ describe('ModelPickerPopover preflight warning', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockProviderState();
+    // The lite model name follows the canonical rule (server: to_litellm_model prefers
+    // provider_type): an OpenAI-compatible custom provider is routed through "openai/".
     mocks.fetchModelCapabilitiesBatch.mockResolvedValue({
-      'p1/model-a': caps,
+      'openai/model-a': caps,
     });
   });
 
   it('shows compress warning badge when preflight predicts compression', async () => {
     mocks.fetchModelSwitchPreflight.mockResolvedValue({
-      'p1/model-a': {
-        model: 'p1/model-a',
+      'openai/model-a': {
+        model: 'openai/model-a',
         found: true,
         new_window: 16000,
         compress_threshold: 8266,
@@ -215,7 +217,7 @@ describe('ModelPickerPopover preflight warning', () => {
     mocks.fetchModelSwitchPreflight.mockResolvedValue({
       results: [
         {
-          model: 'p1/model-a',
+          model: 'openai/model-a',
           found: true,
           new_window: 16000,
           compress_threshold: 8266,
@@ -255,7 +257,7 @@ describe('ModelPickerPopover preflight warning', () => {
 
     expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledWith(
       9000,
-      expect.arrayContaining([expect.objectContaining({ model: 'p1/model-a', max_input_tokens: 16000 })]),
+      expect.arrayContaining([expect.objectContaining({ model: 'openai/model-a', max_input_tokens: 16000 })]),
       0.6,
       null,
       null,

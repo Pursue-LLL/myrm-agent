@@ -21,6 +21,7 @@ Detailed design: [CONVERSATION_FORK_SYSTEM.md](CONVERSATION_FORK_SYSTEM.md)
 | --- | --- | --- |
 | `context/` | Context lifecycle — cleanup, offload, archive, session | [context/_ARCH.md](context/_ARCH.md) |
 | `checkpointing/` | Checkpointer factory | [checkpointing/_ARCH.md](checkpointing/_ARCH.md) |
+| `memo/` | Model-call memo ledger — one model call, one identity, one recorded answer, so a replayed turn is not paid for twice | [memo/_ARCH.md](memo/_ARCH.md) |
 | `events/` | Runtime event bus | [events/_ARCH.md](events/_ARCH.md) |
 | `cognitive_clock/` | Cooperative pause signals | [cognitive_clock/_ARCH.md](cognitive_clock/_ARCH.md) |
 | `maintenance/` | Global adaptive maintenance scheduling | [maintenance/_ARCH.md](maintenance/_ARCH.md) |

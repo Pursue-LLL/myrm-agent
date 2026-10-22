@@ -1,17 +1,19 @@
 # frontend-shell 模块架构
 
 [INPUT]
-- Tauri IPC webui_port、frontend-start-failed、backend-start-failed 事件
+- Tauri IPC frontend-start-failed、backend-start-failed 事件
 
 [OUTPUT]
-- Release WebView 占位页 → 轮询 Next standalone 就绪后跳转
+- Release 启动面板：只显示启动/失败状态；导航由 Rust 在自己拉起的 Next 就绪后统一触发
 
 [POS]
 tauri.conf.json#build.frontendDist 静态单文件；Dev 模式不加载。
 
 ## 架构概述
 
-Release 模式 WebView 占位页：`tauri.conf.json#build.frontendDist` 指向本目录。Dev 模式直连 `devUrl`（`:3000`），不加载此页。
+Release 模式启动面板：`tauri.conf.json#build.frontendDist` 指向本目录。本页**不做端口轮询、也不自行跳转**：
+由 Rust 在确认自己拉起的 Next standalone 就绪后统一 `navigate`，避免页面抢先跳到占用同一端口的其它服务，
+渲染出残缺界面。Dev 模式直连 `devUrl`（`:3000`），不加载此页。
 
 父模块：[../../_ARCH.md](../../_ARCH.md)
 
