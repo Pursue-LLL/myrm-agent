@@ -129,6 +129,7 @@ def clean_markdown(text: str) -> str:
     """Strip markdown formatting from text."""
     text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
     text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
     text = re.sub(r"#+\s*", "", text)
     return re.sub(r"\n+", " ", text).strip()
 

@@ -189,6 +189,16 @@ class TestDescriptionResolution:
         assert "My Server" in desc
         assert "3 tools available" in desc
 
+    def test_blank_tool_descriptions_are_skipped(self) -> None:
+        tools = [self._tool("a", "   "), self._tool("b", "Real tool")]
+        assert build_description_from_tools(tools, "srv") == "MCP srv: Real tool"
+
+    def test_markdown_tool_descriptions_are_cleaned(self) -> None:
+        tools = [self._tool("a", "**Get tickets**"), self._tool("b", "`List stations`")]
+        desc = build_description_from_tools(tools, "srv")
+        assert "**" not in desc and "Get tickets" in desc
+        assert "`" not in desc and "List stations" in desc
+
     def test_blank_user_description_falls_back_to_instructions(self) -> None:
         assert resolve_description("   ", "Use when tickets", [], "srv") == "Use when tickets"
 

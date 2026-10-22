@@ -48,9 +48,9 @@ def build_description_from_tools(tools: list[BaseTool], server_name: str) -> str
     functions: list[str] = []
     for tool in tools:
         desc = getattr(tool, "description", "")
-        if not desc:
+        if not desc or not desc.strip():
             continue
-        short = truncate_to_sentence(desc, max_len=80)
+        short = truncate_to_sentence(clean_markdown(desc), max_len=80)
         if short:
             functions.append(short.rstrip("。."))
 
