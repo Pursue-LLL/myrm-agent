@@ -7065,7 +7065,7 @@ if route.unavailable:
 | 严重程度 | P2（无障碍契约系统性失效；前庭敏感用户持续不适，低端机/触屏持续重绘耗电） |
 | 影响范围 | `myrm-agent-frontend/src/app/globals.css`（新增通用选择器兜底）、`src/app/__tests__/reduced-motion-safety-net.test.ts`、`src/components/layout/PageLayout.tsx`（framer 根配置）、`src/components/layout/__tests__/PageLayout.test.tsx`、`src/lib/widget-theme-bridge.ts`（widget iframe 注入样式）、`src/lib/__tests__/widget-theme-bridge.test.ts` |
 | 出现次数 | 1（`BUG-AGENT-2026-10-17-019` 的姊妹缺陷：019 修的是「视频背景不跟随系统偏好」，本条是「CSS 动画与 framer 过渡没有全局跟随」） |
-| 关联 | `BUG-AGENT-2026-10-17-019`（同一「系统减少动态效果未被尊重」主题的另一条路径）；`temp-docs/roadmap/topic_09 #407` |
+| 关联 | `BUG-AGENT-2026-10-17-019`（同一「系统减少动态效果未被尊重」主题的另一条路径）；topic_09 路线图 #407 |
 
 ### 现象
 
@@ -7222,7 +7222,7 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 | 严重程度 | P2（不丢数据；但会清掉用户正在看的 plan 步骤树、并按错误聊天/模式记账审批卡片，应答时会续到错误的 turn） |
 | 影响范围 | frontend：`store/chat/messageStream/handlers/{completionEvents,agentControlEvents,toolsProgressEvents}.ts`、`store/chat/messageStream/types.ts`、`store/chat/consumeStream.ts`、`lib/approval/resumeApprovalStream.ts`、`components/features/chat-window/ChatWindow.tsx` 及其测试 |
 | 出现次数 | 1 |
-| 关联 | `temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #399（同源的「单槽 store 按 chat 隔离」主题，本条补齐 plan 槽与审批归属两处遗漏）；本地提交，未 push |
+| 关联 | topic_09 前端 UX 路线图 #399（同源的「单槽 store 按 chat 隔离」主题，本条补齐 plan 槽与审批归属两处遗漏）；本地提交，未 push |
 
 ### 现象
 
@@ -7686,7 +7686,7 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 | 严重程度 | P2（不丢数据；但卡片当场答不下去，刷新后由服务端持久值自愈） |
 | 影响范围 | frontend：`store/chat/messageStream/streamHelpers.ts`、`handlers/toolsProgressEvents.ts`、`handlers/messageContentEvents.ts`、`handlers/handlerDeps.ts`、`store/chat/clarificationState.ts` 及其测试 |
 | 出现次数 | 1 |
-| 关联 | `BUG-AGENT-2026-10-18-004`（同属「读全局而非事件自身」一族）；`temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #399 补遗；本地提交，未 push |
+| 关联 | `BUG-AGENT-2026-10-18-004`（同属「读全局而非事件自身」一族）；topic_09 前端 UX 路线图 #399 补遗；本地提交，未 push |
 
 ### 现象
 
@@ -7740,7 +7740,7 @@ _E2E_PROBE_SKIPPED_API_KEYS: frozenset[str] = frozenset({"test-tavily-key"})
 | 严重程度 | P2（不丢数据；用户看到不属于本聊天的「已省 tokens」，每次后台压缩多发 3 个 REST） |
 | 影响范围 | frontend：`store/chat/messageStream/handlers/statusStreamProgressSteps.ts` 及其测试 |
 | 出现次数 | 1 |
-| 关联 | `BUG-AGENT-2026-10-18-004` / `-013`（同属「读全局而非事件/流自身」一族）；`temp-docs/roadmap/topic_09_frontend_ux_roadmap.md` #399 补遗第四处；本地提交，未 push |
+| 关联 | `BUG-AGENT-2026-10-18-004` / `-013`（同属「读全局而非事件/流自身」一族）；topic_09 前端 UX 路线图 #399 补遗第四处；本地提交，未 push |
 
 ### 现象
 
