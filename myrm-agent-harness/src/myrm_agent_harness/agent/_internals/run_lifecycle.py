@@ -546,7 +546,6 @@ async def resolve_context_budget_breakdown(
     from myrm_agent_harness.utils.text_utils import get_token_count
     from myrm_agent_harness.utils.token_estimation import (
         estimate_messages_tokens,
-        estimate_request_tools_tokens,
         estimate_tool_schema_tokens,
     )
 
@@ -569,7 +568,6 @@ async def resolve_context_budget_breakdown(
     skills_tokens = 0
 
     if isinstance(cached_tools, Sequence) and cached_tools:
-        tools_tokens = estimate_request_tools_tokens(cached_tools)
         for t in cached_tools:
             name = getattr(t, "name", "")
             if not name and isinstance(t, dict):
@@ -578,6 +576,7 @@ async def resolve_context_budget_breakdown(
             name_str = str(name)
             # The UI labels these rows as "… tools schema"; count the same wire schema.
             schema_tokens = estimate_tool_schema_tokens(t)
+            tools_tokens += schema_tokens
             if name_str.startswith("mcp__") or "mcp" in name_str.lower():
                 mcp_tokens += schema_tokens
             elif name_str.startswith("skill_") or "skill" in name_str.lower():
