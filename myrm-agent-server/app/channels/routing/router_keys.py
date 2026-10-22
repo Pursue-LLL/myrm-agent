@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - routing_state_key: router state-map key carrying channel, peer and forum topic
-- routing_session_key: legacy chat-wide key for cross-topic chat lookups
+- routing_session_key: chat-wide key for cross-topic chat lookups
 - routing_enclave_key / parse_enclave_key: 4-tuple enclave form and its inverse
 
 [POS]
@@ -33,7 +33,8 @@ _CHAT_SCOPE = "__chat__"
 def routing_state_key(channel: str, peer_id: str, thread_id: str | None = None) -> str:
     """Return the router state-map key for one conversation scope.
 
-    ``f"{channel}:{peer_id}"`` for DMs and untopiced chats (unchanged from the legacy format),
+    ``f"{channel}:{peer_id}"`` for DMs and untopiced chats, which is the format those
+    conversations already use,
     ``f"{channel}:{peer_id}:{thread}"`` for a forum topic.
     """
     base = f"{channel}:{peer_id}"
@@ -44,7 +45,7 @@ def routing_state_key(channel: str, peer_id: str, thread_id: str | None = None) 
 
 
 def routing_session_key(channel: str, peer_id: str) -> str:
-    """Return the legacy chat-scoped key ``f"{channel}:{peer_id}"``.
+    """Return the chat-scoped key ``f"{channel}:{peer_id}"``.
 
     Retained for the call sites that resolve a chat row across the whole chat rather than one
     topic's state; new state-map keys must use ``routing_state_key``.

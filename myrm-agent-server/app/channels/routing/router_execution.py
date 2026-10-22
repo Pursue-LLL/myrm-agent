@@ -613,8 +613,9 @@ class RouterExecutionMixin:
                 # fall back to the newest chat under this conversation's prefix.
                 chat = await _newest_channel_chat_under(session_key)
             if chat is None:
-                legacy_key = f"{msg.channel}:{msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id}"
-                chat = await _newest_channel_chat_under(legacy_key)
+                # Rows written with only channel + peer (no peer_kind segment) answer here.
+                bare_key = f"{msg.channel}:{msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id}"
+                chat = await _newest_channel_chat_under(bare_key)
             if not chat:
                 return result
             locale = resolve_message_locale(msg)
