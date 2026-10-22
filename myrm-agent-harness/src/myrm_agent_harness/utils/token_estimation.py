@@ -142,7 +142,7 @@ def _tool_schema_entry(tool: object) -> dict[str, object]:
 
 
 def estimate_tool_schema_tokens(tool: object) -> int:
-    """Estimate the full schema tokens billed for one bound tool."""
+    """Estimate the full wire-schema tokens for one bound tool."""
     return get_token_count(json.dumps(_tool_schema_entry(tool), ensure_ascii=False, separators=(",", ":")))
 
 
