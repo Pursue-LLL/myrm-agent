@@ -16,7 +16,7 @@ invoke path only asks "may this tool be cached, and for how long?".
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.utils.lru_cache import LRUCache
 
@@ -32,7 +32,7 @@ Mutating tools never enter this cache.
 """
 
 
-def server_cache_config(skill_meta: SkillMetadata | None) -> dict[str, Any]:
+def server_cache_config(skill_meta: SkillMetadata | None) -> dict[str, object]:
     """Read the first serialized MCP config entry, if present."""
     if skill_meta is None or skill_meta.mcp is None:
         return {}

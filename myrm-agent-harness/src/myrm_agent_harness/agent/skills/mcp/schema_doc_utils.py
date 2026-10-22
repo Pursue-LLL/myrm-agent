@@ -20,9 +20,8 @@ into human-readable markdown, enabling Agent LLMs to generate correct MCP tool a
 from __future__ import annotations
 
 import re
-from typing import Any
 
-type JsonDict = dict[str, Any]
+type JsonDict = dict[str, object]
 
 
 TOOL_DOC_TEMPLATE = """# {tool_name}
@@ -230,7 +229,7 @@ def build_call_example_section(skill_name: str, tool_name: str, input_schema: Js
 def render_output_type(
     schema: object,
     *,
-    defs: dict[str, Any] | None = None,
+    defs: dict[str, object] | None = None,
     _seen: set[str] | None = None,
     _depth: int = 0,
 ) -> str:
