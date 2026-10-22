@@ -36,7 +36,7 @@ Utility library exports. Public interface for the utils module providing commonl
 | text_sanitizer.py | Core | LLM streaming output sanitizer. Three-layer filtering ensures clean, garble-free text for user displ | ✅ |
 | text_utils.py | Core | Text processing utilities. Provides token counting, language detection, smart truncation, and output | ✅ |
 | tool_dynamic_hints.py | Core | LangChain tool `with_dynamic_hints` decorator — shared by agent and toolkits without cross-layer imports. | ✅ |
-| token_estimation.py | Core | Message-level + bind-tools context token estimation for compress/summarize/budget and Turn1 inventory SSOT | ✅ |
+| token_estimation.py | Core | Message-level tokens + full tool-schema estimates for the context breakdown and compress preflight; description-only approximation for the Turn-1 inventory script | ✅ |
 | tree_truncator.py | Core | Tree Truncator (Smart Budget-Aware Truncation). Intelligently truncates tree structures (HTML/ARIA) to fit within token budgets while preserving structure. | ✅ |
 | os_compat.py | Core | Cross-platform process groups (`get_process_group_kwargs`, `kill_process_group`, `terminate_process_graceful`) and file locks. | ✅ |
 | url_syntax.py | Core | Syntax check for outbound URLs (`parse_outbound_hostname`, `SSRF_ALLOWED_SCHEMES`): parser-confusing characters, scheme allowlist, hostname extraction with trailing-dot normalisation. No hostname blocklist, so policies that admit private hosts share it with the cloud policy. | ✅ |
